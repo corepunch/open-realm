@@ -28,7 +28,12 @@ static void thunderbolt_projectile_hit(edict_t *missile) {
             S_SpellApplyStun(target, missile->wait);
         }
     }
-    G_FreeEdict(missile);
+    if (target) {
+        missile->s.origin = target->s.origin;
+        missile->s.origin2 = target->s.origin2;
+        missile->s.origin.z += G_UnitImpactZ(target->class_id);
+    }
+    if (!G_StartProjectileDeathPresentation(missile)) G_FreeEdict(missile);
 }
 
 static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

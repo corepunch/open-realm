@@ -12,6 +12,7 @@
 #define ID_HARDENED_SKIN_NAGA MAKEFOURCC('A','n','s','k')
 #define ID_MANA_REGEN_AURA MAKEFOURCC('A','a','r','m')
 #define ID_ORB_ANNIHILATION MAKEFOURCC('A','N','a','k')
+#define LIQUID_FIRE_TICK_MS 1000
 
 
 static bool unit_has_proc_ability(edict_t const *ent, abilityProc_t proc) {
@@ -50,14 +51,35 @@ void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
         target->mana.value = MAX(0.0f, target->mana.value - S_SpellData(code, level, 1));
     }
     code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
-    if (code) {
+    if (code && G_UnitIsStructure(target)) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        S_SpellApplyTimedStatus(target, "Bliq", level, S_SpellHeroDuration(code, level, target));
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+            target, code, level, "Bliq", S_SpellDuration(code, level, false));
+        if (status) {
+            status->source = attacker;
+            status->source_spawn_time = attacker->spawn_time;
+            status->next_tick = G_Time() + LIQUID_FIRE_TICK_MS;
+        }
     }
     code = G_UnitAbilityLevel(attacker, ID_CORROSIVE_BREATH) ? ID_CORROSIVE_BREATH : 0;
     if (code) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
         S_SpellApplyTimedStatus(target, "Bcor", level, S_SpellHeroDuration(code, level, target));
+    }
+}
+
+static void liquid_fire_tick(edict_t *target, heroabilitystatus_t *slot) {
+    edict_t *source = S_SpellStatusSource(slot);
+    float damage;
+
+    if (!target || !slot || !source) {
+        if (target && slot) unit_expirestatus(target, slot);
+        return;
+    }
+    damage = MAX(0.0f, S_SpellData(ID_LIQUID_FIRE, slot->rank, 1));
+    while (unit_status_take_due_tick(slot, LIQUID_FIRE_TICK_MS, G_Time())) {
+        if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
+        if (M_IsDead(target)) break;
     }
 }
 
@@ -190,7 +212,17 @@ BZ_ABILITY_PROC(CAbilityDeathDamageAoe) {
     return CAbilityPassive(ent, msg, call);
 }
 BZ_ABILITY_PROC(CAbilityMindRot) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityLiquidFire) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityLiquidFire) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        liquid_fire_tick(ent, call->status.slot);
+        return true;
+    }
+    if (msg == A_STATUS_DEATH && call && call->status.slot) {
+        unit_expirestatus(ent, call->status.slot);
+        return true;
+    }
+    return CAbilityPassive(ent, msg, call);
+}
 BZ_ABILITY_PROC(CAbilityCorrosiveBreath) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityLightningAttack) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityBash) { return CAbilityPassive(ent, msg, call); }
@@ -205,14 +237,77 @@ BZ_ABILITY_PROC(CAbilityCreepAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityReincarnation) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityOrbAnnihilation) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityTrueSight) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityAbsorb) { return CAbilityPassive(ent, msg, call); }
+/* Destroyer Absorb Mana: target-owned mana moves to the caster only when
+ * the homing missile reaches a still-eligible friendly unit. */
+static bool absorb_mana_validate(edict_t *caster, edict_t *target, uint32_t code) {
+    return caster && target && target != caster && S_SpellIsAliveTarget(target) &&
+        S_SpellIsFriend(caster, target) && S_SpellAllowsTarget(code, caster, target) &&
+        caster->mana.max_value > caster->mana.value && target->mana.value > 0.0f;
+}
+
+static void absorb_mana_transfer(edict_t *caster, edict_t *target, uint32_t code) {
+    uint32_t level;
+    float capacity, quantity;
+    if (!absorb_mana_validate(caster, target, code)) return;
+    level = S_SpellLevel(caster, code);
+    capacity = MAX(0.0f, caster->mana.max_value - caster->mana.value);
+    quantity = S_SpellData(code, level, 2);
+    if (quantity <= 0.0f) return;
+    quantity = MIN(quantity, MIN(target->mana.value, capacity));
+    target->mana.value -= quantity;
+    caster->mana.value += quantity;
+    G_InvalidateUnitInfoPanel(target);
+    G_InvalidateUnitInfoPanel(caster);
+}
+
+static void absorb_mana_missile_hit(edict_t *missile) {
+    edict_t *caster = S_SpellProjectileOwner(missile);
+    edict_t *target = S_SpellProjectileTarget(missile);
+    if (caster && !M_IsDead(caster) && target)
+        absorb_mana_transfer(caster, target, missile->class_id);
+    /* The authored Death sequence contains the impact sound event. Retain
+     * the projectile as presentation only after the transfer has resolved. */
+    if (!G_StartProjectileDeathPresentation(missile)) G_FreeEdict(missile);
+}
+
+static umove_t absorb_mana_missile_move = { "stand", NULL, absorb_mana_missile_hit, CAbilityAbsorb };
+
+BZ_ABILITY_PROC(CAbilityAbsorb) {
+    uint32_t const code = call && call->item ? call->item->code : 0;
+    edict_t *target;
+    /* spell_approach_range uses the same union slot as target and deliberately
+     * invokes the proc with no caster. Do not interpret that float as a pointer. */
+    if (msg == A_SPELL_APPROACH_RANGE) return true;
+    target = call && call->target && call->target->type == SPELL_TARGET_UNIT ?
+        call->target->entity : NULL;
+    switch (msg) {
+    case A_VALIDATE: return absorb_mana_validate(ent, target, code);
+    case A_EXECUTE: {
+        cstring_t value;
+        float speed;
+        edict_t *missile;
+        if (!absorb_mana_validate(ent, target, code)) return false;
+        value = S_SpellString(code, "Missilespeed", 0);
+        speed = value ? (float)atof(value) : 1500.0f;
+        missile = S_SpawnUnitTargetSpellMissile(ent, code, target,
+                         speed > 0.0f ? speed : 1500.0f, &absorb_mana_missile_move);
+        if (!missile) {
+            absorb_mana_transfer(ent, target, code);
+            G_PlayAbilityEffectSound(code, &ent->s.origin2);
+        }
+        /* With authored missile art, the MDX Birth event owns AbsorbMana.wav;
+         * a second game-side sound would duplicate it. */
+        return true;
+    }
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 BZ_ABILITY_PROC(CAbilityChaos) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySpiderAttack) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityMagicImmunity) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityEngineeringUpgrade) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityDemolish) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityFactory) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityTornadoDamage) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityRevenge) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityGhost) {
     switch (msg) {
@@ -352,7 +447,99 @@ BZ_ABILITY_PROC(CAbilityTreeOfLife) {
         return CAbilityPassive(ent, msg, call);
     }
 }
-BZ_ABILITY_PROC(CAbilityGrabTree) { return CAbilityPassive(ent, msg, call); }
+/* War Club is a per-unit alternate weapon, not a temporary modification of
+ * shared unit data. The stock club lasts for fifteen committed swings. */
+#define WAR_CLUB_STRIKES 15u // committed attacks; stock War Club expires after fifteen Attack 2 hits
+
+bool S_WarClubActive(edict_t const *unit) {
+    return unit && unit->unit_state && unit->unit_state->war_club_attacks_remaining > 0;
+}
+
+void S_WarClubClear(edict_t *unit) {
+    if (!unit || !unit->unit_state || !S_WarClubActive(unit)) return;
+    unit->unit_state->war_club_ability = 0;
+    unit->unit_state->war_club_attacks_remaining = 0;
+    unit->s.image = unit->unit_state->war_club_previous_image;
+    unit->unit_state->war_club_previous_image = 0;
+    G_AddUnitAnimationProperties(unit, "upgrade", false);
+    G_InvalidateUnitInfoPanel(unit);
+}
+
+void S_WarClubEquip(edict_t *unit, uint32_t ability) {
+    if (!unit || !unit->unit_state || !ability || M_IsDead(unit) ||
+        unit->unit_state->attack2.type == ATK_NONE) return;
+    unit->unit_state->war_club_ability = ability;
+    unit->unit_state->war_club_attacks_remaining = WAR_CLUB_STRIKES;
+    unit->unit_state->war_club_previous_image = unit->s.image;
+    G_AddUnitAnimationProperties(unit, "upgrade", true);
+    G_InvalidateUnitInfoPanel(unit);
+}
+
+void S_WarClubConsumeAttack(edict_t *unit) {
+    if (!S_WarClubActive(unit)) return;
+    /* Keep the final hit's attack profile until it has resolved, then
+     * retire the presentation and return to Attack 1 for the next swing. */
+    if (unit->unit_state->war_club_attacks_remaining == 1) S_WarClubClear(unit);
+    else unit->unit_state->war_club_attacks_remaining--;
+}
+
+static bool war_club_tree(edict_t const *tree) {
+    destructable_t *state;
+    if (!tree || !tree->inuse || !G_IsDestructable(tree) || tree->targtype != TARG_TREE ||
+        G_UnitHasFlag(tree, UNIT_FLAG_INVULNERABLE) || (tree->s.renderfx & RF_HIDDEN))
+        return false;
+    state = G_GetDestructable((edict_t *)tree);
+    return state && !state->dead && tree->health.value > 0.0f;
+}
+
+/* No magic/area damage is applied to the tree. Destructable death owns
+ * navigation, triggers, loot and the regular tree-fall presentation. */
+BZ_ABILITY_PROC(CAbilityGrabTree) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    bool const has_target = msg == A_VALIDATE || msg == A_EXECUTE;
+    edict_t *tree = has_target && call && call->target && call->target->type == SPELL_TARGET_UNIT ?
+                    call->target->entity : NULL;
+    if (msg == A_SPELL_TARGET_MODE) {
+        if (call) ((abilityCall_t *)call)->spell_entity_target_mode = true;
+        return true;
+    }
+    if (msg == A_SPELL_APPROACH_RANGE) return true;
+    if (msg == A_ISSUED_TARGET_ORDER) {
+        if (!call || !call->order ||
+            (strcmp(call->order, "smart") && strcmp(call->order, "grabtree")))
+            return ABILITY_ORDER_UNHANDLED;
+        if (!war_club_tree(call->entity))
+            return strcmp(call->order, "smart") ? ABILITY_ORDER_REJECTED : ABILITY_ORDER_UNHANDLED;
+        if (!code || !ent || !G_UnitAbilityLevel(ent, code) || S_WarClubActive(ent))
+            return strcmp(call->order, "smart") ? ABILITY_ORDER_REJECTED : ABILITY_ORDER_UNHANDLED;
+        return S_IssueUnitTargetSpell(ent, code, call->entity) ?
+               ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    }
+    if (msg == A_VALIDATE) {
+        return ent && !M_IsDead(ent) && !S_WarClubActive(ent) &&
+               ent->unit_state && ent->unit_state->attack2.type != ATK_NONE &&
+               war_club_tree(tree);
+    }
+    if (msg == A_EXECUTE) {
+        if (!code || !ent || !tree || S_WarClubActive(ent) ||
+            ent->unit_state->attack2.type == ATK_NONE || !war_club_tree(tree)) return false;
+        if (!G_KillDestructable(tree, ent)) return false;
+        S_WarClubEquip(ent, code);
+        if (S_WarClubActive(ent)) {
+            if (tree->s.image) ent->s.image = tree->s.image;
+        }
+        return S_WarClubActive(ent);
+    }
+    if (msg == A_DISABLE || msg == A_DEATH || msg == A_UNIT_REMOVE) {
+        if (ent && S_WarClubActive(ent)) {
+            /* A different derived ability must not clear its peer's club. */
+            if (msg != A_DISABLE || ent->unit_state->war_club_ability == code)
+                S_WarClubClear(ent);
+        }
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
 BZ_ABILITY_PROC(CAbilityDetector) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityMagicSentry) {
     switch (msg) {
@@ -376,6 +563,8 @@ BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 
 bool S_UnitIsResistant(edict_t const *unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
 
+/* ANak is a separate passive Orb ability, not the mana-paid Afak attack
+ * modifier. Afak's shot bonus is already snapshotted in missile->damage. */
 int S_OrbAnnihilationDamage(edict_t *attacker, int damage) {
     uint32_t level = attacker ? G_UnitAbilityLevel(attacker, ID_ORB_ANNIHILATION) : 0;
     return level ? damage + (int)S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
@@ -391,7 +580,7 @@ int S_FeedbackDamage(edict_t *attacker, edict_t *target, int damage) {
     if (!attacker || !target) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
         if ((level = G_UnitAbilityLevel(attacker, codes[i]))) { code = codes[i]; break; }
-    if (!code || target->mana.value <= 0.0f) return damage;
+    if (!code || S_UnitSpellImmune(target) || target->mana.value <= 0.0f) return damage;
     slot = G_UnitIsHero(target) ? 3 : 1;
     { float drained = MIN(target->mana.value, S_SpellData(code, level, slot));
       target->mana.value -= drained;

@@ -84,6 +84,7 @@ typedef struct {
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
 #define MAX_UNIT_STATUSES 16
+#define WC3_MANA_OVERCHARGE_LIMIT 2.0f // multiplier; Siphon Mana may reach twice normal max (patch 1.17)
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 #define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
@@ -232,6 +233,9 @@ enum {
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_SUMMON_EXPLODES_ON_DEATH = 1 << 13, /* spirit/beast summon magical death effect, no corpse */
     AI_SCRIPT_EXPLODED = 1 << 14, /* SetUnitExploded: SpecialArt death effect instead of corpse */
+    AI_PROJECTILE_DEATH_PRESENTATION = 1 << 15, /* projectile is playing its authored impact/death sequence */
+    AI_DEVOURING = 1 << 16, /* owns an active Devour digestion thinker */
+    AI_DEVOURED = 1 << 17, /* swallowed living unit: off-world until release or digestion */
 };
 
 /* Authored damage category indexing combat armor multipliers; values match WC3 table order. */
@@ -1701,7 +1705,12 @@ typedef struct shopStockItem_s {
     X(26, DESTRUCTABLE, destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP, destructable_fields) \
     X(27, CONSTRUCTION, construction, Construction, construction_t, LIFECYCLE_POOL_CAP, construction_fields) \
     X(28, ITEM, item, Item, item_t, LIFECYCLE_POOL_CAP, item_fields) \
-    X(29, PILLAGE, pillage, Pillage, pillage_t, LIFECYCLE_POOL_CAP, scalar_pool_fields)
+    X(29, PILLAGE, pillage, Pillage, pillage_t, LIFECYCLE_POOL_CAP, scalar_pool_fields) \
+    X(30, CARRION_WAVE, carrion_wave, CarrionWave, carrionWave_t, LIFECYCLE_POOL_CAP, carrion_wave_fields) \
+    X(31, IMPALE_WAVE, impale_wave, ImpaleWave, impaleWave_t, LIFECYCLE_POOL_CAP, impale_wave_fields) \
+    X(32, LOCUST_SWARM, locust_swarm, LocustSwarm, locustSwarm_t, LIFECYCLE_POOL_CAP, locust_swarm_fields) \
+    X(33, LOCUST_MEMBER, locust_member, LocustMember, locustMember_t, LIFECYCLE_POOL_CAP, locust_member_fields) \
+    X(34, IMPALE_LIFT, impale_lift, ImpaleLift, impaleLift_t, LIFECYCLE_POOL_CAP, impale_lift_fields)
 
 typedef enum {
 #define G_COMPONENT_ID(id, ID, member, Name, type, cap, fields) COMPONENT_##ID = id,
@@ -1724,6 +1733,54 @@ typedef struct {
     double gold_remainder[MAX_PLAYERS];   /* fractional pre-upkeep currency */
     double lumber_remainder[MAX_PLAYERS];
 } pillage_t;
+
+typedef struct {
+    component_t component;
+    uint32_t caster_spawn_time, identity, ability, level;
+    vec2_t direction, previous_position;
+    float travel_distance, travelled, speed, initial_width, final_width;
+    float damage_per_target, remaining_damage;
+    bool capped;
+} carrionWave_t;
+
+/* One point-cast Impale wave. Damage and the advancing sweep are simulation
+ * owned; visual spikes, stun and lift have separate lifecycles. */
+typedef struct {
+    component_t component;
+    vec2_t origin, direction;
+    float distance, duration, half_width, damage, previous_distance;
+    uint32_t start_ms, caster_spawn_time, ability, level;
+    bool uninterruptible;
+} impaleWave_t;
+
+/* Temporary vertical arc for an Impale victim; does not replace authored
+ * FlyHeight, so flight and other height owners remain independent. */
+typedef struct {
+    component_t component;
+    uint32_t start_ms, end_ms;
+    float start_offset, peak_height;
+    bool vulnerable;
+} impaleLift_t;
+
+typedef struct {
+    component_t component;
+    uint32_t caster_spawn_time, ability, level;
+    uint32_t start_ms, end_ms, next_release_ms, release_interval_ms;
+    uint32_t recall_deadline_ms;
+    uint32_t total, released, unit_id;
+    float area, target_cap, heal_factor, return_threshold;
+    bool active, recalling;
+} locustSwarm_t;
+
+typedef struct {
+    component_t component;
+    edict_t *controller; /* F_EDICT; generation checked by controller_spawn_time */
+    uint32_t controller_spawn_time;
+    edict_t *target; /* F_EDICT; generation checked by target_spawn_time */
+    uint32_t target_spawn_time;
+    uint32_t state, next_acquire_ms, next_attack_ms, release_index;
+    float damage_credit;
+} locustMember_t;
 
 /* Shop-owned stock list retained across patron selection and purchases. */
 typedef struct stock_s {
@@ -2235,6 +2292,9 @@ typedef struct edictData_s {
 typedef struct {
     uint32_t attack_cooldown_end_time, attack_backswing_end_time; /* independent weapon/hit gates, simulation ms */
     uint32_t attack_target_spawn_time; /* active Attack target incarnation */
+    uint32_t war_club_ability; /* equipped War Club ability alias, zero when unequipped */
+    uint32_t war_club_attacks_remaining; /* committed Attack 2 swings left */
+    uint16_t war_club_previous_image; /* entity texture override to restore on unequip */
     unitAttack_t attack1;
     unitAttack_t attack2;
     uint32_t defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
@@ -2278,6 +2338,8 @@ typedef struct {
 typedef struct {
     uint32_t attack_type;
     uint32_t owner_spawn_time;
+    uint32_t arrow_ability; /* empowered shot's concrete alias; 0 for ordinary attacks */
+    uint32_t arrow_level; /* launch-time rank, unaffected by later learning/toggles */
     bool reflected;
 } attackMissile_t;
 
@@ -2315,6 +2377,9 @@ struct edict_s {
     uint32_t class_id;
     uint32_t variation;
     uint32_t summon_ability; /* creating ability identity for summoned units and owned visual effects */
+    uint32_t phoenix_fire_next_ms; /* Apxf next automatic attack; save-safe game clock */
+    uint32_t phoenix_hatch_ms; /* Aphx egg rebirth deadline; zero if not a rebirth egg */
+    uint32_t phoenix_owner_spawn_time; /* AHpx caster incarnation for recast; survives egg rebirth */
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
     uint32_t spawn_time;
@@ -3076,6 +3141,7 @@ void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
+bool G_FowFaerieFireRevealsUnit(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
 bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
@@ -3247,6 +3313,18 @@ void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
 void G_RunTimers(void);
 void G_StartProjectilePresentation(edict_t *ent);
+void G_AdvanceProjectilePresentation(edict_t *ent);
+void carrion_wave_think(edict_t *wave);
+void impale_wave_think(edict_t *wave);
+void locust_swarm_think(edict_t *controller);
+void locust_member_think(edict_t *member);
+void S_LocustSwarmAttackLanded(edict_t *attacker, edict_t *target, float actual_damage);
+void S_LocustSwarmCancelForCaster(edict_t *caster);
+float S_ImpaleLiftOffset(edict_t const *unit);
+void S_ImpaleLiftUpdate(edict_t *unit);
+bool S_ImpaleIsAirborne(edict_t const *unit);
+bool S_ImpaleAirborneVulnerable(edict_t const *unit);
+bool G_StartProjectileDeathPresentation(edict_t *ent);
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
 void G_TimerPause(gtimer_t *timer);
 void G_TimerResume(gtimer_t *timer);
@@ -3565,6 +3643,8 @@ void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
+bool G_UnitAbilityResearchRequirement(edict_t const *unit, uint32_t ability_id,
+                                      uint32_t *research_id, int32_t *required_level);
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class);
 bool G_ChargeBuilding(gameClient_t *client, uint32_t building_id);
 void G_RefundBuilding(gameClient_t *client, uint32_t building_id);
@@ -3763,6 +3843,7 @@ frameDef_t *UI_FindChildFrameType(frameDef_t *, FRAMETYPE);
 
 cstring_t Theme_String(cstring_t, cstring_t);
 cstring_t Theme_PlayerString(gameClient_t *, cstring_t, cstring_t);
+cstring_t Theme_UnitString(cstring_t unit_race, cstring_t key, cstring_t def);
 void UI_UpdateCursorPresentation(gameClient_t *client);
 bool G_SignalCommand(edict_t *ent, uint32_t argc, cstring_t argv[]);
 uint32_t G_SignalColorImage(gameClient_t *client);
@@ -3925,6 +4006,8 @@ void G_ResetHeroPassiveCaches(void);
 // g_combat.c
 int G_AttackDamage(edict_t *, edict_t *, int);
 int G_AttackDamageWithType(edict_t *, edict_t *, int, uint32_t);
+float G_AttackTypeDamageMultiplier(uint32_t, uint32_t);
+bool G_AttackTypeDamageMultiplierIsDefault(uint32_t, uint32_t);
 void T_Damage(edict_t *, edict_t *, int);
 
 // g_utils.c
@@ -4166,6 +4249,7 @@ void blizzard_think(edict_t *);
 void flame_strike_tick(edict_t *);
 void siphon_mana_think(edict_t *);
 void rain_of_fire_think(edict_t *);
+void rain_of_fire_burn_think(edict_t *);
 void starfall_think(edict_t *);
 void death_and_decay_think(edict_t *);
 void tranquility_think(edict_t *);

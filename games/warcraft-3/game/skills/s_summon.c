@@ -4,6 +4,7 @@
  * Keep ordinary summoned units on their existing death path. */
 static bool summon_magical_death(uint32_t code) {
     return code == MAKEFOURCC('A','O','s','f') || /* Feral Spirit */
+           code == MAKEFOURCC('A','C','s','7') || /* Akama Feral Spirit */
            code == MAKEFOURCC('A','N','s','g') || /* Summon Grizzly */
            code == MAKEFOURCC('A','N','s','q') || /* Summon Quilbeast */
            code == MAKEFOURCC('A','N','s','w') || /* Summon Hawk */
@@ -43,6 +44,9 @@ static edict_t *summon_ability_unit(edict_t *caster, uint32_t code, uint32_t uni
     edict_t *summon = summon_unit(caster, unit_id, index, count, duration);
     if (summon) {
         summon->summon_ability = code;
+        if (code == MAKEFOURCC('A','E','s','v') &&
+            unit_id == MAKEFOURCC('e','s','p','v'))
+            (void)G_SetUnitAutocast(summon, MAKEFOURCC('A','v','n','g'), true);
         if (summon_magical_death(code)) {
             summon->aiflags |= AI_SUMMON_EXPLODES_ON_DEATH;
             G_SpawnSummonMagicalEffect(summon);

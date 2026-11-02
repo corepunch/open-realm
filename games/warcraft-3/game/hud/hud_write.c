@@ -466,8 +466,8 @@ static uint32_t Theme_GameVersion(void) {
 /* Resolve a local player's race skin first, then the shared Default section.
  * Warcraft skin data also carries versioned aliases (for example Music_V1),
  * so fall back to the mounted game edition when the unversioned key is absent. */
-cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def) {
-    cstring_t category, value;
+static cstring_t Theme_SectionString(cstring_t category, cstring_t key, cstring_t def) {
+    cstring_t value;
     char versioned[128];
 
     if (!key || strstr(key, "\\")) return def;
@@ -483,7 +483,6 @@ cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def)
     }
 
     if (!game.config.theme.source) return def;
-    category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
     value = Stb_IniCacheFind(&game.config.theme, category, key);
     if (value) return value;
 
@@ -499,6 +498,25 @@ cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def)
     }
     value = Stb_IniCacheFind(&game.config.theme, "Default", versioned);
     return value ? value : def;
+}
+
+cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def) {
+    return Theme_SectionString(Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone), key, def);
+}
+
+/* UnitData race can differ from the controller's console skin (Charm, custom
+ * maps, mixed-race selection). The same map-override/version fallback policy
+ * applies to the spell's PlacementCursor as to other authored UI assets. */
+cstring_t Theme_UnitString(cstring_t unit_race, cstring_t key, cstring_t def) {
+    cstring_t category = "Default";
+    switch (WC3_RaceFromString(unit_race)) {
+    case RACE_HUMAN: category = "Human"; break;
+    case RACE_ORC: category = "Orc"; break;
+    case RACE_UNDEAD: category = "Undead"; break;
+    case RACE_NIGHTELF: category = "NightElf"; break;
+    default: break;
+    }
+    return Theme_SectionString(category, key, def);
 }
 
 /* Some editions omit one widescreen extension key but provide its paired 05/06 texture.

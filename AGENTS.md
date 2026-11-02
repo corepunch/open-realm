@@ -46,16 +46,27 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [architecture/sound.md](architecture/sound.md) |
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
+| WC3 Phoenix summon, Phoenix Fire, self-damage, Egg rebirth and verification | [docs/games/warcraft-3/phoenix.md](docs/games/warcraft-3/phoenix.md) |
+| WC3 Naga Sea Witch Tornado summon, damage/slow/spin/wander and lifecycle | [docs/games/warcraft-3/tornado.md](docs/games/warcraft-3/tornado.md) |
 | WC3 MDX material filter ordering, layered composition and HumanX03Secret portal | [docs/games/warcraft-3/mdx-materials.md](docs/games/warcraft-3/mdx-materials.md) |
+| WC3 race-specific area targeting decal and transient green object preview | [docs/games/warcraft-3/area-targeting-preview.md](docs/games/warcraft-3/area-targeting-preview.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 custom doodad `.w3d` models, animation ownership and Rexxar Forcewall presentation | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 optional SC2API Raw agent transport, observations, actions and stepping | [docs/games/warcraft-3/sc2api-agent-interface.md](docs/games/warcraft-3/sc2api-agent-interface.md) |
+| WC3 Obsidian Statue (`Arpl`/`Arpm`) and Destroyer (`Aave`/`Afak`/`Advm`/`Aabs`): data, effects, morph and remaining parity gaps | [docs/games/warcraft-3/obsidian-statue-destroyer.md](docs/games/warcraft-3/obsidian-statue-destroyer.md) |
+| WC3 Devour (`Adev`/`ACdv`): off-world digestion, death ejection, data fields, save lifecycle and tests | [docs/games/warcraft-3/devour.md](docs/games/warcraft-3/devour.md) |
+| WC3 Mountain Giant War Club (`Agra`): tree targeting, Attack 2, 15 swings, animation, persistence and remaining retail gaps | [docs/games/warcraft-3/mountain-giant-war-club.md](docs/games/warcraft-3/mountain-giant-war-club.md) |
 | WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
+| WC3 Dark Ranger Silence, Charm, Black Arrow and Life Drain: targeting, summon/attack lifecycle, authored effects and beam/audio cleanup | [docs/games/warcraft-3/dark-ranger.md](docs/games/warcraft-3/dark-ranger.md) |
+| WC3 Fan of Knives (`AEfk`) target cap, enhanced-physical damage, cast-model FX, and retail parity gaps | [docs/games/warcraft-3/fan-of-knives.md](docs/games/warcraft-3/fan-of-knives.md) |
+| WC3 Carrion Swarm / Crushing Wave finite sweep, optional missile art, damage-cap order, persistence and tests | [docs/games/warcraft-3/carrion-wave.md](docs/games/warcraft-3/carrion-wave.md) |
+| WC3 Pit Lord Howl/Cleave art, Rain of Fire waves/burns and Doom persistent damage/death summon | [docs/games/warcraft-3/pit-lord.md](docs/games/warcraft-3/pit-lord.md) |
 | WC3 Wisp Detonate point cast, area dispel/mana/summons, Blight protection and remaining parity gaps | [docs/games/warcraft-3/detonate.md](docs/games/warcraft-3/detonate.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 Pillage research, primary-hit salvage, per-player fractional rewards and persistence | [docs/games/warcraft-3/pillage.md](docs/games/warcraft-3/pillage.md) |
 | WC3 Night Elf Moon Glaive (`Remg`), mbounce weapon dispatch, damage-loss chain, research ownership, remaining FX gaps | [docs/games/warcraft-3/moon-glaive.md](docs/games/warcraft-3/moon-glaive.md) |
+| WC3 Crypt Fiend Burrow (`Abur`/`Rubu`), `ucry`/`ucrm` transform and verification gaps | [docs/games/warcraft-3/crypt-fiend-burrow.md](docs/games/warcraft-3/crypt-fiend-burrow.md) |
 | WC3 group Attack, target chase, collision range, and remaining combat-movement gaps | [docs/games/warcraft-3/group-attack-chase-gaps.md](docs/games/warcraft-3/group-attack-chase-gaps.md) |
 | WC3 naval movement, FLOAT/AMPH water pathing, collision domains, bridge semantics | [docs/games/warcraft-3/naval-movement.md](docs/games/warcraft-3/naval-movement.md) |
 | WC3 alarm/captain AI natives and full-screen model cinematic compatibility | [docs/games/warcraft-3/campaign-ai-model-cinematic.md](docs/games/warcraft-3/campaign-ai-model-cinematic.md) |
@@ -127,6 +138,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
 | WC3 race-specific construction strategies and remaining Human/Orc/Undead/Night Elf mechanic gaps | [docs/games/warcraft-3/race-mechanics.md](docs/games/warcraft-3/race-mechanics.md) |
 | WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
+| WC3 Siphon Mana overcharge, decay, Life Drain distinction, persistence and HUD saturation | [docs/games/warcraft-3/drain-channel-pulses.md](docs/games/warcraft-3/drain-channel-pulses.md) |
 | WC3 Human Barracks unit abilities: Defend toggle/animation, Long Rifles range, Animal War Training max life, remaining fidelity gaps | [docs/games/warcraft-3/human-barracks-unit-abilities.md](docs/games/warcraft-3/human-barracks-unit-abilities.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |
 | WC3 area-based JASS doodad animation, show/hide, looping and non-looping sequence lifecycle | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
@@ -149,6 +161,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation.md](docs/games/warcraft-3/ability-implementation.md) |
+| WC3 Blood Mage Flame Strike authored warning, landing, fire-field and damage art | [docs/games/warcraft-3/flame-strike.md](docs/games/warcraft-3/flame-strike.md) |
 | WC3 Tiny Structures, item-owned construction, shared placement cursor, racial Tiny Great Hall | [docs/games/warcraft-3/tiny-structures.md](docs/games/warcraft-3/tiny-structures.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |
 <| WC3 item orb damage via `CAbilityAttackBonus` and `S_OrbOnHit` BuffID state | [docs/games/warcraft-3/item-orbs.md](docs/games/warcraft-3/item-orbs.md) |
@@ -171,8 +184,11 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 corpse decay/raisability/reservation, Graveyard Agyd, Cannibalize Acan, Raise Dead Arai/ACrd/AIrd | [docs/games/warcraft-3/corpse-mechanics.md](docs/games/warcraft-3/corpse-mechanics.md) |
 | WC3 Unsummon Building Auns timed DataB demolition, progressive DataA refund, Buns immunity | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
 | WC3 Undead Sacrifice Asac/Alam Acolyte-to-Shade production lifecycle | [docs/games/warcraft-3/sacrifice.md](docs/games/warcraft-3/sacrifice.md) |
+| WC3 Crypt Lord Carrion Beetles AUcb corpse consumption, permanent DataC summons, DataE cap, and autocast | [docs/games/warcraft-3/carrion-beetles.md](docs/games/warcraft-3/carrion-beetles.md) |
 | WC3 Hippogryph couple Acoa/Acoh mount and Adec dismount, UnitID ehpr | [docs/games/warcraft-3/hippogryph-couple.md](docs/games/warcraft-3/hippogryph-couple.md) |
 | WC3 Spirit Link Aspl DataA share / DataB cap, Bspl redirect via T_Damage | [docs/games/warcraft-3/spirit-link.md](docs/games/warcraft-3/spirit-link.md) |
+| WC3 Crypt Lord Impale `AUim`/`ACmp` travelling wave, stun, lift, target filters and hit identity | [docs/games/warcraft-3/impale.md](docs/games/warcraft-3/impale.md) |
+| WC3 Crypt Lord Locust Swarm `AUls`/`AOls` roaming flight, attack/return healing and expiry cleanup | [docs/games/warcraft-3/locust-swarm.md](docs/games/warcraft-3/locust-swarm.md) |
 | WC3 Mana Flare Amfl channel, Bmfl armor/DataE, enemy-cast flare hook | [docs/games/warcraft-3/mana-flare.md](docs/games/warcraft-3/mana-flare.md) |
 | WC3 Stasis Trap Asta arm/detect/detonate, DataA–D and Bsta stun | [docs/games/warcraft-3/stasis-trap.md](docs/games/warcraft-3/stasis-trap.md) |
 | WC3 Sentry Ward Aeye/AIsw, Adt1 Rng detect via S_UnitIsDetected | [docs/games/warcraft-3/sentry-ward.md](docs/games/warcraft-3/sentry-ward.md) |

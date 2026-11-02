@@ -1,4 +1,5 @@
 #include "games/warcraft-3/common/cursor.h"
+#include "games/warcraft-3/common/area_preview.h"
 #include "renderer/r_game.h"
 #include "games/warcraft-3/common/wc3_coords.h"
 #include "r_lightning.h"
@@ -2320,8 +2321,26 @@ void R_UpdateEntityPresentation(renderEntity_t const *entity) {
     R_W3UpdateModelEvents(entity);
 }
 
+/* Keep this in the WC3 renderer: the shared client transports only a
+ * traced local input area. The simulation's hit/target checks are untouched. */
+static bool R_W3InCursorArea(renderEntity_t const *entity) {
+    float footprint;
+    if (!entity || !entity->number || !entity->model ||
+        (entity->flags & RF_HIDDEN) ||
+        (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ||
+        !isfinite(entity->radius) || entity->radius <= 0.0f ||
+        tr.viewDef.cursor_area_radius <= 0.0f) return false;
+    /* Unit and destructable snapshots carry their authored selection radius.
+     * It remains positive for pathing-texture trees whose gameplay collision
+     * is zero. No spell targets-allowed or invulnerability test belongs here. */
+    footprint = MAX(entity->radius, 0.0f) * MAX(entity->scale, 0.0f);
+    return WC3_AreaPreviewIntersects(&tr.viewDef.cursor_area_origin,
+        tr.viewDef.cursor_area_radius, (vec2_t const *)&entity->origin, footprint);
+}
+
 void R_RenderModel(renderEntity_t const *entity) {
     mat4_t transform;
+    renderEntity_t colored;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return;
@@ -2335,6 +2354,15 @@ void R_RenderModel(renderEntity_t const *entity) {
         !MDLX_ViewPoseCachedDraw(entity, &model, &transform)) {
         R_W3GetViewEntityMatrix(entity, &transform);
         model = R_W3SpecialModel(entity, &transform);
+    }
+    /* Colour only the current draw, including its MDX geosets and attached
+     * children. Never write to the retained snapshot or JASS vertex colour. */
+    if (R_W3InCursorArea(entity)) {
+        colored = *entity;
+        colored.tint = WC3_AreaPreviewGreen(
+            (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE);
+        colored.tint_valid = true;
+        entity = &colored;
     }
     uint64_t const pose_before = MDLX_BoundBonePoseGeneration();
     MDX_RenderModel(entity, model, &transform);

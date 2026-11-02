@@ -18,6 +18,22 @@ AreaEffectArt=TestUI\Models\ui_panel.mdx
 [AIda]
 TargetArt=TestUI\Models\anim_pulse.mdx
 
+[AHfs]
+EffectArt=TestUI\Models\flame-strike-warning.mdx
+SpecialArt=TestUI\Models\flame-strike-impact-1.mdx,TestUI\Models\flame-strike-impact-2.mdx,TestUI\Models\flame-strike-impact-3.mdx
+
+[BHfs]
+TargetArt=TestUI\Models\flame-strike-damage.mdx
+
+[XHfs]
+EffectArt=TestUI\Models\flame-strike-embers.mdx
+
+[Apxf]
+MissileArt=TestUI\Models\anim_projectile.mdx
+
+[Bpxf]
+TargetArt=TestUI\Models\anim_pulse.mdx
+
 // Ability TargetArt is the ground rune. Buff TargetArt is the recipient glow.
 [AHad]
 TargetArt=TestUI\Models\panel_sprite.mdx

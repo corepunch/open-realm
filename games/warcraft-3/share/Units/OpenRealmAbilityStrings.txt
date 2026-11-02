@@ -1,0 +1,9 @@
+// Supplemental ability presentation fields absent from stock Warcraft III MPQs.
+// Keep descriptive prose in data so localization and map overrides use the
+// normal ability-string lookup path.
+[Aave]
+Ubertip=Requires:|n- Destroyer Form|n|nLarge flying unit that must consume magic to sustain its mana. Excellent at destroying enemy casters and clusters of ground forces. Initially has Spell Immunity, Devour Magic, Absorb Mana, and Orb of Annihilation.|n|nAttacks land and air units.
+
+// Keep the Destroyer's four lower-row commands in distinct retail slots.
+[Aabs]
+Buttonpos=3,2

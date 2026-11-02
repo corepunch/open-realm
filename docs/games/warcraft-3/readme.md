@@ -132,6 +132,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Dark Portal](dark-portal.md): Archimonde point-target demon exits; DataA unitList, DataB/C min/max, not Mass Teleport.
 - [Healing Spray](healing-spray.md): channeled point heal waves; DataA/DataF heal/waves, DataD max budget.
 - [Transmute](transmute.md): kill unit for `goldCost * DataA`; DataC max creep level.
+- [Fan of Knives](fan-of-knives.md): target-cap selection, enhanced-physical damage, authored cast/knife effects, and remaining retail questions.
 - [Adding Warcraft III Abilities](ability-implementation.md): data, procedure macros, registration, and tests.
 - [Creep Ability Aliases](creep-ability-aliases.md): `code=` mapping, parent-owned registry rows, not `s_creep.c`.
 - [Creep Combat Effects](creep-combat-effects.md): Disease Cloud, Pulverize, Web, Monsoon and Incinerate data contracts, lifecycle and save/load tests.

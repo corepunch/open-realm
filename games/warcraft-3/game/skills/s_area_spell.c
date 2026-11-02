@@ -16,74 +16,49 @@ typedef struct {
     float length, width;
 } shockwaveContext_t;
 
-typedef struct {
-    edict_t *caster;
-    vec2_t direction;
-    float length, width;
-} carrionSwarmContext_t;
+#define ID_CARRION_WAVE_HIT MAKEFOURCC('C','W','h','t')
+static uint32_t carrion_wave_identity;
+static float carrion_clamp(float value, float low, float high) { return MIN(high, MAX(low, value)); }
 
-static bool carrion_swarm_hits(edict_t *target, carrionSwarmContext_t const *ctx) {
-    vec2_t offset;
-    float along, across;
-    if (!target->inuse || target == ctx->caster || !S_SpellIsAliveTarget(target) ||
-        !S_SpellIsEnemy(ctx->caster, target) ||
-        (G_UnitTargetType(target) != TARG_GROUND && G_UnitTargetType(target) != TARG_AIR)) return false;
-    offset = Vector2_sub(&target->s.origin2, &ctx->caster->s.origin2);
-    along = Vector2_dot(&offset, &ctx->direction);
-    across = offset.x * ctx->direction.y - offset.y * ctx->direction.x;
-    /* Area1 is the cone's maximum half-width at its endpoint. The wave opens
-     * linearly from the caster and stops at the selected target point. */
-    return along >= 0.0f && along <= ctx->length &&
-           fabsf(across) <= ctx->width * (along / ctx->length);
+static bool carrion_wave_visited(edict_t *wave, edict_t *target) {
+    carrionWave_t *state = G_GetCarrionWave(wave);
+    if (!state) return false;
+    FILTER_EDICTS(marker, marker->class_id == ID_CARRION_WAVE_HIT &&
+                  marker->owner == wave && marker->goalentity == target &&
+                  marker->resources == target->spawn_time &&
+                  marker->damage == wave->spawn_time && marker->variation == state->identity)
+        return true;
+    return false;
 }
 
-static void carrion_swarm_damage(edict_t *caster, vec2_t const *point, float width,
-                                 uint32_t base_damage, float max_total) {
-    vec2_t offset = Vector2_sub(point, &caster->s.origin2);
-    float length = Vector2_len(&offset);
-    carrionSwarmContext_t ctx;
-    float damage = (float)base_damage;
-    uint32_t count = 0;
-    if (length <= 0.0f) return;
-    ctx = (carrionSwarmContext_t){ .caster = caster,
-        .direction = Vector2_scale(&offset, 1.0f / length), .length = length, .width = width };
-    if (max_total > 0.0f) {
-        FILTER_EDICTS(target, carrion_swarm_hits(target, &ctx)) count++;
-        if (count && damage * (float)count > max_total)
-            damage = MAX(1.0f, max_total / (float)count);
-    }
-    FILTER_EDICTS(target, carrion_swarm_hits(target, &ctx))
-        S_SpellDamage(target, caster, (uint32_t)damage);
+static bool carrion_wave_mark_visited(edict_t *wave, edict_t *target) {
+    edict_t *marker = G_Spawn();
+    carrionWave_t *wave_state = G_GetCarrionWave(wave);
+    if (!marker) return false;
+    if (!wave_state) { G_FreeEdict(marker); return false; }
+    marker->class_id = ID_CARRION_WAVE_HIT;
+    marker->svflags |= SVF_NOCLIENT;
+    marker->owner = wave;
+    marker->damage = wave->spawn_time;
+    marker->variation = wave_state->identity;
+    marker->goalentity = target;
+    marker->resources = target->spawn_time;
+    return true;
 }
 
-/* Deal ent->damage to every enemy within ent->collision of ent.  maxtotal > 0
- * caps the combined damage of this burst (WC3 "Max Damage" / "Maximum Damage per
- * Wave"): when damage*targets would exceed it, the per-target damage is scaled
- * down so the total lands on the cap. */
-static void area_spell_damage(edict_t *ent, float maxtotal) {
-    edict_t *caster = ent->owner;
-    float radius = ent->collision;
-    float damage = (float)ent->damage;
-    uint32_t ntargets = 0;
-
-#define AREA_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
-                      S_SpellIsEnemy(caster, t) &&                              \
-                      (G_UnitTargetType(t) == TARG_GROUND || G_UnitTargetType(t) == TARG_AIR || G_UnitIsStructure(t)) && \
-                      Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= radius)
-
-    if (maxtotal > 0.0f) {
-        FILTER_EDICTS(target, AREA_HITS(target)) {
-            ntargets++;
-        }
-        if (ntargets > 0 && damage * (float)ntargets > maxtotal) {
-            damage = MAX(1.0f, maxtotal / (float)ntargets);
-        }
+static void carrion_wave_finish(edict_t *wave) {
+    carrionWave_t *state = G_GetCarrionWave(wave);
+    uint32_t i;
+    for (i = 0; i < globals.num_edicts; i++) {
+        edict_t *marker = &globals.edicts[i];
+        if (!marker->inuse || marker->class_id != ID_CARRION_WAVE_HIT || marker->owner != wave) continue;
+        if (marker->damage == wave->spawn_time && state && marker->variation == state->identity)
+            G_FreeEdict(marker);
     }
-    FILTER_EDICTS(target, AREA_HITS(target)) {
-        S_SpellDamage(target, caster, (uint32_t)damage);
-    }
-#undef AREA_HITS
+    G_FreeEdict(wave);
 }
+
+void carrion_wave_think(edict_t *wave);
 
 static bool blizzard_hits(edict_t *ent, edict_t *target) {
     edict_t *caster = ent->owner;
@@ -186,30 +161,200 @@ static bool shockwave_hits(edict_t *target, shockwaveContext_t const *ctx) {
     return along >= 0.0f && along <= ctx->length && fabsf(across) <= ctx->width;
 }
 
+/* Return the distance along *this frame's finite sweep*. A target outside
+ * either end cannot be damaged merely because it lies close to the infinite
+ * line through the projectile. The authored width expands with distance. */
+static bool carrion_wave_candidate(edict_t *wave, edict_t *caster, carrionWave_t *state,
+                                   edict_t *target, vec2_t const *start, float step,
+                                   float *out_along, bool visited_cached) {
+    vec2_t offset;
+    float along, across, width;
+
+    if (!S_SpellIsAliveTarget(target) || target == caster ||
+        !S_SpellAllowsAreaTarget(state->ability, caster, target) ||
+        !S_SpellIsEnemy(caster, target) || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
+        (!visited_cached && carrion_wave_visited(wave, target))) return false;
+
+    offset = Vector2_sub(&target->s.origin2, start);
+    along = Vector2_dot(&offset, &state->direction);
+    /* Test the bounded swept interval before the lateral corridor. A wide
+     * wave must not hit units behind its current position or past its end. */
+    if (along < 0.0f || along > step) return false;
+    across = offset.x * state->direction.y - offset.y * state->direction.x;
+    width = state->initial_width + (state->final_width - state->initial_width) *
+        carrion_clamp((state->travelled + along) / MAX(0.001f, state->travel_distance), 0.0f, 1.0f);
+    if (fabsf(across) > width + MAX(0.0f, target->collision)) return false;
+    *out_along = along;
+    return true;
+}
+
+static void carrion_wave_hit(edict_t *wave, edict_t *caster, carrionWave_t *state,
+                             edict_t *target) {
+    float damage;
+    int applied;
+    if (state->capped && state->remaining_damage <= 0.0f) return;
+    damage = state->capped ? MIN(state->damage_per_target, state->remaining_damage) : state->damage_per_target;
+    applied = (int)damage;
+    if (applied <= 0) return;
+    if (!carrion_wave_mark_visited(wave, target)) return;
+    if (S_SpellDamage(target, caster, applied) && state->capped)
+        state->remaining_damage = MAX(0.0f, state->remaining_damage - (float)applied);
+}
+
+typedef struct {
+    uint32_t index;
+    uint32_t spawn_time;
+    float along;
+} carrionCandidate_t;
+
+static int carrion_candidate_compare(void const *a, void const *b) {
+    carrionCandidate_t const *left = a, *right = b;
+    if (left->along < right->along) return -1;
+    if (left->along > right->along) return 1;
+    return (left->index > right->index) - (left->index < right->index);
+}
+
+void carrion_wave_think(edict_t *wave) {
+    carrionWave_t *state = G_GetCarrionWave(wave);
+    edict_t *caster;
+    vec2_t start;
+    float step;
+    uint32_t count, eligible = 0;
+    carrionCandidate_t *candidates;
+    uint8_t *visited;
+    if (!state || !(caster = wave->owner) || !caster->inuse || caster->spawn_time != state->caster_spawn_time) {
+        carrion_wave_finish(wave); return;
+    }
+    if (state->travelled >= state->travel_distance || state->speed <= 0.0f) {
+        carrion_wave_finish(wave); return;
+    }
+    start = state->previous_position;
+    step = MIN(Vector2_distance(&wave->s.origin2, &start), state->travel_distance - state->travelled);
+    if (step <= 0.001f) return;
+    count = globals.num_edicts;
+    candidates = malloc((size_t)count * sizeof(*candidates));
+    visited = calloc(count, sizeof(*visited));
+    if (candidates && visited) {
+        /* Reconstruct saved per-wave hit identities in a single pass. Markers
+         * allocated during impact cannot affect this frame's candidate set. */
+        FOR_LOOP(i, count) {
+            edict_t const *mark = &globals.edicts[i];
+            if (mark->inuse && mark->class_id == ID_CARRION_WAVE_HIT &&
+                mark->owner == wave && mark->damage == wave->spawn_time &&
+                mark->variation == state->identity && mark->goalentity &&
+                mark->goalentity >= globals.edicts && mark->goalentity < globals.edicts + count &&
+                mark->resources == mark->goalentity->spawn_time)
+                visited[mark->goalentity - globals.edicts] = 1;
+        }
+        FOR_LOOP(i, count) {
+            edict_t *target = &globals.edicts[i];
+            float along;
+            if (visited[i] || !carrion_wave_candidate(wave, caster, state, target,
+                                                       &start, step, &along, true)) continue;
+            candidates[eligible++] = (carrionCandidate_t){ i, target->spawn_time, along };
+        }
+        qsort(candidates, eligible, sizeof(*candidates), carrion_candidate_compare);
+        FOR_LOOP(i, eligible) {
+            edict_t *target = &globals.edicts[candidates[i].index];
+            float along;
+            if (state->capped && state->remaining_damage <= 0.0f) break;
+            if (!target->inuse || target->spawn_time != candidates[i].spawn_time ||
+                !carrion_wave_candidate(wave, caster, state, target, &start, step, &along, true)) continue;
+            carrion_wave_hit(wave, caster, state, target);
+        }
+    } else {
+        /* Preserve spell delivery on allocation failure. */
+        uint32_t previous_index = 0;
+        float previous_along = 0.0f;
+        bool have_previous = false;
+        for (;;) {
+            edict_t *nearest = NULL;
+            uint32_t nearest_index = 0;
+            float nearest_along = 0.0f;
+            if (state->capped && state->remaining_damage <= 0.0f) break;
+            FOR_LOOP(i, count) {
+                edict_t *target = &globals.edicts[i];
+                float along;
+                if (!carrion_wave_candidate(wave, caster, state, target, &start, step, &along, false)) continue;
+                if (have_previous && (along < previous_along ||
+                    (along == previous_along && i <= previous_index))) continue;
+                if (!nearest || along < nearest_along ||
+                    (along == nearest_along && i < nearest_index)) {
+                    nearest = target;
+                    nearest_along = along;
+                    nearest_index = i;
+                }
+            }
+            if (!nearest) break;
+            carrion_wave_hit(wave, caster, state, nearest);
+            previous_along = nearest_along;
+            previous_index = nearest_index;
+            have_previous = true;
+        }
+    }
+    free(candidates);
+    free(visited);
+    state->travelled += step;
+    state->previous_position = wave->s.origin2;
+    wave->think = carrion_wave_think;
+    if (state->travelled >= state->travel_distance) carrion_wave_finish(wave);
+}
+
+/* The shared physics projectile path keeps Crushing Wave presentation moving
+ * and interpolated like other Warcraft missiles. Land exactly at the authored
+ * DataC endpoint on the final physics step; carrion_wave_think then processes
+ * the final swept segment before retiring the projectile. */
+static void carrion_wave_arrive(edict_t *wave) {
+    channel_t *cast = G_GetChannel(wave);
+    if (!cast) return;
+    wave->s.origin2 = cast->origin;
+    wave->s.origin.x = cast->origin.x;
+    wave->s.origin.y = cast->origin.y;
+    wave->s.origin.z = CM_GetHeightAtPoint(cast->origin.x, cast->origin.y);
+    gi.LinkEntity(wave);
+}
+
+static umove_t carrion_wave_visual_move = {
+    .animation = "Stand",
+    .endfunc = carrion_wave_arrive
+};
+
 static umove_t shockwave_visual_move = {
     .animation = "Stand",
     .endfunc = G_FreeEdict
 };
 
-/* Carrion Swarm resolves its damage at the selected point, while this
- * presentation-only missile travels from the caster to that point. */
-static void carrion_swarm_spawn_missile(edict_t *caster, uint32_t code, vec2_t const *point) {
+/* The selected point establishes direction; authored DataC controls travel. */
+static void carrion_swarm_spawn_missile(edict_t *caster, uint32_t code, uint32_t level,
+                                       vec2_t const *point) {
     cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     cstring_t speed_text = S_SpellString(code, "Missilespeed", 0);
     float speed = speed_text ? (float)atof(speed_text) : 0.0f;
     vec2_t offset = Vector2_sub(point, &caster->s.origin2);
     float distance = Vector2_len(&offset);
+    float travel = MAX(0.0f, S_SpellData(code, level, 3));
+    float initial_width = MAX(0.0f, S_SpellNumber(code, ABILITY_NUMBER_AREA, level));
+    float final_width = MAX(0.0f, S_SpellData(code, level, 4));
     vec2_t direction;
     edict_t *missile;
+    carrionWave_t *state;
     channel_t *cast;
+    vec3_t endpoint;
+    float horizontal_distance;
+    float spatial_distance;
 
 #if BZ_COMPAT_WORKAROUNDS
     /* RoC 1.0 omits AUcs MissileArt and Missilespeed; the 1.29 row authors
      * these same retail values. */
-    if (!art) art = "Abilities\\Spells\\Undead\\CarrionSwarm\\CarrionSwarmMissile.mdl";
-    if (speed <= 0.0f) speed = 1100.0f;
+    if ((!art || !*art) && code == MAKEFOURCC('A','U','c','s'))
+        art = "Abilities\\Spells\\Undead\\CarrionSwarm\\CarrionSwarmMissile.mdl";
+    if (speed <= 0.0f && code == MAKEFOURCC('A','U','c','s')) speed = 1100.0f;
 #endif
-    if (!art || !*art || distance <= 0.0f || speed <= 0.0f) return;
+    if (distance <= 0.0f || travel <= 0.0f) return;
+    /* The damage wave is authoritative gameplay. Missing/invalid visual data
+     * may hide its model, but must not cancel the paid spell. Use the retail
+     * Carrion Swarm travel rate when custom missile speed is unavailable. */
+    if (!isfinite(speed) || speed <= 0.0f) speed = 1100.0f;
     direction = Vector2_scale(&offset, 1.0f / distance);
     missile = G_Spawn();
     if (!missile) return;
@@ -219,16 +364,48 @@ static void carrion_swarm_spawn_missile(edict_t *caster, uint32_t code, vec2_t c
     missile->s.origin = caster->s.origin;
     missile->s.origin2 = caster->s.origin2;
     missile->s.angle = atan2f(direction.y, direction.x);
-    missile->s.model = G_RegisterModel(art);
-    if (!missile->s.model) { G_FreeEdict(missile); return; }
+    /* A zero model is an invisible wave, not a gameplay failure. */
+    missile->s.model = (art && *art) ? G_RegisterModel(art) : 0;
+    /* The authored Crushing Wave missile needs about 3x its default size in
+     * game. Scale proportionally from stock DataD=300 so customized aliases
+     * keep the same visual relationship to their final wave area. */
+    if (code == MAKEFOURCC('A','C','c','v') || code == MAKEFOURCC('A','C','c','2') ||
+        code == MAKEFOURCC('A','C','c','3'))
+        missile->s.scale = MAX(1.0f, final_width / 100.0f);
     G_InheritUnitTeamColor(missile, caster);
+    state = G_AddCarrionWave(missile);
+    if (!state) { G_FreeEdict(missile); return; }
+    state->caster_spawn_time = caster->spawn_time;
+    if (++carrion_wave_identity == 0) ++carrion_wave_identity;
+    state->identity = carrion_wave_identity;
+    state->ability = code;
+    state->level = level;
+    state->direction = direction;
+    state->previous_position = caster->s.origin2;
+    state->travel_distance = travel;
+    state->speed = speed;
+    state->initial_width = initial_width;
+    state->final_width = final_width;
+    state->damage_per_target = MAX(0.0f, S_SpellData(code, level, 1));
+    state->remaining_damage = MAX(0.0f, S_SpellData(code, level, 2));
+    state->capped = state->remaining_damage > 0.0f;
     cast = G_AddChannel(missile);
+    if (!cast) { G_FreeEdict(missile); return; }
     cast->owner_spawn_time = caster->spawn_time;
-    cast->origin = *point;
-    missile->velocity = speed / 1000.0f;
+    cast->origin = Vector2_mad(&caster->s.origin2, travel, &direction);
+    endpoint = MAKE(vec3_t, cast->origin.x, cast->origin.y,
+                    CM_GetHeightAtPoint(cast->origin.x, cast->origin.y));
+    horizontal_distance = Vector2_distance(&caster->s.origin2, &cast->origin);
+    spatial_distance = Vector3_distance(&caster->s.origin, &endpoint);
+    /* The shared missile mover travels in 3D toward the support surface. Scale
+     * its velocity so authored Missilespeed remains the horizontal ground
+     * speed even when caster and destination terrain elevations differ. */
+    missile->velocity = speed / 1000.0f *
+        (horizontal_distance > 0.0f ? spatial_distance / horizontal_distance : 1.0f);
     missile->movetype = MOVETYPE_FLYMISSILE;
     missile->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-    missile->currentmove = &shockwave_visual_move;
+    missile->currentmove = &carrion_wave_visual_move;
+    missile->think = carrion_wave_think;
     G_StartProjectilePresentation(missile);
 }
 
@@ -262,17 +439,163 @@ static void shockwave_spawn_missile(edict_t *caster, uint32_t code, vec2_t const
     G_StartProjectilePresentation(missile);
 }
 
-void rain_of_fire_think(edict_t *ent) {
-    uint32_t now = G_Time();
+/* Rain of Fire has a separate three-second burn for *each landed wave*.
+ * These small save-safe thinkers do not belong to the caster's channel. A
+ * canceled cast stops future waves, but completed hits continue burning.
+ * Identity storage prevents slot reuse from redirecting burn damage. */
+#define RAIN_FIRE_BURN_TICK_MS 1000u // milliseconds; one-second cadence for each landed Rain of Fire burn
+#define RAIN_FIRE_BURN_TICKS   3u // ticks; three pulses preserve the authored three-second burn duration
 
-    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
-    if (ent->freetime && now < ent->freetime) return;
-    area_spell_damage(ent, 0.0f);
-    if (!--ent->resources) {
-        S_SpellEndChannel(ent);
+void rain_of_fire_burn_think(edict_t *burn) {
+    edict_t *target = S_SpellChannelTarget(burn);
+    edict_t *source = S_SpellChannelOwner(burn);
+    uint32_t const now = G_Time();
+    if (!target || !S_SpellIsAliveTarget(target) || !burn->resources) {
+        G_FreeEdict(burn);
         return;
     }
-    ent->freetime = now + (uint32_t)(MAX(0.1f, ent->velocity) * 1000.0f);
+    while (burn->resources && now >= burn->freetime) {
+        /* Advance before damage: death callbacks can retire this target. */
+        burn->resources--;
+        burn->freetime += RAIN_FIRE_BURN_TICK_MS;
+        if (burn->damage > 0) S_SpellDamage(target, source, (int)burn->damage);
+        if (!burn->inuse) return;
+        if (!S_SpellIsAliveTarget(target) ||
+            target->spawn_time != G_GetChannel(burn)->target_spawn_time) break;
+    }
+    if (!burn->resources || !S_SpellIsAliveTarget(target)) G_FreeEdict(burn);
+}
+
+static bool rain_of_fire_hits(edict_t const *wave, edict_t *target) {
+    cstring_t mask;
+    bool structure;
+    uint32_t type;
+    uint32_t const rank = MAX(1u, wave->variation);
+    if (!S_SpellIsAliveTarget(target) ||
+        (G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
+         unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE)) ||
+        S_UnitIsCycloned(target) || S_UnitSpellImmune(target) ||
+        Vector2_distance(&target->s.origin2, &wave->s.origin2) > wave->collision) return false;
+    structure = G_UnitIsStructure(target);
+    type = G_UnitTargetType(target);
+    /* Stock Rain of Fire deliberately deals friendly fire even if the ability
+     * row names enemies. Preserve authored unit-type restrictions, but do not
+     * route this special-case through the normal hostile-area relationship
+     * filter. Caster, allies, enemies and neutrals can all be hit. */
+    mask = G_AbilityLevel(wave->class_id, rank)->targs;
+    if (mask && (S_SpellTargetHasToken(mask, "air", NULL) ||
+                 S_SpellTargetHasToken(mask, "ground", NULL) ||
+                 S_SpellTargetHasToken(mask, "structure", NULL))) {
+        if (!(S_SpellTargetHasToken(mask, "air", NULL) && type == TARG_AIR) &&
+            !(S_SpellTargetHasToken(mask, "ground", NULL) && type == TARG_GROUND) &&
+            !(S_SpellTargetHasToken(mask, "structure", NULL) && structure)) return false;
+    }
+    if (mask && S_SpellTargetHasToken(mask, "organic", NULL) && target->targtype == TARG_MECHANICAL)
+        return false;
+    if (mask && S_SpellTargetHasToken(mask, "mechanical", NULL) && target->targtype != TARG_MECHANICAL)
+        return false;
+    return true;
+}
+
+static void rain_of_fire_spawn_burn(edict_t *wave, edict_t *target, uint32_t rank) {
+    float const dps = S_SpellData(wave->class_id, rank, 5);
+    edict_t *burn;
+    if (dps < 1.0f || !S_SpellIsAliveTarget(target)) return;
+    burn = S_SpellIdentityThinker(wave->owner, wave->class_id, target);
+    if (!burn) return;
+    burn->svflags |= SVF_NOCLIENT;
+    burn->damage = (uint32_t)dps;
+    burn->resources = RAIN_FIRE_BURN_TICKS;
+    burn->freetime = G_Time() + RAIN_FIRE_BURN_TICK_MS;
+    burn->think = rain_of_fire_burn_think;
+}
+
+/* Rain of Fire's XErf EffectArt is an impact with a finite Birth sequence.
+ * DataC is the number of visible shards per wave; presentation must not
+ * consume the simulation RNG or determine which targets take damage. A
+ * local integer sequence gives stable, save-friendly spatial distribution.
+ * Clamp malformed custom map counts to avoid exhausting the edict pool. */
+#define RAIN_FIRE_MAX_VISUAL_SHARDS 64u
+
+static uint32_t rain_of_fire_visual_random(uint32_t *seed) {
+    *seed = *seed * 1664525u + 1013904223u;
+    return *seed;
+}
+
+static void rain_of_fire_wave_presentation(edict_t *wave) {
+    uint32_t const rank = MAX(1u, wave->variation);
+    uint32_t const effect_code = G_AbilityEffectCode(wave->class_id, rank);
+    uint32_t const art_code = G_AbilityEffectArt(wave->class_id, WC3_EFFECT_EFFECT, 0)
+        ? wave->class_id : effect_code;
+    float const authored = S_SpellData(wave->class_id, rank, 3);
+    uint32_t const shards = !isfinite(authored) || authored <= 0.0f ? 0 :
+        (uint32_t)MIN(authored, (float)RAIN_FIRE_MAX_VISUAL_SHARDS);
+    uint32_t seed = wave->spawn_time ^ ((uint32_t)wave->s.number * 2654435761u) ^
+        (wave->resources * 2246822519u);
+    cstring_t art = G_AbilityEffectArt(art_code, WC3_EFFECT_EFFECT, 0);
+
+    /* RainOfFireWave belongs to the effect object, not to ANrf's caster.
+     * One wave sound is preferable to replaying a full sample for every
+     * simultaneous shard. Ability-specific overrides retain precedence. */
+    if (G_AbilityEffectSoundIndex(wave->class_id, false))
+        G_PlayAbilityEffectSound(wave->class_id, &wave->s.origin2);
+    else if (effect_code != wave->class_id)
+        G_PlayAbilityEffectSound(effect_code, &wave->s.origin2);
+
+    if (!art || !*art || wave->collision <= 0.0f) return;
+    FOR_LOOP(i, shards) {
+        float const angle = (float)((double)rain_of_fire_visual_random(&seed) / 4294967296.0) *
+            (2.0f * (float)M_PI);
+        float const radius = sqrtf((float)((double)rain_of_fire_visual_random(&seed) / 4294967296.0)) *
+            wave->collision;
+        vec2_t point = wave->s.origin2;
+        point.x += cosf(angle) * radius;
+        point.y += sinf(angle) * radius;
+        /* A one-shot Birth should finish even if the channel is cancelled.
+         * Never give the impact entity the channel thinker as its owner. */
+        G_SpawnAbilityEffectAtPoint(art_code, WC3_EFFECT_EFFECT, 0, &point, true);
+    }
+}
+
+static void rain_of_fire_wave_damage(edict_t *wave) {
+    uint32_t const rank = MAX(1u, wave->variation);
+    float amount = (float)wave->damage;
+    float const limit = wave->velocity;
+    float const building_multiplier = MAX(0.0f, S_SpellData(wave->class_id, rank, 4));
+    uint32_t count = 0;
+
+    FILTER_EDICTS(target, rain_of_fire_hits(wave, target)) count++;
+    if (!count) return;
+    /* DataF caps the pre-building-reduction damage across this wave. Stock
+     * caps take effect above five targets; do not round each hit *up* and
+     * exceed the cap after integer damage conversion. */
+    if (limit > 0.0f && amount * (float)count > limit)
+        amount = limit / (float)count;
+    FILTER_EDICTS(target, rain_of_fire_hits(wave, target)) {
+        float const scaled = amount * (G_UnitIsStructure(target) ? building_multiplier : 1.0f);
+        if (scaled >= 1.0f && S_SpellDamage(target, wave->owner, (int)scaled) &&
+            !M_IsDead(target) && !G_UnitIsStructure(target))
+            rain_of_fire_spawn_burn(wave, target, rank);
+    }
+}
+
+void rain_of_fire_think(edict_t *ent) {
+    uint32_t const now = G_Time();
+    uint32_t const interval = (uint32_t)MAX(1.0f, ent->wait * 1000.0f);
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
+    /* The final wave still occupies one interval of the authored channel.
+     * Absolute deadlines keep frame jitter from slowing subsequent waves. */
+    while (ent->freetime <= now) {
+        if (!ent->resources) { S_SpellEndChannel(ent); return; }
+        /* Authoritative damage/burn thinkers take allocation precedence over
+         * optional model entities if the shared edict pool is tight. */
+        rain_of_fire_wave_damage(ent);
+        rain_of_fire_wave_presentation(ent);
+        ent->resources--;
+        ent->freetime += interval;
+        if (!ent->resources) break;
+        if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
+    }
 }
 
 /* Starfall: self-centered periodic area damage.  AbilityData stores the
@@ -370,12 +693,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
 BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
     uint32_t level = S_SpellLevel(caster, spell->code);
 
-    carrion_swarm_spawn_missile(caster, spell->code, &st.point);
-    G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_SPECIAL, 0, &st.point, true);
-    carrion_swarm_damage(caster, &st.point,
-        MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)),
-        (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)),
-        S_SpellData(spell->code, level, 2)); /* DataB = Max Damage */
+    carrion_swarm_spawn_missile(caster, spell->code, level, &st.point);
 }
 
 /* Name=Shockwave
@@ -413,15 +731,33 @@ BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t const level = S_SpellLevel(caster, spell->code);
+    uint32_t const waves = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    float const duration = S_SpellDuration(spell->code, level, false);
+    float const cast_interval = S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, level);
+    /* The Pit Lord's three-second Dur spans every wave, not the interval
+     * between waves. Creep aliases may omit Dur and author a Cast interval. */
+    float const interval = duration > 0.0f ? duration / (float)waves :
+        (cast_interval > 0.0f ? cast_interval : 1.0f);
     edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
+    if (!thinker) return;
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
-    thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 2));
-    thinker->resources = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    thinker->velocity = MAX(0.1f, S_SpellDuration(spell->code, level, false));
+    thinker->s.origin.z = CM_GetHeightAtPoint(st.point.x, st.point.y);
+    thinker->s.sound = (uint16_t)G_AbilityEffectSoundIndex(spell->code, true);
+    if (!thinker->s.sound) {
+        uint32_t const effect_code = G_AbilityEffectCode(spell->code, level);
+        if (effect_code != spell->code)
+            thinker->s.sound = (uint16_t)G_AbilityEffectSoundIndex(effect_code, true);
+    }
+    thinker->collision = MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
+    thinker->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 2));
+    thinker->resources = waves;
+    thinker->variation = level;
+    thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 6));
+    thinker->wait = MAX(0.001f, interval);
+    thinker->freetime = G_Time();
     thinker->think = rain_of_fire_think;
     rain_of_fire_think(thinker);
 }

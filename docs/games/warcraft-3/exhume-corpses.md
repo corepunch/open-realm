@@ -7,7 +7,11 @@ procedure `CAbilityExhumeCorpses`. There are no `code=` aliases.
 
 ROC `AbilityData.slk` has no `Aexh` row (`AbilityData: not found`).
 
-Passive Meat Wagon research: every `Dur` seconds the wagon generates one corpse of
+The Meat Wagon carries the passive `Aexh` before the research is complete, but
+its producer is gated by the player's `Ruex` Exhume Corpses research. The
+command card shows its disabled passive indicator while that research is
+available; the producer starts only after the research is completed. Every
+`Dur` seconds the wagon generates one corpse of
 the authored `UnitID` type, up to `DataA` corpses owned by that wagon. Stock TFT
 ubertip: "Generates a corpse within the Meat Wagon every \<Aexh,Dur1\> seconds."
 
@@ -52,7 +56,7 @@ and Raise Dead](corpse-mechanics.md).
 AbilityData.slk (Aexh)
   -> Dur, DataA, UnitID
 CAbilityExhumeCorpses (AB_PASSIVE | AB_UPDATE)
-  -> A_UPDATE arms a classless thinker on units that have Aexh
+  -> A_UPDATE arms a classless thinker on units that have Aexh and researched Ruex
 exhume_think / G_RunEntities
   -> if under DataA cap: SP_SpawnAtLocationNoBirth(UnitID), mark dead, load into Sch2
   -> next pulse after Dur seconds

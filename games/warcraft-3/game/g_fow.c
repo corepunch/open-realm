@@ -101,6 +101,22 @@ bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer) {
     return false;
 }
 
+/* Faerie Fire temporarily shares the marked unit's sight with its caster.
+ * Bfae records the applying player in status.data (+1). Reading the live
+ * buff avoids a separate visibility reference which could survive dispel,
+ * expiry, replacement, save/load, or a change of caster ownership. */
+bool G_FowFaerieFireRevealsUnit(uint32_t viewer, edict_t const *unit) {
+    if (!unit || !unit->unit_state || M_IsDead(unit) || viewer >= MAX_PLAYERS) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = unit->unit_state->statuses + i;
+        if (status->level && status->code == MAKEFOURCC('B','f','a','e') &&
+            (!status->timestamp || status->timestamp > G_Time()) &&
+            status->data > 0 && status->data <= MAX_PLAYERS &&
+            G_FowPlayersShareVision(viewer, status->data - 1)) return true;
+    }
+    return false;
+}
+
 uint32_t G_FowWorldToCellX(float x) {
     if (!G_FowReady()) {
         return FOW_INVALID_CELL;
@@ -1148,13 +1164,40 @@ void G_FowUpdate(void) {
         float radius;
         uint32_t unit_viewers;
 
-        if (ent->s.player >= MAX_PLAYERS || !G_FowEntityIsRevealer(ent)) {
+        if (ent->s.player < MAX_PLAYERS && G_FowEntityIsRevealer(ent)) {
+            unit_viewers = owner_viewers[ent->s.player] | (ent->vision ? ent->vision->shared & viewers : 0);
+            if (unit_viewers) {
+                radius = G_FowEntitySightRadius(ent);
+                G_FowRevealForViewers(ent, radius, unit_viewers);
+            }
+        }
+
+        /* Faerie Fire temporarily lends the marked unit's ordinary sight to
+         * the player who cast it, as if the target belonged to that player.
+         * Keep this separate from target ownership so it does not change
+         * alliance, control, or the target's own vision sharing. */
+        if (!ent->inuse || M_IsDead((edict_t *)ent) || !ent->unit_state ||
+            (ent->svflags & SVF_NOCLIENT)) {
             continue;
         }
-        unit_viewers = owner_viewers[ent->s.player] | (ent->vision ? ent->vision->shared & viewers : 0);
-        if (!unit_viewers) continue;
         radius = G_FowEntitySightRadius(ent);
-        G_FowRevealForViewers(ent, radius, unit_viewers);
+        if (radius <= 0.0f) continue;
+        FOR_LOOP(status_index, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t const *status = ent->unit_state->statuses + status_index;
+            uint32_t caster;
+            uint32_t faerie_viewers = 0;
+            if (!status->level || status->code != MAKEFOURCC('B','f','a','e') ||
+                (status->timestamp && status->timestamp <= G_Time()) ||
+                status->data <= 0 || status->data > MAX_PLAYERS) {
+                continue;
+            }
+            caster = status->data - 1;
+            FOR_LOOP(viewer, MAX_PLAYERS) {
+                if ((viewers & (1u << viewer)) && G_FowPlayersShareVision(viewer, caster))
+                    faerie_viewers |= 1u << viewer;
+            }
+            if (faerie_viewers) G_FowRevealForViewers(ent, radius, faerie_viewers);
+        }
     }
 
     /* Timed spell reveals are not ordinary sight sources: Far Sight ignores
@@ -1228,6 +1271,9 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }
+    /* Sight of the afflicted unit is not area reveal or true sight. */
+    if (!world_item && !S_UnitIsHiddenFromPlayer(ent, player) &&
+        G_FowFaerieFireRevealsUnit(player, ent)) return true;
     if (G_FowPlayerFogDisabled(player)) {
         return true;
     }
@@ -1262,6 +1308,9 @@ bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }
+    /* Sight of the afflicted unit is not area reveal or true sight. */
+    if (!world_item && !S_UnitIsHiddenFromPlayer(ent, player) &&
+        G_FowFaerieFireRevealsUnit(player, ent)) return true;
     if (G_FowPlayerFogDisabled(player)) {
         return true;
     }

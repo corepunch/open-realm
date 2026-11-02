@@ -15,7 +15,8 @@
 #define WANDER_FLEE_ATTEMPTS 4u /* 192/96/48/24 units; a shorter hop is not a visible retreat */
 
 static bool wander_present(edict_t const *unit) {
-    return unit && S_ResolveAbilityAlias((edict_t *)unit, MAKEFOURCC('A', 'w', 'a', 'n')).alias != 0;
+    return unit && (S_ResolveAbilityAlias((edict_t *)unit, MAKEFOURCC('A', 'w', 'a', 'n')).alias != 0 ||
+                    S_ResolveAbilityAlias((edict_t *)unit, MAKEFOURCC('A', 't', 'w', 'a')).alias != 0);
 }
 
 static uint32_t wander_random(edict_t *unit) {

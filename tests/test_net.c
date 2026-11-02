@@ -3990,8 +3990,8 @@ TEST(net, entity_delta_preserves_mdx_pause_flags) {
 TEST(net, entity_delta_preserves_effect_model) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .effect = 2,
-                                       .flags = EF_BUILDING, .effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS |
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .effect = 387,
+                                       .model2 = 3, .flags = EF_BUILDING, .effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS |
                                                     EFX_SLOT_FIRST | EFX_SLOT_SECOND }, out = { 0 };
     uint32_t bits = 0;
     int number;
@@ -4003,7 +4003,8 @@ TEST(net, entity_delta_preserves_effect_model) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_BUILDING);
-    T_EQ(out.effect, 2);
+    T_EQ(out.effect, 387); /* above the old byte-width ceiling */
+    T_EQ(out.model2, 3); /* stays independent from the effect */
     T_EQ(out.effect_flags, to.effect_flags);
 }
 

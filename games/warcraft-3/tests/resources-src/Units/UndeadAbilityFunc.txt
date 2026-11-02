@@ -18,6 +18,18 @@ SpecialArt=TestUI\Models\anim_pulse.mdx
 [Aap1]
 TargetArt=TestUI\Models\anim_pulse.mdx
 
+[Apts]
+Art=ReplaceableTextures\CommandButtons\BTNPlagueCloud.blp
+Buttonpos=0,2
+
+[Aexh]
+Art=ReplaceableTextures\CommandButtons\BTNExhumeCorpses.blp
+Buttonpos=1,2
+
+[Auhf]
+Art=ReplaceableTextures\CommandButtons\BTNUnholyFrenzy.blp
+Buttonpos=0,2
+
 // Stock aura art differs from the custom alias and the recipient glow.
 [AUau]
 TargetArt=TestUI\Models\panel_sprite.mdx
@@ -44,3 +56,13 @@ Targetattach=overhead
 [Bcrs]
 TargetArt=TestUI\Models\anim_pulse.mdx
 Targetattach=overhead
+
+// Synthetic Destroyer projectile art: exercise the actual launch/impact path.
+[Afak]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=1500
+
+[Advm]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=1200
+SpecialArt=TestUI\Models\anim_oneshot.mdx

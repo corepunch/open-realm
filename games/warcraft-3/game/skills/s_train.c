@@ -464,6 +464,7 @@ void ai_train_build(edict_t *ent) {
         if (ent && ent->stand) ent->stand(ent);
         return;
     }
+    if (S_UnitIsFreezingBreathFrozen(ent)) return;
     if (G_HeroIsReviving(ent->build)) {
         edict_t *hero = ent->build;
         revival_t *revival = G_GetRevival(hero);

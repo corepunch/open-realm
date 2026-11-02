@@ -131,6 +131,39 @@ TEST(wc3_ability_dispatch, shackles_locks_target_until_its_channel_ends) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_ability_dispatch, resistant_skin_rejects_aerial_shackles) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Amls\"\nC;Y2;X2;K\"Amls\"\nC;Y2;X3;K\"air,enemy\"\nC;Y2;X4;K\"800\"\n"
+        "C;Y2;X5;K\"10\"\nC;Y2;X6;K\"3\"\nC;Y2;X7;K\"30\"\nC;Y2;X8;K\"Bmlc,Bmlt\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    UnitAbilities_t list = { .abilList = "Amls" };
+    edict_t *caster, *target;
+    float mana;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','g','r','y'), 100, 0);
+    caster->data.UnitAbilities = &list; caster->s.player = 0; target->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_AIR;
+    target->health.value = target->health.max_value = 1000;
+    target->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','C','s','k'), .level = 1);
+    mana = caster->mana.value;
+
+    T_ASSERT(S_UnitIsResistant(target));
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Amls"), target));
+    T_FEQ(caster->mana.value, mana, 0.001f);
+    T_NULL(unit_findstatus(target, FS_SLKKey("Bmlt")));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Replacing the buff while the old thinker exists must not let that thinker
  * damage the target or remove the newer buff during channel cleanup. */
 TEST(wc3_ability_dispatch, shackles_old_thinker_does_not_own_replacement_status) {

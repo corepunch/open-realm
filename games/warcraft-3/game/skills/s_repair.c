@@ -317,6 +317,9 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
     if (!ent || !target || !target->inuse || M_IsDead(target)) return false;
     if (!target->data.UnitBalance || !repair_target_category_allowed(target, data)) return false;
     if (!repair_target_relation_allowed(ent, target, data)) return false;
+    /* Liquid Fire prevents repair until its timed status expires. */
+    if (G_UnitIsStructure(target) &&
+        G_UnitStatusLevel(target, MAKEFOURCC('B','l','i','q'))) return false;
 
     if (site) {
         /* Human power building is construction ownership, not ordinary Friend
@@ -474,6 +477,7 @@ static void ai_repair(edict_t *ent) {
         repair_stop_reason(ent, "work_target_invalid");
         return;
     }
+    if (S_UnitIsFreezingBreathFrozen(building)) return;
     if (!repair_in_range(ent, building)) {
         repair_set_walk(ent);
         return;

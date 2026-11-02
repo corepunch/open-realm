@@ -163,6 +163,26 @@ small, medium, large, fort, normal, hero, divine, none
 
 Stock fallback values are retained only for missing data/bootstrap tests. In particular, ordinary attack classes deal `0.05x` to Divine while Chaos deals `1.00x`.
 
+## Status panel attack and armor tooltips
+
+The ordinary tooltip summaries are localized by the Warcraft UI strings for
+stock attack and armor interactions. For each tooltip, the HUD checks the
+runtime `G_AttackTypeDamageMultiplier` values against the shared stock fallback
+table. If a map overrides any relevant row/column via `war3mapMisc.txt`, the
+HUD **replaces** the fixed stock description with the actual multipliers,
+shown as percentages for each defense or attack type; it does not append
+correct numbers beneath an incorrect stock description. These percentages
+are type multipliers **before numeric armor reduction** and do not represent
+final damage after armor, Ethereal, or other status modifiers. `ATK_SPELLS`
+uses its own active row. Normal armor's fallback explains its default neutral
+matchups rather than copying Medium armor's text.
+
+`FormatArmorValue` and the armor tooltip title round signed armor values
+symmetrically, so negative armor does not show as zero due to truncation of
+`value + 0.5`. `wc3_game.armor_icon_formats_negative_values_without_rounding_toward_zero`
+and `wc3_game.damage_and_armor_tooltips_use_map_specific_attack_matrix`
+exercise the display contract without installed game data.
+
 ## Numeric Armor
 
 Let `A` be `G_UnitArmorValue(target)` and `K` be `Misc.DefenseArmor` (stock fallback `0.06`).

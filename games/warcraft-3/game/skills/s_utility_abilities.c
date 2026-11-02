@@ -116,24 +116,35 @@ uint32_t S_AncientRetaliationAttackMask(edict_t const *unit) {
 
 static bool charm_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     edict_t *target = st.entity;
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
+    uint32_t spell_level = S_SpellLevel(caster, spell->code);
+    uint32_t max_level = (uint32_t)S_SpellData(spell->code, spell_level, 1);
 
     if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target) ||
-        S_UnitIsResistant(target)) return false;
-    if (max_level && (!target->data.UnitBalance || target->data.UnitBalance->level > max_level)) return false;
-    return true;
+        S_UnitIsResistant(target) || !target->data.UnitBalance) return false;
+    /* DataA is the maximum *creep* level, not a cap on enemy player units.
+     * Honor the neutral player's type as well as the stock hostile/passive
+     * slots so map-authored neutral owners follow the same restriction. */
+    if (max_level && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral &&
+        target->data.UnitBalance->level > max_level) return false;
+    return S_SpellAllowsTarget(spell->code, caster, target);
 }
 
 static void charm_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     edict_t *target = st.entity;
-    (void)spell;
 
+    /* An old owner's Shift queue and combat/channel targets must not execute
+     * under the new owner. In contrast, calling stand() alone can immediately
+     * start the next queued order. Stop before changing owner/player stats. */
+    order_stop_cleanup(target);
+    G_ClearActiveUnitOrder(target);
+    target->goalentity = NULL;
     G_SetUnitPlayer(target, caster->s.player);
     target->owner = caster;
     target->combatentity = NULL;
-    if (target->stand)
-        target->stand(target);
+    /* BNch is not a persistent status: its TargetArt comes from ANch/ACch
+     * and should end with one authored animation cycle, not with ownership. */
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, "overhead", true);
 }
 
 /* ---- Eat Tree (Aeat): consume a tree for healing ------------------------- */
@@ -144,7 +155,9 @@ static bool eat_tree_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     if (S_AncientIsRooted(caster)) return false;
     ancientRoot_t const *root = G_GetAncientRoot(caster);
     if (S_AncientHasRootAbility(caster) && (!root || root->mode != ANCIENT_UPROOTED)) return false;
-    if (!target || target->targtype != TARG_TREE) return false;
+    if (!target || !target->inuse || !G_IsDestructable(target) || target->targtype != TARG_TREE ||
+        !G_GetDestructable(target) || G_GetDestructable(target)->dead || target->health.value <= 0.0f)
+        return false;
     return true;
 }
 
@@ -153,8 +166,10 @@ static void eat_tree_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
     uint32_t level = S_SpellLevel(caster, spell->code);
     float heal = S_SpellData(spell->code, level, 3);
 
+    if (!G_KillDestructable(target, caster)) {
+        return;
+    }
     S_SpellHeal(caster, heal);
-    G_FreeEdict(target);
 }
 
 /* ---- Moon Well (Ambt): replenish, autocast, and night regeneration -------- */
@@ -424,7 +439,26 @@ static bool moon_well_autocast_acquire(edict_t * caster, uint32_t code) {
 
 BZ_VALIDATED_SPELL_PROC(AbilityCharm, charm_validate, charm_execute)
 
-BZ_VALIDATED_SPELL_PROC(AbilityEatTree, eat_tree_validate, eat_tree_execute)
+BZ_ABILITY_PROC(CAbilityEatTree) {
+    if (msg == A_ISSUED_TARGET_ORDER) {
+        uint32_t const code = call && call->item ? call->item->code : 0;
+        edict_t *tree = call ? call->entity : NULL;
+        if (!call || !call->order || strcmp(call->order, "smart") || !tree ||
+            tree->targtype != TARG_TREE || !G_UnitAbilityLevel(ent, code))
+            return ABILITY_ORDER_UNHANDLED;
+        return S_IssueUnitTargetSpell(ent, code, tree) ?
+            ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    }
+    if (msg == A_VALIDATE) return eat_tree_validate(ent,
+        call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE),
+        call ? call->item : NULL);
+    if (msg == A_EXECUTE) {
+        eat_tree_execute(ent, call && call->target ? *call->target :
+            MAKE(spellTarget_t, .type = SPELL_TARGET_NONE), call ? call->item : NULL);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
 
 BZ_ABILITY_PROC(CAbilityManaBattery) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?

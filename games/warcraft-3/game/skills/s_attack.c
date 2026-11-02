@@ -88,18 +88,27 @@ typedef struct {
     uint32_t model;
     uint32_t damage;
     uint32_t attack_type;
+    uint32_t arrow_ability;
+    uint32_t arrow_level;
     unitAttack_t const *attack;
     uint32_t area_targets;
     /* Aline's researched follow-through is snapshotted only for normal
      * attacks. Explicit Attack Ground must never inherit it. */
     bool impaling_line;
     bool tree_attack_allowed;
+    bool allow_destroyer_orb;
 }  rocketDesc_t;
 
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || !attacker->unit_state || slot >= 2) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
+    /* War Club is a per-unit switch, never a mutation of UnitWeapons. The
+     * alternate weapon is authored as Attack 2 even when the stock unit enables
+     * only Attack 1 in its normal form. */
+    if (attacker->unit_state->war_club_attacks_remaining &&
+        attacker->unit_state->attack2.type != ATK_NONE)
+        enabled = 2u;
     if (S_AncientHasRootAbility(attacker)) {
         /* Root/Unroot transitions must not retain an attack order from the
          * previous form. Stable forms use their authored AbilityData masks. */
@@ -171,6 +180,8 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     G_InitMissile(rocket);
     rocket->missile->attack_type = desc->attack_type;
     rocket->missile->owner_spawn_time = ent->spawn_time;
+    rocket->missile->arrow_ability = desc->arrow_ability;
+    rocket->missile->arrow_level = desc->arrow_level;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
         channel_t *cast = G_AddChannel(rocket);
@@ -205,7 +216,15 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     /* Missile Splash follows a unit instead of the artillery impact point.
      * Both weapons snapshot their splash profile when the projectile launches,
      * so morphs, upgrades and target changes cannot change an in-flight hit. */
-    if (desc->attack && (desc->attack->weapon == WPN_ARTILLERY || desc->attack->weapon == WPN_MSPLASH)) {
+    /* Afak's authored splash belongs to empowered shots, not the Destroyer's
+     * ordinary weapon. Stock Destroyers may author WPN_MSPLASH as the weapon
+     * delivery type; do not apply its default splash when the Orb is off or
+     * cannot be paid. Other splash weapons retain their ordinary profile. */
+    bool const destroyer_orb_weapon = desc->allow_destroyer_orb &&
+        desc->attack && desc->attack->weapon == WPN_MSPLASH &&
+        G_UnitAbilityLevel(ent, MAKEFOURCC('A','f','a','k')) != 0;
+    if (desc->attack && (desc->attack->weapon == WPN_ARTILLERY ||
+                         (desc->attack->weapon == WPN_MSPLASH && !destroyer_orb_weapon))) {
         artillery_t *splash = G_AddArtillery(rocket);
         splash->attack_type = desc->attack->type;
         splash->area_targets = desc->area_targets;
@@ -215,6 +234,33 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         splash->area_small = desc->attack->areaSmall;
         splash->factor_medium = desc->attack->factorMedium;
         splash->factor_small = desc->attack->factorSmall;
+    }
+    /* Afak supplies its own splash rings even when the unit's weapon is a
+     * plain missile. The generic Missile Splash route then applies attack
+     * damage once to the primary and falloff to the other valid targets. */
+    if (desc->allow_destroyer_orb && desc->target && !desc->fixed_target) {
+        uint32_t code = 0, level = 0;
+        int bonus = 0;
+        if (S_DestroyerOrbCommitAttack(ent, desc->target, &code, &level, &bonus)) {
+            artillery_t *splash = G_GetArtillery(rocket);
+            cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+            cstring_t speed_text = S_SpellString(code, "Missilespeed", 0);
+            float speed = speed_text ? (float)atof(speed_text) : 0.0f;
+            if (!splash) splash = G_AddArtillery(rocket);
+            if (splash) {
+                splash->attack_type = desc->attack_type;
+                splash->targets_allowed = desc->attack->targetsAllowed;
+                splash->area_targets = desc->area_targets;
+                splash->area_full = MAX(0.0f, S_SpellData(code, level, 4));
+                splash->area_medium = MAX(0.0f, S_SpellData(code, level, 5));
+                splash->area_small = MAX(0.0f, S_SpellNumber(code, ABILITY_NUMBER_AREA, level));
+                splash->factor_medium = MAX(0.0f, S_SpellData(code, level, 2));
+                splash->factor_small = MAX(0.0f, S_SpellData(code, level, 3));
+            }
+            rocket->damage = (uint32_t)MAX(0, (int)rocket->damage + bonus);
+            if (art && *art) rocket->s.model = G_RegisterModel(art);
+            if (isfinite(speed) && speed > 0.0f) rocket->velocity = speed / 1000.0f;
+        }
     }
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
@@ -277,7 +323,7 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
-    if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
+    if (S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
         S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
@@ -289,8 +335,9 @@ static bool can_attack(edict_t const *ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-    if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
+    if (!attacker || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
+        (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
         (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
          !(((mask & 1u) && attacker->unit_state->attack1.type == ATK_MAGIC &&
@@ -390,6 +437,23 @@ static float const g_default_damage_table[8][8] = {
     { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 0.05f, 1.00f }, /* hero   */
 };
 
+/* Shared attack-type/defense-type multiplier, independently of numeric armor.
+ * Enhanced-physical spells use ATK_SPELLS but deliberately skip armor. */
+float G_AttackTypeDamageMultiplier(uint32_t atk, uint32_t def) {
+    if (atk >= 8) atk = ATK_NONE;
+    if (def >= 8) def = 7;
+    return game.constants.combatConstantsLoaded
+        ? game.constants.damageBonus[atk][def]
+        : g_default_damage_table[atk][def];
+}
+
+/* The tooltip may use retail/localized prose only while the actual map's
+ * multipliers agree with the same stock table used for fallback combat. */
+bool G_AttackTypeDamageMultiplierIsDefault(uint32_t atk, uint32_t def) {
+    if (atk >= 8 || def >= 8) return false;
+    return fabsf(G_AttackTypeDamageMultiplier(atk, def) - g_default_damage_table[atk][def]) < 0.0001f;
+}
+
 /* Apply the Warsmash/WC3 damage formula: active attack×defense multiplier,
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
@@ -407,12 +471,7 @@ int G_AttackDamageWithType(edict_t *attacker, edict_t *target, int base, uint32_
 static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk) {
     if (!attacker || !target || base <= 0) return base;
     uint32_t def = target->unit_state ? target->unit_state->defense_type : 0;
-    if (atk >= 8) atk = 0;
-    if (def >= 8) def = 7;
-
-    float const mult = game.constants.combatConstantsLoaded
-                     ? game.constants.damageBonus[atk][def]
-                     : g_default_damage_table[atk][def];
+    float const mult = G_AttackTypeDamageMultiplier(atk, def);
     float const armor_coefficient = game.constants.combatConstantsLoaded
                                   ? game.constants.defenseArmor
                                   : 0.06f;
@@ -436,10 +495,11 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack) {
+static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack,
+                             uint32_t arrow_code, uint32_t arrow_level) {
     bool instant_kill;
 
-    if (!target || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
+    if (!G_UnitIsWorldActive(target) || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
         unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
         S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
@@ -474,6 +534,11 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
         if (target->unit_state->statuses[i].level && target->unit_state->statuses[i].code == MAKEFOURCC('B','U','s','l'))
             unit_removestatus(target, target->unit_state->statuses + i, STATUS_REMOVE_SCRIPT);
     unit_updatestatuses(target);
+    /* A real, positive, post-shield/Spirit-Link Black Arrow hit marks the
+     * victim before lethal damage dispatches A_STATUS_DEATH. Projectile
+     * misses and secondary/spell damage cannot apply the marker. */
+    if (primary_attack && arrow_code && arrow_level)
+        S_BlackArrowMarkHit(attacker, target, arrow_code, arrow_level);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
@@ -511,7 +576,7 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
 }
 
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
-    T_DamageInternal(target, attacker, damage, false);
+    T_DamageInternal(target, attacker, damage, false, 0, 0);
 }
 
 /* Secondary hits carry the primary weapon's type, not a different weapon selected for the victim.
@@ -521,14 +586,26 @@ bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t
            (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
 }
 
-void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
-    if (!S_AttackHitAllowed(attacker, target, target)) return;
+void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
+                                 uint32_t arrow_code, uint32_t arrow_level) {
+    float const initial_health = target ? target->health.value : 0.0f;
+    /* A missile can reach a corpse after another hit has killed its target.
+     * Such a hit must not produce a second Dark Minion. */
+    if (!attacker || !target || M_IsDead(target) ||
+        !S_AttackHitAllowed(attacker, target, target)) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
     S_PermanentInvisibilityReveal(attacker);
-    damage = S_OrbAnnihilationDamage(attacker,
-        S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
+    damage = S_CriticalStrikeDamage(attacker, damage);
+    damage = S_BlackArrowDamageForShot(arrow_code, arrow_level, damage);
+    /* Only one arrow modifier owns an empowered attack. A Black Arrow
+     * snapshot must not pick up a new Searing/Frost autocast mid-flight. */
+    if (!arrow_code)
+        damage = S_ColdArrowsDamage(attacker, target, S_SearingArrowDamage(attacker, damage));
+    /* ANak is independent of the mana-paid Afak missile modifier: only the
+     * former belongs in this generic on-hit path. */
+    damage = S_OrbAnnihilationDamage(attacker, damage);
     damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          + unit_status_modifier_total(attacker, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT)
@@ -548,22 +625,52 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
-    T_DamageInternal(target, attacker, damage, true);
+    T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level);
+    if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
+        target->health.value < initial_health) {
+        static uint32_t const ability = MAKEFOURCC('A','f','r','z');
+        static uint32_t const research = MAKEFOURCC('R','u','f','b');
+        uint32_t const level = G_UnitAbilityLevel(attacker, ability);
+        gameClient_t *owner = G_GetPlayerClientByNumber(attacker->s.player);
+        /* Afrz exists before TFT research; only researched Rufb grants its building-hit effect. */
+        if (level && owner && G_GetPlayerTechResearchedLevel(owner, research) > 0) {
+            cstring_t buff = S_SpellBuffId(ability, level);
+            float const duration = S_SpellDuration(ability, level, false);
+            if (!buff || strlen(buff) < 4) buff = "Bfrz";
+            if (duration > 0.0f)
+                S_SpellApplyTimedTargetStatus(target, ability, level, buff, duration);
+        }
+    }
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
     { uint32_t cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
             MAKEFOURCC('A','N','c','a') : MAKEFOURCC('A','C','c','e');
     uint32_t cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
-    if (cleave_level) {
+    /* Cleave is a melee physical attack modifier. Its authored target mask
+     * (ground/enemy/neutral) also applies to secondary splash victims. */
+    if (cleave_level && S_AttackProfileIsMelee(attack_profile(attacker, target))) {
         float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
         float fraction = S_SpellData(cleave_code, cleave_level, 1);
-        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_AttackHitAllowed(attacker, target, other) &&
-                      S_SpellIsEnemy(attacker, other) &&
-                      Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
+        char name[5];
+        cstring_t attachment;
+        uint32_t base = G_AbilityCode(cleave_code);
+        memcpy(name, &cleave_code, 4); name[4] = '\0';
+        attachment = FindConfigValue(name, "Specialattach");
+        if ((!attachment || !*attachment) && base != cleave_code) {
+            memcpy(name, &base, 4); name[4] = '\0';
+            attachment = FindConfigValue(name, "Specialattach");
+        }
+        /* Stock ANca/ACce use chest; custom rows can override this socket. */
+        if (!attachment || !*attachment) attachment = "chest";
+        FILTER_EDICTS(other, other != target && other != attacker && S_SpellIsAliveTarget(other) &&
+                      S_AttackHitAllowed(attacker, target, other) &&
+                      S_SpellAllowsAreaTarget(cleave_code, attacker, other) &&
+                      Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius) {
+            G_SpawnAbilityEffectTarget(cleave_code, WC3_EFFECT_SPECIAL, 0, other, attachment, true);
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
+        }
     } }
-    S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
     S_SlowPoisonOnHit(attacker, target);
     S_OrbOnHit(attacker, target);
@@ -594,6 +701,39 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     }
 }
 
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
+    S_ResolveAttackHitWithArrow(attacker, target, damage, 0, 0);
+}
+
+/* Target-compatible weapon data is shared by the damage roll and swarm
+ * steering, including custom locust units with only Attack 2 enabled. */
+unitAttack_t const *S_LocustAttackWeapon(edict_t const *locust, edict_t const *target) {
+    return attack_profile(locust, target);
+}
+
+/* Locust Swarm attacks use the same weapon selection, damage roll, armor,
+ * evasion, shields and primary-hit callbacks as an ordinary weapon hit.
+ * HP delta (capped by the victim's pre-hit life) is the healing source, not
+ * the nominal roll. This also counts no damage when a hit misses or is
+ * negated; a reallocated target slot can never award another entity's HP. */
+float S_LocustAttackHit(edict_t *locust, edict_t *target) {
+    uint32_t spawn_time;
+    float health_before, health_after;
+    int damage;
+    if (!locust || !target || !locust->inuse || !target->inuse ||
+        !locust->unit_state || !S_AttackCanTarget(locust, target) ||
+        !S_SpellIsEnemy(locust, target) ||
+        G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
+        unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE)) return 0.0f;
+    spawn_time = target->spawn_time;
+    health_before = MAX(0.0f, target->health.value);
+    damage = G_AttackDamage(locust, target, (int)ai_rolldamage1(locust, 1));
+    if (damage <= 0) return 0.0f;
+    S_ResolveAttackHit(locust, target, damage);
+    if (!target->inuse || target->spawn_time != spawn_time) return 0.0f;
+    health_after = MAX(0.0f, target->health.value);
+    return MAX(0.0f, MIN(health_before, health_before - health_after));
+}
 
 static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, uint32_t mask, uint32_t targets_allowed) {
     uint32_t flag;
@@ -608,7 +748,8 @@ static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, 
  * homing unit on arrival. Both use the authored rings and only the primary
  * victim receives attack-hit listeners. */
 static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
-                                     struct artillery_s const *profile, bool missile_splash) {
+                                     struct artillery_s const *profile, bool missile_splash,
+                                     uint32_t arrow_code, uint32_t arrow_level) {
     float max_radius;
     bool primary_hit = false;
 
@@ -634,21 +775,21 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
         damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
         if (other == primary) {
             primary_hit = true;
-            S_ResolveAttackHit(attacker, other, damage);
+            S_ResolveAttackHitWithArrow(attacker, other, damage, arrow_code, arrow_level);
         } else {
             T_Damage(other, attacker, damage);
         }
     }
     if (missile_splash && !primary_hit && primary && primary->inuse && primary != attacker && !M_IsDead(primary)) {
         int const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
-        S_ResolveAttackHit(attacker, primary, damage);
+        S_ResolveAttackHitWithArrow(attacker, primary, damage, arrow_code, arrow_level);
     }
     /* A direct, researched tree attack is legal even if the weapon's splash
      * target mask omits TREE. Follow-through never damages trees. */
     if (!primary_hit && primary && G_DestructableIsAttackable(primary) &&
         primary->targtype == TARG_TREE && profile->tree_attack_allowed) {
-        S_ResolveAttackHit(attacker, primary,
-            attack_damage_type(attacker, primary, raw_damage, profile->attack_type));
+        S_ResolveAttackHitWithArrow(attacker, primary,
+            attack_damage_type(attacker, primary, raw_damage, profile->attack_type), arrow_code, arrow_level);
     }
     /* Impaling Bolt is a separate band extending *behind* the original unit
      * target, along the projectile's captured launch direction. Do not apply
@@ -680,12 +821,24 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
 
 void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                 struct artillery_s const *profile) {
-    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, false);
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, false, 0, 0);
+}
+
+void S_ResolveArtilleryPointHitWithArrow(edict_t *attacker, edict_t *primary, vec2_t const *impact,
+                                        int raw_damage, struct artillery_s const *profile,
+                                        uint32_t arrow_code, uint32_t arrow_level) {
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, false, arrow_code, arrow_level);
 }
 
 void S_ResolveMissileSplashHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                struct artillery_s const *profile) {
-    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, true);
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, true, 0, 0);
+}
+
+void S_ResolveMissileSplashHitWithArrow(edict_t *attacker, edict_t *primary, vec2_t const *impact,
+                                       int raw_damage, struct artillery_s const *profile,
+                                       uint32_t arrow_code, uint32_t arrow_level) {
+    resolve_splash_point_hit(attacker, primary, impact, raw_damage, profile, true, arrow_code, arrow_level);
 }
 
 void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
@@ -727,7 +880,14 @@ static void damage_target(edict_t *ent) {
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
     attack_set_backswing_deadline(ent);
-    S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
+    uint32_t arrow_code = 0, arrow_level = 0;
+    S_BlackArrowPrepareAttack(ent, target, &arrow_code, &arrow_level);
+    S_ResolveAttackHitWithArrow(ent, target,
+        G_AttackDamage(ent, target, ai_rolldamage1(ent, 1)), arrow_code, arrow_level);
+    /* Count committed weapon swings, not issued orders or approach frames.
+     * Damage (including the final Siege strike) has been resolved before the
+     * club expires and changes the effective profile. */
+    S_WarClubConsumeAttack(ent);
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
      * not resolve a usable attack sequence. Their damage-point timer still
@@ -755,14 +915,29 @@ static void throw_missile(edict_t *ent) {
     M_GetEntityMatrix(&ent->s, &matrix);
     vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     vec2_t impact = other->s.origin2;
-    cstring_t missile_art = S_SearingArrowsMissileArt(ent);
+    uint32_t arrow_code = 0, arrow_level = 0;
+    cstring_t missile_art;
+    float missile_speed = atk->projectile.speed;
+    S_BlackArrowPrepareAttack(ent, other, &arrow_code, &arrow_level);
+    missile_art = arrow_code ? G_AbilityEffectArt(arrow_code, WC3_EFFECT_MISSILE, 0) :
+                               S_SearingArrowsMissileArt(ent);
+    if (arrow_code) {
+        /* The authored Black Arrow ability overrides the normal ranged
+         * projectile speed when configured, without mutating weapon data. */
+        cstring_t const speed_text = S_SpellString(arrow_code, "Missilespeed", 0);
+        float const configured = speed_text ? (float)atof(speed_text) : 0.0f;
+        if (isfinite(configured) && configured > 0.0f) missile_speed = configured;
+    }
     attack_set_backswing_deadline(ent);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
         .fixed_target = (atk->weapon == WPN_ARTILLERY || atk->weapon == WPN_ALINE) ? &impact : NULL,
-        .speed = atk->projectile.speed,
+        .speed = missile_speed,
         .model = missile_art ? G_RegisterModel(missile_art) : atk->projectile.model,
+        .arrow_ability = arrow_code,
+        .arrow_level = arrow_level,
+        .allow_destroyer_orb = !arrow_code,
         .damage = damage,
         .attack_type = atk->type,
         .attack = atk,
@@ -772,10 +947,14 @@ static void throw_missile(edict_t *ent) {
                                G_ImpalingBoltResearchLevel(ent) > 0 && G_IsDestructable(other),
         .area_targets = ent->data.UnitWeapons ? (atk == &ent->unit_state->attack2 ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
-    /* See damage_target(): if the model has no finite attack sequence there
-     * will be no animation-end callback to start recovery, so do it at the
-     * projectile launch point instead. */
-    if (S_AttackCanTarget(ent, ent->goalentity) && !attack_animation_can_finish(ent))
+    S_WarClubConsumeAttack(ent);
+    /* A ranged attack's next-shot timing comes from weapon cooldown and
+     * backswing, not from the length of its selected animation sequence.
+     * Enter recovery at release for every model: waiting for a long finite
+     * clip's endfunc can otherwise stretch a 1-second weapon cadence to the
+     * full animation length. The recovery move may interrupt the attack clip,
+     * then starts the next attack when both authored timing gates have elapsed. */
+    if (S_AttackCanTarget(ent, ent->goalentity))
         attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
@@ -1075,9 +1254,13 @@ bool S_SearingArrowsIssueOrder(edict_t *attacker, edict_t *target, uint32_t abil
     status_application_t app;
     heroabilitystatus_t *status;
     uint32_t level;
-    if (!attacker || !target || G_AbilityCode(ability) != MAKEFOURCC('A','H','f','a') ||
+    if (!attacker || !target ||
+        (G_AbilityCode(ability) != MAKEFOURCC('A','H','f','a') &&
+         G_AbilityCode(ability) != MAKEFOURCC('A','f','a','k')) ||
         !G_UnitAbilityLevel(attacker, ability) || !S_AttackCanTarget(attacker, target) ||
-        !attacker->unit_state || attacker->unit_state->attack1.weapon != WPN_MISSILE) return false;
+        !attacker->unit_state ||
+        (attacker->unit_state->attack1.weapon != WPN_MISSILE &&
+         attacker->unit_state->attack1.weapon != WPN_MSPLASH)) return false;
     level = G_UnitAbilityLevel(attacker, ability);
     app = (status_application_t){
         .buff = GetClassName(ability), .level = level, .source_ability = ability,
@@ -1132,6 +1315,12 @@ void attack_melee(edict_t *self) {
     S_PermanentInvisibilityReveal(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_melee);
+    /* unit_setmove selects the new animation but M_MoveFrame would otherwise
+     * spend its first simulation tick snapping a stale frame from the prior
+     * sequence back to this one. Start the visible swing at its authored first
+     * frame immediately so its motion stays aligned with damagePoint. */
+    if (self->animation && self->animation->interval[1] > self->animation->interval[0])
+        self->s.frame = self->animation->interval[0];
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
@@ -1416,7 +1605,7 @@ static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location)
 
 static float attack_ground_cursor_radius(gameClient_t *client) {
     float radius = 0.0f;
-    if (!client) return 200.0f;
+    if (!client) return 0.0f;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         unitAttack_t const *attacks[] = { &ent->unit_state->attack1, &ent->unit_state->attack2 };
         FOR_LOOP(i, 2) {
@@ -1426,9 +1615,9 @@ static float attack_ground_cursor_radius(gameClient_t *client) {
             radius = MAX(radius, MAX(attack->areaFull, MAX(attack->areaMedium, attack->areaSmall)));
         }
     }
-    /* Some custom artillery rows omit splash bands but still use the standard
-     * Attack Ground placement preview size. */
-    return radius > 0.0f ? radius : 200.0f;
+    /* Use the authored splash bands; do not invent a visual area for
+     * custom artillery weapons with no area data. */
+    return radius;
 }
 
 BZ_COMMAND_PROC(AbilityAttackGround) {

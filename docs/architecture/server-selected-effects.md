@@ -6,7 +6,8 @@ When a game needs to attach a race/unit/spell-specific model or effect to an ent
 (building-on-fire, frost, poison, an aura ring), the shared network layer must stay
 completely ignorant of *which* content is selected. It only carries:
 
-- `BYTE entityState_t.effect` — a registered model index, same shape as `model`/`model2`.
+- `USHORT entityState_t.effect` — a registered model index, independent of `model2`,
+  serialized as `NFT_SHORT` so effect model indices up to `MAX_MODELS - 1` can be used.
 - `USHORT entityState_t.effect_flags` — an explicit discriminant (`EFX_MODEL`, `EFX_SPLAT`,
   `EFX_ATTACH_SLOTS`, ...), a packed slot/parameter mask (`EFX_SLOT_MASK`/`EFX_SLOT_SHIFT`),
   and the opaque `EFX_GAME_VARIANT_*` bits when a selected game needs a tiny renderer-facing classification.
@@ -125,3 +126,24 @@ Short-lived world text follows the same ownership rule as model effects. `TE_FLO
 The client captures the event anchor and projects it through the active camera each draw. It does not create a persistent network entity and does not attach the text to the source after spawn. This is appropriate for one-shot feedback such as a committed resource gain; persistent/script-addressable text belongs to a separate handle/entity contract. See [WC3 Resource-Gain Floating Text](../games/warcraft-3/resource-gain-text.md).
 
 For script-addressable text with setters and a destroy lifecycle, the owning game may publish keyed generic text-tag state updates and removals. The client treats the key as opaque, updates the matching presentation object, follows an optional entity anchor, and does not interpret Warcraft gameplay meaning. Warcraft III JASS texttags use this path; resource gains and bounty labels continue to use the one-shot event.
+
+## Effect model index width and merger review
+
+At the current baseline, `entityState_t.effect` is already `uint16_t` and its
+entity delta field is encoded as `NFT_SHORT`. This lets it identify registered
+models independently of `model2`; no protocol layout change is introduced by
+the ability-fixes patch. The protocol change predates this patch and should be
+reviewed as an explicit client/server compatibility decision when merging that
+baseline.
+
+**Recommendation: approve the existing 16-bit effect-field protocol expansion.**
+`MAX_MODELS` is 512, and effect models may register above index 255. Reusing
+`model2` would prevent a unit from simultaneously showing its ordinary
+secondary model and effect overlay. Clients and servers must agree on the
+current `NFT_SHORT` encoding.
+
+The delta regression `net.entity_delta_preserves_effect_model` verifies an
+index above 255 alongside an independent `model2`; the client regression
+`client_entities.effect_model_over_255_is_independent_of_model2_and_bounded`
+verifies both simultaneous presentation and safe rejection of invalid model
+indices.

@@ -28,6 +28,24 @@ void G_ResetTestSelectionChecks(void);
 uint32_t G_GetTestSelectionChecks(void);
 bool run_test_jass(cstring_t src);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
+void UI_TestFormatDamageTooltip(char *tip, size_t tip_size, char *body, size_t body_size,
+                                attackType_t type, int32_t min_damage, int32_t max_damage,
+                                float range, float cooldown, cstring_t upgrade_name,
+                                uint32_t upgrade_level);
+void UI_TestSetDamageTooltip(frameDef_t *icon, edict_t *ent, attackType_t type,
+                             int32_t min_damage, int32_t max_damage, float range,
+                             float cooldown, uint32_t upgrade,
+                             float temporary_damage_bonus, float damage_base);
+void UI_TestFormatArmorValue(char *buffer, size_t buffer_size, edict_t const *ent);
+void UI_TestFormatArmorTooltip(char *tip, size_t tip_size, char *body, size_t body_size,
+                               uint32_t type, float armor, float move_speed,
+                               cstring_t upgrade_name, uint32_t upgrade_level);
+void UI_TestSetArmorTooltip(frameDef_t *icon, edict_t *ent, uint32_t type,
+                            float armor, float move_speed, uint32_t upgrade);
+void UI_TestSetHeroAttributesTooltip(frameDef_t *icon, cstring_t primary);
+void UI_TestSetCasterRankTooltip(frameDef_t *icon, cstring_t rank_names,
+                                 cstring_t rank_spells, cstring_t upgrade_names,
+                                 uint32_t rank);
 
 
 #include "../game/hud/hud_utils.h"
@@ -1602,6 +1620,156 @@ TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     T_STREQ(key, "InfoPanelIconDamageUnknownNeutral");
     UI_InfoPanelIconSkinKey("Armor", NULL, false, key, sizeof(key));
     T_STREQ(key, "InfoPanelIconArmorSmallNeutral");
+}
+
+TEST(wc3_game, damage_icon_tooltip_shows_rifleman_attack_details) {
+    char tip[256], body[1536];
+    frameDef_t icon = { 0 };
+    edict_t *rifleman;
+
+    reset_entities();
+    setup_test_world();
+    rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 64.0f, 64.0f);
+    UI_TestSetDamageTooltip(&icon, rifleman, ATK_PIERCE, 21, 36,
+                            600.0f, 1.5f, 0, 0.0f, 0.0f);
+    T_STREQ(icon.Tip, "Damage: 21 - 36");
+    T_ASSERT(icon.Ubertip && strstr(icon.Ubertip, "Range: 600"));
+
+    UI_TestSetDamageTooltip(&icon, rifleman, ATK_PIERCE, 37, 59,
+                            600.0f, 1.5f, 0, 6.0f, 0.0f);
+    T_STREQ(icon.Tip, "Damage: 37 - 59 |cff00ff00+6|r");
+    T_ASSERT(icon.Ubertip && strstr(icon.Ubertip, "Bonus Damage: |cff00ff00+6|r") != NULL);
+
+    UI_TestFormatDamageTooltip(tip, sizeof(tip), body, sizeof(body), ATK_PIERCE,
+                               21, 36, 600.0f, 1.5f, "Imbued Gunpowder", 3);
+
+    T_STREQ(tip, "Damage: 21 - 36");
+    T_ASSERT(strstr(body, "Type:") != NULL);
+    T_ASSERT(strstr(body, "Piercing") != NULL);
+    T_ASSERT(strstr(body, "Range: 600") != NULL);
+    T_ASSERT(strstr(body, "Speed: Average") != NULL);
+    T_ASSERT(strstr(body, "Upgrade: Imbued Gunpowder - Level 3") != NULL);
+    T_ASSERT(strstr(body, "Piercing attacks do extra damage to Unarmored units and Light armor") != NULL);
+}
+
+TEST(wc3_game, armor_icon_tooltip_shows_rifleman_defense_details) {
+    char tip[256], body[1536];
+    frameDef_t icon = { 0 };
+    edict_t *rifleman;
+    bool const combat_constants_loaded = game.constants.combatConstantsLoaded;
+
+    reset_entities();
+    setup_test_world();
+    /* Exercise the stock prose fallback; the matrix-specific tooltip path is
+     * covered separately and may be active from the test game's config. */
+    game.constants.combatConstantsLoaded = false;
+    rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 64.0f, 64.0f);
+    rifleman->unit_state->defense_type = 1;
+    rifleman->unit_state->armor_value = 6.0f;
+    rifleman->unitinfo.MoveSpeed = 270.0f;
+    UI_TestSetArmorTooltip(&icon, rifleman, rifleman->unit_state->defense_type,
+                           G_UnitArmorValue(rifleman), rifleman->unitinfo.MoveSpeed, 0);
+    T_STREQ(icon.Tip, "Armor: 6");
+    T_ASSERT(icon.Ubertip && strstr(icon.Ubertip, "Damage Reduction: 26%"));
+
+    UI_TestFormatArmorTooltip(tip, sizeof(tip), body, sizeof(body), 1, 6.0f,
+                              270.0f, "Dragonhide Armor", 3);
+    T_STREQ(tip, "Armor: 6");
+    T_ASSERT(strstr(body, "Type: ") != NULL);
+    T_ASSERT(strstr(body, "Medium") != NULL);
+    T_ASSERT(strstr(body, "Damage Reduction: 26%") != NULL);
+    T_ASSERT(strstr(body, "Move Speed: Average") != NULL);
+    T_ASSERT(strstr(body, "Upgrade: Dragonhide Armor - Level 3") != NULL);
+    T_ASSERT(strstr(body, "Medium armor takes extra damage from Normal attacks") != NULL);
+
+    rifleman->unit_state->armor_value = 11.0f;
+    rifleman->unit_state->temporary_armor_bonus = 5.0f;
+    UI_TestSetArmorTooltip(&icon, rifleman, rifleman->unit_state->defense_type,
+                           G_UnitArmorValue(rifleman), rifleman->unitinfo.MoveSpeed, 0);
+    T_STREQ(icon.Tip, "Armor: 6 |cff00ff00+5|r");
+    T_ASSERT(icon.Ubertip && strstr(icon.Ubertip, "Bonus Armor: |cff00ff00+5|r") != NULL);
+    game.constants.combatConstantsLoaded = combat_constants_loaded;
+}
+
+TEST(wc3_game, armor_icon_formats_negative_values_without_rounding_toward_zero) {
+    char buffer[128], tip[256], body[1536];
+    edict_t *rifleman;
+    reset_entities(); setup_test_world();
+    rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 64.0f, 64.0f);
+    rifleman->unit_state->armor_value = -1.0f;
+    rifleman->unit_state->temporary_armor_bonus = 0.0f;
+    UI_TestFormatArmorValue(buffer, sizeof(buffer), rifleman);
+    T_STREQ(buffer, "-1");
+    UI_TestFormatArmorTooltip(tip, sizeof(tip), body, sizeof(body), 4, -1.0f,
+                              270.0f, NULL, 0);
+    T_STREQ(tip, "Armor: -1");
+    T_ASSERT(strstr(body, "Normal armor takes standard damage from all attack types.") != NULL);
+}
+
+TEST(wc3_game, damage_and_armor_tooltips_use_map_specific_attack_matrix) {
+    char tip[256], body[1536];
+    bool const loaded = game.constants.combatConstantsLoaded;
+    float old[8][8];
+    memcpy(old, game.constants.damageBonus, sizeof(old));
+    for (uint32_t attack = 0; attack < 8; ++attack)
+        for (uint32_t defense = 0; defense < 8; ++defense) {
+            /* Populate the full table so only this one nonstock change matters. */
+            game.constants.combatConstantsLoaded = false;
+            float const stock = G_AttackTypeDamageMultiplier(attack, defense);
+            game.constants.damageBonus[attack][defense] = stock;
+        }
+    game.constants.combatConstantsLoaded = true;
+    game.constants.damageBonus[ATK_PIERCE][4] = 1.75f;
+
+    UI_TestFormatDamageTooltip(tip, sizeof(tip), body, sizeof(body), ATK_PIERCE,
+                               21, 36, 600.0f, 1.5f, NULL, 0);
+    T_ASSERT(strstr(body, "Damage multipliers vs armor:") != NULL);
+    T_ASSERT(strstr(body, "Type: Normal  175%") != NULL);
+    T_ASSERT(strstr(body, "Piercing attacks do extra damage") == NULL);
+
+    UI_TestFormatArmorTooltip(tip, sizeof(tip), body, sizeof(body), 4, 6.0f,
+                              270.0f, NULL, 0);
+    T_ASSERT(strstr(body, "Incoming attack multipliers:") != NULL);
+    T_ASSERT(strstr(body, "Type: Piercing  175%") != NULL);
+    T_ASSERT(strstr(body, "Normal armor takes standard damage") == NULL);
+
+    game.constants.combatConstantsLoaded = loaded;
+    memcpy(game.constants.damageBonus, old, sizeof(old));
+}
+
+TEST(wc3_game, hero_primary_attribute_icon_shows_attribute_bonuses) {
+    frameDef_t icon = { 0 };
+
+    UI_TestSetHeroAttributesTooltip(&icon, "INT");
+
+    T_STREQ(icon.Tip, "Hero Attributes:");
+    T_ASSERT(icon.Ubertip && strstr(icon.Ubertip, "Strength:\n - Each point increases hit points by 25") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Each point increases hit point regeneration") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, "Agility:\n - Every 3 points increase armor by 1") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Each point increases attack speed") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, "Intelligence:") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Primary Attribute") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Each point increases damage by 1") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Each point increases mana by 15") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, " - Each point increases mana regeneration") != NULL);
+}
+
+TEST(wc3_game, caster_rank_icon_shows_training_level_and_spells) {
+    frameDef_t icon = { 0 };
+
+    UI_TestSetCasterRankTooltip(&icon, "Initiate, Adept, Master",
+        "\"- Slow\",\"- Slow|n- Invisibility\",\"- Slow|n- Invisibility|n- Polymorph\"",
+        "Sorceress Adept Training,Sorceress Master Training", 0);
+    T_STREQ(icon.Tip, "Rank:");
+    T_ASSERT(strstr(icon.Ubertip, "Name: Initiate") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, "Upgrade: Sorceress Adept Training - Level 0") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, "Spells:\n- Slow") != NULL);
+
+    UI_TestSetCasterRankTooltip(&icon, "Initiate, Adept, Master",
+        "\"- Heal\",\"- Heal|n- Dispel Magic\",\"- Heal|n- Dispel Magic|n- Inner Fire\"",
+        "Priest Adept Training,Priest Master Training", 0);
+    T_ASSERT(strstr(icon.Ubertip, "Upgrade: Priest Adept Training - Level 0") != NULL);
+    T_ASSERT(strstr(icon.Ubertip, "Spells:\n- Heal") != NULL);
 }
 
 static uint32_t status_icon_read_count;
@@ -3505,6 +3673,13 @@ TEST(wc3_game, compress_stat_zero_max_is_0) {
     T_EQ((int)compress_stat(&s), 0);
 }
 
+TEST(wc3_game, compress_stat_overcharged_mana_is_full_not_wrapped) {
+    edictStat_s s = { 180.0f, 100.0f };
+    T_EQ((int)compress_stat(&s), 255);
+    s.value = -5.0f;
+    T_EQ((int)compress_stat(&s), 0);
+}
+
 /* =========================================================================
  * FindEnumValue
  * ========================================================================= */
@@ -4972,6 +5147,128 @@ SAVE_INT_FIELD_TEST(field_waypoint_generation_round_trip, route->serial, 43)
 SAVE_PTR_FIELD_TEST(field_wander_goal_round_trip, "wander->goal", wander->goal, 0)
 SAVE_PTR_FIELD_TEST(field_wander_waypoint_round_trip, "wander->waypoint", wander->waypoint, 0)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
+SAVE_INT_FIELD_TEST(field_phoenix_fire_cooldown_round_trip, phoenix_fire_next_ms, 8300)
+SAVE_INT_FIELD_TEST(field_phoenix_egg_hatching_round_trip, phoenix_hatch_ms, 12400)
+SAVE_INT_FIELD_TEST(field_phoenix_caster_incarnation_round_trip, phoenix_owner_spawn_time, 6570)
+
+TEST(wc3_save, tornado_channel_thinker_and_toss_marker_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-tornado-channel.bin");
+    uint32_t const code = MAKEFOURCC('A','N','t','o');
+    edict_t *caster, *tornado, *victim, *thinker, *marker;
+    channel_t *channel;
+
+    reset_entities(); setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    tornado = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 80, 0);
+    victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    channel = G_AddChannel(caster);
+    channel->code = code;
+    channel->serial = 73;
+    channel->origin = caster->s.origin2;
+    thinker = S_SpellChannelThinker(caster, code);
+    T_NOT_NULL(thinker);
+    if (!thinker) return;
+    thinker->goalentity = tornado;
+    G_GetChannel(thinker)->target_spawn_time = tornado->spawn_time;
+    thinker->think = tornado_think;
+    thinker->resources = 40000;
+    thinker->freetime = 1000;
+    thinker->damage = 3000;
+    thinker->variation = 0xabcddcbau;
+    marker = S_SpellIdentityThinker(thinker, MAKEFOURCC('T','s','p','M'), victim);
+    T_NOT_NULL(marker);
+    if (!marker) return;
+    marker->resources = 22000;
+    marker->svflags |= SVF_NOCLIENT;
+    T_ASSERT(WriteGame(filename));
+    thinker->owner = thinker->goalentity = NULL;
+    thinker->think = NULL;
+    thinker->resources = thinker->damage = thinker->variation = 0;
+    marker->owner = marker->goalentity = NULL;
+    G_GetChannel(thinker)->serial = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    T_ASSERT(S_SpellChannelTarget(thinker) == tornado);
+    T_ASSERT(thinker->think == tornado_think);
+    T_EQ(G_GetChannel(thinker)->serial, 73u);
+    T_EQ(thinker->resources, 40000u);
+    T_EQ(thinker->freetime, 1000u);
+    T_EQ(thinker->damage, 3000u);
+    T_EQ(thinker->variation, 0xabcddcbau);
+    T_ASSERT(S_SpellChannelOwner(marker) == thinker);
+    T_ASSERT(S_SpellChannelTarget(marker) == victim);
+    T_EQ(marker->resources, 22000u);
+    remove(filename);
+}
+
+TEST(wc3_save, carrion_wave_and_hit_identity_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-carrion-wave.bin");
+    edict_t *caster, *target, *wave, *marker;
+    carrionWave_t *state;
+
+    reset_entities(); setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('H','a','m','g'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
+    wave = G_Spawn();
+    T_NOT_NULL(wave);
+    if (!wave) return;
+    wave->class_id = MAKEFOURCC('A','C','c','v');
+    wave->owner = caster;
+    wave->think = carrion_wave_think;
+    state = G_AddCarrionWave(wave);
+    T_NOT_NULL(state);
+    if (!state) return;
+    state->caster_spawn_time = caster->spawn_time;
+    state->identity = 0x12345678u;
+    state->ability = wave->class_id;
+    state->level = 2;
+    state->direction = (vec2_t){ 1.0f, 0.0f };
+    state->previous_position = (vec2_t){ 100.0f, 0.0f };
+    state->travel_distance = 800.0f;
+    state->travelled = 100.0f;
+    state->speed = 900.0f;
+    state->initial_width = 20.0f;
+    state->final_width = 140.0f;
+    state->damage_per_target = 150.0f;
+    state->remaining_damage = 500.0f;
+    state->capped = true;
+    wave->s.origin2 = state->previous_position;
+    wave->s.origin = (vec3_t){ 100.0f, 0.0f, 0.0f };
+    marker = G_Spawn();
+    T_NOT_NULL(marker);
+    if (!marker) return;
+    marker->class_id = MAKEFOURCC('C','W','h','t');
+    marker->svflags |= SVF_NOCLIENT;
+    marker->owner = wave;
+    marker->goalentity = target;
+    marker->damage = wave->spawn_time;
+    marker->variation = state->identity;
+    marker->resources = target->spawn_time;
+
+    T_ASSERT(WriteGame(filename));
+    wave->think = NULL;
+    state->identity = 0;
+    state->travelled = 0.0f;
+    marker->owner = marker->goalentity = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(wave->think == carrion_wave_think);
+    T_ASSERT(wave->owner == caster);
+    state = G_GetCarrionWave(wave);
+    T_NOT_NULL(state);
+    if (state) {
+        T_EQ(state->identity, 0x12345678u);
+        T_EQ(state->ability, MAKEFOURCC('A','C','c','v'));
+        T_EQ(state->level, 2u);
+        T_FEQ(state->travelled, 100.0f, 0.001f);
+        T_FEQ(state->remaining_damage, 500.0f, 0.001f);
+        T_ASSERT(state->capped);
+    }
+    T_ASSERT(marker->owner == wave);
+    T_ASSERT(marker->goalentity == target);
+    T_EQ(marker->variation, 0x12345678u);
+    T_EQ(marker->resources, target->spawn_time);
+    remove(filename);
+}
 
 TEST(wc3_save, ability_owned_timed_summon_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-ability-owned-timed-summon.bin");
@@ -5044,6 +5341,128 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     T_FEQ(missile->velocity, 0.9f, 0.001f);
     T_EQ(missile->movetype, MOVETYPE_FLYMISSILE);
     T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    remove(filename);
+}
+
+TEST(wc3_save, impale_wave_and_hit_marker_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-impale-wave.bin");
+    edict_t *caster, *victim, *wave, *marker;
+    impaleWave_t *state;
+    reset_entities(); setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    caster->spawn_time = 500;
+    victim->spawn_time = 600;
+    wave = G_Spawn();
+    T_NOT_NULL(wave);
+    if (!wave) return;
+    wave->owner = caster;
+    wave->class_id = MAKEFOURCC('A','U','i','m');
+    wave->spawn_time = 700;
+    wave->think = impale_wave_think;
+    state = G_AddImpaleWave(wave);
+    T_NOT_NULL(state);
+    if (!state) return;
+    state->origin = (vec2_t){ 0, 0 };
+    state->direction = (vec2_t){ 1, 0 };
+    state->distance = 600;
+    state->duration = 0.6f;
+    state->half_width = 125;
+    state->damage = 73;
+    state->previous_distance = 200;
+    state->start_ms = 1000;
+    state->caster_spawn_time = caster->spawn_time;
+    state->uninterruptible = 1;
+    state->ability = wave->class_id;
+    state->level = 2;
+    marker = G_Spawn();
+    T_NOT_NULL(marker);
+    if (!marker) return;
+    marker->class_id = MAKEFOURCC('I','m','p','H');
+    marker->svflags |= SVF_NOCLIENT;
+    marker->owner = wave;
+    marker->goalentity = victim;
+    marker->damage = wave->spawn_time;
+    marker->resources = victim->spawn_time;
+    marker->s.origin2 = (vec2_t){ 100, 0 }; /* saved hit art location */
+    T_ASSERT(WriteGame(filename));
+    wave->owner = NULL;
+    wave->think = NULL;
+    state->ability = state->level = 0;
+    state->previous_distance = 0;
+    marker->owner = marker->goalentity = NULL;
+    marker->s.origin2 = (vec2_t){ 0, 0 };
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(wave->think == impale_wave_think);
+    T_ASSERT(wave->owner == caster);
+    state = G_GetImpaleWave(wave);
+    T_NOT_NULL(state);
+    if (state) {
+        T_EQ(state->ability, MAKEFOURCC('A','U','i','m'));
+        T_EQ(state->level, 2);
+        T_FEQ(state->distance, 600, 0.001f);
+        T_FEQ(state->previous_distance, 200, 0.001f);
+        T_EQ(state->caster_spawn_time, 500);
+        T_EQ(state->uninterruptible, 1u);
+    }
+    T_ASSERT(marker->owner == wave);
+    T_ASSERT(marker->goalentity == victim);
+    T_EQ(marker->damage, 700);
+    T_EQ(marker->resources, 600);
+    T_FEQ(marker->s.origin2.x, 100.0f, 0.001f);
+    T_FEQ(marker->s.origin2.y, 0.0f, 0.001f);
+    remove(filename);
+}
+
+TEST(wc3_save, impale_victim_lift_and_stun_survive_save) {
+    cstring_t filename = Test_TempPath("wc3-save-impale-lift.bin");
+    edict_t *victim;
+    impaleLift_t *lift;
+    heroabilitystatus_t *status;
+    float offset;
+    reset_entities(); setup_test_world();
+    victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 80, 0);
+    level.time = 2200;
+    victim->unitinfo.FlyHeight = 25.0f;
+    status = unit_applystatus(victim, &(status_application_t){
+        .buff = "BUim", .level = 1, .duration = 2.0f,
+        .source_ability = MAKEFOURCC('A','U','i','m'),
+        .state_mask = WC3_STATUS_STATE_STUNNED
+    });
+    T_NOT_NULL(status);
+    lift = G_AddImpaleLift(victim);
+    T_NOT_NULL(lift);
+    if (!lift) return;
+    lift->start_ms = 2000;
+    lift->end_ms = 2800;
+    lift->peak_height = 120.0f;
+    lift->start_offset = 12.0f;
+    lift->vulnerable = 1;
+    M_CheckGround(victim);
+    offset = S_ImpaleLiftOffset(victim);
+    T_ASSERT(offset > 0.0f);
+    T_ASSERT(WriteGame(filename));
+    lift->end_ms = 0;
+    victim->unitinfo.FlyHeight = 0.0f;
+    memset(victim->unit_state->statuses, 0, sizeof(victim->unit_state->statuses));
+    T_ASSERT(ReadGame(filename));
+    lift = G_GetImpaleLift(victim);
+    T_NOT_NULL(lift);
+    if (lift) {
+        T_EQ(lift->start_ms, 2000u);
+        T_EQ(lift->end_ms, 2800u);
+        T_FEQ(lift->peak_height, 120.0f, 0.001f);
+        T_FEQ(lift->start_offset, 12.0f, 0.001f);
+        T_EQ(lift->vulnerable, 1u);
+        T_ASSERT(S_ImpaleAirborneVulnerable(victim));
+    }
+    T_FEQ(victim->unitinfo.FlyHeight, 25.0f, 0.001f);
+    T_FEQ(S_ImpaleLiftOffset(victim), offset, 0.01f);
+    T_ASSERT(unit_hasstatusstate(victim, WC3_STATUS_STATE_STUNNED));
+    level.time = 2900;
+    S_ImpaleLiftUpdate(victim);
+    T_NULL(G_GetImpaleLift(victim));
+    T_ASSERT(unit_hasstatusstate(victim, WC3_STATUS_STATE_STUNNED));
     remove(filename);
 }
 

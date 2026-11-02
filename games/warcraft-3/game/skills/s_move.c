@@ -1290,7 +1290,9 @@ void M_CheckGround(edict_t *self) {
                 (elevator ? dstr->occluder_height : 0.0f));
         }
     }
-    self->s.ground_offset = self->unitinfo.FlyHeight;
+    /* Impale owns a separate temporary lift offset. In particular, do not
+     * overwrite FlyHeight, which is already owned by flight/Ensnare/Cyclone. */
+    self->s.ground_offset = self->unitinfo.FlyHeight + S_ImpaleLiftOffset(self);
     self->s.origin.z = height + self->s.ground_offset;
 }
 
@@ -1930,7 +1932,9 @@ bool S_UnitIsEntanglingRooted(edict_t const *unit) {
  * pause). Entangling Roots is also a disarm; attack owns that separate check. */
 bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
+    if (S_ManaFlareActive(unit)) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
+        unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED) ||
         unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) || S_PurgeIsImmobilized(unit)) return false;
     return true;
 }

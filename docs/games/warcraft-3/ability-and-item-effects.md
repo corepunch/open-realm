@@ -26,6 +26,24 @@ This is adjacent to, but intentionally different from, `entityState_t.effect/eff
 
 See also [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md) and [Inventory And Items](inventory-and-items.md).
 
+## Faerie Fire Unit Vision
+
+Faerie Fire (`Afae`, `Afa2`, and creep `ACff`) applies the `Bfae` status with
+an authored armor reduction and a unit-specific vision mark. The cast records
+its player number as `status.data = player + 1` (zero means no vision source).
+The fog-of-war entity visibility/hover gates read the active status directly,
+including the remaining duration, and grant vision to that player and players
+receiving their shared vision. `IsUnitVisible` queries the same current-visibility
+gate (rather than the explored-building snapshot rule). The sight follows the target as it moves away,
+including into unexplored terrain; it does **not** reveal surrounding terrain,
+turn into an area sight source, or act as invisible-unit detection. Script-hidden
+and undetected invisible units still obey their independent visibility rules.
+
+The `Bfae` status is authoritative for removal and persistence: expiry, dispel,
+status replacement, target death, and save/load do not need a parallel sight
+counter or thinker. Refresh/recast updates the casting player. Spell Steal
+redirecting a negative `Bfae` status assigns the mark to the stealing player.
+
 ## Data Flow
 
 Ability-authored presentation follows:

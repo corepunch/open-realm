@@ -3,6 +3,9 @@
 #include "g_unitrow.h"
 
 cstring_t config_files[] = {
+    /* Project overrides for presentation fields missing or conflicting in
+     * stock text data. Omitted fields continue to fall through to retail. */
+    "Units\\OpenRealmAbilityStrings.txt",
     "UI\\WorldEditGameStrings.txt",
 #if BZ_COMPAT_WORKAROUNDS
     /* RoC 1.0 stores destructable WESTRING_DOOD_* labels here rather than in

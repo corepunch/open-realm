@@ -12,3 +12,41 @@ Buttonpos=1,1
 [ACm3]
 Art=ReplaceableTextures\PassiveButtons\PASBTNGenericSpellImmunity.blp
 Buttonpos=1,2
+
+// Silence uses ability EffectArt for the point burst and buff TargetArt for the overhead lock.
+[ANsi]
+EffectArt=TestUI\Models\anim_oneshot.mdx
+
+[BNsi]
+TargetArt=TestUI\Models\anim_pulse.mdx
+Targetattach=overhead
+
+// Charm is a permanent transfer with a transient overhead spell effect.
+[ANch]
+TargetArt=TestUI\Models\anim_oneshot.mdx
+Targetattach=overhead
+
+[ACch]
+TargetArt=TestUI\Models\anim_oneshot.mdx
+Targetattach=overhead
+
+// Dark Ranger Black Arrow: missile selection is made when the shot launches.
+[ANba]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=790
+
+[ACbk]
+MissileArt=TestUI\Models\anim_projectile.mdx
+Missilespeed=590
+
+// The original Dark Ranger channels a DRAL lightning ribbon between the two
+// chest-attached drain models, with a looping authored sound alias.
+[ANdr]
+LightningEffect=DRAB,DRAL,DRAM
+Effectsoundlooped=DrainLoop
+
+[Bdcl]
+TargetArt=TestUI\Models\anim_pulse.mdx
+
+[Bdtl]
+TargetArt=TestUI\Models\anim_pulse.mdx

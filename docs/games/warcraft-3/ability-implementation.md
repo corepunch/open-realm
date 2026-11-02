@@ -17,6 +17,9 @@ Item abilities whose state spans an inventory item and another unit have a
 second lifecycle contract in [Inventory And World Items](inventory-and-items.md),
 including the `AIso`/`Asou` Soul Trap relationship used by Orc08.
 
+Point-target ability UI follows the [Area-Targeting Preview](area-targeting-preview.md)
+contract for caster-race artwork, authored area and render-local green highlights.
+
 ## Mechanical Workflow
 
 Do these steps in order. Do not skip the poll. Do not write a Python SLK parser.
@@ -224,10 +227,11 @@ demonstrated common candidate contract (alive, authored target mask, friendly or
 enemy relation, and jump radius) and `S_SpellTargetVisited()` for small
 synchronous visited arrays. Keep selection and lifecycle in the owner: Chain
 Lightning uses persistent marker edicts because delayed jumps must survive save
-state and chooses the nearest unvisited target; Forked Lightning retains its
-candidate/random policy; Healing Wave remains synchronous and chooses its next
-friendly according to its existing scan order. Do not replace those policies
-with a callback- or flag-driven generic chain interpreter.
+state and chooses the nearest unvisited target; Forked Lightning uses its
+authored caster-to-target cone and capped closest-target selection; Healing
+Wave remains synchronous and chooses its next friendly according to its
+existing scan order. Do not replace those policies with a callback- or
+flag-driven generic chain interpreter.
 For relocation abilities, resolve destination legality and fallback in the owner,
 then use `S_SpellRelocateUnit()` only for the demonstrated common commit step:
 source/destination `SpecialArt`, FOW blocker invalidation, relink, and

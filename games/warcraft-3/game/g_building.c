@@ -321,8 +321,11 @@ static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'o', 'w', 'd'), MAKEFOURCC('A', 'h', 'w', 'd'), 2 },
     { MAKEFOURCC('R', 'e', 'd', 'c'), MAKEFOURCC('A', 'r', 'e', 'j'), 1 },
     { MAKEFOURCC('R', 'e', 'd', 'c'), MAKEFOURCC('A', 'b', 'r', 'f'), 2 },
+    { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'c', 'y', 'c'), 2 }, /* Cyclone: Master Training */
     { MAKEFOURCC('R', 'e', 's', 'i'), MAKEFOURCC('A', 'a', 'd', 'm'), 1 },
     { MAKEFOURCC('R', 'e', 's', 'c'), MAKEFOURCC('A', 'e', 's', 'n'), 1 }, /* Sentinel */
+    { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'r', 'a', 'v'), 1 }, /* Storm Crow Form */
+    { MAKEFOURCC('R', 'u', 's', 'p'), MAKEFOURCC('A', 'a', 'v', 'e'), 1 }, /* Destroyer Form */
 };
 
 static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
@@ -344,7 +347,8 @@ static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
     }
 
     if (ability->checkDep || ability->id == MAKEFOURCC('A', 's', 'a', 'l') ||
-        ability->id == MAKEFOURCC('A', 'e', 's', 'n')) {
+        ability->id == MAKEFOURCC('A', 'e', 's', 'n') ||
+        ability->id == MAKEFOURCC('A', 'a', 'v', 'e')) {
         FOR_LOOP(i, (uint32_t)(sizeof(stock_ability_requirements) / sizeof(stock_ability_requirements[0]))) {
             stockAbilityUpgradeRequirement_t const *stock = stock_ability_requirements + i;
             if (upgrade->id != stock->upgrade_id || ability->id != stock->ability_id) continue;
@@ -380,7 +384,8 @@ float G_UnitUpgradeEffectBonus(edict_t const *unit, uint32_t effect) {
  * their research completes. UpgradeData rlev and the stock compatibility
  * table share this gate for command visibility and direct execution. */
 static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
-                                      bool *visible) {
+                                      bool *visible, uint32_t *research_id,
+                                      int32_t *required_level) {
     gameClient_t *owner;
     AbilityData_t const *ability;
     cstring_t upgrades;
@@ -390,6 +395,102 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
     bool available = false;
 
     if (visible) *visible = true;
+    if (research_id) *research_id = 0;
+    if (required_level) *required_level = 0;
+    /* Skeletal Mastery is an rlev rank-up for the Necromancer's native Raise
+     * Dead ability, not an unlock. Keep the level-one command usable from
+     * the start in TFT; Rusm still raises it to level two when researched. */
+    if (unit && unit->class_id == MAKEFOURCC('u','n','e','c') &&
+        ability_id == MAKEFOURCC('A','r','a','i') &&
+        gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0 &&
+        G_ActorHasSkill(unit, "Arai")) return true;
+    /* The Storm Crow morph (edtm) has its own Faerie Fire alias (Afa2),
+     * gated by the TFT Enchanted Crows/Mark of the Talon research (Reec).
+     * Keep that form-only command hidden in RoC. */
+    if (unit && unit->class_id == MAKEFOURCC('e','d','t','m') &&
+        ability_id == MAKEFOURCC('A','f','a','2')) {
+        bool const expansion = gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0;
+        gameClient_t *crow_owner;
+        int32_t maximum;
+        if (!expansion) {
+            if (visible) *visible = false;
+            return false;
+        }
+        if (research_id) *research_id = MAKEFOURCC('R','e','e','c');
+        if (required_level) *required_level = 1;
+        crow_owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!crow_owner || crow_owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(crow_owner, MAKEFOURCC('R','e','e','c'));
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(
+            crow_owner, MAKEFOURCC('R','e','e','c')) >= 1;
+    }
+    /* Mark of the Claw is a TFT-only permission for Bear Form to retain
+     * Roar. The transformed edcm row does not list Reeb in UnitBalance, and
+     * gating Aroa globally would incorrectly remove the Druid's normal-form
+     * starting spell. */
+    if (unit && unit->class_id == MAKEFOURCC('e','d','c','m') &&
+        ability_id == MAKEFOURCC('A','r','o','a')) {
+        bool const expansion = gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0;
+        gameClient_t *bear_owner;
+        int32_t maximum;
+        if (!expansion) {
+            if (visible) *visible = false;
+            return false;
+        }
+        if (research_id) *research_id = MAKEFOURCC('R','e','e','b');
+        if (required_level) *required_level = 1;
+        bear_owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!bear_owner || bear_owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(bear_owner, MAKEFOURCC('R','e','e','b'));
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(
+            bear_owner, MAKEFOURCC('R','e','e','b')) >= 1;
+    }
+    /* Crypt Fiend Burrow is a TFT-only command unlocked by Rubu. Abur is
+     * otherwise registered as a passive lifecycle ability, so keep this
+     * unit-specific research rule separate from generic spell requirements. */
+    if (unit && (unit->class_id == MAKEFOURCC('u','c','r','y') ||
+                 unit->class_id == MAKEFOURCC('u','c','r','m')) &&
+        ability_id == MAKEFOURCC('A','b','u','r')) {
+        bool const expansion = gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0;
+        gameClient_t *fiend_owner;
+        int32_t maximum;
+        if (!expansion) {
+            if (visible) *visible = false;
+            return false;
+        }
+        if (research_id) *research_id = MAKEFOURCC('R','u','b','u');
+        if (required_level) *required_level = 1;
+        fiend_owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!fiend_owner || fiend_owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(fiend_owner, MAKEFOURCC('R','u','b','u'));
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(
+            fiend_owner, MAKEFOURCC('R','u','b','u')) >= 1;
+    }
+    /* Exhume Corpses is a Meat Wagon passive unlocked by Ruex. The stock
+     * Wagon upgrade list does not include Ruex, so resolve this research
+     * directly instead of letting the passive run as soon as Aexh is present. */
+    if (ability_id == MAKEFOURCC('A','e','x','h')) {
+        int32_t maximum;
+        if (!unit) {
+            if (visible) *visible = false;
+            return false;
+        }
+        if (research_id) *research_id = MAKEFOURCC('R','u','e','x');
+        if (required_level) *required_level = 1;
+        owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(owner, MAKEFOURCC('R','u','e','x'));
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(
+            owner, MAKEFOURCC('R','u','e','x')) >= 1;
+    }
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     ability = G_AbilityData(ability_id);
     if (!ability || ability->id != ability_id) return true;
@@ -411,6 +512,8 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
                 G_GetAbilityUpgradeRequirement(upgrade, ability);
             if (!requirement.matched) continue;
             gated = true;
+            if (research_id) *research_id = upgrade_id;
+            if (required_level) *required_level = requirement.required_level;
             if (!owner || owner->ps.number != unit->s.player) {
                 /* An invalid owner cannot inherit the fallback client. Keep
                  * the command visible, while execution remains unavailable. */
@@ -433,13 +536,19 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
 }
 
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id) {
-    return G_UnitAbilityResearchState(unit, ability_id, NULL);
+    return G_UnitAbilityResearchState(unit, ability_id, NULL, NULL, NULL);
 }
 
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id) {
     bool visible;
-    G_UnitAbilityResearchState(unit, ability_id, &visible);
+    G_UnitAbilityResearchState(unit, ability_id, &visible, NULL, NULL);
     return visible;
+}
+
+bool G_UnitAbilityResearchRequirement(edict_t const *unit, uint32_t ability_id,
+                                      uint32_t *research_id, int32_t *required_level) {
+    G_UnitAbilityResearchState(unit, ability_id, NULL, research_id, required_level);
+    return research_id && *research_id != 0;
 }
 
 static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade,
@@ -517,8 +626,11 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             if (delta != 0.0f) {
                 if (G_UnitIsHero(unit)) G_RecomputeHeroStats(unit);
                 else {
+                    bool const excess = unit->mana.value > unit->mana.max_value;
                     unit->mana.max_value = MAX(0.0f, unit->mana.max_value + delta);
-                    unit->mana.value = MAX(0.0f, MIN(unit->mana.max_value, unit->mana.value + delta));
+                    /* Research that changes the cap retains a prior Siphon overcharge. */
+                    float const cap = unit->mana.max_value * (excess ? WC3_MANA_OVERCHARGE_LIMIT : 1.0f);
+                    unit->mana.value = MAX(0.0f, MIN(cap, unit->mana.value + delta));
                 }
                 changed = true;
             }
@@ -1888,7 +2000,7 @@ static void G_UpdateHumanConstructionEmitterState(edict_t *building) {
 #endif
 
     if (site->type != CONSTRUCTION_HUMAN) return;
-    if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED)) {
+    if (!G_UnitHasFlag(building, UNIT_FLAG_PAUSED) && !S_UnitIsFreezingBreathFrozen(building)) {
         FOR_LOOP(i, globals.num_edicts) {
             edict_t const *worker = &g_edicts[i];
             if (S_RepairWorkerAdvancingHumanConstruction(worker, building)) {
@@ -1942,7 +2054,8 @@ void G_RunConstructionFrame(edict_t *building) {
 
     if (!building || !site) return;
     G_UpdateHumanConstructionEmitterState(building);
-    if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED) || !building->data.UnitBalance) return;
+    if (G_UnitHasFlag(building, UNIT_FLAG_PAUSED) || S_UnitIsFreezingBreathFrozen(building) ||
+        !building->data.UnitBalance) return;
 
     duration = MAX(1.0f, site->duration_ms > 0 ?
                    site->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);

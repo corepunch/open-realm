@@ -101,7 +101,9 @@ The installed TFT upgrade table identifies `Rusl` (Skeletal Longevity) as effect
 `rrai`, base `15`, with the description “undead skeleton life span.” Raise Dead adds
 that authored researched effect to its summon duration through the generic player-tech
 lookup. `Rusm` (Skeletal Mastery) remains on the existing generic `rlev` path, which
-raises `Arai` to its authored second level.
+raises `Arai` to its authored second level. The Necromancer's level-one `Arai` command
+is available in TFT before research; mastery upgrades the second summon group to a
+Skeletal Mage without acting as an unlock requirement.
 
 `UnitID`/`Raiu` is not a summon-output field for this ability family: Warcraft metadata
 labels it **Unit Type for Limit Check**. Stock Raise Dead limits that authored type to 25

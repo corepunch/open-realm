@@ -10,6 +10,7 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
+
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -32,6 +33,19 @@ bool unit_additem(edict_t *edict, edict_t *item);
 bool unit_additemtoslot(edict_t *edict, edict_t *item, uint32_t slot);
 slkTestData_t *parse_slk_string(cstring_t slk_text);
 void free_slk_rows(slkTestData_t *rows);
+
+static void unit_test_clear_move(edict_t *ent) {
+    ent->currentmove = NULL;
+}
+
+static umove_t unit_test_single_frame_move = {
+    .animation = "stand",
+    .endfunc = unit_test_clear_move
+};
+static animation_t unit_test_single_frame_animation = {
+    .name = "stand",
+    .interval = { 0, 1 }
+};
 
 static int selection_sound_index_77(cstring_t path) {
     (void)path;
@@ -747,6 +761,34 @@ static char exploded_special_art[MAX_PATHLEN];
 static int test_explode_special_model_index(cstring_t path) {
     strlcpy(exploded_special_art, path ? path : "", sizeof(exploded_special_art));
     return 77;
+}
+
+static char phoenix_spawn_model[MAX_PATHLEN];
+static int phoenix_spawn_model_index(cstring_t path) {
+    strlcpy(phoenix_spawn_model, path ? path : "", sizeof(phoenix_spawn_model));
+    return 77;
+}
+
+TEST(wc3_unit, phoenix_egg_uses_egg_model_without_overriding_custom_model) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .modelFile = "units\\human\\phoenix\\phoenix", .modelScale = 1.0f, .selectionScale = 1.0f };
+    edict_t *egg;
+
+    reset_test_entities();
+    setup_test_world();
+    egg = make_unit(64.0f, 96.0f);
+    egg->class_id = MAKEFOURCC('h','p','x','e');
+    egg->data.UnitUI = &ui;
+    gi.ModelIndex = phoenix_spawn_model_index;
+    phoenix_spawn_model[0] = '\0';
+    SP_SpawnUnit(egg);
+    T_STREQ(phoenix_spawn_model, "Units\\Human\\Phoenix\\PhoenixEgg.mdx");
+
+    ui.modelFile = "Custom\\Phoenix\\Egg.mdx";
+    phoenix_spawn_model[0] = '\0';
+    SP_SpawnUnit(egg);
+    T_STREQ(phoenix_spawn_model, "Custom\\Phoenix\\Egg.mdx");
+    gi = old;
 }
 
 TEST(wc3_unit, scripted_explosion_selects_unit_special_art) {
@@ -1934,6 +1976,96 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+static cstring_t crypt_fiend_burrow_test_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+TEST(wc3_unit, crypt_fiend_burrow_orders_transform_only_after_tft_research) {
+    static UnitAbilities_t const unit_abilities = { .abilList = "Abur" };
+    static cstring_t const ability_slk =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Abur\"\nC;Y2;X2;K\"Abur\"\n"
+        "C;Y2;X3;K\"ucry\"\nC;Y2;X4;K\"ucrm\"\nE\n";
+    static UnitBalance_t const balance = {
+        .maxHealth = 200.0f, .maxMana = 0.0f, .sightRadius = 800.0f,
+        .speed = 220.0f, .defenseType = "medium", .healthRegenType = "always"
+    };
+    static UnitData_t const data = { .targetType = "ground", .moveTypeName = "foot" };
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    static cstring_t const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"modelScale\"\nC;Y1;X4;K\"scale\"\n"
+        "C;Y2;X1;K\"ucry\"\nC;Y2;X2;K\"Units\\\\Undead\\\\CryptFiend\\\\CryptFiend.mdx\"\nC;Y2;X3;K1\nC;Y2;X4;K1\n"
+        "C;Y3;X1;K\"ucrm\"\nC;Y3;X2;K\"Units\\\\Undead\\\\CryptFiend\\\\CryptFiend.mdx\"\nC;Y3;X3;K1\nC;Y3;X4;K1\nE\n";
+    static cstring_t const unit_data_slk =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"targetType\"\nC;Y1;X3;K\"moveType\"\n"
+        "C;Y2;X1;K\"ucry\"\nC;Y2;X2;K\"ground\"\nC;Y2;X3;K\"foot\"\n"
+        "C;Y3;X1;K\"ucrm\"\nC;Y3;X2;K\"ground\"\nC;Y3;X3;K\"foot\"\nE\n";
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *unit_data_rows, *old_unit_data;
+    gameClient_t *owner;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    edict_t *fiend;
+    abilityitem_t burrow_item;
+    abilityCall_t burrow_call;
+
+    reset_test_entities(); setup_test_world();
+    owner = &game.clients[0]; owner->ps.number = 0;
+    ability_rows = parse_slk_string(ability_slk);
+    T_NOT_NULL(ability_rows);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    ui_rows = parse_slk_string(ui_slk);
+    T_NOT_NULL(ui_rows);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    unit_data_rows = parse_slk_string(unit_data_slk);
+    T_NOT_NULL(unit_data_rows);
+    old_unit_data = G_SetSLKRows("UnitData", unit_data_rows);
+    memcpy(old_tech, owner->tech, sizeof(old_tech));
+    memset(owner->tech, 0, sizeof(owner->tech));
+    G_SetPlayerTechMaxAllowed(owner, MAKEFOURCC('R','u','b','u'), 1);
+    G_SetPlayerAbilityAvailable(owner, MAKEFOURCC('A','b','u','r'), true);
+    gi.CvarString = crypt_fiend_burrow_test_cvar;
+
+    fiend = alloc_test_unit(MAKEFOURCC('u','c','r','y'), 64.0f, 64.0f);
+    fiend->s.player = owner->ps.number;
+    fiend->data.UnitBalance = &balance;
+    fiend->data.UnitData = &data;
+    fiend->data.UnitWeapons = &weapons;
+    fiend->data.UnitAbilities = &unit_abilities;
+    burrow_item = MAKE(abilityitem_t, .code = MAKEFOURCC('A','b','u','r'),
+                       .ability = S_AbilityItem(MAKEFOURCC('A','b','u','r')).ability);
+    burrow_call = MAKE(abilityCall_t, .item = &burrow_item,
+                       .target = &(spellTarget_t){ .type = SPELL_TARGET_NONE });
+    T_ASSERT(!CAbilityCryptFiendBurrow(fiend, A_VALIDATE, &burrow_call));
+    T_EQ(fiend->class_id, MAKEFOURCC('u','c','r','y'));
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','u','b','u'), 1);
+    T_ASSERT(CAbilityCryptFiendBurrow(fiend, A_VALIDATE, &burrow_call));
+    T_ASSERT(CAbilityCryptFiendBurrow(fiend, A_EXECUTE, &burrow_call));
+    T_EQ(fiend->class_id, MAKEFOURCC('u','c','r','m'));
+    T_STREQ(fiend->animation_props, "alternate");
+    T_STREQ(fiend->animation_request, "stand");
+    T_ASSERT(CAbilityCryptFiendBurrow(fiend, A_VALIDATE, &burrow_call));
+    T_ASSERT(CAbilityCryptFiendBurrow(fiend, A_EXECUTE, &burrow_call));
+    T_EQ(fiend->class_id, MAKEFOURCC('u','c','r','y'));
+    T_STREQ(fiend->animation_props, "");
+    T_STREQ(fiend->animation_request, "stand");
+
+    G_SetPlayerTechResearched(owner, MAKEFOURCC('R','u','b','u'), 0);
+    G_SetPlayerTechMaxAllowed(owner, MAKEFOURCC('R','u','b','u'), -1);
+    G_SetPlayerAbilityAvailable(owner, MAKEFOURCC('A','b','u','r'), true);
+    G_SetSLKRows("AbilityData", old_ability);
+    G_SetSLKRows("UnitUI", old_ui);
+    free_slk_rows(ui_rows);
+    G_SetSLKRows("UnitData", old_unit_data);
+    free_slk_rows(unit_data_rows);
+    free_slk_rows(ability_rows);
+    gi.CvarString = previous_cvar;
+    memcpy(owner->tech, old_tech, sizeof(old_tech));
+}
+
 static void install_submerge_test_data(slkTestData_t **rows, slkTestData_t **old,
                                       slkTestData_t **ui_rows, slkTestData_t **old_ui) {
     static cstring_t const ability_slk =
@@ -2286,6 +2418,21 @@ TEST(wc3_unit, ability_updates_leave_ordinary_units_unchanged) {
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 37, 0.001f);
     T_NULL(G_GetRaven(ent));
+}
+
+/* An animation end callback may clear currentmove. monster_think must not
+ * dispatch a move callback through that retired pointer after M_MoveFrame. */
+TEST(wc3_unit, monster_think_rechecks_move_after_animation_end) {
+    reset_test_entities(); setup_test_world();
+    edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    ent->animation = &unit_test_single_frame_animation;
+    ent->s.frame = 0;
+    ent->animation_speed = 1.0f;
+    ent->currentmove = &unit_test_single_frame_move;
+
+    monster_think(ent);
+
+    T_NULL(ent->currentmove);
 }
 
 TEST(wc3_unit, ravenForm_takeoff_interpolates_from_ground_to_authored_height) {

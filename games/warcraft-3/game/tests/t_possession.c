@@ -223,6 +223,14 @@ TEST(wc3_spell, possession_rejects_invalid_targets_without_mana_spend) {
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.hero));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);
 
+    fix.enemy->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','C','s','k'), .level = 1);
+    T_ASSERT(!G_UnitIsHero(fix.enemy));
+    T_ASSERT(S_UnitIsResistant(fix.enemy));
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.enemy));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    memset(fix.enemy->unit_state->ranks, 0, sizeof(fix.enemy->unit_state->ranks));
+
     T_ASSERT(!S_SpellAllowsTarget(BZ_APOS, fix.caster, fix.flyer));
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.flyer));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);

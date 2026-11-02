@@ -9,11 +9,20 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan,AHmt" };
+static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan,AHmt,ANrf" };
 static char blizzard_effect_model[MAX_PATHLEN];
 
 static int review_capture_model(cstring_t model) {
     strlcpy(blizzard_effect_model, model ? model : "", sizeof(blizzard_effect_model));
+    return 77;
+}
+
+static char flame_strike_models[8][MAX_PATHLEN];
+static uint32_t flame_strike_model_count;
+static int flame_strike_capture_model(cstring_t model) {
+    if (flame_strike_model_count < sizeof(flame_strike_models) / sizeof(flame_strike_models[0]))
+        strlcpy(flame_strike_models[flame_strike_model_count], model ? model : "", MAX_PATHLEN);
+    flame_strike_model_count++;
     return 77;
 }
 
@@ -42,7 +51,7 @@ static void review_capture_sound_policy(vec3_t const *origin, edict_t *emitter, 
 }
 
 static char const review_slk[] =
-    "ID;PWXL;N;EBB;Y12;X17\n"
+    "ID;PWXL;N;EBB;Y12;X18\n"
     "C;Y1;X1;K\"alias\"\n"
     "C;Y1;X2;K\"code\"\n"
     "C;Y1;X3;K\"targs\"\n"
@@ -57,6 +66,7 @@ static char const review_slk[] =
     "C;Y1;X12;K\"DataD1\"\n"
     "C;Y1;X13;K\"DataE1\"\n"
     "C;Y1;X14;K\"BuffID1\"\n"
+    "C;Y1;X18;K\"DataI1\"\n"
     "C;Y1;X15;K\"UnitID1\"\n"
     "C;Y1;X17;K\"EfctID1\"\n"
     "C;Y2;X1;K\"AHfs\"\n"
@@ -73,6 +83,7 @@ static char const review_slk[] =
     "C;Y2;X12;K\"1\"\n"
     "C;Y2;X13;K\"0.75\"\n"
     "C;Y2;X14;K\"BHfs\"\n"
+    "C;Y2;X17;K\"XHfs\"\n"
     "C;Y3;X1;K\"AHbz\"\n"
     "C;Y3;X2;K\"AHbz\"\n"
     "C;Y3;X3;K\"ground,structure,enemy\"\n"
@@ -102,6 +113,7 @@ static char const review_slk[] =
     "C;Y4;X12;K\"0\"\n"
     "C;Y4;X13;K\"30\"\n"
     "C;Y4;X14;K\"\"\n"
+    "C;Y4;X18;K\"3\"\n"
     "C;Y5;X1;K\"ANdr\"\n"
     "C;Y5;X2;K\"AHdr\"\n"
     "C;Y5;X3;K\"air,ground,enemy\"\n"
@@ -315,6 +327,53 @@ TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
     float hp = enemy->health.value;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_NOT_NULL(thinker); T_ASSERT(hp < 1000);
+}
+
+TEST(wc3_ability_lifecycle, flame_strike_plays_warning_impact_field_and_damage_art) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    edict_t *thinker, *field = NULL;
+    uint32_t owned_fields = 0;
+    edict_t *missile = NULL;
+
+    flame_strike_model_count = 0;
+    gi.ModelIndex = flame_strike_capture_model;
+    caster->unit_state->attack1.projectile.model = 99;
+    caster->unit_state->attack1.projectile.speed = 1000.0f;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    FILTER_EDICTS(candidate, candidate->owner == caster && candidate->movetype == MOVETYPE_FLYMISSILE)
+        missile = candidate;
+    T_NOT_NULL(missile);
+    T_EQ(missile->s.model, 99);
+    T_EQ(flame_strike_model_count, 0);
+    FOR_LOOP(i, 20) {
+        if (!missile->inuse) break;
+        G_RunEntity(missile);
+    }
+    T_ASSERT(!missile->inuse);
+    T_EQ(flame_strike_model_count, 1);
+    T_STREQ(flame_strike_models[0], "TestUI\\Models\\flame-strike-warning.mdx");
+
+    level.time = thinker->freetime;
+    G_RunEntity(thinker);
+    T_EQ(flame_strike_model_count, 4);
+    T_STREQ(flame_strike_models[1], "TestUI\\Models\\flame-strike-impact-1.mdx");
+    T_STREQ(flame_strike_models[2], "TestUI\\Models\\flame-strike-embers.mdx");
+    T_STREQ(flame_strike_models[3], "TestUI\\Models\\flame-strike-damage.mdx");
+    FILTER_EDICTS(effect, effect->owner == thinker && effect->s.model) {
+        owned_fields++;
+        field = effect;
+    }
+    T_EQ(owned_fields, 1);
+    T_NOT_NULL(field);
+
+    G_DestroyOwnedEffects(thinker);
+    gi.ModelIndex = old_model_index;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 /* Once a flame pulse runs, another server frame must not count as another full burn tick. */
@@ -882,6 +941,104 @@ TEST(wc3_ability_lifecycle, siphon_mana_stops_after_movement_cancel) {
     T_ASSERT(cast); T_EQ(channel, 0); T_FEQ(mana, 100, .001f);
 }
 
+/* Casting through the real channel thinker must transfer over the ordinary
+ * max, rather than silently destroying enemy mana at the normal cap. */
+TEST(wc3_ability_lifecycle, siphon_mana_overcharges_from_enemy) {
+    char slk[sizeof(review_slk)];
+    memcpy(slk, review_slk, sizeof(slk));
+    char *cell = strstr(slk, "C;Y4;X10;K\"15\"\n");
+    T_NOT_NULL(cell);
+    if (cell) cell[strlen("C;Y4;X10;K\"") + 1] = '7'; /* Non-stock DataB = 17 mana/sec. */
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster->mana.value = caster->mana.max_value = 100;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    level.time += 1000; G_RunEntity(thinker);
+    T_FEQ(caster->mana.max_value, 100.0f, .001f);
+    T_FEQ(caster->mana.value, 117.0f, .001f);
+    T_FEQ(enemy->mana.value, 83.0f, .001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A channel at the 200% limit cannot remove mana that the caster cannot hold. */
+TEST(wc3_ability_lifecycle, siphon_mana_caps_at_200_percent_without_wasting_target_mana) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster->mana.max_value = 100; caster->mana.value = 195;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    level.time += 1000; G_RunEntity(thinker);
+    T_FEQ(caster->mana.value, 200.0f, .001f);
+    T_FEQ(enemy->mana.value, 95.0f, .001f);
+    level.time += 1000; G_RunEntity(thinker);
+    T_FEQ(caster->mana.value, 200.0f, .001f);
+    T_FEQ(enemy->mana.value, 95.0f, .001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Excess mana does not leak while actively channeling; a real Stop order
+ * releases the lock and starts decay, which ends exactly at normal max. */
+TEST(wc3_ability_lifecycle, siphon_mana_overcharge_decays_after_stop) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster->mana.max_value = 100; caster->mana.value = 101;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    T_ASSERT(S_SpellIsChanneling(caster));
+    G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 101.0f, .001f);
+    T_ASSERT(unit_issueimmediateorder(caster, "stop"));
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 100.7f, .001f);
+    FOR_LOOP(i, 3) G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 100.0f, .001f);
+    T_EQ(caster->s.stats[ENT_MANA], 255);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_ability_lifecycle, siphon_mana_overcharge_decay_uses_authored_data) {
+    char slk[sizeof(review_slk)];
+    memcpy(slk, review_slk, sizeof(slk));
+    char *cell = strstr(slk, "C;Y4;X18;K\"3\"\n");
+    T_NOT_NULL(cell);
+    if (cell) cell[strlen("C;Y4;X18;K\"")] = '5';
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = review_setup();
+    caster->mana.max_value = 100; caster->mana.value = 101;
+    T_FEQ(S_ManaExcessDecayRate(caster), 5.0f, .001f);
+    G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 100.5f, .001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Other channelled spells, including Life Drain, must not suspend decay. */
+TEST(wc3_ability_lifecycle, life_drain_channel_does_not_freeze_siphon_overcharge) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster->mana.max_value = 100; caster->mana.value = 105;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    T_ASSERT(S_SpellIsChanneling(caster));
+    G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 104.7f, .001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Cap modifiers preserve the overcharge fraction across equip/unequip rather
+ * than clamping the 150/100 state to 100 on the first stat recalculation. */
+TEST(wc3_ability_lifecycle, siphon_overcharge_survives_temporary_mana_cap_change) {
+    edict_t *caster = review_setup();
+    caster->mana.max_value = 100; caster->mana.value = 150;
+    G_ApplyTemporaryMaxManaBonus(caster, 50);
+    T_FEQ(caster->mana.max_value, 150, .001f);
+    T_FEQ(caster->mana.value, 225, .001f);
+    G_ApplyTemporaryMaxManaBonus(caster, -50);
+    T_FEQ(caster->mana.max_value, 100, .001f);
+    T_FEQ(caster->mana.value, 150, .001f);
+}
+
 /* ANdr's authored DataA drains life even when the target has no mana pool. */
 TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
@@ -894,6 +1051,75 @@ TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
     float hp = enemy->health.value, healed = caster->health.value;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_FEQ(hp, 970, .001f); T_FEQ(healed, 530, .001f);
+}
+
+/* Life Drain ends when its recipient is full, transfers only the remaining
+ * health needed, and leaves ordinary movement available after completion. */
+TEST(wc3_ability_lifecycle, life_drain_ends_at_full_health_and_allows_movement) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    vec2_t destination = { 300.0f, 0.0f };
+    edict_t *thinker;
+    caster->health.value = 990.0f;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    T_ASSERT(S_SpellIsChanneling(caster));
+    level.time += 1000;
+    if (thinker) G_RunEntity(thinker);
+    T_FEQ(caster->health.value, 1000.0f, .001f);
+    T_FEQ(enemy->health.value, 990.0f, .001f);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_ASSERT(!thinker || !thinker->inuse);
+    order_move(caster, Waypoint_add(&destination));
+    T_FEQ(caster->goalentity->s.origin2.x, destination.x, .001f);
+    T_ASSERT(caster->currentmove && caster->currentmove->think != ai_stand);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A player Move order interrupts the live Life Drain channel immediately and
+ * retires its beam thinker on the next simulation update. */
+TEST(wc3_ability_lifecycle, life_drain_movement_order_cancels_channel) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    vec2_t destination = { 300.0f, 0.0f };
+    edict_t *thinker, *waypoint;
+    caster->health.value = 900.0f;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    T_ASSERT(S_SpellIsChanneling(caster));
+    waypoint = Waypoint_add(&destination);
+    T_NOT_NULL(waypoint);
+    order_move(caster, waypoint);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_ASSERT(caster->goalentity == waypoint);
+    T_ASSERT(caster->currentmove && caster->currentmove->think != ai_stand);
+    if (thinker && thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!thinker || !thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Natural duration completion must release the channel lock just like the
+ * full-health condition, so the next player Move order can take effect. */
+TEST(wc3_ability_lifecycle, life_drain_duration_completion_allows_movement) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    vec2_t destination = { 300.0f, 0.0f };
+    edict_t *thinker;
+    caster->health.value = 900.0f;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    T_ASSERT(S_SpellIsChanneling(caster));
+    level.time += 8000;
+    if (thinker) G_RunEntity(thinker);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_ASSERT(!thinker || !thinker->inuse);
+    order_move(caster, Waypoint_add(&destination));
+    T_FEQ(caster->goalentity->s.origin2.x, destination.x, .001f);
+    T_ASSERT(caster->currentmove && caster->currentmove->think != ai_stand);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* The channel's next pulse must not drain either resource after a stun. */
@@ -973,6 +1199,174 @@ TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
     T_FEQ(enemy->mana.value, 90, .001f);
     T_FEQ(caster->mana.value, before_caster, .001f);
     T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* The real Life Drain cast owns a single DRAL ribbon, two persistent
+ * chest attachments, and the authored looping sound.  No game installation
+ * is needed: the test archive supplies spell/buff art and a sound row. */
+TEST(wc3_ability_lifecycle, life_drain_attaches_art_beam_and_looped_sound) {
+    edict_t *caster = review_setup(), *victim = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    int (*old_alias)(cstring_t, cstring_t) = gi.SoundIndexAlias;
+    gLightning_t *beam = NULL;
+    edict_t *thinker;
+    uint32_t visuals = 0;
+    uint32_t const model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+
+    gi.SoundIndexAlias = review_capture_sound_index_alias;
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    T_EQ(G_AbilityLightningId(FS_SLKKey("ANdr"), 1), MAKEFOURCC('D','R','A','L'));
+    T_ASSERT(model != 0);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), victim));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (thinker) {
+        T_NE(thinker->variation, 0u);
+        T_EQ(thinker->s.sound, 91);
+        FILTER_EDICTS(effect, effect->owner == thinker && effect->s.model == model) {
+            T_ASSERT(effect->goalentity == caster || effect->goalentity == victim);
+            T_ASSERT(effect->s.flags & EF_NAMED_ATTACHMENT);
+            T_EQ(effect->movetype, MOVETYPE_LINK);
+            visuals++;
+        }
+        T_EQ(visuals, 2u);
+        FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+            gLightning_t *candidate = &level.lightning_effects[i];
+            if (candidate->inuse && candidate->state.handle == thinker->variation) beam = candidate;
+        }
+        T_NOT_NULL(beam);
+        if (beam) {
+            T_EQ(beam->state.effect_id, MAKEFOURCC('D','R','A','L'));
+            T_EQ(beam->state.end_time, 0u);
+            T_ASSERT(beam->source_entity == caster && beam->target_entity == victim);
+            victim->s.origin.x += 55.0f;
+            G_LightningUpdateAttached(beam);
+            T_FEQ(beam->state.target.x, victim->s.origin.x, 0.001f);
+        }
+        T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\LifeDrain.wav");
+        T_ASSERT(unit_issueimmediateorder(caster, "stop"));
+        G_RunEntity(thinker);
+        T_ASSERT(!thinker->inuse);
+        if (beam) T_ASSERT(!beam->inuse);
+        FILTER_EDICTS(effect, effect->s.model == model &&
+                      (effect->goalentity == caster || effect->goalentity == victim)) {
+            T_ASSERT(effect->owner != thinker);
+        }
+    }
+    gi.SoundIndexAlias = old_alias;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Beam retirement follows the old thinker's unique handle, not the endpoints.
+ * Recasting between cancellation and cleanup must keep the new beam alive. */
+TEST(wc3_ability_lifecycle, life_drain_recast_retains_only_new_beam) {
+    edict_t *caster = review_setup(), *victim = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *first, *second;
+    uint32_t first_id, second_id;
+    uint32_t count = 0;
+
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), victim));
+    first = review_thinker(caster);
+    T_NOT_NULL(first);
+    if (!first) goto done;
+    first_id = first->variation;
+    T_NE(first_id, 0u);
+    T_ASSERT(unit_issueimmediateorder(caster, "stop"));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), victim));
+    second = NULL;
+    FILTER_EDICTS(candidate, candidate != first && candidate->owner == caster &&
+                  candidate->think == siphon_mana_think) { second = candidate; break; }
+    T_NOT_NULL(second);
+    if (!second) goto done;
+    second_id = second->variation;
+    T_NE(second_id, first_id);
+    G_RunEntity(first);
+    T_ASSERT(!first->inuse);
+    T_ASSERT(second->inuse);
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+        gLightning_t *beam = &level.lightning_effects[i];
+        if (!beam->inuse) continue;
+        T_NE(beam->state.handle, first_id);
+        T_EQ(beam->state.handle, second_id);
+        count++;
+    }
+    T_EQ(count, 1u);
+    T_ASSERT(unit_issueimmediateorder(caster, "stop"));
+    G_RunEntity(second);
+    T_ASSERT(!second->inuse);
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) T_ASSERT(!level.lightning_effects[i].inuse);
+
+done:
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Losing the victim or stunning the caster must retire the same persistent
+ * presentation; otherwise a dead target could leave a permanent beam. */
+TEST(wc3_ability_lifecycle, life_drain_victim_death_and_stun_retire_beam) {
+    FOR_LOOP(reason, 2) {
+        edict_t *caster = review_setup(), *victim = review_unit(1, 100);
+        slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+        edict_t *thinker;
+        uint32_t beam_handle;
+        bool beam_left = false;
+        memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+        T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), victim));
+        thinker = review_thinker(caster);
+        T_NOT_NULL(thinker);
+        if (!thinker) {
+            G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+            continue;
+        }
+        beam_handle = thinker->variation;
+        T_NE(beam_handle, 0u);
+        if (!reason) victim->health.value = 0;
+        else T_ASSERT(unit_addtimedstatus(caster, "Bstu", 1, 2.0f));
+        G_RunEntity(thinker);
+        T_ASSERT(!thinker->inuse);
+        FOR_LOOP(i, MAX_LIGHTNING_EFFECTS)
+            if (level.lightning_effects[i].inuse &&
+                level.lightning_effects[i].state.handle == beam_handle) beam_left = true;
+        T_ASSERT(!beam_left);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    }
+}
+
+/* The thinker's variation field and lightning registry were already saved;
+ * a channel loaded mid-effect can clean up by the original handle. */
+TEST(wc3_ability_lifecycle, life_drain_visual_identity_survives_save_and_cleanup) {
+    cstring_t filename = Test_TempPath("wc3-life-drain-beam.bin");
+    edict_t *caster = review_setup(), *victim = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *thinker;
+    uint32_t beam_handle;
+    bool found = false;
+
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), victim));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (!thinker) goto done;
+    beam_handle = thinker->variation;
+    T_NE(beam_handle, 0u);
+    T_ASSERT(WriteGame(filename));
+    thinker->variation = 0;
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(thinker->variation, beam_handle);
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS)
+        if (level.lightning_effects[i].inuse &&
+            level.lightning_effects[i].state.handle == beam_handle) found = true;
+    T_ASSERT(found);
+    T_ASSERT(unit_issueimmediateorder(caster, "stop"));
+    G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) T_ASSERT(!level.lightning_effects[i].inuse);
+
+done:
+    remove(filename);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1368,6 +1762,24 @@ TEST(wc3_ability_lifecycle, live_drain_continues_once_after_save_load) {
     T_FEQ(enemy->mana.value, 85, .001f); T_EQ(G_GetChannel(caster)->code, FS_SLKKey("AHdr"));
     G_RunEntity(thinker); T_FEQ(enemy->mana.value, 85, .001f);
     remove(path); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Overcharge uses the existing serialized current mana, without a new
+ * field or thinker; loading a saved surplus must allow decay to resume. */
+TEST(wc3_ability_lifecycle, siphon_overcharge_survives_save_load_and_decays) {
+    cstring_t path = Test_TempPath("skill-siphon-overcharge-save.bin");
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = review_setup();
+    caster->mana.max_value = 100; caster->mana.value = 145;
+    T_ASSERT(WriteGame(path));
+    caster->mana.value = 0;
+    T_ASSERT(ReadGame(path));
+    T_FEQ(caster->mana.max_value, 100, .001f);
+    T_FEQ(caster->mana.value, 145, .001f);
+    G_RunEntity(caster);
+    T_FEQ(caster->mana.value, 144.7f, .001f);
+    remove(path);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* The ROC Data11/Data12 spell schema and TFT DataA1/DataB1 schema must produce the same stock six waves. */
@@ -1835,3 +2247,263 @@ TEST(wc3_ability_lifecycle, jass_removebuffs_preserves_undispellable_and_mixed_r
 }
 
 #endif
+
+
+#ifdef BZ_TESTS
+/* The real Pit Lord's three-second channel must contain multiple waves, not
+ * one wave every three seconds. Use deliberately nonstock DataA/B/E/F so
+ * hardcoded stock values cannot satisfy the regression. */
+static char const rain_of_fire_slk[] =
+    "ID;PWXL;N;EBB;Y2;X14\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"Area1\"\n"
+    "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
+    "C;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
+    "C;Y1;X11;K\"DataE1\"\nC;Y1;X12;K\"DataF1\"\nC;Y1;X13;K\"Cost1\"\n"
+    "C;Y1;X14;K\"EfctID1\"\n"
+    "C;Y2;X1;K\"ANrf\"\nC;Y2;X2;K\"ANrf\"\nC;Y2;X3;K1\n"
+    "C;Y2;X4;K\"air,ground,structure,enemy\"\n"
+    "C;Y2;X5;K2\nC;Y2;X6;K130\nC;Y2;X7;K4\n"
+    "C;Y2;X8;K25\nC;Y2;X9;K3\nC;Y2;X10;K0.5\n"
+    "C;Y2;X11;K7\nC;Y2;X12;K50\nC;Y2;X13;K0\n"
+    "C;Y2;X14;K\"XErf\"\nE\n";
+
+static edict_t *rain_of_fire_test_setup(slkTestData_t **rows, slkTestData_t **old) {
+    edict_t *caster = review_setup();
+    *rows = parse_slk_string(rain_of_fire_slk);
+    *old = G_SetSLKRows("AbilityData", *rows);
+    caster->unit_state->ranks[0] = MAKE(heroability_t, .code = FS_SLKKey("ANrf"), .level = 1);
+    return caster;
+}
+static void rain_of_fire_test_done(slkTestData_t *rows, slkTestData_t *old) {
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+static int rain_fire_capture_sound_index(cstring_t path) {
+    strlcpy(blizzard_sound_path, path ? path : "", sizeof(blizzard_sound_path));
+    return path && strstr(path, "loop.wav") ? 92 : 91;
+}
+static int rain_fire_capture_sound_index_alias(cstring_t path, cstring_t alias) {
+    (void)alias;
+    return rain_fire_capture_sound_index(path);
+}
+
+/* Effect data is supplied by the synthetic SLK fixture, not an installed
+ * Warcraft archive. Wave impact models and sounds are selected by XErf; their
+ * lifetime is separate from the caster-owned channel loop sound. */
+TEST(wc3_ability_lifecycle, pit_lord_rain_of_fire_uses_xerf_shards_wave_audio_and_channel_loop) {
+    static char const effect_slk[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"EffectArt\"\n"
+        "C;Y1;X3;K\"Effectsound\"\nC;Y1;X4;K\"Effectsoundlooped\"\n"
+        "C;Y2;X1;K\"XErf\"\n"
+        "C;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\n"
+        "C;Y2;X3;K\"RainWaveTest\"\nC;Y2;X4;K\"RainLoopTest\"\nE\n";
+    static char const sound_slk[] =
+        "ID;PWXL;N;E\nB;X5;Y3;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\nC;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\nC;Y1;X4;K\"Volume\"\n"
+        "C;Y1;X5;K\"Flags\"\n"
+        "C;Y2;X1;K\"RainWaveTest\"\nC;Y2;X2;K\"wave.wav\"\n"
+        "C;Y2;X3;K\"TestUI\\Sounds\\\"\nC;Y2;X4;K127\n"
+        "C;Y2;X5;K\"IGNOREUSERNAME\"\n"
+        "C;Y3;X1;K\"RainLoopTest\"\nC;Y3;X2;K\"loop.wav\"\n"
+        "C;Y3;X3;K\"TestUI\\Sounds\\\"\nC;Y3;X4;K127\n"
+        "C;Y3;X5;K\"IGNOREUSERNAME\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster = rain_of_fire_test_setup(&rows, &old);
+    edict_t *enemy = review_unit(1, 300), *thinker;
+    slkTestData_t *effects = parse_slk_string(effect_slk);
+    slkTestData_t *sounds = parse_slk_string(sound_slk);
+    slkTestData_t *old_effects = G_SetSLKRows("AbilityBuffData", effects);
+    slkTestData_t *old_sounds = G_SetSLKRows("AbilitySounds", sounds);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    int (*old_sound_index)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
+    vec2_t point = { 300, 0 };
+
+    flame_strike_model_count = 0;
+    blizzard_sound_calls = 0;
+    blizzard_sound_path[0] = '\0';
+    gi.ModelIndex = flame_strike_capture_model;
+    gi.SoundIndex = rain_fire_capture_sound_index;
+    gi.SoundIndexAlias = rain_fire_capture_sound_index_alias;
+    gi.SoundPolicy = review_capture_sound_policy;
+    T_EQ(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), FS_SLKKey("XErf"));
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("ANrf"), &point));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (thinker) {
+        /* Three authored shards from DataC1=3, not DataA1=4 waves. */
+        T_EQ(flame_strike_model_count, 3u);
+        FOR_LOOP(i, 3)
+            T_STREQ(flame_strike_models[i], "TestUI\\Models\\quad_sprite.mdx");
+        T_EQ(blizzard_sound_calls, 1u);
+        T_EQ(blizzard_sound_index, 91);
+        T_EQ(thinker->s.sound, 92u); /* loop clip, not one-shot wave clip */
+        T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\wave.wav");
+        level.time = 1500;
+        G_RunEntity(thinker);
+        T_EQ(flame_strike_model_count, 6u);
+        T_EQ(blizzard_sound_calls, 2u); /* one wave sound, not one per shard */
+        T_FEQ(enemy->health.value, 950, .001f);
+        S_SpellCancelChannel(caster);
+        G_RunEntity(thinker);
+        T_ASSERT(!thinker->inuse); /* freeing the carrier also stops looped audio */
+        T_EQ(flame_strike_model_count, 6u); /* no new impacts on cancellation */
+    }
+    gi.ModelIndex = old_model_index;
+    gi.SoundIndex = old_sound_index;
+    gi.SoundIndexAlias = old_sound_alias;
+    gi.SoundPolicy = old_sound_policy;
+    G_SetSLKRows("AbilityBuffData", old_effects); free_slk_rows(effects);
+    G_SetSLKRows("AbilitySounds", old_sounds); free_slk_rows(sounds);
+    rain_of_fire_test_done(rows, old);
+}
+
+TEST(wc3_ability_lifecycle, pit_lord_rain_of_fire_still_deals_damage_without_effect_art) {
+    char slk[sizeof(rain_of_fire_slk)];
+    slkTestData_t *rows, *old;
+    edict_t *caster = rain_of_fire_test_setup(&rows, &old);
+    edict_t *enemy = review_unit(1, 300);
+    edict_t *thinker;
+    vec2_t point = { 300, 0 };
+    slkTestData_t *without_art, *previous;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    memcpy(slk, rain_of_fire_slk, sizeof(slk));
+    char *effect = strstr(slk, "XErf");
+    T_NOT_NULL(effect);
+    if (!effect) { rain_of_fire_test_done(rows, old); return; }
+    memcpy(effect, "XZzz", 4);
+    without_art = parse_slk_string(slk);
+    previous = G_SetSLKRows("AbilityData", without_art);
+    flame_strike_model_count = 0;
+    gi.ModelIndex = flame_strike_capture_model;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("ANrf"), &point));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    T_EQ(flame_strike_model_count, 0u);
+    T_FEQ(enemy->health.value, 975, .001f);
+    if (thinker) { S_SpellCancelChannel(caster); G_RunEntity(thinker); }
+    gi.ModelIndex = old_model_index;
+    G_SetSLKRows("AbilityData", previous); free_slk_rows(without_art);
+    rain_of_fire_test_done(rows, old);
+}
+
+TEST(wc3_ability_lifecycle, pit_lord_rain_of_fire_uses_wave_interval_cap_friendly_fire_and_building_multiplier) {
+    slkTestData_t *rows, *old;
+    edict_t *caster = rain_of_fire_test_setup(&rows, &old);
+    edict_t *enemy = review_unit(1, 300);
+    edict_t *ally = review_unit(0, 310);
+    edict_t *building = review_unit(1, 320);
+    edict_t *outside = review_unit(1, 700);
+    edict_t *thinker;
+    vec2_t point = { 300, 0 };
+    building->s.flags |= EF_BUILDING;
+    building->targtype = TARG_STRUCTURE;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("ANrf"), &point));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (!thinker) { rain_of_fire_test_done(rows, old); return; }
+    T_EQ(thinker->resources, 3u); /* first of four waves fires immediately */
+    T_EQ(thinker->freetime, 1500u);
+    T_FEQ(enemy->health.value, 984, .001f);
+    T_FEQ(ally->health.value, 984, .001f);
+    T_FEQ(building->health.value, 992, .001f);
+    T_FEQ(outside->health.value, 1000, .001f);
+    level.time = 1499; G_RunEntity(thinker);
+    T_FEQ(enemy->health.value, 984, .001f);
+    level.time = 1500; G_RunEntity(thinker);
+    T_EQ(thinker->resources, 2u);
+    T_FEQ(enemy->health.value, 968, .001f);
+    level.time = 2000; G_RunEntity(thinker);
+    T_EQ(thinker->resources, 1u);
+    level.time = 2500; G_RunEntity(thinker);
+    T_EQ(thinker->resources, 0u);
+    level.time = 3000; G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_FEQ(enemy->health.value, 936, .001f);
+    T_FEQ(ally->health.value, 936, .001f);
+    T_FEQ(building->health.value, 968, .001f);
+    rain_of_fire_test_done(rows, old);
+}
+
+TEST(wc3_ability_lifecycle, pit_lord_rain_of_fire_burns_survive_channel_interrupt_and_stack_per_wave) {
+    slkTestData_t *rows, *old;
+    edict_t *caster = rain_of_fire_test_setup(&rows, &old);
+    edict_t *enemy = review_unit(1, 300);
+    edict_t *thinker, *first = NULL, *second = NULL;
+    vec2_t point = { 300, 0 };
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("ANrf"), &point));
+    thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (!thinker) { rain_of_fire_test_done(rows, old); return; }
+    T_FEQ(enemy->health.value, 975, .001f);
+    FILTER_EDICTS(b, b->think == rain_of_fire_burn_think && b->goalentity == enemy) first = b;
+    T_NOT_NULL(first);
+    level.time = 1500; G_RunEntity(thinker);
+    FILTER_EDICTS(b, b->think == rain_of_fire_burn_think && b->goalentity == enemy && b != first) second = b;
+    T_NOT_NULL(second);
+    T_FEQ(enemy->health.value, 950, .001f);
+    S_SpellCancelChannel(caster);
+    G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    level.time = 2000;
+    if (first) G_RunEntity(first);
+    if (second) G_RunEntity(second);
+    T_FEQ(enemy->health.value, 943, .001f); /* first landed wave burns */
+    level.time = 2500;
+    if (first) G_RunEntity(first);
+    if (second) G_RunEntity(second);
+    T_FEQ(enemy->health.value, 936, .001f); /* second wave burns separately */
+    level.time = 3000;
+    if (first && first->inuse) G_RunEntity(first);
+    if (second && second->inuse) G_RunEntity(second);
+    T_ASSERT(first && first->inuse);
+    T_FEQ(enemy->health.value, 929, .001f);
+    level.time = 3500;
+    if (second && second->inuse) G_RunEntity(second);
+    T_ASSERT(second && second->inuse);
+    T_FEQ(enemy->health.value, 922, .001f);
+    level.time = 4000;
+    if (first && first->inuse) G_RunEntity(first);
+    T_ASSERT(!first || !first->inuse);
+    T_FEQ(enemy->health.value, 915, .001f);
+    level.time = 4500;
+    if (second && second->inuse) G_RunEntity(second);
+    T_ASSERT(!second || !second->inuse);
+    T_FEQ(enemy->health.value, 908, .001f);
+    rain_of_fire_test_done(rows, old);
+}
+
+TEST(wc3_ability_lifecycle, pit_lord_rain_of_fire_burn_survives_save_load_without_recasting) {
+    cstring_t filename = Test_TempPath("rain-of-fire-burn-save.bin");
+    slkTestData_t *rows, *old;
+    edict_t *caster = rain_of_fire_test_setup(&rows, &old);
+    edict_t *enemy = review_unit(1, 300), *burn = NULL, *thinker;
+    vec2_t point = { 300, 0 };
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("ANrf"), &point));
+    thinker = review_thinker(caster);
+    FILTER_EDICTS(b, b->think == rain_of_fire_burn_think && b->goalentity == enemy) burn = b;
+    T_NOT_NULL(burn);
+    if (!burn) { rain_of_fire_test_done(rows, old); return; }
+    S_SpellCancelChannel(caster);
+    if (thinker) G_RunEntity(thinker);
+    T_ASSERT(WriteGame(filename));
+    burn->think = NULL; burn->resources = 0; burn->goalentity = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(burn->think == rain_of_fire_burn_think);
+    T_EQ(burn->resources, 3u);
+    T_ASSERT(S_SpellChannelTarget(burn) == enemy);
+    level.time = burn->freetime;
+    G_RunEntity(burn);
+    T_FEQ(enemy->health.value, 968.0f, .001f);
+    T_EQ(burn->resources, 2u);
+    remove(filename);
+    rain_of_fire_test_done(rows, old);
+}
+#endif /* BZ_TESTS */

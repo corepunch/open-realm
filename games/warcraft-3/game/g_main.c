@@ -2275,6 +2275,10 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const *ent) {
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t *state) {
     state->flags &= ~EF_SELECTION_CIRCLE_ON_WATER;
+    /* Faerie Fire shares the target's sight with the caster. Keep the marked
+     * model visible even when terrain blockers leave its cell shrouded. */
+    if (G_FowFaerieFireRevealsUnit(player, ent))
+        state->renderfx |= RF_NO_FOGOFWAR;
     if (ent->data.UnitUI && ent->data.UnitUI->selectionCircleOnWater) {
         float const ground_z = CM_GetHeightAtPoint(state->origin.x, state->origin.y);
         float const water_z = CM_GetWaterHeightAtPoint(state->origin.x, state->origin.y);

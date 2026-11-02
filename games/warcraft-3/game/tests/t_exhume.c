@@ -45,6 +45,9 @@ static void exh_setup(exhFix_t *fix) {
 	fix->unit_rows = parse_slk_string(exh_unit_slk); fix->old_units = G_SetSLKRows("UnitData", fix->unit_rows);
 	fix->wagon = alloc_test_unit(MAKEFOURCC('u', 'm', 't', 'w'), 100, 100);
 	fix->wagon->s.player = 0; fix->wagon->svflags |= SVF_MONSTER; fix->wagon->targtype = TARG_GROUND;
+	/* Existing lifecycle cases exercise the researched passive. The dedicated
+	 * research-gate test below starts from the locked state explicitly. */
+	G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','e','x'), 1);
 	fix->wagon->health.value = fix->wagon->health.max_value = 500;
 	fix->wagon->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEXH, .level = 1);
 	fix->wagon->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_EXH_AMEL, .level = 1);
@@ -110,6 +113,26 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT(G_UnitHasFlag(corpse, UNIT_FLAG_PAUSED));
 	T_EQ((int)S_CargoCapacity(fix.wagon), 8);
 	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!G_GetCargo(fix.wagon) || G_GetCargo(fix.wagon)->count == 0);
+	exh_done(&fix);
+}
+
+TEST(wc3_spell, exhume_waits_for_research_before_starting_production) {
+	exhFix_t fix; edict_t *thinker;
+	exh_setup(&fix);
+	G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','e','x'), 0);
+	S_RunAbilityUpdates(fix.wagon);
+	T_NULL(exh_thinker(fix.wagon));
+	exh_tick(5000);
+	T_EQ(exh_corpse_count(fix.wagon), 0);
+	T_NULL(exh_thinker(fix.wagon));
+
+	G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','e','x'), 1);
+	S_RunAbilityUpdates(fix.wagon);
+	thinker = exh_thinker(fix.wagon);
+	T_NOT_NULL(thinker);
+	T_EQ(exh_corpse_count(fix.wagon), 0);
+	exh_tick(1999); T_EQ(exh_corpse_count(fix.wagon), 0);
+	exh_tick(1); T_EQ(exh_corpse_count(fix.wagon), 1);
 	exh_done(&fix);
 }
 

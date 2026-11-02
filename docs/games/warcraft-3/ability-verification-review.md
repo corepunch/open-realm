@@ -134,7 +134,8 @@ The fixes address reproduced defects and their related lifecycle cases.
 Previously documented partial implementations remain partial: Wisp/Acolyte
 harvesting, mine transformations, general transport drop, Purchase Item,
 Mirror Image's complete illusion semantics, several status-only spells,
-and Siphon Mana's temporary above-maximum mana/decay behavior. Visual effects,
+and precise retail timing for Siphon Mana's excess-mana decay (the 200% cap and approximate
+3 mana/sec decay are implemented). Visual effects,
 full target-mask vocabulary and comprehensive retail spell parity remain
 separate work. Do not interpret a registered procedure as complete behavior.
 

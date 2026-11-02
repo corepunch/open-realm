@@ -153,7 +153,19 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 120 introduced trained Hero names; version 121 writes nested pool strings. */
 /* Version 121 persists F_ANIMSTRING values in component pools. */
 /* Version 122 rosters Possession impact callbacks and fixes Immolation substep semantics. */
-static uint32_t const save_version = 122;
+/* Version 123 persists Phoenix Fire cooldowns and Phoenix Egg hatch deadlines. */
+/* Version 124 registers the Tornado channel thinker and its saved timers. */
+/* Version 125 registers the Devour thinker and swallowed-unit lifecycle bits. */
+/* Version 126 persists the Mountain Giant War Club weapon alias and swing count. */
+/* Version 128 persists Mana Flare's cooldown deadline in status next_tick. */
+/* Version 129 persists per-caster Phoenix and Egg recast ownership identity. */
+/* Version 130 persists Impale wave simulation state and callback identity. */
+/* Version 131 persists the Locust Swarm controller and member state. */
+/* Version 132 persists independent Impale victim lifts. */
+/* Version 133 persists Impale airborne vulnerability and interruptibility. */
+/* Version 134 persists Locust target attack deadlines and return damage credit. */
+/* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
+static uint32_t const save_version = 136;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -231,6 +243,13 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(morph_end),
     SAVE_CFUNCTION(sentinel_owl_think),
     SAVE_CFUNCTION(possession_projectile_death_think),
+    SAVE_CFUNCTION(tornado_think),
+    SAVE_CFUNCTION(carrion_wave_think),
+    SAVE_CFUNCTION(devour_think),
+    SAVE_CFUNCTION(impale_wave_think),
+    SAVE_CFUNCTION(locust_swarm_think),
+    SAVE_CFUNCTION(locust_member_think),
+    SAVE_CFUNCTION(rain_of_fire_burn_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -928,6 +947,83 @@ static field_t const channel_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const carrion_wave_fields[] = {
+    TF(carrionWave_t, caster_spawn_time, F_INT),
+    TF(carrionWave_t, identity, F_INT),
+    TF(carrionWave_t, ability, F_INT),
+    TF(carrionWave_t, level, F_INT),
+    TF(carrionWave_t, direction, F_VECTOR),
+    TF(carrionWave_t, previous_position, F_VECTOR),
+    TF(carrionWave_t, travel_distance, F_FLOAT),
+    TF(carrionWave_t, travelled, F_FLOAT),
+    TF(carrionWave_t, speed, F_FLOAT),
+    TF(carrionWave_t, initial_width, F_FLOAT),
+    TF(carrionWave_t, final_width, F_FLOAT),
+    TF(carrionWave_t, damage_per_target, F_FLOAT),
+    TF(carrionWave_t, remaining_damage, F_FLOAT),
+    TF(carrionWave_t, capped, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const impale_lift_fields[] = {
+    TF(impaleLift_t, start_ms, F_INT),
+    TF(impaleLift_t, end_ms, F_INT),
+    TF(impaleLift_t, peak_height, F_FLOAT),
+    TF(impaleLift_t, start_offset, F_FLOAT),
+    TF(impaleLift_t, vulnerable, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const impale_wave_fields[] = {
+    TF(impaleWave_t, origin, F_VECTOR),
+    TF(impaleWave_t, direction, F_VECTOR),
+    TF(impaleWave_t, distance, F_FLOAT),
+    TF(impaleWave_t, duration, F_FLOAT),
+    TF(impaleWave_t, half_width, F_FLOAT),
+    TF(impaleWave_t, damage, F_FLOAT),
+    TF(impaleWave_t, previous_distance, F_FLOAT),
+    TF(impaleWave_t, start_ms, F_INT),
+    TF(impaleWave_t, caster_spawn_time, F_INT),
+    TF(impaleWave_t, ability, F_INT),
+    TF(impaleWave_t, level, F_INT),
+    TF(impaleWave_t, uninterruptible, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const locust_swarm_fields[] = {
+    TF(locustSwarm_t, caster_spawn_time, F_INT),
+    TF(locustSwarm_t, ability, F_INT),
+    TF(locustSwarm_t, level, F_INT),
+    TF(locustSwarm_t, start_ms, F_INT),
+    TF(locustSwarm_t, end_ms, F_INT),
+    TF(locustSwarm_t, next_release_ms, F_INT),
+    TF(locustSwarm_t, release_interval_ms, F_INT),
+    TF(locustSwarm_t, total, F_INT),
+    TF(locustSwarm_t, released, F_INT),
+    TF(locustSwarm_t, unit_id, F_INT),
+    TF(locustSwarm_t, recall_deadline_ms, F_INT),
+    TF(locustSwarm_t, area, F_FLOAT),
+    TF(locustSwarm_t, target_cap, F_FLOAT),
+    TF(locustSwarm_t, heal_factor, F_FLOAT),
+    TF(locustSwarm_t, return_threshold, F_FLOAT),
+    TF(locustSwarm_t, active, F_INT),
+    TF(locustSwarm_t, recalling, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const locust_member_fields[] = {
+    TF(locustMember_t, controller, F_EDICT, 0, FIELD_NONE),
+    TF(locustMember_t, controller_spawn_time, F_INT),
+    TF(locustMember_t, target, F_EDICT, 0, FIELD_NONE),
+    TF(locustMember_t, target_spawn_time, F_INT),
+    TF(locustMember_t, state, F_INT),
+    TF(locustMember_t, next_acquire_ms, F_INT),
+    TF(locustMember_t, next_attack_ms, F_INT),
+    TF(locustMember_t, release_index, F_INT),
+    TF(locustMember_t, damage_credit, F_FLOAT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 /* Status sources survive saves by entity index; all scalar payload/timing fields remain in the raw record. */
 static field_t const status_fields[] = {
     TF(heroabilitystatus_t, instance_id, F_INT),
@@ -972,6 +1068,9 @@ static field_t const unit_state_fields[] = {
     TF(unitState_t, attack_cooldown_end_time, F_INT),
     TF(unitState_t, attack_backswing_end_time, F_INT),
     TF(unitState_t, attack_target_spawn_time, F_INT),
+    TF(unitState_t, war_club_ability, F_INT),
+    TF(unitState_t, war_club_attacks_remaining, F_INT),
+    TF(unitState_t, war_club_previous_image, F_INT),
 
     TF(unitState_t, score_level_xp, F_INT),
     TF(unitState_t, shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1006,6 +1105,8 @@ static field_t const inventory_fields[] = {
 static field_t const missile_fields[] = {
     TF(attackMissile_t, attack_type, F_INT),
     TF(attackMissile_t, owner_spawn_time, F_INT),
+    TF(attackMissile_t, arrow_ability, F_INT),
+    TF(attackMissile_t, arrow_level, F_INT),
     TF(attackMissile_t, reflected, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -1016,6 +1117,9 @@ static field_t const sound_fields[] = {
 
 field_t edict_fields[] = {
     F(edict_s, summon_ability, F_INT),
+    F(edict_s, phoenix_fire_next_ms, F_INT),
+    F(edict_s, phoenix_hatch_ms, F_INT),
+    F(edict_s, phoenix_owner_spawn_time, F_INT),
     F(edict_s, components, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, unit_state, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, sound, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3193,6 +3297,8 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit->unit_state->attack_cooldown_end_time = 12000;
     unit->unit_state->attack_backswing_end_time = 9000;
     unit->unit_state->attack_target_spawn_time = goal->spawn_time;
+    unit->unit_state->war_club_ability = MAKEFOURCC('A','g','r','a');
+    unit->unit_state->war_club_attacks_remaining = 7;
     unit->orders->cargo_unload_pending = true;
     unit->orders->cargo_unload_ability = MAKEFOURCC('A','t','d','p');
     unit->orders->cargo_unload_goal = goal;
@@ -3218,6 +3324,8 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     T_EQ(unit->unit_state->attack_cooldown_end_time, 12000);
     T_EQ(unit->unit_state->attack_backswing_end_time, 9000);
     T_EQ(unit->unit_state->attack_target_spawn_time, goal->spawn_time);
+    T_EQ(unit->unit_state->war_club_ability, MAKEFOURCC('A','g','r','a'));
+    T_EQ(unit->unit_state->war_club_attacks_remaining, 7u);
     T_FEQ(unit->unitinfo.PropWindow, 0.0f, 0.001f);
     T_ASSERT(unit->orders->cargo_unload_pending);
     T_EQ(unit->orders->cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
@@ -3229,6 +3337,40 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     T_EQ(unit->orders->wisp_egress_tree_spawn_time, goal->spawn_time);
     T_FEQ(unit->orders->wisp_egress_target.x, -32.0f, 0.001f);
     T_FEQ(unit->orders->wisp_egress_target.y, 48.0f, 0.001f);
+    remove(filename);
+}
+
+/* Mana Flare keeps its per-channel retaliation deadline in the Bmfl status. */
+TEST(wc3_save, mana_flare_status_deadline_round_trips) {
+    cstring_t filename = Test_TempPath("save-mana-flare-deadline.bin");
+    edict_t *unit;
+    heroabilitystatus_t *status;
+    int index;
+
+    setup_test_world();
+    reset_entities();
+    level.time = 1000;
+    unit = alloc_test_unit(MAKEFOURCC('e','f','d','r'), 0, 0);
+    index = unit - g_edicts;
+    T_ASSERT(unit_addtimedstatus(unit, "Bmfl", 1, 30.0f));
+    status = unit_findstatus(unit, MAKEFOURCC('B','m','f','l'));
+    T_NOT_NULL(status);
+    if (!status) return;
+    status->source_ability = MAKEFOURCC('A','m','f','l');
+    status->next_tick = 1750;
+    status->data = 0;
+    T_ASSERT(WriteGame(filename));
+    status->next_tick = 0;
+    status->source_ability = 0;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + index;
+    status = unit_findstatus(unit, MAKEFOURCC('B','m','f','l'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->source_ability, MAKEFOURCC('A','m','f','l'));
+        T_EQ(status->next_tick, 1750);
+        T_EQ(status->data, 0);
+    }
     remove(filename);
 }
 
@@ -3416,6 +3558,8 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->harvest->lumber = 19;
     unit->inventory->slots[2] = target;
     unit->missile->attack_type = ATK_PIERCE;
+    unit->missile->arrow_ability = MAKEFOURCC('A','N','b','a');
+    unit->missile->arrow_level = 3;
     unit->missile->reflected = true;
     unit->sound->owner_pending = 17;
     G_GetConstruction(unit)->progress = 13.5f;
@@ -3487,6 +3631,8 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->harvest->lumber, 19);
     T_ASSERT(G_InventoryItem(unit, 2) == target);
     T_EQ(unit->missile->attack_type, ATK_PIERCE);
+    T_EQ(unit->missile->arrow_ability, MAKEFOURCC('A','N','b','a'));
+    T_EQ(unit->missile->arrow_level, 3u);
     T_ASSERT(unit->missile->reflected);
     T_EQ(unit->sound->owner_pending, 17);
     T_ASSERT(G_GetConstruction(unit));

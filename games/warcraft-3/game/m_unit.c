@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 #ifdef WC3_SC2API
 #include "sc2api/sc2api_server.h"
 #endif
@@ -126,6 +127,14 @@ static void unit_decay_flesh_think(edict_t *self) {
  * flesh and bone constants; structures use StructureDecayTime; Heroes retain
  * their distinct dissipation/revival lifecycle. */
 void unit_begin_decay(edict_t *self) {
+    /* A channeled Tornado's summoned elemental is pure wind. Let the model's
+     * real Death clip finish, then retire it without a raisable corpse or the
+     * generic 90-second flesh/bone decay path. */
+    if (self && self->summon_ability &&
+        G_AbilityCode(self->summon_ability) == MAKEFOURCC('A','N','t','o')) {
+        G_FreeEdict(self);
+        return;
+    }
     UnitData_t const *data = self && self->data.UnitData ? self->data.UnitData :
         (self ? G_UnitData(self->class_id) : NULL);
     bool const hero = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION);
@@ -265,7 +274,9 @@ void G_ApplyTemporaryMaxManaBonus(edict_t *ent, float amount) {
     fraction = ent->mana.value / old_max;
     ent->unit_state->temporary_mana_bonus += amount;
     ent->mana.max_value = MAX(0.0f, ent->mana.max_value + amount);
-    ent->mana.value = ent->mana.max_value * fraction;
+    /* A mana-cap modifier must preserve a Siphon overcharge ratio, rather
+     * than converting the excess into a permanent maximum. */
+    ent->mana.value = ent->mana.max_value * MIN(WC3_MANA_OVERCHARGE_LIMIT, MAX(0.0f, fraction));
     G_InvalidateUnitInfoPanel(ent);
 }
 
@@ -468,16 +479,20 @@ void unit_die(edict_t *self, edict_t *attacker) {
     mineOverlay_t *ovl = G_GetMineOverlay(self);
     gameClient_t *owner;
     uint32_t selected_mask;
-    bool summon_explodes, script_explodes;
+    bool summon_explodes, script_explodes, phoenix_to_egg;
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
+    S_LocustSwarmCancelForCaster(self);
 #ifdef WC3_SC2API
     WC3_SC2API_RecordDeath(self);
 #endif
+    S_DevourUnitExit(self);
     G_ClearActiveUnitOrder(self);
     selected_mask = self->selected;
     summon_explodes = (self->aiflags & AI_SUMMON_EXPLODES_ON_DEATH) != 0;
     script_explodes = (self->aiflags & AI_SCRIPT_EXPLODED) != 0;
+    phoenix_to_egg = !script_explodes && self->class_id == MAKEFOURCC('h','p','h','x') &&
+                     G_UnitAbilityLevel(self, MAKEFOURCC('A','p','h','x')) != 0;
 
     S_AvatarExpire(self);
     /* A dead polymorphed unit must not later restore as a living unit when its
@@ -514,7 +529,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->selected = 0;
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
-    unit_setmove(self, (summon_explodes || script_explodes) ? &unit_move_decay_remove : &unit_move_death);
+    unit_setmove(self, (summon_explodes || script_explodes || phoenix_to_egg) ? &unit_move_decay_remove : &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame
      * override active until the death move reaches its decay transition. */
@@ -720,6 +735,8 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "forkedlightning", 852587, MAKEFOURCC('A','N','f','l') },
     { "manashieldon", 852589, 0 },
     { "manashieldoff", 852590, 0 },
+    { "manaflareon", 852512, MAKEFOURCC('A','m','f','l') },
+    { "manaflareoff", 852513, MAKEFOURCC('A','m','f','l') },
     { "silence", 852592, MAKEFOURCC('A','N','s','i') },
     { "stampede", 852593, MAKEFOURCC('A','N','s','t') },
     { "summongrizzly", 852594, MAKEFOURCC('A','N','s','g') },
@@ -795,6 +812,11 @@ bool G_OrderDefinitionInfo(uint32_t index, uint32_t *id, cstring_t  *name, uint3
 
 static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) {
     if (!unit || !order) return 0;
+    if ((!strcmp(order, "burrow") || !strcmp(order, "unburrow")) &&
+        (unit->class_id == MAKEFOURCC('u','c','r','y') || unit->class_id == MAKEFOURCC('u','c','r','m'))) {
+        uint32_t const code = MAKEFOURCC('A','b','u','r');
+        return G_UnitAbilityResearchAvailable(unit, code) ? code : 0;
+    }
     ability_t const *ordered = FindAbilityByOrder(order);
     if (ordered && (ordered->flags & AB_SPELL) && ordered->classname) {
         uint32_t code = 0;
@@ -1199,6 +1221,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
         return false;
     }
+    if (!S_ManaFlareAllowsOrder(self, order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
     }
@@ -1274,6 +1297,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
 bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
+    if (!S_ManaFlareAllowsOrder(self, order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
     /* Rally-point changes are metadata and apply immediately even when Shift is down. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
@@ -1492,7 +1516,9 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);
     G_ApplyTemporaryMaxManaBonus(unit, temporary_mana);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
-    unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
+    /* A transform retains current mana proportion, including temporary
+     * overcharge; ordinary mana regeneration will remove the excess. */
+    unit->mana.value = MIN(WC3_MANA_OVERCHARGE_LIMIT * unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
     G_ApplyTemporaryArmorBonus(unit, temporary_armor);
     unit->unit_state->attack1.temporaryDamageBonus = temporary_attack1;
     unit->unit_state->attack2.temporaryDamageBonus = temporary_attack2;
@@ -1514,6 +1540,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         return false;
     }
     if (!S_AncientCanReceiveOrder(self)) return false;
+    if (!S_ManaFlareAllowsOrder(self, order)) return false;
     if (G_BuildingUpgradeActive(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
@@ -1539,7 +1566,15 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     }
     ability_t const *ability = FindAbilityByOrder(order);
     if (ability) {
-        abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
+        /* Mana Flare remains the only permitted command while its status is
+         * active. Pass the concrete ability code so S_AbilityMessage's
+         * active-status gate does not mistake its on/off orders for another
+         * ability (an order-only item previously had code == 0). */
+        uint32_t code = (ability->proc == CAbilityManaFlare ||
+                         ability->proc == CAbilityReplenishLife ||
+                         ability->proc == CAbilityReplenishMana) ?
+            unit_spell_code_for_order(self, order) : 0;
+        abilityitem_t item = MAKE(abilityitem_t, .code = code, .ability = ability);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
         bool const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
@@ -1829,6 +1864,7 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
     case MAKEFOURCC('B','s','t','u'):
     case MAKEFOURCC('B','s','t','a'):
     case MAKEFOURCC('B','p','o','s'):
+    case MAKEFOURCC('B','U','i','m'): /* Impale; stun persists after the 1s lift */
         return WC3_STATUS_STATE_STUNNED;
     case MAKEFOURCC('B','U','s','l'):
         return WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_SLEEPING;
@@ -2098,7 +2134,8 @@ void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
 
 bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, uint32_t now_ms) {
     if (!slot || !slot->level || !interval_ms || !slot->next_tick ||
-        slot->timestamp <= now_ms || slot->next_tick > now_ms || slot->next_tick >= slot->timestamp) return false;
+        (slot->timestamp && slot->timestamp <= now_ms) || slot->next_tick > now_ms ||
+        (slot->timestamp && slot->next_tick >= slot->timestamp)) return false;
     /* Do not wrap a live deadline back into an earlier game tick. */
     if (UINT32_MAX - slot->next_tick < interval_ms) {
         slot->next_tick = 0;
@@ -2114,7 +2151,8 @@ static void unit_status_track_timed_slot(edict_t *ent, heroabilitystatus_t const
     bit = 1u << (slot - ent->unit_state->statuses);
     if (slot->level) ent->unit_state->status_occupied_mask |= bit;
     else ent->unit_state->status_occupied_mask &= ~bit;
-    if (slot->level && slot->timestamp) ent->unit_state->timed_status_update_mask |= bit;
+    /* Persistent status-owned periodic effects (Doom) also need update slots. */
+    if (slot->level && (slot->timestamp || slot->next_tick)) ent->unit_state->timed_status_update_mask |= bit;
     else ent->unit_state->timed_status_update_mask &= ~bit;
 }
 
@@ -2143,7 +2181,7 @@ void unit_updatestatuses(edict_t *ent) {
             heroabilitystatus_t const *status = ent->unit_state->statuses + i;
             if (!status->level) continue;
             occupied |= 1u << i;
-            if (status->timestamp) mask |= 1u << i;
+            if (status->timestamp || status->next_tick) mask |= 1u << i;
         }
         ent->unit_state->status_occupied_mask = occupied;
         ent->unit_state->timed_status_update_mask = mask;
@@ -2161,11 +2199,11 @@ void unit_updatestatuses(edict_t *ent) {
         index = (uint32_t)__builtin_ctz(remaining);
         next = index + 1;
         status = ent->unit_state->statuses + index;
-        if (!status->level || !status->timestamp) {
+        if (!status->level || (!status->timestamp && !status->next_tick)) {
             unit_status_track_timed_slot(ent, status);
             continue;
         }
-        if (now >= status->timestamp) {
+        if (status->timestamp && now >= status->timestamp) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
             }
@@ -2496,6 +2534,18 @@ uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
         return hero_level;
     }
     if (!ent || !abilcode) return 0;
+    /* The TFT Bear Form unit row omits Roar even though Mark of the Claw
+     * exposes it as a command. Treat the synthesized command as level one;
+     * G_UnitAbilityResearchAvailable remains the authoritative cast gate. */
+    if (ent->class_id == MAKEFOURCC('e','d','c','m') &&
+        abilcode == MAKEFOURCC('A','r','o','a') && gi.CvarString &&
+        atoi(gi.CvarString("fs_expansion", "0")) != 0) return 1;
+    /* The burrowed Crypt Fiend unit row may omit Abur; its shared ability
+     * remains available so the player can issue Unburrow. */
+    if ((ent->class_id == MAKEFOURCC('u','c','r','y') ||
+         ent->class_id == MAKEFOURCC('u','c','r','m')) &&
+        abilcode == MAKEFOURCC('A','b','u','r') &&
+        G_UnitAbilityResearchAvailable(ent, abilcode)) return 1;
     memcpy(id, &abilcode, 4);
     return G_ActorHasSkill(ent, id) ? 1 : 0;
 }
@@ -2673,9 +2723,12 @@ void G_RecomputeHeroStats(edict_t *ent) {
         G_SetHealth(ent, 1.0f);
     }
 
-    float const dMana = newMaxMana - ent->mana.max_value;
+    float const oldMaxMana = ent->mana.max_value;
+    float const dMana = newMaxMana - oldMaxMana;
     ent->mana.max_value = MAX(0.0f, newMaxMana);
-    ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, ent->mana.value + dMana));
+    /* Attribute/level changes must not erase Siphon Mana's temporary excess. */
+    float const manaCap = ent->mana.value > oldMaxMana ? WC3_MANA_OVERCHARGE_LIMIT * ent->mana.max_value : ent->mana.max_value;
+    ent->mana.value = MAX(0.0f, MIN(manaCap, ent->mana.value + dMana));
 
     ent->unit_state->armor_value = newArmor + ent->unit_state->permanent_armor_bonus + ent->unit_state->temporary_armor_bonus;
 

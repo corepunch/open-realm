@@ -171,6 +171,11 @@ void monster_think(edict_t *self) {
         return;
     }
     M_MoveFrame(self);
+    /* The active move's endfunc can retire the entity or clear currentmove.
+     * Recheck after advancing the animation before dispatching the move think
+     * callback; otherwise a completed one-shot move leaves a null dereference. */
+    if (!self->inuse || !self->currentmove)
+        return;
     if (self->currentmove->think) {
         self->currentmove->think(self);
     }
@@ -423,6 +428,13 @@ void SP_SpawnUnit(edict_t *self) {
     if (S_UnitTypeReturnsGold(self->class_id)) self->s.flags |= EF_RESOURCE_RETURN;
     if (!d->moveTypeName || strcmp(d->moveTypeName, "float")) self->s.flags |= EF_GROUND_CONFORM;
     G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
+    /* 1.29's stock UnitUI row mistakenly assigns Phoenix.mdx to the Phoenix
+     * Egg (hpxe). Use the authored Egg asset for that stock row, while leaving
+     * map/custom hpxe models untouched. */
+    if (self->class_id == MAKEFOURCC('h','p','x','e') &&
+        !strcasecmp(model_filename, "Units\\Human\\Phoenix\\Phoenix.mdx")) {
+        strlcpy(model_filename, "Units\\Human\\Phoenix\\PhoenixEgg.mdx", sizeof(model_filename));
+    }
     self->s.model = G_RegisterModel(model_filename);
     G_ResetUnitAnimationProperties(self);
     self->s.splat = M_LoadUberSplat(uber_splat);
@@ -642,6 +654,8 @@ uint8_t compress_stat(edictStat_s const *stat) {
     if (stat->max_value <= 0) {
         return 0;
     } else {
-        return 255 * stat->value / stat->max_value;
+        /* An overcharged Siphon Mana unit still has a full, not wrapped,
+         * 8-bit HUD bar. Keep the actual value/max separately for unit info. */
+        return (uint8_t)(255.0f * MIN(1.0f, MAX(0.0f, stat->value / stat->max_value)));
     }
 }

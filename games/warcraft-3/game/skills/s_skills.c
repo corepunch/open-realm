@@ -12,8 +12,12 @@ int G_AutocastDebugLevel(void) {
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static cstring_t const mana_flare_orders[] = { "manaflareon", "manaflareoff", NULL };
+static cstring_t const replenish_life_orders[] = { "replenishlifeon", "replenishlifeoff", NULL };
+static cstring_t const replenish_mana_orders[] = { "replenishmanaon", "replenishmanaoff", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const grabtree_orders[] = { "grabtree", NULL };
 static cstring_t const entangle_orders[] = {
     "entangle", "entangleinstant", "autoentangle", "autoentangleinstant", NULL
 };
@@ -40,7 +44,7 @@ static ability_t abilitylist[] = {
     /* CampaignAbilityStrings.txt */
     { "Aamk", CAbilityAttributeModSkill, AB_SPELL },  /* Attribute Bonus */
     { "ACtn", CAbilitySpawnTentacle, AB_SPELL, SPELL_TARGET_POINT },  /* Spawn Tentacle */
-    { "ACs7", CAbilityFeralSpiritCampaign, AB_SPELL },  /* Feral Spirit */
+    { "ACs7", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (Akama) */
     { "ANav", CAbilityAvatarCampaign, AB_SPELL },  /* Avatar */
     { "ANdc", CAbilityDarkConversion, AB_SPELL, SPELL_TARGET_UNIT },  /* Malganis - Dark Conversion */
     { "SNdc", CAbilityDarkConversion, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Conversion (Fast) */
@@ -56,7 +60,7 @@ static ability_t abilitylist[] = {
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
-    { "Acny", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
+    { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
     { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
     { "Arsq", CAbilitySummonQuilbeastCampaign, AB_SPELL },  /* Summon Quilbeast */
@@ -74,7 +78,7 @@ static ability_t abilitylist[] = {
     { "AOs2", CAbilityShockwaveCairne, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */
     { "AOr3", CAbilityReincarnationCairne, AB_SPELL },  /* Reincarnation */
     { "AOw2", CAbilityWarStompCampaign, AB_SPELL },  /* War Stomp */
-    { "AOls", CAbilityVoodooSpirits, AB_SPELL },  /* Voodoo Spirits */
+    { "AOls", CAbilityLocustSwarm, AB_SPELL },  /* Voodoo Spirits — shared swarm simulation, own data */
 
     /* CommonAbilityStrings.txt */
     { "Aall", CAbilityPassive, AB_PASSIVE },  /* Shop Sharing, Allied Bldg. */
@@ -123,8 +127,8 @@ static ability_t abilitylist[] = {
     { "AHfs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AHbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish */
     { "AHpx", CAbilitySummonPhoenix, AB_SPELL },  /* Phoenix */
-    { "Aphx", CAbilityPassive, AB_PASSIVE },  /* Phoenix Morphing (Egg Related) */
-    { "Apxf", CAbilityPassive, AB_PASSIVE },  /* Phoenix Fire */
+    { "Aphx", CAbilityPhoenixMorphing, AB_PASSIVE | AB_UPDATE },  /* Phoenix Morphing (Egg Related) */
+    { "Apxf", CAbilityPhoenixFire, AB_PASSIVE | AB_UPDATE },  /* Phoenix Fire */
     { "Agyb", CAbilityPassive, AB_PASSIVE },  /* Flying Machine Bombs */
     { "Asth", CAbilityPassive, AB_PASSIVE },  /* Storm Hammers */
     { "Agyv", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
@@ -206,9 +210,9 @@ static ability_t abilitylist[] = {
     { "ANdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Drunken Brawler */
     { "ANdh", CAbilityDrunkenHaze, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "ANsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence */
-    { "ANba", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Black Arrow */
+    { "ANba", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Black Arrow */
     { "ANch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
-    { "ANto", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado */
+    { "ANto", CAbilityTornado, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Tornado */
     { "Abgm", CAbilityBlightedGoldMine, 0 },  /* Blighted Gold Mine Ability */
     { "Aegm", CAbilityEntangledGoldMine, AB_PASSIVE | AB_UPDATE },  /* Entangled Gold Mine Ability */
     { "Aloa", CAbilityCargoLoad, AB_COMMAND },  /* Load */
@@ -278,8 +282,8 @@ static ability_t abilitylist[] = {
     /* UndeadAbilityStrings.txt */
     { "AUim", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale */
     { "AUts", CAbilityPassive, AB_PASSIVE },  /* Spiked Carapace */
-    { "AUcb", CAbilityCarrionScarabs, AB_SPELL | AB_AUTOCAST },  /* Carrion Beetles */
-    { "AUls", CAbilityLocustSwarm, AB_SPELL | AB_CHANNEL },  /* Locust Swarm */
+    { "AUcb", CAbilityCarrionScarabs, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Carrion Beetles */
+    { "AUls", CAbilityLocustSwarm, AB_SPELL },  /* Locust Swarm continues while its caster acts */
     { "Aaha", CAbilityAcolyteHarvest, AB_COMMAND },  /* Gather */
     { "AUdc", CAbilityDeathCoil, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Coil */
     { "AUau", CAbilityCreepAura, AB_PASSIVE },  /* Unholy Aura */
@@ -416,8 +420,8 @@ static ability_t abilitylist[] = {
     { "ANtm", CAbilityTransmute, AB_SPELL, SPELL_TARGET_UNIT },  /* Transmute */
     { "Aasl", CAbilitySlowAura, AB_PASSIVE },  /* Slow Aura */
     { "Atdg", CAbilityTornadoDamage, AB_PASSIVE },  /* Building Damage Aura */
-    { "Atsp", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado Spin */
-    { "Atwa", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado Wander */
+    { "Atsp", CAbilityTornadoSpin, AB_PASSIVE },  /* Tornado Spin */
+    { "Atwa", CAbilityWander, AB_PASSIVE },  /* Tornado Wander: autonomous movement */
     { "ANef", CAbilityStormEarthFire, AB_SPELL },  /* Storm, Earth, And Fire */
     { "ACbf", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Breath of Frost */
     { "ANmr", CAbilityMindRot, AB_PASSIVE },  /* Mind Rot */
@@ -442,7 +446,7 @@ static ability_t abilitylist[] = {
     { "ACtc", CAbilityThunderClap, AB_SPELL },  /* Slam */
     { "ACtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Hurl Boulder */
     { "Afzy", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frenzy */
-    { "ACdv", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Devour */
+    { "ACdv", CAbilityDevour, AB_SPELL, SPELL_TARGET_UNIT },  /* Devour (creep) */
     { "ACsp", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Natural creep sleep */
     { "Asod", CAbilityRaiseDead, AB_SPELL },  /* Spawn Skeleton */
     { "Assp", CAbilityForceOfNature, AB_SPELL },  /* Spawn Spiderlings */
@@ -461,11 +465,11 @@ static ability_t abilitylist[] = {
     { "Asud", CAbilitySellUnit, AB_PASSIVE },  /* Sell Units */
 
     /* NightElfAbilityStrings.txt */
-    { "Avng", CAbilitySpiritOfVengeance, AB_SPELL, SPELL_TARGET_NONE },  /* Spirit of Vengeance */
-    { "Amfl", CAbilityManaFlare, AB_SPELL | AB_CHANNEL | AB_UPDATE, SPELL_TARGET_NONE },  /* Mana Flare */
-    { "Apsh", CAbilityDivineShield, AB_SPELL },  /* Phase Shift */
+    { "Avng", CAbilityVengeance, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Spirit of Vengeance */
+    { "Amfl", CAbilityManaFlare, AB_SPELL | AB_TOGGLE | AB_UPDATE | AB_STATUS_EVENTS, SPELL_TARGET_NONE, mana_flare_orders },  /* Mana Flare */
+    { "Apsh", CAbilityPhaseShift, AB_SPELL | AB_AUTOCAST },  /* Phase Shift */
     { "Aetl", CAbilityEthereal, AB_PASSIVE },  /* Ethereal */
-    { "Agra", CAbilityGrabTree, AB_PASSIVE },  /* War Club */
+    { "Agra", CAbilityGrabTree, AB_SPELL, SPELL_TARGET_POINT, grabtree_orders },  /* War Club */
     { "Assk", CAbilityHardenedSkin, AB_PASSIVE },  /* Hardened Skin */
     { "Arsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin */
     { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
@@ -485,9 +489,9 @@ static ability_t abilitylist[] = {
     { "Adec", CAbilityDecouple, AB_SPELL, SPELL_TARGET_NONE },  /* Dismount */
     { "Acor", CAbilityCorrosiveBreath, AB_PASSIVE },  /* Corrosive Breath */
     { "AEst", CAbilityScout, AB_SPELL, SPELL_TARGET_NONE },  /* Scout */
-    { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
-    { "ACcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (creep) */
-    { "SCc1", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (Cenarius) */
+    { "Acyc", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone */
+    { "ACcy", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (creep) */
+    { "SCc1", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (Cenarius) */
     { "Alit", CAbilityLightningAttack, AB_PASSIVE },  /* Lightning Attack */
 
     /* OrcAbilityStrings.txt */
@@ -506,7 +510,7 @@ static ability_t abilitylist[] = {
     { "Achl", CAbilityCargoLoad, AB_COMMAND },  /* Chaos Cargo Load */
     { "Awar", CAbilityPulverize, AB_PASSIVE },  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
-    { "Adev", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Devour */
+    { "Adev", CAbilityDevour, AB_SPELL, SPELL_TARGET_UNIT },  /* Devour */
     { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
     { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; DataD/DataE pause) */
     { "Alsh", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield */
@@ -523,15 +527,15 @@ static ability_t abilitylist[] = {
 
     /* UndeadAbilityStrings.txt */
     { "Arpb", CAbilityReplenish, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Replenish */
-    { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST },  /* Essence of Blight */
-    { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST },  /* Spirit Touch */
+    { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_NONE, replenish_life_orders },  /* Essence of Blight */
+    { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_NONE, replenish_mana_orders },  /* Spirit Touch */
     { "Aexh", CAbilityExhumeCorpses, AB_PASSIVE | AB_UPDATE },  /* Exhume Corpses */
     { "Aave", CAbilityMetamorphosis, AB_SPELL },  /* Destroyer Form */
     { "Afak", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Orb of Annihilation */
     { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic */
     { "Aabr", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Aura of Blight */
-    { "Aabs", CAbilityAbsorb, AB_PASSIVE },  /* Absorb Mana */
-    { "Abur", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Burrow */
+    { "Aabs", CAbilityAbsorb, AB_SPELL, SPELL_TARGET_UNIT },  /* Absorb Mana */
+    { "Abur", CAbilityCryptFiendBurrow, AB_SPELL, SPELL_TARGET_NONE, crypt_fiend_burrow_orders },  /* Crypt Fiend Burrow */
     { "Amtc", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold */
     { "Atru", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
     { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
@@ -548,7 +552,7 @@ static ability_t abilitylist[] = {
     { "Apts", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Disease Cloud */
     { "Afrb", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Breath */
     { "Afra", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Frost Attack */
-    { "Afrz", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Freezing Breath */
+    { "Afrz", CAbilityPassive, AB_PASSIVE },  /* Freezing Breath: Frost Wyrm attacks disable enemy buildings */
     { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
@@ -655,7 +659,7 @@ static ability_t abilitylist[] = {
     { "ANb2", CAbilityBash, AB_PASSIVE },  /* Bash (maul, SP Bear, level 3) */
     { "ANbh", CAbilityBash, AB_PASSIVE },  /* Bash (Beastmaster Bear) */
     { "ANbl", CAbilityBlink, AB_SPELL, SPELL_TARGET_POINT },  /* Blink (Beastmaster Bear) */
-    { "ANfa", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Sea Witch - Frost Arrows */
+    { "ANfa", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Sea Witch - Frost Arrows */
     { "ANre", CAbilityAuraRegenMana, AB_PASSIVE },  /* Neutral Regen (mana only) */
     { "ANrn", CAbilityReincarnation, AB_PASSIVE },  /* Mannoroth - Reincarnation */
     { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
@@ -721,7 +725,7 @@ static ability_t abilitylist[] = {
     { "Suhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (Warlock) */
     { "Sbtl", CAbilityBattlestations, AB_COMMAND },  /* Battlestations (Chaos) */
     { "Sbsk", CAbilityPassive, AB_PASSIVE },  /* Berserker Upgrade */
-    { "AIcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Cyclone */
+    { "AIcy", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Item Cyclone */
     { "AIsw", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward (item; code=Aeye) */
     { "APwt", CAbilityItemWatcherWard, AB_ITEM | AB_POWERUP },  /* Rune of the Watcher (code=Aeye) */
     { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
@@ -847,6 +851,12 @@ void S_RunAbilityUpdates(edict_t *ent) {
             continue;
         } else if (proc == CAbilityExhumeCorpses &&
                    !update_may_have_ability(ent, MAKEFOURCC('A','e','x','h'))) {
+            continue;
+        } else if (proc == CAbilityPhoenixMorphing &&
+                   (!ent || ent->class_id != MAKEFOURCC('h','p','x','e') || !ent->phoenix_hatch_ms)) {
+            continue;
+        } else if (proc == CAbilityPhoenixFire &&
+                   !update_may_have_ability(ent, MAKEFOURCC('A','p','x','f'))) {
             continue;
         }
         proc(ent, A_UPDATE, NULL);
@@ -1166,6 +1176,7 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
     if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
         uint32_t const code = call && call->item ? call->item->code : 0;
+        if (S_ManaFlareActive(ent) && code != MAKEFOURCC('A', 'm', 'f', 'l')) return false;
         if ((ability->flags & AB_SPELL) && code &&
             !G_UnitAbilityResearchAvailable(ent, code)) return false;
         /* Autocast acquisition runs independently of the normal cast pipeline.

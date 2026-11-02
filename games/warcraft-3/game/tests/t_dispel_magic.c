@@ -79,6 +79,17 @@ static void dispel_done(dispelFix_t fix) {
 	G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);
 }
 
+/* Devour Magic uses its authored missile when fixture art is available, so
+ * gameplay assertions must observe the impact lifecycle rather than cast time. */
+static void dispel_run_devour_missile(edict_t *caster) {
+	FILTER_EDICTS(missile, missile->owner == caster && missile->movetype == MOVETYPE_FLYMISSILE) {
+		FOR_LOOP(i, 100) {
+			if (!missile->inuse || missile->movetype != MOVETYPE_FLYMISSILE) break;
+			G_RunEntity(missile);
+		}
+	}
+}
+
 TEST(wc3_spell, dispel_magic_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_ADIS).ability->proc, CAbilityDispelMagic);
 	T_EQ(S_AbilityItem(BZ_ADCH).ability->proc, CAbilityDispelMagic);
@@ -202,7 +213,8 @@ TEST(wc3_spell, dryad_abolish_magic_dispels_buffs_and_debuffs_and_damages_summon
 	dispel_done(fix);
 }
 
-/* Advm heals DataA HP and DataB mana per buff removed (two buffs, non-stock values). */
+/* Advm heals DataA HP and DataB mana once per enemy unit affected, even when
+ * that unit has multiple buffs removed (non-stock values). */
 TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
 	dispelFix_t fix = dispel_setup(BZ_ADVM);
 	vec2_t point = fix.enemy->s.origin2;
@@ -211,10 +223,11 @@ TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Binf", 1, 30.0f);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));
+	dispel_run_devour_missile(fix.caster);
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BINF));
-	T_FEQ(fix.caster->health.value, 134, 0.001f); /* 100 + 17*2 */
-	T_FEQ(fix.caster->mana.value, 56, 0.001f);    /* 10 + 23*2 */
+	T_FEQ(fix.caster->health.value, 117, 0.001f); /* 100 + 17 per enemy unit */
+	T_FEQ(fix.caster->mana.value, 33, 0.001f);    /* 10 + 23 per enemy unit */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
 	dispel_done(fix);
 }
@@ -226,6 +239,7 @@ TEST(wc3_spell, devour_magic_summoned_damage_uses_datae) {
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));
+	dispel_run_devour_missile(fix.caster);
 	T_FEQ(fix.summon->health.value, 409, 0.001f); /* 500 - 91 */
 	/* No buffs removed: heals stay at zero even though DataB is non-zero. */
 	T_FEQ(fix.caster->health.value, 100, 0.001f);
@@ -290,6 +304,7 @@ TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));
+	dispel_run_devour_missile(fix.caster);
 	T_FEQ(fix.caster->health.value, 100, 0.001f);
 	T_FEQ(fix.caster->mana.value, 10, 0.001f);
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);

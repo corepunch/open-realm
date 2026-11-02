@@ -110,9 +110,10 @@ transform/frame changes and missing attachments without requiring Warcraft MPQs.
 
 ## Network Contract
 
-`EF_BUILDING` remains in the existing `USHORT entityState_t.flags` field. The selected effect model is a separate `BYTE entityState_t.effect`, serialized as `NFT_BYTE`; `USHORT entityState_t.effect_flags` is serialized as `NFT_SHORT` and carries the effect kind plus authored attachment-slot mask. `net.entity_delta_preserves_effect_model` guards that contract.
+`EF_BUILDING` remains in the existing `USHORT entityState_t.flags` field. The selected effect model is a `USHORT entityState_t.effect`, serialized as `NFT_SHORT` so model indices above 255 remain intact; `USHORT entityState_t.effect_flags` is also serialized as `NFT_SHORT` and carries the effect kind plus authored attachment-slot mask. The network regression `net.entity_delta_preserves_effect_model` guards that contract.
 
-`model2` remains available for ordinary attached/duplicate models. This separation is important because an effect model must not hijack an unrelated `model2` consumer.
+`model2` remains available for ordinary attached/duplicate models. This separation is important because an effect model must not hijack an unrelated `model2` consumer. The 16-bit `effect` field and `NFT_SHORT` encoding are already present in the current baseline; they predate the ability-fixes patch. **Recommend merger approval** for this protocol expansion so effect models can use the complete model-index range. See
+[Server-Selected Presentation Effects](../../architecture/server-selected-effects.md).
 
 ## Known Gaps
 

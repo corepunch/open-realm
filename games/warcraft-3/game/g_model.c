@@ -465,17 +465,22 @@ static animation_t const *AnimationFindContainingSet(animation_t const *animatio
 animation_t const *G_SelectAnimationForProperties(animation_t const *animations, uint32_t count,
                                             cstring_t animname, cstring_t properties) {
     animationTagSet_t required = {0};
+    animationTagSet_t property_tags = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
     animation_t const *contains = NULL;
+    animation_t const *property_match = NULL;
     animation_t const *overlap = NULL;
     animation_t const *primary_fallback = NULL;
+    uint32_t primary_fallback_extras = UINT32_MAX;
     uint32_t contains_extras = UINT32_MAX;
+    uint32_t property_match_extras = UINT32_MAX;
     uint32_t overlap_matches = 0;
     uint32_t overlap_extras = UINT32_MAX;
 
     if (!animations || !count || !animname || !*animname) return NULL;
     AnimationParseRequest(animname, primary, &required);
-    AnimationParseWords(properties, &required);
+    AnimationParseWords(properties, &property_tags);
+    FOR_LOOP(i, property_tags.count) AnimationTagSetAdd(&required, property_tags.value[i]);
     if (!primary[0]) return NULL;
 
     FOR_LOOP(i, count) {
@@ -484,10 +489,28 @@ animation_t const *G_SelectAnimationForProperties(animation_t const *animations,
         uint32_t matches, extras;
 
         AnimationParseRequest(animations[i].name, sequence_primary, &sequence_tags);
-        if (strcasecmp(primary, sequence_primary)) continue;
-        if (!primary_fallback) primary_fallback = animations + i;
+        if (strcasecmp(primary, sequence_primary) &&
+            !AnimationTagSetContains(&sequence_tags, primary)) continue;
         matches = AnimationTagSetMatchCount(&required, &sequence_tags);
         extras = sequence_tags.count > matches ? sequence_tags.count - matches : 0;
+        if (!strcasecmp(primary, sequence_primary) && extras < primary_fallback_extras) {
+            primary_fallback = animations + i;
+            primary_fallback_extras = extras;
+        }
+
+        /* Some authored sequences append the animation family after their
+         * building/form tags (for example "Stand Upgrade First Ready Attack").
+         * Accept that family alias when the unit's explicit required tags match,
+         * so a first-tier tower cannot fall back to an attack sequence for a
+         * different upgrade tier just because its name starts with "Stand". */
+        if (strcasecmp(primary, sequence_primary) && property_tags.count &&
+            AnimationTagSetContainsAll(&sequence_tags, &property_tags)) {
+            uint32_t property_extras = sequence_tags.count - property_tags.count;
+            if (!property_match || property_extras < property_match_extras) {
+                property_match = animations + i;
+                property_match_extras = property_extras;
+            }
+        }
 
         if (AnimationTagSetContainsAll(&sequence_tags, &required)) {
             if (extras == 0) return animations + i;
@@ -504,6 +527,7 @@ animation_t const *G_SelectAnimationForProperties(animation_t const *animations,
         }
     }
 
+    if (property_match) return property_match;
     if (contains) return contains;
 
     if (AnimationTagSetContains(&required, "alternateex") &&

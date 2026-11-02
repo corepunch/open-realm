@@ -73,6 +73,17 @@ static cstring_t G_EffectFieldName(wc3EffectType_t type, bool alternate) {
     }
 }
 
+/* The Healing Wave creep ability uses rawcode AChv but AbilityFunc spells its
+ * presentation section [AChV]. Preserve that data spelling for all authored
+ * ability presentation fields. */
+static void G_AbilityPresentationClassName(uint32_t ability_id, char classname[5]) {
+    if (ability_id == MAKEFOURCC('A','C','h','v')) {
+        memcpy(classname, "AChV", 5);
+    } else {
+        memcpy(classname, &ability_id, 4);
+        classname[4] = '\0';
+    }
+}
 
 static cstring_t G_BuffEffectValue(uint32_t buff_id, wc3EffectType_t type) {
     AbilityBuffData_t const *row = G_AbilityBuffData(buff_id);
@@ -81,7 +92,12 @@ static cstring_t G_BuffEffectValue(uint32_t buff_id, wc3EffectType_t type) {
     if (row->id != buff_id) return NULL;
     switch (type) {
         case WC3_EFFECT_EFFECT:  value = row->effectArt; break;
-        case WC3_EFFECT_TARGET:  value = row->targetArt; break;
+        case WC3_EFFECT_TARGET:
+            /* Persistent buff models use EffectArt in AbilityFunc.txt even
+             * though the status owns and attaches them like TargetArt. */
+            value = row->targetArt && *row->targetArt && strcmp(row->targetArt, "-") &&
+                    strcmp(row->targetArt, "_") ? row->targetArt : row->effectArt;
+            break;
         case WC3_EFFECT_SPECIAL: value = row->specialArt; break;
         case WC3_EFFECT_MISSILE: value = row->missileArt; break;
         default: break;
@@ -93,7 +109,9 @@ static cstring_t G_BuffEffectValue(uint32_t buff_id, wc3EffectType_t type) {
         if (base->id == row->code) {
             switch (type) {
                 case WC3_EFFECT_EFFECT:  return base->effectArt;
-                case WC3_EFFECT_TARGET:  return base->targetArt;
+                case WC3_EFFECT_TARGET:
+                    return base->targetArt && *base->targetArt && strcmp(base->targetArt, "-") &&
+                           strcmp(base->targetArt, "_") ? base->targetArt : base->effectArt;
                 case WC3_EFFECT_SPECIAL: return base->specialArt;
                 case WC3_EFFECT_MISSILE: return base->missileArt;
                 default: break;
@@ -109,8 +127,7 @@ static cstring_t G_EffectConfigValue(uint32_t ability_id, wc3EffectType_t type) 
     cstring_t value;
     AbilityData_t const *row;
 
-    memcpy(classname, &ability_id, 4);
-    classname[4] = '\0';
+    G_AbilityPresentationClassName(ability_id, classname);
     field = G_EffectFieldName(type, false);
     value = field ? FindConfigValue(classname, field) : NULL;
     if (!value) {
@@ -134,6 +151,27 @@ static cstring_t G_EffectConfigValue(uint32_t ability_id, wc3EffectType_t type) 
         }
         if (value) return value;
     }
+    /* AbilityBuffFunc authors persistent status models as EffectArt, not
+     * TargetArt. Resolve that field only for an actual buff rawcode so an
+     * ability's unrelated cast/impact EffectArt is never treated as target art. */
+    if (type == WC3_EFFECT_TARGET) {
+        AbilityBuffData_t const *buff = G_AbilityBuffData(ability_id);
+        if (buff->id == ability_id) {
+            cstring_t effect_field = G_EffectFieldName(WC3_EFFECT_EFFECT, false);
+            memcpy(classname, &ability_id, 4);
+            classname[4] = '\0';
+            value = FindConfigValue(classname, effect_field);
+            if (!value) value = FindConfigValue(classname, G_EffectFieldName(WC3_EFFECT_EFFECT, true));
+            if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+            if (buff->code && buff->code != ability_id) {
+                memcpy(classname, &buff->code, 4);
+                classname[4] = '\0';
+                value = FindConfigValue(classname, effect_field);
+                if (!value) value = FindConfigValue(classname, G_EffectFieldName(WC3_EFFECT_EFFECT, true));
+                if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+            }
+        }
+    }
     return G_BuffEffectValue(ability_id, type);
 }
 
@@ -145,8 +183,7 @@ static cstring_t G_AbilityPresentationValue(uint32_t ability_id, cstring_t field
     AbilityData_t const *row;
 
     if (!field) return NULL;
-    memcpy(classname, &ability_id, 4);
-    classname[4] = '\0';
+    G_AbilityPresentationClassName(ability_id, classname);
     value = FindConfigValue(classname, field);
     if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
 
@@ -374,6 +411,18 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
 
     out[0] = '\0';
     if (!list || !*list || type == WC3_EFFECT_LIGHTNING) {
+        /* AEfk's original expansion archive supplies a separate caster burst
+         * and an animated knife missile burst. Some early ability-function
+         * tables do not name either effect; fall back to those stock models
+         * only when the field is ABSENT (not when a map clears it with '-'
+         * or '_'). Custom aliases inherit their AEfk base as usual. */
+        if (!list && (ability_id == MAKEFOURCC('A','E','f','k') ||
+                      G_AbilityCode(ability_id) == MAKEFOURCC('A','E','f','k'))) {
+            if (type == WC3_EFFECT_CASTER)
+                return "Abilities\\Spells\\NightElf\\FanOfKnives\\FanOfKnivesCaster.mdx";
+            if (type == WC3_EFFECT_MISSILE)
+                return "Abilities\\Spells\\NightElf\\FanOfKnives\\FanOfKnivesMissile.mdx";
+        }
         /* Warcraft stores Unholy Frenzy's persistent target model on neither
          * Auhf nor its AbilityBuffData row. Keep the stock asset as the final
          * fallback for both TFT's BUhf and RoC's BUhf compatibility status. */
@@ -416,6 +465,11 @@ cstring_t G_AbilityBuffArt(uint32_t buff_id) {
         return "ReplaceableTextures\\CommandButtons\\BTNTrueshotAura.blp";
     if (buff_id == MAKEFOURCC('B','s','p','o'))
         return "ReplaceableTextures\\CommandButtons\\BTNSlowPoison.blp";
+    /* Bfro's Buffart is authored in CommonAbilityFunc.txt rather than the
+     * AbilityBuffData row. Keep its status icon available in data sets where
+     * the common function table is not exposed to the HUD lookup. */
+    if (buff_id == MAKEFOURCC('B','f','r','o'))
+        return "ReplaceableTextures\\CommandButtons\\BTNFrost.blp";
     return NULL;
 }
 
@@ -434,7 +488,14 @@ void G_EffectThink(edict_t *effect) {
         G_FreeEdict(effect);
         return;
     }
-    if (effect->goalentity && effect->wait != 0.0f) {
+    if (effect->goalentity &&
+        (effect->status_effect_code == MAKEFOURCC('B','c','y','c') ||
+         effect->status_effect_code == MAKEFOURCC('B','c','y','2'))) {
+        /* CycloneTarget is centered on the ground under a lifted victim. The
+         * linked origin includes FlyHeight, so remove the current altitude
+         * every frame rather than using a creation-time offset. */
+        effect->s.origin.z -= effect->goalentity->s.ground_offset;
+    } else if (effect->goalentity && effect->wait != 0.0f) {
         effect->s.origin.z += effect->wait;
     }
     M_MoveFrame(effect);
@@ -452,6 +513,9 @@ static void G_EffectLoopStand(edict_t *effect) {
         if (effect->summon_ability &&
             (effect->summon_ability == MAKEFOURCC('A','m','b','t') ||
              G_AbilityCode(effect->summon_ability) == MAKEFOURCC('A','m','b','t')))
+            return;
+        if (effect->status_effect_code == MAKEFOURCC('B','c','y','c') ||
+            effect->status_effect_code == MAKEFOURCC('B','c','y','2'))
             return;
         effect->s.renderfx |= RF_HIDDEN;
         effect->think = NULL;
@@ -583,6 +647,8 @@ edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_
     cstring_t count_value;
     uint32_t art_id = status_id == MAKEFOURCC('B','s','t','u')
         ? MAKEFOURCC('B','P','S','E') : status_id;
+    bool const ground_anchored = status_id == MAKEFOURCC('B','c','y','c') ||
+                                 status_id == MAKEFOURCC('B','c','y','2');
     uint32_t count = 1;
     uint32_t i;
     if (!status_id || !target || !target->inuse) return NULL;
@@ -597,10 +663,21 @@ edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_
     for (i = 0; i < count; i++) {
         cstring_t authored_attach = NULL;
         cstring_t selected_attach = attach_point;
-        if (i == 0) strlcpy(key, "Targetattach", sizeof(key));
-        else snprintf(key, sizeof(key), "Targetattach%u", i);
-        authored_attach = FindConfigValue(classname, key);
-        if (authored_attach && *authored_attach) selected_attach = authored_attach;
+        if (ground_anchored) {
+            /* CycloneTarget is a ground-centered vortex. Its Bcyc attachment
+             * socket follows the victim's airborne model after lift. */
+            selected_attach = "origin";
+        } else {
+            if (i == 0) strlcpy(key, "Targetattach", sizeof(key));
+            else snprintf(key, sizeof(key), "Targetattach%u", i);
+            authored_attach = FindConfigValue(classname, key);
+            if (!authored_attach || !*authored_attach) {
+                if (i == 0) strlcpy(key, "Effectattach", sizeof(key));
+                else snprintf(key, sizeof(key), "Effectattach%u", i);
+                authored_attach = FindConfigValue(classname, key);
+            }
+            if (authored_attach && *authored_attach) selected_attach = authored_attach;
+        }
         {
             /* WC3 ability rows can pair one TargetArt model with each target
              * attachment (Atol has a tree emitter followed by left/right hand
@@ -608,6 +685,8 @@ edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_
              * entries than attachments are authored. */
             edict_t *attached = G_SpawnAbilityEffectTarget(art_id, WC3_EFFECT_TARGET, i,
                                                             target, selected_attach, false);
+            if (attached && ground_anchored)
+                attached->s.origin.z -= target->s.ground_offset;
             if (!effect) effect = attached;
             if (attached) attached->status_effect_code = status_id;
         }
@@ -658,6 +737,10 @@ void G_DestroyOwnedEffects(edict_t *owner) {
         if (count < sizeof(owned) / sizeof(owned[0])) owned[count++] = effect;
     }
     FOR_LOOP(i, count) {
+        /* A retired owner's slot may be reused before the model finishes its
+         * Death animation.  Do not leave an obsolete owner pointer attached
+         * to that presentation-only entity. */
+        owned[i]->owner = NULL;
         owned[i]->s.sound = 0;
         if (owned[i]->s.model) G_DestroyEffect(owned[i]);
         else G_FreeEdict(owned[i]);

@@ -38,15 +38,6 @@ typedef struct {
  *   - WoW: data-driven spell table + cast state machine (Wow_RunSpellCast)
  *   - Quake2: flat flags and callbacks around a shared processor */
 
-static cstring_t S_SpellThemeString(cstring_t key, cstring_t def) {
-    cstring_t value = NULL;
-
-    if (key && !strstr(key, "\\") && game.config.theme.source) {
-        value = Stb_IniCacheFind(&game.config.theme, "Default", key);
-    }
-    return value ? value : def;
-}
-
 /* Build the borrowed typed payload used by the synchronous spell messages. */
 static intptr_t spell_message(edict_t *ent, abilityMsg_t msg, abilityitem_t const *item, spellTarget_t const *target) {
     abilityCall_t call = MAKE(abilityCall_t, .item = item, .target = target);
@@ -344,6 +335,34 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
     return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
 }
 
+static bool spell_is_tree_interaction(ability_t const *spell) {
+    return spell && (spell->proc == CAbilityGrabTree || spell->proc == CAbilityEatTree);
+}
+
+static float spell_tree_target_range(uint32_t code, uint32_t level, edict_t const *caster) {
+    return MAX(S_SpellRange(code, level), 32.0f) +
+        MAX(0.0f, caster ? caster->collision : 0.0f);
+}
+
+/* Trees block movement through their authored pathing texture, despite often
+ * having zero collision radius. Measure interaction range to that footprint
+ * so a Giant can cast from the nearest legal cell without entering the tree. */
+static float spell_tree_distance_from_point(edict_t const *tree, vec2_t const *point,
+                                           uint8_t blocked_flags) {
+    float distance;
+    if (!tree || !point) return FLT_MAX;
+    if (tree->pathtex) {
+        distance = CM_DistanceToPathingFootprintFlags(tree, point, blocked_flags);
+        if (distance < FLT_MAX) return distance;
+    }
+    return MAX(0.0f, Vector2_distance(point, &tree->s.origin2) - MAX(0.0f, tree->collision));
+}
+
+static float spell_tree_distance(edict_t const *caster, edict_t const *tree) {
+    return caster ? spell_tree_distance_from_point(tree, &caster->s.origin2,
+                                                    M_UnitStaticPathingFlags(caster)) : FLT_MAX;
+}
+
 static float spell_approach_range(uint32_t code, uint32_t level, ability_t const *spell) {
     abilityCall_t call;
     if (!spell) return S_SpellRange(code, level);
@@ -414,6 +433,15 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     if (G_AbilityCode(code) == MAKEFOURCC('A','e','s','n'))
         return target && target->targtype == TARG_TREE &&
                G_DestructableIsAttackable(target);
+    /* Unit-target abilities authored with the dead token must pass the same
+     * corpse target rules as their ability procedure during normal orders. */
+    if (target && M_IsDead(target)) {
+        abilityLevel_t const *row = G_AbilityLevel(code, S_SpellLevel(caster, code));
+        return row && S_SpellTargetHasToken(row->targs, "dead", NULL) &&
+               S_SpellAllowsCorpseTarget(code, caster, target) &&
+               !S_UnitIsInvisibleToPlayer(target, caster->s.player);
+    }
+    if (S_ImpaleIsAirborne(target)) return false;
     if (!S_SpellAllowsAreaTarget(code, caster, target)) return false;
     return !(caster && caster->s.player < MAX_PLAYERS &&
              S_UnitIsInvisibleToPlayer(target, caster->s.player));
@@ -426,7 +454,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     abilityLevel_t const *row;
     heroabilitystatus_t *status;
 
-    if (!caster || !target || !ability ||
+    if (!caster || !target || !ability || ability->proc == CAbilityDevour ||
         (ability->target_type != SPELL_TARGET_UNIT && ability->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_SpellIsEnemy(caster, target) || !S_SpellIsAliveTarget(target)) return false;
     /* Physical nets and Finger of Death bypass Spell Shield. */
@@ -460,7 +488,21 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     if (!G_UnitIsWorldActive(target) || M_IsDead(target) || S_UnitIsCycloned(target)) {
         return false;
     }
-    if (S_UnitSpellImmune(target)) return false;
+    if (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) return false;
+    /* Devour is a physical swallowing ability, not a magic projectile. */
+    { ability_t const *ability = S_SpellAbilityForCode(code);
+      /* Area target masks are also shared by non-spell mechanics such as
+       * Cleaving Attack; resolve their registered parent class too. */
+      if (!ability) {
+          abilityitem_t item = S_AbilityItem(code);
+          ability = item.ability;
+      }
+      /* Taunt changes the target's attack order rather than applying a
+       * hostile magical effect. Spell immunity alone does not make a unit
+       * ineligible for its authored enemy target mask. */
+      if ((!ability || (ability->proc != CAbilityDevour && ability->proc != CAbilityTaunt &&
+                        ability->proc != CAbilityCleavingAttack)) &&
+          S_UnitSpellImmune(target)) return false; }
     ability_level = S_SpellLevel(caster, code);
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) {
@@ -471,7 +513,7 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
         bool const allows_hero = S_SpellTargetHasToken(targets, "hero", NULL);
         bool const allows_nonhero = S_SpellTargetHasToken(targets, "nonhero", "nonh");
         if ((allows_hero || allows_nonhero) &&
-            !(G_UnitIsHero(target) ? allows_hero : allows_nonhero)) return false;
+            (S_UnitIsResistant(target) ? !allows_hero : !allows_nonhero)) return false;
     }
     if (strstr(targets, "notself") && target == caster) return false;
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
@@ -584,6 +626,9 @@ void S_SpellHeal(edict_t *target, float amount) {
     if (!target || amount <= 0) {
         return;
     }
+    /* Ethereal units take 66% more spell damage and receive 66% more spell
+     * healing, matching the retail Banish interaction with Holy Light. */
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) amount *= 1.66f;
     G_AddHealth(target, amount);
 }
 
@@ -593,8 +638,10 @@ void S_SpellCursorSplat(edict_t *clent, float radius) {
     if (!clent || !clent->client) {
         return;
     }
-    if (radius > 0.0f) {
-        image = gi.ImageIndex(S_SpellThemeString("PlacementCursor", DEFAULT_SPELL_AREA_CURSOR));
+    if (isfinite(radius) && radius > 0.0f) {
+        edict_t const *caster = G_GetMainSelectedUnit(clent->client);
+        cstring_t const race = caster && caster->data.UnitData ? caster->data.UnitData->race : NULL;
+        image = gi.ImageIndex(Theme_UnitString(race, "PlacementCursor", DEFAULT_SPELL_AREA_CURSOR));
     } else {
         radius = 0.0f;
     }
@@ -878,9 +925,12 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
  * item only after the ability has successfully executed. */
 static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t code,
                                        uint32_t level, ability_t const *spell,
-                                       vec2_t const *point, edict_t *source_item,
-                                       uint32_t source_item_spawn_time, edict_t *active_approach) {
-    spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
+                                       vec2_t const *point, edict_t *entity_target,
+                                       edict_t *source_item, uint32_t source_item_spawn_time,
+                                       edict_t *active_approach) {
+    spellTarget_t st = (entity_target && spell_is_tree_interaction(spell)) ?
+                       MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = entity_target) :
+                       MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     abilityitem_t item = { .code = code, .ability = spell };
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &st,
                               .source_item = source_item,
@@ -910,32 +960,41 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
 void S_SpellTargetApproachThink(edict_t *thinker) {
     channel_t *thinker_cast = G_GetChannel(thinker);
     edict_t *caster = S_SpellChannelOwner(thinker);
-    edict_t *target = thinker ? thinker->goalentity : NULL;
+    edict_t *move_goal = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
+    bool const tree_approach = spell_is_tree_interaction(spell) &&
+        move_goal == thinker;
+    edict_t *target = tree_approach ? thinker->build : move_goal;
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = thinker && thinker_cast ? thinker_cast->source_item : NULL;
-    bool const point_target = spell && target == thinker &&
+    bool const point_target = spell && move_goal == thinker && !tree_approach &&
         (spell->target_type == SPELL_TARGET_POINT || spell->target_type == SPELL_TARGET_UNIT_OR_POINT);
     /* Ability-owned entity cursors retain the entity and incarnation while
      * approaching, rather than freezing a point at the original click. */
-    bool const entity_point_target = spell && target != thinker && spell->target_type == SPELL_TARGET_POINT;
+    bool const entity_point_target = spell && !tree_approach && move_goal != thinker &&
+        spell->target_type == SPELL_TARGET_POINT;
     uint32_t level;
     float range;
     spellTarget_t st;
 
     if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker_cast->source_item_spawn_time) ||
-        (!point_target && !entity_point_target && spell->target_type != SPELL_TARGET_UNIT &&
+        (!point_target && !entity_point_target && !tree_approach && spell->target_type != SPELL_TARGET_UNIT &&
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
-        if (caster && caster->goalentity == thinker) {
+        if (caster && caster->goalentity == move_goal) {
             caster->goalentity = NULL;
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
         return;
     }
-    if (!point_target && S_SpellChannelTarget(thinker) != target) {
+    if (tree_approach && (!thinker_cast || !target || !target->inuse ||
+                               target->spawn_time != thinker_cast->target_spawn_time)) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (!point_target && !tree_approach && S_SpellChannelTarget(thinker) != target) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -945,7 +1004,13 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     /* A replacement order is authoritative. If the same spell-owned Move is
      * still active but its target died/disappeared, terminate that approach too. */
-    if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+    /* A tree is an occupied destructable, so the Giant's Move can naturally
+     * finish at its collision edge and switch to Stand before the next spell
+     * approach tick. Keep the pending Grab Tree order alive in that case and
+     * evaluate its collision-adjusted range below. A different goal still
+     * means the player replaced the order. */
+    if (caster->goalentity != move_goal ||
+        (!move_is_active_order_walk(caster) && !tree_approach)) {
         G_FreeEdict(thinker);
         return;
     }
@@ -953,27 +1018,42 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     /* Force of Nature has no custom approach-range override. */
     range = code == MAKEFOURCC('A','E','f','n') ? S_SpellRange(code, level) :
             spell_approach_range(code, level, spell);
-    if (point_target || entity_point_target) {
+    if (spell->proc == CAbilityEatTree)
+        range = spell_tree_target_range(code, level, caster);
+    if (point_target || entity_point_target || tree_approach) {
         edict_t *clent = G_GetPlayerEntityByNumber(caster->s.player);
+        vec2_t const *validate_point = tree_approach ? &target->s.origin2 : &move_goal->s.origin2;
         spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                               .clent = clent, .caster = caster, .code = code,
-                                              .level = level, .point = &target->s.origin2,
+                                              .level = level, .point = validate_point,
                                               .range = 0.0f);
         /* The ability owns entity eligibility, including destructables which
          * ordinary unit-target validation intentionally rejects. */
-        st = entity_point_target ? MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target) :
-                                   MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = target->s.origin2);
-        if (!spell_validate_point(&val) || !spell_message(caster, A_VALIDATE, &item, &st)) {
-            if (caster->goalentity == target) caster->goalentity = NULL;
+        st = (entity_point_target || tree_approach) ?
+             MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target) :
+             MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = move_goal->s.origin2);
+        if ((spell_is_tree_interaction(spell) && !G_UnitAbilityLevel(caster, code)) ||
+            (!tree_approach && !spell_validate_point(&val)) ||
+            (spell->proc == CAbilityEatTree && !S_SpellAllowsTarget(code, caster, target)) ||
+            !spell_message(caster, A_VALIDATE, &item, &st)) {
+            if (caster->goalentity == move_goal) caster->goalentity = NULL;
             unit_stand(caster);
             G_FreeEdict(thinker);
             return;
         }
-        if (range > 0.0f && Vector2_distance(&caster->s.origin2, &target->s.origin2) > range)
+        /* A large Giant need only reach a tree's edge rather than overlap
+         * the destructable's centre to cast Grab Tree. */
+        if (spell_is_tree_interaction(spell))
+            range = spell_tree_target_range(code, level, caster);
+        float const distance = spell_is_tree_interaction(spell) ?
+            spell_tree_distance(caster, target) :
+            Vector2_distance(&caster->s.origin2, &target->s.origin2);
+        if (range > 0.0f && distance > range)
             return;
-        if (caster->goalentity == target) caster->goalentity = NULL;
+        if (caster->goalentity == move_goal) caster->goalentity = NULL;
         unit_stand(caster);
-        spell_execute_point_target(clent, caster, code, level, spell, &target->s.origin2,
+        spell_execute_point_target(clent, caster, code, level, spell, validate_point,
+                                   (tree_approach || entity_point_target) ? target : NULL,
                                    source_item, thinker_cast->source_item_spawn_time, thinker);
         G_FreeEdict(thinker);
         return;
@@ -1010,6 +1090,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
                                         vec2_t const *point, edict_t *source_item,
                                         uint32_t source_item_spawn_time) {
     edict_t *thinker, *goal;
+    vec2_t approach;
 
     if (!caster || (!target && !point) || (target && point) ||
         !S_UnitCanTranslate(caster) || S_GoldMineWorkerIsInside(caster))
@@ -1019,6 +1100,28 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     if (!thinker) return false;
     goal = point ? thinker : target;
     if (point) thinker->s.origin2 = *point;
+    /* Tree pathing blocks movement to the target center. Route War Club to a
+     * reachable cell within its authored cast range instead, while the cast
+     * thinker retains the tree as its validated ability target. */
+    ability_t const *spell = S_SpellAbilityForCode(code);
+    if (target && spell_is_tree_interaction(spell)) {
+        uint32_t const level = S_SpellLevel(caster, code);
+        float const range = spell_tree_target_range(code, level, caster);
+        bool found = CM_ClosestReachablePointForRadiusFlags(
+            &caster->s.origin2, &target->s.origin2, caster->collision,
+            M_UnitStaticPathingFlags(caster), &approach) &&
+            spell_tree_distance_from_point(target, &approach,
+                M_UnitStaticPathingFlags(caster)) <= range;
+        /* If the path map cannot provide an interaction cell (for example
+         * during a map transition), retain the ordinary entity Move order.
+         * Rejecting the cast here leaves the command cursor consumed without
+         * giving the player the expected walk response. */
+        if (found) {
+            goal = thinker;
+            thinker->build = target;
+            thinker->s.origin2 = approach;
+        }
+    }
     thinker->owner = caster;
     thinker->goalentity = goal;
     channel_t *cast = G_AddChannel(thinker);
@@ -1059,22 +1162,38 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return false;
-    /* Searing Arrows is an attack modifier, not a unit-target spell cast. Its
+    if (spell->proc == CAbilityEatTree)
+        range = spell_tree_target_range(code, level, caster);
+    /* Searing Arrows and Orb of Annihilation are attack modifiers, not
+     * unit-target spell casts. Their
      * manual target order arms one projectile and spends mana at weapon
      * damage point, so it must bypass cast-time mana/cooldown commit. */
-    if (spell->proc == CAbilityFlamingArrows) {
-        bool const accepted = S_SearingArrowsIssueOrder(caster, target, code);
+    if (spell->proc == CAbilityFlamingArrows || spell->proc == CAbilityColdArrows ||
+        spell->proc == CAbilityBlackArrow) {
+        bool const accepted = spell->proc == CAbilityBlackArrow
+            ? S_BlackArrowIssueOrder(caster, target, code) :
+            spell->proc == CAbilityColdArrows
+            ? S_ColdArrowsIssueOrder(caster, target, code)
+            : S_SearingArrowsIssueOrder(caster, target, code);
         if (accepted) spell_order_accepted(caster, spell);
         return accepted;
     }
     /* Range is intentionally excluded here. An otherwise valid out-of-range
      * target is an accepted order; the caster must walk into cast range. */
-    if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
-    if (!S_SpellAllowsTarget(code, caster, target)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
+    if (!spell_validate(clent, caster, code, level, target, 0.0f)) {
+        return false;
+    }
+    if (!S_SpellAllowsTarget(code, caster, target)) {
+        return false;
+    }
+    if (!spell_message(caster, A_VALIDATE, &item, &st)) {
+        return false;
+    }
 
     if (!S_SpellTargetInRange(caster, target, range)) {
-        if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) return false;
+        if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) {
+            return false;
+        }
         spell_order_accepted(caster, spell);
         return true;
     }
@@ -1167,9 +1286,14 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
         return false;
     }
 
+    /* War Club uses the edge of the large caster and the tree footprint. */
+    if (target && spell_is_tree_interaction(spell))
+        range += MAX(0.0f, caster->collision) + MAX(0.0f, target->collision);
     if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range) {
         if (!spell_begin_target_approach(caster, code, target, target ? NULL : point,
-                                         source_item, source_item_spawn_time)) return false;
+                                         source_item, source_item_spawn_time)) {
+            return false;
+        }
         spell_order_accepted(caster, spell);
         if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
         else S_SpellCursorSplat(clent, 0.0f);
@@ -1178,6 +1302,7 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
     }
 
     if (!spell_execute_point_target(clent, caster, code, level, spell, point,
+                                    (spell->proc == CAbilityGrabTree) ? target : NULL,
                                     source_item, source_item_spawn_time, NULL)) return false;
     spell_order_accepted(caster, spell);
     if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
@@ -1290,6 +1415,14 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
                     (void *)spell, spell ? (unsigned)spell->target_type : 0u,
                     (unsigned)(spell && S_AbilityHasCommand(spell)));
         return false;
+    }
+    /* A running Mana Flare is a cancellable stance, not a new cast. It must
+     * remain possible to turn it off while the original cooldown is active
+     * or current mana is insufficient. Do not publish a spell event, break
+     * channels or run spell_commit for the deactivation. */
+    if (spell->proc == CAbilityManaFlare && S_ManaFlareActive(caster)) {
+        if (!S_SpellIsAliveTarget(caster)) return false;
+        return spell_message(caster, A_EXECUTE, &item, &target) != 0;
     }
     level = S_SpellLevel(caster, code);
     if (!spell_validate(NULL, caster, code, level, NULL, 0)) {
@@ -1474,6 +1607,10 @@ void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
 
     if (!unit || !position) return;
     source = unit->s.origin2;
+    /* An explicit spell teleport ends the old caster-owned swarm; normal
+     * movement and raw script repositioning are not treated as teleports. */
+    if (Vector2_distance(&source, position) > 0.001f)
+        S_LocustSwarmCancelForCaster(unit);
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
     S_SpellCommitRelocation(unit, position);
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
@@ -1620,11 +1757,12 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
     switch (slot->code) {
     case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
-    case MAKEFOURCC('B','s','l','o'):
-    case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
+    case MAKEFOURCC('B','s','l','o'): case MAKEFOURCC('B','c','s','d'):
+    case MAKEFOURCC('B','f','r','o'): case MAKEFOURCC('B','f','z','y'):
+    case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
-    case MAKEFOURCC('B','H','t','c'):
+    case MAKEFOURCC('B','H','t','c'): case MAKEFOURCC('B','N','h','t'):
         break;
     default: return;
     }
@@ -1661,6 +1799,19 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
         break;
+    case MAKEFOURCC('B','c','s','d'):
+        /* Sea Witch Frost Arrows carry rank through their shared stacking
+         * debuff; retain the concrete ability alias for authored DataB/C. */
+        if (!ability) ability = MAKEFOURCC('A','H','c','a');
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
+        break;
+    case MAKEFOURCC('B','f','r','o'):
+        /* TFT Frost Attack (Afra) uses Bfro and authors duration, but the
+         * classic slow magnitudes are intrinsic to this buff. */
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -0.5f);
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -0.25f);
+        break;
     case MAKEFOURCC('B','i','n','f'):
         if (!ability) ability = MAKEFOURCC('A','i','n','f');
         status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
@@ -1675,6 +1826,10 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
         status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 4));
         break;
+    case MAKEFOURCC('B','N','h','t'):
+        if (!ability) ability = MAKEFOURCC('A','N','h','t');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT, -S_SpellData(ability, rank, 1));
+        break;
     default: return;
     }
 }
@@ -1687,6 +1842,14 @@ heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, ui
     heroabilitystatus_t *status = unit_applystatus(target, &app);
     if (status) status_apply_authored_modifiers(status, status->source_ability);
     return status;
+}
+
+/* Freezing Breath uses a timed status as the saveable owner of a building's
+ * disabled interval. Its gameplay lock is consumed by building production
+ * and attack paths rather than by a generic stun state. */
+bool S_UnitIsFreezingBreathFrozen(edict_t const *unit) {
+    heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','f','r','z'));
+    return status && (!status->timestamp || (int32_t)(status->timestamp - G_Time()) > 0);
 }
 
 /* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
@@ -1768,10 +1931,22 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || (spell->target_type != SPELL_TARGET_UNIT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
-        !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
+    if (!spell || !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
+    if (spell_is_tree_interaction(spell)) {
+        spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
+            .caster = caster, .code = code, .level = level, .point = &unit->s.origin2, .range = 0.0f);
+        float const cast_range = spell_tree_target_range(code, level, caster);
+        bool const valid = spell->proc == CAbilityEatTree ?
+            spell_validate(NULL, caster, code, level, unit, 0.0f) : spell_validate_point(&val);
+        if (!valid || !spell_message(caster, A_VALIDATE, &item, &target)) return false;
+        if (Vector2_distance(&caster->s.origin2, &unit->s.origin2) > cast_range)
+            return spell_begin_target_approach(caster, code, unit, NULL, NULL, 0);
+        return spell_execute_point_target(NULL, caster, code, level, spell, &unit->s.origin2,
+                                          unit, NULL, 0, NULL);
+    }
+    if (spell->target_type != SPELL_TARGET_UNIT && spell->target_type != SPELL_TARGET_UNIT_OR_POINT)
+        return false;
     range = S_SpellRange(code, level);
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
@@ -1812,7 +1987,7 @@ bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point
     if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range)
         return spell_begin_target_approach(caster, code, NULL, point, NULL, 0);
 
-    spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, 0, NULL);
+    spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, NULL, 0, NULL);
     return true;
 }
 
@@ -1824,6 +1999,7 @@ void spell_cmd(edict_t *clent) {
     uint32_t code = S_SpellCurrentCode(clent, 0);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+    abilityCall_t toggle_call = MAKE(abilityCall_t, .item = &item);
 
     if (!spell) {
         fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (cstring_t)&code);
@@ -1841,7 +2017,10 @@ void spell_cmd(edict_t *clent) {
     }
 
     /* Toggle abilities bypass the normal pipeline. */
-    if ((spell->flags & AB_TOGGLE) && spell->proc != CAbilityFlamingArrows) {
+    if ((spell->flags & AB_TOGGLE) && code != MAKEFOURCC('A','f','a','k') &&
+        spell->proc != CAbilityFlamingArrows &&
+        spell->proc != CAbilityColdArrows && spell->proc != CAbilityBlackArrow &&
+        (spell->proc != CAbilityManaFlare || S_AbilityMessage(caster, A_TOGGLE_ON, &toggle_call))) {
         spellTarget_t target = { .type = SPELL_TARGET_NONE };
         spell_message(caster, A_EXECUTE, &item, &target);
         Get_Commands_f(clent);
@@ -1876,7 +2055,7 @@ void spell_cmd(edict_t *clent) {
             clent->client->menu.on_entity_selected = spell_ability_entity_target_selected;
         } else if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
-            S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+            S_SpellCursorSplat(clent, area);
         }
         if (!entity_target)
             clent->client->menu.on_location_selected = spell_point_target_selected;

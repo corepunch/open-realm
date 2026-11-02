@@ -54,8 +54,11 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = human_buff(spell, level);
     if (!st.entity || !buff) return NULL;
+    float duration = spell->ability && spell->ability->proc == CAbilitySlow
+        ? S_SpellResistantDuration(spell->code, level, st.entity)
+        : S_SpellHeroDuration(spell->code, level, st.entity);
     heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                         S_SpellHeroDuration(spell->code, level, st.entity));
+                                         duration);
     /* First verified transfer family: Inner Fire.  Other buffs remain legacy
      * dispellable but are not transferable until their cleanup is audited. */
     if (status && status->code == MAKEFOURCC('B','i','n','f')) {
@@ -177,7 +180,8 @@ static bool aerial_shackles_validate(edict_t *caster, spellTarget_t st, abilityi
     uint32_t level, buff;
     wc3_status_apply_check_t check;
     if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
-        st.entity->targtype != TARG_AIR || !S_SpellIsEnemy(caster, st.entity)) return false;
+        S_UnitIsResistant(st.entity) || st.entity->targtype != TARG_AIR ||
+        !S_SpellIsEnemy(caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     buff = shackles_buff(spell->code, level);
     if (!buff) return false;
@@ -311,7 +315,7 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
     UnitBalance_t const *balance;
     wc3_status_apply_check_t check;
 
-    if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || G_UnitIsHero(st.entity) ||
+    if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || S_UnitIsResistant(st.entity) ||
         st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
         st.entity->targtype == TARG_MECHANICAL) return false;
     level = S_SpellLevel(caster, spell->code);
@@ -443,7 +447,7 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
     edict_t *thinker;
     heroabilitystatus_t *slot;
     if (!st.entity || !buff) return;
-    duration = S_SpellHeroDuration(spell->code, level, st.entity);
+    duration = S_SpellResistantDuration(spell->code, level, st.entity);
     /* Reserve the thinker before status mutation; if status insertion fails,
      * discard it before it can begin a channel or deal its first damage tick. */
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
@@ -576,6 +580,11 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
         .state_mask = snapshot.state_mask, .buff_flags = snapshot.buff_flags,
         .source = caster, .rank = snapshot.rank
     };
+    /* Spell Steal redirects a negative Faerie Fire debuff to an enemy unit.
+     * The redirected unit is now marked for the stealing player, not the
+     * original caster, and the transferred status retains its remaining time. */
+    if (snapshot.code == MAKEFOURCC('B','f','a','e'))
+        app.data = caster->s.player < MAX_PLAYERS ? caster->s.player + 1 : 0;
     destination = unit_applystatus(receiver, &app);
     if (!destination) return;
     destination->modifier_count = MIN(snapshot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
@@ -673,19 +682,25 @@ uint32_t S_DispelUnitMagic(edict_t *target) {
  * unit_status_can_magic_dispel; resurrected/animated dispel-immune summons
  * are separately protected from summoned damage. */
 void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point) {
-    uint32_t removed = 0;
+    uint32_t devoured_enemy_units = 0;
+    bool const devour = G_AbilityCode(code) == MAKEFOURCC('A','d','v','m');
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
     float data_a = S_SpellData(code, level, 1), data_b = S_SpellData(code, level, 2);
     float data_e = S_SpellData(code, level, 5);
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     if (!caster || !point || !(area >= 0.0f)) return;
-    removed += S_SentinelDispelAt(point, area);
+    S_SentinelDispelAt(point, area);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                   Vector2_distance(&target->s.origin2, point) <= area) {
         uint32_t const target_removed = S_DispelUnitMagic(target);
         bool affected = target_removed > 0;
-        removed += target_removed;
+        /* Devour Magic refunds per enemy unit affected, not per status:
+         * consuming two buffs on one enemy must not restore twice as much.
+         * Friendly buffs, Sentinel owls and other special ward cases never
+         * generate a Destroyer refund. */
+        if (devour && target_removed && S_SpellIsEnemy(caster, target) &&
+            target->targtype != TARG_WARD) devoured_enemy_units++;
         /* Retail dispel damages hostile summons, not friendly summons. */
         if (!S_SpellIsFriend(caster, target) && S_DispelIsSummoned(target) &&
             !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
@@ -694,14 +709,77 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
     }
     /* Only Dispel Magic / Disenchant remove loose terrain Blight.  Devour Magic
      * has its own buff-healing contract and does not paint the terrain. */
-    if (S_AbilityItem(code).ability && S_AbilityItem(code).ability->proc == CAbilityDispelMagic)
+    if (!devour && S_AbilityItem(code).ability &&
+        S_AbilityItem(code).ability->proc == CAbilityDispelMagic)
         G_DispelBlightRadius(point, area);
-    if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (float)removed);
-    if (removed && heal_mana > 0.0f)
-        caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + heal_mana * (float)removed);
+    if (devoured_enemy_units && heal_hp > 0.0f)
+        S_SpellHeal(caster, heal_hp * (float)devoured_enemy_units);
+    if (devoured_enemy_units && heal_mana > 0.0f)
+        caster->mana.value = MIN(caster->mana.max_value,
+                                 caster->mana.value + heal_mana * (float)devoured_enemy_units);
+}
+
+/* A Devour Magic point cast launches the authored birth missile. Its gameplay
+ * dispel and special art resolve on arrival, so units entering/leaving the area
+ * while it travels are evaluated at impact rather than at the cast point. */
+static void devour_magic_missile_hit(edict_t *missile) {
+    channel_t const *cast = G_GetChannel(missile);
+    edict_t *caster = S_SpellProjectileOwner(missile);
+    if (cast && caster && !M_IsDead(caster)) {
+        vec2_t const point = cast->origin;
+        S_DispelMagicArea(caster, missile->class_id, S_SpellLevel(caster, missile->class_id), &point);
+        G_SpawnAbilityEffectAtPoint(missile->class_id, WC3_EFFECT_SPECIAL, 0, &point, true);
+        missile->s.origin2 = point;
+        missile->s.origin = MAKE(vec3_t, point.x, point.y, CM_GetHeightAtPoint(point.x, point.y));
+    }
+    if (!G_StartProjectileDeathPresentation(missile)) G_FreeEdict(missile);
+}
+
+static umove_t devour_magic_missile_move = {
+    "stand", NULL, devour_magic_missile_hit, CAbilityDispelMagic
+};
+
+static bool devour_magic_launch(edict_t *caster, uint32_t code, vec2_t const *point) {
+    cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+    cstring_t speed_text = S_SpellString(code, "Missilespeed", 0);
+    float speed = speed_text ? (float)atof(speed_text) : 0.0f;
+    edict_t *missile;
+    channel_t *cast;
+    vec2_t direction;
+    if (!caster || !point || !art || !*art || !isfinite(speed) || speed <= 0.0f) return false;
+    missile = G_Spawn();
+    if (!missile) return false;
+    missile->s.model = G_RegisterModel(art);
+    if (!missile->s.model) { G_FreeEdict(missile); return false; }
+    missile->class_id = code;
+    missile->owner = caster;
+    missile->s.player = caster->s.player;
+    G_InheritUnitTeamColor(missile, caster);
+    missile->s.origin = caster->s.origin;
+    missile->s.origin2 = caster->s.origin2;
+    direction = Vector2_sub(point, &caster->s.origin2);
+    missile->s.angle = atan2f(direction.y, direction.x);
+    missile->aiflags |= AI_PROJECTILE_FIXED_TARGET;
+    missile->velocity = speed / 1000.0f;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->currentmove = &devour_magic_missile_move;
+    cast = G_AddChannel(missile);
+    cast->origin = *point;
+    cast->owner_spawn_time = caster->spawn_time;
+    G_StartProjectilePresentation(missile);
+    return true;
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
+    if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','v','m')) {
+        if (devour_magic_launch(caster, spell->code, &st.point)) return;
+        /* No authored missile: resolve immediately, keeping gameplay usable
+         * for custom archives without effect models or missile speed. */
+        S_DispelMagicArea(caster, spell->code, S_SpellLevel(caster, spell->code), &st.point);
+        G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_SPECIAL, 0, &st.point, true);
+        G_PlayAbilityEffectSound(spell->code, &st.point);
+        return;
+    }
     S_DispelMagicArea(caster, spell->code, S_SpellLevel(caster, spell->code), &st.point);
 }
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */

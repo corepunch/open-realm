@@ -15,14 +15,6 @@
 void whirlwind_think(edict_t *ent);
 static umove_t whirlwind_blade_storm_move = { "attack walk stand spin", NULL, NULL };
 
-typedef struct {
-    edict_t *caster;
-    spellTarget_t target;
-    abilityitem_t const *spell;
-    float scale;
-    bool random_jumps;
-} bounceParams_t;
-
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code) {
     if (!unit) return false;
     FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0)
@@ -184,7 +176,7 @@ void whirlwind_think(edict_t *ent) {
         return;
     }
     if (ent->freetime && G_Time() < ent->freetime) return;
-    if (item.ability && (item.ability->proc == CAbilityWhirlwind || item.ability->proc == CAbilityTornado))
+    if (item.ability && item.ability->proc == CAbilityWhirlwind)
         ent->s.origin2 = ent->owner->s.origin2;
     radial_damage_status(ent->owner, ent->s.origin2, &item, data,
                          item.ability && item.ability->proc == CAbilityWhirlwind);
@@ -211,27 +203,171 @@ static void whirlwind_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 void morph_end(edict_t *thinker) {
     edict_t *owner = S_SpellChannelOwner(thinker);
     if (G_Time() < thinker->spawn_time) return;
-    if (owner && thinker->class_id == MAKEFOURCC('A','E','m','e')) {
+    if (owner && G_AbilityCode(thinker->class_id) == MAKEFOURCC('A','E','m','e')) {
         heroabilitystatus_t *status = unit_findstatus(owner, MAKEFOURCC('B','E','m','e'));
         if (status) unit_removestatus(owner, status, STATUS_REMOVE_EXPIRE);
     }
     if (owner && G_TransformUnitType(owner, thinker->resources) &&
-        thinker->class_id == MAKEFOURCC('A','E','m','e') && thinker->velocity > 0.0f)
+        G_AbilityCode(thinker->class_id) == MAKEFOURCC('A','E','m','e') && thinker->velocity > 0.0f)
         G_ApplyTemporaryMaxHealthBonus(owner, -thinker->velocity);
     G_FreeEdict(thinker);
 }
 
-int S_BlackArrowDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
-    return level ? damage + (int)S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
+/* Black Arrow is a per-hit attack modifier. Never consult a mutable
+ * autocast toggle at impact: the shot's ability and rank are selected and
+ * paid for at its weapon damage point, then carried on the missile. */
+static bool black_arrow_ability(uint32_t code) {
+    abilityitem_t const item = S_AbilityItem(code);
+    return item.ability && item.ability->proc == CAbilityBlackArrow;
 }
 
-void S_BlackArrowDeath(edict_t *attacker, edict_t *target) {
-    uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
-    if (level && target && M_IsDead(target))
-        S_SummonAbilityAt(attacker, MAKEFOURCC('A','N','b','a'),
-                          S_SpellUnitId(MAKEFOURCC('A','N','b','a'), level), &target->s.origin2,
-                          S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
+bool S_BlackArrowIssueOrder(edict_t *attacker, edict_t *target, uint32_t ability) {
+    heroabilitystatus_t *status;
+    uint32_t level;
+    if (!attacker || !target || !attacker->unit_state || !black_arrow_ability(ability) ||
+        !G_UnitAbilityLevel(attacker, ability) || !S_AttackCanTarget(attacker, target) ||
+        !S_SpellIsEnemy(attacker, target) ||
+        !S_SpellAllowsTarget(ability, attacker, target)) return false;
+    level = G_UnitAbilityLevel(attacker, ability);
+    status = unit_applystatus(attacker, &(status_application_t){
+        .buff = GetClassName(ability), .level = level, .source_ability = ability,
+        .rank = level, .buff_flags = WC3_STATUS_BUFF_ONE_SHOT_ATTACK
+    });
+    if (!status) return false;
+    if (S_OrderAttack(attacker, target)) return true;
+    unit_removestatus(attacker, status, STATUS_REMOVE_SCRIPT);
+    return false;
+}
+
+bool S_BlackArrowPrepareAttack(edict_t *attacker, edict_t *target,
+                               uint32_t *ability, uint32_t *rank) {
+    heroabilitystatus_t *manual = NULL;
+    uint32_t code = 0, level = 0;
+    if (ability) *ability = 0;
+    if (rank) *rank = 0;
+    if (!attacker || !target || !attacker->unit_state || !ability || !rank) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = attacker->unit_state->statuses + i;
+        uint32_t const source = status->source_ability ? status->source_ability : status->code;
+        if (!status->level || !(status->buff_flags & WC3_STATUS_BUFF_ONE_SHOT_ATTACK) ||
+            (status->timestamp && status->timestamp <= G_Time()) ||
+            !black_arrow_ability(source)) continue;
+        manual = status;
+        code = source;
+        level = status->rank ? status->rank : status->level;
+        break;
+    }
+    if (!code && attacker->unit_state->autocast &&
+        black_arrow_ability(attacker->unit_state->autocast) &&
+        G_UnitAutocastIsOn(attacker, attacker->unit_state->autocast)) {
+        code = attacker->unit_state->autocast;
+        level = G_UnitAbilityLevel(attacker, code);
+    }
+    /* An armed manual attack is one attempt even if the target has become
+     * ineligible, mana is empty or the weapon swing was evaded. */
+    if (manual) unit_removestatus(attacker, manual, STATUS_REMOVE_SCRIPT);
+    if (!code || !level || !G_UnitAbilityLevel(attacker, code) ||
+        !S_AttackCanTarget(attacker, target) || !S_SpellIsEnemy(attacker, target) ||
+        !S_SpellAllowsAreaTarget(code, attacker, target) ||
+        !S_SpellSpendMana(attacker, code, level)) return false;
+    *ability = code;
+    *rank = level;
+    return true;
+}
+
+int S_BlackArrowDamageForShot(uint32_t ability, uint32_t level, int damage) {
+    return ability && level && black_arrow_ability(ability) ?
+        damage + (int)S_SpellData(ability, level, 1) : damage;
+}
+
+/* Black Arrow raises a Dark Minion only from a corpse-producing unit. The
+ * shared UnitData deathType bit 0 marks raisable remains; units with no corpse,
+ * structures, Heroes, illusions and already-unraisable victims are excluded.
+ * A legal hit still inflicts its ordinary damage when conversion is ineligible. */
+static bool black_arrow_corpse_eligible(edict_t const *victim) {
+    UnitData_t const *data;
+    if (!victim || !victim->inuse || !(victim->svflags & SVF_MONSTER) ||
+        G_UnitIsHero(victim) || G_UnitIsStructure(victim) ||
+        (victim->aiflags & (AI_CORPSE_UNRAISABLE | AI_SCRIPT_EXPLODED | AI_ILLUSION)))
+        return false;
+    data = victim->data.UnitData ? victim->data.UnitData : G_UnitData(victim->class_id);
+    return data && (data->deathType & 1u) != 0;
+}
+
+/* This is called after the authoritative attack shields, Spirit Link and
+ * immunities accept positive damage, but before the damage can kill its unit.
+ * The status uses existing serialized source/alias/rank/timestamp fields, so
+ * save/load preserves the mark without adding a new entity/save contract. */
+void S_BlackArrowMarkHit(edict_t *attacker, edict_t *victim,
+                         uint32_t ability, uint32_t level) {
+    cstring_t buff;
+    float duration;
+    heroabilitystatus_t *mark;
+    if (!attacker || !attacker->inuse || !victim || M_IsDead(victim) ||
+        !ability || !level || !black_arrow_ability(ability) ||
+        !black_arrow_corpse_eligible(victim)) return;
+    buff = S_SpellBuffId(ability, level);
+    /* RoC/custom aliases can omit a BuffID. Use the stock Black Arrow marker
+     * identity rather than making such projectiles lose conversion entirely. */
+    if (!buff || strlen(buff) < 4) buff = "BNba";
+    duration = S_SpellDuration(ability, level, false);
+    /* Some old ability tables omit Dur for an attack modifier. The documented
+     * original Black Arrow mark lasts two seconds. */
+    if (duration <= 0.0f) duration = 2.0f;
+    mark = unit_applystatus(victim, &(status_application_t){
+        .buff = buff, .level = level, .duration = duration,
+        .source_ability = ability, .rank = level, .source = attacker,
+        .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL
+    });
+    if (mark) {
+        mark->source_ability = ability;
+        mark->rank = level;
+        mark->source = attacker;
+        mark->source_spawn_time = attacker->spawn_time;
+    }
+}
+
+/* A_STATUS_DEATH runs during the ordinary unit_die lifecycle, including when
+ * an unrelated attacker delivers the finishing blow during the mark's life.
+ * Consume first so nested death events can never create a second skeleton. */
+static bool black_arrow_summon_on_death(edict_t *victim, heroabilitystatus_t *mark) {
+    edict_t *source;
+    uint32_t ability, rank, unit_id;
+    float duration;
+    if (!victim || !mark || !mark->level ||
+        (mark->timestamp && mark->timestamp <= G_Time())) return false;
+    ability = mark->source_ability;
+    rank = mark->rank ? mark->rank : mark->level;
+    source = S_SpellStatusSource(mark);
+    /* If multiple custom Black Arrow buffs coexist, the most recent landed
+     * mark is authoritative; earlier marks cannot produce another summon. */
+    FOR_LOOP(i, victim->unit_state ? MAX_UNIT_STATUSES : 0) {
+        heroabilitystatus_t const *other = victim->unit_state->statuses + i;
+        if (other != mark && other->level && other->instance_id > mark->instance_id &&
+            (!other->timestamp || other->timestamp > G_Time()) &&
+            black_arrow_ability(other->source_ability)) {
+            unit_removestatus_deferred(victim, mark, STATUS_REMOVE_DEATH);
+            return true;
+        }
+    }
+    unit_removestatus_deferred(victim, mark, STATUS_REMOVE_DEATH);
+    if (!source || !black_arrow_ability(ability) || !black_arrow_corpse_eligible(victim)) return true;
+    unit_id = S_SpellUnitId(ability, rank);
+    duration = S_SpellData(ability, rank, 3);
+    /* Some creep/custom aliases omit their UnitID/lifetime and inherit the
+     * base Black Arrow row. Keep the concrete alias for summon ownership. */
+    if (!unit_id && G_AbilityCode(ability) != ability) {
+        uint32_t const base = G_AbilityCode(ability);
+        unit_id = S_SpellUnitId(base, rank);
+        if (duration <= 0.0f) duration = S_SpellData(base, rank, 3);
+    }
+    if (unit_id && S_SummonAbilityAt(source, ability, unit_id, &victim->s.origin2,
+                                     duration > 0.0f ? duration : 0.0f)) {
+        /* Successful conversion consumes raisable remains. The unit's normal
+         * Death animation still plays; its corpse is removed afterward. */
+        victim->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
+    }
+    return true;
 }
 
 static void death_coil_projectile_hit(edict_t *missile);
@@ -281,33 +417,6 @@ static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
 
     if (!missile) return;
     missile->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
-}
-
-/* Resolve chained damage jumps while keeping target selection separate from spell metadata. */
-static void bounce_execute(bounceParams_t const *params) {
-    edict_t *caster = params->caster;
-    spellTarget_t st = params->target;
-    abilityitem_t const *spell = params->spell;
-    float scale = params->scale;
-    bool random_jumps = params->random_jumps;
-    uint32_t level = S_SpellLevel(caster, spell->code), hits = (uint32_t)S_SpellData(spell->code, level, 2);
-    float damage = S_SpellData(spell->code, level, 1);
-    edict_t *current = st.entity, *visited[32] = {0};
-    uint32_t nvisited = 0;
-    FOR_LOOP(i, MIN(hits, 32)) {
-        edict_t *candidates[MAX_GROUP_SIZE];
-        uint32_t candidate_count = 0;
-        if (!current) break;
-        S_SpellDamage(current, caster, (int)MAX(1.0f, damage));
-        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, current, NULL, true);
-        visited[nvisited++] = current; damage *= scale;
-        FILTER_EDICTS(target, S_SpellBounceTargetAllowed(caster, spell->code, current, target,
-                                                        S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), false)) {
-            if (!S_SpellTargetVisited(visited, nvisited, target) && candidate_count < MAX_GROUP_SIZE)
-                candidates[candidate_count++] = target;
-        }
-        current = candidate_count ? candidates[random_jumps ? rand() % candidate_count : 0] : NULL;
-    }
 }
 
 /* Chain Lightning is asynchronous in Warcraft/Warsmash: the first target is
@@ -442,11 +551,55 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     chain_lightning_mark_visited(thinker, st.entity);
 }
 
+static edict_t *reincarnation_spawn_tombstone(vec2_t const *point) {
+    edict_t *tombstone;
+    uint32_t model;
+
+    if (!point) return NULL;
+    model = G_RegisterModel("Doodads\\Northrend\\Props\\NorthrendTombstone\\NorthrendTombStone0.mdx");
+    if (!model) return NULL;
+    tombstone = G_Spawn();
+    if (!tombstone) return NULL;
+    tombstone->s.model = model;
+    tombstone->s.flags |= EF_NOT_SELECTABLE;
+    tombstone->s.origin2 = *point;
+    tombstone->s.origin.x = point->x;
+    tombstone->s.origin.y = point->y;
+    tombstone->s.origin.z = CM_GetHeightAtPoint(point->x, point->y);
+    tombstone->movetype = MOVETYPE_NONE;
+    gi.LinkEntity(tombstone);
+    return tombstone;
+}
+
+static umove_t reincarnation_return_effect_move = { "death", NULL, G_FreeEdict };
+
+static void reincarnation_spawn_return_effect(edict_t *hero) {
+    edict_t *effect;
+
+    if (!hero) return;
+    effect = G_SpawnModelEffect("Abilities\\Spells\\Orc\\Reincarnation\\ReincarnationTarget.mdx",
+                                NULL, hero, "origin", false);
+    if (!effect) return;
+    /* The authored Birth/Stand sequences are only a thin marker beam; the
+     * bright gold return flare is the model's Death sequence. */
+    unit_setmove(effect, &reincarnation_return_effect_move);
+    if (!effect->animation) G_FreeEdict(effect);
+}
+
 void reincarnation_think(edict_t *thinker) {
     edict_t *owner = S_SpellChannelOwner(thinker);
-    if (!owner) { G_FreeEdict(thinker); return; }
+    if (!owner) {
+        if (thinker->goalentity && thinker->goalentity->inuse) G_FreeEdict(thinker->goalentity);
+        G_FreeEdict(thinker);
+        return;
+    }
     if (G_Time() < thinker->spawn_time) return;
-    if (M_IsDead(owner)) G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
+    if (thinker->goalentity && thinker->goalentity->inuse) G_FreeEdict(thinker->goalentity);
+    thinker->goalentity = NULL;
+    if (M_IsDead(owner)) {
+        G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
+        reincarnation_spawn_return_effect(owner);
+    }
     G_FreeEdict(thinker);
 }
 
@@ -457,6 +610,7 @@ void S_ReincarnationOnDeath(edict_t *unit) {
     FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->class_id = code; thinker->s.origin2 = unit->s.origin2;
+    thinker->goalentity = reincarnation_spawn_tombstone(&unit->s.origin2);
     G_AddChannel(thinker);
     G_GetChannel(thinker)->owner_spawn_time = unit->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellData(code, level, 1) * 1000.0f);
@@ -632,7 +786,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityWhirlwind) { whirlwind_execute(caster, st, spell); }
 /* Name=Tornado
  * Ubertip="Creates a tornado that damages and disables enemy units."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityTornado) { whirlwind_execute(caster, st, spell); }
 /* Name=Banish
  * Ubertip="Turns a target unit ethereal, making it unable to attack or be attacked by physical attacks."
  */
@@ -640,53 +793,106 @@ BZ_SIMPLE_SPELL_PROC(AbilityBanish) { target_status_execute(caster, st, spell); 
 /* Name=Phoenix
  * Ubertip="Summons a Phoenix to fight for the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix) { S_SummonAbilityUnits(caster, spell->code, NULL); }
-/* Name=Carrion Beetles
- * Ubertip="Raises carrion beetles from a nearby corpse."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
-    uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    float range = S_SpellRange(spell->code, level);
-    edict_t *corpse = NULL;
-    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
-                  Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) { corpse = unit; break; }
-    if (!corpse) return;
-    FOR_LOOP(i, count) S_SummonAbilityAt(caster, spell->code, S_SpellDataId(spell->code, level, 3),
-                                          &corpse->s.origin2, S_SpellDuration(spell->code, level, false));
-    G_FreeEdict(corpse);
+BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix) { S_SummonPhoenix(caster, spell->code); }
+/* Carrion Beetles consume one targeted corpse, spawn authored DataC beetles,
+ * and cap living beetles per Crypt Lord using DataE. DataA is beetles per cast;
+ * Dur=0 makes each beetle permanent until killed. */
+static uint32_t carrion_scarab_count(edict_t *caster, uint32_t code) {
+    uint32_t count = 0;
+    if (!caster) return 0;
+    FILTER_EDICTS(beetle, beetle->inuse && !M_IsDead(beetle) && beetle->owner == caster &&
+                  beetle->summon_ability && G_AbilityCode(beetle->summon_ability) == G_AbilityCode(code))
+        count++;
+    return count;
 }
-/* Name=Impale
- * Ubertip="Slams the ground, impaling enemy units in a line and stunning them."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
+
+static bool carrion_scarab_corpse_valid(edict_t *caster, edict_t *corpse, abilityitem_t const *spell) {
+    if (!caster || !corpse || !spell || !G_UnitIsRaisableCorpse(corpse) ||
+        G_UnitIsHero(corpse) || G_UnitIsStructure(corpse) ||
+        !S_SpellAllowsTarget(spell->code, caster, corpse)) return false;
+    return carrion_scarab_count(caster, spell->code) <
+        (uint32_t)MAX(0.0f, S_SpellData(spell->code, S_SpellLevel(caster, spell->code), 5));
+}
+
+static bool carrion_scarab_validate(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
+    return target.type == SPELL_TARGET_UNIT &&
+        carrion_scarab_corpse_valid(caster, target.entity, spell);
+}
+
+static void carrion_scarab_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    vec2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
-    float distance = Vector2_distance(&caster->s.origin2, &st.point);
-    vec2_t direction;
-    cstring_t buff = spell_buff(spell, level);
-    if (distance <= 0.0f) return;
-    direction = Vector2_scale(&offset, 1.0f / distance);
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target)) {
-        vec2_t delta = Vector2_sub(&target->s.origin2, &caster->s.origin2);
-        float along = Vector2_dot(&delta, &direction);
-        float across = delta.x * direction.y - delta.y * direction.x;
-        if (along < 0.0f || along > S_SpellData(spell->code, level, 1) ||
-            fabsf(across) > S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) continue;
-        S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 3));
-        if (!M_IsDead(target) && buff)
-            S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+    uint32_t beetle_id = S_SpellDataId(spell->code, level, 3); /* DataC */
+    uint32_t limit = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 5)); /* DataE */
+    uint32_t remaining = limit > carrion_scarab_count(caster, spell->code) ?
+        limit - carrion_scarab_count(caster, spell->code) : 0;
+    uint32_t count = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)); /* DataA */
+    edict_t *corpse = target.entity;
+    vec2_t position;
+    uint32_t spawned = 0;
+
+    if (!carrion_scarab_corpse_valid(caster, corpse, spell) || !beetle_id || !remaining) return;
+    position = corpse->s.origin2;
+    count = MIN(count, remaining);
+    FOR_LOOP(i, count) {
+        edict_t *beetle = S_SummonAbilityAt(caster, spell->code, beetle_id, &position,
+                                             S_SpellDuration(spell->code, level, false));
+        if (beetle) {
+            spawned++;
+        }
+    }
+    if (spawned) G_FreeEdict(corpse);
+}
+
+static bool carrion_scarab_autocast_acquire(edict_t *caster, uint32_t code) {
+    abilityitem_t spell = S_AbilityItem(code);
+    edict_t *nearest = NULL;
+    float best = FLT_MAX;
+    float range;
+
+    if (!caster || !spell.ability || carrion_scarab_count(caster, code) >=
+        (uint32_t)MAX(0.0f, S_SpellData(code, S_SpellLevel(caster, code), 5))) return false;
+    range = S_SpellRange(code, S_SpellLevel(caster, code));
+    FILTER_EDICTS(corpse, G_UnitIsRaisableCorpse(corpse) && !G_UnitIsHero(corpse) &&
+                  !G_UnitIsStructure(corpse) && S_SpellAllowsTarget(code, caster, corpse)) {
+        float distance = Vector2_distance(&corpse->s.origin2, &caster->s.origin2);
+        if (distance <= range && distance < best) {
+            nearest = corpse;
+            best = distance;
+        }
+    }
+    return nearest && S_CastUnitTargetSpell(caster, code, nearest);
+}
+
+BZ_ABILITY_PROC(CAbilityCarrionScarabs) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    uint32_t code = call && call->item ? call->item->code : MAKEFOURCC('A','U','c','b');
+    switch (msg) {
+    case A_VALIDATE: return carrion_scarab_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: carrion_scarab_execute(ent, target, call ? call->item : NULL); return true;
+    case A_AUTOCAST_ON: return ent && ent->unit_state && ent->unit_state->autocast == code;
+    case A_AUTOCAST_SET: return true;
+    case A_AUTOCAST_ACQUIRE: return carrion_scarab_autocast_acquire(ent, code);
+    default: return CAbilityModalSpell(ent, msg, call);
     }
 }
-/* Name=Locust Swarm
- * Ubertip="Summons a swarm of locusts that damages enemy units and returns life to the caster."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityLocustSwarm) { S_SummonAbilityUnits(caster, spell->code, NULL); }
 /* Name=Black Arrow
  * Ubertip="Adds bonus damage to attacks and summons a skeleton when an attacked unit dies."
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityBlackArrow) { toggle_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityBlackArrow) {
+    uint32_t const code = call && call->item ? call->item->code : 0;
+    bool const active = ent && ent->unit_state && ent->unit_state->autocast == code;
+    switch (msg) {
+    case A_TOGGLE_ON: return active;
+    case A_AUTOCAST_ON: return active;
+    case A_AUTOCAST_SET: return true;
+    case A_STATUS_DEATH:
+        return black_arrow_summon_on_death(ent, call ? call->status.slot : NULL);
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Poison Arrows
  * Ubertip="Adds <AHfa,DataA1> bonus fire damage to an attack against enemies, but drains mana with each shot fired."
  * Untip="Right-click to activate auto-casting."
@@ -700,9 +906,19 @@ BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
+
+    /* The ability's EffectArt is a one-shot ground burst; the buff's TargetArt
+     * is persistent overhead art and belongs to the timed BNsi status. */
+    G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_EFFECT, 0, &st.point, true);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  S_SpellAllowsAreaTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+        heroabilitystatus_t *status = buff ? S_SpellApplyTimedStatusFromAbility(
+            target, spell->code, level, buff, S_SpellHeroDuration(spell->code, level, target)) : NULL;
+        if (status) {
+            status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+            unit_status_enabletargetart(target, status, "overhead");
+        }
     }
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
@@ -889,12 +1105,127 @@ BZ_ABILITY_PROC(CAbilityDeathPact) {
 #define ID_BEAR_FORM_ABILITY MAKEFOURCC('A','b','r','f')
 #define ID_BEAR_FORM_NIGHT_ELF MAKEFOURCC('e','d','o','c')
 #define ID_BEAR_FORM_BEAR MAKEFOURCC('e','d','c','m')
+#define ID_DESTROYER_FORM MAKEFOURCC('A','a','v','e')
 static void bear_form_morph_end(edict_t *unit) { unit_stand(unit); }
 static umove_t bear_form_morph = { "morph", NULL, bear_form_morph_end, CAbilityMetamorphosis };
 static umove_t bear_form_morph_alternate = { "morph alternate", NULL, bear_form_morph_end, CAbilityMetamorphosis };
 
+static bool metamorphosis_ability(uint32_t code) {
+    return G_AbilityCode(code) == MAKEFOURCC('A','E','m','e');
+}
+
+/* Destroyer Form is an irreversible, purchased upgrade of the existing unit.
+ * The spell's DataA and UnitID describe the source/destination: unlike
+ * Metamorphosis it must never enqueue a morph_end reversion thinker. */
+static bool destroyer_form_cost(edict_t *caster, uint32_t code, uint32_t *target,
+                                int32_t *gold, int32_t *lumber, int32_t *food) {
+    AbilityData_t const *ability;
+    UnitBalance_t const *source, *destination;
+    gameClient_t *owner;
+    uint32_t form;
+    if (!caster || !caster->unit_state ||
+        !(ability = G_AbilityData(code)) || !ability->id ||
+        caster->class_id != ability->level[0].data[0].id ||
+        !(form = ability->level[0].unitID) ||
+        !(source = caster->data.UnitBalance) ||
+        !(destination = G_UnitBalance(form)) ||
+        !(owner = G_GetPlayerClientByNumber(caster->s.player)) ||
+        owner->ps.number != caster->s.player ||
+        !G_UnitAbilityResearchAvailable(caster, code)) return false;
+    *target = form;
+    *gold = MAX(0, destination->goldCost - source->goldCost);
+    *lumber = MAX(0, destination->lumberCost - source->lumberCost);
+    *food = MAX(0, destination->foodUsed - source->foodUsed);
+    return owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] >= (uint32_t)*gold &&
+           owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] >= (uint32_t)*lumber &&
+           G_PlayerHasFoodFor(owner, *food);
+}
+
+/* The stock Obsidian Statue Morph sequence spawns Crumble2 and hands the
+ * statue geoset over to the Destroyer at 24.3s/24.333s of its 23.333-25.333s
+ * sequence. Keep the model grounded through that handoff, then rise for the
+ * remainder of the animation. These are normalized sequence times so custom
+ * model frame rates remain supported. */
+#define DESTROYER_MORPH_GROUND_PROGRESS 0.4835f
+static float destroyer_morph_progress(edict_t const *unit) {
+    uint32_t const start = unit && unit->animation ? unit->animation->interval[0] : 0;
+    uint32_t const end = unit && unit->animation ? unit->animation->interval[1] : 0;
+    if (end <= start) return 1.0f;
+    return MAX(0.0f, MIN(1.0f,
+        ((float)unit->s.frame - (float)start) / (float)(end - start)));
+}
+
+static void destroyer_morph_end(edict_t *unit) {
+    if (!unit) return;
+    G_AddUnitAnimationProperties(unit, "alternate", true);
+    unit->unitinfo.FlyHeight = unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
+    unit_stand(unit);
+}
+
+static void destroyer_morph_think(edict_t *unit) {
+    float const progress = destroyer_morph_progress(unit);
+    float const rise = MAX(0.0f, MIN(1.0f,
+        (progress - DESTROYER_MORPH_GROUND_PROGRESS) /
+        (1.0f - DESTROYER_MORPH_GROUND_PROGRESS)));
+    float const height = unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
+    if (progress >= DESTROYER_MORPH_GROUND_PROGRESS) {
+        /* Adding an animation tag re-resolves the current request. Preserve
+         * the Morph clip and frame so the geoset transition does not restart
+         * at the beginning or jump to Morph Alternate. */
+        animation_t const *animation = unit->animation;
+        uint32_t const frame = unit->s.frame;
+        G_AddUnitAnimationProperties(unit, "alternate", true);
+        unit->animation = animation;
+        unit->s.frame = frame;
+        unit->unitinfo.FlyHeight = height * rise;
+    } else {
+        unit->unitinfo.FlyHeight = 0.0f;
+    }
+}
+
+static umove_t destroyer_form_morph = {
+    "morph", destroyer_morph_think, destroyer_morph_end, CAbilityMetamorphosis
+};
+
+/* The Statue and Destroyer resolve to one model. Lock the untagged Morph
+ * sequence while selecting alternate geosets for the destination's stand,
+ * walk and attack. The animation-end owner restores normal unit orders. */
+static void destroyer_form_play_morph(edict_t *unit) {
+    animation_t const *morph;
+    if (!unit) return;
+    G_AddUnitAnimationProperties(unit, "alternate", false);
+    unit->unitinfo.FlyHeight = 0.0f;
+    unit_setmove(unit, &destroyer_form_morph);
+    morph = unit->animation;
+    if (!morph) {
+        G_AddUnitAnimationProperties(unit, "alternate", true);
+        unit->unitinfo.FlyHeight = unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
+        unit_stand(unit);
+        return;
+    }
+}
+
+static bool destroyer_form_execute(edict_t *caster, uint32_t code) {
+    uint32_t target;
+    int32_t gold, lumber, food;
+    gameClient_t *owner;
+    if (!destroyer_form_cost(caster, code, &target, &gold, &lumber, &food)) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!G_TransformUnitType(caster, target)) return false;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= (uint16_t)gold;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= (uint16_t)lumber;
+    caster->mana.value = 0.0f;
+    destroyer_form_play_morph(caster);
+    G_RefreshResourceBar(G_GetPlayerEntityByNumber(caster->s.player));
+    return true;
+}
+
 static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)st;
+    if (spell->code == ID_DESTROYER_FORM) {
+        destroyer_form_execute(caster, spell->code);
+        return;
+    }
     if (spell->code == ID_BEAR_FORM_ABILITY) {
         bool const entering_bear_form = caster->class_id != ID_BEAR_FORM_BEAR;
         uint32_t const target_form = entering_bear_form ? ID_BEAR_FORM_BEAR : ID_BEAR_FORM_NIGHT_ELF;
@@ -910,7 +1241,7 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
     float bonus_health = 0.0f;
     heroability_t saved_rank = { .code = spell->code, .level = level };
     if (!form || duration <= 0.0f) return;
-    if (spell->code == MAKEFOURCC('A','E','m','e')) {
+    if (metamorphosis_ability(spell->code)) {
         G_InitUnitState(caster);
         FOR_LOOP(i, MAX_HERO_ABILITIES) {
             if (caster->unit_state->ranks[i].code == spell->code && caster->unit_state->ranks[i].level) {
@@ -922,7 +1253,7 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
         bonus_health = S_SpellData(spell->code, level, 5);
     }
     if (!G_TransformUnitType(caster, form)) return;
-    if (spell->code == MAKEFOURCC('A','E','m','e')) {
+    if (metamorphosis_ability(spell->code)) {
         cstring_t buff = S_SpellBuffId(spell->code, level);
         if (!buff || strlen(buff) < 4) buff = "BEme";
         if (!S_SpellApplyTimedStatus(caster, buff, level, duration)) {
@@ -954,7 +1285,7 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
     if (bonus_health > 0.0f) {
-        thinker->class_id = spell->code;
+        thinker->class_id = G_AbilityCode(spell->code);
         thinker->velocity = bonus_health;
     }
     G_AddChannel(thinker);
@@ -963,9 +1294,15 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
 }
 
 BZ_ABILITY_PROC(CAbilityMetamorphosis) {
+    if (msg == A_VALIDATE && call && call->item && call->item->code == ID_DESTROYER_FORM) {
+        uint32_t target;
+        int32_t gold, lumber, food;
+        return CAbilitySimpleSpell(ent, msg, call) &&
+            destroyer_form_cost(ent, call->item->code, &target, &gold, &lumber, &food);
+    }
     if (msg == A_TOGGLE_ON && call && call->item && call->item->code == ID_BEAR_FORM_ABILITY)
         return ent && ent->class_id == ID_BEAR_FORM_BEAR;
-    if (msg == A_VALIDATE && call && call->item && call->item->code == MAKEFOURCC('A','E','m','e')) {
+    if (msg == A_VALIDATE && call && call->item && metamorphosis_ability(call->item->code)) {
         uint32_t level = S_SpellLevel(ent, call->item->code);
         cstring_t buff = S_SpellBuffId(call->item->code, level);
         wc3_status_apply_check_t check;
@@ -1020,9 +1357,60 @@ BZ_SIMPLE_SPELL_PROC(AbilityChainLightning) {
  * Ubertip="Strikes multiple enemy units with lightning."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
-    bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
-        .scale = 1.0f, .random_jumps = false };
-    bounce_execute(&params);
+    uint32_t const level = S_SpellLevel(caster, spell->code);
+    uint32_t const max_hits = MIN(MAX_GROUP_SIZE,
+        (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 2)));
+    float const range = S_SpellRange(spell->code, level);
+    float const width = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    if (!caster || !st.entity || range <= 0.0f) return;
+    vec2_t const aim = Vector2_sub(&st.entity->s.origin2, &caster->s.origin2);
+    float const aim_length = Vector2_len(&aim);
+    if (aim_length <= 0.0f) return;
+    vec2_t const direction = Vector2_scale(&aim, 1.0f / aim_length);
+    edict_t *targets[MAX_GROUP_SIZE];
+    float distances[MAX_GROUP_SIZE];
+    uint32_t count = 0;
+
+    /* Forked Lightning spreads from the caster toward the selected target.
+     * Every struck unit must independently fit the authored cast range; the
+     * old bounce handler instead allowed each hop to extend that range. */
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                  S_SpellIsEnemy(caster, target) &&
+                  S_SpellAllowsTarget(spell->code, caster, target)) {
+        vec2_t const offset = Vector2_sub(&target->s.origin2, &caster->s.origin2);
+        float const along = Vector2_dot(&offset, &direction);
+        float const across = fabsf(offset.x * direction.y - offset.y * direction.x);
+        float const distance = Vector2_len(&offset);
+        if (target == caster || along < 0.0f || distance > range ||
+            along > range || across > width * (along / range)) continue;
+
+        /* Keep the closest eligible units in the cone, up to the authored
+         * target count, so edict iteration order does not decide the victims. */
+        uint32_t insert = count;
+        while (insert > 0 && distances[insert - 1] > distance) {
+            if (insert < max_hits && insert < MAX_GROUP_SIZE) {
+                distances[insert] = distances[insert - 1];
+                targets[insert] = targets[insert - 1];
+            }
+            insert--;
+        }
+        if (insert < max_hits && insert < MAX_GROUP_SIZE) {
+            distances[insert] = distance;
+            targets[insert] = target;
+            if (count < max_hits && count < MAX_GROUP_SIZE) count++;
+        }
+    }
+
+    FOR_LOOP(i, count) {
+        edict_t *target = targets[i];
+        G_SpawnAbilityLightning(&(abilityLightningParams_t){
+            .ability_id = spell->code, .index = 0,
+            .source = caster, .target = target,
+            .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
+        S_SpellDamage(target, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 1)));
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, target, NULL, true);
+    }
 }
 /* Name=Earthquake
  * Ubertip="Causes the earth to shake, damaging enemy buildings and slowing enemy units."
@@ -1099,35 +1487,172 @@ BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFire) {
 BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    float duration = S_SpellDuration(spell->code, level, false);
     cstring_t buff = S_SpellBuffId(spell->code, level);
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius)
-        if (buff && strlen(buff) >= 4) S_SpellApplyTimedStatus(target, buff, level, duration);
+                  S_SpellAllowsAreaTarget(spell->code, caster, target) &&
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
+        /* BNht owns the persistent HowlTarget model, not ANht's one-shot
+         * caster burst. Let the status remove its effect on dispel, death,
+         * replacement or expiry, and reuse it on refresh/recast. */
+        if (buff && strlen(buff) >= 4)
+            S_SpellApplyTimedTargetStatus(target, spell->code, level, buff,
+                                          S_SpellHeroDuration(spell->code, level, target));
+    }
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) { target_status_execute(caster, st, spell); }
+/* Doom is permanent until the victim dies. A_STATUS_TICK advances an authored
+ * one-second damage clock even when status->timestamp == 0; this keeps damage,
+ * spell locking, targeting and art owned by the victim's serialized status.
+ * DataA = damage per second, DataC = summon timed life, DataD = creep level cap. */
+#define DOOM_TICK_MS 1000u
+
+static cstring_t doom_first_buff(uint32_t code, uint32_t rank) {
+    cstring_t id = S_SpellBuffId(code, rank);
+    return id && strlen(id) >= 4 ? S_SpellBuffToken(id, 0) : "BNdo";
+}
+
+static bool doom_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t *target = st.entity;
+    UnitBalance_t const *balance;
+    uint32_t rank;
+    float max_creep;
+    cstring_t buff;
+    if (!caster || !spell || !target || target == caster ||
+        !S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target) ||
+        !S_SpellAllowsTarget(spell->code, caster, target) ||
+        S_UnitIsResistant(target) || G_UnitIsStructure(target) ||
+        target->targtype == TARG_MECHANICAL || (target->aiflags & AI_ILLUSION)) return false;
+    rank = S_SpellLevel(caster, spell->code);
+    max_creep = S_SpellData(spell->code, rank, 4);
+    balance = target->data.UnitBalance;
+    if (target->s.player == PLAYER_NEUTRAL_AGGRESSIVE && max_creep > 0.0f &&
+        (!balance || balance->level > max_creep)) return false;
+    buff = doom_first_buff(spell->code, rank);
+    if (buff) {
+        wc3_status_apply_check_t const check = unit_status_checkapplication(target, &(status_application_t){
+            .buff = buff, .level = rank
+        });
+        return check != WC3_STATUS_APPLY_INVALID && check != WC3_STATUS_APPLY_FULL;
+    }
+    return false;
+}
+
+static void doom_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t rank = S_SpellLevel(caster, spell->code);
+    heroabilitystatus_t *slot;
+    cstring_t buff = doom_first_buff(spell->code, rank);
+    if (!doom_validate(caster, st, spell)) return;
+    slot = unit_applystatus(st.entity, &(status_application_t){
+        .buff = buff, .level = rank, .source_ability = spell->code,
+        .source = caster, .rank = rank,
+        /* data stores owner player for caster-loss fallback; spell code is
+         * already in source_ability and level in rank. */
+        .data = caster->s.player,
+        .state_mask = WC3_STATUS_STATE_SILENCED,
+        .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL |
+                      WC3_STATUS_BUFF_UNDISPELLABLE | WC3_STATUS_BUFF_TARGET_ART
+    });
+    if (!slot) return;
+    slot->next_tick = G_Time() + DOOM_TICK_MS;
+    unit_status_invalidate_update_mask(st.entity);
+    S_SpellCancelChannel(st.entity);
+}
+
+static void doom_tick(edict_t *victim, heroabilitystatus_t *slot) {
+    edict_t *caster;
+    uint32_t code, rank;
+    int damage;
+    if (!victim || !slot || !slot->level) return;
+    code = slot->source_ability;
+    rank = slot->rank;
+    caster = S_SpellStatusSource(slot);
+    damage = (int)MAX(0.0f, S_SpellData(code, rank, 1));
+    while (unit_status_take_due_tick(slot, DOOM_TICK_MS, G_Time())) {
+        if (damage > 0) {
+            /* Doom persists if its original caster has died or been removed.
+             * Fall back to ordinary damage without dereferencing stale owner. */
+            if (caster) S_SpellDamage(victim, caster, damage);
+            else T_Damage(victim, victim, damage);
+        }
+        if (M_IsDead(victim) || !slot->level) break;
+    }
+}
+
+static void doom_death(edict_t *victim, heroabilitystatus_t *slot) {
+    edict_t *caster = S_SpellStatusSource(slot), *summon = NULL;
+    uint32_t const code = slot->source_ability;
+    uint32_t const rank = slot->rank;
+    uint32_t const player = slot->data;
+    uint32_t const summon_id = S_SpellUnitId(code, rank);
+    float const duration = MAX(0.0f, S_SpellData(code, rank, 3));
+    cstring_t const buffs = S_SpellBuffId(code, rank);
+    cstring_t const death_buff = buffs ? S_SpellBuffToken(buffs, 1) : NULL;
+    vec2_t const point = victim->s.origin2;
+    /* Invalidate before invoking spawn events or any other callbacks. */
+    unit_removestatus_deferred(victim, slot, STATUS_REMOVE_DEATH);
+    if (death_buff && strlen(death_buff) >= 4)
+        G_SpawnAbilityEffectAtPoint(FS_SLKKey(death_buff), WC3_EFFECT_EFFECT, 0, &point, true);
+    if (!summon_id) return;
+    if (caster) summon = S_SummonAbilityAt(caster, code, summon_id, &point, duration);
+    else if (player < MAX_PLAYERS) {
+        /* A summoned Doom Guard retains its owner's player even when the
+         * caster edict was freed and its slot reused. */
+        summon = SP_SpawnAtLocation(summon_id, player, &point);
+        if (summon) {
+            summon->summon_ability = code;
+            G_ActivateUnitFood(summon);
+            if (summon->stand) summon->stand(summon);
+            if (duration > 0.0f) S_SpellApplyTimedLife(summon, 1, duration);
+        }
+    }
+}
+
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDoom) { target_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDoom) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        doom_tick(ent, call->status.slot);
+        return true;
+    }
+    if (msg == A_STATUS_DEATH && call && call->status.slot) {
+        doom_death(ent, call->status.slot);
+        return true;
+    }
+    if (msg == A_VALIDATE || msg == A_EXECUTE) {
+        spellTarget_t st = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+        if (msg == A_VALIDATE) return doom_validate(ent, st, call ? call->item : NULL);
+        if (call && call->item) doom_execute(ent, st, call->item);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
 /* Name=Healing Wave
  * Ubertip="Heals a target friendly unit and bounces to nearby friendlies, healing less each jump."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)S_SpellData(spell->code, level, 2);
     float amount = S_SpellData(spell->code, level, 1), loss = S_SpellData(spell->code, level, 3);
-    edict_t *current = st.entity, *visited[32] = {0};
+    edict_t *source = caster, *current = st.entity, *visited[32] = {0};
     FOR_LOOP(i, MIN(count ? count : 1, 32)) {
         if (!current || !S_SpellIsAliveTarget(current) || !S_SpellIsFriend(caster, current)) break;
+        G_SpawnAbilityLightning(&(abilityLightningParams_t){
+            .ability_id = spell->code, .index = i ? 1 : 0,
+            .source = source, .target = current,
+            .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, current, NULL, true);
         S_SpellHeal(current, amount); visited[i] = current; amount *= 1.0f - loss;
         current = NULL;
         FILTER_EDICTS(target, S_SpellBounceTargetAllowed(caster, spell->code, visited[i], target,
                                                         S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), true)) {
             if (!S_SpellTargetVisited(visited, i + 1, target)) { current = target; break; }
         }
+        source = visited[i];
     }
 }
 /* Name=Hex
@@ -1135,6 +1660,73 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHex) { target_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySpiritOfVengeance) { S_SummonAbilityUnits(caster, spell->code, NULL); }
+
+/* Spirit of Vengeance (Avng) raises a temporary invulnerable spirit from a
+ * corpse. The Avatar of Vengeance (AEsv) summon enables this spell's autocast
+ * on creation, while the same ability remains manually targetable. */
+static bool vengeance_corpse_valid(edict_t *caster, edict_t *corpse, abilityitem_t const *spell) {
+    float range;
+    if (!caster || !corpse || !spell || !G_UnitIsRaisableCorpse(corpse) ||
+        G_UnitIsHero(corpse) || G_UnitIsStructure(corpse) ||
+        !S_SpellAllowsCorpseTarget(spell->code, caster, corpse)) return false;
+    range = S_SpellRange(spell->code, S_SpellLevel(caster, spell->code));
+    return range <= 0.0f || Vector2_distance(&corpse->s.origin2, &caster->s.origin2) <= range;
+}
+
+static bool vengeance_validate(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
+    return target.type == SPELL_TARGET_UNIT &&
+        vengeance_corpse_valid(caster, target.entity, spell);
+}
+
+static void vengeance_execute(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    edict_t *corpse = target.entity;
+    uint32_t spirit_id = S_SpellDataId(spell->code, level, 3); /* DataC */
+    edict_t *spirit;
+    vec2_t position;
+    if (!vengeance_corpse_valid(caster, corpse, spell) || !spirit_id) return;
+    position = corpse->s.origin2;
+    spirit = S_SummonAbilityAt(caster, spell->code, spirit_id, &position,
+                               S_SpellDuration(spell->code, level, false));
+    if (!spirit) return;
+    if (S_SpellData(spell->code, level, 6) != 0.0f) /* DataF: invulnerable */
+        G_SetUnitFlag(spirit, UNIT_FLAG_INVULNERABLE, true);
+    /* The corpse is the source of the summon, not the summoned unit. */
+    G_FreeEdict(corpse);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, spirit, NULL, true);
+}
+
+static bool vengeance_autocast_acquire(edict_t *caster, uint32_t code) {
+    abilityitem_t spell = S_AbilityItem(code);
+    edict_t *nearest = NULL;
+    float best = FLT_MAX;
+    if (!caster || !spell.ability) return false;
+    FILTER_EDICTS(corpse, G_UnitIsRaisableCorpse(corpse) && !G_UnitIsHero(corpse) &&
+                  !G_UnitIsStructure(corpse)) {
+        float distance;
+        if (!S_SpellAllowsCorpseTarget(code, caster, corpse)) continue;
+        distance = Vector2_distance(&corpse->s.origin2, &caster->s.origin2);
+        if (distance <= S_SpellRange(code, S_SpellLevel(caster, code)) && distance < best) {
+            nearest = corpse;
+            best = distance;
+        }
+    }
+    return nearest && S_CastUnitTargetSpell(caster, code, nearest);
+}
+
+BZ_ABILITY_PROC(CAbilityVengeance) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    uint32_t code = call && call->item ? call->item->code : MAKEFOURCC('A','v','n','g');
+    switch (msg) {
+    case A_VALIDATE: return vengeance_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: vengeance_execute(ent, target, call ? call->item : NULL); return true;
+    case A_AUTOCAST_ON: return ent && ent->unit_state && ent->unit_state->autocast == code;
+    case A_AUTOCAST_SET: return true;
+    case A_AUTOCAST_ACQUIRE: return vengeance_autocast_acquire(ent, code);
+    default: return CAbilityModalSpell(ent, msg, call);
+    }
+}
 BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);

@@ -667,6 +667,7 @@ TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) 
     unit = ancient_test_unit(true);
     tree = alloc_test_unit(MAKEFOURCC('h','t','r','e'), 100.0f, 64.0f);
     tree->targtype = TARG_TREE;
+    G_AddDestructable(tree);
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = tree);
     call = MAKE(abilityCall_t, .item = &eat, .target = &target);
     T_ASSERT(!S_AncientAbilityAvailable(unit, eat.ability));

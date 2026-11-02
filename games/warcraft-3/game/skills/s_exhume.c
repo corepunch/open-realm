@@ -39,7 +39,8 @@ void exhume_think(edict_t *thinker) {
 	edict_t *wagon = S_SpellChannelOwner(thinker);
 	uint32_t code = BZ_AEXH, level, unit_id, cap, interval_ms;
 	float interval;
-	if (!wagon || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code)) {
+	if (!wagon || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code) ||
+	    !G_UnitAbilityResearchAvailable(wagon, code)) {
 		G_FreeEdict(thinker);
 		return;
 	}
@@ -59,7 +60,8 @@ static void exhume_ensure(edict_t *wagon) {
 	uint32_t level = G_UnitAbilityLevel(wagon, BZ_AEXH);
 	float interval;
 	edict_t *thinker;
-	if (!wagon || !level || M_IsDead(wagon) || exhume_find_thinker(wagon)) return;
+	if (!wagon || !level || M_IsDead(wagon) ||
+	    !G_UnitAbilityResearchAvailable(wagon, BZ_AEXH) || exhume_find_thinker(wagon)) return;
 	interval = S_SpellDuration(BZ_AEXH, level, false);
 	if (interval <= 0.0f) return;
 	thinker = S_SpellIdentityThinker(wagon, 0, NULL);

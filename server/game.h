@@ -148,6 +148,8 @@ typedef struct {
     uint8_t active;
     uint8_t engaged; /* ability is active; drives the command button's edge glow */
     uint8_t disabled;
+    uint8_t indicator; /* passive ability art; render as a plain texture, never a disabled button */
+    uint8_t indicator_dimmed; /* indicator is unavailable until its research is completed */
     uint32_t number; /* optional command-button numeric overlay; 0 hides it */
     float cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
     float manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */

@@ -10,7 +10,7 @@ static uint32_t deferred_free_count;
 
 /* A trapped unit keeps its identity but is absent from normal world interaction. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
-    return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
+    return ent && ent->inuse && !(ent->aiflags & (AI_SOUL_TRAPPED | AI_DEVOURED));
 }
 
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
@@ -61,6 +61,7 @@ void G_FreeEdict(edict_t *ent) {
     cargo_t *hold = G_GetCargo(ent);
     mineOverlay_t *ovl = G_GetMineOverlay(ent);
     if (!ent) return;
+    S_DevourUnitExit(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     /* An accepted-build indicator may be removed independently of its worker. */

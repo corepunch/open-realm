@@ -37,6 +37,10 @@ void G_PushEntity(edict_t *ent, float distance, vec2_t const *direction) {
 
 void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction) {
     ent->s.origin = Vector3_mad(&ent->s.origin, distance, direction);
+    /* Keep the shared 2D gameplay position in sync with the rendered 3D
+     * projectile position. Warcraft spell missiles use origin2 for swept
+     * collision and targeting while physics advances origin in 3D. */
+    ent->s.origin2 = MAKE(vec2_t, ent->s.origin.x, ent->s.origin.y);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
@@ -65,7 +69,28 @@ void G_StartProjectilePresentation(edict_t *ent) {
     if (anim) ent->s.frame = anim->interval[0];
 }
 
-static void G_AdvanceProjectilePresentation(edict_t *ent) {
+/* Preserve an authored impact sequence after a projectile resolves. Some WC3
+ * missile models (including FrostBoltMissile) use Death for their hit burst
+ * and impact sound. Gameplay damage is already resolved; this is only the
+ * short-lived networked visual that lets clients cross those MDX event keys. */
+bool G_StartProjectileDeathPresentation(edict_t *ent) {
+    animation_t const *anim;
+
+    if (!ent || !ent->s.model) return false;
+    anim = G_GetAnimation(ent->s.model, "Death");
+    if (!anim || anim->interval[1] <= anim->interval[0]) return false;
+
+    ent->animation = anim;
+    ent->s.frame = anim->interval[0];
+    ent->goalentity = NULL;
+    ent->movetype = MOVETYPE_NONE;
+    ent->currentmove = NULL;
+    ent->aiflags |= AI_PROJECTILE_DEATH_PRESENTATION;
+    ent->freetime = G_Time() + (anim->interval[1] - anim->interval[0]);
+    return true;
+}
+
+void G_AdvanceProjectilePresentation(edict_t *ent) {
     animation_t const *anim = ent->animation;
     uint32_t step;
     uint32_t next;
@@ -147,19 +172,24 @@ void SV_Physics_Toss(edict_t *ent) {
                 edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
                     (!primary->inuse || primary->spawn_time != cast->target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(attacker, primary, &impact, ent->damage, G_GetArtillery(ent));
+                S_ResolveArtilleryPointHitWithArrow(attacker, primary, &impact, ent->damage,
+                    G_GetArtillery(ent), ent->missile->arrow_ability, ent->missile->arrow_level);
             } else if (G_GetArtillery(ent)) {
                 /* Unit-target Missile Splash follows the victim, unlike fixed
                  * artillery. Its authored attack type and splash bands were
                  * captured on the projectile at the launch damage point. */
                 vec2_t const impact = ent->goalentity->s.origin2;
-                S_ResolveMissileSplashHit(attacker, ent->goalentity, &impact, ent->damage, G_GetArtillery(ent));
+                S_ResolveMissileSplashHitWithArrow(attacker, ent->goalentity, &impact, ent->damage,
+                    G_GetArtillery(ent), ent->missile->arrow_ability, ent->missile->arrow_level);
             } else {
                 int const damage = G_AttackDamageWithType(attacker, ent->goalentity, ent->damage,
                                                           ent->missile->attack_type);
-                S_ResolveAttackHit(attacker, ent->goalentity, damage);
+                S_ResolveAttackHitWithArrow(attacker, ent->goalentity, damage,
+                                             ent->missile->arrow_ability, ent->missile->arrow_level);
             }
-            G_FreeEdict(ent);
+            ent->s.origin = target;
+            ent->s.origin2 = MAKE(vec2_t, target.x, target.y);
+            if (!G_StartProjectileDeathPresentation(ent)) G_FreeEdict(ent);
         }
     } else {
         Vector3_normalize(&dir);
@@ -203,6 +233,19 @@ static bool G_UnitRegeneratesHP(edict_t const *ent) {
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
+    if (ent->aiflags & AI_PROJECTILE_DEATH_PRESENTATION) {
+        if (G_Time() >= ent->freetime) {
+            G_FreeEdict(ent);
+            return;
+        }
+        if (ent->animation && ent->animation->interval[1] > ent->animation->interval[0]) {
+            ent->s.frame = MIN(ent->s.frame + (uint32_t)MAX(1.0f, FRAMETIME),
+                               ent->animation->interval[1] - 1);
+        }
+    }
+    /* Swallowed units retain their handle and HP but do not move, cast,
+     * regenerate, expire statuses or run ordinary world simulation. */
+    if (ent->aiflags & AI_DEVOURED) return;
     bool const world_active = G_UnitIsWorldActive(ent);
     spell_run_frame(ent);
     /* A validated empty timed-status index cannot expire or tick anything.
@@ -225,11 +268,20 @@ void G_RunEntity(edict_t *ent) {
     G_RunConstructionFrame(ent);
     G_RunBuildingUpgradeFrame(ent);
     if (world_active) SAFE_CALL(ent->think, ent);
+    /* Victim lift must advance even while stunned (monster_think returns
+     * before its usual movement/ground-height refresh). */
+    if (ent->inuse && G_GetImpaleLift(ent) && (world_active || M_IsDead(ent)))
+        S_ImpaleLiftUpdate(ent);
     if (world_active) G_RunDestructableAnimation(ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */
-    if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
+    if (ent->mana.max_value > 0 && ent->mana.value > ent->mana.max_value) {
+        /* Excess from Siphon Mana decays until the ordinary maximum, but the
+         * active Siphon channel temporarily suspends that decay. */
+        float const rate = S_ManaExcessDecayRate(ent);
+        ent->mana.value = MAX(ent->mana.max_value, ent->mana.value - rate * (FRAMETIME / 1000.0f));
+    } else if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
         float const natural = !S_UnitAbilityEvent(ent, A_NATURAL_MANA_REGEN_BLOCKED) ?
             ent->data.UnitBalance->manaRegen : 0.0f;
         float const rate = natural + (ent->unit_state ? ent->unit_state->mana_regen_bonus : 0)
@@ -242,7 +294,9 @@ void G_RunEntity(edict_t *ent) {
      * the unit's 'uhrt' regenType: "always" any time, "night" only at night
      * (night elves), "blight" only on the authoritative Blight pathing field,
      * "none" never.  Living, wounded units only. */
-    if (ent->health.max_value > 0 && ent->health.value > 0 && ent->health.value < ent->health.max_value) {
+    if (ent->data.UnitBalance && ent->health.max_value > 0 && ent->health.value > 0 &&
+        (ent->health.value < ent->health.max_value ||
+         (G_UnitRegeneratesHP(ent) && ent->data.UnitBalance->healthRegen < 0.0f))) {
         float const aura = S_RegenerationHealthAura(ent);
         float const rejuv = S_RejuvHealRate(ent);
         float rate = aura + rejuv;
@@ -250,7 +304,13 @@ void G_RunEntity(edict_t *ent) {
         if (natural)
             rate += ent->data.UnitBalance->healthRegen +
                     (float)(ent->unit_state ? ent->unit_state->hero.str : 0) * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
-        if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
+        if (rate != 0.0f) {
+            G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
+            /* Negative authored regen (Phoenix: -25 HP/sec) must be lethal;
+             * G_AddHealth intentionally has no generic death side effects. */
+            if (ent->health.value <= 0.0f && ent->die && !(ent->svflags & SVF_DEADMONSTER))
+                ent->die(ent, NULL);
+        }
     }
     /* Unholy Frenzy drains HP at DataB HP/sec regardless of current health. */
     { float const drain = S_UnholyFrenzyLifeDrain(ent); if (drain > 0.0f && ent->health.value > 0) G_AddHealth(ent, -drain * (FRAMETIME / 1000.0f)); }

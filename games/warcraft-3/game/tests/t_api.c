@@ -3767,6 +3767,51 @@ TEST(wc3_api, untinted_owner_ghost_still_gets_presentation_alpha) {
     T_EQ(size, sizeof(header) + sizeof(count));
 }
 
+TEST(wc3_api, banish_presentation_alpha_does_not_make_unit_invisible) {
+    uint8_t data[128];
+    edict_t *client_ent, *unit;
+    heroabilitystatus_t *status;
+    uint32_t size, offset;
+    uint16_t header, count, number;
+    color32_t color;
+
+    reset_entities(); setup_test_world();
+    memset(level.weather_effects, 0, sizeof(level.weather_effects));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 16, 32);
+    unit->s.player = 0;
+    T_ASSERT(unit_applystatus(unit, &(status_application_t){
+        .buff = "BHbn", .level = 1, .duration = 12.0f,
+    }) != NULL);
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(unit, 0));
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1u);
+    memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+    memcpy(&color, data + offset, sizeof(color));
+    T_EQ(number, (uint16_t)unit->s.number);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 128); /* 50% opacity */
+
+    status = unit_findstatus(unit, MAKEFOURCC('B','H','b','n'));
+    T_NOT_NULL(status);
+    if (status) unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(unit, 0));
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    memcpy(&count, data + sizeof(header), sizeof(count));
+    T_EQ(count, 0u);
+    T_EQ(size, sizeof(header) + sizeof(count));
+}
+
 TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
     UnitUI_t ui = { .tintRed = 224, .tintGreen = 232, .tintBlue = 255 };
     edict_t unit = { .data.UnitUI = &ui };

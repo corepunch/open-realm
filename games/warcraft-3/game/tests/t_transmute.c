@@ -125,6 +125,14 @@ TEST(wc3_spell, transmute_rejects_invalid_targets_without_mana_spend) {
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.hero));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);
 
+    fix.enemy->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','C','s','k'), .level = 1);
+    T_ASSERT(S_UnitIsResistant(fix.enemy));
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.enemy));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    memset(fix.enemy->unit_state->ranks, 0, sizeof(fix.enemy->unit_state->ranks));
+
     fix.enemy_bal.level = 4;
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.enemy));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);

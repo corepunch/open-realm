@@ -426,6 +426,12 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"morph TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Units/Creeps/Medivh/Medivh.mdx"; do \
 		$(BIN_DIR)/mdxgen$(EXE_EXT) $$model; \
 	done
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-warning.mdx
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-impact-1.mdx
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-impact-2.mdx
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-impact-3.mdx
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-damage.mdx
+	@cp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx $(TESTS_RES_DIR)/TestUI/Models/flame-strike-embers.mdx
 	@echo "[test-assets] packing map-overlay fixture MPQ"
 	@mkdir -p $(TESTS_RES_DIR)/Maps
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/MapOverlay.w3x pack \

@@ -94,18 +94,60 @@ float S_SoulBurnDamageReduction(edict_t const *unit) {
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 3) : 0.0f;
 }
 
-/* ---- Taunt (Atau) ----------------------------------------------------------
- * Name=Taunt
- * Ubertip="Forces nearby enemy units to attack the caster. Lasts <Atau,Dur1> seconds."
- * One-shot AOE that re-targets all enemies in Area to attack the caster.
+/* ---- Taunt (Atau/ANta) ------------------------------------------------------
+ * This is a one-shot order redirection, not a lasting forced-target status.
+ * Retail caps the number affected at ten regardless of custom DataA values.
  */
+#define TAUNT_MAX_TARGETS 10u
+typedef struct {
+    edict_t *unit;
+    float distance;
+} tauntTarget_t;
+
+static bool taunt_target_is_repairing(edict_t const *target) {
+    buildwork_t const *work = G_GetBuildwork((edict_t *)target);
+    abilityitem_t item;
+    abilityProc_t proc;
+
+    if (!work || !work->ability) return false;
+    item = S_AbilityItem(work->ability);
+    proc = item.ability ? item.ability->proc : NULL;
+    return proc == CAbilityRepair || proc == CAbilityRepairGeneric;
+}
+
 BZ_SIMPLE_SPELL_PROC(AbilityTaunt) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    uint32_t limit;
+    tauntTarget_t *targets;
+    uint32_t count = 0;
+
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        order_attack(target, caster);
+    if (!globals.num_edicts) return;
+    limit = MIN(TAUNT_MAX_TARGETS, globals.num_edicts);
+    targets = gi.MemAlloc((size_t)limit * sizeof(*targets));
+    if (!targets) return;
+
+    FILTER_EDICTS(target, target != caster && S_SpellAllowsAreaTarget(spell->code, caster, target) &&
+                  S_AttackCanTarget(target, caster)) {
+        float distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        uint32_t insert = 0;
+        channel_t const *channel = G_GetChannel(target);
+        /* Issuing Attack cancels active channels and repair abilities. Taunt
+         * must not interrupt those orders; defer to the unit's current action. */
+        if ((channel && channel->code) || taunt_target_is_repairing(target)) continue;
+        if (distance > area) continue;
+        while (insert < count &&
+               (targets[insert].distance < distance ||
+                (targets[insert].distance == distance &&
+                 targets[insert].unit->s.number < target->s.number))) insert++;
+        if (insert >= limit) continue;
+        if (count < limit) count++;
+        for (uint32_t i = count - 1; i > insert; i--) targets[i] = targets[i - 1];
+        targets[insert] = (tauntTarget_t){ .unit = target, .distance = distance };
+    }
+    FOR_LOOP(i, count) order_attack(targets[i].unit, caster);
+    gi.MemFree(targets);
 }
 
 /* ---- Poison attacks (Aven/Apoi/Apo2) ---------------------------------------

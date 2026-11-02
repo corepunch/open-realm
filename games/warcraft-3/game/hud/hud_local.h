@@ -83,7 +83,7 @@ typedef struct {
     InfoPanelUnitDetail_t unit;
     InfoPanelBuildingDetail_t building;
     SimpleInfoPanel_t simple;
-    FRAMEDEF bottom, attack1, attack2, armor, hero, food, gold;
+    FRAMEDEF bottom, attack1, attack2, armor, rank, hero, food, gold;
     FRAMEDEF buff_label, buff_icon[MAX_UNIT_STATUSES], buff_tex[MAX_UNIT_STATUSES];
     frameDef_t *attack2_icon, *attack2_icon_backdrop, *attack2_icon_level, *attack2_icon_label, *attack2_icon_value;
     infoPanelIconCache_t icon_cache[2][8][2];

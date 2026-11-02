@@ -7,6 +7,7 @@
 
 edict_t *S_SpellBeginAreaPresentation(edict_t *owner, uint32_t code, uint32_t level, vec2_t const *point);
 void S_SpellEndAreaPresentation(edict_t *owner);
+void impale_wave_think(edict_t *wave);
 
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \
@@ -50,6 +51,7 @@ void S_SpellEndAreaPresentation(edict_t *owner);
 extern cstring_t const raven_orders[];
 extern cstring_t const barkskin_orders[];
 extern cstring_t const stone_form_orders[];
+extern cstring_t const crypt_fiend_burrow_orders[];
 extern cstring_t const submerge_orders[];
 extern cstring_t const ancient_root_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
@@ -139,6 +141,11 @@ BZ_ABILITY_PROC(CAbilitySalvage);
 BZ_ABILITY_PROC(CAbilityTreeOfLife);
 BZ_ABILITY_PROC(CAbilityWarp);
 BZ_ABILITY_PROC(CAbilityGrabTree);
+bool S_WarClubActive(edict_t const *unit);
+void S_WarClubEquip(edict_t *unit, uint32_t ability);
+void S_WarClubConsumeAttack(edict_t *unit);
+void S_WarClubClear(edict_t *unit);
+
 BZ_ABILITY_PROC(CAbilityDetector);
 BZ_ABILITY_PROC(CAbilityMagicSentry);
 BZ_ABILITY_PROC(CAbilityNeutralSpell);
@@ -230,18 +237,28 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots);
 BZ_ABILITY_PROC(CAbilityDarkRitual);
 BZ_ABILITY_PROC(CAbilityFrostArmor);
 BZ_ABILITY_PROC(CAbilityDivineShield);
+BZ_ABILITY_PROC(CAbilityPhaseShift);
 BZ_ABILITY_PROC(CAbilityStoneForm);
+BZ_ABILITY_PROC(CAbilityCryptFiendBurrow);
 BZ_ABILITY_PROC(CAbilityCriticalStrike);
 BZ_ABILITY_PROC(CAbilityEvasion);
 BZ_ABILITY_PROC(CAbilityMassTeleport);
 BZ_ABILITY_PROC(CAbilityStampede);
 BZ_ABILITY_PROC(CAbilityWhirlwind);
 BZ_ABILITY_PROC(CAbilityTornado);
+BZ_ABILITY_PROC(CAbilityTornadoSpin);
+void tornado_think(edict_t *thinker);
 BZ_ABILITY_PROC(CAbilityBanish);
 BZ_ABILITY_PROC(CAbilitySummonPhoenix);
+BZ_ABILITY_PROC(CAbilityPhoenixMorphing);
+BZ_ABILITY_PROC(CAbilityPhoenixFire);
+void S_SummonPhoenix(edict_t *caster, uint32_t code);
 BZ_ABILITY_PROC(CAbilityCarrionScarabs);
 BZ_ABILITY_PROC(CAbilityImpale);
 BZ_ABILITY_PROC(CAbilityLocustSwarm);
+unitAttack_t const *S_LocustAttackWeapon(edict_t const *locust, edict_t const *target);
+float S_LocustAttackHit(edict_t *locust, edict_t *target);
+void locust_member_think(edict_t *member);
 BZ_ABILITY_PROC(CAbilityBlackArrow);
 BZ_ABILITY_PROC(CAbilitySilence);
 BZ_ABILITY_PROC(CAbilityAnimateDead);
@@ -264,6 +281,7 @@ BZ_ABILITY_PROC(CAbilityFlamingArrows);
 BZ_ABILITY_PROC(CAbilityHealingWave);
 BZ_ABILITY_PROC(CAbilityHex);
 BZ_ABILITY_PROC(CAbilitySpiritOfVengeance);
+BZ_ABILITY_PROC(CAbilityVengeance);
 BZ_ABILITY_PROC(CAbilityVoodoo);
 BZ_ABILITY_PROC(CAbilityAcidBomb);
 BZ_ABILITY_PROC(CAbilityManaShield);
@@ -361,6 +379,10 @@ BZ_ABILITY_PROC(CAbilityReplenish);
 BZ_ABILITY_PROC(CAbilityReplenishLife);
 BZ_ABILITY_PROC(CAbilityReplenishMana);
 BZ_ABILITY_PROC(CAbilityCannibalize);
+BZ_ABILITY_PROC(CAbilityDevour);
+void devour_think(edict_t *thinker);
+void S_DevourUnitExit(edict_t *unit);
+bool S_DevourHasVictim(edict_t const *caster);
 BZ_ABILITY_PROC(CAbilityRaiseDead);
 BZ_ABILITY_PROC(CAbilityExhumeCorpses);
 BZ_ABILITY_PROC(CAbilityGraveyard);
@@ -438,8 +460,12 @@ float S_EnduranceAttackBonus(edict_t *unit);
 float S_VampiricLifeSteal(edict_t *unit);
 float S_TrueshotAttackBonus(edict_t *unit);
 int S_SearingArrowDamage(edict_t *attacker, int damage);
+bool S_DestroyerOrbCommitAttack(edict_t *attacker, edict_t *target,
+                                uint32_t *ability, uint32_t *rank, int *bonus);
+int S_ColdArrowsDamage(edict_t *attacker, edict_t *target, int damage);
 cstring_t S_SearingArrowsMissileArt(edict_t *attacker);
 bool S_SearingArrowsIssueOrder(edict_t *attacker, edict_t *target, uint32_t ability);
+bool S_ColdArrowsIssueOrder(edict_t *attacker, edict_t *target, uint32_t ability);
 float S_ThornsDamageReturn(edict_t const *target, edict_t const *attacker, float damage);
 float S_ThornsMeleeDamageReturn(edict_t const *target, float damage);
 typedef struct { uint32_t alias; uint32_t level; } abilityAliasRef_t;
@@ -467,9 +493,13 @@ uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint3
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code);
 bool S_UnitPolymorphed(edict_t const *unit);
 void S_PolymorphRemove(edict_t *unit);
-int S_BlackArrowDamage(edict_t *attacker, int damage);
-void S_BlackArrowDeath(edict_t *attacker, edict_t *target);
+bool S_BlackArrowIssueOrder(edict_t *attacker, edict_t *target, uint32_t ability);
+bool S_BlackArrowPrepareAttack(edict_t *attacker, edict_t *target, uint32_t *ability, uint32_t *rank);
+int S_BlackArrowDamageForShot(uint32_t ability, uint32_t level, int damage);
+void S_BlackArrowMarkHit(edict_t *attacker, edict_t *target, uint32_t ability, uint32_t level);
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
+void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
+                                 uint32_t arrow_code, uint32_t arrow_level);
 /* Primary attack damage only; secondary/spell/retaliation damage must not Pillage. */
 void S_PillageOnAttackDamage(edict_t *attacker, edict_t *target, float health_removed);
 bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target);
@@ -479,6 +509,10 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t cons
                                 struct artillery_s const *profile);
 void S_ResolveMissileSplashHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                struct artillery_s const *profile);
+void S_ResolveMissileSplashHitWithArrow(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
+                                        struct artillery_s const *profile, uint32_t arrow_code, uint32_t arrow_level);
+void S_ResolveArtilleryPointHitWithArrow(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
+                                         struct artillery_s const *profile, uint32_t arrow_code, uint32_t arrow_level);
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point);
 void S_ReincarnationOnDeath(edict_t *unit);
 bool S_HumanCanAttack(edict_t const *unit);
@@ -495,6 +529,7 @@ void S_HumanBreakInvisibility(edict_t *unit);
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level);
 void S_HumanStatusApplied(edict_t *unit, heroabilitystatus_t const *status);
 bool S_UnitSpellImmune(edict_t const *unit);
+bool S_UnitIsFreezingBreathFrozen(edict_t const *unit);
 int S_AntiMagicShellAbsorb(edict_t *target, int damage);
 int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage);
 bool S_PossessionSpellImmune(edict_t const *unit);
@@ -527,6 +562,8 @@ float S_SlowPoisonAttackReduction(edict_t const *unit);
 void S_OrbOnHit(edict_t *attacker, edict_t *target);
 float S_BarkskinArmorBonus(edict_t const *unit);
 float S_ManaFlareArmorBonus(edict_t const *unit);
+bool S_ManaFlareActive(edict_t const *unit);
+bool S_ManaFlareAllowsOrder(edict_t const *unit, cstring_t order);
 
 float AB_Data(cstring_t classname, uint32_t level, uint32_t index);
 uint32_t AB_DataId(cstring_t classname, uint32_t level, uint32_t index);
@@ -590,6 +627,8 @@ bool S_SpellBounceTargetAllowed(edict_t *caster, uint32_t code, edict_t const *f
 bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const *target);
 void S_SpellCommitRelocation(edict_t *unit, vec2_t const *position);
 void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position);
+/* Cancels an active Locust Swarm on explicit spell relocation or caster death. */
+void S_LocustSwarmCancelForCaster(edict_t *caster);
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration);
 edict_t *S_SpellStatusSource(heroabilitystatus_t const *slot);
@@ -604,6 +643,7 @@ bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point
 bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range);
 bool S_SpellIsAliveTarget(edict_t *target);
 bool S_UnitIsCycloned(edict_t const *unit);
+bool S_CycloneRestoreLiftHeight(edict_t *unit, heroabilitystatus_t const *removed);
 bool S_StatusIsUndispellable(heroabilitystatus_t const *status);
 bool S_SummonIsDispelImmune(edict_t const *unit);
 bool S_UnitIsSilenced(edict_t const *unit);
@@ -644,6 +684,7 @@ void S_SpellEndChannel(edict_t *thinker);
  * receive validation and execution messages through the registry row. */
 void spell_cmd(edict_t *clent);
 void spell_run_frame(edict_t *ent);
+float S_ManaExcessDecayRate(edict_t *ent);
 
 void possession_projectile_death_think(edict_t *missile);
 

@@ -21,7 +21,7 @@ slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock Dur/HeroDur/Cost so tests cannot pass on hardcoded 20/6/150. */
-#define CYC_SLK \
+#define CYC_SLK_WITH_BUFF(BUFF) \
     "ID;PWXL;N;EBB;Y2;X11\n" \
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
@@ -30,7 +30,8 @@ void free_slk_rows(slkTestData_t *rows);
     "C;Y2;X1;K\"Acyc\"\nC;Y2;X2;K\"Acyc\"\nC;Y2;X3;K\"1\"\n" \
     "C;Y2;X4;K\"ground,enemy,neutral,organic\"\nC;Y2;X5;K\"87\"\nC;Y2;X6;K\"0\"\n" \
     "C;Y2;X7;K\"600\"\nC;Y2;X8;K\"11\"\nC;Y2;X9;K\"4\"\n" \
-    "C;Y2;X10;K\"Bcyc,Bcy2\"\nC;Y2;X11;K\"1\"\nE\n"
+    "C;Y2;X10;K\"" BUFF "\"\nC;Y2;X11;K\"1\"\nE\n"
+#define CYC_SLK CYC_SLK_WITH_BUFF("Bcyc,Bcy2")
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -71,6 +72,45 @@ TEST(wc3_spell, cyclone_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_SCC1).ability->proc, CAbilityCyclone);
     T_EQ(S_AbilityItem(BZ_ACNY).ability->proc, CAbilityCyclone);
     T_EQ(S_AbilityItem(BZ_AICY).ability->proc, CAbilityCyclone);
+}
+
+/* Blizzard stores persistent Cyclone status art as AbilityBuffFunc EffectArt,
+ * with Targetattach/Effectattach for the attachment point. */
+TEST(wc3_spell, cyclone_cast_spawns_abilitybuff_effectart_on_target) {
+    const char buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"Bcyc\"\nC;Y2;X2;K\"Bcyc\"\nE\n";
+    cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk);
+    slkTestData_t *old_buffs = G_SetSLKRows("AbilityBuffData", buff_rows);
+    uint32_t const expected_model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+    edict_t *effect = NULL;
+    heroabilitystatus_t *status;
+
+    T_ASSERT(expected_model > 0);
+    T_ASSERT(G_AbilityEffectArt(BZ_BCYC, WC3_EFFECT_TARGET, 0) != NULL);
+    fix.enemy->unitinfo.FlyHeight = 200.0f;
+    fix.enemy->s.ground_offset = 200.0f;
+    fix.enemy->s.origin.z = 205.0f;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
+    FILTER_EDICTS(found, found->status_effect_code == BZ_BCYC && found->goalentity == fix.enemy) {
+        effect = found;
+        break;
+    }
+    T_NOT_NULL(effect);
+    if (effect) {
+        T_EQ(effect->s.model, expected_model);
+        T_ASSERT(!(effect->s.flags & EF_NAMED_ATTACHMENT));
+        T_FEQ(effect->s.origin.z, fix.enemy->s.origin.z - fix.enemy->s.ground_offset, 0.001f);
+    }
+    status = unit_findstatus(fix.enemy, BZ_BCYC);
+    T_NOT_NULL(status);
+    if (status) T_ASSERT(status->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
+
+    cyc_done(fix);
+    G_SetSLKRows("AbilityBuffData", old_buffs);
+    free_slk_rows(buff_rows);
 }
 
 /* Item AIcy reads its own Dur/DataA; status.data keeps AIcy for S_StatusIsUndispellable. */
@@ -129,6 +169,109 @@ TEST(wc3_spell, cyclone_tft_organic_mechanical_and_ally_filters) {
     T_FEQ(fix.caster->mana.value, 113, 0.001f);
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.mech));
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.ally));
+    cyc_done(fix);
+}
+
+/* A map may author Bcy2 alone as BuffID, even though stock TFT's first
+ * token is Bcyc. That status must own the same lift and inverse lifecycle. */
+TEST(wc3_spell, cyclone_bcy2_only_cast_restores_height_on_dispel_and_expiry) {
+    cycFix_t fix = cyc_setup(CYC_SLK_WITH_BUFF("Bcy2"), BZ_ACYC);
+    fix.enemy->unitinfo.FlyHeight = 23.0f;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BCYC), 0);
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BCY2), 1);
+    T_ASSERT(S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+    unit_removestatus(fix.enemy, unit_findstatus(fix.enemy, BZ_BCY2), STATUS_REMOVE_DISPEL);
+    T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 23.0f, 0.001f);
+
+    fix.caster->mana.value = 200.0f;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+    level.time += 11000;
+    unit_updatestatuses(fix.enemy);
+    T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 23.0f, 0.001f);
+    /* Verify the gameplay lock really ended, not only the buff display. */
+    {
+        edict_t *waypoint = Waypoint_add(&(vec2_t){ 220.0f, 0.0f });
+        order_move(fix.enemy, waypoint);
+        T_ASSERT(fix.enemy->goalentity == waypoint);
+    }
+    cyc_done(fix);
+}
+
+/* The execute path may replace the same status (or another Cyclone owner may
+ * attach Bcyc/Bcy2). Neither operation may snapshot the already lifted Z. */
+TEST(wc3_spell, cyclone_bcy2_replacement_keeps_original_height) {
+    cycFix_t fix = cyc_setup(CYC_SLK_WITH_BUFF("Bcy2"), BZ_ACYC);
+    abilityitem_t item = S_AbilityItem(BZ_ACYC);
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = fix.enemy);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &target);
+    heroabilitystatus_t *other;
+    fix.enemy->unitinfo.FlyHeight = 37.0f;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
+    T_ASSERT(S_AbilityMessage(fix.caster, A_EXECUTE, &call));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+    /* A second supported Cyclone status keeps the victim lifted if Bcy2 ends. */
+    other = S_SpellApplyTimedStatusFromAbility(fix.enemy, BZ_ACYC, 1, "Bcyc", 11.0f);
+    T_NOT_NULL(other);
+    if (other) {
+        heroabilitystatus_t *primary = unit_findstatus(fix.enemy, BZ_BCY2);
+        T_NOT_NULL(primary);
+        if (primary) other->next_tick = primary->next_tick;
+        unit_removestatus(fix.enemy, primary, STATUS_REMOVE_DISPEL);
+        T_ASSERT(S_UnitIsCycloned(fix.enemy));
+        T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+        unit_removestatus(fix.enemy, other, STATUS_REMOVE_DISPEL);
+        T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+        T_FEQ(fix.enemy->unitinfo.FlyHeight, 37.0f, 0.001f);
+    }
+    cyc_done(fix);
+}
+
+/* Tornado's Atsp and ordinary Cyclone share lift ownership. Both callback
+ * dispatch paths must leave the victim airborne until the last buff ends. */
+TEST(wc3_spell, tornado_cyclone_overlap_restores_only_after_last_status) {
+    cycFix_t fix = cyc_setup(CYC_SLK_WITH_BUFF("Bcy2"), BZ_ACYC);
+    abilityitem_t item = S_AbilityItem(BZ_ACYC);
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = fix.enemy);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &target);
+    uint32_t const tornado_spin = MAKEFOURCC('A','t','s','p');
+    heroabilitystatus_t *spin, *cyclone;
+    union { float height; uint32_t bits; } initial = { .height = 31.0f };
+
+    FOR_LOOP(pass, 2) {
+        fix.enemy->unitinfo.FlyHeight = initial.height;
+        spin = S_SpellApplyTimedStatusFromAbility(fix.enemy, tornado_spin, 1, "Bcyc", 10.0f);
+        T_NOT_NULL(spin);
+        if (!spin) break;
+        spin->next_tick = initial.bits;
+        fix.enemy->unitinfo.FlyHeight = 200.0f;
+        T_ASSERT(S_AbilityMessage(fix.caster, A_EXECUTE, &call));
+        cyclone = unit_findstatus(fix.enemy, BZ_BCY2);
+        T_NOT_NULL(cyclone);
+        if (!cyclone) break;
+        T_EQ(cyclone->next_tick, initial.bits);
+        T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+
+        if (pass == 0) {
+            /* Atsp expires before Bcy2: its callback must not lower the unit. */
+            unit_removestatus(fix.enemy, spin, STATUS_REMOVE_EXPIRE);
+            T_ASSERT(S_UnitIsCycloned(fix.enemy));
+            T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+            unit_removestatus(fix.enemy, cyclone, STATUS_REMOVE_DISPEL);
+        } else {
+            /* Bcy2 is dispelled first; the remaining Atsp status owns lift. */
+            unit_removestatus(fix.enemy, cyclone, STATUS_REMOVE_DISPEL);
+            T_ASSERT(S_UnitIsCycloned(fix.enemy));
+            T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+            unit_removestatus(fix.enemy, spin, STATUS_REMOVE_EXPIRE);
+        }
+        T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+        T_FEQ(fix.enemy->unitinfo.FlyHeight, initial.height, 0.001f);
+    }
     cyc_done(fix);
 }
 
@@ -195,20 +338,26 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     hero->s.player = 1; hero->svflags |= SVF_MONSTER; hero->targtype = TARG_GROUND;
     hero->data.UnitBalance = &hero_bal;
     hero->health.value = hero->health.max_value = 500;
+    hero->unitinfo.FlyHeight = 17.0f;
     hero->stand = unit_stand; unit_stand(hero);
     T_ASSERT(G_UnitIsHero(hero));
     T_ASSERT(!G_UnitIsHero(fix.enemy));
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, hero));
     T_ASSERT(S_UnitIsCycloned(hero));
+    T_FEQ(hero->unitinfo.FlyHeight, 200.0f, 0.001f);
     level.time += 4000; unit_updatestatuses(hero);
     T_ASSERT(!S_UnitIsCycloned(hero));
+    T_FEQ(hero->unitinfo.FlyHeight, 17.0f, 0.001f);
 
     fix.caster->mana.value = 200;
+    fix.enemy->unitinfo.FlyHeight = 12.5f;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
-    level.time += 11000; unit_updatestatuses(fix.enemy);
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+    unit_removestatus(fix.enemy, unit_findstatus(fix.enemy, BZ_BCYC), STATUS_REMOVE_DISPEL);
     T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 12.5f, 0.001f);
 
     wp = Waypoint_add(&(vec2_t){220, 0});
     order_move(fix.enemy, wp);
@@ -223,6 +372,10 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     fix.caster->mana.value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 200.0f, 0.001f);
+    level.time += 11000; unit_updatestatuses(fix.enemy);
+    T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+    T_FEQ(fix.enemy->unitinfo.FlyHeight, 12.5f, 0.001f);
     cyc_done(fix);
 }
 

@@ -22,3 +22,6 @@ channel and living target after applying its health-damage component: the damage
 can kill the target or invoke cancellation through gameplay events. A cancelled
 or fatal health pulse must not proceed to its mana-transfer component. The
 regression tests cover pre-pulse stun and lethal Life Drain.
+
+See [Siphon Mana and Life Drain channel pulses](drain-channel-pulses.md) for
+excess-mana transfer, decay, and HUD serialization rules.

@@ -1,0 +1,14 @@
+[Apts]
+Name=Disease Cloud
+Tip=Disease Cloud
+Ubertip=Deals disease damage to nearby enemies.
+
+[Aexh]
+Name=Exhume Corpses
+Tip=Exhume Corpses
+Ubertip=Automatically exhumes corpses.
+
+[Auhf]
+Name=Unholy Frenzy
+Tip=Unholy Frenzy
+Ubertip=Increases attack speed.

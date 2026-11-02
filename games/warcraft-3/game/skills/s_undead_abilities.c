@@ -92,17 +92,38 @@ int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
     return damage;
 }
 
-/* Shared area autocast acquire: cast self-spell if a worthy friendly exists in area. */
-static bool undead_area_autocast_acquire(edict_t *caster, uint32_t code, bool needs_hp, bool needs_mana) {
-    uint32_t level = S_SpellLevel(caster, code);
-    float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    if (area <= 0.0f) area = UNDEAD_AUTOCAST_RADIUS;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
-        if (needs_hp && target->health.value < target->health.max_value) return S_CastNoTargetSpell(caster, code);
-        if (needs_mana && target->mana.max_value > 0 && target->mana.value < target->mana.max_value)
-            return S_CastNoTargetSpell(caster, code);
+/* All area support casts use the same authored targs policy as combat AoE.
+ * FILTER_EDICTS walks stable entity indexes, so a six-recipient limit is
+ * deterministic across peers and independent of pointer/hash iteration. */
+static bool undead_replenish_eligible(edict_t *caster, edict_t *target, uint32_t code,
+                                      bool health) {
+    if (!caster || !target || !S_SpellIsAliveTarget(target) ||
+        !S_SpellIsFriend(caster, target) ||
+        !S_SpellAllowsAreaTarget(code, caster, target)) return false;
+    /* The recipient buff gates overlapping pulses from different Statues.
+     * This uses normal timed status persistence, including save/load, rather
+     * than a per-frame static cache that would desynchronize after loading. */
+    {
+        cstring_t buff = S_SpellBuffId(code, S_SpellLevel(caster, code));
+        if (buff && strlen(buff) >= 4 && unit_findstatus(target, FS_SLKKey(buff))) return false;
     }
+    return health ? target->health.value < target->health.max_value :
+        (target->mana.max_value > 0.0f && target->mana.value < target->mana.max_value);
+}
+
+static float undead_replenish_radius(edict_t *caster, uint32_t code) {
+    float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
+    return area > 0.0f ? area : UNDEAD_AUTOCAST_RADIUS;
+}
+
+/* Area autocast should not spend mana on healthy, ineligible or immune allies. */
+static bool undead_area_autocast_acquire(edict_t *caster, uint32_t code, bool health) {
+    float area;
+    if (!caster) return false;
+    area = undead_replenish_radius(caster, code);
+    FILTER_EDICTS(target, undead_replenish_eligible(caster, target, code, health) &&
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
+        return S_CastNoTargetSpell(caster, code);
     return false;
 }
 
@@ -142,56 +163,77 @@ BZ_ABILITY_PROC(CAbilityReplenish) {
     }
 }
 
-/* ---- Essence of Blight (Arpl) ------------------------------------------------
- * Name=Essence of Blight
- * Ubertip="Restores DataA1 hit points to nearby friendly units."
- * Untip="Right-click to activate auto-casting."
- * DataA = HP restored per unit in area.
- */
-static void replenish_life_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    float amount = S_SpellData(spell->code, level, 1);
-    (void)st;
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        S_SpellHeal(target, amount);
+/* ---- Obsidian Statue area restoration (Arpl / Arpm) ------------------------
+ * Spell data supplies the amount and targs mask, with a six-unit recipient
+ * limit. The basic ability cost is committed by s_spell.c before A_EXECUTE.
+ * Additional per-recipient charges and overlap protection are implemented
+ * below rather than inventing a second cast/commit pipeline. */
+#define OBSIDIAN_REPLENISH_MAX_TARGETS 6u
+
+static void undead_replenish_execute(edict_t *caster, abilityitem_t const *spell, bool health) {
+    uint32_t level, recipients = 0;
+    float area, amount, cost;
+    cstring_t buff;
+    if (!caster || !spell) return;
+    level = S_SpellLevel(caster, spell->code);
+    area = undead_replenish_radius(caster, spell->code);
+    amount = S_SpellData(spell->code, level, health ? 1 : 2);
+    cost = MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_COST, level));
+    buff = S_SpellBuffId(spell->code, level);
+    if (amount <= 0.0f) return;
+    /* Caster and overhead art are different authored fields. Spawn them once
+     * per cast, not once per recipient. The transient effect owner handles
+     * model Birth/Death presentation and cleanup. */
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, "origin", true);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, "overhead", true);
+    G_PlayAbilityEffectSound(spell->code, &caster->s.origin2);
+    FILTER_EDICTS(target, undead_replenish_eligible(caster, target, spell->code, health) &&
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        float duration;
+        if (recipients >= OBSIDIAN_REPLENISH_MAX_TARGETS) break;
+        /* The first recipient's base cost has already been charged by the
+         * shared spell commit. Charge recipients 2–5 here; the sixth is free. */
+        if (recipients > 0 && recipients < 5 && caster->mana.value < cost) break;
+        duration = S_SpellDuration(spell->code, level, false);
+        if (buff && strlen(buff) >= 4 &&
+            !S_SpellApplyTimedTargetStatus(target, spell->code, level, buff,
+                                          duration > 0.0f ? duration : 1.0f)) continue;
+        if (recipients > 0 && recipients < 5) caster->mana.value -= cost;
+        if (health) S_SpellHeal(target, amount);
+        else target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        recipients++;
+    }
 }
 
 BZ_ABILITY_PROC(CAbilityReplenishLife) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
-    case A_EXECUTE: replenish_life_execute(ent, MAKE(spellTarget_t, .type = SPELL_TARGET_NONE), call ? call->item : NULL); return true;
-    case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
+    case A_EXECUTE: undead_replenish_execute(ent, call ? call->item : NULL, true); return true;
+    case A_AUTOCAST_ON: return ent && ent->unit_state && ent->unit_state->autocast == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return undead_area_autocast_acquire(ent, code, true, false);
+    case A_AUTOCAST_ACQUIRE: return undead_area_autocast_acquire(ent, code, true);
+    case A_ORDER:
+        if (!code || !call || !call->order) return false;
+        if (!strcmp(call->order, "replenishlifeon")) return G_SetUnitAutocast(ent, code, true);
+        if (!strcmp(call->order, "replenishlifeoff")) return G_SetUnitAutocast(ent, code, false);
+        return false;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
-}
-
-/* ---- Spirit Touch (Arpm) -----------------------------------------------------
- * Name=Spirit Touch
- * Ubertip="Restores DataB1 mana to nearby friendly units."
- * Untip="Right-click to activate auto-casting."
- * DataB = mana restored per unit in area.
- */
-static void replenish_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    float amount = S_SpellData(spell->code, level, 2);
-    (void)st;
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
 }
 
 BZ_ABILITY_PROC(CAbilityReplenishMana) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
-    case A_EXECUTE: replenish_mana_execute(ent, MAKE(spellTarget_t, .type = SPELL_TARGET_NONE), call ? call->item : NULL); return true;
-    case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
+    case A_EXECUTE: undead_replenish_execute(ent, call ? call->item : NULL, false); return true;
+    case A_AUTOCAST_ON: return ent && ent->unit_state && ent->unit_state->autocast == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return undead_area_autocast_acquire(ent, code, false, true);
+    case A_AUTOCAST_ACQUIRE: return undead_area_autocast_acquire(ent, code, false);
+    case A_ORDER:
+        if (!code || !call || !call->order) return false;
+        if (!strcmp(call->order, "replenishmanaon")) return G_SetUnitAutocast(ent, code, true);
+        if (!strcmp(call->order, "replenishmanaoff")) return G_SetUnitAutocast(ent, code, false);
+        return false;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -506,6 +548,29 @@ static float raise_dead_search_range(edict_t const *caster) {
     return caster ? MAX(0.0f, caster->runtime.acquisition_range) : 0.0f;
 }
 
+/* Rusm is a TFT rlev rank-up for the stock Necromancer. Resolve that research
+ * directly as well as honoring the unit's stored ability rank: some map/unit
+ * creation paths can leave the runtime rank stale after the research event. */
+static uint32_t raise_dead_ability_level(edict_t *caster, abilityitem_t const *spell) {
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t const mastery = MAKEFOURCC('R','u','s','m');
+    uint32_t const ability_code = MAKEFOURCC('A','r','a','i');
+    bool const expansion = gi.CvarString && atoi(gi.CvarString("fs_expansion", "0")) != 0;
+    gameClient_t *owner;
+    AbilityData_t const *ability;
+    uint32_t researched_rank;
+    if (!caster || spell->code != ability_code ||
+        caster->class_id != MAKEFOURCC('u','n','e','c') || !expansion ||
+        !G_UnitUsesUpgrade(caster, mastery)) return level;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!owner || owner->ps.number != caster->s.player) return level;
+    researched_rank = (uint32_t)MAX(0, G_GetPlayerTechResearchedLevel(owner, mastery)) + 1u;
+    ability = G_AbilityData(spell->code);
+    if (ability && ability->id == spell->code && ability->levels > 0)
+        researched_rank = MIN(researched_rank, (uint32_t)ability->levels);
+    return MAX(level, researched_rank);
+}
+
 /* Retail Raise Dead preserves more valuable corpses by preferring the lowest-
  * ranked eligible corpse; distance is only the tie-breaker.  UnitBalance.level
  * is already the engine's corpse-power rank for Resurrection/Animate Dead. */
@@ -570,7 +635,7 @@ static void raise_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     (void)st;
 
     if (!caster || !spell) return;
-    level = S_SpellLevel(caster, spell->code);
+    level = raise_dead_ability_level(caster, spell);
     range = raise_dead_search_range(caster);
     corpse = raise_dead_corpse(caster, spell->code, range);
     if (!corpse) return;
@@ -650,7 +715,7 @@ static bool possession_validate(edict_t *caster, spellTarget_t st, abilityitem_t
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
     if (!target || !target->data.UnitBalance) return false;
-    if (G_UnitIsHero(target)) return false;
+    if (S_UnitIsResistant(target)) return false;
     if (!S_SpellIsEnemy(caster, target) && !possession_is_neutral(target)) return false;
     if (max_level && (uint32_t)target->data.UnitBalance->level > max_level) return false;
     return true;

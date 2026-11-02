@@ -11,8 +11,10 @@ void reset_entities(void);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void repair_build_primary(edict_t *ent, edict_t *building);
 void repair_build_legacy(edict_t *ent, edict_t *building);
+void attack_melee(edict_t *ent);
 void build_build(edict_t *ent);
 void ai_train_build(edict_t *ent);
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
 bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void build_menu_selectlocation(edict_t *ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(char const *slk_text);
@@ -116,6 +118,100 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
 
 static void building_test_unicast(edict_t *ent) { (void)ent; }
 
+static cstring_t building_freezing_breath_roc_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+static cstring_t building_freezing_breath_tft_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+static bool building_find_command(gameCommandButton_t const *buttons, uint8_t count,
+                                 cstring_t command, gameCommandButton_t *out) {
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, command)) {
+        if (out) *out = buttons[i];
+        return true;
+    }
+    return false;
+}
+
+TEST(wc3_building, meat_wagon_research_indicators_are_borderless_and_dim_until_unlocked) {
+    static UnitAbilities_t const abilities = { .abilList = "Apts,Aexh" };
+    static UnitBalance_t const balance = { .upgrades = "" };
+    static char const theme_data[] = "[Default]\nCommandButtonDisabledArtPath=ReplaceableTextures\\CommandButtonsDisabled\\\n";
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    stbIniCache_t old_theme = game.config.theme;
+    gameClient_t *old_ui_client = ui_current_client;
+    gameClient_t *client;
+    edict_t *wagon;
+    gameCommandButton_t buttons[16], disease, exhume;
+    uint8_t count;
+    stbIniCache_t custom = {0};
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+
+    reset_entities(); setup_test_world();
+    client = &game.clients[0]; client->ps.number = 0;
+    memcpy(old_tech, client->tech, sizeof(old_tech));
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','u','p','c'), 1);
+    G_SetPlayerTechMaxAllowed(client, MAKEFOURCC('R','u','e','x'), 1);
+    T_ASSERT(Stb_IniCacheLoadBuffer(&custom, theme_data));
+    wagon = alloc_test_unit(MAKEFOURCC('u','m','t','w'), 64, 64);
+    wagon->s.player = 0;
+    wagon->data.UnitAbilities = &abilities;
+    wagon->data.UnitBalance = &balance;
+    wagon->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','p','t','s'), .level = 1);
+    wagon->unit_state->ranks[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','e','x','h'), .level = 1);
+    count = G_GetCommandButtons(wagon, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Apts", &disease));
+    T_ASSERT(building_find_command(buttons, count, "Aexh", &exhume));
+    T_ASSERT(disease.indicator && disease.disabled && disease.indicator_dimmed);
+    T_ASSERT(exhume.indicator && exhume.disabled && exhume.indicator_dimmed);
+    T_NOT_NULL(strstr(disease.ubertip, "Requires:"));
+    T_NOT_NULL(strstr(disease.ubertip, "Disease Cloud"));
+    T_NOT_NULL(strstr(exhume.ubertip, "Requires:"));
+    T_NOT_NULL(strstr(exhume.ubertip, "Exhume Corpses"));
+
+    /* Serialization must keep these as plain textures and choose authored
+     * disabled art only while the corresponding research remains locked. */
+    game.config.theme = custom;
+    UI_SetCurrentClient(client);
+    G_SelectEntity(client, wagon);
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+    UI_WriteCommandButtonFrame(&disease);
+    T_ASSERT(building_command_frame_seen);
+    T_EQ(building_command_frame.flags.type, FT_TEXTURE);
+    T_STREQ(building_image_path, "ReplaceableTextures\\CommandButtonsDisabled\\DISBTNPlagueCloud.blp");
+    building_command_frame_seen = false;
+    UI_WriteCommandButtonFrame(&exhume);
+    T_ASSERT(building_command_frame_seen);
+    T_EQ(building_command_frame.flags.type, FT_TEXTURE);
+
+    G_SetPlayerTechResearched(client, MAKEFOURCC('R','u','p','c'), 1);
+    G_SetPlayerTechResearched(client, MAKEFOURCC('R','u','e','x'), 1);
+    count = G_GetCommandButtons(wagon, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Apts", &disease));
+    T_ASSERT(building_find_command(buttons, count, "Aexh", &exhume));
+    T_ASSERT(disease.indicator && !disease.indicator_dimmed);
+    T_ASSERT(exhume.indicator && !exhume.indicator_dimmed);
+    T_ASSERT(!strstr(disease.ubertip, "Requires:"));
+    T_ASSERT(!strstr(exhume.ubertip, "Requires:"));
+    UI_WriteCommandButtonFrame(&disease);
+    T_STREQ(building_image_path, disease.art);
+    UI_WriteCommandButtonFrame(&exhume);
+    T_STREQ(building_image_path, exhume.art);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+    UI_SetCurrentClient(old_ui_client);
+    memcpy(client->tech, old_tech, sizeof(old_tech));
+    game.config.theme = old_theme;
+    Stb_IniCacheFree(&custom);
+}
+
 /* Counts svc_layout payloads that open the command bar: the only writer of
  * that pair during spell targeting setup is UI_AddCancelButton. */
 static void building_layout_capture_write(pfWriteType_t type, void const *value) {
@@ -185,9 +281,31 @@ static cstring_t const building_repair_stock_targets =
 static cstring_t const building_renew_stock_targets =
     "ground,air,structure,mechanical,friend,invulnerable,vulnerable";
 
+static const char building_liquid_fire_slk[] =
+    "ID;PWXL;N;EBB;Y3;X8\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataC1\"\n"
+    "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"targs1\"\n"
+    "C;Y2;X1;K\"Aliq\"\nC;Y2;X2;K\"Aliq\"\nC;Y2;X3;K1\n"
+    "C;Y2;X4;K3\nC;Y2;X5;K8\nC;Y2;X6;K0.8\nC;Y2;X7;K\"Bliq\"\n"
+    "C;Y3;X1;K\"Aren\"\nC;Y3;X2;K\"Aren\"\nC;Y3;X3;K1\n"
+    "C;Y3;X8;K\"ground,air,structure,mechanical,friend,nonancient,vulnerable\"\nE\n";
+
+static slkTestData_t *building_install_liquid_fire_slk(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(building_liquid_fire_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    if (rows_out) *rows_out = rows;
+    return old;
+}
+
+static void building_restore_liquid_fire_slk(slkTestData_t *old, slkTestData_t *rows) {
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X18;Y12;D0\n"
+    "B;X18;Y13;D0\n"
     "C;X1;Y1;K\"upgradeid\"\n"
     "C;X2;K\"class\"\n"
     "C;X3;K\"maxlevel\"\n"
@@ -294,6 +412,17 @@ static const char building_upgrade_slk[] =
     "C;X3;K1\n"
     "C;X10;K\"_\"\n"
     "C;X18;K\"undead ghoul cannibalize\"\n"
+    "C;X1;Y13;K\"Redt\"\n"
+    "C;X2;K\"caster\"\n"
+    "C;X3;K2\n"
+    "C;X10;K\"rmnx\"\n"
+    "C;X11;K100\n"
+    "C;X12;K100\n"
+    "C;X13;K\"edot\"\n"
+    "C;X14;K\"rmnr\"\n"
+    "C;X15;K0.325\n"
+    "C;X16;K0.325\n"
+    "C;X17;K\"edot\"\n"
     "E\n";
 
 /* Night Elf ranged upgrades use the same generic ratr/ratx path as other
@@ -503,6 +632,82 @@ static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out) {
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows) {
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+TEST(wc3_building, draenei_saboteur_liquid_fire_damages_buildings_and_slows_attacks) {
+    static UnitAbilities_t const saboteur_abilities = { .abilList = "Aliq" };
+    slkTestData_t *rows, *old;
+    edict_t *saboteur, *building;
+    float health_after_hit;
+    uint32_t normal_attack_interval, liquid_fire_attack_interval;
+
+    reset_entities();
+    setup_test_world();
+    old = building_install_liquid_fire_slk(&rows);
+    saboteur = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    saboteur->data.UnitAbilities = (UnitAbilities_t *)&saboteur_abilities;
+    saboteur->s.player = 0;
+    building->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    saboteur->unit_state->attack1.type = ATK_CHAOS;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+    building->unit_state->attack1.type = ATK_CHAOS;
+    building->unit_state->attack1.cooldown = 2.0f;
+    building->unit_state->attack1.damagePoint = 0.5f;
+    T_EQ(G_UnitAbilityLevel(saboteur, MAKEFOURCC('A','l','i','q')), 1);
+
+    attack_melee(building);
+    normal_attack_interval = building->unit_state->attack_cooldown_end_time - G_Time();
+    S_ResolveAttackHit(saboteur, building, 1);
+
+    T_EQ(G_UnitStatusLevel(building, FS_SLKKey("Bliq")), 1);
+    T_FEQ(S_CreepAttackSpeedReduction(building), 0.8f, 0.001f);
+    attack_melee(building);
+    liquid_fire_attack_interval = building->unit_state->attack_cooldown_end_time - G_Time();
+    T_EQ(normal_attack_interval, 2000);
+    T_ASSERT(liquid_fire_attack_interval >= 10000 && liquid_fire_attack_interval <= 10001);
+    health_after_hit = building->health.value;
+    level.time += 1000;
+    unit_updatestatuses(building);
+    T_FEQ(building->health.value, health_after_hit - 8.0f, 0.01f);
+
+    building_restore_liquid_fire_slk(old, rows);
+}
+
+TEST(wc3_building, liquid_fire_prevents_repairing_affected_buildings) {
+    static UnitAbilities_t const saboteur_abilities = { .abilList = "Aliq" };
+    static UnitAbilities_t const worker_abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old;
+    edict_t *saboteur, *worker, *building;
+
+    reset_entities();
+    setup_test_world();
+    old = building_install_liquid_fire_slk(&rows);
+    saboteur = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    saboteur->data.UnitAbilities = (UnitAbilities_t *)&saboteur_abilities;
+    worker->data.UnitAbilities = (UnitAbilities_t *)&worker_abilities;
+    saboteur->s.player = 0;
+    worker->s.player = building->s.player = 1;
+    saboteur->unit_state->attack1.type = ATK_CHAOS;
+    building->health.max_value = 1000.0f;
+    building->health.value = 900.0f;
+
+    building->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    S_CreepAttackOnHit(saboteur, building);
+    building->s.player = worker->s.player;
+
+    T_EQ(G_UnitStatusLevel(building, FS_SLKKey("Bliq")), 1);
+    T_ASSERT(!S_RepairSmart(worker, building));
+    T_NULL(worker->build);
+    level.time += 3000;
+    unit_updatestatuses(building);
+    T_EQ(G_UnitStatusLevel(building, FS_SLKKey("Bliq")), 0);
+    T_ASSERT(S_RepairSmart(worker, building));
+
+    building_restore_liquid_fire_slk(old, rows);
 }
 
 TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_race) {
@@ -754,6 +959,147 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, freezing_breath_attack_pauses_enemy_production_for_authored_duration) {
+    static UnitAbilities_t frost_wyrm_abilities = { .abilList = "Afrz" };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Afrz\"\nC;Y2;X2;K\"Afrz\"\n"
+        "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"Bfrz\"\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"TargetArt\"\nC;Y1;X3;K\"EffectArt\"\n"
+        "C;Y2;X1;K\"Bfrz\"\nC;Y2;X2;K\"TestUI\\\\Models\\\\freezing-breath-target.mdx\"\nE\n";
+    static char const buff_config[] =
+        "[Bfrz]\nTargetArt=TestUI\\Models\\freezing-breath-target.mdx\n";
+    slkTestData_t *rows, *old;
+    slkTestData_t *buff_rows, *old_buff;
+    edict_t *attacker, *building, *trainee, *target_effect = NULL;
+    gameClient_t *enemy_client;
+    UnitBalance_t trainee_balance = { .buildTime = 100, .foodUsed = 0 };
+    heroabilitystatus_t *frozen;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    buff_rows = parse_slk_string(buff_slk);
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    T_ASSERT(G_TestPushAbilityConfig(buff_config));
+    gi.ModelIndex = building_test_image_index;
+    enemy_client = &game.clients[1];
+    enemy_client->connected = true;
+    enemy_client->ps.number = 1;
+    enemy_client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    attacker = alloc_test_unit(MAKEFOURCC('u','u','f','w'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    trainee = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    attacker->data.UnitAbilities = &frost_wyrm_abilities;
+    attacker->s.player = 0;
+    building->s.player = trainee->s.player = 1;
+    building->s.flags |= EF_BUILDING;
+    building->svflags |= SVF_MONSTER;
+    building->health.value = building->health.max_value = 1000.0f;
+    building->build = trainee;
+    trainee->data.UnitBalance = &trainee_balance;
+    trainee->health.value = 25.0f;
+    trainee->health.max_value = 100.0f;
+    G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
+
+    T_EQ(G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','r','z')), 1u);
+    T_FEQ(S_SpellDuration(MAKEFOURCC('A','f','r','z'), 1, false), 5.0f, 0.001f);
+    T_STREQ(S_SpellBuffId(MAKEFOURCC('A','f','r','z'), 1), "Bfrz");
+    T_ASSERT(S_SpellIsEnemy(attacker, building));
+    S_ResolveAttackHit(attacker, building, 10);
+    T_ASSERT(building->health.value < 1000.0f);
+    T_NULL(unit_findstatus(building, MAKEFOURCC('B','f','r','z')));
+    T_ASSERT(!S_UnitIsFreezingBreathFrozen(building));
+
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','u','f','b'), 1);
+    S_ResolveAttackHit(attacker, building, 10);
+    frozen = unit_findstatus(building, MAKEFOURCC('B','f','r','z'));
+    T_NOT_NULL(frozen);
+    T_EQ(frozen ? frozen->timestamp : 0u, G_Time() + 5000u);
+    T_ASSERT(S_UnitIsFreezingBreathFrozen(building));
+    FILTER_EDICTS(effect, effect->inuse && effect->goalentity == building && effect->s.model)
+        target_effect = effect;
+    T_NOT_NULL(target_effect);
+    if (target_effect) T_STREQ(building_image_path, "TestUI\\Models\\freezing-breath-target.mdx");
+
+    ai_train_build(building);
+    T_FEQ(trainee->health.value, 25.0f, 0.001f);
+
+    level.time += 5000;
+    unit_updatestatuses(building);
+    T_ASSERT(!S_UnitIsFreezingBreathFrozen(building));
+    ai_train_build(building);
+    T_ASSERT(trainee->health.value > 25.0f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+    G_SetSLKRows("AbilityBuffData", old_buff);
+    free_slk_rows(buff_rows);
+    G_TestPopAbilityConfig();
+    gi.ModelIndex = old_model_index;
+}
+
+TEST(wc3_building, freezing_breath_indicator_is_disabled_until_researched) {
+    static UnitAbilities_t const abilities = { .abilList = "Afrz" };
+    static UnitBalance_t const balance = { .upgrades = "" };
+    gameClient_t *client;
+    edict_t *wyrm;
+    gameCommandButton_t buttons[16], freezing_breath;
+    uint8_t count;
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    uint32_t const research = MAKEFOURCC('R','u','f','b');
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*test_cvar)(cstring_t, cstring_t) = NULL;
+    static cstring_t const ability_config =
+        "[Afrz]\nArt=ReplaceableTextures\\CommandButtons\\BTNFrostWyrm.blp\n"
+        "Buttonpos=0,2\nTip=Freezing Breath\nUbertip=Halts enemy buildings.\n"
+        "[Rufb]\nName=Freezing Breath\nTip=Research Freezing |cffffcc00B|rreath\n";
+
+    reset_entities(); setup_test_world();
+    client = &game.clients[0]; client->ps.number = 0;
+    memcpy(old_tech, client->tech, sizeof(old_tech));
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, research, 1);
+    wyrm = alloc_test_unit(MAKEFOURCC('u','u','f','w'), 64, 64);
+    wyrm->s.player = 0;
+    wyrm->data.UnitAbilities = &abilities;
+    wyrm->data.UnitBalance = &balance;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    test_cvar = building_freezing_breath_roc_cvar;
+    gi.CvarString = test_cvar;
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(!building_find_command(buttons, count, "Afrz", NULL));
+    test_cvar = building_freezing_breath_tft_cvar;
+    gi.CvarString = test_cvar;
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Afrz", &freezing_breath));
+    T_ASSERT(freezing_breath.indicator && freezing_breath.disabled &&
+             freezing_breath.indicator_dimmed);
+    T_NOT_NULL(strstr(freezing_breath.ubertip, "Requires:"));
+    T_NOT_NULL(strstr(freezing_breath.ubertip, "Freezing Breath"));
+    T_NOT_NULL(strstr(freezing_breath.ubertip, " - Freezing Breath|r"));
+
+    G_SetPlayerTechResearched(client, research, 1);
+    count = G_GetCommandButtons(wyrm, buttons, 16);
+    T_ASSERT(building_find_command(buttons, count, "Afrz", &freezing_breath));
+    T_ASSERT(freezing_breath.indicator && !freezing_breath.disabled &&
+             !freezing_breath.indicator_dimmed);
+    T_ASSERT(!strstr(freezing_breath.ubertip, "Requires:"));
+
+    memcpy(client->tech, old_tech, sizeof(old_tech));
+    gi.CvarString = previous_cvar;
+    G_TestPopAbilityConfig();
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
@@ -1598,6 +1944,95 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, destroyer_form_requires_researched_rusp_before_casting) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X32;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X10;K\"checkDep\"\n"
+        "C;X11;K\"levels\"\nC;X23;K\"DataA1\"\nC;X32;K\"UnitID1\"\n"
+        "C;X1;Y2;K\"Aave\"\nC;X2;K\"Aave\"\nC;X10;K1\nC;X11;K1\n"
+        "C;X23;K\"uobs\"\nC;X32;K\"ubsp\"\nE\n";
+    static char const upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X2;K\"class\"\nC;X3;K\"maxlevel\"\n"
+        "C;X1;Y2;K\"Rusp\"\nC;X2;K\"undead\"\nC;X3;K1\nE\n";
+    static char const balance_slk[] =
+        "ID;PWXL;N;E\nB;X50;Y3;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"goldcost\"\n"
+        "C;X3;K\"lumbercost\"\nC;X4;K\"fused\"\nC;X50;K\"upgrades\"\n"
+        "C;X1;Y2;K\"uobs\"\nC;X2;K200\nC;X3;K35\nC;X4;K3\nC;X50;K\"Rusp,Rguv\"\n"
+        "C;X1;Y3;K\"ubsp\"\nC;X2;K200\nC;X3;K35\nC;X4;K3\nE\n";
+    static char const ability_config[] =
+        "[Aave]\nArt=BTNDestroyerForm.blp\nButtonpos=3,0\nTip=Destroyer Form\n";
+    static UnitAbilities_t const abilities = { .abilList = "Aave" };
+    UnitBalance_t source_balance = {
+        .id = MAKEFOURCC('u','o','b','s'), .goldCost = 200,
+        .lumberCost = 35, .foodUsed = 3, .upgrades = "Rusp,Rguv"
+    };
+    slkTestData_t *ability_rows, *old_abilities;
+    slkTestData_t *upgrade_rows, *old_upgrades;
+    slkTestData_t *balance_rows, *old_balance;
+    gameClient_t *owner;
+    edict_t *statue;
+    abilityitem_t item;
+    abilityCall_t call;
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found = false;
+    uint32_t const destroyer_form = MAKEFOURCC('A','a','v','e');
+    uint32_t const research = MAKEFOURCC('R','u','s','p');
+
+    reset_entities(); setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    upgrade_rows = parse_slk_string(upgrade_slk);
+    old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    balance_rows = parse_slk_string(balance_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    owner = &game.clients[0];
+    memset(owner->tech, 0, sizeof(owner->tech));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    G_SetPlayerTechMaxAllowed(owner, research, 1);
+    statue = alloc_test_unit(MAKEFOURCC('u','o','b','s'), 0, 0);
+    statue->s.player = owner->ps.number;
+    statue->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    statue->data.UnitBalance = &source_balance;
+    statue->mana.value = 100.0f;
+    item = S_AbilityItem(destroyer_form);
+    call = MAKE(abilityCall_t, .item = &item,
+                .target = &(spellTarget_t){ .type = SPELL_TARGET_NONE });
+
+    T_ASSERT(G_UnitAbilityResearchVisible(statue, destroyer_form));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(statue, destroyer_form));
+    count = G_GetCommandButtons(statue, buttons, 16);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aave")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    T_ASSERT(!S_CastNoTargetSpell(statue, destroyer_form));
+    T_ASSERT(!S_AbilityMessage(statue, A_VALIDATE, &call));
+    T_EQ(statue->class_id, MAKEFOURCC('u','o','b','s'));
+
+    G_SetPlayerTechResearched(owner, research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(statue, destroyer_form));
+    T_ASSERT(S_AbilityMessage(statue, A_VALIDATE, &call));
+    count = G_GetCommandButtons(statue, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aave")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
+    G_SetSLKRows("UpgradeData", old_upgrades); free_slk_rows(upgrade_rows);
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(ability_rows);
+}
+
 TEST(wc3_building, passive_true_sight_and_spell_immunity_show_disabled_indicators) {
     static UnitAbilities_t const effect_abilities = {
         .abilList = "Agyv,Atru,Adtg,Amim,ACmi,ACm2,ACm3"
@@ -1655,6 +2090,302 @@ TEST(wc3_building, dryad_slow_poison_shows_disabled_passive_indicator) {
         T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNSlowPoison.blp");
     }
     T_ASSERT(found);
+}
+
+TEST(wc3_building, dragon_turtle_spiked_shell_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const dragon_turtle_abilities = {
+        .abilList = "ACc2,ACdv,Advc,ANt2"
+    };
+    static cstring_t const ability_config =
+        "[ANt2]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNThornShield.blp\n"
+        "Buttonpos=2,2\nTip=Spiked Shell\n";
+    gameCommandButton_t buttons[16];
+    edict_t *dragon_turtle;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    dragon_turtle = alloc_test_unit(MAKEFOURCC('n','t','r','d'), 0, 0);
+    dragon_turtle->data.UnitAbilities = (UnitAbilities_t *)&dragon_turtle_abilities;
+    count = G_GetCommandButtons(dragon_turtle, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "ANt2")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNThornShield.blp");
+        T_STREQ(buttons[i].tooltip, "Spiked Shell");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_building, dragon_turtle_hardened_skin_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const dragon_turtle_abilities = { .abilList = "Ansk" };
+    static cstring_t const ability_config =
+        "[Ansk]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNHardenedSkin.blp\n"
+        "Buttonpos=2,2\nTip=Hardened Skin\n";
+    gameCommandButton_t buttons[16];
+    edict_t *dragon_turtle;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    dragon_turtle = alloc_test_unit(MAKEFOURCC('n','t','r','d'), 0, 0);
+    dragon_turtle->data.UnitAbilities = (UnitAbilities_t *)&dragon_turtle_abilities;
+    count = G_GetCommandButtons(dragon_turtle, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ansk")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNHardenedSkin.blp");
+        T_STREQ(buttons[i].tooltip, "Hardened Skin");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_building, destroyer_command_card_keeps_all_four_retail_abilities) {
+    static char const abilities_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"Aave\"\nC;Y1;X2;K\"DataA1\"\n"
+        "C;Y1;X3;K\"UnitID1\"\nC;Y1;X4;K\"levels\"\n"
+        "C;Y2;X1;K\"Aave\"\nC;Y2;X2;K\"uobs\"\n"
+        "C;Y2;X3;K\"ubsp\"\nC;Y2;X4;K\"1\"\nE\n";
+    static char const balance_slk[] =
+        "ID;PWXL;N;EBB;Y3;X1\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y2;X1;K\"uobs\"\nC;Y3;X1;K\"ubsp\"\nE\n";
+    static char const ability_config[] =
+        "[Aave]\nArt=BTNDestroyerForm.blp\nButtonpos=3,0\nTip=Destroyer Form\n"
+        "[Advm]\nArt=BTNDevourMagic.blp\nButtonpos=0,2\nTip=Devour Magic\n"
+        "[Afak]\nArt=BTNOrbOfDeathOn.blp\nButtonpos=1,2\nTip=Orb of Annihilation\n"
+        "[Aabs]\nArt=BTNAbsorbMana.blp\nTip=Absorb Mana\n"
+        "[ACmi]\nArt=PASBTNMagicImmunity.blp\nButtonpos=2,2\nTip=Spell Immunity\n";
+    static UnitAbilities_t const destroyer_abilities = {
+        .abilList = "Advm,Afak,Aave,Aabs,ACmi"
+    };
+    slkTestData_t *ability_rows, *old_abilities;
+    slkTestData_t *balance_rows, *old_balance;
+    UnitBalance_t destroyer_balance = { .id = MAKEFOURCC('u','b','s','p') };
+    gameCommandButton_t buttons[16];
+    edict_t *destroyer;
+    uint8_t count;
+    bool has_devour = false, has_orb = false, has_immunity = false, has_absorb = false;
+    bool has_morph = false;
+
+    reset_entities(); setup_test_world();
+    ability_rows = parse_slk_string(abilities_slk);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    balance_rows = parse_slk_string(balance_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    destroyer = alloc_test_unit(MAKEFOURCC('u','b','s','p'), 0, 0);
+    destroyer->data.UnitAbilities = (UnitAbilities_t *)&destroyer_abilities;
+    destroyer->data.UnitBalance = &destroyer_balance;
+    count = G_GetCommandButtons(destroyer, buttons, 16);
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "Advm")) {
+            has_devour = true;
+            T_EQ(buttons[i].x, 0);
+            T_EQ(buttons[i].y, 2);
+        }
+        if (!strcmp(buttons[i].command, "Afak")) {
+            has_orb = true;
+            T_EQ(buttons[i].x, 1);
+            T_EQ(buttons[i].y, 2);
+        }
+        if (!strcmp(buttons[i].command, "ACmi")) {
+            has_immunity = true;
+            T_EQ(buttons[i].x, 2);
+            T_EQ(buttons[i].y, 2);
+        }
+        if (!strcmp(buttons[i].command, "Aabs")) {
+            has_absorb = true;
+            T_EQ(buttons[i].x, 3);
+            T_EQ(buttons[i].y, 2);
+        }
+        has_morph |= !strcmp(buttons[i].command, "Aave");
+    }
+    T_ASSERT(has_devour);
+    T_ASSERT(has_orb);
+    T_ASSERT(has_immunity);
+    T_ASSERT(has_absorb);
+    T_ASSERT(!has_morph);
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(ability_rows);
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
+}
+
+TEST(wc3_building, naga_royal_guard_resistant_skin_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const naga_royal_guard_abilities = {
+        .abilList = "ACsk"
+    };
+    static cstring_t const ability_config =
+        "[ACsk]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNResistantSkin.blp\n"
+        "Buttonpos=2,2\nTip=Resistant Skin\n";
+    gameCommandButton_t buttons[16];
+    edict_t *naga_royal_guard;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    naga_royal_guard = alloc_test_unit(MAKEFOURCC('n','n','r','g'), 0, 0);
+    naga_royal_guard->data.UnitAbilities = (UnitAbilities_t *)&naga_royal_guard_abilities;
+    count = G_GetCommandButtons(naga_royal_guard, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "ACsk")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\PassiveButtons\\PASBTNResistantSkin.blp");
+        T_STREQ(buttons[i].tooltip, "Resistant Skin");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_building, spell_breaker_feedback_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const spell_breaker_abilities = { .abilList = "Afbk" };
+    gameCommandButton_t buttons[16];
+    edict_t *spell_breaker;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    spell_breaker = alloc_test_unit(MAKEFOURCC('h','s','p','t'), 0, 0);
+    spell_breaker->data.UnitAbilities = (UnitAbilities_t *)&spell_breaker_abilities;
+    count = G_GetCommandButtons(spell_breaker, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Afbk")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+}
+
+TEST(wc3_building, draenei_elite_assassin_critical_strike_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const assassin_abilities = { .abilList = "ACct" };
+    gameCommandButton_t buttons[16];
+    edict_t *assassin;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    assassin = alloc_test_unit(MAKEFOURCC('n','d','e','a'), 0, 0);
+    assassin->data.UnitAbilities = (UnitAbilities_t *)&assassin_abilities;
+    count = G_GetCommandButtons(assassin, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "ACct")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\CommandButtons\\BTNCriticalStrike.blp");
+        T_STREQ(buttons[i].tooltip, "Critical Strike");
+    }
+    T_ASSERT(found);
+}
+
+TEST(wc3_building, draenei_saboteur_liquid_fire_shows_disabled_passive_indicator) {
+    static UnitAbilities_t const saboteur_abilities = { .abilList = "Aliq" };
+    gameCommandButton_t buttons[16];
+    edict_t *saboteur;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    saboteur = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    saboteur->data.UnitAbilities = (UnitAbilities_t *)&saboteur_abilities;
+    count = G_GetCommandButtons(saboteur, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aliq")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\CommandButtons\\BTNLiquidFire.blp");
+        T_STREQ(buttons[i].tooltip, "Liquid Fire");
+    }
+    T_ASSERT(found);
+}
+
+TEST(wc3_building, draenei_saboteur_healing_wave_is_an_enabled_command) {
+    static UnitAbilities_t const saboteur_abilities = { .abilList = "Aliq,Ashm,AChv" };
+    static cstring_t const ability_config =
+        "[AChV]\nArt=ReplaceableTextures\\CommandButtons\\BTNHealingWave.blp\n"
+        "Buttonpos=0,2\n"
+        "[AChv]\nTip=Healing Wave\n"
+        "Ubertip=Calls forth a wave of healing energy that bounces up to <AChv,DataB1> times, healing <AChv,DataA1> damage on the primary target. Each jump heals less damage.\n";
+    gameCommandButton_t buttons[16];
+    edict_t *saboteur;
+    uint8_t count;
+    bool found = false;
+    bool found_hide = false;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    saboteur = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    saboteur->data.UnitAbilities = (UnitAbilities_t *)&saboteur_abilities;
+    count = G_GetCommandButtons(saboteur, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "AChv")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+        T_STREQ(buttons[i].art, "ReplaceableTextures\\CommandButtons\\BTNHealingWave.blp");
+        T_STREQ(buttons[i].tooltip, "Healing Wave");
+        T_NOT_NULL(strstr(buttons[i].ubertip,
+                          "Calls forth a wave of healing energy that bounces up to "));
+        T_NOT_NULL(strstr(buttons[i].ubertip, "Each jump heals less damage."));
+        T_EQ(buttons[i].x, 0);
+        T_EQ(buttons[i].y, 2);
+    }
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Ashm")) {
+        found_hide = true;
+        T_ASSERT(buttons[i].art[0]);
+    }
+    T_ASSERT(found);
+    T_ASSERT(found_hide);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "AChv")) {
+        FOR_LOOP(j, count) if (!strcmp(buttons[j].command, "Ashm")) {
+            T_ASSERT(buttons[i].x != buttons[j].x || buttons[i].y != buttons[j].y);
+        }
+    }
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_building, percent_tooltip_placeholders_expand_from_ability_data) {
+    static UnitAbilities_t const unit_abilities = { .abilList = "Aspo" };
+    static cstring_t const ability_config =
+        "[Aspo]\nArt=ReplaceableTextures\\PassiveButtons\\PASBTNSlowPoison.blp\n"
+        "Buttonpos=1,2\n"
+        "Ubertip=\"A poison attack that deals <Aspo,DataA1> damage per second, and slows the target enemy's movement by <Aspo,DataB1,%>% and attack by <Aspo,DataC1,%>% for <Aspo,Dur1> seconds.\"\n";
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X7;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"DataC1\"\nC;X7;K\"Dur1\"\n"
+        "C;X1;Y2;K\"Aspo\"\nC;X2;K\"Aspo\"\nC;X3;K1\n"
+        "C;X4;K4\nC;X5;K0.5\nC;X6;K0.25\nC;X7;K5\nE\n";
+    gameCommandButton_t buttons[16];
+    edict_t *unit;
+    slkTestData_t *rows = parse_slk_string(ability_slk);
+    slkTestData_t *old_rows;
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    unit = alloc_test_unit(MAKEFOURCC('n','d','s','a'), 0, 0);
+    unit->data.UnitAbilities = (UnitAbilities_t *)&unit_abilities;
+    count = G_GetCommandButtons(unit, buttons, sizeof(buttons) / sizeof(buttons[0]));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Aspo")) {
+        found = true;
+        T_STREQ(buttons[i].ubertip,
+                "A poison attack that deals 4 damage per second, and slows the target enemy's movement by 50% and attack by 25% for 5 seconds.");
+    }
+    T_ASSERT(found);
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
@@ -1953,6 +2684,8 @@ TEST(wc3_building, undead_caster_training_gates_banshee_and_necromancer_tiers) {
     buildingCasterRows_t caster_rows;
     gameClient_t *client;
     edict_t *banshee, *necromancer;
+    gameCommandButton_t buttons[16];
+    uint8_t count;
     UnitBalance_t banshee_balance = { .upgrades = "Ruba" };
     UnitBalance_t necromancer_balance = { .upgrades = "Rune" };
     UnitAbilities_t banshee_abilities = { .abilList = "Aam2,Aps2,Aams,Apos" };
@@ -1986,12 +2719,33 @@ TEST(wc3_building, undead_caster_training_gates_banshee_and_necromancer_tiers) {
     T_ASSERT(G_UnitAbilityResearchVisible(necromancer, MAKEFOURCC('A','u','h','f')));
     T_ASSERT(!G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','u','h','f')));
     T_ASSERT(!G_UnitAbilityResearchVisible(necromancer, MAKEFOURCC('A','c','r','i')));
+    count = G_GetCommandButtons(necromancer, buttons, 16);
+    {
+        bool found = false;
+        FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Auhf")) {
+            found = true;
+            T_ASSERT(buttons[i].disabled);
+            T_NOT_NULL(strstr(buttons[i].ubertip, "Requires:"));
+            T_NOT_NULL(strstr(buttons[i].ubertip, "Necromancer Adept Training"));
+        }
+        T_ASSERT(found);
+    }
 
     G_SetPlayerTechResearched(client, banshee_training, 1);
     G_SetPlayerTechResearched(client, necromancer_training, 1);
     T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','2')));
     T_ASSERT(G_UnitAbilityResearchAvailable(banshee, MAKEFOURCC('A','a','m','s')));
     T_ASSERT(G_UnitAbilityResearchAvailable(necromancer, MAKEFOURCC('A','u','h','f')));
+    count = G_GetCommandButtons(necromancer, buttons, 16);
+    {
+        bool found = false;
+        FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Auhf")) {
+            found = true;
+            T_ASSERT(!buttons[i].disabled);
+            T_ASSERT(!strstr(buttons[i].ubertip, "Requires:"));
+        }
+        T_ASSERT(found);
+    }
 
     G_SetPlayerTechMaxAllowed(client, banshee_training, 2);
     G_SetPlayerTechMaxAllowed(client, necromancer_training, 2);
@@ -2177,6 +2931,124 @@ TEST(wc3_building, night_elf_caster_training_gates_druid_and_dryad_spells) {
     G_SetPlayerTechMaxAllowed(client, druid_training, -1);
     G_SetPlayerTechMaxAllowed(client, dryad_training, -1);
     building_restore_caster_data(caster_rows);
+}
+
+TEST(wc3_building, druid_of_talon_adept_training_unlocks_storm_crow_and_mana) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"checkDep\"\n"
+        "C;X1;Y2;K\"Arav\"\nC;X2;K\"Arav\"\nC;X3;K1\nE\n";
+    gameClient_t *client;
+    edict_t *talon;
+    UnitBalance_t balance = { .upgrades = "Redt", .manaRegen = 0.0f };
+    UnitAbilities_t abilities = { .abilList = "Arav" };
+    slkTestData_t *upgrade_rows = NULL, *old_upgrades;
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_abilities;
+    uint32_t const training = MAKEFOURCC('R','e','d','t');
+    uint32_t const storm_crow = MAKEFOURCC('A','r','a','v');
+
+    setup_test_world();
+    old_upgrades = building_install_upgrade_data(&upgrade_rows);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, training, 2);
+    talon = alloc_test_unit(MAKEFOURCC('e','d','o','t'), 0, 0);
+    talon->s.player = client->ps.number;
+    talon->data.UnitBalance = &balance;
+    talon->data.UnitAbilities = &abilities;
+    talon->mana.max_value = 0.0f;
+    talon->mana.value = 0.0f;
+
+    T_ASSERT(G_UnitAbilityResearchVisible(talon, storm_crow));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(talon, storm_crow));
+
+    G_SetPlayerTechResearched(client, training, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(talon, storm_crow));
+    T_FEQ(talon->mana.max_value, 100.0f, 0.001f);
+    T_FEQ(talon->unit_state->mana_regen_bonus, 0.325f, 0.001f);
+
+    G_SetPlayerTechResearched(client, training, 2);
+    T_FEQ(talon->mana.max_value, 200.0f, 0.001f);
+    T_FEQ(talon->unit_state->mana_regen_bonus, 0.65f, 0.001f);
+
+    G_SetPlayerTechResearched(client, training, 0);
+    G_SetPlayerTechMaxAllowed(client, training, -1);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(ability_rows);
+    building_restore_upgrade_data(old_upgrades, upgrade_rows);
+}
+
+TEST(wc3_building, druid_of_talon_cyclone_requires_master_training) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"checkDep\"\n"
+        "C;X1;Y2;K\"Acyc\"\nC;X2;K\"Acyc\"\nC;X3;K1\nE\n";
+    static UnitAbilities_t const talon_abilities = { .abilList = "Acyc" };
+    static cstring_t const ability_config =
+        "[Acyc]\nArt=ReplaceableTextures\\CommandButtons\\BTNCyclone.blp\n"
+        "Buttonpos=1,2\nTip=Cyclone\n";
+    gameClient_t *client;
+    edict_t *talon;
+    UnitBalance_t balance = { .upgrades = "Redt" };
+    slkTestData_t *upgrade_rows = NULL, *old_upgrades;
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_abilities;
+    uint32_t const training = MAKEFOURCC('R','e','d','t');
+    uint32_t const cyclone = MAKEFOURCC('A','c','y','c');
+    gameCommandButton_t buttons[16];
+    uint8_t count;
+    bool found;
+
+    setup_test_world();
+    old_upgrades = building_install_upgrade_data(&upgrade_rows);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    client = &game.clients[0];
+    client->ps.number = 0;
+    memset(client->tech, 0, sizeof(client->tech));
+    G_SetPlayerTechMaxAllowed(client, training, 2);
+    talon = alloc_test_unit(MAKEFOURCC('e','d','o','t'), 0, 0);
+    talon->s.player = client->ps.number;
+    talon->data.UnitBalance = &balance;
+    talon->data.UnitAbilities = &talon_abilities;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    T_ASSERT(G_UnitAbilityResearchVisible(talon, cyclone));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(talon, cyclone));
+    count = G_GetCommandButtons(talon, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acyc")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(client, training, 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(talon, cyclone));
+    count = G_GetCommandButtons(talon, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acyc")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(client, training, 2);
+    T_ASSERT(G_UnitAbilityResearchAvailable(talon, cyclone));
+    count = G_GetCommandButtons(talon, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Acyc")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(client, training, 0);
+    G_SetPlayerTechMaxAllowed(client, training, -1);
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(ability_rows);
+    building_restore_upgrade_data(old_upgrades, upgrade_rows);
 }
 
 TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
@@ -7466,8 +8338,204 @@ static cstring_t building_spikes_modern_cvar(cstring_t name, cstring_t fallback)
     return !strcmp(name, "wc3_spiked_barricades_modern") ? "1" : fallback;
 }
 
+static cstring_t building_tft_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+static cstring_t building_roc_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+TEST(wc3_building, crypt_fiend_burrow_is_a_tft_research_gated_command) {
+    static UnitAbilities_t const abilities = { .abilList = "Abur" };
+    static cstring_t const ability_config =
+        "[Abur]\nArt=ReplaceableTextures\\CommandButtons\\BTNBurrow.blp\n"
+        "Buttonpos=0,2\nTip=Burrow\n"
+        "[Rubu]\nName=Burrow\n";
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner = &game.clients[0];
+    playerTechState_t old_tech[MAX_PLAYER_TECH_STATE];
+    edict_t *fiend;
+    gameCommandButton_t buttons[16];
+    uint32_t const burrow = MAKEFOURCC('A','b','u','r');
+    uint32_t const research = MAKEFOURCC('R','u','b','u');
+    uint8_t count;
+    bool found;
+
+    reset_entities(); setup_test_world();
+    owner = &game.clients[0]; owner->ps.number = 0;
+    memcpy(old_tech, owner->tech, sizeof(old_tech));
+    memset(owner->tech, 0, sizeof(owner->tech));
+    G_SetPlayerTechMaxAllowed(owner, research, 1);
+    fiend = alloc_test_unit(MAKEFOURCC('u','c','r','y'), 0, 0);
+    fiend->s.player = owner->ps.number;
+    fiend->data.UnitAbilities = &abilities;
+    fiend->unit_state->ranks[0] = MAKE(heroability_t, .code = burrow, .level = 1);
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    gi.CvarString = building_roc_cvar;
+    T_ASSERT(!G_UnitAbilityResearchVisible(fiend, burrow));
+    count = G_GetCommandButtons(fiend, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Abur")) found = true;
+    T_ASSERT(!found);
+
+    gi.CvarString = building_tft_cvar;
+    T_ASSERT(G_UnitAbilityResearchVisible(fiend, burrow));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(fiend, burrow));
+    count = G_GetCommandButtons(fiend, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Abur")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+        T_NOT_NULL(strstr(buttons[i].ubertip, "Requires:"));
+        T_NOT_NULL(strstr(buttons[i].ubertip, "Burrow"));
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(owner, research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(fiend, burrow));
+    count = G_GetCommandButtons(fiend, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Abur")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+        T_ASSERT(!strstr(buttons[i].ubertip, "Requires:"));
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(owner, research, 0);
+    G_SetPlayerTechMaxAllowed(owner, research, -1);
+    G_TestPopAbilityConfig();
+    gi.CvarString = previous_cvar;
+    memcpy(owner->tech, old_tech, sizeof(old_tech));
+}
+
+TEST(wc3_building, tft_necromancer_raise_dead_is_available_before_skeletal_mastery) {
+    static UnitAbilities_t const abilities = { .abilList = "Arai" };
+    static UnitBalance_t const balance = { .upgrades = "Rusm" };
+    static cstring_t const skeletal_mastery_slk =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;Y1;X2;K\"effect1\"\n"
+        "C;Y1;X3;K\"code1\"\nC;Y1;X4;K\"maxlevel\"\n"
+        "C;Y2;X1;K\"Rusm\"\nC;Y2;X2;K\"rlev\"\n"
+        "C;Y2;X3;K\"Arai\"\nC;Y2;X4;K1\nE\n";
+    static cstring_t const ability_config =
+        "[Arai]\nArt=ReplaceableTextures\\CommandButtons\\BTNRaiseDead.blp\n"
+        "Buttonpos=0,0\nTip=Raise Dead\n";
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner;
+    edict_t *necromancer;
+    slkTestData_t *upgrade_rows = parse_slk_string(skeletal_mastery_slk);
+    slkTestData_t *old_upgrade_rows;
+    gameCommandButton_t buttons[16];
+    uint32_t const skeletal_mastery = MAKEFOURCC('R','u','s','m');
+    uint32_t const raise_dead = MAKEFOURCC('A','r','a','i');
+    uint8_t count;
+    bool found = false;
+
+    reset_entities();
+    setup_test_world();
+    old_upgrade_rows = G_SetSLKRows("UpgradeData", upgrade_rows);
+    owner = &game.clients[0];
+    owner->ps.number = 0;
+    G_SetPlayerTechMaxAllowed(owner, skeletal_mastery, 1);
+    necromancer = alloc_test_unit(MAKEFOURCC('u','n','e','c'), 0, 0);
+    necromancer->s.player = owner->ps.number;
+    necromancer->data.UnitAbilities = (UnitAbilities_t *)&abilities;
+    necromancer->data.UnitBalance = (UnitBalance_t *)&balance;
+    gi.CvarString = building_tft_cvar;
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+
+    T_EQ(G_UnitAbilityLevel(necromancer, raise_dead), 1u);
+    T_ASSERT(G_UnitAbilityResearchVisible(necromancer, raise_dead));
+    T_ASSERT(G_UnitAbilityResearchAvailable(necromancer, raise_dead));
+    count = G_GetCommandButtons(necromancer, buttons, 16);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Arai")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    /* Skeletal Mastery is still recognized as the ability's rank upgrade. */
+    G_SetPlayerTechResearched(owner, skeletal_mastery, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(necromancer, raise_dead));
+    T_EQ(G_UnitAbilityLevel(necromancer, raise_dead), 2u);
+
+    G_SetPlayerTechResearched(owner, skeletal_mastery, 0);
+    T_EQ(G_UnitAbilityLevel(necromancer, raise_dead), 1u);
+    G_SetPlayerTechMaxAllowed(owner, skeletal_mastery, -1);
+    G_TestPopAbilityConfig();
+    gi.CvarString = previous_cvar;
+    G_SetSLKRows("UpgradeData", old_upgrade_rows);
+    free_slk_rows(upgrade_rows);
+}
+
 static cstring_t building_spikes_classic_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_spiked_barricades_modern") ? "0" : fallback;
+}
+
+TEST(wc3_building, enchanted_crows_gates_faerie_fire_in_storm_crow_form) {
+    static UnitAbilities_t const crow_abilities = { .abilList = "Afa2" };
+    static UnitAbilities_t const talon_abilities = { .abilList = "Afae" };
+    static cstring_t const ability_config =
+        "[Afa2]\nArt=ReplaceableTextures\\CommandButtons\\BTNFaerieFire.blp\n"
+        "Buttonpos=0,2\nTip=Faerie Fire\n";
+    cstring_t (*previous_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *owner;
+    edict_t *crow, *druid;
+    gameCommandButton_t buttons[16];
+    uint32_t const mark = MAKEFOURCC('R','e','e','c');
+    uint8_t count;
+    bool found;
+
+    reset_entities();
+    setup_test_world();
+    owner = &game.clients[0];
+    owner->ps.number = 0;
+    memset(owner->tech, 0, sizeof(owner->tech));
+    G_SetPlayerTechMaxAllowed(owner, mark, 1);
+    crow = alloc_test_unit(MAKEFOURCC('e','d','t','m'), 0, 0);
+    crow->s.player = owner->ps.number;
+    crow->data.UnitAbilities = &crow_abilities;
+    druid = alloc_test_unit(MAKEFOURCC('e','d','o','t'), 64, 0);
+    druid->s.player = owner->ps.number;
+    druid->data.UnitAbilities = &talon_abilities;
+
+    T_ASSERT(G_TestPushAbilityConfig(ability_config));
+    gi.CvarString = building_roc_cvar;
+    T_ASSERT(!G_UnitAbilityResearchVisible(crow, MAKEFOURCC('A','f','a','2')));
+    count = G_GetCommandButtons(crow, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Afa2")) found = true;
+    T_ASSERT(!found);
+
+    gi.CvarString = building_tft_cvar;
+    T_ASSERT(G_UnitAbilityResearchVisible(crow, MAKEFOURCC('A','f','a','2')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(crow, MAKEFOURCC('A','f','a','2')));
+    count = G_GetCommandButtons(crow, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Afa2")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(owner, mark, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(crow, MAKEFOURCC('A','f','a','2')));
+    count = G_GetCommandButtons(crow, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Afa2")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+    T_ASSERT(G_UnitAbilityResearchAvailable(druid, MAKEFOURCC('A','f','a','e')));
+
+    G_SetPlayerTechResearched(owner, mark, 0);
+    G_SetPlayerTechMaxAllowed(owner, mark, -1);
+    G_TestPopAbilityConfig();
+    gi.CvarString = previous_cvar;
 }
 
 TEST(wc3_building, spiked_barricades_research_uses_owner_tech_and_classic_upgrade_data) {

@@ -223,6 +223,10 @@ typedef struct {
     uint16_t game_variant;      /* opaque game-owned local presentation variant */
     uint32_t rdflags;
     uint32_t hover_entity;     /* entity under mouse cursor (0 = none) */
+    /* Optional local world-space cursor area. The game renderer decides
+     * whether and how world objects react; zero radius disables it. */
+    vec2_t cursor_area_origin;
+    float cursor_area_radius;
     uint32_t fow_width, fow_height, fow_generation;
     uint8_t const *fow_data;
     terrainMask_t terrain_mask;

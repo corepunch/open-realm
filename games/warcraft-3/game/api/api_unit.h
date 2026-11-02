@@ -999,9 +999,15 @@ uint32_t IsUnitEnemy(jass_t *j) {
         !G_PlayerTreatsPlayerAsAlly(PLAYER_NUM(whichPlayer), whichUnit->s.player));
 }
 uint32_t IsUnitVisible(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    player_t *whichPlayer = jass_checkhandle(j, 2, "player");
+    uint32_t viewer;
+    if (!whichUnit || !whichUnit->inuse || !whichPlayer) return jass_pushboolean(j, 0);
+    viewer = PLAYER_NUM(whichPlayer);
+    /* The native asks for current unit visibility, not remembered buildings
+     * in explored fog. This includes Faerie Fire's target-only sight. */
+    return jass_pushboolean(j, !S_UnitIsHiddenFromPlayer(whichUnit, viewer) &&
+        G_FowPlayerCanHoverEntity(viewer, whichUnit));
 }
 uint32_t IsUnitDetected(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

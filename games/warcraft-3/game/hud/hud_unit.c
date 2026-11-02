@@ -95,6 +95,10 @@ static cstring_t G_CommandArtCode(edict_t *ent, cstring_t code) {
     if (!strcmp(code, STR_CmdBuild)) {
         return GetBuildCommand(WC3_RaceFromString(ent->data.UnitData->race));
     }
+    /* Ability rawcode is AChv, but retail AbilityFunc data uses [AChV].
+     * INI section lookup is case-sensitive, so use the authored spelling for
+     * presentation fields such as Art and Buttonpos. */
+    if (!strcmp(code, "AChv")) return "AChV";
     return code;
 }
 
@@ -136,13 +140,26 @@ static cstring_t G_ProcessTooltipString(cstring_t input) {
         if (*p == '<') {
             char classname[16];
             char field[16];
+            char format[16] = "";
             cstring_t replacement;
-            int matched = sscanf(p, "<%15[^,],%15[^>]>", classname, field);
+            int matched = sscanf(p, "<%15[^,],%15[^,>],%15[^>]>", classname, field, format);
 
             if (matched == 2 && (replacement = G_AbilityString(classname, field))) {
                 strncat(out, replacement, sizeof(buffers[0]) - strlen(out) - 1);
                 p += strlen(classname) + strlen(field) + 2;
                 continue;
+            }
+            if (matched == 3 && !strcmp(format, "%") &&
+                (replacement = G_AbilityString(classname, field))) {
+                char *end;
+                double const value = strtod(replacement, &end);
+                if (end != replacement && !*end) {
+                    char percent[32];
+                    snprintf(percent, sizeof(percent), "%.0f", value * 100.0);
+                    strncat(out, percent, sizeof(buffers[0]) - strlen(out) - 1);
+                    p += strlen(classname) + strlen(field) + strlen(format) + 3;
+                    continue;
+                }
             }
         }
         strncat(out, p, 1);
@@ -287,12 +304,47 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     buttonpos = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNBUTTONPOS) : NULL, toggle_on);
+    /* Keep the retail Healing Wave position if a compatibility data set omits
+     * its command presentation row. */
+    if ((!buttonpos || !*buttonpos) && !research && !strcmp(code, "AChv")) {
+        buttonpos = "0,2";
+    }
     tip = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_TIP, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNTIP) : NULL, toggle_on);
+    if ((!tip || !*tip) && strcmp(code, art_code)) {
+        tip = FindConfigValue(code, G_ResearchField(STR_TIP, research && !upgrade_research));
+    }
+    /* Some stock abilities, including Destroyer Form (Aave), author a Name
+     * but omit Tip and Ubertip. Keep their command buttons discoverable by
+     * using that authored display name as the tooltip heading. */
+    if (!tip || !*tip) tip = FindConfigValue(code, "Name");
+    /* Feedback is a passive Spell Breaker ability and some data sets omit
+     * its command-card presentation row. Keep the indicator visible with the
+     * stock passive icon when no authored art is available. */
+    if ((!art || !*art) && !research && !strcmp(code, "Afbk")) {
+        art = "ReplaceableTextures\\CommandButtons\\BTNFeedback.blp";
+        if (!tip || !*tip) tip = "Feedback";
+    }
+    if ((!art || !*art) && !research &&
+        (!strcmp(code, "ACct") || !strcmp(code, "AOcr"))) {
+        art = "ReplaceableTextures\\CommandButtons\\BTNCriticalStrike.blp";
+        if (!tip || !*tip) tip = "Critical Strike";
+    }
+    if ((!art || !*art) && !research && !strcmp(code, "Aliq")) {
+        art = "ReplaceableTextures\\CommandButtons\\BTNLiquidFire.blp";
+        if (!tip || !*tip) tip = "Liquid Fire";
+    }
+    if ((!art || !*art) && !research && !strcmp(code, "AChv")) {
+        art = "ReplaceableTextures\\CommandButtons\\BTNHealingWave.blp";
+    }
     ubertip = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNUBERTIP) : NULL, toggle_on);
+    if ((!ubertip || !*ubertip) && strcmp(code, art_code)) {
+        ubertip = FindConfigValue(code, G_ResearchField(STR_UBERTIP, research && !upgrade_research));
+    }
+    if ((!tip || !*tip) && !research && !strcmp(code, "AChv")) tip = "Healing Wave";
     hotkey = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_HOTKEY, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNHOTKEY) : NULL, toggle_on);
@@ -455,6 +507,30 @@ static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t coun
     return false;
 }
 
+static void G_AddResearchRequirementTooltip(gameCommandButton_t *button, uint32_t research,
+                                            int32_t required_level) {
+    char code[5] = {0};
+    char description[sizeof(button->ubertip)];
+    cstring_t name;
+
+    if (!button || !research) return;
+    memcpy(code, &research, 4);
+    name = FindConfigValue(code, "Name");
+    if (!name || !*name) name = FindConfigValue(code, STR_TIP);
+    if (!name || !*name) name = code;
+    name = G_CleanTooltipString(G_StringForLevel(name, (uint32_t)MAX(1, required_level)), 0);
+    strlcpy(description, button->ubertip, sizeof(description));
+    button->ubertip[0] = '\0';
+    strlcpy(button->ubertip, "|cffffcc00Requires:|r|n|cffffcc00 - ",
+            sizeof(button->ubertip));
+    strlcat(button->ubertip, name, sizeof(button->ubertip));
+    strlcat(button->ubertip, "|r", sizeof(button->ubertip));
+    if (description[0]) {
+        strlcat(button->ubertip, "|n", sizeof(button->ubertip));
+        strlcat(button->ubertip, description, sizeof(button->ubertip));
+    }
+}
+
 static void G_AddMagicSentryIndicator(edict_t *ent, gameCommandButton_t *buttons,
                                       uint8_t max_buttons, uint8_t *count) {
     static uint32_t const ability = MAKEFOURCC('A', 'd', 't', 's');
@@ -469,7 +545,7 @@ static void G_AddMagicSentryIndicator(edict_t *ent, gameCommandButton_t *buttons
 
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, "Adts", false, 0);
-    if (*count > index) buttons[index].disabled = 1;
+    if (*count > index) { buttons[index].disabled = 1; buttons[index].indicator = 1; }
 }
 
 static void G_AddPillageIndicator(edict_t *ent, gameCommandButton_t *buttons,
@@ -486,7 +562,7 @@ static void G_AddPillageIndicator(edict_t *ent, gameCommandButton_t *buttons,
 
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, "Asal", false, 0);
-    if (*count > index) buttons[index].disabled = 1;
+    if (*count > index) { buttons[index].disabled = 1; buttons[index].indicator = 1; }
 }
 
 static void G_AddDiseaseCloudIndicator(edict_t *ent, gameCommandButton_t *buttons,
@@ -494,24 +570,80 @@ static void G_AddDiseaseCloudIndicator(edict_t *ent, gameCommandButton_t *button
     static uint32_t const research = MAKEFOURCC('R', 'u', 'p', 'c');
     static uint32_t const disease_cloud = MAKEFOURCC('A', 'a', 'p', 'l');
     static uint32_t const abomination_disease_cloud = MAKEFOURCC('A', 'a', 'p', '1');
+    static uint32_t const meat_wagon_disease_cloud = MAKEFOURCC('A', 'p', 't', 's');
     gameClient_t *owner;
     uint32_t ability;
     char code[5] = {0};
     uint8_t index;
 
     if (!ent || !buttons || !count || *count >= max_buttons) return;
-    ability = G_UnitAbilityLevel(ent, abomination_disease_cloud) ? abomination_disease_cloud : disease_cloud;
+    ability = G_UnitAbilityLevel(ent, meat_wagon_disease_cloud) ? meat_wagon_disease_cloud :
+              G_UnitAbilityLevel(ent, abomination_disease_cloud) ? abomination_disease_cloud : disease_cloud;
     if (!G_UnitAbilityLevel(ent, ability) ||
         G_HasCommandRawcode(buttons, *count, ability) ||
         G_HasCommandRawcode(buttons, *count, disease_cloud) ||
         G_HasCommandRawcode(buttons, *count, abomination_disease_cloud)) return;
     owner = G_GetPlayerClientByNumber(ent->s.player);
-    if (!owner || G_GetPlayerTechResearchedLevel(owner, research) <= 0) return;
+    if (!owner || owner->ps.number != ent->s.player ||
+        G_GetPlayerTechMaxAllowed(owner, research) == 0) return;
 
     memcpy(code, &ability, 4);
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > index) buttons[index].disabled = 1;
+    if (*count > index) {
+        buttons[index].disabled = 1;
+        buttons[index].indicator = 1;
+        buttons[index].indicator_dimmed = G_GetPlayerTechResearchedLevel(owner, research) <= 0;
+        if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], research, 1);
+    }
+}
+
+static void G_AddExhumeCorpsesIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                       uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 'e', 'x', 'h');
+    char code[5] = {0};
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) ||
+        !G_UnitAbilityResearchVisible(ent, ability) ||
+        G_HasCommandRawcode(buttons, *count, ability)) return;
+    memcpy(code, &ability, 4);
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
+    if (*count > index) {
+        buttons[index].disabled = 1;
+        buttons[index].indicator = 1;
+        buttons[index].indicator_dimmed = !G_UnitAbilityResearchAvailable(ent, ability);
+        if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], MAKEFOURCC('R','u','e','x'), 1);
+    }
+}
+
+static void G_AddFreezingBreathIndicator(edict_t *ent, gameCommandButton_t *buttons,
+                                         uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const ability = MAKEFOURCC('A', 'f', 'r', 'z');
+    static uint32_t const research = MAKEFOURCC('R', 'u', 'f', 'b');
+    gameClient_t *owner;
+    uint8_t index;
+
+    if (!ent || !buttons || !count || *count >= max_buttons ||
+        !G_UnitAbilityLevel(ent, ability) || G_HasCommandRawcode(buttons, *count, ability)) return;
+    if (!gi.CvarString || !atoi(gi.CvarString("fs_expansion", "0"))) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || owner->ps.number != ent->s.player ||
+        G_GetPlayerTechMaxAllowed(owner, research) == 0) return;
+
+    index = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, "Afrz", false, 0);
+    if (*count > index) {
+        buttons[index].disabled = G_GetPlayerTechResearchedLevel(owner, research) <= 0;
+        buttons[index].indicator = 1;
+        buttons[index].indicator_dimmed = buttons[index].disabled;
+        if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], research, 1);
+    }
 }
 
 static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *buttons,
@@ -525,12 +657,31 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
     memcpy(code, &button_ability, 4);
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > index) buttons[index].disabled = 1;
+    if (*count > index) { buttons[index].disabled = 1; buttons[index].indicator = 1; }
 }
 
 static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *buttons,
                                          uint8_t max_buttons, uint8_t *count) {
+    static uint32_t const feedback[] = { MAKEFOURCC('A','f','b','k') };
+    static uint32_t const critical_strike[] = {
+        MAKEFOURCC('A','C','c','t'), /* Critical Strike (creep) */
+        MAKEFOURCC('A','O','c','r')  /* Critical Strike */
+    };
+    static uint32_t const liquid_fire[] = { MAKEFOURCC('A','l','i','q') };
     static uint32_t const slow_poison[] = { MAKEFOURCC('A','s','p','o') };
+    static uint32_t const spiked_shell[] = {
+        MAKEFOURCC('A','N','t','h'), /* Spiked Shell */
+        MAKEFOURCC('A','N','t','2')  /* Dragon Turtle Spiked Shell */
+    };
+    static uint32_t const hardened_skin[] = {
+        MAKEFOURCC('A','s','s','k'), /* Hardened Skin */
+        MAKEFOURCC('A','n','s','k')  /* Hardened Skin (Naga Turtle) */
+    };
+    static uint32_t const resistant_skin[] = {
+        MAKEFOURCC('A','r','s','k'), /* Resistant Skin */
+        MAKEFOURCC('A','C','r','k'), /* Resistant Skin (creep) */
+        MAKEFOURCC('A','C','s','k')  /* Resistant Skin (Naga Royal Guard) */
+    };
     static uint32_t const true_sight[] = {
         MAKEFOURCC('A','g','y','v'), /* Flying Machine True Sight */
         MAKEFOURCC('A','t','r','u')  /* Shade True Sight */
@@ -542,8 +693,20 @@ static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *butt
         MAKEFOURCC('A','C','m','3')  /* Dragon Magic Immunity */
     };
 
+    FOR_LOOP(i, sizeof(feedback) / sizeof(feedback[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, feedback[i], feedback[i]);
+    FOR_LOOP(i, sizeof(critical_strike) / sizeof(critical_strike[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, critical_strike[i], critical_strike[i]);
+    FOR_LOOP(i, sizeof(liquid_fire) / sizeof(liquid_fire[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, liquid_fire[i], liquid_fire[i]);
     FOR_LOOP(i, sizeof(slow_poison) / sizeof(slow_poison[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, slow_poison[i], slow_poison[i]);
+    FOR_LOOP(i, sizeof(spiked_shell) / sizeof(spiked_shell[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, spiked_shell[i], spiked_shell[i]);
+    FOR_LOOP(i, sizeof(hardened_skin) / sizeof(hardened_skin[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, hardened_skin[i], hardened_skin[i]);
+    FOR_LOOP(i, sizeof(resistant_skin) / sizeof(resistant_skin[0]))
+        G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, resistant_skin[i], resistant_skin[i]);
     FOR_LOOP(i, sizeof(true_sight) / sizeof(true_sight[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, true_sight[i], true_sight[i]);
     /* Adtg aliases Atru but has no authored button art of its own. Show the
@@ -552,6 +715,27 @@ static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *butt
         MAKEFOURCC('A','d','t','g'), MAKEFOURCC('A','t','r','u'));
     FOR_LOOP(i, sizeof(spell_immunity) / sizeof(spell_immunity[0]))
         G_AddPassiveEffectIndicator(ent, buttons, max_buttons, count, spell_immunity[i], spell_immunity[i]);
+}
+
+/* Unit morph commands are available only on their authored source form. Some
+ * destination unit rows retain the shared morph ability in UnitAbilities;
+ * don't expose an unusable button after the transform has completed. */
+static bool G_AbilityCommandMatchesMorphSource(edict_t const *ent, uint32_t rawcode,
+                                               ability_t const *ability) {
+    if (!ability || ability->proc != CAbilityMetamorphosis) return true;
+    AbilityData_t const *data = G_AbilityData(rawcode);
+    uint32_t const source_id = data ? data->level[0].data[0].id : 0;
+    uint32_t const target_id = data ? data->level[0].unitID : 0;
+    UnitBalance_t const *source;
+    UnitBalance_t const *target;
+
+    if (!ent || !source_id || !target_id) return true;
+    source = G_UnitBalance(source_id);
+    target = G_UnitBalance(target_id);
+    /* Non-morph abilities may use DataA and UnitID independently. Treat them
+     * as morph metadata only when both references identify actual unit rows. */
+    if (!source || source->id != source_id || !target || target->id != target_id) return true;
+    return ent->class_id == source_id;
 }
 
 static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons,
@@ -573,11 +757,13 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
                                  S_AbilityHasCommand(ability) && G_AncientAbilityVisible(ent, ability), false);
         return;
     }
-    /* Bear form uses its own attack and roar data. Hide the normal-form
-     * utility spells even when custom/unit ability lists retain their codes. */
+    /* Bear form uses its own attack and utility set. Roar is the exception:
+     * TFT Mark of the Claw can expose it as a research-disabled command. */
     if (ent->class_id == MAKEFOURCC('e','d','c','m') &&
-        (ability->proc == CAbilityRoar || ability->proc == CAbilityRejuvination)) return;
+        ((ability->proc == CAbilityRoar && strcmp(code, "Aroa")) ||
+         ability->proc == CAbilityRejuvination)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    if (!G_AbilityCommandMatchesMorphSource(ent, rawcode, ability)) return;
     if (!G_IsUnitAbilityAvailable(ent, rawcode)) {
         if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-unavailable", ability, false, false);
         return;
@@ -605,7 +791,13 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
         G_RepairCommandTrace(ent, code, "added", ability, true, *count > idx);
     }
     if (*count > idx) {
-        if (!researched) buttons[idx].disabled = 1;
+        if (!researched) {
+            uint32_t research_id = 0;
+            int32_t required_level = 0;
+            buttons[idx].disabled = 1;
+            if (G_UnitAbilityResearchRequirement(ent, rawcode, &research_id, &required_level))
+                G_AddResearchRequirementTooltip(&buttons[idx], research_id, required_level);
+        }
         G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
     }
     if (!(ability->flags & AB_SEPARATE_OFF) || *count >= max_buttons) return;
@@ -776,6 +968,10 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
                 G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
         }
     }
+    /* The stock Bear Form unit row omits Roar. In TFT it is still a visible
+     * disabled command while Mark of the Claw is available but unresearched. */
+    if (ent->class_id == MAKEFOURCC('e','d','c','m'))
+        G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Aroa");
     FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
         char abil[5] = {0};
         uint32_t const code = ent->unit_state->overrides.added[i];
@@ -784,14 +980,49 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
             G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
     }
+    /* TFT uses AEvi for Illidan's Metamorphosis command and keeps that code
+     * on Eevm. Preserve the learned command while the timed BEme morph is
+     * active even if the transformed form's ability list lookup misses the
+     * aliased rawcode. G_AddAbilityCommandButtons deduplicates it when the
+     * authored ability-list path already added it. */
+    if (ent->unit_state && unit_findstatus(ent, MAKEFOURCC('B','E','m','e'))) {
+        FOR_LOOP(i, MAX_HERO_ABILITIES) {
+            heroability_t const *rank = ent->unit_state->ranks + i;
+            if (rank->level && G_AbilityCode(rank->code) == MAKEFOURCC('A','E','m','e')) {
+                G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, GetClassName(rank->code));
+                break;
+            }
+        }
+    }
+    /* Crypt Fiend Abur is classified as a passive because it also carries
+     * lifecycle state, but TFT presents it as a research-gated command. The
+     * transformed unit may omit Abur from its authored list. */
+    if ((ent->class_id == MAKEFOURCC('u','c','r','y') ||
+         ent->class_id == MAKEFOURCC('u','c','r','m')) &&
+        G_UnitAbilityResearchVisible(ent, MAKEFOURCC('A','b','u','r')) &&
+        !G_HasCommandRawcode(buttons, count, MAKEFOURCC('A','b','u','r'))) {
+        uint8_t const idx = count;
+        G_AddCommandButton(ent, buttons, max_buttons, &count, "Abur", false, 0);
+        if (count > idx && !G_UnitAbilityResearchAvailable(ent, MAKEFOURCC('A','b','u','r'))) {
+            uint32_t research_id = 0;
+            int32_t required_level = 0;
+            buttons[idx].disabled = 1;
+            if (G_UnitAbilityResearchRequirement(ent, MAKEFOURCC('A','b','u','r'),
+                                                  &research_id, &required_level))
+                G_AddResearchRequirementTooltip(&buttons[idx], research_id, required_level);
+        }
+    }
     G_AddMagicSentryIndicator(ent, buttons, max_buttons, &count);
     G_AddPillageIndicator(ent, buttons, max_buttons, &count);
     G_AddDiseaseCloudIndicator(ent, buttons, max_buttons, &count);
+    G_AddExhumeCorpsesIndicator(ent, buttons, max_buttons, &count);
+    G_AddFreezingBreathIndicator(ent, buttons, max_buttons, &count);
     G_AddPassiveEffectIndicators(ent, buttons, max_buttons, &count);
     FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
         heroability_t const *ha = ent->unit_state->ranks + i;
         if (ha->level > 0 && G_IsUnitAbilityAvailable(ent, ha->code) &&
-            G_UnitAbilityResearchVisible(ent, ha->code)) {
+            G_UnitAbilityResearchVisible(ent, ha->code) &&
+            !G_HasCommandRawcode(buttons, count, ha->code)) {
             uint8_t const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
@@ -883,6 +1114,13 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
 
     G_ResolveNagaCommandButtonCollisions(ent, buttons, count);
+    if (S_ManaFlareActive(ent)) {
+        FOR_LOOP(i, count) {
+            /* Keep only the active Mana Flare toggle usable until Bmfl ends. */
+            if (strncmp(buttons[i].command, "Amfl", 4) != 0)
+                buttons[i].disabled = 1;
+        }
+    }
     return count;
 }
 

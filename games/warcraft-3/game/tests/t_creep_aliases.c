@@ -104,7 +104,7 @@ TEST(wc3_spell, creep_aliases_share_parent_procedures) {
  * combat/property consumers remain separate work. */
 TEST(wc3_spell, neutral_creep_property_rows_are_registered) {
     uint32_t passive[] = { BZ_ANEG, BZ_ANDE, BZ_ANFY, BZ_ANMR, BZ_AOAC,
-        BZ_ADDA, BZ_AGHO, BZ_AETH, BZ_AETL, BZ_AGRA, BZ_ASSK, BZ_ARSK,
+        BZ_ADDA, BZ_AGHO, BZ_AETH, BZ_AETL, BZ_ASSK, BZ_ARSK,
         BZ_AMIM, BZ_AULT, BZ_ACOR, BZ_AEST, BZ_ASPI, BZ_ASAL, BZ_AABS };
     size_t i;
 
@@ -122,7 +122,6 @@ TEST(wc3_spell, neutral_creep_property_rows_are_registered) {
         else if (passive[i] == BZ_AGHO) expected = CAbilityGhost;
         else if (passive[i] == BZ_AETH) expected = CAbilityGhostVisible;
         else if (passive[i] == BZ_AETL) expected = CAbilityEthereal;
-        else if (passive[i] == BZ_AGRA) expected = CAbilityGrabTree;
         else if (passive[i] == BZ_ARSK) expected = CAbilityResistantSkin;
         else if (passive[i] == BZ_AEST) expected = CAbilityScout;
         else if (passive[i] == BZ_ASAL) expected = CAbilitySalvage;
@@ -130,6 +129,8 @@ TEST(wc3_spell, neutral_creep_property_rows_are_registered) {
         T_EQ(S_AbilityItem(passive[i]).ability->proc, expected);
     }
     T_EQ(S_AbilityItem(BZ_ANWM).ability->proc, CAbilityWaterElemental);
+    T_EQ(S_AbilityItem(BZ_AGRA).ability->proc, CAbilityGrabTree);
+    T_ASSERT((S_AbilityItem(BZ_AGRA).ability->flags & AB_SPELL) != 0);
 }
 
 /* ACmf DataA=2 is not ANms L1's 1; damage must read the owner's alias. */

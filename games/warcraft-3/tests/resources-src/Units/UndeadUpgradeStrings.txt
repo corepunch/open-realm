@@ -1,0 +1,8 @@
+[Rupc]
+Name=Disease Cloud
+
+[Ruex]
+Name=Exhume Corpses
+
+[Rune]
+Name=Necromancer Adept Training

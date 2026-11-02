@@ -779,7 +779,7 @@ void CMD_CancelCommand(edict_t *ent) {
             return;
         }
     }
-    if (!G_CancelBuildPlacement(ent)) {
+    if (!G_CancelBuildPlacement(ent) && !G_CancelTargetMode(ent)) {
         Get_Commands_f(ent);
     }
 }
@@ -1283,7 +1283,8 @@ CLIENTCOMMAND(Autocast) {
     if (!classname || strlen(classname) != 4) return;
     main = G_GetMainSelectedUnit(client);
     ability = FindAbilityForCommand(classname);
-    if (!G_UnitCanControl(client, main) || !G_UnitAbilityLevel(main, FS_SLKKey(classname)) ||
+    if (!G_UnitCanControl(client, main) || S_ManaFlareActive(main) ||
+        !G_UnitAbilityLevel(main, FS_SLKKey(classname)) ||
         !ability || !(ability->flags & AB_AUTOCAST)) {
 #ifdef WC3_DEBUG_AUTOCAST
         if (G_AutocastDebugLevel() >= 1) {

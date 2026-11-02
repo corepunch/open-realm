@@ -5,6 +5,7 @@
 #define BZ_AMFL MAKEFOURCC('A', 'm', 'f', 'l') // rawcode; Faerie Dragon Mana Flare
 #define BZ_BMFL MAKEFOURCC('B', 'm', 'f', 'l') // rawcode; Mana Flare caster buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt probe for enemy casts
+#define BZ_APSH MAKEFOURCC('A', 'p', 's', 'h') // rawcode; Faerie Dragon Phase Shift
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -13,8 +14,8 @@ slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA=7 / DataC=70 / DataE=9 / Cost=25 so tests cannot pass on retail 3/90/12/50. */
-#define MFL_SLK \
-	"ID;PWXL;N;EBB;Y3;X18\n" \
+#define MFL_SLK_WITH_COOL(COOL) \
+	"ID;PWXL;N;EBB;Y4;X18\n" \
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n" \
@@ -22,7 +23,7 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y1;X13;K\"DataB1\"\nC;Y1;X14;K\"DataC1\"\nC;Y1;X15;K\"DataD1\"\n" \
 	"C;Y1;X16;K\"DataE1\"\nC;Y1;X17;K\"DataF1\"\nC;Y1;X18;K\"BuffID1\"\n" \
 	"C;Y2;X1;K\"Amfl\"\nC;Y2;X2;K\"Amfl\"\nC;Y2;X3;K\"1\"\n" \
-	"C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"0\"\n" \
+	"C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"" COOL "\"\n" \
 	"C;Y2;X7;K\"200\"\nC;Y2;X8;K\"30\"\nC;Y2;X9;K\"30\"\n" \
 	"C;Y2;X10;K\"750\"\nC;Y2;X11;K\"0.75\"\nC;Y2;X12;K\"7\"\n" \
 	"C;Y2;X13;K\"2\"\nC;Y2;X14;K\"70\"\nC;Y2;X15;K\"40\"\n" \
@@ -32,7 +33,12 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y3;X7;K\"600\"\nC;Y3;X8;K\"5\"\nC;Y3;X9;K\"3\"\n" \
 	"C;Y3;X10;K\"0\"\nC;Y3;X11;K\"0\"\nC;Y3;X12;K\"100\"\n" \
 	"C;Y3;X13;K\"0\"\nC;Y3;X14;K\"0\"\nC;Y3;X15;K\"0\"\n" \
-	"C;Y3;X16;K\"0\"\nC;Y3;X17;K\"0\"\nC;Y3;X18;K\"BHtb\"\nE\n"
+	"C;Y3;X16;K\"0\"\nC;Y3;X17;K\"0\"\nC;Y3;X18;K\"BHtb\"\n" \
+	"C;Y4;X1;K\"Apsh\"\nC;Y4;X2;K\"Apsh\"\nC;Y4;X3;K\"1\"\n" \
+	"C;Y4;X5;K\"15\"\nC;Y4;X6;K\"0\"\nC;Y4;X8;K\"2\"\n" \
+	"C;Y4;X9;K\"2\"\nC;Y4;X18;K\"Bpsh\"\nE\n"
+
+#define MFL_SLK MFL_SLK_WITH_COOL("0")
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -66,6 +72,7 @@ static void mfl_setup(mflFix_t *fix, cstring_t slk) {
 	fix->far_enemy->targtype = fix->far_bait->targtype = fix->splash->targtype = TARG_GROUND;
 	fix->enemy->data.UnitBalance = &fix->enemy_bal;
 	fix->flare->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AMFL, .level = 1);
+	fix->flare->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_APSH, .level = 1);
 	fix->enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
 	fix->ally->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
 	fix->far_enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
@@ -88,24 +95,67 @@ static void mfl_done(mflFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
-TEST(wc3_spell, mana_flare_registers_channel_procedure) {
+TEST(wc3_spell, mana_flare_registers_timed_status_procedure) {
 	abilityitem_t item = S_AbilityItem(BZ_AMFL);
 	T_EQ(item.ability->proc, CAbilityManaFlare);
 	T_ASSERT(item.ability->flags & AB_SPELL);
-	T_ASSERT(item.ability->flags & AB_CHANNEL);
+	T_ASSERT(!(item.ability->flags & AB_CHANNEL));
 	T_ASSERT(item.ability->flags & AB_UPDATE);
 	T_EQ(item.ability->target_type, SPELL_TARGET_NONE);
+	T_EQ(S_AbilityItem(BZ_APSH).ability->proc, CAbilityPhaseShift);
 }
 
-/* Activation applies Bmfl, spends Cost, locks channel, and adds authored DataE armor. */
-TEST(wc3_spell, mana_flare_activates_buff_channel_and_armor) {
+/* Activation applies timed Bmfl, spends Cost, locks orders, and adds authored DataE armor. */
+TEST(wc3_spell, mana_flare_activates_status_and_armor) {
 	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_FEQ(fix.flare->mana.value, 175, 0.001f);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
-	T_EQ(G_GetChannel(fix.flare)->code, BZ_AMFL);
+	T_ASSERT(!G_GetChannel(fix.flare) || G_GetChannel(fix.flare)->code != BZ_AMFL);
 	T_FEQ(G_UnitArmorValue(fix.flare), 9, 0.001f);
+	mfl_done(&fix);
+}
+
+/* With every status slot occupied, attempting Mana Flare cannot charge its
+ * mana cost or start its authored cooldown. A freed slot accepts the cast. */
+TEST(wc3_spell, mana_flare_full_status_list_does_not_consume_resources) {
+	mflFix_t fix;
+	char buff[5] = "Z000";
+	mfl_setup(&fix, MFL_SLK_WITH_COOL("5"));
+	FOR_LOOP(i, MAX_UNIT_STATUSES) {
+		buff[1] = (char)('a' + i);
+		T_ASSERT(unit_addtimedstatus(fix.flare, buff, 1, 30.0f));
+	}
+	T_ASSERT(!S_ManaFlareActive(fix.flare));
+	T_ASSERT(S_SpellCooldownReady(fix.flare, BZ_AMFL));
+	T_ASSERT(!S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_FEQ(fix.flare->mana.value, 200.0f, 0.001f);
+	T_ASSERT(S_SpellCooldownReady(fix.flare, BZ_AMFL));
+	T_FEQ(S_SpellCooldownRemaining(fix.flare, BZ_AMFL), 0.0f, 0.001f);
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
+
+	unit_removestatus(fix.flare, fix.flare->unit_state->statuses, STATUS_REMOVE_SCRIPT);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
+	T_FEQ(fix.flare->mana.value, 175.0f, 0.001f);
+	T_ASSERT(!S_SpellCooldownReady(fix.flare, BZ_AMFL));
+	mfl_done(&fix);
+}
+
+/* An active toggle never requires another status slot to switch off. */
+TEST(wc3_spell, mana_flare_toggle_off_works_at_status_capacity) {
+	mflFix_t fix;
+	char buff[5] = "Z000";
+	mfl_setup(&fix, MFL_SLK);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	FOR_LOOP(i, MAX_UNIT_STATUSES - 1) {
+		buff[1] = (char)('a' + i);
+		T_ASSERT(unit_addtimedstatus(fix.flare, buff, 1, 30.0f));
+	}
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
 	mfl_done(&fix);
 }
 
@@ -147,15 +197,19 @@ TEST(wc3_spell, mana_flare_respects_cast_interval_between_flares) {
 	mfl_done(&fix);
 }
 
-/* Channel cancel strips Bmfl and armor; natural expiry does the same. */
-TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
+/* Movement and channel cleanup do not end Mana Flare; toggle-off and expiry do. */
+TEST(wc3_spell, mana_flare_persists_through_movement_and_expires) {
 	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
 	S_SpellCancelChannel(fix.flare);
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
+	T_ASSERT(!S_ManaFlareAllowsOrder(fix.flare, "move"));
+	T_ASSERT(S_ManaFlareAllowsOrder(fix.flare, "Amfl"));
+	T_FEQ(G_UnitArmorValue(fix.flare), 9, 0.001f);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL)); /* toggle off */
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
-	T_FEQ(G_UnitArmorValue(fix.flare), 0, 0.001f);
 	fix.flare->mana.value = 200;
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	level.time += 30000; unit_updatestatuses(fix.flare);
@@ -174,6 +228,155 @@ TEST(wc3_spell, mana_flare_splash_hits_mana_units_in_range) {
 	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
 	T_FEQ(fix.enemy->health.value, 430, 0.001f);
 	T_FEQ(fix.splash->health.value, 430, 0.001f);
+	mfl_done(&fix);
+}
+
+/* The first flare may occur at game time zero, without losing its interval gate. */
+TEST(wc3_spell, mana_flare_time_zero_cooldown_and_status_identity) {
+	mflFix_t fix;
+	heroabilitystatus_t *status;
+	mfl_setup(&fix, MFL_SLK);
+	level.time = 0;
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	status = unit_findstatus(fix.flare, BZ_BMFL);
+	T_NOT_NULL(status);
+	T_EQ(status->source_ability, BZ_AMFL);
+	T_EQ(status->data, 0);
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 430, 0.001f);
+	T_EQ(status->next_tick, 750);
+	fix.enemy->mana.value = 100;
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 430, 0.001f);
+	level.time = 749;
+	fix.enemy->mana.value = 100;
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 430, 0.001f);
+	level.time = 750;
+	fix.enemy->mana.value = 100;
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 360, 0.001f);
+	mfl_done(&fix);
+}
+
+/* Timed Mana Flare continues retaliating without a spell channel. */
+TEST(wc3_spell, mana_flare_status_retaliates_without_channel) {
+	mflFix_t fix;
+	mfl_setup(&fix, MFL_SLK);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 430, 0.001f);
+	mfl_done(&fix);
+}
+
+/* Phase Shift must remain unavailable while Mana Flare is active. */
+TEST(wc3_spell, mana_flare_blocks_phase_shift_without_cancel) {
+	mflFix_t fix;
+	mfl_setup(&fix, MFL_SLK);
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_ASSERT(!S_CastNoTargetSpell(fix.flare, BZ_APSH));
+	T_FEQ(fix.flare->mana.value, 175, 0.001f);
+	T_ASSERT(!G_GetChannel(fix.flare) || G_GetChannel(fix.flare)->code != BZ_AMFL);
+	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
+	T_FEQ(G_UnitArmorValue(fix.flare), 9, 0.001f);
+	mfl_done(&fix);
+}
+
+/* Splash cannot harm mana-less units, even when they are eligible enemies. */
+TEST(wc3_spell, mana_flare_splash_excludes_manaless_units) {
+	mflFix_t fix;
+	mfl_setup(&fix, MFL_SLK);
+	fix.splash->mana.max_value = 0;
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
+	T_FEQ(fix.enemy->health.value, 430, 0.001f);
+	T_FEQ(fix.splash->health.value, 500, 0.001f);
+	mfl_done(&fix);
+}
+
+
+/* Disabling an active stance is not a second cast. In particular, it must
+ * succeed before Cool expires and when current mana has fallen to zero. */
+TEST(wc3_spell, mana_flare_direct_deactivation_ignores_mana_and_cooldown) {
+	mflFix_t fix;
+	float cooldown;
+	mfl_setup(&fix, MFL_SLK_WITH_COOL("5"));
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_ASSERT(S_ManaFlareActive(fix.flare));
+	cooldown = S_SpellCooldownRemaining(fix.flare, BZ_AMFL);
+	T_ASSERT(cooldown > 0.0f);
+	fix.flare->mana.value = 0.0f;
+	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
+	T_ASSERT(!S_ManaFlareActive(fix.flare));
+	T_FEQ(fix.flare->mana.value, 0.0f, 0.001f);
+	T_FEQ(S_SpellCooldownRemaining(fix.flare, BZ_AMFL), cooldown, 0.001f);
+	T_ASSERT(!S_CastNoTargetSpell(fix.flare, BZ_AMFL)); /* cannot reactivate */
+	mfl_done(&fix);
+}
+
+/* Native IssueImmediateOrder and IssueImmediateOrderById both delegate to
+ * unit_issueimmediateorder after resolving the stock Warcraft order IDs. */
+TEST(wc3_spell, mana_flare_order_ids_and_idempotent_state_requests) {
+	mflFix_t fix;
+	ability_t const *on = FindAbilityByOrder("manaflareon");
+	ability_t const *off = FindAbilityByOrder("manaflareoff");
+	float cooldown;
+	T_NOT_NULL(on);
+	T_NOT_NULL(off);
+	if (!on || !off) return;
+	T_EQ(on->proc, CAbilityManaFlare);
+	T_EQ(off->proc, CAbilityManaFlare);
+	T_EQ(G_OrderId("manaflareon"), 852512u);
+	T_EQ(G_OrderId("manaflareoff"), 852513u);
+	T_STREQ(G_OrderId2String(852512), "manaflareon");
+	T_STREQ(G_OrderId2String(852513), "manaflareoff");
+
+	mfl_setup(&fix, MFL_SLK_WITH_COOL("5"));
+	T_ASSERT(!unit_issueimmediateorder(fix.enemy, "manaflareon"));
+	T_ASSERT(!unit_issueimmediateorder(fix.enemy, "manaflareoff"));
+	T_ASSERT(unit_issueimmediateorder(fix.flare, "manaflareoff")); /* already off */
+	T_FEQ(fix.flare->mana.value, 200.0f, 0.001f);
+	T_ASSERT(S_SpellCooldownReady(fix.flare, BZ_AMFL));
+
+	T_ASSERT(unit_issueimmediateorder(fix.flare, G_OrderId2String(852512)));
+	T_ASSERT(S_ManaFlareActive(fix.flare));
+	T_FEQ(fix.flare->mana.value, 175.0f, 0.001f);
+	cooldown = S_SpellCooldownRemaining(fix.flare, BZ_AMFL);
+	T_ASSERT(cooldown > 0.0f);
+	T_ASSERT(unit_issueimmediateorder(fix.flare, "manaflareon")); /* already on */
+	T_FEQ(fix.flare->mana.value, 175.0f, 0.001f);
+	T_FEQ(S_SpellCooldownRemaining(fix.flare, BZ_AMFL), cooldown, 0.001f);
+
+	fix.flare->mana.value = 0.0f;
+	T_ASSERT(unit_issueimmediateorder(fix.flare, G_OrderId2String(852513)));
+	T_ASSERT(!S_ManaFlareActive(fix.flare));
+	T_ASSERT(unit_issueimmediateorder(fix.flare, "manaflareoff")); /* still off */
+	T_FEQ(fix.flare->mana.value, 0.0f, 0.001f);
+	T_FEQ(S_SpellCooldownRemaining(fix.flare, BZ_AMFL), cooldown, 0.001f);
+	T_ASSERT(!unit_issueimmediateorder(fix.flare, "manaflareon")); /* still cooling down */
+	T_ASSERT(!S_ManaFlareActive(fix.flare));
+	mfl_done(&fix);
+}
+
+/* Command-issued activation must use the same capacity and resource preflight
+ * as clicking the Mana Flare button; a rejected cast cannot spend resources. */
+TEST(wc3_spell, mana_flare_issued_activation_checks_status_capacity) {
+	mflFix_t fix;
+	char buff[5] = "Z000";
+	mfl_setup(&fix, MFL_SLK_WITH_COOL("5"));
+	FOR_LOOP(i, MAX_UNIT_STATUSES) {
+		buff[1] = (char)('a' + i);
+		T_ASSERT(unit_addtimedstatus(fix.flare, buff, 1, 30.0f));
+	}
+	T_ASSERT(!unit_issueimmediateorder(fix.flare, "manaflareon"));
+	T_ASSERT(!S_ManaFlareActive(fix.flare));
+	T_FEQ(fix.flare->mana.value, 200.0f, 0.001f);
+	T_ASSERT(S_SpellCooldownReady(fix.flare, BZ_AMFL));
+	unit_removestatus(fix.flare, fix.flare->unit_state->statuses, STATUS_REMOVE_SCRIPT);
+	T_ASSERT(unit_issueimmediateorder(fix.flare, "manaflareon"));
+	T_ASSERT(S_ManaFlareActive(fix.flare));
+	T_FEQ(fix.flare->mana.value, 175.0f, 0.001f);
 	mfl_done(&fix);
 }
 

@@ -62,7 +62,7 @@ static bool transmute_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
 
     if (!target || !target->data.UnitBalance) return false;
     bal = target->data.UnitBalance;
-    if (G_UnitIsHero(target)) return false;
+    if (S_UnitIsResistant(target)) return false;
     if (!S_SpellIsEnemy(caster, target) && !transmute_is_neutral(target)) return false;
     if (max_level && (uint32_t)bal->level > max_level) return false;
     return true;

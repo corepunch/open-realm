@@ -7,6 +7,7 @@ static cstring_t melee_buff_fallback(uint32_t code) {
         { MAKEFOURCC('A', 'C', 'b', 'l'), "Bblo" },
         { MAKEFOURCC('A', 'C', 'b', 'b'), "Bblo" },
         { MAKEFOURCC('A', 'f', 'a', 'e'), "Bfae" },
+        { MAKEFOURCC('A', 'f', 'a', '2'), "Bfae" },
         { MAKEFOURCC('A', 'r', 'e', 'j'), "Brej" },
         { MAKEFOURCC('A', 'r', 'o', 'a'), "Broa" },
         { MAKEFOURCC('A', 'c', 'r', 's'), "Bcrs" },
@@ -46,8 +47,12 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
                              WC3_STATUS_BUFF_TRANSFERABLE | WC3_STATUS_BUFF_TARGET_ART;
         G_SpawnStatusEffectTarget(status->code, st.entity, "origin");
     }
-    else if (status && status->code == MAKEFOURCC('B','f','a','e'))
+    else if (status && status->code == MAKEFOURCC('B','f','a','e')) {
         status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
+        /* Bfae's numeric payload owns the casting player (+1, so zero is no
+         * reveal).  The buff's existing duration/removal lifecycle owns sight. */
+        status->data = caster->s.player < MAX_PLAYERS ? caster->s.player + 1 : 0;
+    }
     else if (status && (status->code == MAKEFOURCC('B','r','e','j') ||
                         status->code == MAKEFOURCC('B','r','o','a')))
         status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
@@ -178,7 +183,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = melee_buff(spell, level);
     float duration = S_SpellDuration(spell->code, level, false);
-    if (melee_unit_is_bear_form(caster) || !buff) return;
+    if ((melee_unit_is_bear_form(caster) &&
+         !G_UnitAbilityResearchAvailable(caster, spell->code)) || !buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, spell->code, level, buff, duration);

@@ -40,12 +40,13 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
 BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { S_ShockwaveExecute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && G_UnitTargetType(target) == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         S_SpellDamage(target, caster, damage);
-        if (!M_IsDead(target) && duration > 0.0f) S_SpellApplyStun(target, duration);
+        if (!M_IsDead(target))
+            S_SpellApplyStun(target, S_SpellResistantDuration(spell->code, level, target));
     }
 }
 BZ_SIMPLE_SPELL_PROC(AbilityFeralSpiritCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
@@ -493,7 +494,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     S_SpellDamage(st.entity, caster, (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
-    if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellHeroDuration(spell->code, level, st.entity));
+    if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellResistantDuration(spell->code, level, st.entity));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }

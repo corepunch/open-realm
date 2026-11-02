@@ -27,6 +27,22 @@ static void UI_FormatTooltipLevel(cstring_t code, cstring_t tip, cstring_t ubert
     uint32_t lumber_cost = balance ? (uint32_t)MAX(0, balance->lumberCost) : 0;
     uint32_t food_cost = balance ? (uint32_t)MAX(0, balance->foodUsed) : 0;
 
+    /* Morph abilities are priced by the positive difference between their
+     * authored source and destination unit rows. Resolve that from AbilityData
+     * so the tooltip follows map overrides and custom morph forms. */
+    if (class_id && (!balance || balance->id != class_id)) {
+        AbilityData_t const *morph = G_AbilityData(class_id);
+        uint32_t const source_id = morph ? morph->level[0].data[0].id : 0;
+        uint32_t const target_id = morph ? morph->level[0].unitID : 0;
+        UnitBalance_t const *source = source_id ? G_UnitBalance(source_id) : NULL;
+        UnitBalance_t const *target = target_id ? G_UnitBalance(target_id) : NULL;
+        if (morph && source && source->id == source_id && target && target->id == target_id) {
+            gold_cost = (uint32_t)MAX(0, target->goldCost - source->goldCost);
+            lumber_cost = (uint32_t)MAX(0, target->lumberCost - source->lumberCost);
+            food_cost = (uint32_t)MAX(0, target->foodUsed - source->foodUsed);
+        }
+    }
+
     /* Item command buttons use ItemData.slk costs rather than UnitBalance.
      * This is primarily consumed by neutral shops but also keeps generic item
      * command presentation data-driven for custom maps. */
@@ -154,8 +170,9 @@ static void UI_WriteAutocastIndicator(gameCommandButton_t const *button, uint32_
 static uint32_t UI_CommandButtonImage(gameCommandButton_t const *button) {
     cstring_t prefix, base;
     PATHSTR path;
+    bool const dimmed = button->indicator ? button->indicator_dimmed : button->disabled;
 
-    if (!button->disabled) return gi.ImageIndex(button->art);
+    if (!dimmed) return gi.ImageIndex(button->art);
     prefix = Theme_PlayerString(ui_current_client, "CommandButtonDisabledArtPath", NULL);
     if (!prefix || !*prefix) {
         fprintf(stderr, "UI_CommandButtonImage: missing CommandButtonDisabledArtPath for %s\n", button->art);
@@ -182,9 +199,18 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     float const y = 0.4660f + (float)button->y * 0.0440f;
     memset(&frame, 0, sizeof(frame));
     memset(&state, 0, sizeof(state));
-    frame.flags.type = FT_COMMANDBUTTON;
+    /* Passive/research indicators are non-interactive images, not buttons.
+     * Preserve disabled-art shading for locked research without the button bevel. */
+    frame.flags.type = button->indicator ? FT_TEXTURE : FT_COMMANDBUTTON;
     frame.color = COLOR32_WHITE;
     frame.tex.index = UI_CommandButtonImage(button);
+    if (button->indicator) {
+        UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
+        frame.tooltip = tooltip;
+        UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
+        UI_WriteProxyFrame(&frame, NULL, 0);
+        return;
+    }
     frame.stat = button->active;
     frame.value = button->cooldown;
     state.radialStartTime = button->cooldown_start_time;

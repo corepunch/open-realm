@@ -1,5 +1,9 @@
 #include "g_local.h"
 #include "games/warcraft-3/common/weather.h"
+#include "skills/s_skills.h"
+
+#define WC3_BANISH_PRESENTATION_ALPHA 0.5f
+#define WC3_PHASE_SHIFT_PRESENTATION_ALPHA 0.0f
 
 static bool G_WeatherValid(gweather_t const *effect) {
     return effect && effect >= level.weather_effects &&
@@ -66,6 +70,10 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     if (!unit || !unit->inuse || !out) return false;
     color = G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) ? unit->vertex_color : COLOR32_WHITE;
     presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
+    if (S_UnitHasStatus(unit, MAKEFOURCC('B','H','b','n')))
+        presentation_alpha *= WC3_BANISH_PRESENTATION_ALPHA;
+    if (S_UnitHasStatus(unit, MAKEFOURCC('B','p','s','h')))
+        presentation_alpha *= WC3_PHASE_SHIFT_PRESENTATION_ALPHA;
 
     /* Most entities have no authored tint or presentation fade. An ordinary
      * entity cannot acquire viewer-relative alpha without Shadow Meld,

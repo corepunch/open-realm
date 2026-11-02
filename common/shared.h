@@ -756,7 +756,7 @@ typedef struct entityState_s {
     uint8_t player;
     uint16_t model;
     uint16_t model2;
-    uint8_t effect;
+    uint16_t effect; /* model index; must cover MAX_MODELS, unlike legacy effect flags */
     uint16_t effect_flags; /* EFX_* presentation contract for effect/splat effects */
     uint16_t image;
     uint16_t name;        /* packed name/socket: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */

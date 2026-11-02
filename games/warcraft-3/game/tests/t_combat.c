@@ -125,6 +125,11 @@ static int capture_fire_model(cstring_t model) {
     return 77;
 }
 
+static int capture_extended_fire_model(cstring_t model) {
+    strlcpy(_fire_model, model, sizeof(_fire_model));
+    return 387;
+}
+
 static edict_t *make_combat_unit(uint32_t class_id, float hp, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     edict_t *ent       = alloc_test_unit(class_id, x, y);
@@ -176,6 +181,40 @@ TEST(wc3_combat, projectile_presentation_plays_birth_then_stand_sequence) {
     SV_Physics_Toss(missile);
     T_STREQ(missile->animation->name, "Stand");
     T_EQ(missile->s.frame, missile->animation->interval[0]);
+}
+
+TEST(wc3_combat, projectile_plays_authored_death_sequence_before_freeing) {
+    edict_t *missile;
+    uint32_t const start_time = level.time;
+    uint32_t end_time;
+
+    setup_test_world();
+    reset_entities();
+    missile = G_Spawn();
+    missile->s.model = G_RegisterModel("TestUI\\Models\\anim_projectile.mdx");
+    G_StartProjectilePresentation(missile);
+
+    T_ASSERT(G_StartProjectileDeathPresentation(missile));
+    T_STREQ(missile->animation->name, "Death");
+    T_EQ(missile->s.frame, missile->animation->interval[0]);
+    T_ASSERT(missile->aiflags & AI_PROJECTILE_DEATH_PRESENTATION);
+    T_ASSERT(missile->inuse);
+    end_time = missile->freetime;
+
+    while (level.time + (uint32_t)FRAMETIME < end_time) {
+        level.time += (uint32_t)FRAMETIME;
+        G_RunEntity(missile);
+    }
+    T_ASSERT(missile->inuse);
+    level.time = end_time - 1;
+    G_RunEntity(missile);
+    T_ASSERT(missile->inuse);
+    T_EQ(missile->s.frame, missile->animation->interval[1] - 1);
+
+    level.time++;
+    G_RunEntity(missile);
+    T_ASSERT(!missile->inuse);
+    level.time = start_time;
 }
 
 TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
@@ -321,6 +360,24 @@ TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     G_AddHealth(building, 800.0f);
     T_EQ(building->s.effect, 0);
     T_EQ(building->s.effect_flags, 0);
+    gi.ModelIndex = old_model_index;
+}
+
+TEST(wc3_combat, fire_effect_above_255_does_not_overwrite_secondary_model) {
+    edict_t *building, *attacker;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    reset_entities(); setup_test_world();
+    building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    building->s.flags |= EF_BUILDING;
+    building->s.model2 = 22; /* unrelated attachment must remain intact */
+    gi.ModelIndex = capture_extended_fire_model;
+    T_Damage(building, attacker, 300);
+    T_EQ(building->s.effect, 387);
+    T_EQ(building->s.model2, 22);
+    G_AddHealth(building, 300.0f);
+    T_EQ(building->s.effect, 0);
+    T_EQ(building->s.model2, 22);
     gi.ModelIndex = old_model_index;
 }
 
@@ -2775,6 +2832,57 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     T_ASSERT(u->goalentity == target);
 }
 
+TEST(wc3_combat, long_ranged_attack_animation_does_not_delay_weapon_cadence) {
+    animation_t long_attack = { .name = "Attack Upgrade Second", .interval = { 1000, 5000 } };
+    edict_t *u;
+    edict_t *target;
+    edict_t *missile = NULL;
+    int frame;
+
+    setup_test_world(); reset_entities();
+    u = make_combat_unit(MAKEFOURCC('u','z','g','2'), 535.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    u->goalentity = target;
+    u->unit_state->attack1.type = ATK_NORMAL;
+    u->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    u->unit_state->attack1.range = 700.0f;
+    u->unit_state->attack1.weapon = WPN_MISSILE;
+    u->unit_state->attack1.cooldown = 1.0f;
+    u->unit_state->attack1.damagePoint = 0.1f;
+    u->unit_state->attack1.backswingPoint = 0.5f;
+    u->unit_state->attack1.projectile.speed = 900;
+    target->targtype = TARG_GROUND;
+
+    attack_ranged(u);
+    /* Model an authored attack sequence much longer than the weapon cadence. */
+    u->animation = &long_attack;
+    level.time += 100; /* Advance to the authored damage point. */
+    u->wait = 0.1f;
+    u->currentmove->think(u);
+
+    FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent;
+        break;
+    }
+    T_NOT_NULL(missile);
+    T_ASSERT(missile != NULL);
+    if (!missile) return;
+
+    /* Recovery begins at release even though the finite attack clip remains. */
+    T_STREQ(u->currentmove->animation, "stand ready");
+    T_FEQ(u->wait, 0.9f, 0.02f);
+    T_ASSERT(u->goalentity == target);
+
+    /* The next attack begins from cooldown/backswing timing, well before the
+     * four-second animation would naturally reach its endfunc. */
+    for (frame = 0; frame < 100 && strcmp(u->currentmove->animation, "attack range"); frame++) {
+        level.time += FRAMETIME;
+        u->currentmove->think(u);
+    }
+    T_STREQ(u->currentmove->animation, "attack range");
+    T_FEQ(u->wait, 0.1f, 0.02f);
+}
+
 
 TEST(wc3_combat, artillery_uses_ranged_attack_state) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 0.0f };
@@ -5070,4 +5178,123 @@ TEST(wc3_combat, status_invulnerability_blocks_damage_without_mutating_base_flag
     T_Damage(target, source, 10);
     T_FEQ(target->health.value, before, 0.001f);
 }
+
+/* Phoenix-style negative UnitBalance regen drains even at full health, and
+ * reaches normal death handling instead of leaving a living zero-HP unit. */
+static unsigned negative_regen_death_calls;
+static void negative_regen_death(edict_t *unit, edict_t *attacker) {
+    (void)attacker;
+    negative_regen_death_calls++;
+    unit->svflags |= SVF_DEADMONSTER;
+}
+TEST(wc3_combat, negative_natural_regeneration_from_full_health_is_lethal) {
+    edict_t *unit;
+    UnitBalance_t balance;
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    balance = *unit->data.UnitBalance;
+    balance.healthRegenType = "always";
+    balance.healthRegen = -25.0f;
+    unit->data.UnitBalance = &balance;
+    unit->health.max_value = 100.0f;
+    unit->health.value = 100.0f;
+    unit->movetype = MOVETYPE_NONE;
+    unit->die = negative_regen_death;
+    negative_regen_death_calls = 0;
+    G_RunEntity(unit);
+    T_ASSERT(unit->health.value < 100.0f);
+    unit->health.value = 0.01f;
+    G_RunEntity(unit);
+    T_EQ(negative_regen_death_calls, 1u);
+    T_ASSERT(unit->svflags & SVF_DEADMONSTER);
+}
+
+/* An empowered Orb snapshots its damage and three splash bands on the fired
+ * missile, and spends mana at launch exactly once (not again on impact). */
+TEST(wc3_combat, destroyer_orb_launch_applies_authored_splash_on_plain_missile_weapon) {
+    static UnitAbilities_t abilities = { .abilList = "Afak" };
+    static UnitWeapons_t weapons = { .attacksEnabled = 1,
+        .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    static char const slk[] =
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Area1\"\n"
+        "C;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\n"
+        "C;Y1;X8;K\"DataC1\"\nC;Y1;X9;K\"DataD1\"\n"
+        "C;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"targs\"\n"
+        "C;Y2;X1;K\"Afak\"\nC;Y2;X2;K\"Afak\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K13\nC;Y2;X5;K180\nC;Y2;X6;K31\n"
+        "C;Y2;X7;K0.6\nC;Y2;X8;K0.2\nC;Y2;X9;K4\n"
+        "C;Y2;X10;K95\nC;Y2;X11;K\"air,ground,enemy\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *attacker, *primary, *bystander, *ally, *missile = NULL;
+    artillery_t *splash;
+    float health_before, bystander_before;
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    attacker = make_combat_unit(MAKEFOURCC('u','b','s','p'), 500, 0, 0);
+    primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 900, 200, 0);
+    bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 900, 275, 0);
+    ally = make_combat_unit(MAKEFOURCC('h','f','o','o'), 900, 280, 0);
+    attacker->s.player = ally->s.player = 0;
+    primary->s.player = bystander->s.player = 1;
+    attacker->data.UnitAbilities = &abilities;
+    attacker->data.UnitWeapons = &weapons;
+    attacker->mana.value = attacker->mana.max_value = 100.0f;
+    attacker->unit_state->attack1.type = ATK_MAGIC;
+    attacker->unit_state->attack1.weapon = WPN_MISSILE;
+    attacker->unit_state->attack1.range = 600;
+    attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->unit_state->attack1.damageBase = 40;
+    attacker->unit_state->attack1.numberOfDice = 0;
+    attacker->unit_state->attack1.damagePoint = 0.1f;
+    attacker->unit_state->attack1.cooldown = 1.0f;
+    attacker->unit_state->attack1.projectile.speed = 900;
+    primary->targtype = bystander->targtype = ally->targtype = TARG_GROUND;
+    T_ASSERT(G_SetUnitAutocast(attacker, FS_SLKKey("Afak"), true));
+    attacker->goalentity = primary;
+    attack_ranged(attacker);
+    T_NOT_NULL(attacker->currentmove);
+    if (!attacker->currentmove) goto done;
+    attacker->wait = 0.1f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent;
+        break;
+    }
+    T_NOT_NULL(missile);
+    if (!missile) goto done;
+    splash = G_GetArtillery(missile);
+    T_NOT_NULL(splash);
+    if (splash) {
+        T_FEQ(splash->area_full, 4, 0.001f);
+        T_FEQ(splash->area_medium, 95, 0.001f);
+        T_FEQ(splash->area_small, 180, 0.001f);
+        T_FEQ(splash->factor_medium, 0.6f, 0.001f);
+        T_FEQ(splash->factor_small, 0.2f, 0.001f);
+    }
+    T_FEQ(attacker->mana.value, 87, 0.001f);
+    T_EQ(missile->s.model, G_RegisterModel("TestUI\\Models\\anim_projectile.mdx"));
+    T_ASSERT(missile->damage >= 31u);
+    health_before = primary->health.value;
+    bystander_before = bystander->health.value;
+    FOR_LOOP(i, 20) {
+        if (!missile->inuse || missile->movetype != MOVETYPE_FLYMISSILE) break;
+        G_RunEntity(missile);
+    }
+    T_ASSERT(primary->health.value < health_before);
+    T_ASSERT(bystander->health.value < bystander_before);
+    T_FEQ(ally->health.value, 900.0f, 0.001f);
+    T_FEQ(attacker->mana.value, 87.0f, 0.001f);
+    if (missile->inuse) {
+        T_ASSERT(missile->aiflags & AI_PROJECTILE_DEATH_PRESENTATION);
+        T_STREQ(missile->animation->name, "Death");
+    }
+
+done:
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif

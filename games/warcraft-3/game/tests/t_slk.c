@@ -1583,6 +1583,20 @@ TEST(wc3_slk, required_animation_names_select_matching_alternate_sequence) {
     if (selected) T_STREQ(selected->name, "Stand");
 }
 
+TEST(wc3_slk, missing_ready_animation_falls_back_to_land_stand_before_swim_stand) {
+    animation_t animations[] = {
+        { .name = "Stand Swim" },
+        { .name = "Stand" },
+    };
+    animation_t const *land = G_SelectAnimationForProperties(animations, 2, "stand ready", "");
+    animation_t const *water = G_SelectAnimationForProperties(animations, 2, "stand ready", "swim");
+
+    T_NOT_NULL(land);
+    T_NOT_NULL(water);
+    if (land) T_STREQ(land->name, "Stand");
+    if (water) T_STREQ(water->name, "Stand Swim");
+}
+
 TEST(wc3_slk, randomized_walk_variants_keep_the_selected_tag_set) {
     animation_t animations[] = {
         { .name = "Walk - 1", .syncpoint = 17 },
@@ -1643,6 +1657,17 @@ TEST(wc3_slk, required_animation_names_combine_order_tags_with_unit_tags) {
 
     T_NOT_NULL(selected);
     if (selected) T_STREQ(selected->name, "Stand Ready Alternate");
+}
+
+TEST(wc3_slk, building_attack_keeps_the_units_upgrade_tier) {
+    animation_t animations[] = {
+        { .name = "Stand Upgrade First Ready Attack" },
+        { .name = "Attack Stand Ready Upgrade Second" },
+    };
+    animation_t const *selected = G_SelectAnimationForProperties(animations, 2, "attack range", "upgrade,first");
+
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand Upgrade First Ready Attack");
 }
 
 TEST(wc3_slk, decay_secondary_tag_falls_back_within_decay_family) {
