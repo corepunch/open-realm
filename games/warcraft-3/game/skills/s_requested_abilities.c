@@ -1368,9 +1368,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityChainLightning) {
 /* Name=Forked Lightning
  * Ubertip="Strikes multiple enemy units with lightning."
  */
+#define MAX_FORKED_LIGHTNING_TARGETS 256 // units; bounds temporary closest-target sorting storage for one cast
 BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
     uint32_t const level = S_SpellLevel(caster, spell->code);
-    uint32_t const max_hits = MIN(MAX_GROUP_SIZE,
+    uint32_t const max_hits = MIN(MAX_FORKED_LIGHTNING_TARGETS,
         (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 2)));
     float const range = S_SpellRange(spell->code, level);
     float const width = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -1379,8 +1380,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
     float const aim_length = Vector2_len(&aim);
     if (aim_length <= 0.0f) return;
     vec2_t const direction = Vector2_scale(&aim, 1.0f / aim_length);
-    edict_t *targets[MAX_GROUP_SIZE];
-    float distances[MAX_GROUP_SIZE];
+    edict_t *targets[MAX_FORKED_LIGHTNING_TARGETS];
+    float distances[MAX_FORKED_LIGHTNING_TARGETS];
     uint32_t count = 0;
 
     /* Forked Lightning spreads from the caster toward the selected target.
@@ -1400,16 +1401,16 @@ BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
          * target count, so edict iteration order does not decide the victims. */
         uint32_t insert = count;
         while (insert > 0 && distances[insert - 1] > distance) {
-            if (insert < max_hits && insert < MAX_GROUP_SIZE) {
+            if (insert < max_hits && insert < MAX_FORKED_LIGHTNING_TARGETS) {
                 distances[insert] = distances[insert - 1];
                 targets[insert] = targets[insert - 1];
             }
             insert--;
         }
-        if (insert < max_hits && insert < MAX_GROUP_SIZE) {
+        if (insert < max_hits && insert < MAX_FORKED_LIGHTNING_TARGETS) {
             distances[insert] = distance;
             targets[insert] = target;
-            if (count < max_hits && count < MAX_GROUP_SIZE) count++;
+            if (count < max_hits && count < MAX_FORKED_LIGHTNING_TARGETS) count++;
         }
     }
 

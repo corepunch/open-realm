@@ -1195,7 +1195,6 @@ typedef struct {
     vec2_t origin;
 } gitem_t;
 
-#define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
 #define JASS_GROUP_INITIAL_CAPACITY 64 // handle pointer slots; grows dynamically while group objects stay at stable addresses
 #define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
 #define MAX_TIMERS 4096 // handles; stable slots are retained for stale JASS handle safety across repeated waits
@@ -1238,8 +1237,9 @@ typedef struct {
 typedef struct {
     uint32_t handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     bool inuse;
-    edict_t *units[MAX_GROUP_SIZE];
+    edict_t **units; // dynamically sized member array; retained group handles may contain every map unit
     uint32_t num_units;
+    uint32_t unit_capacity;
 } ggroup_t;
 
 /* Script/map weather emitter state driving game-authored particle presentation. */
@@ -3236,6 +3236,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id);
 handle_t G_LoadJassHandle(cstring_t type, uint32_t id);
 ggroup_t *G_AllocJassGroup(void);
 bool G_EnsureJassGroupSlots(uint32_t count);
+bool G_EnsureJassGroupMembers(ggroup_t *group, uint32_t count);
 bool G_JassGroupValid(ggroup_t const *group);
 bool G_JassGroupIndex(ggroup_t const *group, uint32_t *index);
 ggroup_t *G_JassGroupByIndex(uint32_t index);
