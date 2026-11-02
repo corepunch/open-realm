@@ -232,7 +232,7 @@ static ability_t abilitylist[] = {
     /* NightElfAbilityStrings.txt */
     { "AEbl", CAbilityBlink, AB_SPELL, SPELL_TARGET_POINT },  /* Blink */
     { "AEfk", CAbilityFanOfKnives, AB_SPELL },  /* Fan of Knives */
-    { "AEsh", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike */
+    { "AEsh", CAbilityShadowStrike, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Shadow Strike */
     { "AEsv", CAbilitySpiritOfVengeance, AB_SPELL },  /* Vengeance */
     { "Aeat", CAbilityEatTree, AB_SPELL, SPELL_TARGET_UNIT },  /* Eat Tree */
     { "Ambt", CAbilityManaBattery, AB_SPELL | AB_AUTOCAST | AB_UPDATE, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
@@ -653,7 +653,7 @@ static ability_t abilitylist[] = {
     { "ACsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence (Creep) */
     { "ACsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
-    { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
+    { "ACss", CAbilityShadowStrike, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
     { "ACst", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Trap) */
     { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
     { "ACt2", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap (Thunder Lizard) */
