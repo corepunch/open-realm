@@ -1522,7 +1522,7 @@ int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
         ID_CRITICAL_STRIKE, ID_CREEP_CRITICAL_STRIKE,
         ID_DRUNKEN_BRAWLER, ID_DRUNKEN_BRAWLER_CAMPAIGN
     };
-    FOR_LOOP(i, COUNT_OF(bases)) {
+    FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
         abilityAliasRef_t const own = S_ResolveAbilityAlias(attacker, bases[i]);
         if (!own.level) continue;
         if ((float)(rand() % 100) >= S_SpellData(own.alias, own.level, 1)) return damage;
