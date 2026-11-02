@@ -1,0 +1,6983 @@
+{
+  "task": "NUM-01.18",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "939c6473e754a2c29c5727dccac22f9e79321ce7984d40e5b8ab0f77ba22475b",
+  "bundle_sha256": "d20d85a779731e4463259b0b0c7df6b5eb04aeac2c13f1bd938f2feaeb5fd85b",
+  "files": {
+    "observe-a.jsonl": "a0d3b5d79d3e69a41079985e3e8ff0134f3ec5e92b050fb9631b9d67c7c8cd47",
+    "observe-a-preload.txt": "e6675ff3e890862723023126756269c07ceebc00b3686d22dbc075860911ce2c",
+    "observe-b.jsonl": "7603fb887bd09ae01584d96bad9791c481571d582617930477846d969d42c1dc",
+    "observe-b-preload.txt": "c44a1c34eab5c242de11e3adde1fb990d352ddd4fe01dc5c7cba52090d4ccee2",
+    "control-a.jsonl": "b30d4c1e4ccdbe65a44682c4e44229b1f8b09f583528cd6c6cfc32471a3ae192",
+    "control-a-preload.txt": "f565fdecd2d892ab74d298af00e74461685cbbadb922641779731e0c3d4f5cf6",
+    "inventory.json": "689411d9bee356c5024dc869ecc1292040310c4f44331097defed3d75addfc15",
+    "sources/power307_capture.py": "a835a50f83932d02b04cbee2dce9d11350be37734cba262517e7c2d8e02f771d",
+    "sources/trig351_observer.js": "83f45e47f54c6f6835cd8ffc27169f515f1ea518200e602a346118f06a27b02d",
+    "sources/power307_make_map.py": "564224ae937c86a769f4a9dd0c127dcc5883e4bf7011b86f8af3149bbc1ef59d",
+    "sources/power307_probe.j": "f09c2765a85dd49ed6954de88d9f7ce54731517a328528e06c49dae784134678",
+    "sources/smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+    "sources/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "sources/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "sources/trig351_probe.j": "15c5eab834c6b7d27d69e769d1b487b2dd218dd79626f02125bebd7fca2b2abf",
+    "sources/trig351_make_map.py": "40203b7a5df0039bac116135535246d2ec26191b4abb2024762c4b887b29883a",
+    "base.w3m.b64": "9c58bae305b48e16643c9d9a21ed7af03fb529b71978e79266f23980c76b599b",
+    "map.w3m.b64": "01b0bbac4a0a5e2a200a1980128ab70a7716b136a588af2a4e327b2b3d4eabd6"
+  },
+  "ledger": [
+    {
+      "target": "6f06ffa0",
+      "site": "6f1d4cba",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d4c80",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d4cb7 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f1d4cb5 MOV EDX,EAX"
+      ],
+      "call_context": [
+        "6f1d4c9b MOV ECX,dword ptr [0x6fd3c744]",
+        "6f1d4ca1 POP ESI",
+        "6f1d4ca2 MOV dword ptr [EAX],ECX",
+        "6f1d4ca4 MOV ESP,EBP",
+        "6f1d4ca6 POP EBP",
+        "6f1d4ca7 RET 0x8",
+        "6f1d4caa PUSH ECX",
+        "6f1d4cab MOV EDX,ESI",
+        "6f1d4cad LEA ECX,[EBP + -0x4]",
+        "6f1d4cb0 CALL 0x6f06fcd0",
+        "6f1d4cb5 MOV EDX,EAX",
+        "6f1d4cb7 LEA ECX,[EBP + 0xc]",
+        "6f1d4cba CALL 0x6f06ffa0"
+      ]
+    },
+    {
+      "target": "6f06ffa0",
+      "site": "6f1d4d23",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d4d20",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d4d20 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f1d4d20 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f1d4d20 PUSH ESI",
+        "6f1d4d21 MOV ESI,ECX",
+        "6f1d4d23 CALL 0x6f06ffa0"
+      ]
+    },
+    {
+      "target": "6f06ffa0",
+      "site": "6f1f75f3",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1f75d0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1f75f0 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f1f75d3 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1f75d0 PUSH EBP",
+        "6f1f75d1 MOV EBP,ESP",
+        "6f1f75d3 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f1f75d6 MOVSS XMM0,dword ptr [0x6fd3c740]",
+        "6f1f75de MOVSS XMM1,dword ptr [EDX]",
+        "6f1f75e2 COMISS XMM0,XMM1",
+        "6f1f75e5 JA 0x6f1f75fd",
+        "6f1f75e7 COMISS XMM1,dword ptr [0x6fd3c748]",
+        "6f1f75ee JA 0x6f1f75fd",
+        "6f1f75f0 LEA ECX,[EBP + 0x8]",
+        "6f1f75f3 CALL 0x6f06ffa0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f1f8273",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1f8250",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1f8270 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f1f8253 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1f8250 PUSH EBP",
+        "6f1f8251 MOV EBP,ESP",
+        "6f1f8253 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f1f8256 MOVSS XMM0,dword ptr [0x6fd3c740]",
+        "6f1f825e MOVSS XMM1,dword ptr [EDX]",
+        "6f1f8262 COMISS XMM0,XMM1",
+        "6f1f8265 JA 0x6f1f827d",
+        "6f1f8267 COMISS XMM1,dword ptr [0x6fd3c748]",
+        "6f1f826e JA 0x6f1f827d",
+        "6f1f8270 LEA ECX,[EBP + 0x8]",
+        "6f1f8273 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f219593",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f219590",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f219590 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f219590 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f219590 PUSH ESI",
+        "6f219591 MOV ESI,ECX",
+        "6f219593 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac1f1",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac1a0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac1ee LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac1e6 LEA EDX,[ESI + 0x18]"
+      ],
+      "call_context": [
+        "6f9ac1cc MOV EAX,dword ptr [ESI + 0x1c]",
+        "6f9ac1cf LEA EDX,[EBP + -0x4]",
+        "6f9ac1d2 XOR EAX,0x80000000",
+        "6f9ac1d7 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac1da LEA EAX,[ESI + 0x20]",
+        "6f9ac1dd PUSH EAX",
+        "6f9ac1de CALL 0x6f070530",
+        "6f9ac1e3 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac1e6 LEA EDX,[ESI + 0x18]",
+        "6f9ac1e9 MOV EAX,dword ptr [EBP + -0x8]",
+        "6f9ac1ec MOV dword ptr [ECX],EAX",
+        "6f9ac1ee LEA ECX,[EBP + 0x8]",
+        "6f9ac1f1 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac2cc",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac280",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac2be LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac2b6 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac2a7 LEA EAX,[ESI + 0x10]",
+        "6f9ac2aa PUSH EAX",
+        "6f9ac2ab LEA EDX,[ESI + 0x14]",
+        "6f9ac2ae CALL 0x6f070530",
+        "6f9ac2b3 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac2b6 LEA EDX,[EBP + 0x8]",
+        "6f9ac2b9 MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac2bc MOV dword ptr [ECX],EAX",
+        "6f9ac2be LEA ECX,[EBP + -0x4]",
+        "6f9ac2c1 MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac2c4 XOR EAX,0x80000000",
+        "6f9ac2c9 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac2cc CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac3b0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac3a2 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac39a LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac38b LEA EAX,[ESI + 0x20]",
+        "6f9ac38e PUSH EAX",
+        "6f9ac38f LEA EDX,[ESI + 0x18]",
+        "6f9ac392 CALL 0x6f070530",
+        "6f9ac397 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac39a LEA EDX,[EBP + 0x8]",
+        "6f9ac39d MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac3a0 MOV dword ptr [ECX],EAX",
+        "6f9ac3a2 LEA ECX,[EBP + -0x4]",
+        "6f9ac3a5 MOV EAX,dword ptr [ESI + 0x1c]",
+        "6f9ac3a8 XOR EAX,0x80000000",
+        "6f9ac3ad MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac3b0 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac4ae",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac460",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+4"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac4ab LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac4a3 LEA EDX,[ESI + 0x4]"
+      ],
+      "call_context": [
+        "6f9ac48a JBE 0x6f9ac4ea",
+        "6f9ac48c MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac48f LEA EDX,[EBP + -0x4]",
+        "6f9ac492 XOR EAX,0x80000000",
+        "6f9ac497 PUSH ESI",
+        "6f9ac498 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac49b CALL 0x6f070530",
+        "6f9ac4a0 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac4a3 LEA EDX,[ESI + 0x4]",
+        "6f9ac4a6 MOV EAX,dword ptr [EBP + -0x8]",
+        "6f9ac4a9 MOV dword ptr [ECX],EAX",
+        "6f9ac4ab LEA ECX,[EBP + 0x8]",
+        "6f9ac4ae CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac591",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac540",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+20"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac58e LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac586 LEA EDX,[ESI + 0x14]"
+      ],
+      "call_context": [
+        "6f9ac56c MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac56f LEA EDX,[EBP + -0x4]",
+        "6f9ac572 XOR EAX,0x80000000",
+        "6f9ac577 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac57a LEA EAX,[ESI + 0x10]",
+        "6f9ac57d PUSH EAX",
+        "6f9ac57e CALL 0x6f070530",
+        "6f9ac583 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac586 LEA EDX,[ESI + 0x14]",
+        "6f9ac589 MOV EAX,dword ptr [EBP + -0x8]",
+        "6f9ac58c MOV dword ptr [ECX],EAX",
+        "6f9ac58e LEA ECX,[EBP + 0x8]",
+        "6f9ac591 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f0703a0",
+      "site": "6f9ac669",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac620",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac65b LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac653 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac645 JBE 0x6f9ac699",
+        "6f9ac647 PUSH ESI",
+        "6f9ac648 LEA EDX,[ESI + 0x4]",
+        "6f9ac64b CALL 0x6f070530",
+        "6f9ac650 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac653 LEA EDX,[EBP + 0x8]",
+        "6f9ac656 MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac659 MOV dword ptr [ECX],EAX",
+        "6f9ac65b LEA ECX,[EBP + -0x4]",
+        "6f9ac65e MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac661 XOR EAX,0x80000000",
+        "6f9ac666 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac669 CALL 0x6f0703a0"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f1f82f6",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1f8290",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ],
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1f82f3 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f1f82f0 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1f82d4 MOV EAX,dword ptr [EAX]",
+        "6f1f82d6 AND EAX,0x7fffffff",
+        "6f1f82db MOV dword ptr [EBP + -0x4],EAX",
+        "6f1f82de COMISS XMM0,dword ptr [EBP + -0x4]",
+        "6f1f82e2 JBE 0x6f1f82ed",
+        "6f1f82e4 MOV EAX,[0x6fd3c744]",
+        "6f1f82e9 MOV ESP,EBP",
+        "6f1f82eb POP EBP",
+        "6f1f82ec RET",
+        "6f1f82ed PUSH dword ptr [EBP + 0xc]",
+        "6f1f82f0 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f1f82f3 LEA ECX,[EBP + -0x4]",
+        "6f1f82f6 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f2195a9",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f2195a0",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ],
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f2195a0 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f2195a0 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f2195a0 PUSH EBP",
+        "6f2195a1 MOV EBP,ESP",
+        "6f2195a3 PUSH ESI",
+        "6f2195a4 PUSH dword ptr [EBP + 0x8]",
+        "6f2195a7 MOV ESI,ECX",
+        "6f2195a9 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac1de",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac1a0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac1b1 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac1cf LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9ac1b4 PUSH EDI",
+        "6f9ac1b5 MOVSS XMM1,dword ptr [ESI + 0x18]",
+        "6f9ac1ba COMISS XMM0,XMM1",
+        "6f9ac1bd JBE 0x6f9ac24b",
+        "6f9ac1c3 COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac1ca JBE 0x6f9ac22a",
+        "6f9ac1cc MOV EAX,dword ptr [ESI + 0x1c]",
+        "6f9ac1cf LEA EDX,[EBP + -0x4]",
+        "6f9ac1d2 XOR EAX,0x80000000",
+        "6f9ac1d7 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac1da LEA EAX,[ESI + 0x20]",
+        "6f9ac1dd PUSH EAX",
+        "6f9ac1de CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac210",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac1a0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac202 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ac1f9 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac1ec MOV dword ptr [ECX],EAX",
+        "6f9ac1ee LEA ECX,[EBP + 0x8]",
+        "6f9ac1f1 CALL 0x6f0703a0",
+        "6f9ac1f6 MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac1f9 LEA EDX,[EBP + 0x8]",
+        "6f9ac1fc MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac1ff PUSH ESI",
+        "6f9ac200 MOV dword ptr [ECX],EAX",
+        "6f9ac202 LEA ECX,[EBP + 0xc]",
+        "6f9ac205 MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac208 XOR EAX,0x80000000",
+        "6f9ac20d MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac210 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac231",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac1a0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+4"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac1b1 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac22e LEA EDX,[ESI + 0x4]"
+      ],
+      "call_context": [
+        "6f9ac215 MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac218 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ac21b POP EDI",
+        "6f9ac21c POP ESI",
+        "6f9ac21d MOV dword ptr [ECX],EAX",
+        "6f9ac21f MOV EAX,0x1",
+        "6f9ac224 MOV ESP,EBP",
+        "6f9ac226 POP EBP",
+        "6f9ac227 RET 0xc",
+        "6f9ac22a LEA EAX,[ESI + 0x10]",
+        "6f9ac22d PUSH EAX",
+        "6f9ac22e LEA EDX,[ESI + 0x4]",
+        "6f9ac231 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac252",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac1a0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+4"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac1b1 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac24f LEA EDX,[ESI + 0x4]"
+      ],
+      "call_context": [
+        "6f9ac22d PUSH EAX",
+        "6f9ac22e LEA EDX,[ESI + 0x4]",
+        "6f9ac231 CALL 0x6f070530",
+        "6f9ac236 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac239 MOV ECX,dword ptr [EBP + -0x8]",
+        "6f9ac23c XOR ECX,0x80000000",
+        "6f9ac242 MOV dword ptr [EAX],ECX",
+        "6f9ac244 MOV EAX,[0x6fcd5440]",
+        "6f9ac249 JMP 0x6f9ac264",
+        "6f9ac24b LEA EAX,[ESI + 0x10]",
+        "6f9ac24e PUSH EAX",
+        "6f9ac24f LEA EDX,[ESI + 0x4]",
+        "6f9ac252 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac2ae",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac280",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+20"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac2a2 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac2ab LEA EDX,[ESI + 0x14]"
+      ],
+      "call_context": [
+        "6f9ac28b SUB ESP,0x8",
+        "6f9ac28e PUSH ESI",
+        "6f9ac28f MOV ESI,ECX",
+        "6f9ac291 MOVSS XMM1,dword ptr [ESI + 0xc]",
+        "6f9ac296 COMISS XMM0,XMM1",
+        "6f9ac299 JBE 0x6f9ac314",
+        "6f9ac29b COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac2a2 LEA ECX,[EBP + -0x4]",
+        "6f9ac2a5 JBE 0x6f9ac2f9",
+        "6f9ac2a7 LEA EAX,[ESI + 0x10]",
+        "6f9ac2aa PUSH EAX",
+        "6f9ac2ab LEA EDX,[ESI + 0x14]",
+        "6f9ac2ae CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac2e0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac280",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac2dd LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac2d4 LEA EDX,[ESI + 0x18]"
+      ],
+      "call_context": [
+        "6f9ac2bc MOV dword ptr [ECX],EAX",
+        "6f9ac2be LEA ECX,[EBP + -0x4]",
+        "6f9ac2c1 MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac2c4 XOR EAX,0x80000000",
+        "6f9ac2c9 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac2cc CALL 0x6f0703a0",
+        "6f9ac2d1 MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac2d4 LEA EDX,[ESI + 0x18]",
+        "6f9ac2d7 MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac2da PUSH ESI",
+        "6f9ac2db MOV dword ptr [ECX],EAX",
+        "6f9ac2dd LEA ECX,[EBP + 0x8]",
+        "6f9ac2e0 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac300",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac280",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+8"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac2a2 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac2fd LEA EDX,[ESI + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac2e0 CALL 0x6f070530",
+        "6f9ac2e5 MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac2e8 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac2eb POP ESI",
+        "6f9ac2ec MOV dword ptr [ECX],EAX",
+        "6f9ac2ee MOV EAX,0x1",
+        "6f9ac2f3 MOV ESP,EBP",
+        "6f9ac2f5 POP EBP",
+        "6f9ac2f6 RET 0xc",
+        "6f9ac2f9 LEA EAX,[ESI + 0x20]",
+        "6f9ac2fc PUSH EAX",
+        "6f9ac2fd LEA EDX,[ESI + 0x8]",
+        "6f9ac300 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac329",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac280",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac31f LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac317 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9ac305 MOV ECX,dword ptr [EBP + 0x8]",
+        "6f9ac308 MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac30b MOV dword ptr [ECX],EAX",
+        "6f9ac30d MOV EAX,[0x6fcd5458]",
+        "6f9ac312 JMP 0x6f9ac33b",
+        "6f9ac314 MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac317 LEA EDX,[EBP + -0x4]",
+        "6f9ac31a XOR EAX,0x80000000",
+        "6f9ac31f LEA ECX,[EBP + -0x8]",
+        "6f9ac322 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac325 LEA EAX,[ESI + 0x20]",
+        "6f9ac328 PUSH EAX",
+        "6f9ac329 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac392",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac386 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac38f LEA EDX,[ESI + 0x18]"
+      ],
+      "call_context": [
+        "6f9ac36b SUB ESP,0x8",
+        "6f9ac36e PUSH ESI",
+        "6f9ac36f MOV ESI,ECX",
+        "6f9ac371 MOVSS XMM1,dword ptr [ESI + 0x1c]",
+        "6f9ac376 COMISS XMM0,XMM1",
+        "6f9ac379 JBE 0x6f9ac40e",
+        "6f9ac37f COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac386 LEA ECX,[EBP + -0x4]",
+        "6f9ac389 JBE 0x6f9ac3e0",
+        "6f9ac38b LEA EAX,[ESI + 0x20]",
+        "6f9ac38e PUSH EAX",
+        "6f9ac38f LEA EDX,[ESI + 0x18]",
+        "6f9ac392 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac3c7",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+4"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac3c4 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac3b8 LEA EDX,[ESI + 0x4]"
+      ],
+      "call_context": [
+        "6f9ac3a2 LEA ECX,[EBP + -0x4]",
+        "6f9ac3a5 MOV EAX,dword ptr [ESI + 0x1c]",
+        "6f9ac3a8 XOR EAX,0x80000000",
+        "6f9ac3ad MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac3b0 CALL 0x6f0703a0",
+        "6f9ac3b5 MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac3b8 LEA EDX,[ESI + 0x4]",
+        "6f9ac3bb MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac3be MOV dword ptr [ECX],EAX",
+        "6f9ac3c0 LEA EAX,[ESI + 0x10]",
+        "6f9ac3c3 PUSH EAX",
+        "6f9ac3c4 LEA ECX,[EBP + 0x8]",
+        "6f9ac3c7 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac3e4",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+12"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac386 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac3e1 LEA EDX,[ESI + 0xc]"
+      ],
+      "call_context": [
+        "6f9ac3c4 LEA ECX,[EBP + 0x8]",
+        "6f9ac3c7 CALL 0x6f070530",
+        "6f9ac3cc MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac3cf MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac3d2 POP ESI",
+        "6f9ac3d3 MOV dword ptr [ECX],EAX",
+        "6f9ac3d5 MOV EAX,0x1",
+        "6f9ac3da MOV ESP,EBP",
+        "6f9ac3dc POP EBP",
+        "6f9ac3dd RET 0xc",
+        "6f9ac3e0 PUSH ESI",
+        "6f9ac3e1 LEA EDX,[ESI + 0xc]",
+        "6f9ac3e4 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac420",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac419 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac411 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9ac3ff MOV EAX,[0x6fd3c744]",
+        "6f9ac404 MOV dword ptr [ECX],EAX",
+        "6f9ac406 XOR EAX,EAX",
+        "6f9ac408 MOV ESP,EBP",
+        "6f9ac40a POP EBP",
+        "6f9ac40b RET 0xc",
+        "6f9ac40e MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac411 LEA EDX,[EBP + -0x4]",
+        "6f9ac414 XOR EAX,0x80000000",
+        "6f9ac419 LEA ECX,[EBP + -0x8]",
+        "6f9ac41c PUSH ESI",
+        "6f9ac41d MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac420 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac49b",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac460",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac471 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac48f LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9ac471 LEA ECX,[EBP + -0x8]",
+        "6f9ac474 PUSH EDI",
+        "6f9ac475 MOVSS XMM1,dword ptr [ESI + 0x4]",
+        "6f9ac47a COMISS XMM0,XMM1",
+        "6f9ac47d JBE 0x6f9ac50b",
+        "6f9ac483 COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac48a JBE 0x6f9ac4ea",
+        "6f9ac48c MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac48f LEA EDX,[EBP + -0x4]",
+        "6f9ac492 XOR EAX,0x80000000",
+        "6f9ac497 PUSH ESI",
+        "6f9ac498 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac49b CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac4d0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac460",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac4be LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ac4b6 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac4ab LEA ECX,[EBP + 0x8]",
+        "6f9ac4ae CALL 0x6f0703a0",
+        "6f9ac4b3 MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac4b6 LEA EDX,[EBP + 0x8]",
+        "6f9ac4b9 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac4bc MOV dword ptr [ECX],EAX",
+        "6f9ac4be LEA ECX,[EBP + 0xc]",
+        "6f9ac4c1 MOV EAX,dword ptr [ESI + 0x1c]",
+        "6f9ac4c4 XOR EAX,0x80000000",
+        "6f9ac4c9 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac4cc LEA EAX,[ESI + 0x10]",
+        "6f9ac4cf PUSH EAX",
+        "6f9ac4d0 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac4f1",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac460",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+20"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac471 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac4ee LEA EDX,[ESI + 0x14]"
+      ],
+      "call_context": [
+        "6f9ac4d5 MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac4d8 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ac4db POP EDI",
+        "6f9ac4dc POP ESI",
+        "6f9ac4dd MOV dword ptr [ECX],EAX",
+        "6f9ac4df MOV EAX,0x1",
+        "6f9ac4e4 MOV ESP,EBP",
+        "6f9ac4e6 POP EBP",
+        "6f9ac4e7 RET 0xc",
+        "6f9ac4ea LEA EAX,[ESI + 0x20]",
+        "6f9ac4ed PUSH EAX",
+        "6f9ac4ee LEA EDX,[ESI + 0x14]",
+        "6f9ac4f1 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac512",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac460",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+20"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac471 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac50f LEA EDX,[ESI + 0x14]"
+      ],
+      "call_context": [
+        "6f9ac4ed PUSH EAX",
+        "6f9ac4ee LEA EDX,[ESI + 0x14]",
+        "6f9ac4f1 CALL 0x6f070530",
+        "6f9ac4f6 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac4f9 MOV ECX,dword ptr [EBP + -0x8]",
+        "6f9ac4fc XOR ECX,0x80000000",
+        "6f9ac502 MOV dword ptr [EAX],ECX",
+        "6f9ac504 MOV EAX,[0x6fcd5440]",
+        "6f9ac509 JMP 0x6f9ac524",
+        "6f9ac50b LEA EAX,[ESI + 0x20]",
+        "6f9ac50e PUSH EAX",
+        "6f9ac50f LEA EDX,[ESI + 0x14]",
+        "6f9ac512 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac57e",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac540",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+16"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac551 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac56f LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9ac554 PUSH EDI",
+        "6f9ac555 MOVSS XMM1,dword ptr [ESI + 0x14]",
+        "6f9ac55a COMISS XMM0,XMM1",
+        "6f9ac55d JBE 0x6f9ac5eb",
+        "6f9ac563 COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac56a JBE 0x6f9ac5cd",
+        "6f9ac56c MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac56f LEA EDX,[EBP + -0x4]",
+        "6f9ac572 XOR EAX,0x80000000",
+        "6f9ac577 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac57a LEA EAX,[ESI + 0x10]",
+        "6f9ac57d PUSH EAX",
+        "6f9ac57e CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac5b3",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac540",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac5a1 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ac599 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f9ac58e LEA ECX,[EBP + 0x8]",
+        "6f9ac591 CALL 0x6f0703a0",
+        "6f9ac596 MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac599 LEA EDX,[EBP + 0x8]",
+        "6f9ac59c MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac59f MOV dword ptr [ECX],EAX",
+        "6f9ac5a1 LEA ECX,[EBP + 0xc]",
+        "6f9ac5a4 MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac5a7 XOR EAX,0x80000000",
+        "6f9ac5ac MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac5af LEA EAX,[ESI + 0x20]",
+        "6f9ac5b2 PUSH EAX",
+        "6f9ac5b3 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac5d1",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac540",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac551 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac5ce LEA EDX,[ESI + 0x18]"
+      ],
+      "call_context": [
+        "6f9ac5b3 CALL 0x6f070530",
+        "6f9ac5b8 MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac5bb MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ac5be POP EDI",
+        "6f9ac5bf POP ESI",
+        "6f9ac5c0 MOV dword ptr [ECX],EAX",
+        "6f9ac5c2 MOV EAX,0x1",
+        "6f9ac5c7 MOV ESP,EBP",
+        "6f9ac5c9 POP EBP",
+        "6f9ac5ca RET 0xc",
+        "6f9ac5cd PUSH ESI",
+        "6f9ac5ce LEA EDX,[ESI + 0x18]",
+        "6f9ac5d1 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac5ef",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac540",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac551 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac5ec LEA EDX,[ESI + 0x18]"
+      ],
+      "call_context": [
+        "6f9ac5ca RET 0xc",
+        "6f9ac5cd PUSH ESI",
+        "6f9ac5ce LEA EDX,[ESI + 0x18]",
+        "6f9ac5d1 CALL 0x6f070530",
+        "6f9ac5d6 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac5d9 MOV ECX,dword ptr [EBP + -0x8]",
+        "6f9ac5dc XOR ECX,0x80000000",
+        "6f9ac5e2 MOV dword ptr [EAX],ECX",
+        "6f9ac5e4 MOV EAX,[0x6fcd5440]",
+        "6f9ac5e9 JMP 0x6f9ac601",
+        "6f9ac5eb PUSH ESI",
+        "6f9ac5ec LEA EDX,[ESI + 0x18]",
+        "6f9ac5ef CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac64b",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac620",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+4"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac642 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac648 LEA EDX,[ESI + 0x4]"
+      ],
+      "call_context": [
+        "6f9ac623 MOVSS XMM0,dword ptr [0x6fd3c748]",
+        "6f9ac62b SUB ESP,0xc",
+        "6f9ac62e PUSH ESI",
+        "6f9ac62f MOV ESI,ECX",
+        "6f9ac631 MOVSS XMM1,dword ptr [ESI + 0x8]",
+        "6f9ac636 COMISS XMM0,XMM1",
+        "6f9ac639 JBE 0x6f9ac6ba",
+        "6f9ac63b COMISS XMM1,dword ptr [0x6fd3c740]",
+        "6f9ac642 LEA ECX,[EBP + -0x4]",
+        "6f9ac645 JBE 0x6f9ac699",
+        "6f9ac647 PUSH ESI",
+        "6f9ac648 LEA EDX,[ESI + 0x4]",
+        "6f9ac64b CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac680",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac620",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+20"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+32"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac67d LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ac671 LEA EDX,[ESI + 0x14]"
+      ],
+      "call_context": [
+        "6f9ac65b LEA ECX,[EBP + -0x4]",
+        "6f9ac65e MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9ac661 XOR EAX,0x80000000",
+        "6f9ac666 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ac669 CALL 0x6f0703a0",
+        "6f9ac66e MOV ECX,dword ptr [EBP + 0xc]",
+        "6f9ac671 LEA EDX,[ESI + 0x14]",
+        "6f9ac674 MOV EAX,dword ptr [EBP + -0x4]",
+        "6f9ac677 MOV dword ptr [ECX],EAX",
+        "6f9ac679 LEA EAX,[ESI + 0x20]",
+        "6f9ac67c PUSH EAX",
+        "6f9ac67d LEA ECX,[EBP + 0x8]",
+        "6f9ac680 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac6a0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac620",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX+12"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-ECX+24"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac642 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ac69d LEA EDX,[ESI + 0xc]"
+      ],
+      "call_context": [
+        "6f9ac680 CALL 0x6f070530",
+        "6f9ac685 MOV ECX,dword ptr [EBP + 0x10]",
+        "6f9ac688 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ac68b POP ESI",
+        "6f9ac68c MOV dword ptr [ECX],EAX",
+        "6f9ac68e MOV EAX,0x1",
+        "6f9ac693 MOV ESP,EBP",
+        "6f9ac695 POP EBP",
+        "6f9ac696 RET 0xc",
+        "6f9ac699 LEA EAX,[ESI + 0x18]",
+        "6f9ac69c PUSH EAX",
+        "6f9ac69d LEA EDX,[ESI + 0xc]",
+        "6f9ac6a0 CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f070530",
+      "site": "6f9ac6da",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ac620",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ],
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ac6c5 LEA ECX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f9ac6bd LEA EDX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f9ac6b3 MOV EAX,[0x6fcd5458]",
+        "6f9ac6b8 JMP 0x6f9ac6ec",
+        "6f9ac6ba MOV EAX,dword ptr [ESI + 0x18]",
+        "6f9ac6bd LEA EDX,[EBP + -0x8]",
+        "6f9ac6c0 XOR EAX,0x80000000",
+        "6f9ac6c5 LEA ECX,[EBP + -0xc]",
+        "6f9ac6c8 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9ac6cb MOV EAX,dword ptr [ESI + 0xc]",
+        "6f9ac6ce XOR EAX,0x80000000",
+        "6f9ac6d3 MOV dword ptr [EBP + -0x8],EAX",
+        "6f9ac6d6 LEA EAX,[EBP + -0x4]",
+        "6f9ac6d9 PUSH EAX",
+        "6f9ac6da CALL 0x6f070530"
+      ]
+    },
+    {
+      "target": "6f0705b0",
+      "site": "6f070561",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f070530",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f070554 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f070551 LEA EDX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f07053c MOV EBX,EDX",
+        "6f07053e MOV ESI,ECX",
+        "6f070540 TEST dword ptr [EDI],0x7f800000",
+        "6f070546 JZ 0x6f07056a",
+        "6f070548 PUSH EDI",
+        "6f070549 LEA ECX,[EBP + -0x4]",
+        "6f07054c CALL 0x6f06fcd0",
+        "6f070551 LEA EDX,[EBP + 0x8]",
+        "6f070554 LEA ECX,[EBP + -0x8]",
+        "6f070557 MOV EAX,dword ptr [EAX]",
+        "6f070559 AND EAX,0x7fffffff",
+        "6f07055e MOV dword ptr [EBP + 0x8],EAX",
+        "6f070561 CALL 0x6f0705b0"
+      ]
+    },
+    {
+      "target": "6f0705b0",
+      "site": "6f1f831a",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1f8310",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1f8317 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f1f8314 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1f8310 PUSH EBP",
+        "6f1f8311 MOV EBP,ESP",
+        "6f1f8313 PUSH ECX",
+        "6f1f8314 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f1f8317 LEA ECX,[EBP + -0x4]",
+        "6f1f831a CALL 0x6f0705b0"
+      ]
+    },
+    {
+      "target": "6f0705b0",
+      "site": "6f2195c3",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f2195c0",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f2195c0 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f2195c0 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f2195c0 PUSH ESI",
+        "6f2195c1 MOV ESI,ECX",
+        "6f2195c3 CALL 0x6f0705b0"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f05a7ea",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05a7d0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05a7e7 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f05a7e5 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f05a7d0 PUSH EBP",
+        "6f05a7d1 MOV EBP,ESP",
+        "6f05a7d3 SUB ESP,0x10",
+        "6f05a7d6 PUSH EBX",
+        "6f05a7d7 PUSH ESI",
+        "6f05a7d8 MOV EBX,ECX",
+        "6f05a7da MOV ESI,EDX",
+        "6f05a7dc PUSH EDI",
+        "6f05a7dd LEA ECX,[EBP + -0x4]",
+        "6f05a7e0 CALL 0x6f071280",
+        "6f05a7e5 MOV EDX,ESI",
+        "6f05a7e7 LEA ECX,[EBP + -0x8]",
+        "6f05a7ea CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f05c12d",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05c0e0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05c12a LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f05c128 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f05c10a CALL 0x6f161040",
+        "6f05c10f PUSH EAX",
+        "6f05c110 LEA EAX,[EBP + -0x1c]",
+        "6f05c113 MOV ECX,EDI",
+        "6f05c115 PUSH EAX",
+        "6f05c116 CALL 0x6f05bdd0",
+        "6f05c11b MOV ESI,dword ptr [EBP + 0x8]",
+        "6f05c11e LEA ECX,[EBP + 0x8]",
+        "6f05c121 MOV EDX,ESI",
+        "6f05c123 CALL 0x6f071280",
+        "6f05c128 MOV EDX,ESI",
+        "6f05c12a LEA ECX,[EBP + -0x4]",
+        "6f05c12d CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f05cb33",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05cb30",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05cb30 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f05cb30 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f05cb30 PUSH ESI",
+        "6f05cb31 MOV ESI,ECX",
+        "6f05cb33 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f16fe6c",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f16fe20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f16fe69 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f16fe67 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f16fe3d MOV dword ptr [EBX + 0xc0],EAX",
+        "6f16fe43 CALL 0x6f173720",
+        "6f16fe48 MOV EAX,dword ptr [EAX]",
+        "6f16fe4a MOV dword ptr [EBX + 0xc4],EAX",
+        "6f16fe50 MOVSS XMM0,dword ptr [EDI]",
+        "6f16fe54 COMISS XMM0,dword ptr [0x6fd3c744]",
+        "6f16fe5b JBE 0x6f16fedc",
+        "6f16fe5d MOV EDX,ESI",
+        "6f16fe5f LEA ECX,[EBP + 0xc]",
+        "6f16fe62 CALL 0x6f071280",
+        "6f16fe67 MOV EDX,ESI",
+        "6f16fe69 LEA ECX,[EBP + 0x8]",
+        "6f16fe6c CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f172077",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f171f30",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f172074 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f172071 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f17204e MOV ECX,dword ptr [ESI + 0x4]",
+        "6f172051 MOVSS XMM0,dword ptr [EBX]",
+        "6f172055 MOV dword ptr [EBP + 0xc],ECX",
+        "6f172058 UCOMISS XMM0,dword ptr [EBP + 0xc]",
+        "6f17205c LAHF",
+        "6f17205d TEST AH,0x44",
+        "6f172060 JNP 0x6f1720ea",
+        "6f172066 LEA EDX,[EBP + -0x4]",
+        "6f172069 LEA ECX,[EBP + 0xc]",
+        "6f17206c CALL 0x6f071280",
+        "6f172071 LEA EDX,[EBP + -0x4]",
+        "6f172074 LEA ECX,[EBP + 0x8]",
+        "6f172077 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f1f958a",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1f9580",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1f9587 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f1f9584 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1f9580 PUSH EBP",
+        "6f1f9581 MOV EBP,ESP",
+        "6f1f9583 PUSH ECX",
+        "6f1f9584 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f1f9587 LEA ECX,[EBP + -0x4]",
+        "6f1f958a CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f4d7ea0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4d7e40",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4d7e9d LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f4d7e93 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f4d7e7c LEA ECX,[EBP + 0x8]",
+        "6f4d7e7f CALL 0x6f071280",
+        "6f4d7e84 MOV EDX,dword ptr [EBP + 0xc]",
+        "6f4d7e87 LEA EAX,[EBP + 0x8]",
+        "6f4d7e8a PUSH EAX",
+        "6f4d7e8b LEA ECX,[EBP + -0x10]",
+        "6f4d7e8e CALL 0x6f06f9c0",
+        "6f4d7e93 LEA EDX,[EBP + -0x4]",
+        "6f4d7e96 MOV ECX,dword ptr [EAX]",
+        "6f4d7e98 MOV EAX,dword ptr [EBP + 0x10]",
+        "6f4d7e9b MOV dword ptr [EAX],ECX",
+        "6f4d7e9d LEA ECX,[EBP + 0x8]",
+        "6f4d7ea0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f4eef7d",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4eed60",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -152
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -176
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4eef77 LEA ECX,[EBP + 0xffffff50]"
+      ],
+      "input_definitions": [
+        "6f4eef71 LEA EDX,[EBP + 0xffffff68]"
+      ],
+      "call_context": [
+        "6f4eef42 LEA ECX,[EBP + 0xffffff44]",
+        "6f4eef48 CALL 0x6f070d80",
+        "6f4eef4d PUSH EAX",
+        "6f4eef4e LEA EDX,[EBP + 0xffffff54]",
+        "6f4eef54 LEA ECX,[EBP + 0xffffff28]",
+        "6f4eef5a CALL 0x6f06f9c0",
+        "6f4eef5f PUSH EAX",
+        "6f4eef60 LEA EDX,[EBP + 0xffffff48]",
+        "6f4eef66 LEA ECX,[EBP + 0xffffff68]",
+        "6f4eef6c CALL 0x6f06fbb0",
+        "6f4eef71 LEA EDX,[EBP + 0xffffff68]",
+        "6f4eef77 LEA ECX,[EBP + 0xffffff50]",
+        "6f4eef7d CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f4cd21c",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4cd190",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4cd219 LEA ECX,[EBP + 0x10]"
+      ],
+      "input_definitions": [
+        "6f4cd216 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f4cd1f6 LEA ECX,[EBP + 0x10]",
+        "6f4cd1f9 CALL 0x6f070d80",
+        "6f4cd1fe PUSH EAX",
+        "6f4cd1ff LEA EDX,[EBP + -0x10]",
+        "6f4cd202 LEA ECX,[EBP + 0xc]",
+        "6f4cd205 CALL 0x6f06f9c0",
+        "6f4cd20a PUSH EAX",
+        "6f4cd20b LEA EDX,[EBP + -0x14]",
+        "6f4cd20e LEA ECX,[EBP + -0x4]",
+        "6f4cd211 CALL 0x6f06fbb0",
+        "6f4cd216 LEA EDX,[EBP + -0x4]",
+        "6f4cd219 LEA ECX,[EBP + 0x10]",
+        "6f4cd21c CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f4cd646",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4cd5c0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -24
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4cd643 LEA ECX,[EBP + -0x18]"
+      ],
+      "input_definitions": [
+        "6f4cd640 LEA EDX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f4cd622 MOV ECX,EDI",
+        "6f4cd624 CALL dword ptr [EAX + 0xb8]",
+        "6f4cd62a LEA ECX,[EBP + -0x8]",
+        "6f4cd62d PUSH ECX",
+        "6f4cd62e MOV ECX,EAX",
+        "6f4cd630 MOV EDX,dword ptr [EAX]",
+        "6f4cd632 CALL dword ptr [EDX + 0x1c]",
+        "6f4cd635 LEA EDX,[EBP + -0x8]",
+        "6f4cd638 LEA ECX,[EBP + -0x14]",
+        "6f4cd63b CALL 0x6f071280",
+        "6f4cd640 LEA EDX,[EBP + -0x8]",
+        "6f4cd643 LEA ECX,[EBP + -0x18]",
+        "6f4cd646 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f59ef63",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f59eea0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -28
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f59ef60 LEA ECX,[EBP + -0x1c]"
+      ],
+      "input_definitions": [
+        "6f59ef5d LEA EDX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f59ef3b CALL 0x6f06f9c0",
+        "6f59ef40 LEA EDX,[EBP + -0x1c]",
+        "6f59ef43 LEA ECX,[EBP + -0x8]",
+        "6f59ef46 MOV EAX,dword ptr [EAX]",
+        "6f59ef48 MOV dword ptr [EBP + -0x18],EAX",
+        "6f59ef4b MOV EAX,dword ptr [ESI + 0x148]",
+        "6f59ef51 MOV dword ptr [EBP + -0x1c],EAX",
+        "6f59ef54 LEA EAX,[EBP + -0x18]",
+        "6f59ef57 PUSH EAX",
+        "6f59ef58 CALL 0x6f06fbb0",
+        "6f59ef5d LEA EDX,[EBP + -0x8]",
+        "6f59ef60 LEA ECX,[EBP + -0x1c]",
+        "6f59ef63 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f50d3f5",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f50d2d0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -48
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f50d3f2 LEA ECX,[EBP + -0x30]"
+      ],
+      "input_definitions": [
+        "6f50d3ef LEA EDX,[EBP + 0xc]"
+      ],
+      "call_context": [
+        "6f50d3d1 MOV ECX,EBX",
+        "6f50d3d3 CALL dword ptr [EAX + 0xb8]",
+        "6f50d3d9 LEA ECX,[EBP + 0xc]",
+        "6f50d3dc PUSH ECX",
+        "6f50d3dd MOV ECX,EAX",
+        "6f50d3df MOV EDX,dword ptr [EAX]",
+        "6f50d3e1 CALL dword ptr [EDX + 0x1c]",
+        "6f50d3e4 LEA EDX,[EBP + 0xc]",
+        "6f50d3e7 LEA ECX,[EBP + 0x8]",
+        "6f50d3ea CALL 0x6f071280",
+        "6f50d3ef LEA EDX,[EBP + 0xc]",
+        "6f50d3f2 LEA ECX,[EBP + -0x30]",
+        "6f50d3f5 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f59aec0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f59ae50",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f59aebd LEA ECX,[EBP + -0x10]"
+      ],
+      "input_definitions": [
+        "6f59aeba LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f59ae93 LEA ECX,[EBP + -0x4]",
+        "6f59ae96 CALL 0x6f06f9c0",
+        "6f59ae9b MOV EBX,dword ptr [EBP + 0x8]",
+        "6f59ae9e LEA EDX,[EBP + -0x4]",
+        "6f59aea1 MOV ECX,dword ptr [ESI + 0x98]",
+        "6f59aea7 MOV EAX,dword ptr [ESI + 0xa0]",
+        "6f59aead MOV dword ptr [EBX],ECX",
+        "6f59aeaf LEA ECX,[EBP + 0x8]",
+        "6f59aeb2 MOV dword ptr [EBX + 0x4],EAX",
+        "6f59aeb5 CALL 0x6f071280",
+        "6f59aeba LEA EDX,[EBP + -0x4]",
+        "6f59aebd LEA ECX,[EBP + -0x10]",
+        "6f59aec0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5f8239",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5f8090",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -36
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5f8236 LEA ECX,[EBP + -0x24]"
+      ],
+      "input_definitions": [
+        "6f5f8233 LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5f8214 MOV EDX,EDI",
+        "6f5f8216 CALL 0x6f070d80",
+        "6f5f821b PUSH EAX",
+        "6f5f821c LEA EDX,[EBP + -0x1c]",
+        "6f5f821f LEA ECX,[EBP + -0x48]",
+        "6f5f8222 CALL 0x6f06f9c0",
+        "6f5f8227 PUSH EAX",
+        "6f5f8228 LEA EDX,[EBP + -0x20]",
+        "6f5f822b LEA ECX,[EBP + -0x10]",
+        "6f5f822e CALL 0x6f06fbb0",
+        "6f5f8233 LEA EDX,[EBP + -0x10]",
+        "6f5f8236 LEA ECX,[EBP + -0x24]",
+        "6f5f8239 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5d02c3",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5d0190",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5d02bb LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f5d02b8 LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5d029e LEA EDX,[EBP + -0x10]",
+        "6f5d02a1 LEA ECX,[EBP + -0x4]",
+        "6f5d02a4 CALL 0x6f071280",
+        "6f5d02a9 LEA EAX,[EBP + -0x4]",
+        "6f5d02ac PUSH EAX",
+        "6f5d02ad LEA EDX,[EBP + -0x14]",
+        "6f5d02b0 LEA ECX,[EBP + -0x28]",
+        "6f5d02b3 CALL 0x6f06f9c0",
+        "6f5d02b8 LEA EDX,[EBP + -0x10]",
+        "6f5d02bb LEA ECX,[EBP + -0x4]",
+        "6f5d02be MOV EAX,dword ptr [EAX]",
+        "6f5d02c0 MOV dword ptr [EBP + -0x40],EAX",
+        "6f5d02c3 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5d0c89",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5d0840",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -172
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -232
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5d0c83 LEA ECX,[EBP + 0xffffff18]"
+      ],
+      "input_definitions": [
+        "6f5d0c7d LEA EDX,[EBP + 0xffffff54]"
+      ],
+      "call_context": [
+        "6f5d0c4e LEA ECX,[EBP + 0xfffffee8]",
+        "6f5d0c54 CALL 0x6f070d80",
+        "6f5d0c59 PUSH EAX",
+        "6f5d0c5a LEA EDX,[EBP + 0xffffff1c]",
+        "6f5d0c60 LEA ECX,[EBP + 0xffffff00]",
+        "6f5d0c66 CALL 0x6f06f9c0",
+        "6f5d0c6b PUSH EAX",
+        "6f5d0c6c LEA EDX,[EBP + 0xffffff14]",
+        "6f5d0c72 LEA ECX,[EBP + 0xffffff54]",
+        "6f5d0c78 CALL 0x6f06fbb0",
+        "6f5d0c7d LEA EDX,[EBP + 0xffffff54]",
+        "6f5d0c83 LEA ECX,[EBP + 0xffffff18]",
+        "6f5d0c89 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f63bf8e",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f63bf30",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f63bf8b LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f63bf81 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f63bf6b CALL 0x6f071280",
+        "6f63bf70 MOV ESI,dword ptr [EBP + 0x8]",
+        "6f63bf73 LEA EAX,[EBP + -0x8]",
+        "6f63bf76 PUSH EAX",
+        "6f63bf77 MOV EDX,ESI",
+        "6f63bf79 LEA ECX,[EBP + -0x10]",
+        "6f63bf7c CALL 0x6f06f9c0",
+        "6f63bf81 LEA EDX,[EBP + -0x4]",
+        "6f63bf84 MOV ECX,dword ptr [EAX]",
+        "6f63bf86 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f63bf89 MOV dword ptr [EAX],ECX",
+        "6f63bf8b LEA ECX,[EBP + 0x8]",
+        "6f63bf8e CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5e2a0e",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5e29b0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5e2a0b LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f5e2a01 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f5e29eb CALL 0x6f071280",
+        "6f5e29f0 MOV ESI,dword ptr [EBP + 0x8]",
+        "6f5e29f3 LEA EAX,[EBP + -0x8]",
+        "6f5e29f6 PUSH EAX",
+        "6f5e29f7 MOV EDX,ESI",
+        "6f5e29f9 LEA ECX,[EBP + -0x10]",
+        "6f5e29fc CALL 0x6f06f9c0",
+        "6f5e2a01 LEA EDX,[EBP + -0x4]",
+        "6f5e2a04 MOV ECX,dword ptr [EAX]",
+        "6f5e2a06 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f5e2a09 MOV dword ptr [EAX],ECX",
+        "6f5e2a0b LEA ECX,[EBP + 0x8]",
+        "6f5e2a0e CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5e781c",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5e7670",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -28
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -40
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5e7814 LEA ECX,[EBP + -0x28]"
+      ],
+      "input_definitions": [
+        "6f5e7811 LEA EDX,[EBP + -0x1c]"
+      ],
+      "call_context": [
+        "6f5e77f7 LEA EDX,[EBP + -0x1c]",
+        "6f5e77fa LEA ECX,[EBP + -0x30]",
+        "6f5e77fd CALL 0x6f071280",
+        "6f5e7802 LEA EAX,[EBP + -0x30]",
+        "6f5e7805 PUSH EAX",
+        "6f5e7806 LEA EDX,[EBP + -0x20]",
+        "6f5e7809 LEA ECX,[EBP + -0x54]",
+        "6f5e780c CALL 0x6f06f9c0",
+        "6f5e7811 LEA EDX,[EBP + -0x1c]",
+        "6f5e7814 LEA ECX,[EBP + -0x28]",
+        "6f5e7817 MOV EAX,dword ptr [EAX]",
+        "6f5e7819 MOV dword ptr [EBP + -0xc],EAX",
+        "6f5e781c CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5f8509",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5f8360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -36
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5f8506 LEA ECX,[EBP + -0x24]"
+      ],
+      "input_definitions": [
+        "6f5f8503 LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5f84e4 MOV EDX,EDI",
+        "6f5f84e6 CALL 0x6f070d80",
+        "6f5f84eb PUSH EAX",
+        "6f5f84ec LEA EDX,[EBP + -0x1c]",
+        "6f5f84ef LEA ECX,[EBP + -0x48]",
+        "6f5f84f2 CALL 0x6f06f9c0",
+        "6f5f84f7 PUSH EAX",
+        "6f5f84f8 LEA EDX,[EBP + -0x20]",
+        "6f5f84fb LEA ECX,[EBP + -0x10]",
+        "6f5f84fe CALL 0x6f06fbb0",
+        "6f5f8503 LEA EDX,[EBP + -0x10]",
+        "6f5f8506 LEA ECX,[EBP + -0x24]",
+        "6f5f8509 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f5fc4b8",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5fc350",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5fc4b5 LEA ECX,[EBP + -0x14]"
+      ],
+      "input_definitions": [
+        "6f5fc4b2 LEA EDX,[EBP + -0xc]"
+      ],
+      "call_context": [
+        "6f5fc494 MOV EAX,dword ptr [EBX]",
+        "6f5fc496 CALL dword ptr [EAX + 0xb8]",
+        "6f5fc49c LEA ECX,[EBP + -0xc]",
+        "6f5fc49f PUSH ECX",
+        "6f5fc4a0 MOV ECX,EAX",
+        "6f5fc4a2 MOV EDX,dword ptr [EAX]",
+        "6f5fc4a4 CALL dword ptr [EDX + 0x1c]",
+        "6f5fc4a7 LEA EDX,[EBP + -0xc]",
+        "6f5fc4aa LEA ECX,[EBP + -0x10]",
+        "6f5fc4ad CALL 0x6f071280",
+        "6f5fc4b2 LEA EDX,[EBP + -0xc]",
+        "6f5fc4b5 LEA ECX,[EBP + -0x14]",
+        "6f5fc4b8 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f62ed14",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f62ebb0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -24
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f62ed11 LEA ECX,[EBP + -0x18]"
+      ],
+      "input_definitions": [
+        "6f62ed0e LEA EDX,[EBP + 0xc]"
+      ],
+      "call_context": [
+        "6f62ecf0 MOV ECX,EBX",
+        "6f62ecf2 CALL dword ptr [EAX + 0xb8]",
+        "6f62ecf8 LEA ECX,[EBP + 0xc]",
+        "6f62ecfb PUSH ECX",
+        "6f62ecfc MOV ECX,EAX",
+        "6f62ecfe MOV EDX,dword ptr [EAX]",
+        "6f62ed00 CALL dword ptr [EDX + 0x1c]",
+        "6f62ed03 LEA EDX,[EBP + 0xc]",
+        "6f62ed06 LEA ECX,[EBP + 0x8]",
+        "6f62ed09 CALL 0x6f071280",
+        "6f62ed0e LEA EDX,[EBP + 0xc]",
+        "6f62ed11 LEA ECX,[EBP + -0x18]",
+        "6f62ed14 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f6d2a40",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f6d2910",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f6d2a3d LEA ECX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f6d2a3a LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f6d2a1c MOV EAX,dword ptr [ECX]",
+        "6f6d2a1e CALL dword ptr [EAX + 0xb8]",
+        "6f6d2a24 LEA ECX,[EBP + -0x4]",
+        "6f6d2a27 PUSH ECX",
+        "6f6d2a28 MOV ECX,EAX",
+        "6f6d2a2a MOV EDX,dword ptr [EAX]",
+        "6f6d2a2c CALL dword ptr [EDX + 0x1c]",
+        "6f6d2a2f LEA EDX,[EBP + -0x4]",
+        "6f6d2a32 LEA ECX,[EBP + -0x8]",
+        "6f6d2a35 CALL 0x6f071280",
+        "6f6d2a3a LEA EDX,[EBP + -0x4]",
+        "6f6d2a3d LEA ECX,[EBP + -0xc]",
+        "6f6d2a40 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f6d3983",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f6d3820",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f6d3980 LEA ECX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f6d397d LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f6d395f MOV EAX,dword ptr [ECX]",
+        "6f6d3961 CALL dword ptr [EAX + 0xb8]",
+        "6f6d3967 LEA ECX,[EBP + -0x4]",
+        "6f6d396a PUSH ECX",
+        "6f6d396b MOV ECX,EAX",
+        "6f6d396d MOV EDX,dword ptr [EAX]",
+        "6f6d396f CALL dword ptr [EDX + 0x1c]",
+        "6f6d3972 LEA EDX,[EBP + -0x4]",
+        "6f6d3975 LEA ECX,[EBP + -0x8]",
+        "6f6d3978 CALL 0x6f071280",
+        "6f6d397d LEA EDX,[EBP + -0x4]",
+        "6f6d3980 LEA ECX,[EBP + -0xc]",
+        "6f6d3983 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab3a5",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab3a2 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ab39d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab390 PUSH EBP",
+        "6f9ab391 MOV EBP,ESP",
+        "6f9ab393 SUB ESP,0xdc",
+        "6f9ab399 PUSH ESI",
+        "6f9ab39a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab39d MOV EDX,ESI",
+        "6f9ab39f PUSH EDI",
+        "6f9ab3a0 MOV EDI,ECX",
+        "6f9ab3a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab3a5 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab3f0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab3ea LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab3e5 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab3ca XOR ESI,0x80000000",
+        "6f9ab3d0 MOV dword ptr [EBP + -0x24],EDX",
+        "6f9ab3d3 MOV dword ptr [EBP + -0x14],ESI",
+        "6f9ab3d6 MOV ESI,dword ptr [EBP + 0xc]",
+        "6f9ab3d9 MOV dword ptr [EBP + -0x20],EDX",
+        "6f9ab3dc MOV dword ptr [EBP + -0x1c],EDX",
+        "6f9ab3df MOV dword ptr [EBP + -0x18],ECX",
+        "6f9ab3e2 MOV dword ptr [EBP + -0x10],EDX",
+        "6f9ab3e5 MOV EDX,ESI",
+        "6f9ab3e7 MOV dword ptr [EBP + -0x8],ECX",
+        "6f9ab3ea LEA ECX,[EBP + 0xc]",
+        "6f9ab3ed MOV dword ptr [EBP + -0xc],EAX",
+        "6f9ab3f0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab440",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab428 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab42e MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab419 MOV dword ptr [EBP + -0x68],ECX",
+        "6f9ab41c XOR ECX,0x80000000",
+        "6f9ab422 MOV dword ptr [EBP + -0x70],EDX",
+        "6f9ab425 MOV dword ptr [EBP + -0x58],ECX",
+        "6f9ab428 LEA ECX,[EBP + 0xc]",
+        "6f9ab42b MOV dword ptr [EBP + -0x50],EDX",
+        "6f9ab42e MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab431 MOV dword ptr [EBP + -0x6c],EAX",
+        "6f9ab434 MOV dword ptr [EBP + -0x64],EAX",
+        "6f9ab437 MOV dword ptr [EBP + -0x60],ESI",
+        "6f9ab43a MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab43d MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab440 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab525",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab522 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ab51d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab510 PUSH EBP",
+        "6f9ab511 MOV EBP,ESP",
+        "6f9ab513 SUB ESP,0xdc",
+        "6f9ab519 PUSH ESI",
+        "6f9ab51a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab51d MOV EDX,ESI",
+        "6f9ab51f PUSH EDI",
+        "6f9ab520 MOV EDI,ECX",
+        "6f9ab522 LEA ECX,[EBP + 0x8]",
+        "6f9ab525 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab570",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab56a LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab565 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab54a XOR ESI,0x80000000",
+        "6f9ab550 MOV dword ptr [EBP + -0x24],EDX",
+        "6f9ab553 MOV dword ptr [EBP + -0x14],ESI",
+        "6f9ab556 MOV ESI,dword ptr [EBP + 0xc]",
+        "6f9ab559 MOV dword ptr [EBP + -0x20],EDX",
+        "6f9ab55c MOV dword ptr [EBP + -0x1c],EDX",
+        "6f9ab55f MOV dword ptr [EBP + -0x18],ECX",
+        "6f9ab562 MOV dword ptr [EBP + -0x10],EDX",
+        "6f9ab565 MOV EDX,ESI",
+        "6f9ab567 MOV dword ptr [EBP + -0x8],ECX",
+        "6f9ab56a LEA ECX,[EBP + 0xc]",
+        "6f9ab56d MOV dword ptr [EBP + -0xc],EAX",
+        "6f9ab570 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab5c0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab5ac LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab5a6 MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab59a MOV dword ptr [EBP + -0x4],EDX",
+        "6f9ab59d MOV dword ptr [EBP + -0x70],ECX",
+        "6f9ab5a0 MOV dword ptr [EBP + -0x68],EAX",
+        "6f9ab5a3 MOV dword ptr [EBP + -0x64],EDX",
+        "6f9ab5a6 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab5a9 MOV dword ptr [EBP + -0x60],ECX",
+        "6f9ab5ac LEA ECX,[EBP + 0xc]",
+        "6f9ab5af MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab5b2 MOV dword ptr [EBP + -0x58],EAX",
+        "6f9ab5b5 MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab5b8 MOV EAX,[0x6fd3c748]",
+        "6f9ab5bd MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab5c0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab6a5",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab6a2 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ab69d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab690 PUSH EBP",
+        "6f9ab691 MOV EBP,ESP",
+        "6f9ab693 SUB ESP,0xdc",
+        "6f9ab699 PUSH ESI",
+        "6f9ab69a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab69d MOV EDX,ESI",
+        "6f9ab69f PUSH EDI",
+        "6f9ab6a0 MOV EDI,ECX",
+        "6f9ab6a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab6a5 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab6ee",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab6e3 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab6e9 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab6c9 XOR EAX,0x80000000",
+        "6f9ab6ce MOV dword ptr [EBP + -0x18],ESI",
+        "6f9ab6d1 MOV ESI,dword ptr [EBP + 0xc]",
+        "6f9ab6d4 MOV dword ptr [EBP + -0x28],EDX",
+        "6f9ab6d7 MOV dword ptr [EBP + -0x24],ECX",
+        "6f9ab6da MOV dword ptr [EBP + -0x1c],ECX",
+        "6f9ab6dd MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab6e0 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab6e3 LEA ECX,[EBP + 0xc]",
+        "6f9ab6e6 MOV dword ptr [EBP + -0x8],EDX",
+        "6f9ab6e9 MOV EDX,ESI",
+        "6f9ab6eb MOV dword ptr [EBP + -0x10],EAX",
+        "6f9ab6ee CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab740",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab72e LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab734 MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab71c MOV dword ptr [EBP + -0x70],EAX",
+        "6f9ab71f MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9ab722 MOV dword ptr [EBP + -0x6c],ECX",
+        "6f9ab725 MOV dword ptr [EBP + -0x68],ECX",
+        "6f9ab728 MOV dword ptr [EBP + -0x64],ECX",
+        "6f9ab72b MOV dword ptr [EBP + -0x58],ECX",
+        "6f9ab72e LEA ECX,[EBP + 0xc]",
+        "6f9ab731 MOV dword ptr [EBP + -0x54],EDX",
+        "6f9ab734 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab737 MOV dword ptr [EBP + -0x60],EAX",
+        "6f9ab73a MOV dword ptr [EBP + -0x5c],ESI",
+        "6f9ab73d MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab740 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab825",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab822 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ab81d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab810 PUSH EBP",
+        "6f9ab811 MOV EBP,ESP",
+        "6f9ab813 SUB ESP,0xdc",
+        "6f9ab819 PUSH ESI",
+        "6f9ab81a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab81d MOV EDX,ESI",
+        "6f9ab81f PUSH EDI",
+        "6f9ab820 MOV EDI,ECX",
+        "6f9ab822 LEA ECX,[EBP + 0x8]",
+        "6f9ab825 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab86e",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab863 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab869 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab849 XOR EAX,0x80000000",
+        "6f9ab84e MOV dword ptr [EBP + -0x18],ESI",
+        "6f9ab851 MOV ESI,dword ptr [EBP + 0xc]",
+        "6f9ab854 MOV dword ptr [EBP + -0x28],EDX",
+        "6f9ab857 MOV dword ptr [EBP + -0x24],ECX",
+        "6f9ab85a MOV dword ptr [EBP + -0x1c],ECX",
+        "6f9ab85d MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab860 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab863 LEA ECX,[EBP + 0xc]",
+        "6f9ab866 MOV dword ptr [EBP + -0x8],EDX",
+        "6f9ab869 MOV EDX,ESI",
+        "6f9ab86b MOV dword ptr [EBP + -0x10],EAX",
+        "6f9ab86e CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab8be",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab8aa LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab8a4 MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab898 MOV dword ptr [EBP + -0x4],EDX",
+        "6f9ab89b MOV dword ptr [EBP + -0x70],ECX",
+        "6f9ab89e MOV dword ptr [EBP + -0x68],EAX",
+        "6f9ab8a1 MOV dword ptr [EBP + -0x64],EDX",
+        "6f9ab8a4 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab8a7 MOV dword ptr [EBP + -0x60],ECX",
+        "6f9ab8aa LEA ECX,[EBP + 0xc]",
+        "6f9ab8ad MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab8b0 MOV dword ptr [EBP + -0x58],EAX",
+        "6f9ab8b3 MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab8b6 MOV EAX,[0x6fd3c748]",
+        "6f9ab8bb MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab8be CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab9a5",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab9a2 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9ab99d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab990 PUSH EBP",
+        "6f9ab991 MOV EBP,ESP",
+        "6f9ab993 SUB ESP,0xdc",
+        "6f9ab999 PUSH ESI",
+        "6f9ab99a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab99d MOV EDX,ESI",
+        "6f9ab99f PUSH EDI",
+        "6f9ab9a0 MOV EDI,ECX",
+        "6f9ab9a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab9a5 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9ab9f0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab9ea LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab9df MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab9c8 MOV ECX,dword ptr [0x6fd3c744]",
+        "6f9ab9ce MOV dword ptr [EBP + -0x28],EDX",
+        "6f9ab9d1 MOV dword ptr [EBP + -0x20],ECX",
+        "6f9ab9d4 MOV dword ptr [EBP + -0x1c],EAX",
+        "6f9ab9d7 MOV EAX,[0x6fd3c748]",
+        "6f9ab9dc MOV dword ptr [EBP + -0x18],EDX",
+        "6f9ab9df MOV EDX,ESI",
+        "6f9ab9e1 MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab9e4 MOV dword ptr [EBP + -0x10],ECX",
+        "6f9ab9e7 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab9ea LEA ECX,[EBP + 0xc]",
+        "6f9ab9ed MOV dword ptr [EBP + -0x8],EAX",
+        "6f9ab9f0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9aba42",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9aba30 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9aba36 MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9aba1e MOV dword ptr [EBP + -0x70],EAX",
+        "6f9aba21 MOV EAX,dword ptr [EBP + 0x8]",
+        "6f9aba24 MOV dword ptr [EBP + -0x6c],ECX",
+        "6f9aba27 MOV dword ptr [EBP + -0x68],ECX",
+        "6f9aba2a MOV dword ptr [EBP + -0x64],ECX",
+        "6f9aba2d MOV dword ptr [EBP + -0x58],ECX",
+        "6f9aba30 LEA ECX,[EBP + 0xc]",
+        "6f9aba33 MOV dword ptr [EBP + -0x54],EDX",
+        "6f9aba36 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9aba39 MOV dword ptr [EBP + -0x60],EAX",
+        "6f9aba3c MOV dword ptr [EBP + -0x5c],ESI",
+        "6f9aba3f MOV dword ptr [EBP + -0x50],EAX",
+        "6f9aba42 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9abb35",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abb32 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f9abb2d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9abb20 PUSH EBP",
+        "6f9abb21 MOV EBP,ESP",
+        "6f9abb23 SUB ESP,0xdc",
+        "6f9abb29 PUSH ESI",
+        "6f9abb2a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9abb2d MOV EDX,ESI",
+        "6f9abb2f PUSH EDI",
+        "6f9abb30 MOV EDI,ECX",
+        "6f9abb32 LEA ECX,[EBP + 0x8]",
+        "6f9abb35 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9abb80",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abb7a LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9abb6f MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9abb58 MOV ECX,dword ptr [0x6fd3c744]",
+        "6f9abb5e MOV dword ptr [EBP + -0x28],EDX",
+        "6f9abb61 MOV dword ptr [EBP + -0x20],ECX",
+        "6f9abb64 MOV dword ptr [EBP + -0x1c],EAX",
+        "6f9abb67 MOV EAX,[0x6fd3c748]",
+        "6f9abb6c MOV dword ptr [EBP + -0x18],EDX",
+        "6f9abb6f MOV EDX,ESI",
+        "6f9abb71 MOV dword ptr [EBP + -0x14],ECX",
+        "6f9abb74 MOV dword ptr [EBP + -0x10],ECX",
+        "6f9abb77 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9abb7a LEA ECX,[EBP + 0xc]",
+        "6f9abb7d MOV dword ptr [EBP + -0x8],EAX",
+        "6f9abb80 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f070790",
+      "site": "6f9abbd0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abbb8 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9abbbe MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9abba9 MOV dword ptr [EBP + -0x68],ECX",
+        "6f9abbac XOR ECX,0x80000000",
+        "6f9abbb2 MOV dword ptr [EBP + -0x70],EDX",
+        "6f9abbb5 MOV dword ptr [EBP + -0x58],ECX",
+        "6f9abbb8 LEA ECX,[EBP + 0xc]",
+        "6f9abbbb MOV dword ptr [EBP + -0x50],EDX",
+        "6f9abbbe MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9abbc1 MOV dword ptr [EBP + -0x6c],EAX",
+        "6f9abbc4 MOV dword ptr [EBP + -0x64],EAX",
+        "6f9abbc7 MOV dword ptr [EBP + -0x60],ESI",
+        "6f9abbca MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9abbcd MOV dword ptr [EBP + -0x54],EAX",
+        "6f9abbd0 CALL 0x6f070790"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f05a7e0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05a7d0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05a7dd LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f05a7d0 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f05a7d0 PUSH EBP",
+        "6f05a7d1 MOV EBP,ESP",
+        "6f05a7d3 SUB ESP,0x10",
+        "6f05a7d6 PUSH EBX",
+        "6f05a7d7 PUSH ESI",
+        "6f05a7d8 MOV EBX,ECX",
+        "6f05a7da MOV ESI,EDX",
+        "6f05a7dc PUSH EDI",
+        "6f05a7dd LEA ECX,[EBP + -0x4]",
+        "6f05a7e0 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f05c123",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05c0e0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05c11e LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f05c121 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f05c104 LEA EAX,[EBP + -0x4]",
+        "6f05c107 MOV ECX,EDI",
+        "6f05c109 PUSH EAX",
+        "6f05c10a CALL 0x6f161040",
+        "6f05c10f PUSH EAX",
+        "6f05c110 LEA EAX,[EBP + -0x1c]",
+        "6f05c113 MOV ECX,EDI",
+        "6f05c115 PUSH EAX",
+        "6f05c116 CALL 0x6f05bdd0",
+        "6f05c11b MOV ESI,dword ptr [EBP + 0x8]",
+        "6f05c11e LEA ECX,[EBP + 0x8]",
+        "6f05c121 MOV EDX,ESI",
+        "6f05c123 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f05cb83",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f05cb80",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f05cb80 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f05cb80 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f05cb80 PUSH ESI",
+        "6f05cb81 MOV ESI,ECX",
+        "6f05cb83 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f16fe62",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f16fe20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f16fe5f LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f16fe5d MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f16fe34 PUSH ESI",
+        "6f16fe35 LEA EDX,[EBX + 0x8c]",
+        "6f16fe3b MOV EAX,dword ptr [EDI]",
+        "6f16fe3d MOV dword ptr [EBX + 0xc0],EAX",
+        "6f16fe43 CALL 0x6f173720",
+        "6f16fe48 MOV EAX,dword ptr [EAX]",
+        "6f16fe4a MOV dword ptr [EBX + 0xc4],EAX",
+        "6f16fe50 MOVSS XMM0,dword ptr [EDI]",
+        "6f16fe54 COMISS XMM0,dword ptr [0x6fd3c744]",
+        "6f16fe5b JBE 0x6f16fedc",
+        "6f16fe5d MOV EDX,ESI",
+        "6f16fe5f LEA ECX,[EBP + 0xc]",
+        "6f16fe62 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f17206c",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f171f30",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f172069 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f172066 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f172048 LAHF",
+        "6f172049 TEST AH,0x44",
+        "6f17204c JP 0x6f172066",
+        "6f17204e MOV ECX,dword ptr [ESI + 0x4]",
+        "6f172051 MOVSS XMM0,dword ptr [EBX]",
+        "6f172055 MOV dword ptr [EBP + 0xc],ECX",
+        "6f172058 UCOMISS XMM0,dword ptr [EBP + 0xc]",
+        "6f17205c LAHF",
+        "6f17205d TEST AH,0x44",
+        "6f172060 JNP 0x6f1720ea",
+        "6f172066 LEA EDX,[EBP + -0x4]",
+        "6f172069 LEA ECX,[EBP + 0xc]",
+        "6f17206c CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f215d0a",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f215d00",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f215d07 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f215d04 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f215d00 PUSH EBP",
+        "6f215d01 MOV EBP,ESP",
+        "6f215d03 PUSH ECX",
+        "6f215d04 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f215d07 LEA ECX,[EBP + -0x4]",
+        "6f215d0a CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f4d7e7f",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4d7e40",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4d7e7c LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f4d7e79 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f4d7e57 LEA ECX,[EBP + -0xc]",
+        "6f4d7e5a PUSH EAX",
+        "6f4d7e5b PUSH 0x6fcd5464",
+        "6f4d7e60 CALL 0x6f070d80",
+        "6f4d7e65 MOV EDX,EAX",
+        "6f4d7e67 LEA ECX,[EBP + -0x10]",
+        "6f4d7e6a CALL 0x6f06f9c0",
+        "6f4d7e6f MOV EDX,EAX",
+        "6f4d7e71 LEA ECX,[EBP + -0x4]",
+        "6f4d7e74 CALL 0x6f06fcd0",
+        "6f4d7e79 LEA EDX,[EBP + -0x4]",
+        "6f4d7e7c LEA ECX,[EBP + 0x8]",
+        "6f4d7e7f CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f4eefa6",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4eed60",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -152
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -180
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4eefa0 LEA ECX,[EBP + 0xffffff4c]"
+      ],
+      "input_definitions": [
+        "6f4eef9a LEA EDX,[EBP + 0xffffff68]"
+      ],
+      "call_context": [
+        "6f4eef66 LEA ECX,[EBP + 0xffffff68]",
+        "6f4eef6c CALL 0x6f06fbb0",
+        "6f4eef71 LEA EDX,[EBP + 0xffffff68]",
+        "6f4eef77 LEA ECX,[EBP + 0xffffff50]",
+        "6f4eef7d CALL 0x6f070790",
+        "6f4eef82 LEA EAX,[EBP + 0xffffff50]",
+        "6f4eef88 PUSH EAX",
+        "6f4eef89 LEA EDX,[EBP + 0xffffff64]",
+        "6f4eef8f LEA ECX,[EBP + 0xffffff70]",
+        "6f4eef95 CALL 0x6f06f9c0",
+        "6f4eef9a LEA EDX,[EBP + 0xffffff68]",
+        "6f4eefa0 LEA ECX,[EBP + 0xffffff4c]",
+        "6f4eefa6 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f4cd236",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4cd190",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4cd233 LEA ECX,[EBP + 0x10]"
+      ],
+      "input_definitions": [
+        "6f4cd230 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f4cd20e LEA ECX,[EBP + -0x4]",
+        "6f4cd211 CALL 0x6f06fbb0",
+        "6f4cd216 LEA EDX,[EBP + -0x4]",
+        "6f4cd219 LEA ECX,[EBP + 0x10]",
+        "6f4cd21c CALL 0x6f070790",
+        "6f4cd221 LEA EAX,[EBP + 0x10]",
+        "6f4cd224 PUSH EAX",
+        "6f4cd225 LEA EDX,[EBP + -0x8]",
+        "6f4cd228 LEA ECX,[EBP + -0x1c]",
+        "6f4cd22b CALL 0x6f06f9c0",
+        "6f4cd230 LEA EDX,[EBP + -0x4]",
+        "6f4cd233 LEA ECX,[EBP + 0x10]",
+        "6f4cd236 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f4cd63b",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f4cd5c0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f4cd638 LEA ECX,[EBP + -0x14]"
+      ],
+      "input_definitions": [
+        "6f4cd635 LEA EDX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f4cd61a PUSH EAX",
+        "6f4cd61b CALL 0x6f414060",
+        "6f4cd620 MOV EAX,dword ptr [EDI]",
+        "6f4cd622 MOV ECX,EDI",
+        "6f4cd624 CALL dword ptr [EAX + 0xb8]",
+        "6f4cd62a LEA ECX,[EBP + -0x8]",
+        "6f4cd62d PUSH ECX",
+        "6f4cd62e MOV ECX,EAX",
+        "6f4cd630 MOV EDX,dword ptr [EAX]",
+        "6f4cd632 CALL dword ptr [EDX + 0x1c]",
+        "6f4cd635 LEA EDX,[EBP + -0x8]",
+        "6f4cd638 LEA ECX,[EBP + -0x14]",
+        "6f4cd63b CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f59ef7d",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f59eea0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -28
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f59ef7a LEA ECX,[EBP + -0x1c]"
+      ],
+      "input_definitions": [
+        "6f59ef77 LEA EDX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f59ef57 PUSH EAX",
+        "6f59ef58 CALL 0x6f06fbb0",
+        "6f59ef5d LEA EDX,[EBP + -0x8]",
+        "6f59ef60 LEA ECX,[EBP + -0x1c]",
+        "6f59ef63 CALL 0x6f070790",
+        "6f59ef68 LEA EAX,[EBP + -0x1c]",
+        "6f59ef6b PUSH EAX",
+        "6f59ef6c LEA EDX,[EBP + -0xc]",
+        "6f59ef6f LEA ECX,[EBP + -0x20]",
+        "6f59ef72 CALL 0x6f06f9c0",
+        "6f59ef77 LEA EDX,[EBP + -0x8]",
+        "6f59ef7a LEA ECX,[EBP + -0x1c]",
+        "6f59ef7d CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f50d3ea",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f50d2d0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f50d3e7 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f50d3e4 LEA EDX,[EBP + 0xc]"
+      ],
+      "call_context": [
+        "6f50d3ca MOV ECX,dword ptr [EBP + -0x1c]",
+        "6f50d3cd JMP 0x6f50d424",
+        "6f50d3cf MOV EAX,dword ptr [EBX]",
+        "6f50d3d1 MOV ECX,EBX",
+        "6f50d3d3 CALL dword ptr [EAX + 0xb8]",
+        "6f50d3d9 LEA ECX,[EBP + 0xc]",
+        "6f50d3dc PUSH ECX",
+        "6f50d3dd MOV ECX,EAX",
+        "6f50d3df MOV EDX,dword ptr [EAX]",
+        "6f50d3e1 CALL dword ptr [EDX + 0x1c]",
+        "6f50d3e4 LEA EDX,[EBP + 0xc]",
+        "6f50d3e7 LEA ECX,[EBP + 0x8]",
+        "6f50d3ea CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f59aeb5",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f59ae50",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f59aeaf LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f59ae9e LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f59ae88 CALL 0x6f6936a0",
+        "6f59ae8d PUSH EAX",
+        "6f59ae8e MOV EDX,0x6fcd5464",
+        "6f59ae93 LEA ECX,[EBP + -0x4]",
+        "6f59ae96 CALL 0x6f06f9c0",
+        "6f59ae9b MOV EBX,dword ptr [EBP + 0x8]",
+        "6f59ae9e LEA EDX,[EBP + -0x4]",
+        "6f59aea1 MOV ECX,dword ptr [ESI + 0x98]",
+        "6f59aea7 MOV EAX,dword ptr [ESI + 0xa0]",
+        "6f59aead MOV dword ptr [EBX],ECX",
+        "6f59aeaf LEA ECX,[EBP + 0x8]",
+        "6f59aeb2 MOV dword ptr [EBX + 0x4],EAX",
+        "6f59aeb5 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5f8253",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5f8090",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -40
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5f8250 LEA ECX,[EBP + -0x28]"
+      ],
+      "input_definitions": [
+        "6f5f824d LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5f822b LEA ECX,[EBP + -0x10]",
+        "6f5f822e CALL 0x6f06fbb0",
+        "6f5f8233 LEA EDX,[EBP + -0x10]",
+        "6f5f8236 LEA ECX,[EBP + -0x24]",
+        "6f5f8239 CALL 0x6f070790",
+        "6f5f823e LEA EAX,[EBP + -0x24]",
+        "6f5f8241 PUSH EAX",
+        "6f5f8242 LEA EDX,[EBP + -0x14]",
+        "6f5f8245 LEA ECX,[EBP + -0x30]",
+        "6f5f8248 CALL 0x6f06f9c0",
+        "6f5f824d LEA EDX,[EBP + -0x10]",
+        "6f5f8250 LEA ECX,[EBP + -0x28]",
+        "6f5f8253 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5d02a4",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5d0190",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5d02a1 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f5d029e LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5d027d PUSH EAX",
+        "6f5d027e PUSH 0x6fcd5464",
+        "6f5d0283 MOV EDX,EBX",
+        "6f5d0285 CALL 0x6f070d80",
+        "6f5d028a MOV EDX,EAX",
+        "6f5d028c LEA ECX,[EBP + -0x28]",
+        "6f5d028f CALL 0x6f06f9c0",
+        "6f5d0294 MOV EDX,EAX",
+        "6f5d0296 LEA ECX,[EBP + -0x10]",
+        "6f5d0299 CALL 0x6f06fcd0",
+        "6f5d029e LEA EDX,[EBP + -0x10]",
+        "6f5d02a1 LEA ECX,[EBP + -0x4]",
+        "6f5d02a4 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5d0cb2",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5d0840",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -172
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -208
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5d0cac LEA ECX,[EBP + 0xffffff30]"
+      ],
+      "input_definitions": [
+        "6f5d0ca6 LEA EDX,[EBP + 0xffffff54]"
+      ],
+      "call_context": [
+        "6f5d0c72 LEA ECX,[EBP + 0xffffff54]",
+        "6f5d0c78 CALL 0x6f06fbb0",
+        "6f5d0c7d LEA EDX,[EBP + 0xffffff54]",
+        "6f5d0c83 LEA ECX,[EBP + 0xffffff18]",
+        "6f5d0c89 CALL 0x6f070790",
+        "6f5d0c8e LEA EAX,[EBP + 0xffffff18]",
+        "6f5d0c94 PUSH EAX",
+        "6f5d0c95 LEA EDX,[EBP + 0xffffff60]",
+        "6f5d0c9b LEA ECX,[EBP + 0xffffff6c]",
+        "6f5d0ca1 CALL 0x6f06f9c0",
+        "6f5d0ca6 LEA EDX,[EBP + 0xffffff54]",
+        "6f5d0cac LEA ECX,[EBP + 0xffffff30]",
+        "6f5d0cb2 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f63bf6b",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f63bf30",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f63bf68 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f63bf65 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f63bf42 PUSH 0x6fcd5464",
+        "6f63bf47 MOV EDX,ESI",
+        "6f63bf49 LEA ECX,[EBP + -0xc]",
+        "6f63bf4c CALL 0x6f070d80",
+        "6f63bf51 MOV EDX,EAX",
+        "6f63bf53 LEA ECX,[EBP + -0x10]",
+        "6f63bf56 CALL 0x6f06f9c0",
+        "6f63bf5b MOV EDX,EAX",
+        "6f63bf5d LEA ECX,[EBP + -0x4]",
+        "6f63bf60 CALL 0x6f06fcd0",
+        "6f63bf65 LEA EDX,[EBP + -0x4]",
+        "6f63bf68 LEA ECX,[EBP + -0x8]",
+        "6f63bf6b CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5e29eb",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5e29b0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5e29e8 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f5e29e5 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f5e29c2 PUSH 0x6fcd5464",
+        "6f5e29c7 MOV EDX,ESI",
+        "6f5e29c9 LEA ECX,[EBP + -0xc]",
+        "6f5e29cc CALL 0x6f070d80",
+        "6f5e29d1 MOV EDX,EAX",
+        "6f5e29d3 LEA ECX,[EBP + -0x10]",
+        "6f5e29d6 CALL 0x6f06f9c0",
+        "6f5e29db MOV EDX,EAX",
+        "6f5e29dd LEA ECX,[EBP + -0x4]",
+        "6f5e29e0 CALL 0x6f06fcd0",
+        "6f5e29e5 LEA EDX,[EBP + -0x4]",
+        "6f5e29e8 LEA ECX,[EBP + -0x8]",
+        "6f5e29eb CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5e77fd",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5e7670",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -28
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -48
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5e77fa LEA ECX,[EBP + -0x30]"
+      ],
+      "input_definitions": [
+        "6f5e77f7 LEA EDX,[EBP + -0x1c]"
+      ],
+      "call_context": [
+        "6f5e77d4 PUSH 0x6fcd5464",
+        "6f5e77d9 MOV EDX,ESI",
+        "6f5e77db LEA ECX,[EBP + -0x50]",
+        "6f5e77de CALL 0x6f070d80",
+        "6f5e77e3 MOV EDX,EAX",
+        "6f5e77e5 LEA ECX,[EBP + -0x58]",
+        "6f5e77e8 CALL 0x6f06f9c0",
+        "6f5e77ed MOV EDX,EAX",
+        "6f5e77ef LEA ECX,[EBP + -0x1c]",
+        "6f5e77f2 CALL 0x6f06fcd0",
+        "6f5e77f7 LEA EDX,[EBP + -0x1c]",
+        "6f5e77fa LEA ECX,[EBP + -0x30]",
+        "6f5e77fd CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5f8523",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5f8360",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -40
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5f8520 LEA ECX,[EBP + -0x28]"
+      ],
+      "input_definitions": [
+        "6f5f851d LEA EDX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f5f84fb LEA ECX,[EBP + -0x10]",
+        "6f5f84fe CALL 0x6f06fbb0",
+        "6f5f8503 LEA EDX,[EBP + -0x10]",
+        "6f5f8506 LEA ECX,[EBP + -0x24]",
+        "6f5f8509 CALL 0x6f070790",
+        "6f5f850e LEA EAX,[EBP + -0x24]",
+        "6f5f8511 PUSH EAX",
+        "6f5f8512 LEA EDX,[EBP + -0x14]",
+        "6f5f8515 LEA ECX,[EBP + -0x30]",
+        "6f5f8518 CALL 0x6f06f9c0",
+        "6f5f851d LEA EDX,[EBP + -0x10]",
+        "6f5f8520 LEA ECX,[EBP + -0x28]",
+        "6f5f8523 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f5fc4ad",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5fc350",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5fc4aa LEA ECX,[EBP + -0x10]"
+      ],
+      "input_definitions": [
+        "6f5fc4a7 LEA EDX,[EBP + -0xc]"
+      ],
+      "call_context": [
+        "6f5fc48a MOV EAX,[0x6fd6fb24]",
+        "6f5fc48f MOV ECX,EBX",
+        "6f5fc491 MOV dword ptr [EBP + -0x4],EAX",
+        "6f5fc494 MOV EAX,dword ptr [EBX]",
+        "6f5fc496 CALL dword ptr [EAX + 0xb8]",
+        "6f5fc49c LEA ECX,[EBP + -0xc]",
+        "6f5fc49f PUSH ECX",
+        "6f5fc4a0 MOV ECX,EAX",
+        "6f5fc4a2 MOV EDX,dword ptr [EAX]",
+        "6f5fc4a4 CALL dword ptr [EDX + 0x1c]",
+        "6f5fc4a7 LEA EDX,[EBP + -0xc]",
+        "6f5fc4aa LEA ECX,[EBP + -0x10]",
+        "6f5fc4ad CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f62ed09",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f62ebb0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f62ed06 LEA ECX,[EBP + 0x8]"
+      ],
+      "input_definitions": [
+        "6f62ed03 LEA EDX,[EBP + 0xc]"
+      ],
+      "call_context": [
+        "6f62ece8 COMISS XMM0,dword ptr [EBP + 0xc]",
+        "6f62ecec JBE 0x6f62ed45",
+        "6f62ecee MOV EAX,dword ptr [EBX]",
+        "6f62ecf0 MOV ECX,EBX",
+        "6f62ecf2 CALL dword ptr [EAX + 0xb8]",
+        "6f62ecf8 LEA ECX,[EBP + 0xc]",
+        "6f62ecfb PUSH ECX",
+        "6f62ecfc MOV ECX,EAX",
+        "6f62ecfe MOV EDX,dword ptr [EAX]",
+        "6f62ed00 CALL dword ptr [EDX + 0x1c]",
+        "6f62ed03 LEA EDX,[EBP + 0xc]",
+        "6f62ed06 LEA ECX,[EBP + 0x8]",
+        "6f62ed09 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f6d2a35",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f6d2910",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f6d2a32 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f6d2a2f LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f6d2a14 MOV ECX,dword ptr [EBP + -0x24]",
+        "6f6d2a17 JMP 0x6f6d2a6f",
+        "6f6d2a19 MOV ECX,dword ptr [EBX + 0x38]",
+        "6f6d2a1c MOV EAX,dword ptr [ECX]",
+        "6f6d2a1e CALL dword ptr [EAX + 0xb8]",
+        "6f6d2a24 LEA ECX,[EBP + -0x4]",
+        "6f6d2a27 PUSH ECX",
+        "6f6d2a28 MOV ECX,EAX",
+        "6f6d2a2a MOV EDX,dword ptr [EAX]",
+        "6f6d2a2c CALL dword ptr [EDX + 0x1c]",
+        "6f6d2a2f LEA EDX,[EBP + -0x4]",
+        "6f6d2a32 LEA ECX,[EBP + -0x8]",
+        "6f6d2a35 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f6d3978",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f6d3820",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f6d3975 LEA ECX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f6d3972 LEA EDX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f6d3955 CALL 0x6f15fc70",
+        "6f6d395a JMP 0x6f6d39b2",
+        "6f6d395c MOV ECX,dword ptr [EBX + 0x38]",
+        "6f6d395f MOV EAX,dword ptr [ECX]",
+        "6f6d3961 CALL dword ptr [EAX + 0xb8]",
+        "6f6d3967 LEA ECX,[EBP + -0x4]",
+        "6f6d396a PUSH ECX",
+        "6f6d396b MOV ECX,EAX",
+        "6f6d396d MOV EDX,dword ptr [EAX]",
+        "6f6d396f CALL dword ptr [EDX + 0x1c]",
+        "6f6d3972 LEA EDX,[EBP + -0x4]",
+        "6f6d3975 LEA ECX,[EBP + -0x8]",
+        "6f6d3978 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab3af",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab3ac LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ab3aa MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab390 PUSH EBP",
+        "6f9ab391 MOV EBP,ESP",
+        "6f9ab393 SUB ESP,0xdc",
+        "6f9ab399 PUSH ESI",
+        "6f9ab39a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab39d MOV EDX,ESI",
+        "6f9ab39f PUSH EDI",
+        "6f9ab3a0 MOV EDI,ECX",
+        "6f9ab3a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab3a5 CALL 0x6f070790",
+        "6f9ab3aa MOV EDX,ESI",
+        "6f9ab3ac LEA ECX,[EBP + -0x4]",
+        "6f9ab3af CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab400",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab3f8 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab3fb MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab3dc MOV dword ptr [EBP + -0x1c],EDX",
+        "6f9ab3df MOV dword ptr [EBP + -0x18],ECX",
+        "6f9ab3e2 MOV dword ptr [EBP + -0x10],EDX",
+        "6f9ab3e5 MOV EDX,ESI",
+        "6f9ab3e7 MOV dword ptr [EBP + -0x8],ECX",
+        "6f9ab3ea LEA ECX,[EBP + 0xc]",
+        "6f9ab3ed MOV dword ptr [EBP + -0xc],EAX",
+        "6f9ab3f0 CALL 0x6f070790",
+        "6f9ab3f5 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab3f8 LEA ECX,[EBP + 0xc]",
+        "6f9ab3fb MOV EDX,ESI",
+        "6f9ab3fd MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab400 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab451",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab390",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab448 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab44b MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab42b MOV dword ptr [EBP + -0x50],EDX",
+        "6f9ab42e MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab431 MOV dword ptr [EBP + -0x6c],EAX",
+        "6f9ab434 MOV dword ptr [EBP + -0x64],EAX",
+        "6f9ab437 MOV dword ptr [EBP + -0x60],ESI",
+        "6f9ab43a MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab43d MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab440 CALL 0x6f070790",
+        "6f9ab445 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab448 LEA ECX,[EBP + 0xc]",
+        "6f9ab44b MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab44e MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab451 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab52f",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab52c LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ab52a MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab510 PUSH EBP",
+        "6f9ab511 MOV EBP,ESP",
+        "6f9ab513 SUB ESP,0xdc",
+        "6f9ab519 PUSH ESI",
+        "6f9ab51a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab51d MOV EDX,ESI",
+        "6f9ab51f PUSH EDI",
+        "6f9ab520 MOV EDI,ECX",
+        "6f9ab522 LEA ECX,[EBP + 0x8]",
+        "6f9ab525 CALL 0x6f070790",
+        "6f9ab52a MOV EDX,ESI",
+        "6f9ab52c LEA ECX,[EBP + -0x4]",
+        "6f9ab52f CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab580",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab578 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab57b MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab55c MOV dword ptr [EBP + -0x1c],EDX",
+        "6f9ab55f MOV dword ptr [EBP + -0x18],ECX",
+        "6f9ab562 MOV dword ptr [EBP + -0x10],EDX",
+        "6f9ab565 MOV EDX,ESI",
+        "6f9ab567 MOV dword ptr [EBP + -0x8],ECX",
+        "6f9ab56a LEA ECX,[EBP + 0xc]",
+        "6f9ab56d MOV dword ptr [EBP + -0xc],EAX",
+        "6f9ab570 CALL 0x6f070790",
+        "6f9ab575 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab578 LEA ECX,[EBP + 0xc]",
+        "6f9ab57b MOV EDX,ESI",
+        "6f9ab57d MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab580 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab5d1",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab510",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab5c8 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab5cb MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab5a9 MOV dword ptr [EBP + -0x60],ECX",
+        "6f9ab5ac LEA ECX,[EBP + 0xc]",
+        "6f9ab5af MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab5b2 MOV dword ptr [EBP + -0x58],EAX",
+        "6f9ab5b5 MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab5b8 MOV EAX,[0x6fd3c748]",
+        "6f9ab5bd MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab5c0 CALL 0x6f070790",
+        "6f9ab5c5 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab5c8 LEA ECX,[EBP + 0xc]",
+        "6f9ab5cb MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab5ce MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab5d1 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab6af",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab6ac LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ab6aa MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab690 PUSH EBP",
+        "6f9ab691 MOV EBP,ESP",
+        "6f9ab693 SUB ESP,0xdc",
+        "6f9ab699 PUSH ESI",
+        "6f9ab69a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab69d MOV EDX,ESI",
+        "6f9ab69f PUSH EDI",
+        "6f9ab6a0 MOV EDI,ECX",
+        "6f9ab6a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab6a5 CALL 0x6f070790",
+        "6f9ab6aa MOV EDX,ESI",
+        "6f9ab6ac LEA ECX,[EBP + -0x4]",
+        "6f9ab6af CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab6fe",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab6f6 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab6f9 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab6da MOV dword ptr [EBP + -0x1c],ECX",
+        "6f9ab6dd MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab6e0 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab6e3 LEA ECX,[EBP + 0xc]",
+        "6f9ab6e6 MOV dword ptr [EBP + -0x8],EDX",
+        "6f9ab6e9 MOV EDX,ESI",
+        "6f9ab6eb MOV dword ptr [EBP + -0x10],EAX",
+        "6f9ab6ee CALL 0x6f070790",
+        "6f9ab6f3 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab6f6 LEA ECX,[EBP + 0xc]",
+        "6f9ab6f9 MOV EDX,ESI",
+        "6f9ab6fb MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab6fe CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab751",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab690",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab748 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab74b MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab72b MOV dword ptr [EBP + -0x58],ECX",
+        "6f9ab72e LEA ECX,[EBP + 0xc]",
+        "6f9ab731 MOV dword ptr [EBP + -0x54],EDX",
+        "6f9ab734 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab737 MOV dword ptr [EBP + -0x60],EAX",
+        "6f9ab73a MOV dword ptr [EBP + -0x5c],ESI",
+        "6f9ab73d MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab740 CALL 0x6f070790",
+        "6f9ab745 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab748 LEA ECX,[EBP + 0xc]",
+        "6f9ab74b MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab74e MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab751 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab82f",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab82c LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ab82a MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab810 PUSH EBP",
+        "6f9ab811 MOV EBP,ESP",
+        "6f9ab813 SUB ESP,0xdc",
+        "6f9ab819 PUSH ESI",
+        "6f9ab81a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab81d MOV EDX,ESI",
+        "6f9ab81f PUSH EDI",
+        "6f9ab820 MOV EDI,ECX",
+        "6f9ab822 LEA ECX,[EBP + 0x8]",
+        "6f9ab825 CALL 0x6f070790",
+        "6f9ab82a MOV EDX,ESI",
+        "6f9ab82c LEA ECX,[EBP + -0x4]",
+        "6f9ab82f CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab87e",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab876 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab879 MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab85a MOV dword ptr [EBP + -0x1c],ECX",
+        "6f9ab85d MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab860 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab863 LEA ECX,[EBP + 0xc]",
+        "6f9ab866 MOV dword ptr [EBP + -0x8],EDX",
+        "6f9ab869 MOV EDX,ESI",
+        "6f9ab86b MOV dword ptr [EBP + -0x10],EAX",
+        "6f9ab86e CALL 0x6f070790",
+        "6f9ab873 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab876 LEA ECX,[EBP + 0xc]",
+        "6f9ab879 MOV EDX,ESI",
+        "6f9ab87b MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab87e CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab8cf",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab810",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab8c6 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab8c9 MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9ab8a7 MOV dword ptr [EBP + -0x60],ECX",
+        "6f9ab8aa LEA ECX,[EBP + 0xc]",
+        "6f9ab8ad MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9ab8b0 MOV dword ptr [EBP + -0x58],EAX",
+        "6f9ab8b3 MOV dword ptr [EBP + -0x54],EAX",
+        "6f9ab8b6 MOV EAX,[0x6fd3c748]",
+        "6f9ab8bb MOV dword ptr [EBP + -0x50],EAX",
+        "6f9ab8be CALL 0x6f070790",
+        "6f9ab8c3 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab8c6 LEA ECX,[EBP + 0xc]",
+        "6f9ab8c9 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9ab8cc MOV dword ptr [EBP + 0x8],EAX",
+        "6f9ab8cf CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9ab9af",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab9ac LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9ab9aa MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab990 PUSH EBP",
+        "6f9ab991 MOV EBP,ESP",
+        "6f9ab993 SUB ESP,0xdc",
+        "6f9ab999 PUSH ESI",
+        "6f9ab99a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9ab99d MOV EDX,ESI",
+        "6f9ab99f PUSH EDI",
+        "6f9ab9a0 MOV EDI,ECX",
+        "6f9ab9a2 LEA ECX,[EBP + 0x8]",
+        "6f9ab9a5 CALL 0x6f070790",
+        "6f9ab9aa MOV EDX,ESI",
+        "6f9ab9ac LEA ECX,[EBP + -0x4]",
+        "6f9ab9af CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9aba00",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9ab9f8 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9ab9fb MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9ab9dc MOV dword ptr [EBP + -0x18],EDX",
+        "6f9ab9df MOV EDX,ESI",
+        "6f9ab9e1 MOV dword ptr [EBP + -0x14],ECX",
+        "6f9ab9e4 MOV dword ptr [EBP + -0x10],ECX",
+        "6f9ab9e7 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9ab9ea LEA ECX,[EBP + 0xc]",
+        "6f9ab9ed MOV dword ptr [EBP + -0x8],EAX",
+        "6f9ab9f0 CALL 0x6f070790",
+        "6f9ab9f5 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9ab9f8 LEA ECX,[EBP + 0xc]",
+        "6f9ab9fb MOV EDX,ESI",
+        "6f9ab9fd MOV dword ptr [EBP + 0x8],EAX",
+        "6f9aba00 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9aba53",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9ab990",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9aba4a LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9aba4d MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9aba2d MOV dword ptr [EBP + -0x58],ECX",
+        "6f9aba30 LEA ECX,[EBP + 0xc]",
+        "6f9aba33 MOV dword ptr [EBP + -0x54],EDX",
+        "6f9aba36 MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9aba39 MOV dword ptr [EBP + -0x60],EAX",
+        "6f9aba3c MOV dword ptr [EBP + -0x5c],ESI",
+        "6f9aba3f MOV dword ptr [EBP + -0x50],EAX",
+        "6f9aba42 CALL 0x6f070790",
+        "6f9aba47 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9aba4a LEA ECX,[EBP + 0xc]",
+        "6f9aba4d MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9aba50 MOV dword ptr [EBP + 0x8],EAX",
+        "6f9aba53 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9abb3f",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abb3c LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f9abb3a MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9abb20 PUSH EBP",
+        "6f9abb21 MOV EBP,ESP",
+        "6f9abb23 SUB ESP,0xdc",
+        "6f9abb29 PUSH ESI",
+        "6f9abb2a MOV ESI,dword ptr [EBP + 0x8]",
+        "6f9abb2d MOV EDX,ESI",
+        "6f9abb2f PUSH EDI",
+        "6f9abb30 MOV EDI,ECX",
+        "6f9abb32 LEA ECX,[EBP + 0x8]",
+        "6f9abb35 CALL 0x6f070790",
+        "6f9abb3a MOV EDX,ESI",
+        "6f9abb3c LEA ECX,[EBP + -0x4]",
+        "6f9abb3f CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9abb90",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0xc]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abb88 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9abb8b MOV EDX,ESI"
+      ],
+      "call_context": [
+        "6f9abb6c MOV dword ptr [EBP + -0x18],EDX",
+        "6f9abb6f MOV EDX,ESI",
+        "6f9abb71 MOV dword ptr [EBP + -0x14],ECX",
+        "6f9abb74 MOV dword ptr [EBP + -0x10],ECX",
+        "6f9abb77 MOV dword ptr [EBP + -0xc],ECX",
+        "6f9abb7a LEA ECX,[EBP + 0xc]",
+        "6f9abb7d MOV dword ptr [EBP + -0x8],EAX",
+        "6f9abb80 CALL 0x6f070790",
+        "6f9abb85 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9abb88 LEA ECX,[EBP + 0xc]",
+        "6f9abb8b MOV EDX,ESI",
+        "6f9abb8d MOV dword ptr [EBP + 0x8],EAX",
+        "6f9abb90 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071280",
+      "site": "6f9abbe1",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abb20",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x10]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abbd8 LEA ECX,[EBP + 0xc]"
+      ],
+      "input_definitions": [
+        "6f9abbdb MOV EDX,dword ptr [EBP + 0x10]"
+      ],
+      "call_context": [
+        "6f9abbbb MOV dword ptr [EBP + -0x50],EDX",
+        "6f9abbbe MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9abbc1 MOV dword ptr [EBP + -0x6c],EAX",
+        "6f9abbc4 MOV dword ptr [EBP + -0x64],EAX",
+        "6f9abbc7 MOV dword ptr [EBP + -0x60],ESI",
+        "6f9abbca MOV dword ptr [EBP + -0x5c],EAX",
+        "6f9abbcd MOV dword ptr [EBP + -0x54],EAX",
+        "6f9abbd0 CALL 0x6f070790",
+        "6f9abbd5 MOV EAX,dword ptr [EBP + 0xc]",
+        "6f9abbd8 LEA ECX,[EBP + 0xc]",
+        "6f9abbdb MOV EDX,dword ptr [EBP + 0x10]",
+        "6f9abbde MOV dword ptr [EBP + 0x8],EAX",
+        "6f9abbe1 CALL 0x6f071280"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f0715a4",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f071590",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ],
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f071598 LEA EDX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f0715a2 MOV ECX,EAX"
+      ],
+      "call_context": [
+        "6f071590 PUSH EBP",
+        "6f071591 MOV EBP,ESP",
+        "6f071593 SUB ESP,0x8",
+        "6f071596 MOV EAX,EDX",
+        "6f071598 LEA EDX,[EBP + -0x8]",
+        "6f07159b PUSH ESI",
+        "6f07159c MOV ESI,ECX",
+        "6f07159e LEA ECX,[EBP + -0x4]",
+        "6f0715a1 PUSH ECX",
+        "6f0715a2 MOV ECX,EAX",
+        "6f0715a4 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f16b343",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f16b2f0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -180
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -196
+          ]
+        ],
+        [
+          [
+            "frame",
+            -220
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f16b31c LEA EDX,[EBP + 0xffffff3c]"
+      ],
+      "input_definitions": [
+        "6f16b325 LEA ECX,[EBP + 0xffffff4c]"
+      ],
+      "call_context": [
+        "6f16b308 LEA ECX,[EBP + 0xffffff58]",
+        "6f16b30e MOV dword ptr [EBP + 0xffffff50],EDI",
+        "6f16b314 CALL 0x6f169300",
+        "6f16b319 MOV EAX,dword ptr [EDI + 0x70]",
+        "6f16b31c LEA EDX,[EBP + 0xffffff3c]",
+        "6f16b322 MOV ESI,dword ptr [EDI + 0x38]",
+        "6f16b325 LEA ECX,[EBP + 0xffffff4c]",
+        "6f16b32b XOR EAX,0x80000000",
+        "6f16b330 MOV dword ptr [EBP + 0xffffff58],ESI",
+        "6f16b336 MOV dword ptr [EBP + 0xffffff4c],EAX",
+        "6f16b33c LEA EAX,[EBP + 0xffffff24]",
+        "6f16b342 PUSH EAX",
+        "6f16b343 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f169e3a",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f169e10",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ],
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f169e27 LEA EDX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f169e2d LEA ECX,[EBP + -0x14]"
+      ],
+      "call_context": [
+        "6f169e19 LEA EAX,[EBP + -0x38]",
+        "6f169e1c MOV EBX,ECX",
+        "6f169e1e PUSH EAX",
+        "6f169e1f CALL 0x6f16bb40",
+        "6f169e24 MOV EAX,dword ptr [EBX + 0x70]",
+        "6f169e27 LEA EDX,[EBP + -0xc]",
+        "6f169e2a MOV ESI,dword ptr [EBX + 0x38]",
+        "6f169e2d LEA ECX,[EBP + -0x14]",
+        "6f169e30 MOV dword ptr [EBP + -0x14],EAX",
+        "6f169e33 LEA EAX,[EBP + -0x4]",
+        "6f169e36 PUSH EAX",
+        "6f169e37 MOV dword ptr [EBP + -0x18],ESI",
+        "6f169e3a CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f16cbab",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f16cb80",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ],
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f16cb8a LEA EDX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f16cb8e LEA ECX,[EBP + -0x10]"
+      ],
+      "call_context": [
+        "6f16cb8a LEA EDX,[EBP + -0xc]",
+        "6f16cb8d PUSH EDI",
+        "6f16cb8e LEA ECX,[EBP + -0x10]",
+        "6f16cb91 MOV dword ptr [EBP + -0x28],ESI",
+        "6f16cb94 XOR EBX,EBX",
+        "6f16cb96 MOV EAX,dword ptr [ESI + 0x70]",
+        "6f16cb99 MOV EDI,dword ptr [ESI + 0x38]",
+        "6f16cb9c XOR EAX,0x80000000",
+        "6f16cba1 MOV dword ptr [EBP + -0x10],EAX",
+        "6f16cba4 LEA EAX,[EBP + -0x8]",
+        "6f16cba7 PUSH EAX",
+        "6f16cba8 MOV dword ptr [EBP + -0x24],EDI",
+        "6f16cbab CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f1d1a2c",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d19e0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ],
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d1a1d LEA EDX,[EBP + -0x14]"
+      ],
+      "input_definitions": [
+        "6f1d1a20 LEA ECX,[EBP + -0xc]"
+      ],
+      "call_context": [
+        "6f1d1a05 MOV dword ptr [EBP + -0x4],EAX",
+        "6f1d1a08 CALL 0x6f06fbb0",
+        "6f1d1a0d PUSH 0x6fcd5464",
+        "6f1d1a12 LEA EDX,[EBP + -0x8]",
+        "6f1d1a15 LEA ECX,[EBP + -0x18]",
+        "6f1d1a18 CALL 0x6f06f9c0",
+        "6f1d1a1d LEA EDX,[EBP + -0x14]",
+        "6f1d1a20 LEA ECX,[EBP + -0xc]",
+        "6f1d1a23 MOV EAX,dword ptr [EAX]",
+        "6f1d1a25 MOV dword ptr [EBP + -0xc],EAX",
+        "6f1d1a28 LEA EAX,[EBP + -0x10]",
+        "6f1d1a2b PUSH EAX",
+        "6f1d1a2c CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f16e6c9",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f16e6c0",
+      "disposition": "value-angle-forwarded-outputs",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ],
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f16e6c4 MOV EDX,ECX"
+      ],
+      "input_definitions": [
+        "6f16e6c6 LEA ECX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f16e6c0 PUSH EBP",
+        "6f16e6c1 MOV EBP,ESP",
+        "6f16e6c3 PUSH EDX",
+        "6f16e6c4 MOV EDX,ECX",
+        "6f16e6c6 LEA ECX,[EBP + 0x8]",
+        "6f16e6c9 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f1d19bd",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d1970",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ],
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d19b0 LEA EDX,[EBP + -0x14]"
+      ],
+      "input_definitions": [
+        "6f1d19b6 LEA ECX,[EBP + -0x8]"
+      ],
+      "call_context": [
+        "6f1d1995 MOV dword ptr [EBP + -0x4],EAX",
+        "6f1d1998 CALL 0x6f06fbb0",
+        "6f1d199d PUSH 0x6fcd5464",
+        "6f1d19a2 LEA EDX,[EBP + -0x8]",
+        "6f1d19a5 LEA ECX,[EBP + -0xc]",
+        "6f1d19a8 CALL 0x6f06f9c0",
+        "6f1d19ad MOV EAX,dword ptr [EBP + -0xc]",
+        "6f1d19b0 LEA EDX,[EBP + -0x14]",
+        "6f1d19b3 MOV dword ptr [EBP + -0x8],EAX",
+        "6f1d19b6 LEA ECX,[EBP + -0x8]",
+        "6f1d19b9 LEA EAX,[EBP + -0x10]",
+        "6f1d19bc PUSH EAX",
+        "6f1d19bd CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f1d4aa0",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d4a60",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            8
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -8
+          ]
+        ],
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d4a91 LEA EDX,[EBP + -0x8]"
+      ],
+      "input_definitions": [
+        "6f1d4a94 LEA ECX,[EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f1d4a7c LEA ECX,[EBP + -0x14]",
+        "6f1d4a7f CALL 0x6f06fa90",
+        "6f1d4a84 MOV EDX,EAX",
+        "6f1d4a86 LEA ECX,[EBP + -0x4]",
+        "6f1d4a89 CALL 0x6f071480",
+        "6f1d4a8e MOV EAX,dword ptr [EBP + 0x8]",
+        "6f1d4a91 LEA EDX,[EBP + -0x8]",
+        "6f1d4a94 LEA ECX,[EBP + 0x8]",
+        "6f1d4a97 MOV EAX,dword ptr [EAX]",
+        "6f1d4a99 MOV dword ptr [EBP + 0x8],EAX",
+        "6f1d4a9c LEA EAX,[EBP + -0xc]",
+        "6f1d4a9f PUSH EAX",
+        "6f1d4aa0 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f1d45c3",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d4500",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -28
+          ]
+        ],
+        [
+          [
+            "frame",
+            -24
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d45b6 LEA EDX,[EBP + -0x1c]"
+      ],
+      "input_definitions": [
+        "6f1d45bc LEA ECX,[EBP + -0xc]"
+      ],
+      "call_context": [
+        "6f1d459b MOV dword ptr [EBP + -0x8],EAX",
+        "6f1d459e CALL 0x6f06fbb0",
+        "6f1d45a3 PUSH 0x6fcd5464",
+        "6f1d45a8 LEA EDX,[EBP + -0xc]",
+        "6f1d45ab LEA ECX,[EBP + -0x10]",
+        "6f1d45ae CALL 0x6f06f9c0",
+        "6f1d45b3 MOV EAX,dword ptr [EBP + -0x10]",
+        "6f1d45b6 LEA EDX,[EBP + -0x1c]",
+        "6f1d45b9 MOV dword ptr [EBP + -0xc],EAX",
+        "6f1d45bc LEA ECX,[EBP + -0xc]",
+        "6f1d45bf LEA EAX,[EBP + -0x18]",
+        "6f1d45c2 PUSH EAX",
+        "6f1d45c3 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f1d4a48",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f1d4a30",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ],
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f1d4a38 LEA EDX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f1d4a45 LEA ECX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f1d4a30 PUSH EBP",
+        "6f1d4a31 MOV EBP,ESP",
+        "6f1d4a33 SUB ESP,0xc",
+        "6f1d4a36 MOV EAX,dword ptr [EDX]",
+        "6f1d4a38 LEA EDX,[EBP + -0xc]",
+        "6f1d4a3b PUSH ESI",
+        "6f1d4a3c MOV dword ptr [EBP + -0x4],EAX",
+        "6f1d4a3f MOV ESI,ECX",
+        "6f1d4a41 LEA EAX,[EBP + -0x8]",
+        "6f1d4a44 PUSH EAX",
+        "6f1d4a45 LEA ECX,[EBP + -0x4]",
+        "6f1d4a48 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f9abe22",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abde0",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ],
+        [
+          [
+            "frame",
+            12
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abe15 LEA EDX,[EBP + -0x10]"
+      ],
+      "input_definitions": [
+        "6f9abe1b LEA ECX,[EBP + -0x14]"
+      ],
+      "call_context": [
+        "6f9abe00 MOV dword ptr [EBP + -0x8],EAX",
+        "6f9abe03 MOV EAX,dword ptr [ESI + 0x8]",
+        "6f9abe06 MOV dword ptr [EBP + -0x4],EAX",
+        "6f9abe09 JNZ 0x6f9abe13",
+        "6f9abe0b LEA ECX,[EBP + -0xc]",
+        "6f9abe0e CALL 0x6f89d370",
+        "6f9abe13 MOV EAX,dword ptr [EDI]",
+        "6f9abe15 LEA EDX,[EBP + -0x10]",
+        "6f9abe18 MOV dword ptr [EBP + -0x14],EAX",
+        "6f9abe1b LEA ECX,[EBP + -0x14]",
+        "6f9abe1e LEA EAX,[EBP + 0xc]",
+        "6f9abe21 PUSH EAX",
+        "6f9abe22 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f6438aa",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f643720",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -40
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -20
+          ]
+        ],
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f6438a4 LEA EDX,[EBP + -0x14]"
+      ],
+      "input_definitions": [
+        "6f6438a7 LEA ECX,[EBP + -0x28]"
+      ],
+      "call_context": [
+        "6f643889 LEA EDX,[EBP + -0x18]",
+        "6f64388c MOV dword ptr [EBP + -0x18],ECX",
+        "6f64388f LEA ECX,[EBP + -0x20]",
+        "6f643892 MOV EAX,dword ptr [EAX]",
+        "6f643894 MOV dword ptr [EBP + -0x1c],EAX",
+        "6f643897 LEA EAX,[EBP + -0x1c]",
+        "6f64389a PUSH EAX",
+        "6f64389b CALL 0x6f06f9c0",
+        "6f6438a0 LEA EAX,[EBP + -0x10]",
+        "6f6438a3 PUSH EAX",
+        "6f6438a4 LEA EDX,[EBP + -0x14]",
+        "6f6438a7 LEA ECX,[EBP + -0x28]",
+        "6f6438aa CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071340",
+      "site": "6f9abd98",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f9abd80",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -12
+          ]
+        ],
+        [
+          [
+            "frame",
+            -8
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f9abd88 LEA EDX,[EBP + -0xc]"
+      ],
+      "input_definitions": [
+        "6f9abd95 LEA ECX,[EBP + -0x4]"
+      ],
+      "call_context": [
+        "6f9abd80 PUSH EBP",
+        "6f9abd81 MOV EBP,ESP",
+        "6f9abd83 SUB ESP,0xc",
+        "6f9abd86 MOV EAX,dword ptr [EDX]",
+        "6f9abd88 LEA EDX,[EBP + -0xc]",
+        "6f9abd8b PUSH ESI",
+        "6f9abd8c MOV dword ptr [EBP + -0x4],EAX",
+        "6f9abd8f MOV ESI,ECX",
+        "6f9abd91 LEA EAX,[EBP + -0x8]",
+        "6f9abd94 PUSH EAX",
+        "6f9abd95 LEA ECX,[EBP + -0x4]",
+        "6f9abd98 CALL 0x6f071340"
+      ]
+    },
+    {
+      "target": "6f071590",
+      "site": "6f21675a",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f216750",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "dword ptr [EBP + 0x8]"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -4
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f216757 LEA ECX,[EBP + -0x4]"
+      ],
+      "input_definitions": [
+        "6f216754 MOV EDX,dword ptr [EBP + 0x8]"
+      ],
+      "call_context": [
+        "6f216750 PUSH EBP",
+        "6f216751 MOV EBP,ESP",
+        "6f216753 PUSH ECX",
+        "6f216754 MOV EDX,dword ptr [EBP + 0x8]",
+        "6f216757 LEA ECX,[EBP + -0x4]",
+        "6f21675a CALL 0x6f071590"
+      ]
+    },
+    {
+      "target": "6f071590",
+      "site": "6f219893",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f219890",
+      "disposition": "forwarded-addresses",
+      "input_origins": [
+        [
+          [
+            "external",
+            "ENTRY-EDX"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "external",
+            "ENTRY-ECX"
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f219890 ENTRY-ECX"
+      ],
+      "input_definitions": [
+        "6f219890 ENTRY-EDX"
+      ],
+      "call_context": [
+        "6f219890 PUSH ESI",
+        "6f219891 MOV ESI,ECX",
+        "6f219893 CALL 0x6f071590"
+      ]
+    },
+    {
+      "target": "6f071590",
+      "site": "6f5d2031",
+      "type": "UNCONDITIONAL_CALL",
+      "entry": "6f5d2000",
+      "disposition": "own-frame-output",
+      "input_origins": [
+        [
+          [
+            "external",
+            "0x6fcd5450"
+          ]
+        ]
+      ],
+      "output_origins": [
+        [
+          [
+            "frame",
+            -16
+          ]
+        ]
+      ],
+      "output_definitions": [
+        "6f5d202e LEA ECX,[EBP + -0x10]"
+      ],
+      "input_definitions": [
+        "6f5d2029 MOV EDX,0x6fcd5450"
+      ],
+      "call_context": [
+        "6f5d200b LEA EDX,[EBP + -0xc]",
+        "6f5d200e PUSH ESI",
+        "6f5d200f MOV ESI,ECX",
+        "6f5d2011 MOV dword ptr [EBP + -0x8],EAX",
+        "6f5d2014 LEA ECX,[EBP + -0x4]",
+        "6f5d2017 MOV EAX,dword ptr [ESI + 0xc8]",
+        "6f5d201d MOV dword ptr [EBP + -0xc],EAX",
+        "6f5d2020 LEA EAX,[EBP + -0x8]",
+        "6f5d2023 PUSH EAX",
+        "6f5d2024 CALL 0x6f06f9c0",
+        "6f5d2029 MOV EDX,0x6fcd5450",
+        "6f5d202e LEA ECX,[EBP + -0x10]",
+        "6f5d2031 CALL 0x6f071590"
+      ]
+    }
+  ],
+  "public": [
+    {
+      "expression": "Sin(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 3210177178,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 1057640780,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 3217512716,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 3217625051,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 1078530011,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-1.)",
+      "arguments": [
+        3212836864
+      ],
+      "result": 3209236444,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-1.,-1.)",
+      "arguments": [
+        3212836864,
+        3212836864
+      ],
+      "result": 3222719460,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 3210141623,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 1057695911,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 3217401035,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 3216883349,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 1078159159,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-0.99609375)",
+      "arguments": [
+        3212771328
+      ],
+      "result": 3209203611,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-0.99609375,1.)",
+      "arguments": [
+        3212771328,
+        1065353216
+      ],
+      "result": 3209203611,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 3203757876,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 1063299395,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 3205225073,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 3204844177,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 1074137745,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-0.5)",
+      "arguments": [
+        3204448256
+      ],
+      "result": 3203228473,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-0.5,-0.5)",
+      "arguments": [
+        3204448256,
+        3204448256
+      ],
+      "result": 3222719460,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 3129088336,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 1065353203,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 3129088343,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 3129152096,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 1070149791,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-0.001)",
+      "arguments": [
+        3129152111
+      ],
+      "result": 3129152100,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-0.001,0.)",
+      "arguments": [
+        3129152111,
+        0
+      ],
+      "result": 3217625051,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 0,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 1065353215,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 0,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 0,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 1070141402,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-0.)",
+      "arguments": [
+        2147483648
+      ],
+      "result": 0,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-0.,-0.)",
+      "arguments": [
+        2147483648,
+        2147483648
+      ],
+      "result": 0,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 0,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 1065353215,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 0,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 0,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 1070141402,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(0.)",
+      "arguments": [
+        0
+      ],
+      "result": 0,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(0.,0.)",
+      "arguments": [
+        0,
+        0
+      ],
+      "result": 0,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 981656356,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 1065353203,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 981656363,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 981668480,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 1070133014,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(0.001)",
+      "arguments": [
+        981668463
+      ],
+      "result": 981668452,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(0.001,-0.001)",
+      "arguments": [
+        981668463,
+        3129152111
+      ],
+      "result": 1075235812,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1056274406,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1063299346,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1057741557,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1057360529,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1065749137,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(0.5)",
+      "arguments": [
+        1056964608
+      ],
+      "result": 1055744825,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(0.5,-0.5)",
+      "arguments": [
+        1056964608,
+        3204448256
+      ],
+      "result": 1075235812,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1062658030,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1057695826,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1069917558,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1069399700,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1035277411,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(0.99609375)",
+      "arguments": [
+        1065287680
+      ],
+      "result": 1061719963,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(0.99609375,1.)",
+      "arguments": [
+        1065287680,
+        1065353216
+      ],
+      "result": 1061719963,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 1062693585,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 1057640695,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 1070029241,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 1070141403,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 0,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(1.)",
+      "arguments": [
+        1065353216
+      ],
+      "result": 1061752796,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(1.,-1.)",
+      "arguments": [
+        1065353216,
+        3212836864
+      ],
+      "result": 1075235812,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 805306368,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 3212836863,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 2952790017,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 0,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 0,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(3.14159265)",
+      "arguments": [
+        1078530010
+      ],
+      "result": 1067556293,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(3.14159265,0.5)",
+      "arguments": [
+        1078530010,
+        1056964608
+      ],
+      "result": 1068817418,
+      "entry": 2065040
+    },
+    {
+      "expression": "Sin(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 3066681344,
+      "entry": 2186496
+    },
+    {
+      "expression": "Cos(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 3212836863,
+      "entry": 2069888
+    },
+    {
+      "expression": "Tan(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 919197697,
+      "entry": 2189136
+    },
+    {
+      "expression": "Asin(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 0,
+      "entry": 2064976
+    },
+    {
+      "expression": "Acos(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 0,
+      "entry": 2061776
+    },
+    {
+      "expression": "Atan(-3.14159265)",
+      "arguments": [
+        3226013658
+      ],
+      "result": 3215039941,
+      "entry": 2065168
+    },
+    {
+      "expression": "Atan2(-3.14159265,-0.5)",
+      "arguments": [
+        3226013658,
+        3204448256
+      ],
+      "result": 3218949036,
+      "entry": 2065040
+    }
+  ],
+  "forwarding": {
+    "cases": 1170,
+    "alias_sign_controls": 40,
+    "outcome_sha256": "7096293037d1eaa3e215247245098ac09e62a311354c0b133745e9756289e6e8"
+  },
+  "trace_sha256": "f10a92dcb503cb81e7abb252b80774e5a9c69e2eab861a3d8074a97adef4d609"
+}

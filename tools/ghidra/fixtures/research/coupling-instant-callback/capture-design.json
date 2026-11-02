@@ -1,0 +1,14 @@
+{
+  "scenes": [
+    "uninterrupted merge control with death event logging",
+    "selected-target852508 callback Move original Archer",
+    "reciprocal852507 callback Move peer Hippo",
+    "outer Archer Stop: peer Hippo Stop callback Move original Archer",
+    "outer Hippo Stop: inverse Archer Stop callback Move original Archer",
+    "initial issued-immediate852508 callback Move original Archer before own constructor"
+  ],
+  "setup": "same stock far832 pair; issueArcher immediate at100, outerStop115 for scenes3/4; nested-once guard per scene",
+  "events": "Issued immediate/point/target before and after nested call; public death event callbacks on both actors; short<=160 guard",
+  "lifetime": "Control first rider/type/life and delayed type0, death callback presence or absence in bounded complete stream. Static world retirement distinct from ordinary KillUnit; no inferred cause.",
+  "verification": "2obs/control exact public streams and native identity/producer/task/caller chronology, exact source/mapfreeze. OwnedB/C only. No primary edits."
+}

@@ -1,0 +1,24 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f15aa80",
+      "name": "PathOwner_Update",
+      "prototype": "undefined PathOwner_Update(void)",
+      "comment": "Payoff203 E2E-01.1: the existing controlled primary-owner wall detour is frozen alongside public blocked/disconnected variants in retail-e2e-baseline203-1.27.json. Two complete original repeats retain all34 commits and nine fine route points. Engine fresh runs and22 saved motion suffix commits match twice per Classic/TFT. Original adaptive-disabled profile and fresh clock-zero callback are supplied; this does not certify stock public admission, original save/load or whole-world RNG."
+    },
+    {
+      "address": "6f166e90",
+      "name": "Path_RequestFineRoute",
+      "prototype": "uint __thiscall Path_RequestFineRoute(WC3PathPrefix * path, WC3PathVector2 * source, WC3PathVector2 * goal)",
+      "comment": "Payoff203 E2E-01.1: complete constructed-route returns now have production-path engine assertions alongside motion. Frozen blocked-point and sole-crossing-disabled Frida repeats supply36 actual searches; all budgets, charged pops, partial results and221 fine/coarse point pairs match, plus the controlled detour\u0027s nine points. The disconnected capture has129 route-return events but only30 actual searches;99 denied admissions construct no route and are not merged with search failure. BZ_TESTS-only tracing observes existing builders without replacing algorithms or altering scheduling. Fresh route streams are asserted twice per edition; saved suffixes retain existing motion/retry checks, not a new route-stream claim."
+    },
+    {
+      "address": "6f171060",
+      "name": "Mover_ForceArrival",
+      "prototype": "undefined Mover_ForceArrival(void)",
+      "comment": "Payoff203 E2E-01.1: the frozen public five-by-five blocked point retains the requested click, partial endpoint, retry results1 then4 and the1262 force before angular completion1264. Full-height wall/disabled sole crossing supplies the disconnected paired control. Engine cross-feature journeys retain complete literal motion/retry assertions and final order ownership, repeated twice per edition. These baseline variants do not close wider arrival/unit-state gates or other movement lanes."
+    }
+  ]
+}

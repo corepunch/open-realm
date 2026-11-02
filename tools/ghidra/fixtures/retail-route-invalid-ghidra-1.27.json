@@ -1,0 +1,42 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f147600",
+      "name": "PathFine_Construct",
+      "comment": "CLrPathingSys RTTI/vtable; embeds shared open queue at +44.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff143 ROUTE-01.2: constructor source90/nearest9c are ffffffff, node count40/work limit68 are zero. Full UI load constructs a new owner; repeated Frida snapshots at1481e0 and15b1c0 retain these cold query fields. Save retains map reference and search stamp, not prior query nodes.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14f570",
+      "name": "PathAcc_Construct",
+      "comment": "CLrPathingAcc RTTI/vtable; fixed256x12 CPaWarp at30 (3072bytes,growth0), nodes36 at50 and heap12 at70 both growth2048. Heap sentinel allocates2048 slots. Complete original growth/ushort-alias/public-reset oracle; host Storm allocation only.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff143 ROUTE-01.2: constructor sourcec4/nearestd0 are ffffffff, node count6c/work limit98 are zero. Full UI load constructs a new owner;162da0 restores maps/warp storage, never the previous adaptive query. Saved unit curves remain independent.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f1481e0",
+      "name": "PathFine_LoadMapReference",
+      "comment": "\nVirtual+28 full save payload reader: resolves map into+1c and reads ushort search stamp+20. It restores no nodes, source/nearest identity or query profile. Payoff143 full UI load Frida snapshot matches the fresh constructor; OpenRealm must discard unsaved global query history.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f148210",
+      "name": "PathFine_SaveMapReference",
+      "comment": "\nVirtual+24 full save payload writer: writes map handle and ushort search stamp+20 only. Fine query state90/9c/40/68 is absent. Payoff143 ROUTE-01.2 constructor/load snapshots and complete original consumer regression.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f162da0",
+      "name": "PathAcc_LoadMapsAndWarpTable",
+      "comment": "\nVirtual+28 reads four hierarchy map handles, warp table metadata38/40/44/48/4c and its12-byte entries, then marker count2c. It restores no search nodes or sourcec4/nearestd0/work98. Payoff143 repeated UI load observes cold query fields before resumed movement.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f162fd0",
+      "name": "PathAcc_SaveMapsAndWarpTable",
+      "comment": "\nVirtual+24 writes four map handles, warp table metadata/entries and marker count2c. Search scratch and current query are not serialized. Payoff143 ROUTE-01.2 ties this to original constructor and full UI load observation.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f165c60",
+      "name": "Path_AdvanceFineRoute",
+      "comment": "Fetch waypoint, consume/approach, collect blockers. Acquisition-time self wait retains fine waypoint; peer-only retry restores caller destination. Subsequent165ae0 nonzero94 gate leaves caller destination unchanged. RET8 native source/destination IO ABI saved.756 full obstruction and72 final-waypoint cases, existing route/no stubs; engine payoff31 preserves predicted fine source for countdown headings. Payoff32 ports peer20 acquisition retry: stop requester, restore final-goal native heading, reset fine count/index, retain coarse plan and saved counter. Other nonempty vectors require original source footprint admission/recovery. Payoff34: retained admitted fine legs are not fully static-resampled from every fractional source. Actual eight public spawn-to-Move trajectories match247 scheduled commits with supplied initial primary phase; static-map epoch/progress and separate live occupancy retain the engine leg. Empty-terrain control differs from the captured WPM clip, so scene geometry is explicitly supplied. Payoff39 nonempty stationary vectors also retry; a reached partial endpoint consumes retry, clears fine count/index and defers refill until the NEXT owner visit. Immediate refill shifted the ten-visit timestamp by one and diverged at commit1263. All1953 scene48 commits now agree. Payoff53 public blocked-goal partial fine endpoint at1261 is consumed before refill;1262 rebuilds one fine point and returns4. Same-visit rebuilding at1261 loses stopped commit. OpenRealm whole journey207/207 bit exact with46 saved suffix commits.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff143 ROUTE-01.2:56 initialized blocked/outside-source scenarios each advance twice with explicit owner PRNG words12345678/0 and original0040d0 coarse limit10. All112 complete engine physical-member decisions match buffers/capacities/indices/times/work/retry/delay and raw owner RNG. Negative/beyondX nonempty static candidates reset the fine leg and draw once per admitted visit; negativeY keeps the retained curve with no draw. This covers initialized history, not a cold outside-source recovery contract.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    }
+  ]
+}

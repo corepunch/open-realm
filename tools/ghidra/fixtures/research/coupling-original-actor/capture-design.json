@@ -1,0 +1,11 @@
+{
+  "scope": "Original actor callback replacement during inverse peerStop; no generic orderprecedence assumptions.",
+  "setup": "Public-added Acoa/Acoh333 Reht1 far832 pair",
+  "scenes": [
+    "peerStop callback issuesMove originalArcher",
+    "peerStop callback removesoriginalArcher"
+  ],
+  "sequence": "Archerpublictarget age100; originalArcher explicitStop age115; Hippo inverseStop callback mutatesoriginal; outerStopreturn +250tick observation",
+  "guards": "cpNested prevents recursion, exactpeer actor2/immediate851972/age115",
+  "expected": "pending witness"
+}

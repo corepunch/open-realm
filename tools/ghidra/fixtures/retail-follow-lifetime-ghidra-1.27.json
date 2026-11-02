@@ -1,0 +1,80 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f6882e0",
+      "name": "Unit_RemoveFromWorld",
+      "prototype": "void __thiscall Unit_RemoveFromWorld(WC3UnitOrdersPrefix * unit)",
+      "comment": "Payoff123 actual RemoveUnit210c10 virtual84 enters6882e0: virtual98 then688300(1,0). Read-only repeated caller stack688373 ->651010 within native/callback removal proves the semantic loss source; storage retirement is separately694690. ECX Unit, no stack arguments, plainRET."
+    },
+    {
+      "address": "6f688300",
+      "name": "Unit_RetireWorldPresence",
+      "prototype": "void __thiscall Unit_RetireWorldPresence(WC3UnitOrdersPrefix * unit, uint notify_presentation, uint preserve_activity)",
+      "comment": "ECX Unit, stack4 notify-presentation, stack8 preserve-activity, RET8. Guard Unit20 bit1; set5c bit8, virtual14c(1,1), live-unit cleanup699e30/699d80 then set20 bit1 BEFORE651010(-1,-1). Payoff123 repeated public RemoveUnit and nested damage callback caller witnesses."
+    },
+    {
+      "address": "6f5fbea0",
+      "name": "CAbilityMove_ClearRetainedTarget",
+      "prototype": "void __thiscall CAbilityMove_ClearRetainedTarget(WC3MoveSpeedPrefix * ability)",
+      "comment": "ECX Move, plainRET. Resolve canonical cc/d0 identity and retain Unit while unlinking652dd0 and6901c0 subscriptions; invalidate both words only after valid resolution. Payoff123 readonly before/after identity snapshots across loss, arrival and target-task replacement; no gameplay writes."
+    },
+    {
+      "address": "6f5fbfc0",
+      "name": "CAbilityMove_ClearRelatedOrder",
+      "prototype": "void __thiscall CAbilityMove_ClearRelatedOrder(WC3MoveSpeedPrefix * ability)",
+      "comment": "ECX Move, plainRET. Flag20.1000 invokes5fceb0; resolve d8/dc identity as684ba0-derived order, unlink6900c0 if valid, then always invalidate both words. Called before retained-target clear and cant-path recovery in5ff490."
+    }
+  ],
+  "move_fields": [
+    {
+      "offset": 0,
+      "name": "vtable",
+      "type": "/uint"
+    },
+    {
+      "offset": 32,
+      "name": "flags",
+      "type": "/uint"
+    },
+    {
+      "offset": 48,
+      "name": "unit",
+      "type": "/void *32"
+    },
+    {
+      "offset": 108,
+      "name": "additive",
+      "type": "/WarcraftIII/Pathfinding127/WC3FloatMini"
+    },
+    {
+      "offset": 116,
+      "name": "multiplier",
+      "type": "/WarcraftIII/Pathfinding127/WC3FloatMini"
+    },
+    {
+      "offset": 124,
+      "name": "disabled_count",
+      "type": "/uint"
+    },
+    {
+      "offset": 128,
+      "name": "slow_count",
+      "type": "/uint"
+    },
+    {
+      "offset": 204,
+      "name": "retained_target",
+      "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity"
+    },
+    {
+      "offset": 216,
+      "name": "related_order",
+      "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity"
+    }
+  ],
+  "move_length": 224,
+  "saved": true,
+  "program_changed_after_save": false,
+  "unit_vtable_84": "6f6882e0"
+}

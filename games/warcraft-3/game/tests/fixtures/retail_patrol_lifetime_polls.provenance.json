@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "scope": "Historical B/C full declared tick0..240 diagnostic, 3562 arrivals and 3562 velocity commits; no numeric changes or sorting.",
+  "historical_unhooked_control": false,
+  "control_limit": "No historical same-map unhooked control. New controlled124c is separate evidence, not an old124b control.",
+  "phase_limit": "Only captured arrival and velocity phases0/2; arrival clock is the immediately paired velocity clock, not independently captured.",
+  "native_binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "80c0fef8b18630c1b27c253f6677822f8f6ea9cecde2ca700dc3c54bdef6548c",
+  "probe_sha256": "1f2cc86c0c1014d6c8b5a880c5d02d83d84b0aa70ff4f213046e96fa4c669567",
+  "projection_sha256": "2d48e2e691b988e64adcdbf96896e5fa2ea0e5356cfcf3a59f7b6fb1baa05cc6",
+  "captures": {
+    "retail-patrol-lifetime-1.27-b.jsonl.gz": {
+      "sha256": "b2a799fc766974cc771f4e064b56fb56a22e378753fa284d5f819be36e6cb990",
+      "uncompressed_sha256": "458dded4bb4f7eda00e4f379e150695a559f2ea97f3e0db65f91c99ca7c5d32c"
+    },
+    "retail-patrol-lifetime-1.27-c.jsonl.gz": {
+      "sha256": "1f71b4996e7ceda42d75a747d9bb3986a49cf2fbf2cc6d5c3d93512017c74f46",
+      "uncompressed_sha256": "877c18c370b8192b9523f89fb5b722c869c893cc7a13aeec85ca52645d93aec9"
+    }
+  }
+}

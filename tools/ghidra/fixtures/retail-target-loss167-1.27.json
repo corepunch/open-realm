@@ -1,0 +1,63 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "provenance": "Unrounded event records from both completed delivered TARGET-03.2 retail repeats; source pins and observer controls retained in retail-target-visibility166-1.27.json.",
+  "contracts": [
+    {
+      "scene": 8,
+      "producer_c": 6624,
+      "published": [
+        536876101,
+        520
+      ],
+      "validation": 170,
+      "event": 852388,
+      "tasks": [
+        [
+          6440,
+          1118620149,
+          0,
+          1
+        ],
+        [
+          6452,
+          1133903872,
+          1,
+          1
+        ]
+      ],
+      "before": "T03 tick=1679 s=8 l=59 label=sample f=1513.231,727.038,851971 t=1568.000,1168.159,851986 v=1 h=0 z=none",
+      "after": "T03 tick=1680 s=8 l=60 label=sample f=1514.889,741.161,0 t=1568.000,1183.128,851986 v=1 h=1 z=none"
+    },
+    {
+      "scene": 9,
+      "producer_c": 7269,
+      "published": [
+        5701,
+        537
+      ],
+      "validation": 169,
+      "event": 852388,
+      "tasks": [
+        [
+          7107,
+          1117913332,
+          0,
+          1
+        ],
+        [
+          7119,
+          1133903872,
+          1,
+          1
+        ]
+      ],
+      "before": "T03 tick=1873 s=9 l=53 label=sample f=1432.547,296.054,851971 t=1568.000,288.000,0 v=1 h=0 z=1725.220,297.974,852046",
+      "after": "T03 tick=1874 s=9 l=54 label=sample f=1432.547,296.054,0 t=1568.000,288.000,0 v=1 h=1 z=1719.878,298.686,0"
+    }
+  ],
+  "exclusions": [
+    "No new completed Payoff167 live capture: isolated retail environments failed before gameplay in observed and observer-free attempts.",
+    "Multi-subscriber renewal and nested mutation ordering use inspected original subscription/dispatch assembly plus production mechanism tests; no new public multi-follower retail witness.",
+    "Owner-change, flags1/2, transient morph/blink, point reissue and broader ability policies remain open."
+  ]
+}

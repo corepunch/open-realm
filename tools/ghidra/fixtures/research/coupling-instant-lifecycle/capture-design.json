@@ -1,0 +1,39 @@
+{
+  "scope": "Natural patched stock Aco2/Aco3 lifecycle; eleven independent fresh pairs",
+  "scenes": [
+    "uninterrupted control",
+    "Stop Archer",
+    "Stop Hippo",
+    "Move Archer",
+    "Move Hippo",
+    "Remove Archer",
+    "Remove Hippo",
+    "Pause/resume Archer",
+    "Pause/resume Hippo",
+    "Remove Aco2 from Archer",
+    "Remove Aco3 from Hippo"
+  ],
+  "setup": {
+    "archer": [
+      704,
+      1024,
+      180
+    ],
+    "hippo": [
+      1536,
+      1024,
+      0
+    ],
+    "research": "Reht1",
+    "issue": "Archer immediate coupleinstant at age100 (2seconds)",
+    "intervene": "age115, after public precondition checks both live/type and exact heads852508/852507, before native stock far merge",
+    "resume": "age215 (two seconds after pause)",
+    "settled": "age398",
+    "scene_duration": "400ticks at0.02 seconds, eleven scenes88seconds"
+  },
+  "markers": "Same <=160 CpEmit guard, four state/setup/result rows, natural levels/tech, add public paused flags. All issued events preserved. Before/after intervention and resume snapshots; no-op control at same frontier. Precondition failure sentinel flushes and pauses probe, never accepted silently.",
+  "observer": "Reuse accepted stock-v3 read-only observer unchanged; scoped Acoi admission/dispatch/common producer/coordination/terminal/inverse plus task/range/mover events. Exact binarySHA and full provenance retained.",
+  "run": "2 observations and unhooked control, fresh maps/output, live.sh B/C literal placeholders. Bounded210seconds. First verify current B/C services and absent live game; never restart merely for timeout.",
+  "acceptance": "Exact complete public stream equality across all3; headers/source/map/footer/counts and actor identities/cache values. Project actual event/task/head/life/result outcomes independently per role; do not assume legacy Stop/pause inverse. Explicit lone-Archer target control already covered by accepted stock-v3 and range333 phases, not duplicated.",
+  "excluded": "Reentrant event callbacks, save/load, HP transfer and dismount remain outside this witness. No primary writes or native memory mutation."
+}

@@ -92,3 +92,16 @@ target, target death, slot reuse, Stop, and save/load during the approach. The
 ability's `A_VALIDATE` owns both unit and destructable eligibility while the
 shared approach owns identity, Move cancellation, and point execution. See
 [save/load](save-load.md) for the versioned pending-cast contract.
+
+The physical approach uses `S_BeginUnitEntityPointApproach`: it follows a live
+entity with the existing Move receiver and measures DataA from the target
+center. Ordinary unit-target spells keep their hull-inclusive approach range.
+`A_SPELL_APPROACH_RANGE` receives the caster so level-specific data is retained.
+The receiver's `think` is cleared after physical admission; inspect it through
+`S_UnitTargetApproachReceiver`, not by scanning thinker callbacks.
+
+The minimal test archive lacks an `ncgb` UnitData movement row. These fixtures
+set turn speed and propagation window with their runtime override flags;
+otherwise the zero authored window prevents translation. Target relocation
+uses `S_SetUnitPosition` so fine poses and world positions agree. Frame tests
+reset both millisecond and scalar scheduler clocks between save formats.

@@ -82,37 +82,37 @@ BZ_ABILITY_PROC(CAbilityItemSpiritLink) {
 
 static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 	if (!unit) return NULL;
-	FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0)
-		if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == BZ_BSPL &&
-		    (!unit->unit_state->statuses[i].timestamp || unit->unit_state->statuses[i].timestamp > G_Time()))
-			return unit->unit_state->statuses + i;
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == BZ_BSPL &&
+		    (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
+			return unit->abilstatus + i;
 	return NULL;
 }
 
 static void spirit_link_strip(edict_t *unit) {
-	FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0)
-		if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == BZ_BSPL)
-			unit_removestatus(unit, unit->unit_state->statuses + i, STATUS_REMOVE_SCRIPT);
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+		if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == BZ_BSPL)
+			unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 
 /* Flat redirected share: never fatal — clamp to 1 HP and clear Bspl. */
-static void spirit_link_apply_share(edict_t *unit, int amount) {
+static void spirit_link_apply_share(edict_t *unit, float amount) {
 	if (!unit || amount <= 0 || M_IsDead(unit)) return;
-	if (unit->health.value <= (float)amount) {
+	if (unit->health.value <= amount) {
 		G_SetHealth(unit, 1); spirit_link_strip(unit); return;
 	}
-	G_AddHealth(unit, -(float)amount);
+	G_AddHealth(unit, -amount);
 }
 
 /* Split DataA of post-mitigation damage across living allied Bspl holders; return primary take.
  * The 64-entry scratch cannot truncate real groups: selection above caps each
  * cast at authored DataB targets, far below this bound. */
-int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage) {
+float S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, float damage) {
 	static bool redirecting;
 	heroabilitystatus_t *slot;
 	uint32_t code, level, n = 0;
 	float ratio;
-	int shared, kept, portion;
+	float shared, kept, portion;
 	edict_t *linked[SPL_MAX_CANDS];
 	(void)attacker;
 	if (redirecting || !target || damage <= 0) return damage;
@@ -129,9 +129,9 @@ int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage) {
 		linked[n++] = other;
 	}
 	if (n < 1) return damage;
-	shared = (int)((float)damage * ratio);
+	shared = damage * ratio;
 	kept = damage - shared;
-	portion = shared / (int)n;
+	portion = shared / (float)n;
 	redirecting = true;
 	FOR_LOOP(i, n)
 		if (linked[i] != target) spirit_link_apply_share(linked[i], portion);

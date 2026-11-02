@@ -1,0 +1,40 @@
+{
+  "scope": "Couple Instant authored Rng333 on Aco2 and Aco3; DataB0/1 and Area900 unchanged",
+  "scenes": [
+    "Archer immediate far832",
+    "Hippo immediate far832",
+    "Archer explicit target far832",
+    "Hippo explicit target far832",
+    "Archer explicit target near256 facing away",
+    "Hippo explicit target near256 facing away",
+    "Hippo explicit target candidate equality373 facing away",
+    "Hippo explicit target candidate just-outside373.25 facing away",
+    "Hippo explicit target candidate just-inside372.75 facing away"
+  ],
+  "geometry": {
+    "hippo": [
+      1536,
+      1024,
+      0
+    ],
+    "archer_far": [
+      704,
+      1024,
+      180
+    ],
+    "archer_near": [
+      1280,
+      1024,
+      180
+    ],
+    "candidate_archer_x": [
+      1163,
+      1162.75,
+      1163.25
+    ]
+  },
+  "boundary_caveat": "373 is predicted from range333 + stock Archer radius32 + Hippo radius8. Equality/adjacency claims require actual public spawn XY and observed canonical mover radii to match. +/-0.25 are selected exactly representable quarter-world offsets, not asserted nearest floating-point neighbors. Full predicate uses predicted positions, squared near-zero tolerance and perimeter fallback; classify observed initial query/task, not invented strict Euclidean inequality.",
+  "observer": "Keep accepted stock-v3 observer and add read-only scoped PathRegistry_ResolveCanonical054530 onLeave inside05b580 to record actual source/target mover states/radii. No game calls or memory writes.",
+  "markers": "Preserve four state records, stock-data and speeds; revise authored data labels333/333; runtime CpEmit <=160 guard. 400ticks per scene, issue100, end398; 9scenes72seconds plus load, bounded180seconds.",
+  "verification": "2 observations + unhooked control via locked live.sh B/C literal placeholders; freeze explicit immutable inputs before map and full inputs/map before capture. Exact complete marker equality, actual cacheRng333/Area900/DataB, raw target-task params, actor identities and event chronology. No production changes."
+}

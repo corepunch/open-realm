@@ -1,0 +1,41 @@
+{
+  "task": "ROUTE-02.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "note": "Fragment only; offsets verified by assembly and original-code emulation in verify_route02_2_blockers.py. Not applied.",
+  "WC3DwordTable (fine+ac instance)": {
+    "+00": "vtable (6fa908e4 set by 147340)",
+    "+0c": "data dword*",
+    "+14": "growth (0 for fine+ac)",
+    "+18": "capacity (32 for fine+ac)",
+    "+1c": "count"
+  },
+  "WC3FineSearchPrefix": {
+    "+a4": "query mask; written by 166140/167bf0 from path+9c, not restored",
+    "+a8": "search target object (left by last search; not exempt in 1489a0/148ad0)",
+    "+ac": "next-step blocker WC3DwordTable (count at +c8)",
+    "+cc": "target seen latch (set by 1489a0 when the target link is observed)",
+    "+d0": "observed-obstruction latch (set by 1489a0 rejections incl. waypoint selection; reset by search setup 14aeab)",
+    "+d4": "endpoint mode; 0 after search setup 14aea1; 1 only inside placement/validation scopes 14a08c/14a21a/16ef3a/17014c which restore it"
+  },
+  "WC3PathMapHeader": {"+b4": "per-cell stamp counter shared by 1489a0 and 148ad0 (incremented once per nonempty chain visit)"},
+  "WC3SpatialPrefix": {
+    "+30": "payload (mover; accepted only if payload+10==60706375)",
+    "+34": "category: bit 01000000 active, low24 query mask bits",
+    "+38": "per-cell stamp (ffffffff = dead)",
+    "+40": "occupancy flags/counter: &8fffffff!=0 suppresses; 60000000 moving bits exempt in 1489a0 only when fine+d4==0"
+  },
+  "functions": {
+    "6f148e30": "thiscall(fine; x0,y,table*,count) RET 0x10",
+    "6f148cc0": "thiscall(fine; x,y0,table*,count) RET 0x10",
+    "6f148c30": "thiscall(fine; x0,y0,table*,w,h) RET 0x14",
+    "6f148ad0": "thiscall(fine; x,y,table*) RET 0xc",
+    "6f1480d0": "fastcall(ECX table*, EDX payload) RET 0",
+    "6f148550": "thiscall(table; value*,count) RET 8 -> EAX bool",
+    "6f168590": "thiscall(table; start,count) RET 8 -> EAX bool",
+    "6f167940": "fastcall(ECX prev int[2]*, EDX next int[2]*) RET 0 -> EAX code",
+    "6f166140": "thiscall(path; source*,destination*) RET 8 -> AL vector-empty",
+    "6f167bf0": "thiscall(path; source*) RET 4 -> EAX index",
+    "6f165e60": "thiscall(path; source*,out*) RET 8",
+    "6f168d30": "ECX ignored; stack (start*,direction*,float length) RET 0xc -> EAX bool"
+  }
+}

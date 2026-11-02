@@ -26,12 +26,12 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 
 ## Current ownership
 
-- `Apiv` Permanent Invisibility owns its authored transition/reveal window and is consumed by the shared viewer-relative visibility query.
-- `Aivs` temporary Invisibility and `AIvi` Item Temporary Invisibility apply the authored AbilityData `BuffID`; the status stores its applying ability rawcode so detection, break, expiry, and overlap cleanup recognize custom buff IDs. `RF_HIDDEN` remains its presentation state.
+- `Apiv` Permanent Invisibility owns an authored scalar fade and primary-timer publication. Viewer-relative queries read the published state; synchronous TargetLost is delivered after publication. See [exact fade scheduling](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
+- `Aivs` and `AIvi` own the same concrete Binv class, independently of the authored BuffID used for display. Both retain the applying ability rawcode and use a saved primary expiry. AIvi supplies transition2 to the shared fade; Aivs supplies authored DataA. `RF_HIDDEN` remains presentation state.
 - `AOwk`/`ANwk` Wind Walk owns `BOwk`. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
 - Human tower `Adts` detection uses its authored 900 range only for the tower owner after `Rhse` (Magic Sentry) is researched; tower rows contain `Adts` before the upgrade, but that ability is inactive until then.
-- `AIvi` Item Temporary Invisibility is an `AB_ITEM` ability that applies its authored status to the selected living carrier. Duration is read through `S_SpellDuration()`, including HeroDur for hero carriers.
+- `AIvi` is an `AB_ITEM` ability applied to the actual inventory carrier, independently of selection. Fresh ordinary instances use authored Dur for nonheroes and HeroDur for heroes. Native initialization retains a zero nonhero duration additive; native serialized nonzero additives are not imported by this engine.
 
 Selected friendly units retain their selection focus and control while invisible. `G_IsEntitySelected()` applies the same viewer-aware invisibility rule as selection admission, so portrait, status, command, and order paths continue to resolve the selected unit. Owner/shared-vision snapshots also receive a ghosted vertex alpha (0.35 multiplied by authored alpha); hostile visibility remains governed by fog and detection. Timed status expiry clears `RF_HIDDEN`, restoring ordinary presentation automatically.
 
@@ -48,20 +48,60 @@ While `BOwk` is active, both steering and final movement commits ignore dynamic 
 ## Item invisibility data flow
 
 ```text
-AIvi registry row
+G_UseItem or UI Inventory
+    -> G_UseImmediateItemAbility(actual carrier, held item, UI controller, alias)
     -> CAbilityItemInvis
-    -> S_SpellCurrentCode()
-    -> AbilityData BuffID
-    -> S_SpellDuration(code, 1, G_UnitIsHero(target))
-    -> authored timed status with AIvi source identity
-    -> existing temporary-invisibility break/detection rules
+    -> concrete Binv class + authored display ID + applying alias
+    -> independent saved primary expiry
+    -> S_TemporaryInvisibilityAcquire(transition = 2)
+    -> shared scalar fade / target notification / counted suppression
 ```
 
-Tests use deliberately non-stock Dur/HeroDur values so this path cannot pass by hard-coding the stock potion duration.
+The logical class stays Binv. A nonzero authored BuffID context updates its
+displayed ID; a zero context preserves the prior ID on refresh. Both producers
+find that class even when it displays a custom ID, so refresh retains one
+contribution. AIvi uses transition2 rather than DataA.
+The common scalar starts slightly above zero, so the scheduled fade publication
+is slightly earlier than the transition parameter; it is not a fixed two-second
+integer timeout. The item alias still supplies Dur/HeroDur and source identity.
+
+Original531a80 refreshes context first. Positive duration only extends an owner
+when strictly greater than its actual primary-clock remainder; shorter/equal
+refresh preserves deadline and sequence. Zero/negative duration cancels expiry.
+Refresh retains the status instance, fade request and suppression token. Expiry,
+dispel and break release the shared contribution through its ordinary owner.
+
+`wc3_items.invisibility322_binv_class_fade_refresh_and_saved_primary_expiry`
+uses real inventory items with conflicting custom BuffID/DataA, all five duration
+cases, charges, pending-fade save/load and real primary timer draining. The
+original-byte oracle and its service-stub limits are documented in
+[Attack recovery](retail-pathfinding-attack-recovery.md#item-invisibility-fade-and-expiry-checkpoint322).
+
+Scripted Pause freezes Binv's private expiry on the first clock hold and
+rearms its saved remainder on the last inverse. Sleep's physical suspension
+alone does not own that clock. The shared fade continues independently.
+A new Binv inherits the current clock count after starting its fade. Refresh
+reads the canceled expiry's zero remainder, so positive refresh can start a
+new running request while paused; unpause replaces it with the old frozen
+remainder. Nonpositive refresh also preserves that frozen remainder. These
+rules follow original427610/43b0e0,531420/532fa0 and531a80, rather than a
+blanket paused-unit timer policy. Full public Sleep/Apiv composition remains
+a separate B01 check.
+
+Checkpoint324 adds real JASS Sleep admission, Apiv/item attachment in both
+orders, independent owner removal and paused cold save/load. A fresh retail
+observation/control pair agrees on246 public records. Production is unchanged.
+Checkpoint325 implements those notifications for the existing profiled spell
+owner, in attachment order before public CHANNEL/CAST callbacks. Binv's
+native flag100 is its pending-publication guard: an action preserves a pending
+owner and removes a notified owner. Apiv releases and reacquires its own
+contribution. The next gap is routing ordinary item activation through its
+actual owned command/cast lifecycle; see the exact callers in
+[checkpoint324](retail-pathfinding-attack-recovery.md#public-sleep-and-independent-invisibility-owners-checkpoint324).
 
 ## Save/load
 
-No new edict pointer or callback field is introduced. Ghost uses an existing persisted `runtime.flags` bit, and Wind Walk uses the already-persisted `heroabilitystatus_t.data` field for applying-ability identity. Focused save/load tests cover both semantics so future serializer changes cannot silently drop them.
+Ghost uses a persisted `runtime.flags` bit, and Wind Walk uses the persisted `heroabilitystatus_t.data` applying-ability identity. Save137 stores Permanent Invisibility's scalar origin, slope and pending primary request; its heap membership is rebuilt. No edict pointer or C callback is added. Focused save/load tests cover pending fade and these other semantics.
 
 ## Planned compatibility decisions for unresolved retail details
 
@@ -152,3 +192,21 @@ make test-wc3-engine WC3_PATTERN='wc3_save.ghost*'
 ```
 
 This implementation was designed to consume normalized Warcraft data rather than hard-coded unit rawcodes or stock numeric tables, preserving ROC/TFT/custom-object compatibility at the existing accessor boundary.
+
+## Ordinary AIvi item command: checkpoint326
+
+The implementation routes public `UnitUseItem` and the profiled no-target AIvi path
+through Inventory admission and the ordinary cast owner. Its intrinsic phase
+clocks are zero; it replaces Move rather than preserving a private inline Move.
+Other item handlers that open target cursors are not implicitly profiled casts.
+Retained effect code, source attachment and active completion are separate:
+CHANNEL removal publishes ENDCAST using the old item metadata, then subsequent
+retained phases expose spell ID0. A live user head can still permit the effect;
+Stop removes that permission. Successful completion follows ENDCAST with one
+synchronous USE_ITEM callback. Callback replacement heads remain owned.
+
+Both editions match81 projected order/phase/state rows from237 complete
+native public rows; the two new tests pass209 assertions per edition. Additional cold-save/repick/sibling-alias/replacement-Move
+cases are engine regressions, not new retail oracles or public paused-admission
+proof. The initial red/green fixture attempts omitted unit-spell constants from
+the minimal common.j; they are excluded as failing-first product evidence.

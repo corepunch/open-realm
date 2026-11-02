@@ -1,0 +1,51 @@
+{
+  "retail_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope": "Payoff115 exact public differential return boundary; accepted payoff113 Frida captures reused, not new retail runs.",
+  "readback": {
+    "program": "game.dll",
+    "image_base": "6f000000",
+    "unsaved": false,
+    "functions": [
+      {
+        "address": "6f16fe20",
+        "name": "Mover_CommitSpeedAndHeading",
+        "comment": "Requested speed c0 and signed heading delta c4; desired sin/cos velocity minus current ->15f7e0. 80 full calls including real vtable50 callback, plus80 subsequent position commits. Payoff84 repeats763 full commits through timed speed/heading changes, stationary turn windows and exact cell-boundary Stop/restart; all engine words/save continuations match.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "xrefs": [
+          "6f16b6e8",
+          "6f16c608"
+        ]
+      },
+      {
+        "address": "6f15f7e0",
+        "name": "Mover_IntegrateThenChangeVelocity",
+        "comment": "First1603d0 with zero displacement commits old velocity/time/spatial state; then1606e0 adds requested velocity delta. Full commit corpus verifies ordering.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 Payoff115 differential adapter samples the read-only 16fe20 return boundary, after old-velocity integration and new-velocity notification; zero-speed heading assignment also completes before sampling. Four producer lifetimes normalize identities independently of addresses/slot reuse; all28 fine pose/velocity/heading and three clock words repeat across two accepted Frida captures and actual Classic/TFT engine journals. This bounded adapter does not certify all task/route/RNG events.",
+        "xrefs": [
+          "6f16027d",
+          "6f15ffb4",
+          "6f171390",
+          "6f16fece",
+          "6f16ff1c",
+          "6f15efbc",
+          "6f15efd5",
+          "6f1712d7",
+          "6f1720dc",
+          "6f173300",
+          "6f173c42"
+        ]
+      },
+      {
+        "address": "6f1606e0",
+        "name": "Mover_AddVelocityAndNotify",
+        "comment": "Add velocity delta; zero negligible motion, clamp speed cap88 via15fc70; update fine-object40 bit20000000 from actual velocity80/84; optional vtable50 notification. 80 composed cases plus fresh read-only hfoo3012 commits (90 start/90 stop) and hgry1661 (9 start/9 stop) correlate flags with velocity. Engine fine snapshot skips nonzero movement.velocity; walking animation alone is not the producer.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "xrefs": [
+          "6f15f805"
+        ]
+      }
+    ]
+  },
+  "decompilation_before": {
+    "6f16fe20": "\n/* Requested speed c0 and signed heading delta c4; desired sin/cos velocity minus current ->15f7e0.\n   80 full calls including real vtable50 callback, plus80 subsequent position commits. Payoff84\n   repeats763 full commits through timed speed/heading changes, stationary turn windows and exact\n   cell-boundary Stop/restart; all engine words/save continuations match.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid __thiscall Mover_CommitSpeedAndHeading(int param_1,float *param_2,float *param_3)\n\n{\n  float *left;\n  float *input;\n  undefined4 *puVar1;\n  WC3PathScalar *pWVar2;\n  WC3PathScalar *pWVar3;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  WC3PathScalar local_1c;\n  WC3PathScalar local_18;\n  WC3PathScalar local_14;\n  WC3PathScalar local_10;\n  WC3PathScalar local_c;\n  WC3PathScalar local_8;\n  \n  input = param_3;\n  left = param_2;\n  *(float *)(param_1 + 0xc0) = *param_2;\n  puVar1 = (undefined4 *)Math_WrappedHeadingDelta(param_3);\n  *(undefined4 *)(param_1 + 0xc4) = *puVar1;\n  if ((float)Math_RuntimeZero < *left) {\n    Math_Sin((WC3PathScalar *)&param_3,(WC3PathScalar *)input);\n    Math_Cos((WC3PathScalar *)&param_2,(WC3PathScalar *)input);\n    pWVar2 = Math_Multiply(&local_8,(WC3PathScalar *)left,(WC3PathScalar *)&param_3);\n    pWVar3 = Math_Multiply(&local_c,(WC3PathScalar *)left,(WC3PathScalar *)&param_2);\n    local_1c = *pWVar3;\n    local_18 = *pWVar2;\n    pWVar2 = Math_Subtract(&local_10,&local_18,(WC3PathScalar *)(param_1 + 0x84));\n    pWVar3 = Math_Subtract(&local_14,&local_1c,(WC3PathScalar *)(param_1 + 0x80));\n    local_24 = *pWVar3;\n    local_20 = *pWVar2;\n    Mover_IntegrateThenChangeVelocity(&local_24,1);\n    return;\n  }\n  local_1c = Math_RuntimeZero;\n  local_18 = Math_RuntimeZero;\n  pWVar2 = Math_Subtract((WC3PathScalar *)&param_2,&local_18,(WC3PathScalar *)(param_1 + 0x84));\n  pWVar3 = Math_Subtract(&local_14,&local_1c,(WC3PathScalar *)(param_1 + 0x80));\n  local_24 = *pWVar3;\n  local_20 = *pWVar2;\n  Mover_IntegrateThenChangeVelocity(&local_24,1);\n  param_3 = (float *)*param_3;\n  param_2 = (float *)ABS((float)param_3);\n  if (DAT_6fcd5464 <= (float)param_2) {\n    Math_Modulo((WC3PathScalar *)&param_2,(WC3PathScalar *)&param_3,(WC3PathScalar *)&DAT_6fcd5464);\n    param_3 = param_2;\n  }\n  if ((float)param_3 < (float)Math_RuntimeZero) {\n    pWVar2 = Math_Add(&local_14,(WC3PathScalar *)&param_3,(WC3PathScalar *)&DAT_6fcd5464);\n    *(WC3PathScalar *)(param_1 + 0x8c) = *pWVar2;\n    return;\n  }\n  *(float **)(param_1 + 0x8c) = param_3;\n  return;\n}\n\n",
+    "6f15f7e0": "\n/* First1603d0 with zero displacement commits old velocity/time/spatial state; then1606e0 adds\n   requested velocity delta. Full commit corpus verifies ordering.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid Mover_IntegrateThenChangeVelocity(undefined4 param_1,undefined4 param_2)\n\n{\n  WC3PathScalar local_c;\n  WC3PathScalar local_8;\n  \n  local_c = Math_RuntimeZero;\n  local_8 = Math_RuntimeZero;\n  Mover_IntegratePositionAndDisplacement(&local_c);\n  Mover_AddVelocityAndNotify(param_1,param_2);\n  return;\n}\n\n",
+    "6f1606e0": "\n/* Add velocity delta; zero negligible motion, clamp speed cap88 via15fc70; update fine-object40\n   bit20000000 from actual velocity80/84; optional vtable50 notification. 80 composed cases plus\n   fresh read-only hfoo3012 commits (90 start/90 stop) and hgry1661 (9 start/9 stop) correlate flags\n   with velocity. Engine fine snapshot skips nonzero movement.velocity; walking animation alone is\n   not the producer.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid __thiscall Mover_AddVelocityAndNotify(int *param_1,WC3PathScalar *param_2,int param_3)\n\n{\n  WC3PathVector2 *vector;\n  WC3PathScalar WVar1;\n  WC3PathScalar *pWVar2;\n  WC3PathScalar *pWVar3;\n  float *pfVar4;\n  WC3PathScalar local_c;\n  float local_8;\n  \n  pWVar3 = param_2;\n  pWVar2 = Math_Add((WC3PathScalar *)&local_8,(WC3PathScalar *)(param_1 + 0x20),param_2);\n  param_1[0x20] = *pWVar2;\n  pWVar3 = Math_Add((WC3PathScalar *)&local_8,(WC3PathScalar *)(param_1 + 0x21),pWVar3 + 1);\n  vector = (WC3PathVector2 *)(param_1 + 0x20);\n  param_1[0x21] = *pWVar3;\n  pWVar3 = Math_Multiply((WC3PathScalar *)&local_8,(WC3PathScalar *)(param_1 + 0x21),\n                         (WC3PathScalar *)(param_1 + 0x21));\n  pWVar2 = Math_Multiply(&local_c,(WC3PathScalar *)vector,(WC3PathScalar *)vector);\n  Math_Add((WC3PathScalar *)&param_2,pWVar2,pWVar3);\n  pfVar4 = (float *)Math_Subtract(&local_c,(WC3PathScalar *)&param_2,&Math_RuntimeZero);\n  WVar1 = Math_RuntimeZero;\n  local_8 = ABS(*pfVar4);\n  if (DAT_6fcd5470 <= local_8) {\n    Math_SquareRoot((WC3PathScalar *)&local_8,(WC3PathScalar *)&param_2);\n    pfVar4 = (float *)(param_1 + 0x22);\n    if (*pfVar4 <= local_8 && local_8 != *pfVar4) {\n      Math_ClampVectorLength(vector,(WC3PathScalar *)pfVar4);\n    }\n    if ((float)Math_RuntimeZero < *pfVar4) {\n      *(uint *)(param_1[0x26] + 0x40) = *(uint *)(param_1[0x26] + 0x40) | 0x20000000;\n      goto LAB_6f160789;\n    }\n  }\n  else {\n    param_1[0x21] = Math_RuntimeZero;\n    vector->x = WVar1;\n  }\n  *(uint *)(param_1[0x26] + 0x40) = *(uint *)(param_1[0x26] + 0x40) & 0xdfffffff;\nLAB_6f160789:\n  if (param_3 != 0) {\n    (**(code **)(*param_1 + 0x50))();\n  }\n  return;\n}\n\n"
+  }
+}

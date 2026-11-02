@@ -34,19 +34,26 @@ static edict_t *make_walk_hero(float x, float y) {
 static edict_t *give_item(edict_t *hero, uint32_t class_id, uint32_t slot, uint32_t charges) {
     edict_t *item = alloc_test_unit(class_id, hero->s.origin2.x + 32.0f, hero->s.origin2.y);
     item->targtype = TARG_ITEM;
-    G_AddItem(item);
-    G_GetItem(item)->in_world = true;
-    G_GetItem(item)->inventory_slot = -1;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->in_world = true;
+    item->item->inventory_slot = -1;
     T_ASSERT(G_AddItemToSlot(hero, item, slot));
     G_SetItemCharges(item, charges);
     return item;
+}
+
+/* Public Move is owned by the scheduled physical-group pipeline. Advancing
+ * only the entity animation callback cannot advance that owner. */
+static void step_move_owner(void) {
+    wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    M_RunScheduledThinks();
 }
 
 static void step_walk(edict_t *hero, uint32_t frames) {
     uint32_t i;
     for (i = 0; i < frames; i++) {
         if (!hero->currentmove || !hero->currentmove->think) break;
-        hero->currentmove->think(hero);
+        step_move_owner();
         level.time += FRAMETIME;
     }
 }
@@ -55,14 +62,23 @@ static cstring_t hero_audit_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_hero_saveload_audit") ? "1" : fallback;
 }
 
+/* Full-suite shards must not replace one another's diagnostic save slot. */
+static void hero_audit_save_path(cstring_t name, string_t out, uint32_t size) {
+    strlcpy(out, Test_TempPath(name), size);
+}
+
 static void step_hero_audit(uint32_t frames) {
+    void (*old_save_path)(cstring_t, string_t, uint32_t) = gi.SavePath;
     uint32_t i;
+    gi.SavePath = hero_audit_save_path;
     for (i = 0; i < frames; i++) {
+        step_move_owner();
         G_RunEntities();
         CM_ProcessPathJobs(65536);
         G_HeroSaveLoadAuditFrame();
         level.time += FRAMETIME;
     }
+    gi.SavePath = old_save_path;
 }
 
 static void arm_hero_audit(cstring_t map) {
@@ -89,27 +105,27 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_ASSERT(G_InventoryCapacity(hero) >= 2);
     unit_learnability(hero, MAKEFOURCC('A', 'H', 'h', 'b'));
     unit_learnability(hero, MAKEFOURCC('A', 'H', 'd', 's'));
-    hero->unit_state->overrides.added[0] = MAKEFOURCC('A', 'C', 'n', 'r');
-    ARRAY_COUNT(hero->unit_state->overrides.added) = 1;
+    hero->abilities.added[0] = MAKEFOURCC('A', 'C', 'n', 'r');
+    ARRAY_COUNT(hero->abilities.added) = 1;
     item0 = give_item(hero, MAKEFOURCC('s', 'p', 'r', 'o'), 0, 3);
     item1 = give_item(hero, MAKEFOURCC('r', 'a', 't', 'f'), 1, 1);
     T_ASSERT(unit_issueorder(hero, "move", &dest));
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, "walk");
-    /* MoveSpeed 270 → ~27 units/frame; two steps stay mid-walk on an 80-unit order. */
+    /* First owner publishes velocity; the next moves ~27 units, still mid-walk. */
     step_walk(hero, 2);
     T_ASSERT(hero->s.origin.x > 1.0f);
     T_STREQ(hero->currentmove->animation, "walk");
     saved_origin = hero->s.origin;
-    saved_holy = hero->unit_state->ranks[0].code;
-    saved_shield = hero->unit_state->ranks[1].code;
-    saved_added = hero->unit_state->overrides.added[0];
+    saved_holy = hero->heroabilities[0].code;
+    saved_shield = hero->heroabilities[1].code;
+    saved_added = hero->abilities.added[0];
     saved_item0 = item0->class_id;
     saved_item1 = item1->class_id;
-    saved_charges0 = G_GetItem(item0)->charges;
-    saved_charges1 = G_GetItem(item1)->charges;
-    G_AddItem(item0);
-    G_GetItem(item0)->drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
+    saved_charges0 = item0->item->charges;
+    saved_charges1 = item1->item->charges;
+    (item0->item ? item0->item : (item0->item=G_AllocItem()));
+    item0->item->drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
     strlcpy(saved_move, hero->currentmove->animation, sizeof(saved_move));
     index = hero->s.number;
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
@@ -117,27 +133,27 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_ASSERT(strstr(snap, "spro:3") != NULL);
     T_ASSERT(WriteGame(path));
     hero->s.origin = (vec3_t){ 0 };
-    hero->unit_state->ranks[0].code = hero->unit_state->ranks[1].code = 0;
-    hero->unit_state->ranks[0].level = hero->unit_state->ranks[1].level = 0;
-    ARRAY_COUNT(hero->unit_state->overrides.added) = 0;
-    hero->inventory->slots[0] = NULL; hero->inventory->slots[1] = NULL;
+    hero->heroabilities[0].code = hero->heroabilities[1].code = 0;
+    hero->heroabilities[0].level = hero->heroabilities[1].level = 0;
+    ARRAY_COUNT(hero->abilities.added) = 0;
+    hero->inventory[0] = NULL; hero->inventory[1] = NULL;
     T_ASSERT(ReadGame(path));
     hero = g_edicts + index;
     T_FEQ(hero->s.origin.x, saved_origin.x, 0.01f);
     T_FEQ(hero->s.origin.y, saved_origin.y, 0.01f);
-    T_EQ(hero->unit_state->ranks[0].code, saved_holy);
-    T_EQ(hero->unit_state->ranks[0].level, 1);
-    T_EQ(hero->unit_state->ranks[1].code, saved_shield);
-    T_EQ(hero->unit_state->ranks[1].level, 1);
-    T_EQ(ARRAY_COUNT(hero->unit_state->overrides.added), 1);
-    T_EQ(hero->unit_state->overrides.added[0], saved_added);
+    T_EQ(hero->heroabilities[0].code, saved_holy);
+    T_EQ(hero->heroabilities[0].level, 1);
+    T_EQ(hero->heroabilities[1].code, saved_shield);
+    T_EQ(hero->heroabilities[1].level, 1);
+    T_EQ(ARRAY_COUNT(hero->abilities.added), 1);
+    T_EQ(hero->abilities.added[0], saved_added);
     T_NOT_NULL(G_InventoryItem(hero, 0));
     T_NOT_NULL(G_InventoryItem(hero, 1));
     T_EQ(G_InventoryItem(hero, 0)->class_id, saved_item0);
     T_EQ(G_InventoryItem(hero, 1)->class_id, saved_item1);
-    T_EQ(G_GetItem(G_InventoryItem(hero, 0))->charges, saved_charges0);
-    T_EQ(G_GetItem(G_InventoryItem(hero, 1))->charges, saved_charges1);
-    T_EQ(G_GetItem(G_InventoryItem(hero, 0))->drop_id, saved_drop_id);
+    T_EQ(G_InventoryItem(hero, 0)->item->charges, saved_charges0);
+    T_EQ(G_InventoryItem(hero, 1)->item->charges, saved_charges1);
+    T_EQ(G_InventoryItem(hero, 0)->item->drop_id, saved_drop_id);
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, saved_move);
     T_EQ(hero->think, monster_think);
@@ -192,13 +208,13 @@ TEST(wc3_save, hero_audit_waits_while_paused_then_walks) {
     reset_entities();
     setup_test_world();
     hero = make_walk_hero(0.0f, 0.0f);
-    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED, true);
+    hero->paused = true;
     start_x = hero->s.origin.x;
     arm_hero_audit("Maps\\Campaign\\HeroAuditPaused.w3m");
     gi.CvarString = hero_audit_cvar;
     step_hero_audit(5);
     T_FEQ(hero->s.origin.x, start_x, 0.01f);
-    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED, false);
+    hero->paused = false;
     step_hero_audit(12);
     gi.CvarString = old_cvar;
     T_ASSERT(hero->s.origin.x > start_x + 1.0f);

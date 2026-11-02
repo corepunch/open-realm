@@ -1,0 +1,20 @@
+{
+  "stock": {
+    "public_markers_per_run": 293,
+    "equal": true,
+    "map_sha256": "8c3ff97b291be7f6611a525e6629bb94fe694fb4d28f922499aa6b2261201861"
+  },
+  "authored": {
+    "public_markers_per_run": 293,
+    "equal": true,
+    "map_sha256": "ef16877ea6187f0349b845ef826286894abfad28ba13bc4c1807e427dfd0459a"
+  },
+  "zero": {
+    "public_markers_per_run": 284,
+    "equal": true,
+    "map_sha256": "885557ffe720d89d6caabdb771fcf03fe5bfdefb0d303087f034fad183ba04b7"
+  },
+  "public_markers": 2610,
+  "bundle_sha256": "199e04118e51eaf59c66fd6d9f664e1ffd9d905725ce6735af78f1590247602a",
+  "engine_parity": false
+}

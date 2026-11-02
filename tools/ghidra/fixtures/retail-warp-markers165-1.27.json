@@ -1,0 +1,1345 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "FORM-05.1/captures/d-observe-1.jsonl": {
+      "sha256": "361a49425f0a3cbf1d40c85f53f61158db356da2382f06f8608726b8657c34e2",
+      "bytes": 4465270,
+      "metadata": {
+        "event": "metadata",
+        "task": "GROUP-03.2/FORM",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pid": 992,
+        "owned": true,
+        "source_sha256": {
+          "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+          "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+          "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+        },
+        "map": "Maps\\RS-FORM-05.1-d.w3m",
+        "seconds": 200.0,
+        "continue_at": 30,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "env": "B",
+        "input": [
+          {
+            "tick": 30,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          },
+          {
+            "tick": 250,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          }
+        ],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F05 "
+      },
+      "preload_sha256": "f2f497dcdb4e8afccbe5204cb040bde08066ed8c60c9fa0653b575f79a605d38",
+      "normalized": {
+        "groups": [
+          {
+            "identity": "1054/1070",
+            "visits": 472,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "1e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                69,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                135,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "4": [
+                [
+                  2,
+                  116
+                ]
+              ],
+              "2": [
+                [
+                  3,
+                  176
+                ]
+              ],
+              "3": [
+                [
+                  3,
+                  188
+                ]
+              ],
+              "5": [
+                [
+                  3,
+                  93
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x3ed9d68e",
+                [
+                  54.687466,
+                  56.249939
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ]
+            ],
+            "resets": []
+          },
+          {
+            "identity": "976/1158",
+            "visits": 440,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                0,
+                5,
+                2,
+                "20e30000"
+              ],
+              [
+                164,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "20e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                []
+              ],
+              [
+                166,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                232,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                298,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                364,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                430,
+                [
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "2": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "3": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "5": [
+                [
+                  2,
+                  2
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x409c6117",
+                [
+                  49.5,
+                  31.5
+                ]
+              ],
+              [
+                163,
+                "0x40a117a5",
+                [
+                  55.999924,
+                  12.000023
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ],
+              [
+                163,
+                "16c565",
+                1
+              ]
+            ],
+            "resets": [
+              [
+                163,
+                "1697b4"
+              ]
+            ]
+          }
+        ],
+        "warps": [
+          {
+            "unit": 5,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              10,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              10,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 4,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              14,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              14,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 3,
+            "caller": "165c57",
+            "before": [
+              6,
+              3,
+              17,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              17,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 2,
+            "caller": "165c57",
+            "before": [
+              6,
+              2,
+              18,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              18,
+              -1,
+              "3a30000"
+            ]
+          }
+        ]
+      }
+    },
+    "FORM-05.1/captures/d-observe-2.jsonl": {
+      "sha256": "e440db5f4191af4a07d3e161f5106f16076e58bea0e0f347cb18b65c137d1309",
+      "bytes": 4467775,
+      "metadata": {
+        "event": "metadata",
+        "task": "GROUP-03.2/FORM",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pid": 1524,
+        "owned": true,
+        "source_sha256": {
+          "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+          "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+          "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+        },
+        "map": "Maps\\RS-FORM-05.1-d.w3m",
+        "seconds": 200.0,
+        "continue_at": 30,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "env": "B",
+        "input": [
+          {
+            "tick": 30,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          },
+          {
+            "tick": 250,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          }
+        ],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F05 "
+      },
+      "preload_sha256": "f0b6d584eb51b61a66434c736ea8cbcb2553647d704fa584b0a6645fa1d8c0a5",
+      "normalized": {
+        "groups": [
+          {
+            "identity": "1054/1070",
+            "visits": 472,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "1e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                69,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                135,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "4": [
+                [
+                  2,
+                  116
+                ]
+              ],
+              "2": [
+                [
+                  3,
+                  176
+                ]
+              ],
+              "3": [
+                [
+                  3,
+                  188
+                ]
+              ],
+              "5": [
+                [
+                  3,
+                  93
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x3ed9d68e",
+                [
+                  54.687466,
+                  56.249939
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ]
+            ],
+            "resets": []
+          },
+          {
+            "identity": "976/1158",
+            "visits": 441,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                0,
+                5,
+                2,
+                "20e30000"
+              ],
+              [
+                164,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "20e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                []
+              ],
+              [
+                166,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                232,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                298,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                364,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                430,
+                [
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "2": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "3": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "5": [
+                [
+                  2,
+                  2
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x409c6117",
+                [
+                  49.5,
+                  31.5
+                ]
+              ],
+              [
+                163,
+                "0x40a117a5",
+                [
+                  55.999924,
+                  12.000023
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ],
+              [
+                163,
+                "16c565",
+                1
+              ]
+            ],
+            "resets": [
+              [
+                163,
+                "1697b4"
+              ]
+            ]
+          }
+        ],
+        "warps": [
+          {
+            "unit": 5,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              10,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              10,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 4,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              14,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              14,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 3,
+            "caller": "165c57",
+            "before": [
+              6,
+              3,
+              17,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              17,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 2,
+            "caller": "165c57",
+            "before": [
+              6,
+              2,
+              18,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              18,
+              -1,
+              "3a30000"
+            ]
+          }
+        ]
+      }
+    },
+    "FORM-05.2/captures/d-observe-1.jsonl": {
+      "sha256": "d390554bb6689eae882ac14cc60f740d86ae286b61422032f3cc1e752e723717",
+      "bytes": 4469929,
+      "metadata": {
+        "event": "metadata",
+        "task": "GROUP-03.2/FORM",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pid": 1804,
+        "owned": true,
+        "source_sha256": {
+          "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+          "form052_observer.js": "c330dcb123752d50c7fa5d6ff15c718ba80cdd6d8ce94b837c775646432215b7",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+          "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+        },
+        "map": "Maps\\RS-FORM-05.1-d.w3m",
+        "seconds": 200.0,
+        "continue_at": 30,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "env": "B",
+        "input": [
+          {
+            "tick": 30,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          },
+          {
+            "tick": 250,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          }
+        ],
+        "input_seconds": null,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F05 "
+      },
+      "preload_sha256": "5cc5b1b7f3d6522ba29ee0e89ab4e841e10250c86ff037fed72f605eae02f7e9",
+      "normalized": {
+        "groups": [
+          {
+            "identity": "1054/1070",
+            "visits": 472,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "1e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                69,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ],
+                  [
+                    4,
+                    "80000"
+                  ],
+                  [
+                    5,
+                    "80000"
+                  ]
+                ]
+              ],
+              [
+                135,
+                [
+                  [
+                    2,
+                    "80000"
+                  ],
+                  [
+                    3,
+                    "80000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "4": [
+                [
+                  2,
+                  116
+                ]
+              ],
+              "2": [
+                [
+                  3,
+                  176
+                ]
+              ],
+              "3": [
+                [
+                  3,
+                  188
+                ]
+              ],
+              "5": [
+                [
+                  3,
+                  93
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x3ed9d68e",
+                [
+                  54.687466,
+                  56.249939
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ]
+            ],
+            "resets": []
+          },
+          {
+            "identity": "976/1158",
+            "visits": 441,
+            "route": [
+              [
+                1,
+                1,
+                1,
+                0,
+                5,
+                2,
+                "20e30000"
+              ],
+              [
+                164,
+                1,
+                1,
+                1,
+                5,
+                0,
+                "20e30000"
+              ]
+            ],
+            "failures": [],
+            "stops": [],
+            "cooldown_seeds": [
+              [
+                3,
+                []
+              ],
+              [
+                166,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                232,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                298,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ],
+                  [
+                    4,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                364,
+                [
+                  [
+                    0,
+                    "40000"
+                  ],
+                  [
+                    2,
+                    "40000"
+                  ],
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ],
+              [
+                430,
+                [
+                  [
+                    3,
+                    "40000"
+                  ]
+                ]
+              ]
+            ],
+            "bit80000": {
+              "2": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "3": [
+                [
+                  2,
+                  2
+                ]
+              ],
+              "5": [
+                [
+                  2,
+                  2
+                ]
+              ]
+            },
+            "layouts": [
+              [
+                1,
+                "0x409c6117",
+                [
+                  49.5,
+                  31.5
+                ]
+              ],
+              [
+                163,
+                "0x40a117a5",
+                [
+                  55.999924,
+                  12.000023
+                ]
+              ]
+            ],
+            "advances": [
+              [
+                1,
+                "16cef4",
+                0
+              ],
+              [
+                163,
+                "16c565",
+                1
+              ]
+            ],
+            "resets": [
+              [
+                163,
+                "1697b4"
+              ]
+            ]
+          }
+        ],
+        "warps": [
+          {
+            "unit": 5,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              10,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              10,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 4,
+            "caller": "165c57",
+            "before": [
+              5,
+              2,
+              14,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              5,
+              0,
+              14,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 3,
+            "caller": "165c57",
+            "before": [
+              6,
+              3,
+              17,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              17,
+              -1,
+              "3a30000"
+            ]
+          },
+          {
+            "unit": 2,
+            "caller": "165c57",
+            "before": [
+              6,
+              2,
+              18,
+              0,
+              "3a30000"
+            ],
+            "after": [
+              6,
+              0,
+              18,
+              -1,
+              "3a30000"
+            ]
+          }
+        ]
+      }
+    },
+    "FORM-05.1/captures/d-control-1.jsonl": {
+      "sha256": "4586c26d8a3e842d788d6cad0241e8f692572e8134f44fe4e658ad48e11a9f33",
+      "bytes": 2014,
+      "metadata": {
+        "event": "metadata",
+        "task": "GROUP-03.2/FORM",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pid": 1820,
+        "owned": true,
+        "source_sha256": {
+          "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+          "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+          "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+        },
+        "map": "Maps\\RS-FORM-05.1-d.w3m",
+        "seconds": 220.0,
+        "continue_at": 30,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "env": "B",
+        "input": [
+          {
+            "tick": 30,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          },
+          {
+            "tick": 250,
+            "pixel": [
+              560,
+              230
+            ],
+            "alt": false,
+            "shift": false,
+            "key": "move"
+          }
+        ],
+        "input_seconds": [
+          2.9,
+          24.9
+        ],
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F05 "
+      },
+      "preload_sha256": "0002e42f6da3ab7b43e5ef9ceed4693ed9ebc11235e8b0564de6eabac45d89a0"
+    }
+  },
+  "exclusions": [
+    "Archived retail captures are freshly verified; no new live capture is claimed.",
+    "UI input has a one-visit phase difference; repeated complete motion words and control trajectories are not claimed equal.",
+    "Full mixed-selection and narrow-passage trajectory equivalence remains FORM-05.1/05.2.",
+    "Path activation resets its flags; public held replacement retains an existing path until coarse replacement."
+  ]
+}

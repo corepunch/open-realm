@@ -1,0 +1,84 @@
+// Public Captain relocation, with branch-only query markers for observer-free control.
+function R290Queries takes nothing returns nothing
+    if CaptainAtGoal() then
+        call Preload("R290AI goal=true")
+    else
+        call Preload("R290AI goal=false")
+    endif
+    if CaptainIsHome() then
+        call Preload("R290AI home=true")
+    else
+        call Preload("R290AI home=false")
+    endif
+    if CaptainRetreating() then
+        call Preload("R290AI retreat=true")
+    else
+        call Preload("R290AI retreat=false")
+    endif
+endfunction
+function RshPhase takes integer phase returns nothing
+    if phase==1 then
+        call Preload("R290AI phase=1 before")
+        call R290Queries()
+        call CaptainAttack(-1936.0,-1424.0)
+        call Preload("R290AI phase=1 after")
+        call R290Queries()
+    elseif phase==2 then
+        call Preload("R290AI phase=2 before")
+        call R290Queries()
+        call TeleportCaptain(-1936.0,-800.0)
+        call Preload("R290AI phase=2 after")
+        call R290Queries()
+    elseif phase==3 then
+        call Preload("R290AI phase=3 before")
+        call R290Queries()
+        call TeleportCaptain(-1568.375,-560.125)
+        call Preload("R290AI phase=3 after")
+        call R290Queries()
+    elseif phase==4 then
+        call Preload("R290AI phase=4 before")
+        call R290Queries()
+        call TeleportCaptain(-2192.0,-672.0)
+        call Preload("R290AI phase=4 after")
+        call R290Queries()
+    elseif phase==5 then
+        call Preload("R290AI phase=5 before")
+        call R290Queries()
+        call CaptainGoHome()
+        call Preload("R290AI phase=5 after")
+        call R290Queries()
+    elseif phase==6 then
+        call Preload("R290AI phase=6 before")
+        call R290Queries()
+        call TeleportCaptain(-1936.0,-144.0)
+        call Preload("R290AI phase=6 after")
+        call R290Queries()
+    elseif phase==7 then
+        call Preload("R290AI phase=7 before")
+        call R290Queries()
+        call TeleportCaptain(-1568.375,-560.125)
+        call Preload("R290AI phase=7 after")
+        call R290Queries()
+    elseif phase==8 then
+        call Preload("R290AI phase=8 before")
+        call R290Queries()
+        call TeleportCaptain(-1936.0,-800.0)
+        call Preload("R290AI phase=8 after")
+        call R290Queries()
+    endif
+endfunction
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call CreateCaptains()
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call InitAssault()
+    call AddAssault(@MEMBERS@,'hfoo')
+    loop
+        loop
+            exitwhen CommandsWaiting()==0
+            call RshPhase(GetLastCommand())
+            call PopLastCommand()
+        endloop
+        call Sleep(0.1)
+    endloop
+endfunction

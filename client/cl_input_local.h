@@ -17,6 +17,20 @@ uint32_t CL_SelectionLimit(void);
 void CL_ApplySelection(uint32_t const *ids, uint32_t n);
 void CL_ApplySelectionCandidates(uint32_t const *ids, uint32_t n);
 
+/* Nine significant decimal digits preserve every finite binary32 coordinate
+ * across the existing string-command transport. */
+static inline void CL_SendWorldPointCommand(cstring_t command, float x, float y) {
+    SDL_Keymod const mods = SDL_GetModState();
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s %.9g %.9g%s%s", command, (double)x, (double)y,
+              (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) ? " queue" : "",
+              (mods & (KMOD_LALT | KMOD_RALT)) ? " alt" : "");
+}
+
+static inline void CL_SendPointCommand(float x, float y) {
+    CL_SendWorldPointCommand("point", x, y);
+}
+
 /* Minimap click-to-move-camera. Returns true if the click was on the minimap
  * (and the camera was recentered). No-op / false without a minimap. */
 bool CL_TryMinimapClick(float x, float y);

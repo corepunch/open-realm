@@ -1,0 +1,275 @@
+{
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f9d0650",
+      "name": "CaptainAI_UpdateRosterCountsAndRanges",
+      "prototype": "void CaptainAI_UpdateRosterCountsAndRanges(WC3CaptainAIPrefix * captain, WC3UnitOrdersPrefix * unit, int delta)",
+      "comment": "ECX captain, stack4 unit/8 signedinteger delta,RET8/void; complete209 instructions. Adjust actual roster countbc, rememberedb8 only on positive delta, healthyc0 and special-type c4/c8; publish four proximity subscription ranges through063560. Payoff120 observed deltas+1/-1; integer delta is not WC3PathScalar despite later software scalar range math. Runtime scalar constants must be observed; on-disk zero initializers are not values.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "delta",
+          "type": "/int",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x8"
+      ],
+      "callers": [
+        "6f9cf809",
+        "6f9d572b"
+      ],
+      "instructions": 209
+    },
+    {
+      "address": "6f9d5610",
+      "name": "CaptainAI_DetachRosterMember",
+      "prototype": "void CaptainAI_DetachRosterMember(WC3CaptainAIPrefix * captain, WC3UnitOrdersPrefix * unit)",
+      "comment": "ECX captain, stack4 unit,RET4/void; complete176 instructions, three exits. Unlinks rosterac/b0, calls9d0650(unit,-1), unregisters inner/outer proximity subscriptions and may update member orders. Leaves formation/full flag1 unchanged; only updates flag100. Payoff120 RemoveUnit executes thirteen signed withdrawals during deferred cleanup, before fresh unit creation; physical cancellation already happened at native return.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x4",
+        "RET 0x4",
+        "RET 0x4"
+      ],
+      "callers": [
+        "6f9bfd13",
+        "6f9cce43",
+        "6f9cce59",
+        "6f9cf6d7",
+        "6f9be976",
+        "6f9c923b",
+        "6f9c3481",
+        "6f9c4dd6",
+        "6f9c7861",
+        "6f9cba19",
+        "6f9cc90f",
+        "6f9d7901",
+        "6f9d594a",
+        "6f9d5a37",
+        "6f9d5b17"
+      ],
+      "instructions": 176
+    },
+    {
+      "address": "6f9cf680",
+      "name": "CaptainAI_AttachRosterMember",
+      "prototype": "void CaptainAI_AttachRosterMember(WC3CaptainAIPrefix * captain, WC3UnitOrdersPrefix * unit)",
+      "comment": "ECX captain, stack4 unit,RET4/void; complete176 instructions. Detach prior captain if present; PREPEND a retained roster link to ac/b0, copy prior head identity into link24/28, then replace head with new canonical identity. Increment actual counts9d0650 and register unit subscriptions9d4a50/063600. Pair recruited second-created unit first, so retained roster is first-created then second-created; public AddAssault counts existing members first.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x4"
+      ],
+      "callers": [
+        "6f9c9eb7",
+        "6f9cce4b",
+        "6f9c3489",
+        "6f9c4de6",
+        "6f9c7501",
+        "6f9d5953",
+        "6f9d5a40",
+        "6f9d5b20"
+      ],
+      "instructions": 176
+    },
+    {
+      "address": "6f9d34b0",
+      "name": "CaptainAI_HasRosterMember",
+      "prototype": "uint CaptainAI_HasRosterMember(WC3CaptainAIPrefix * captain, WC3UnitOrdersPrefix * unit)",
+      "comment": "ECX captain, stack4 unit,RET4/u32. Walk retained ac/b0 canonical links, resolve payload unit identities and compare with requested unit; retain/release references on all exits. Range entry/departure callers9d8e40/9d8f26/9d9096 check logical membership independently of current physical Move. Payoff120 explicit removal withdraws membership during deferred cleanup; Stop and point retarget keep it. Exploratory CreateCaptains controls do not make old recruits available again, even after a0.1s wait; shared parameter reuse controls therefore refill the existing captain without recreating it. Public point replacement preserves the logical roster but creates a new private physical owner, visited newest first. Activation owns fresh fine/coarse request timestamps; prior shared path throttle must not delay the successor.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x4"
+      ],
+      "callers": [
+        "6f9d8e40",
+        "6f9d8f26",
+        "6f9d9096"
+      ],
+      "instructions": 116
+    },
+    {
+      "address": "6f9d8eb0",
+      "name": "CaptainAI_HandleMemberRangeDeparture",
+      "prototype": "void CaptainAI_HandleMemberRangeDeparture(WC3CaptainAIPrefix * captain, uint mode, void * packet)",
+      "comment": "Thiscall ECX captain, stack4 mode,8 packet, RET8/void. Registered d01cc(mode1) decrements c4; d01cd(mode0) decrements c8 and may reissue target Move9d87d0. Complete mixed13 repeats pin12s mode0 departure for birth12 at exact clock413fffff/counter1424, c8 13-to-12, c4 retained12. Payoff64 engine retains the range deadline across the shared physical leg, stops/integrates/recoveries old motion and creates a newest private target owner;4867 native commits through15s and saved continuations match. Full logical counters after physical completion and second shared generation remain open. Payoff120 repeated removal/refill scene pins mode0 at counter1457 with bc13,c4=11,c8=12: unsigned floor(bc/10)<bc-c4 invokes9d16c0 for the whole roster, rather than private reissue. The earlier mixed13 counter1424 has only one missing inner member and follows the individual branch. Keep exact callback deadlines and retained logical membership across Stop/point retarget.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "mode",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "packet",
+          "type": "/void *32",
+          "storage": "Stack[0x8]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x8"
+      ],
+      "callers": [
+        "6f9d4b38",
+        "6f9d4b4c"
+      ],
+      "instructions": 127
+    },
+    {
+      "address": "6f9d16c0",
+      "name": "CaptainAI_UpdateMemberOrders",
+      "prototype": "void CaptainAI_UpdateMemberOrders(WC3CaptainAIPrefix * captain)",
+      "comment": "Live Captain rosterac/b0 and countsbc..cc choose virtual-target follower batches or9d27c0 shared point members. Thirteen-member capture batches12+1 and shares maximum63/32 across both, but capped numerical rows make that larger capture diagnostic only. Payoff61 two complete homogeneous13-recruit repeats now certify 3647 physical commits, private follower travel and all-entered12+1 batches. Mixed13 repeats independently preserve global63/32 in both groups; that engine shared-owner extension remains GROUP03.4.6.2. Payoff65 logical roster survives physical group completion; exact sixteen-second all-entered deadline publishes second12+1 shared generation. Stationary alive mixed13 full5462 commits,353 live/cached footprints,nine membership masks and11132 Save87 suffix commits match. Dynamic roster/moving captain remain separate tasks. Payoff120 final-binding RemoveUnit then fresh13 refill of the existing captain reaches the missing-members gate at13s. Two-pass target preparation uses policy0,bindShared1, one wrapper, batches12+1 and skips already captain-target user heads. Target activation retains persistent bit1; target refresh records138241 (0x21c01), unlike point policy0xd00. Fresh journey later restores a point family after all inner members enter. Default-town centroid relocation and captain recreation remain unverified engine producers.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "/WarcraftIII/Pathfinding127/WC3CaptainAIPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "exits": [
+        "RET"
+      ],
+      "callers": [
+        "6f9d45f3",
+        "6f9d57ba",
+        "6f9d05c3",
+        "6f9d8fd5"
+      ],
+      "instructions": 805
+    },
+    {
+      "address": "6f9d1040",
+      "name": "CaptainAI_PrepareMoveRequestMember",
+      "prototype": "void CaptainAI_PrepareMoveRequestMember(WC3UnitOrdersPrefix * unit, void * target, WC3PathVector2 * point, WC3MoveRequestWrapper * * requests, uint * group_index, uint * member_count, uint policy, uint bind_shared, WC3MoveRequestWrapper * shared)",
+      "comment": "CCaptainAI.cpp allocation string, CMoveReq vtable; sets point/target and extra target-refresh delay, then adds member. Live target members pass null point; point members bind shared parameters. Thirteen recruits batch12+1 and preserve one global maximum63/32 across both requests; larger capped trace remains diagnostic. Payoff61 complete homogeneous13 captures show prepared counts0..11 then0, bindShared1/policy1 throughout. Largest-mover-in-final-batch mixed repeats publish shared63/32 into both physical paths; cross-batch engine owner lifetime remains03.4.6.2. Payoff120 target family calls target89cba0, clears persistent via89cb30(0), enables800 via89cd40(1), extra400 and shared binding, omits policy100. User-head activation reenables persistent1; live target-refresh flags0x21c01. Target and point families retain the same bounded twelve-row batching and global live footprint. Live shared target admission writes mover range0x3efae148 through05c466, whereas private captain reissue uses9d86f0 authored range.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "target",
+          "type": "/void *32",
+          "storage": "EDX:4"
+        },
+        {
+          "name": "point",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathVector2 *32",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "requests",
+          "type": "/WarcraftIII/Pathfinding127/WC3MoveRequestWrapper *32 *32",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "group_index",
+          "type": "/uint *32",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "member_count",
+          "type": "/uint *32",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "policy",
+          "type": "/uint",
+          "storage": "Stack[0x14]:4"
+        },
+        {
+          "name": "bind_shared",
+          "type": "/uint",
+          "storage": "Stack[0x18]:4"
+        },
+        {
+          "name": "shared",
+          "type": "/WarcraftIII/Pathfinding127/WC3MoveRequestWrapper *32",
+          "storage": "Stack[0x1c]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x1c"
+      ],
+      "callers": [
+        "6f9d2a1a",
+        "6f9d1ac4"
+      ],
+      "instructions": 111
+    },
+    {
+      "address": "6f166060",
+      "name": "Path_Activate",
+      "prototype": "void Path_Activate(WC3PathPrefix * path, uint context)",
+      "comment": "ThiscallECX path,stack4 context,RET4. Full base activation1c53f0, mask9c0, radiusb4zero, flags88=200000 (adaptive enabled), indices74/78=-1, timestamps7c/80zero, packed limits84=019002bc: fine700/accelerator400. Default unit query does not apply engine48-cell gate. Two winding64-cell maps yield exact8 original coarse/fine handoffs; full fine700/2048 controls have different partial endpoints. Captured public search sequence group5000,member400,fine700 confirms separate producers. Engine payoff29 integrates ordinary defaults; scheduler budgets/group5000 remain separately owned. Payoff61 private follower to shared captain path replacement must reset fine_request_time, not merely unlink FIFO. Retained timestamp1086 wrongly denies new shared leg1091 and diverges at physical commit488. Reset restores full3647 commits; original fine-source routing needs no change. Payoff65 activation also clears partial flag10000000 and invalidates74/78 indices. Retained private partial flag denied fresh second-generation fine routing at16020ms; production Move resets partial/count/index state and restores all5462 mixed13 commits. Payoff120 final-binding public point retarget exposes inherited accelerated timestamp1325: successor at1331 must route immediately, not wait until1335. Engine fresh activation resets both local coarse timestamps as well as the fine clock; full retarget capture retains new private physical owners with ordinary policy.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "context",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "exits": [
+        "RET 0x4"
+      ],
+      "callers": [],
+      "instructions": 20
+    }
+  ]
+}

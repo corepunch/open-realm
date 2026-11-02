@@ -1,0 +1,50 @@
+{
+  "payoff": 376,
+  "task": "GROUP-03.4.7.3",
+  "native_inputs": "tools/ghidra/fixtures/retail-captain376-native-1.27.json.gz",
+  "pins": {
+    "docs/games/warcraft-3/retail-pathfinding-captain376.md": "e44dfb6c7077c91845789e6e2e3f71e72a95021ae02161f5f60879c65cea6aae",
+    "tests/test_wc3_pathfinding_captain376.py": "cab3aa18b836f5fec9248de57fd49b23cbf07351f98688fd86ef68224b9cd0eb",
+    "tools/ghidra/fixtures/retail-captain376-native-1.27.json.gz": "c1f505bffc7175fa7cb648165470107798f2640c4cf3c583765bb19af8828f01",
+    "tools/ghidra/research/captain376_native_replay.py": "5f0543cdcc0a4d1b98e8a645813e73d48b9a4dad091483372f40f0121c3c7052",
+    "tools/ghidra/verify_wc3_pathing_captain376.py": "0f59beeff10ea9c277625f901ab64890c1d9b552a7a96ccdd2df1270869803c4",
+    "tools/ghidra/wc3_pathfinding_engine_tests.py": "b49420ae5212c137594e3d9925239dea80ce055a2af2d02e5e1d72c15ebc7193",
+    "games/warcraft-3/game/api/api_unit.h": "e303a235ec974c3f68047be639c354e17df54d982ad77eb373ef5d2672344704",
+    "games/warcraft-3/game/g_bot.c": "8c2ff7eaa086fbe5a8bbf0c13011d5c479e143e0b7bc393f462581bf59215c84",
+    "games/warcraft-3/game/g_bot_town.c": "cd2b37de27f2eea4851bf3f834da2ff0740aca076b9d10165c0ce66ec77100a0",
+    "games/warcraft-3/game/g_local.h": "03e5727519ad9d010ef13b1271bb179bafd06569b0c2809a82b4c8c019fc5c03",
+    "games/warcraft-3/game/g_metadata.c": "f7ea74ef93609b7fea81547f0ea1480f46454553bcdc3766444fb50dccfe170f",
+    "games/warcraft-3/game/g_monster.c": "702c6b4be58e9fb4d84a0612d8027dd4cf5582a685ed6c77087632448b456a09",
+    "games/warcraft-3/game/g_save.c": "f961e2a2362a2cbb9f68af3e9da16ed1ac4d8d08f1116ea93d850c1cc11c8e73",
+    "games/warcraft-3/game/g_target_events.c": "9ff11e2b8a6e46d10a120e334a35a0b6032f40b91989cad4509537b65eab0bf6",
+    "games/warcraft-3/game/g_utils.c": "006e0c25e20f9e0725d95bc48db58146515590e2194030b4810208a336f15866",
+    "games/warcraft-3/game/m_unit.c": "238655da53fc315f0be3f2b276bd0dd3ee5549c580c5904dee7506b8e5420645",
+    "games/warcraft-3/game/skills/s_attack.c": "2653222c764a8cfd9c15a08e1371cf5be0c57d23e70902fe52dc4086af5ffda5",
+    "games/warcraft-3/game/skills/s_cargo.c": "0a9b3f0afe4259ca0aebf68d251e9657e6de8a2c603c444e694e7862f187ca70",
+    "games/warcraft-3/game/skills/s_move.c": "e3837376d74da35d9e755b193b9c6ac272fbc52607bceace10725eaef2018e7e",
+    "games/warcraft-3/game/skills/s_skills.c": "5ec7126d687bd93b309ff846a1ca1459ded21d9432b4fcfb3eb0de4dfb6ed944",
+    "games/warcraft-3/game/skills/s_skills.h": "c7beff4903809d5e57e52f291ce522d94abdd5026cee016fbc392d4f0293a3bd",
+    "games/warcraft-3/game/skills/s_timed_life.c": "d393baec636631398095b3f086d563eec9633d4d5369c4fccf14bd1b44cd882b",
+    "games/warcraft-3/game/tests/t_api.c": "aadb6082a5041202f01940590d66550597c9ae19e219fbc963097c0821823a92",
+    "games/warcraft-3/game/tests/t_captain376_types.c": "a3704de5415fc27ed61c696efe888ebb6851fb07e10b14dd645608dba56f19dc",
+    "games/warcraft-3/game/tests/t_captain_policy.c": "d813e786711570e3bacd32e821a4530be353876fb7fe0f69617bad03ba032393",
+    "games/warcraft-3/game/tests/t_movement.c": "86abaa341d0e8cbb12cf9591981e2c7461125d421509fbf3c9a786c60ae34305",
+    "games/warcraft-3/game/tests/t_order_lifecycle.c": "3b0d3d9c631de114911cde956e15744becf1b91d78fc5ce231ff54d9739135e6",
+    "games/warcraft-3/game/tests/t_target_events.c": "0dad4c3a7f8874ed93039c24894f172d3e267074081eb7e9aca9242fe58b2b1a",
+    "games/warcraft-3/game/tests/t_utils.c": "b36e0e7d588301472013e22aa234ca914cb4857f649525c6197f0fd2f92b4e9d"
+  },
+  "patterns": [
+    "wc3_bot.captain_preferred376_*",
+    "wc3_captain376_types.*",
+    "wc3_save.target376*",
+    "wc3_save.captain376_rejects_version215_before_town_registration_restore",
+    "wc3_save.rejects_version_216_before_captain_registry_and_live_classification",
+    "wc3_order_lifecycle.captain376_*",
+    "wc3_movement.captain376_*"
+  ],
+  "engine_expected": {
+    "tests": 53,
+    "assertions": 3330
+  },
+  "scope": "Town preferred-primary public help publication, independent latch/maintenance/role lifetime, additive typed retained subscriptions and silent publisher destruction; public SuicideUnit quantity/class/task admission, target-player selector, raw authored-mask and mutable classification, no-target Stop, concrete Attack/Move point ownership, callback lifetime/replacement and actual AI-record retirement. Fourteen complete bounded retail families retain 28 unique observed captures and 12 observer-free controls with 14 family/control comparisons. The O family accepts only its documented tick 348-through-completion 436-row interval, retaining earlier allocator-association differences as diagnostics. Complete moving Captain combat/retreat journeys, remaining nonstructure/allied help and transport consumers, and actual retail midjourney save/load remain in the existing leaf."
+}

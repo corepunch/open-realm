@@ -1,0 +1,59 @@
+{
+  "events": 16748,
+  "mutations": [
+    [
+      "after_stop",
+      52,
+      20
+    ],
+    [
+      "after_owner",
+      50,
+      19
+    ],
+    [
+      "after_remove",
+      48,
+      18
+    ]
+  ],
+  "requeued": [
+    [
+      52,
+      84,
+      18
+    ],
+    [
+      50,
+      196,
+      11
+    ]
+  ],
+  "counts": {
+    "scheduler-mutation-actor": 290,
+    "scheduler-mutation-marker": 8,
+    "scheduler-class": 195,
+    "scheduler-target": 9503,
+    "scheduler-admission": 961,
+    "scheduler-unlink": 1683,
+    "scheduler-update": 212,
+    "scheduler-acc-request": 244,
+    "scheduler-fine-request": 2264,
+    "search": 775,
+    "fine-result": 569,
+    "marker": 44
+  },
+  "digest": "2a3038620b8057f82055e8bf35aab19e0c566d51b77d9ff5b0fc1776ad249272",
+  "repeat_verified": true,
+  "capture_sha256": "9f9518f44ecb5358e3056ffacb8d0c8c38151b138dac2bb5f2429d52b3a38db2",
+  "repeat_sha256": "25c3e827a6a22527f9c4df0806a0ecc0012db7a8619039691ba5b6583853b0dc",
+  "source_sha256": {
+    "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+    "trace_wc3_pathfinding.py": "78bc8d3a2558464f4b2eee9f6a3972e125cb04eba9ea035f40f12917e539517c",
+    "wc3_pathfinding.js": "b98a850ebbaeda10cf883eb27b83f30caffae4af767008c2f70d1f30d7e89338",
+    "make_wc3_pathfinding_map.py": "b7d6050a054f9e3f245c8ad528ffa4eeebd3c0db0cea8e14e57029364b203c08",
+    "map": "b990a8e580982e31726a8fb190cd22a21c3a8a1756d8ecad4f37251121850d04"
+  },
+  "filtered_sha256": "4645fe5b63d2af1d948e0cc95ad0800140aaa950d186be198b5b17d0b1b13b97",
+  "repeat_filtered_sha256": "01d031289c34570ad264bcb906a52525376daeec28d2485a291a80ed5915ce5c"
+}

@@ -53,10 +53,10 @@ static void uc_setup(ucFix_t *fix) {
 	fix->splash->health.value = fix->splash->health.max_value = 500;
 	fix->ground->health.value = fix->ground->health.max_value = 500;
 	fix->ally->health.value = fix->ally->health.max_value = 500;
-	fix->caster->unit_state->armor_value = fix->primary->unit_state->armor_value = fix->splash->unit_state->armor_value = 0;
-	fix->ground->unit_state->armor_value = fix->ally->unit_state->armor_value = 0;
+	fix->caster->armor_value = fix->primary->armor_value = fix->splash->armor_value = 0;
+	fix->ground->armor_value = fix->ally->armor_value = 0;
 	fix->caster->die = unit_die;
-	fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AUCO, .level = 1);
+	fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AUCO, .level = 1);
 	fix->caster->mana.value = fix->caster->mana.max_value = 100;
 }
 

@@ -22,7 +22,7 @@ uint32_t CreateItem(jass_t *j) {
 }
 uint32_t RemoveItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) G_RemoveItem(whichItem);
+    if (whichItem) G_RemoveItemScripted(whichItem);
     return 0;
 }
 uint32_t GetItemPlayer(jass_t *j) {
@@ -85,13 +85,7 @@ uint32_t SetItemPosition(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
-    if (item && G_GetItem(item)->in_world) {
-        item->s.origin.x = x;
-        item->s.origin.y = y;
-        item->s.origin.z = CM_GetHeightAtPoint(x, y);
-        item->s.origin2 = MAKE(vec2_t, x, y);
-        gi.LinkEntity(item);
-    }
+    G_SetItemPosition(item, &(vec2_t){x, y});
     return 0;
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
@@ -129,14 +123,16 @@ uint32_t SetItemPlayer(jass_t *j) {
 uint32_t SetItemInvulnerable(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     bool flag = jass_checkboolean(j, 2);
-    if (item && G_IsItem(item)) G_SetUnitFlag(item, UNIT_FLAG_INVULNERABLE, flag);
+    if (item && G_IsItem(item)) item->invulnerable = flag;
     return 0;
 }
 uint32_t IsItemInvulnerable(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
-    return jass_pushboolean(j, item && G_IsItem(item) && G_UnitHasFlag(item, UNIT_FLAG_INVULNERABLE));
+    return jass_pushboolean(j, item && G_IsItem(item) && (item && item->invulnerable));
 }
 uint32_t GetManipulatedItem(jass_t *j) {
+    if(jass_getcontext(j)->eventType==EVENT_PLAYER_UNIT_PAWN_ITEM ||
+       jass_getcontext(j)->eventType==EVENT_UNIT_PAWN_ITEM)return jass_pushnullhandle(j,"item");
     edict_t *item = jass_getcontext(j)->source;
     return item && G_IsItem(item) ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }
@@ -184,11 +180,11 @@ uint32_t GetItemName(jass_t *j) {
 }
 uint32_t GetItemUserData(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, whichItem ? G_GetItem(whichItem)->user_data : 0);
+    return jass_pushinteger(j, whichItem ? whichItem->item->user_data : 0);
 }
 uint32_t SetItemUserData(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) G_GetItem(whichItem)->user_data = jass_checkinteger(j, 2);
+    if (whichItem) whichItem->item->user_data = jass_checkinteger(j, 2);
     return 0;
 }
 uint32_t SetItemVisible(jass_t *j) {
@@ -196,10 +192,10 @@ uint32_t SetItemVisible(jass_t *j) {
     bool show = jass_checkboolean(j, 2);
     if (!whichItem || !G_IsItem(whichItem)) return 0;
     if (show) {
-        whichItem->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(whichItem,false);
         whichItem->svflags &= ~SVF_NOCLIENT;
     } else {
-        whichItem->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(whichItem,true);
         whichItem->svflags |= SVF_NOCLIENT;
     }
     return 0;
@@ -211,7 +207,7 @@ uint32_t IsItemVisible(jass_t *j) {
 }
 uint32_t IsItemOwned(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    item_t *rec = G_GetItem(whichItem);
+    item_t *rec = whichItem ? whichItem->item : NULL;
     return jass_pushboolean(j, whichItem && rec->carrier && !rec->in_world);
 }
 uint32_t IsItemPowerup(jass_t *j) {
@@ -222,7 +218,7 @@ uint32_t IsItemPowerup(jass_t *j) {
 }
 uint32_t SetItemPawnable(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
-    item_t *rec = G_GetItem(whichItem);
+    item_t *rec = whichItem ? whichItem->item : NULL;
     bool flag = jass_checkboolean(j, 2);
     if (whichItem) {
         rec->pawnable_set = true;

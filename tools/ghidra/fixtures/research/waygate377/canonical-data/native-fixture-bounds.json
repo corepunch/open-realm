@@ -1,0 +1,230 @@
+{
+  "source_capture": "observe1b.jsonl",
+  "source_sha256": "9dd66e09e92bab4f22ba3cde4e61ea2b6e48bd8e1f70c9fe4e6c42744c24e028",
+  "guard_word": "0x3efae148",
+  "world_arrival_bound": 15.680000305175781,
+  "scenes": [
+    {
+      "scene": 0,
+      "radius_world": [
+        31.0
+      ],
+      "speed_world": [
+        270.0
+      ],
+      "clock_spans": [
+        300.0
+      ],
+      "threshold_words": [
+        1056629064
+      ],
+      "warps": [
+        {
+          "before": {
+            "world": [
+              755.7247924804688,
+              257.1842041015625
+            ],
+            "raw_source": [
+              1102900835,
+              1090557844
+            ],
+            "counter": 1122
+          },
+          "after": {
+            "world": [
+              1568.0,
+              288.0
+            ],
+            "raw_source": [
+              1111752704,
+              1091567616
+            ],
+            "counter": 1123
+          }
+        }
+      ],
+      "terminal_physical_source": {
+        "world": [
+          1568.0,
+          288.0
+        ],
+        "raw_source": [
+          1111752704,
+          1091567616
+        ],
+        "counter": 1123
+      },
+      "terminal_distance_to_task_goal": 0.0
+    },
+    {
+      "scene": 1,
+      "radius_world": [
+        31.0
+      ],
+      "speed_world": [
+        270.0
+      ],
+      "clock_spans": [
+        300.0
+      ],
+      "threshold_words": [
+        1056629064
+      ],
+      "warps": [],
+      "terminal_physical_source": {
+        "world": [
+          755.6499633789062,
+          257.192138671875
+        ],
+        "raw_source": [
+          1102899609,
+          1090558104
+        ],
+        "counter": 1521
+      },
+      "terminal_distance_to_task_goal": 12.407441281559088
+    },
+    {
+      "scene": 2,
+      "radius_world": [
+        31.0
+      ],
+      "speed_world": [
+        270.0
+      ],
+      "clock_spans": [
+        300.0
+      ],
+      "threshold_words": [
+        1056629064
+      ],
+      "warps": [
+        {
+          "before": {
+            "world": [
+              755.6499633789062,
+              257.192138671875
+            ],
+            "raw_source": [
+              1102899609,
+              1090558104
+            ],
+            "counter": 1922
+          },
+          "after": {
+            "world": [
+              1584.0,
+              816.0
+            ],
+            "raw_source": [
+              1111883776,
+              1103888384
+            ],
+            "counter": 1923
+          }
+        }
+      ],
+      "terminal_physical_source": {
+        "world": [
+          1568.395263671875,
+          298.7086181640625
+        ],
+        "raw_source": [
+          1111755942,
+          1091918516
+        ],
+        "counter": 1988
+      },
+      "terminal_distance_to_task_goal": 10.715910430476423
+    },
+    {
+      "scene": 3,
+      "radius_world": [
+        31.0
+      ],
+      "speed_world": [
+        270.0
+      ],
+      "clock_spans": [
+        300.0
+      ],
+      "threshold_words": [
+        1056629064
+      ],
+      "warps": [
+        {
+          "before": {
+            "world": [
+              755.4653930664062,
+              257.21075439453125
+            ],
+            "raw_source": [
+              1102896585,
+              1090558714
+            ],
+            "counter": 2322
+          },
+          "after": {
+            "world": [
+              1568.0,
+              288.0
+            ],
+            "raw_source": [
+              1111752704,
+              1091567616
+            ],
+            "counter": 2323
+          }
+        }
+      ],
+      "terminal_physical_source": {
+        "world": [
+          1568.0,
+          288.0
+        ],
+        "raw_source": [
+          1111752704,
+          1091567616
+        ],
+        "counter": 2323
+      },
+      "terminal_distance_to_task_goal": 0.0
+    }
+  ],
+  "footprint": {
+    "file": "canonical-data/war3.mpq-Waygate.tga",
+    "sha256": "53a89c393b67ba74fdb41c2eeae1fef512deb92b0c88314c2be1858b90b418ea",
+    "width": 20,
+    "height": 20,
+    "bits": 24,
+    "bgr_counts": {
+      "(255, 0, 0)": 400
+    }
+  },
+  "map_wpm": {
+    "sha256": "166ff49c3509548c9fceaa834b390c0017e88712ab8b47a58760e8ec916203f6",
+    "length": 4112,
+    "header": [
+      77,
+      80,
+      51,
+      87,
+      0,
+      0,
+      0,
+      0,
+      64,
+      0,
+      0,
+      0,
+      64,
+      0,
+      0,
+      0
+    ],
+    "counts": {
+      "0": 4096
+    }
+  }
+}

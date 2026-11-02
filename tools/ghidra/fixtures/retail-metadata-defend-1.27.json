@@ -1,0 +1,5003 @@
+{
+  "version": 1,
+  "captures": [
+    {
+      "sha256": "a0aed7a8c8538f898614acafe04cfe7023f5a1961ce4a8104d8b46f4a17049e4",
+      "bytes": 239060,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+          "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+          "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+          "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+          "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+          "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+          "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+          "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+          "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+          "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+          "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+          "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+          "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+          "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+          "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+          "wc3_pathfinding.js": "e8b15f90efae6d38de910725148083d89bba24915f41fa85102bcc6338b1665f",
+          "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+          "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+          "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+          "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+          "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+          "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+          "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+          "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+          "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+          "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+          "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+          "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+          "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+          "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+          "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+          "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+          "make_wc3_pathfinding_map.py": "209850dc8d9d177dae91de180f07053d6656cbd3cef32d1d0951e2c5204225d1",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "5d337cf6e02c395024b413a06bc574324fb6bdc7f002960a346e6772985dbca8"
+        },
+        "map": "Maps\\PathingRE-Metadata119B.w3m",
+        "seconds": 135.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockerPatchSize": 16,
+        "blockers": false,
+        "taskEvents": true,
+        "mapLoadEvents": false,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": false,
+        "clockEvents": false,
+        "headingEvents": false,
+        "schedulerEvents": false,
+        "captainApproachEvents": false,
+        "captainMembershipEvents": false,
+        "profileEvents": false,
+        "gatePoolEvents": false,
+        "gateMarkerEvents": false,
+        "adaptiveStorageEvents": false,
+        "fineStorageEvents": false,
+        "fineResultEvents": false,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false,
+        "metadataEvents": true
+      }
+    },
+    {
+      "sha256": "45306ae0a404482c7859201110044a6b1d1d3509c5f35a99610d14e1759fd23d",
+      "bytes": 239059,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+          "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+          "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+          "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+          "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+          "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+          "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+          "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+          "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+          "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+          "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+          "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+          "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+          "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+          "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+          "wc3_pathfinding.js": "e8b15f90efae6d38de910725148083d89bba24915f41fa85102bcc6338b1665f",
+          "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+          "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+          "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+          "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+          "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+          "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+          "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+          "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+          "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+          "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+          "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+          "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+          "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+          "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+          "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+          "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+          "make_wc3_pathfinding_map.py": "209850dc8d9d177dae91de180f07053d6656cbd3cef32d1d0951e2c5204225d1",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "5d337cf6e02c395024b413a06bc574324fb6bdc7f002960a346e6772985dbca8"
+        },
+        "map": "Maps\\PathingRE-Metadata119B.w3m",
+        "seconds": 135.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockerPatchSize": 16,
+        "blockers": false,
+        "taskEvents": true,
+        "mapLoadEvents": false,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": false,
+        "clockEvents": false,
+        "headingEvents": false,
+        "schedulerEvents": false,
+        "captainApproachEvents": false,
+        "captainMembershipEvents": false,
+        "profileEvents": false,
+        "gatePoolEvents": false,
+        "gateMarkerEvents": false,
+        "adaptiveStorageEvents": false,
+        "fineStorageEvents": false,
+        "fineResultEvents": false,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false,
+        "metadataEvents": true
+      }
+    }
+  ],
+  "probe": "wc3_metadata_orders_probe.j",
+  "probe_sha256": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+  "scope": "Public Defend native on/off during Move and idle, repeated/research/disabled rejection, exact immediate caps and13 movement commits; engine public JASS plus queue/save controls. Additional cast/toggle families retain their own domain tasks.",
+  "records": 84,
+  "motion_commits": 13,
+  "events": [
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA case=metadata_orders"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 0,
+      "child": 0,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 0,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 0,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 0,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 0,
+      "child": 4,
+      "word": 1132986368
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 0,
+      "child": 5,
+      "word": 1140850688
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=0 label=defend accepted=0 tick=0 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=undefend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 221,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 1,
+      "child": 0,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 1,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 1,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 1,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 1,
+      "child": 4,
+      "word": 1132986368
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 1,
+      "child": 5,
+      "word": 1140850688
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=1 label=undefend accepted=0 tick=0 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 851986,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 2,
+      "child": 0,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 2,
+      "child": 1,
+      "word": 851986
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 2,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 2,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 2,
+      "child": 4,
+      "word": 1132986368
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 2,
+      "child": 5,
+      "word": 1140850688
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=2 label=move accepted=1 tick=1 order=851986 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 3,
+      "child": 0,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 3,
+      "child": 1,
+      "word": 851986
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 3,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 3,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 3,
+      "child": 4,
+      "word": 1132986368
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 3,
+      "child": 5,
+      "word": 1140850688
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=3 label=sample accepted=1 tick=1 order=851986 speed=270.000"
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1001554231,
+      "before": [
+        1036831943,
+        0,
+        1091043328,
+        1098907648,
+        0,
+        0,
+        1090977792,
+        0
+      ],
+      "after": [
+        1039516295,
+        0,
+        1091043328,
+        1098907648,
+        1090977525,
+        1027365480,
+        1090977792,
+        1004941472
+      ],
+      "clock": [
+        1039516295,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 3143016128,
+      "before": [
+        1039516295,
+        0,
+        1091043328,
+        1098907648,
+        1090977525,
+        1027365480,
+        1090977792,
+        1004941472
+      ],
+      "after": [
+        1041865107,
+        0,
+        1091308740,
+        1098908371,
+        1090977611,
+        3168913000,
+        1090977792,
+        1086907148
+      ],
+      "clock": [
+        1041865107,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1086908509,
+      "before": [
+        1041865107,
+        0,
+        1091308740,
+        1098908371,
+        1090977611,
+        3168913000,
+        1090977792,
+        1086907148
+      ],
+      "after": [
+        1043878371,
+        0,
+        1091574155,
+        1098907937,
+        1090977555,
+        3173418557,
+        1090977792,
+        1086904939
+      ],
+      "clock": [
+        1043878371,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 4,
+      "child": 0,
+      "word": 2
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 4,
+      "child": 1,
+      "word": 851986
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 4,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 4,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 4,
+      "child": 4,
+      "word": 1133694137
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 4,
+      "child": 5,
+      "word": 1140850413
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=4 label=sample accepted=1 tick=2 order=851986 speed=270.000"
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1086922650,
+      "before": [
+        1043878371,
+        0,
+        1091574155,
+        1098907937,
+        1090977555,
+        3173418557,
+        1090977792,
+        1086904939
+      ],
+      "after": [
+        1045891635,
+        0,
+        1091839568,
+        1098906947,
+        1090977641,
+        1015325506,
+        1090977792,
+        1000182097
+      ],
+      "clock": [
+        1045891635,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 998498785,
+      "before": [
+        1045891635,
+        0,
+        1091839568,
+        1098906947,
+        1090977641,
+        1015325506,
+        1090977792,
+        1000182097
+      ],
+      "after": [
+        1047904899,
+        0,
+        1092104984,
+        1098907456,
+        1090977585,
+        1024136463,
+        1090977792,
+        1002693915
+      ],
+      "clock": [
+        1047904899,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 3148896997,
+      "before": [
+        1047904899,
+        0,
+        1092104984,
+        1098907456,
+        1090977585,
+        1024136463,
+        1090977792,
+        1002693915
+      ],
+      "after": [
+        1049247081,
+        0,
+        1092370398,
+        1098908086,
+        1090977529,
+        3174685634,
+        1090977792,
+        1086904013
+      ],
+      "clock": [
+        1049247081,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 5,
+      "child": 0,
+      "word": 3
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 5,
+      "child": 1,
+      "word": 851986
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 5,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 5,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 5,
+      "child": 4,
+      "word": 1134578850
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 5,
+      "child": 5,
+      "word": 1140850136
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=5 label=sample accepted=1 tick=3 order=851986 speed=270.000"
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1086924971,
+      "before": [
+        1049247081,
+        0,
+        1092370398,
+        1098908086,
+        1090977529,
+        3174685634,
+        1090977792,
+        1086904013
+      ],
+      "after": [
+        1050253713,
+        0,
+        1092635810,
+        1098907096,
+        1090977618,
+        1020366632,
+        1090977792,
+        1001293645
+      ],
+      "clock": [
+        1050253713,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 3147395251,
+      "before": [
+        1050253713,
+        0,
+        1092635810,
+        1098907096,
+        1090977618,
+        1020366632,
+        1090977792,
+        1001293645
+      ],
+      "after": [
+        1051260345,
+        0,
+        1092901225,
+        1098907774,
+        1090977562,
+        3173091568,
+        1090977792,
+        1086905192
+      ],
+      "clock": [
+        1051260345,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1086921230,
+      "before": [
+        1051260345,
+        0,
+        1092901225,
+        1098907774,
+        1090977562,
+        3173091568,
+        1090977792,
+        1086905192
+      ],
+      "after": [
+        1052266977,
+        0,
+        1093166638,
+        1098906659,
+        1090977651,
+        1009525592,
+        1090977792,
+        999663656
+      ],
+      "clock": [
+        1052266977,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 997844801,
+      "before": [
+        1052266977,
+        0,
+        1093166638,
+        1098906659,
+        1090977651,
+        1009525592,
+        1090977792,
+        999663656
+      ],
+      "after": [
+        1053273609,
+        0,
+        1093432054,
+        1098906989,
+        1090977593,
+        1023659602,
+        1090977792,
+        1002371208
+      ],
+      "clock": [
+        1053273609,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 6,
+      "child": 0,
+      "word": 4
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 6,
+      "child": 1,
+      "word": 851986
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 6,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 6,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 6,
+      "child": 4,
+      "word": 1135463565
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 6,
+      "child": 5,
+      "word": 1140850366
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=6 label=sample accepted=1 tick=4 order=851986 speed=270.000"
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 3148680056,
+      "before": [
+        1053273609,
+        0,
+        1093432054,
+        1098906989,
+        1090977593,
+        1023659602,
+        1090977792,
+        1002371208
+      ],
+      "after": [
+        1054280241,
+        0,
+        1093697468,
+        1098907824,
+        1090977533,
+        3174454018,
+        1090977792,
+        1086904158
+      ],
+      "clock": [
+        1054280241,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 1086924228,
+      "before": [
+        1054280241,
+        0,
+        1093697468,
+        1098907824,
+        1090977533,
+        3174454018,
+        1090977792,
+        1086904158
+      ],
+      "after": [
+        1055286873,
+        0,
+        1093962880,
+        1098906599,
+        1090977626,
+        1018758920,
+        1090977792,
+        1000927612
+      ],
+      "clock": [
+        1055286873,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "velocity-commit",
+      "speed": 1090977792,
+      "heading": 999577825,
+      "before": [
+        1055286873,
+        0,
+        1093962880,
+        1098906599,
+        1090977626,
+        1018758920,
+        1090977792,
+        1000927612
+      ],
+      "after": [
+        1056293505,
+        0,
+        1094228295,
+        1098907309,
+        1090977568,
+        1025280929,
+        1090977792,
+        1003382318
+      ],
+      "clock": [
+        1056293505,
+        0,
+        1133903872
+      ]
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": 0,
+        "tail": 0,
+        "count": 1
+      },
+      "after": {
+        "head": 0,
+        "tail": 0,
+        "count": 1
+      },
+      "caller": 6816626,
+      "command": 852055,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": 0,
+        "tail": 0,
+        "count": 1
+      },
+      "after": {
+        "head": 0,
+        "tail": 0,
+        "count": 1
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 7,
+      "child": 0,
+      "word": 5
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 7,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 7,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 7,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 7,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 7,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=7 label=defend accepted=1 tick=5 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 8,
+      "child": 0,
+      "word": 5
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 8,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 8,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 8,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 8,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 8,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=8 label=sample accepted=1 tick=5 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 221,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 9,
+      "child": 0,
+      "word": 6
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 9,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 9,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 9,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 9,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 9,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=9 label=defend accepted=0 tick=6 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 10,
+      "child": 0,
+      "word": 6
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 10,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 10,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 10,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 10,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 10,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=10 label=sample accepted=1 tick=6 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 11,
+      "child": 0,
+      "word": 7
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 11,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 11,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 11,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 11,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 11,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=11 label=sample accepted=1 tick=7 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 12,
+      "child": 0,
+      "word": 8
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 12,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 12,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 12,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 12,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 12,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=12 label=sample accepted=1 tick=8 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 13,
+      "child": 0,
+      "word": 9
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 13,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 13,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 13,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 13,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 13,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=13 label=sample accepted=1 tick=9 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=undefend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 852056,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 14,
+      "child": 0,
+      "word": 10
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 14,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 14,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 14,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 14,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 14,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=14 label=undefend accepted=1 tick=10 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 15,
+      "child": 0,
+      "word": 10
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 15,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 15,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 15,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 15,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 15,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=15 label=sample accepted=1 tick=10 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=undefend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 221,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 16,
+      "child": 0,
+      "word": 11
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 16,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 16,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 16,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 16,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 16,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=16 label=undefend accepted=0 tick=11 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 17,
+      "child": 0,
+      "word": 11
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 17,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 17,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 17,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 17,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 17,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=17 label=sample accepted=1 tick=11 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 18,
+      "child": 0,
+      "word": 12
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 18,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 18,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 18,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 18,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 18,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=18 label=sample accepted=1 tick=12 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 19,
+      "child": 0,
+      "word": 13
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 19,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 19,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 19,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 19,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 19,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=19 label=sample accepted=1 tick=13 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 20,
+      "child": 0,
+      "word": 14
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 20,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 20,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 20,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 20,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 20,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=20 label=sample accepted=1 tick=14 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=missingorder"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 21,
+      "child": 0,
+      "word": 15
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 21,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 21,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 21,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 21,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 21,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=21 label=missingorder accepted=0 tick=15 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 22,
+      "child": 0,
+      "word": 15
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 22,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 22,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 22,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 22,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 22,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=22 label=sample accepted=1 tick=15 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 23,
+      "child": 0,
+      "word": 16
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 23,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 23,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 23,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 23,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 23,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=23 label=sample accepted=1 tick=16 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 24,
+      "child": 0,
+      "word": 17
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 24,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 24,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 24,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 24,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 24,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=24 label=sample accepted=1 tick=17 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 25,
+      "child": 0,
+      "word": 18
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 25,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 25,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 25,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 25,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 25,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=25 label=sample accepted=1 tick=18 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 26,
+      "child": 0,
+      "word": 19
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 26,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 26,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 26,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 26,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 26,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=26 label=sample accepted=1 tick=19 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 27,
+      "child": 0,
+      "word": 20
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 27,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 27,
+      "child": 2,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 27,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 27,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 27,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=27 label=defend accepted=0 tick=20 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 28,
+      "child": 0,
+      "word": 20
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 28,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 28,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 28,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 28,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 28,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=28 label=sample accepted=1 tick=20 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 29,
+      "child": 0,
+      "word": 21
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 29,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 29,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 29,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 29,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 29,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=29 label=sample accepted=1 tick=21 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 30,
+      "child": 0,
+      "word": 22
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 30,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 30,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 30,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 30,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 30,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=30 label=sample accepted=1 tick=22 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 31,
+      "child": 0,
+      "word": 23
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 31,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 31,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 31,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 31,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 31,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=31 label=sample accepted=1 tick=23 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 32,
+      "child": 0,
+      "word": 24
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 32,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 32,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 32,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 32,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 32,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=32 label=sample accepted=1 tick=24 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 852055,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 33,
+      "child": 0,
+      "word": 25
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 33,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 33,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 33,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 33,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 33,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=33 label=defend accepted=1 tick=25 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 34,
+      "child": 0,
+      "word": 25
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 34,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 34,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 34,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 34,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 34,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=34 label=sample accepted=1 tick=25 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 35,
+      "child": 0,
+      "word": 26
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 35,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 35,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 35,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 35,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 35,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=35 label=sample accepted=1 tick=26 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=undefend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 852056,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 36,
+      "child": 0,
+      "word": 27
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 36,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 36,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 36,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 36,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 36,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=36 label=undefend accepted=1 tick=27 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 37,
+      "child": 0,
+      "word": 27
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 37,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 37,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 37,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 37,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 37,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=37 label=sample accepted=1 tick=27 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 38,
+      "child": 0,
+      "word": 28
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 38,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 38,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 38,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 38,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 38,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=38 label=sample accepted=1 tick=28 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 39,
+      "child": 0,
+      "word": 29
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 39,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 39,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 39,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 39,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 39,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=39 label=sample accepted=1 tick=29 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 40,
+      "child": 0,
+      "word": 30
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 40,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 40,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 40,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 40,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 40,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=40 label=sample accepted=1 tick=30 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 41,
+      "child": 0,
+      "word": 31
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 41,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 41,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 41,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 41,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 41,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=41 label=sample accepted=1 tick=31 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 42,
+      "child": 0,
+      "word": 32
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 42,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 42,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 42,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 42,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 42,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=42 label=sample accepted=1 tick=32 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 43,
+      "child": 0,
+      "word": 33
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 43,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 43,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 43,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 43,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 43,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=43 label=sample accepted=1 tick=33 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 44,
+      "child": 0,
+      "word": 34
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 44,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 44,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 44,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 44,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 44,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=44 label=sample accepted=1 tick=34 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 45,
+      "child": 0,
+      "word": 35
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 45,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 45,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 45,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 45,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 45,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=45 label=sample accepted=1 tick=35 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 46,
+      "child": 0,
+      "word": 36
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 46,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 46,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 46,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 46,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 46,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=46 label=sample accepted=1 tick=36 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 47,
+      "child": 0,
+      "word": 37
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 47,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 47,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 47,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 47,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 47,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=47 label=sample accepted=1 tick=37 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 48,
+      "child": 0,
+      "word": 38
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 48,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 48,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 48,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 48,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 48,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=48 label=sample accepted=1 tick=38 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 49,
+      "child": 0,
+      "word": 39
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 49,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 49,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 49,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 49,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 49,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=49 label=sample accepted=1 tick=39 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 50,
+      "child": 0,
+      "word": 40
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 50,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 50,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 50,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 50,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 50,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=50 label=sample accepted=1 tick=40 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 51,
+      "child": 0,
+      "word": 41
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 51,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 51,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 51,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 51,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 51,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=51 label=sample accepted=1 tick=41 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 52,
+      "child": 0,
+      "word": 42
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 52,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 52,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 52,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 52,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 52,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=52 label=sample accepted=1 tick=42 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 53,
+      "child": 0,
+      "word": 43
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 53,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 53,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 53,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 53,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 53,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=53 label=sample accepted=1 tick=43 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 54,
+      "child": 0,
+      "word": 44
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 54,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 54,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 54,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 54,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 54,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=54 label=sample accepted=1 tick=44 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 55,
+      "child": 0,
+      "word": 45
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 55,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 55,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 55,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 55,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 55,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=55 label=sample accepted=1 tick=45 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 56,
+      "child": 0,
+      "word": 46
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 56,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 56,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 56,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 56,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 56,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=56 label=sample accepted=1 tick=46 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 57,
+      "child": 0,
+      "word": 47
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 57,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 57,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 57,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 57,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 57,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=57 label=sample accepted=1 tick=47 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 58,
+      "child": 0,
+      "word": 48
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 58,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 58,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 58,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 58,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 58,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=58 label=sample accepted=1 tick=48 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 59,
+      "child": 0,
+      "word": 49
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 59,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 59,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 59,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 59,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 59,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=59 label=sample accepted=1 tick=49 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 60,
+      "child": 0,
+      "word": 50
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 60,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 60,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 60,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 60,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 60,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=60 label=sample accepted=1 tick=50 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 61,
+      "child": 0,
+      "word": 51
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 61,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 61,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 61,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 61,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 61,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=61 label=sample accepted=1 tick=51 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 62,
+      "child": 0,
+      "word": 52
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 62,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 62,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 62,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 62,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 62,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=62 label=sample accepted=1 tick=52 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 63,
+      "child": 0,
+      "word": 53
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 63,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 63,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 63,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 63,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 63,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=63 label=sample accepted=1 tick=53 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 64,
+      "child": 0,
+      "word": 54
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 64,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 64,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 64,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 64,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 64,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=64 label=sample accepted=1 tick=54 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 65,
+      "child": 0,
+      "word": 55
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 65,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 65,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 65,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 65,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 65,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=65 label=sample accepted=1 tick=55 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 66,
+      "child": 0,
+      "word": 56
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 66,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 66,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 66,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 66,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 66,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=66 label=sample accepted=1 tick=56 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 67,
+      "child": 0,
+      "word": 57
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 67,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 67,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 67,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 67,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 67,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=67 label=sample accepted=1 tick=57 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 68,
+      "child": 0,
+      "word": 58
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 68,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 68,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 68,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 68,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 68,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=68 label=sample accepted=1 tick=58 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 69,
+      "child": 0,
+      "word": 59
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 69,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 69,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 69,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 69,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 69,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=69 label=sample accepted=1 tick=59 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=stop"
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 851972,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 851972,
+      "caller": 4437809,
+      "result": 221,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 70,
+      "child": 0,
+      "word": 60
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 70,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 70,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 70,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 70,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 70,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=70 label=stop accepted=1 tick=60 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 71,
+      "child": 0,
+      "word": 60
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 71,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 71,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 71,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 71,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 71,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=71 label=sample accepted=1 tick=60 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 72,
+      "child": 0,
+      "word": 61
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 72,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 72,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 72,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 72,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 72,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=72 label=sample accepted=1 tick=61 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=defend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 852055,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 272,
+      "input": 852055,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 73,
+      "child": 0,
+      "word": 62
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 73,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 73,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 73,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 73,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 73,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=73 label=defend accepted=1 tick=62 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 74,
+      "child": 0,
+      "word": 62
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 74,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 74,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 74,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 74,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 74,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=74 label=sample accepted=1 tick=62 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 75,
+      "child": 0,
+      "word": 63
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 75,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 75,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 75,
+      "child": 3,
+      "word": 1128071167
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 75,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 75,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=75 label=sample accepted=1 tick=63 order=0 speed=189.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA begin=undefend"
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-interception",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6816626,
+      "command": 852056,
+      "result": 0
+    },
+    {
+      "event": "metadata-clear-pending",
+      "unit": 0,
+      "before": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "after": {
+        "head": null,
+        "tail": null,
+        "count": 0
+      },
+      "caller": 6764057
+    },
+    {
+      "event": "metadata-toggle-validation",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 4437809,
+      "result": 0,
+      "afterFlags": 400
+    },
+    {
+      "event": "metadata-defend-event",
+      "ability": 0,
+      "vtable": 11828176,
+      "flags": 400,
+      "input": 852056,
+      "caller": 6790446,
+      "result": 1,
+      "afterFlags": 272
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 76,
+      "child": 0,
+      "word": 64
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 76,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 76,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 76,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 76,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 76,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=76 label=undefend accepted=1 tick=64 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 77,
+      "child": 0,
+      "word": 64
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 77,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 77,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 77,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 77,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 77,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=77 label=sample accepted=1 tick=64 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 78,
+      "child": 0,
+      "word": 65
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 78,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 78,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 78,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 78,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 78,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=78 label=sample accepted=1 tick=65 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 79,
+      "child": 0,
+      "word": 66
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 79,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 79,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 79,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 79,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 79,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=79 label=sample accepted=1 tick=66 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 80,
+      "child": 0,
+      "word": 67
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 80,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 80,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 80,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 80,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 80,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=80 label=sample accepted=1 tick=67 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 81,
+      "child": 0,
+      "word": 68
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 81,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 81,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 81,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 81,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 81,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=81 label=sample accepted=1 tick=68 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 82,
+      "child": 0,
+      "word": 69
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 82,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 82,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 82,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 82,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 82,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=82 label=sample accepted=1 tick=69 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 83,
+      "child": 0,
+      "word": 70
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 83,
+      "child": 1,
+      "word": 0
+    },
+    {
+      "event": "metadata-row",
+      "kind": "integer",
+      "parent": 83,
+      "child": 2,
+      "word": 1
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 83,
+      "child": 3,
+      "word": 1132920832
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 83,
+      "child": 4,
+      "word": 1136348277
+    },
+    {
+      "event": "metadata-row",
+      "kind": "real",
+      "parent": 83,
+      "child": 5,
+      "word": 1140850919
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA row=83 label=sample accepted=1 tick=70 order=0 speed=270.000"
+    },
+    {
+      "event": "metadata-marker",
+      "value": "PATHMETA complete"
+    }
+  ],
+  "probe_embedding": {
+    "verified": true,
+    "map_sha256": "5d337cf6e02c395024b413a06bc574324fb6bdc7f002960a346e6772985dbca8",
+    "script_sha256": "c78fb21c98514de126a267a668ab6bf2013f74e851db16dd3c2b952bd814b431",
+    "globals_sha256": "d1567b39c2ba86cdaea6240fd30a763c4106b89ae80e4f27fc74bd5fc0382c1f",
+    "functions_sha256": "0767a18e9dc1dbf5150021c94bbd9861a1310dd70ac342478bc45a112073fd5f"
+  }
+}

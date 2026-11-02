@@ -20,11 +20,13 @@ umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand
 static void AbilityHoldPosition_Command(edict_t *clent);
 
 BZ_ABILITY_PROC(CAbilityHoldPosition) {
+    if (msg == A_UNIT_EVENT_MASK)
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_UNIT_STAND);
     if (msg == A_COMMAND) {
-        AbilityHoldPosition_Command(call && call->entity ? call->entity : ent);
+        AbilityHoldPosition_Command(call && call->client ? call->client : ent);
         return true;
     }
-    if (msg == A_UNIT_STAND && ent && ent->orders && ent->orders->holding_position) {
+    if (msg == A_UNIT_STAND && ent && ent->movement.holding_position) {
         unit_setmove(ent, unit_affectingcombat(ent) ? &holdpos_move_stand_ready : &holdpos_move_stand);
         return true;
     }
@@ -37,13 +39,14 @@ static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     /* Hold is an authoritative replacement order just like Stop. Interrupt an
      * active channel before installing the persistent no-chase state. */
     S_SpellCancelChannel(unit);
-    unit->orders->attackmove_waypoint = NULL;
-    unit->orders->patrol_a = NULL;
-    unit->orders->patrol_b = NULL;
-    unit->orders->patrol_target = NULL;
-    unit->orders->follow_target = NULL;
+    S_StopUnitMovement(unit);
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
+    S_SetFollowTarget(unit,NULL);
     G_ClearUnitGuardPosition(unit);
-    unit->orders->holding_position = true;
+    unit->movement.holding_position = true;
     unit_leavecombat(unit);
     if (preserve_queue) unit_stand_no_queue(unit);
     else unit_stand(unit);
@@ -66,9 +69,7 @@ static void AbilityHoldPosition_Command(edict_t *clent) {
     gameClient_t *client = clent->client;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, e) {
         if (client->menu.order_queued && G_UnitHasActiveOrder(e)) {
-            if (G_QueueUnitOrder(e, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, client->ps.number, 0.0f, 0)) {
-                G_PublishIssuedImmediateOrder(e, G_OrderId("holdposition"), client->ps.number, "holdposition");
-            }
+            G_QueueUnitOrder(e, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, client->ps.number, 0.0f, 0);
         } else {
             unit_issueimmediateorder(e, "holdposition");
         }

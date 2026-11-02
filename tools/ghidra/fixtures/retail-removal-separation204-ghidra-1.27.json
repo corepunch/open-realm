@@ -1,0 +1,23 @@
+{
+  "program": "game.dll",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f694690",
+      "comment": "Payoff204 SEP-01.2 removal boundary: two complete read-only RS-Removal204-Enabled runs (143 native stages each) and one observer-free 44-marker continuation. Public hREM uses integer urpo=2/urpp=17/urpg=17/urpr=17. QueueRemovalTasks acquires Unit+198 suppression before returning from RemoveUnit; nested issued-point callback owner transfer and PauseUnit true/false retain depth1 and null mover+ac. Engine Move retires its repulsor in A_UNIT_REMOVING before target-removal notifications and gates refresh with the generation-checked deferred-removal owner. No full counted-work producer closure."
+    },
+    {
+      "address": "6f688d90",
+      "comment": "Payoff204: live removal acquires depth0->1 and refreshes to null separation before the public RemoveUnit return, including the nested issued-point producer. Paused-removal cancellation first releases the existing pause count, then acquires the removal count. Engine uses its existing deferred-removal lifetime for this producer; it adds no synthetic counter API or persisted depth."
+    },
+    {
+      "address": "6f6785c0",
+      "comment": "Payoff204: preserve the complete retirement witness. CommitRemovalInactivity releases depth1->0 and briefly recreates separation before mover destruction (owner1 policy0x11110000; owner0 policy0x10110000). That internal final-retirement interval is excluded from this pending-removal engine integration and is not overwritten in the frozen capture. Broader counted suppression remains SEP-01.2."
+    },
+    {
+      "address": "6f1710e0",
+      "comment": "Payoff204: enabled removal starts with a real repulsor, destroys it on acquire before return, and keeps mover+ac null across nested owner/pause refresh. Complete repeats retain the later temporary configuration at final counter release before destruction; engine tests assert pending membership, survivor order, constant-time unlink and saved removal. No RNG/trajectory/full producer parity claim."
+    }
+  ],
+  "scope": "Saved comments and live readback; pending-removal integration only. Full counted producers and internal final-retirement recreation remain excluded."
+}

@@ -135,13 +135,13 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 	tower->s.player = 0;
 	tower->svflags |= SVF_MONSTER;
 	tower->health.value = tower->health.max_value = 500;
-	tower->unit_state->attack1.type = ATK_NORMAL;
-	tower->unit_state->attack1.weapon = WPN_NORMAL;
-	tower->unit_state->attack1.damageBase = 20;
-	tower->unit_state->attack1.damagePoint = 0.01f;
-	tower->unit_state->attack1.cooldown = 0.5f;
-	tower->unit_state->attack1.range = 200.0f;
-	tower->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+	S_AttackProfileWrite(tower, 0)->type = ATK_NORMAL;
+	S_AttackProfileWrite(tower, 0)->weapon = WPN_NORMAL;
+	S_AttackProfileWrite(tower, 0)->damageBase = 20;
+	S_AttackProfileWrite(tower, 0)->damagePoint = 0.01f;
+	S_AttackProfileWrite(tower, 0)->cooldown = 0.5f;
+	S_AttackProfileWrite(tower, 0)->range = 200.0f;
+	S_AttackProfileWrite(tower, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
 	fix.enemy->s.origin2 = (vec2_t){ 128, 0 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	T_ASSERT(unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f));
@@ -159,8 +159,31 @@ TEST(wc3_spell, human_tower_magic_sentry_requires_research_and_shares_detection_
 	T_ASSERT(S_OrderAttack(tower, fix.enemy));
 	T_EQ(tower->goalentity, fix.enemy);
 	T_NOT_NULL(tower->currentmove);
-	tower->currentmove->think(tower);
-	tower->currentmove->think(tower);
+	/* Explicit Attack has a primary reaction and initial physical arrival.
+	 * Drive both owners before inspecting the pending positive damage point. */
+	FOR_LOOP(i,1000) {
+		if(tower->attack_damage.active)break;
+		level.time+=5;level.pathing_msec+=5;
+		wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+		bool scheduled=level.scheduled_frame;
+		level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+		if(tower->attack_reaction.active)continue;
+		bool think=level.scheduled_think;level.scheduled_think=true;
+		S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=think;
+		if(!tower->attack_damage.active && tower->currentmove && tower->currentmove->think)
+			tower->currentmove->think(tower);
+	}
+	T_ASSERT(!tower->attack_reaction.active);
+	T_ASSERT(tower->attack_damage.active);
+	if (tower->attack_damage.active) {
+		/* Damage commits at the primary deadline, independently of animation think. */
+		level.pathing_clock = tower->attack_damage.deadline;
+		bool scheduled = level.scheduled_frame;
+		level.scheduled_frame = true;
+		G_RunTimers();
+		level.scheduled_frame = scheduled;
+		T_ASSERT(!tower->attack_damage.active);
+	}
 	T_ASSERT(fix.enemy->health.value < fix.enemy->health.max_value);
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
 	/* Alliance direction: owner 0 shares its vision with ally 2. */
@@ -189,9 +212,9 @@ static uint32_t ward_count(uint32_t class_id) {
 }
 
 static uint32_t stasis_stun_ms(edict_t const *unit) {
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
-		if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == BZ_BSTA)
-			return unit->unit_state->statuses[i].duration_ms;
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTA)
+			return unit->abilstatus[i].duration_ms;
 	return 0;
 }
 
@@ -205,7 +228,7 @@ TEST(wc3_spell, stasis_trap_procedure_is_point_spell) {
 TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
 	wardFix_t fix; vec2_t point = { 128, 96 }; edict_t *ward;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO);
 	T_NOT_NULL(ward);
@@ -220,7 +243,7 @@ TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
 TEST(wc3_spell, stasis_trap_recycled_ward_slot_cancels_arming_thinker) {
 	wardFix_t fix; vec2_t point = { 64, 0 }; edict_t *ward, *thinker = NULL;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
 	FILTER_EDICTS(ent, ent->inuse && ent->owner == ward && ent->think == stasis_trap_think) { thinker = ent; break; }
@@ -236,7 +259,7 @@ TEST(wc3_spell, stasis_trap_recycled_ward_slot_cancels_arming_thinker) {
 TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 	wardFix_t fix; vec2_t point = { 64, 0 }; edict_t *ward;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.enemy->s.origin2 = point; fix.hero->s.origin2 = (vec2_t){ 80, 0 };
 	fix.far->s.origin2 = (vec2_t){ 500, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
@@ -256,7 +279,7 @@ TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 TEST(wc3_spell, stasis_trap_ignores_air_units) {
 	wardFix_t fix; vec2_t point = { 0, 0 }; edict_t *ward;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.air->s.origin2 = point;
 	fix.enemy->s.origin2 = fix.hero->s.origin2 = fix.far->s.origin2 = (vec2_t){ 500, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
@@ -270,7 +293,7 @@ TEST(wc3_spell, stasis_trap_ignores_air_units) {
 TEST(wc3_spell, stasis_trap_destroys_peer_wards_in_detonation_radius) {
 	wardFix_t fix; vec2_t a = { 0, 0 }, b = { 100, 0 };
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 40, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &a));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &b));
@@ -301,6 +324,69 @@ static edict_t *mine_timer(edict_t const *mine) {
     return NULL;
 }
 
+TEST(wc3_save, land_mine_and_rally_indexes_rebuild_after_restore) {
+    cstring_t save = Test_TempPath("openwarcraft3-mine-rally-index-save.bin");
+    wardFix_t fix; ward_setup(&fix);
+    edict_t *mine = mine_fixture(64, 64);
+    edict_t *thinker = mine_timer(mine);
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 128, 128);
+    UnitProfile_t profile = { .trains = "hfoo" };
+    producer->data.UnitProfile = &profile;
+    T_NOT_NULL(thinker);
+    T_ASSERT(G_SetRallyEntity(producer, mine));
+    uint32_t mine_number = mine->s.number, thinker_number = thinker->s.number;
+    uint32_t producer_number = producer->s.number, arm_deadline = thinker->freetime;
+    uint32_t owner_spawn_time = thinker->channel->owner_spawn_time;
+    T_ASSERT(WriteGame(save));
+    G_FreeEdict(thinker);
+    G_ResetRallyTarget(producer);
+    T_NULL(land_mine_thinker(mine));
+    T_ASSERT(ReadGame(save));
+    mine = g_edicts + mine_number; thinker = g_edicts + thinker_number;
+    producer = g_edicts + producer_number;
+    T_ASSERT(land_mine_thinker(mine) == thinker);
+    T_ASSERT(mine_timer(mine) == thinker);
+    T_EQ(thinker->freetime, arm_deadline);
+    T_EQ(thinker->channel->owner_spawn_time, owner_spawn_time);
+    T_NOT_NULL(producer->rally);
+    T_ASSERT(producer->rally->entity == mine);
+    G_InvalidateRallyTarget(mine);
+    T_NULL(producer->rally);
+    S_UnitAbilityEvent(mine, A_UNIT_REMOVE);
+    T_NULL(land_mine_thinker(mine));
+    T_ASSERT(!thinker->inuse);
+    remove(save);
+    ward_done(&fix);
+}
+
+TEST(wc3_spell, land_mine_owner_lookup_skips_world_scans_and_restores_order) {
+    wardFix_t fix; ward_setup(&fix);
+    edict_t *mine = mine_fixture(64, 64);
+    edict_t *thinker = mine_timer(mine);
+    T_NOT_NULL(thinker);
+    T_ASSERT(land_mine_thinker(mine) == thinker);
+    land_mine_lookup_visits = 0;
+    FOR_LOOP(i, 2048) T_NULL(land_mine_thinker(fix.enemy));
+    T_EQ(land_mine_lookup_visits, 0);
+
+    /* A rebuild is the map/save-load contract. It recovers the exact original
+     * first matching edict, including duplicate restored thinker candidates. */
+    edict_t *duplicate = G_Spawn();
+    duplicate->owner = mine; duplicate->think = land_mine_think;
+    S_ResetLandMineThinkers();
+    T_ASSERT(land_mine_thinker(mine) == thinker);
+    G_FreeEdict(thinker);
+    T_ASSERT(land_mine_thinker(mine) == duplicate);
+    G_FreeEdict(duplicate);
+    T_NULL(land_mine_thinker(mine));
+    S_UnitAbilityEvent(mine, A_UNIT_INIT);
+    T_ASSERT(land_mine_thinker(mine) == mine_timer(mine));
+    T_NOT_NULL(land_mine_thinker(mine));
+    S_UnitAbilityEvent(mine, A_UNIT_REMOVE);
+    T_NULL(land_mine_thinker(mine));
+    ward_done(&fix);
+}
+
 static edict_t *mine_destructable(float life, float x, float y, TARGTYPE type) {
     edict_t *ent = G_Spawn();
 	ent->class_id = MAKEFOURCC('B', '0', '0', 'X');
@@ -312,8 +398,8 @@ static edict_t *mine_destructable(float life, float x, float y, TARGTYPE type) {
 	ent->s.origin2 = MAKE(vec2_t, x, y);
 	ent->targtype = type;
 	ent->health.value = ent->health.max_value = life;
-	G_AddDestructable(ent);
-	G_GetDestructable(ent)->item_table = (uint32_t)-1;
+	(ent->destructable ? ent->destructable : (ent->destructable=G_AllocDestructable()));
+	ent->destructable->item_table = (uint32_t)-1;
 	return ent;
 }
 
@@ -547,7 +633,7 @@ TEST(wc3_spell, goblin_land_mine_registry_uses_separate_place_and_intrinsic_hand
 TEST(wc3_spell, item_place_mine_spawns_real_owned_unit_at_point) {
 	wardFix_t fix; vec2_t point = { 192, 96 }; edict_t *mine;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AIPM, &point));
 	mine = ward_find(BZ_HFOO); T_NOT_NULL(mine);
 	T_EQ(mine->owner, fix.caster); T_EQ(mine->s.player, fix.caster->s.player);
@@ -563,18 +649,31 @@ TEST(wc3_spell, unit_or_point_approach_keeps_its_point_target_shape) {
 	uint32_t thinker_slot;
 
 	ward_setup(&fix);
+	/* This fixture previously teleported a zero-speed, zero-turn actor into
+	 *range. A physical approach needs an actual translating unit. */
+	fix.caster->movetype=MOVETYPE_STEP;fix.caster->stand=unit_stand;
+	fix.caster->unitinfo.MoveSpeed=300;fix.caster->unitinfo.TurnSpeed=.6f;
+	fix.caster->unitinfo.PropWindow=DEG2RAD(60);
+	fix.caster->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+	unit_stand(fix.caster);
 	place = (ability_t *)FindAbilityForCommand("AIpm");
 	T_NOT_NULL(place);
 	if (!place) { ward_done(&fix); return; }
 	stock_target_type = place->target_type;
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
 	place->target_type = SPELL_TARGET_UNIT_OR_POINT;
 	thinker_slot = globals.num_edicts;
 	T_ASSERT(S_IssuePointTargetSpell(fix.caster, BZ_AIPM, &point));
 	thinker = &globals.edicts[thinker_slot];
-	T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
-	fix.caster->s.origin2.x = fix.caster->s.origin.x = 250;
-	if (thinker->think) thinker->think(thinker);
+	T_ASSERT(thinker->inuse);T_NULL(thinker->think);
+	T_ASSERT(S_UnitTargetApproachReceiver(fix.caster)==thinker);
+	/* Exercise real physical completion; neither a raw origin write nor a
+	 * call to the removed polling callback advances this task anymore. */
+	FOR_LOOP(tick,200) {
+		if(!thinker->inuse)break;
+		wc3_clock_advance(&level.pathing_clock,.03f,0);
+		level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+	}
 	mine = ward_find(BZ_HFOO);
 	T_NOT_NULL(mine);
 	if (mine) {
@@ -596,7 +695,7 @@ TEST(wc3_spell, goblin_land_mine_arms_and_transitions_to_viewer_specific_invisib
 	ward_tick((uint32_t)(BZ_MINE_INVIS * 1000.0f) - 1); T_ASSERT(!(mine->s.renderfx & RF_HIDDEN));
 	ward_tick(1); T_ASSERT(mine->s.renderfx & RF_HIDDEN);
 	T_ASSERT(!S_UnitIsInvisibleToPlayer(mine, 0)); T_ASSERT(S_UnitIsInvisibleToPlayer(mine, 1));
-	fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 100, 0 };
 	T_ASSERT(S_UnitIsDetectedByPlayer(mine, 1)); T_ASSERT(!S_UnitIsInvisibleToPlayer(mine, 1));
 	T_ASSERT(!M_IsDead(mine)); /* detection does not arm/trigger before DataA */
@@ -646,7 +745,7 @@ TEST(wc3_spell, goblin_land_mine_trigger_uses_cast_range_and_normal_death_path) 
 	ward_tick((uint32_t)(BZ_MINE_ARM * 1000.0f) - 1); T_ASSERT(!M_IsDead(mine));
 	ward_tick(1); T_ASSERT(M_IsDead(mine));
 	T_ASSERT(!(mine->s.renderfx & RF_HIDDEN));
-	T_STREQ(mine->animation_request, "death spell");
+	T_STREQ(G_UnitAnimationRequest(mine), "death spell");
 	ward_done(&fix);
 }
 
@@ -723,7 +822,7 @@ TEST(wc3_spell, mine_death_damage_uses_full_and_partial_authored_rings) {
 	/* Manual destruction still owns Amnx because damage is attached to death,
 	 * but it keeps the ordinary Death presentation rather than detonation. */
 	unit_die(mine, fix.enemy);
-	T_STREQ(mine->animation_request, "death");
+	T_STREQ(G_UnitAnimationRequest(mine), "death");
 	T_FEQ(fix.enemy->health.value, 500.0f, .001f); T_FEQ(fix.far->health.value, 500.0f, .001f);
 	ward_tick((uint32_t)(BZ_MINE_DELAY * 1000.0f));
 	T_FEQ(fix.enemy->health.value, 460.0f, .001f);
@@ -820,7 +919,7 @@ TEST(wc3_save, ghost_runtime_invisibility_round_trips) {
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
 	wardFix_t fix; vec2_t point = { 128, 128 }; edict_t *ward;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	fix.far->s.origin2 = (vec2_t){ 900, 128 };
@@ -848,7 +947,7 @@ TEST(wc3_spell, undead_true_sight_uses_authored_range) {
 	ward_setup(&fix);
 	T_NOT_NULL(item.ability);
 	T_EQ(item.ability->proc, CAbilityTrueSight);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 250, 0 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
@@ -862,7 +961,7 @@ TEST(wc3_spell, sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_
 	wardFix_t fix; vec2_t point = { 128, 128 };
 	ward_setup(&fix);
 	game.clients[0].ps.number = 0;
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
@@ -878,7 +977,7 @@ TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
 	wardFix_t fix; vec2_t point = { 128, 128 }; entityState_t state;
 	ward_setup(&fix);
 	game.clients[0].ps.number = 0; game.clients[1].ps.number = 1; game.clients[2].ps.number = 2;
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
@@ -902,13 +1001,17 @@ TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
 	ward_done(&fix);
 }
 
+static void ward_run_scalar_timers(void) {
+    bool scheduled=level.scheduled_frame;level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+
 TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targets_until_detected) {
 	wardFix_t fix; vec2_t point = { 64, 0 };
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
-	fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	level.time = 3000;
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	gi.LinkEntity(fix.caster); gi.LinkEntity(fix.enemy);
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
@@ -927,20 +1030,22 @@ TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targ
 TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_reveal) {
 	wardFix_t fix;
 	ward_setup(&fix);
-	fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000;
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false;
 	S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	T_EQ(fix.enemy->vision->reveal_until, 3000);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.deadline.time<3);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
-	level.time = 3000;
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
 	S_PermanentInvisibilityReveal(fix.enemy);
-	T_EQ(fix.enemy->vision->reveal_until, 5000);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.deadline.time<5.01f);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
-	level.time = 5000;
+	level.time = 5000; level.pathing_clock.time=5; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	ward_done(&fix);
 }
@@ -949,13 +1054,14 @@ TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_
 TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) {
 	wardFix_t fix; vec2_t point = { 128, 96 };
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
-	fix.caster->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
-	level.time = 3000;
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.caster));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
-	T_EQ(fix.caster->vision->reveal_until, 5000);
+	T_ASSERT(fix.caster->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.caster->permanent_invisibility_fade.request.deadline.time<5.01f);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.caster));
 	ward_done(&fix);
 }
@@ -965,9 +1071,9 @@ TEST(wc3_spell, far_sight_detects_permanent_invisibility_only_for_its_viewers) {
 	ward_setup(&fix);
 	G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
 	fix.caster->runtime.sight_radius.day = 256.0f;
-	fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	level.time = 3000;
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	G_FowUpdate();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!G_FowPlayerCanSeeEntity(0, fix.enemy));
@@ -1020,7 +1126,7 @@ TEST(wc3_spell, watcher_rune_spawns_permanent_owned_detection_ward) {
 TEST(wc3_spell, sentry_ward_aisw_uses_alias_unitid) {
 	wardFix_t fix; vec2_t point = { 64, 64 }; edict_t *ward;
 	ward_setup(&fix);
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AISW, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AISW, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AISW, &point));
 	ward = ward_find(BZ_OGRU);
 	T_NOT_NULL(ward);

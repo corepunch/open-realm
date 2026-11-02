@@ -2,9 +2,9 @@
 
 ## Required Animation Names
 
-Warcraft unit profile data may provide `animProps` (`uani`, Required Animation Names). OpenRealm copies that authored value into the per-unit `animation_props` set when `SP_SpawnUnit()` initializes a unit. `SetUnitAnimation` retains the logical animation request separately in `animation_request`; animation lookup then combines the request tags with the unit's active Required Animation Names.
+Warcraft unit profile data may provide `animProps` (`uani`, Required Animation Names). OpenRealm normalizes that authored value into an immutable shared definition and binds it at the visual stage of `SP_SpawnUnit()`. `SetUnitAnimation` retains the logical animation request separately in `animation_request`; animation lookup then combines the request tags with the unit's active Required Animation Names.
 
-`AddUnitAnimationProperties` mutates the active per-unit tag set and immediately reselects the retained logical animation family. This state is inline edict data, so ordinary WC3 save/load persists it with the unit record.
+`AddUnitAnimationProperties` mutates the active per-unit tag set and immediately reselects the retained logical animation family. Each edit publishes a separate immutable value; other units keep their existing set. Save format107 writes the logical text separately from the edict and reconstructs shared references on load.
 
 Numbered model sequences such as `Walk`, `Walk 2`, and tagged walk variants are one logical family. Movement keeps the selected variant while that sequence is active, then selects a same-syncpoint variant when the cycle completes. Changing the logical animation or required properties still performs a fresh selection; movement ticks must not restart a numbered walk every frame.
 
@@ -93,3 +93,32 @@ using it (repeat with `-tft` if the gap depends on archive variants):
 ```sh
 build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -com_fast_forward +set sv_cheats 1 +map Maps/Campaign/Prologue01.w3m +jass Trig_End_Cinematic_Actions +com_frame_limit 1600
 ```
+
+## Compiled variant families
+
+`g_model.c` retains immutable variant spans with each loaded model. On the first
+randomized selection it parses sequence names, canonicalizes secondary tag sets,
+and groups by syncpoint, primary name and equal tag set. Group members retain
+original sequence order. Preparation is O(n log n), retained storage O(n); warm
+selection visits only matching variants instead of reparsing every sequence.
+
+Reservoir sampling is unchanged: each eligible sequence still consumes one
+`rand()` draw, including the first. The request/property lookup retains separate
+tagged and exact-name fallback results so a missing tagged selection cannot
+introduce random draws. `G_FreeModels` releases spans and clears lookup entries.
+No mutable instance state, timer or save format changes. The direct-array selector
+remains the reference implementation for differential tests.
+
+Runtime345 replaces the 80-byte request and 128-byte property arrays with two
+immutable references. Type bindings prepare authored property text once per
+row/source/generation. Requests retain their parsed primary family, and resolved
+selections use exact interned identities in chained hash buckets, so a mixed
+working set cannot evict another type's selection. Public requests keep their
+previous length policy: unit setters truncate to 79 bytes, while direct model
+selection uses the complete string. Model resets discard selected pointers but
+retain logical text; shutdown releases the text after type definitions.
+
+The large-working-set test covers 4096 warm binds with no repeated parsing or
+selection scans, 1025 distinct retained requests, independent property edits and
+resource reset. Variant differential tests preserve both the selected sequence
+and the next RNG word. Logical save/load and unterminated-text rejection pass.

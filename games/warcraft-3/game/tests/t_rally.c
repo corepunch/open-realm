@@ -57,9 +57,9 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
     producer->data.UnitProfile = &rally_train_profile;
     producer->data.UnitAbilities = &rally_ancient_abilities;
-    G_AddAncientRoot(producer);
-    G_GetAncientRoot(producer)->ability = MAKEFOURCC('A','r','o','1');
-    G_GetAncientRoot(producer)->mode = ANCIENT_ROOTED;
+    (producer->ancient_root ? producer->ancient_root : (producer->ancient_root=G_AllocAncientRoot()));
+    producer->ancient_root->ability = MAKEFOURCC('A','r','o','1');
+    producer->ancient_root->mode = ANCIENT_ROOTED;
     producer->s.flags |= EF_BUILDING;
     producer->aiflags |= AI_IMMOBILE;
 
@@ -68,7 +68,7 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     T_EQ(G_ResolveRallyTarget(producer, NULL, &rally_target), RALLY_TARGET_ENTITY);
     T_ASSERT(rally_target == target);
 
-    G_GetAncientRoot(producer)->mode = ANCIENT_UPROOTED;
+    producer->ancient_root->mode = ANCIENT_UPROOTED;
     producer->s.flags &= ~EF_BUILDING;
     producer->aiflags &= ~AI_IMMOBILE;
     producer->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -115,7 +115,7 @@ TEST(wc3_rally, default_self_target_does_not_issue_order_to_trained_unit) {
      * production must not Smart-interact with the producer. */
     T_ASSERT(!G_ApplyRallyOrder(producer, trained));
     T_NULL(trained->goalentity);
-    T_NULL(trained->orders->follow_target);
+    T_NULL(trained->movement.follow_target);
     T_NULL(trained->build);
 }
 
@@ -162,11 +162,11 @@ TEST(wc3_rally, explicit_smart_order_stops_at_building_footprint) {
 
     /* Exercise the independent Smart-follow path without relying on default rally. */
     T_ASSERT(unit_issuetargetorder(trained, "smart", producer));
-    T_ASSERT(trained->orders->follow_target == producer);
+    T_ASSERT(trained->movement.follow_target == producer);
     T_ASSERT(trained->goalentity == producer);
     trained->animation = &(animation_t){ .name = "stand", .interval = { 0, 300 } };
     trained->currentmove->think(trained);
-    T_ASSERT(trained->orders->follow_target == producer);
+    T_ASSERT(trained->movement.follow_target == producer);
     T_ASSERT(G_AnimationHasPrimary(trained->animation, "stand"));
 
     producer->pathtex = NULL;
@@ -218,7 +218,7 @@ TEST(wc3_rally, explicitly_setting_producer_target_is_distinct_from_default) {
     T_EQ(G_ResolveRallyTarget(producer, NULL, &target), RALLY_TARGET_ENTITY);
     T_ASSERT(target == producer);
     T_ASSERT(G_ApplyRallyOrder(producer, produced));
-    T_ASSERT(produced->orders->follow_target == producer);
+    T_ASSERT(produced->movement.follow_target == producer);
 }
 
 TEST(wc3_rally, dead_unit_target_resets_to_producer) {
@@ -264,13 +264,13 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     client->connected = true; client->ps.number = 0; client->ps.color = 6;
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
     producer->data.UnitProfile = &rally_train_profile;
-    producer->s.player = 0; producer->selected = 1;
+    producer->s.player = 0; G_SetEntitySelectionMask(producer, 1);
 
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(vec2_t, 320.0f, 448.0f)));
     indicator = client->rally_indicator;
     T_NOT_NULL(indicator);
     T_ASSERT(indicator->inuse);
-    T_ASSERT(G_UnitHasFlag(indicator, UNIT_FLAG_RALLY_INDICATOR));
+    T_ASSERT((indicator && indicator->rally_indicator));
     T_ASSERT(indicator->svflags & SVF_OWNER_ONLY);
     T_EQ(indicator->s.player, 0);
     T_EQ((indicator->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
@@ -291,7 +291,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     T_FEQ(indicator->s.origin.y, 224.0f, 0.01f);
     T_FEQ(indicator->s.origin.z, 32.0f, 0.01f);
 
-    producer->selected = 0;
+    G_SetEntitySelectionMask(producer, 0);
     G_UpdateRallyIndicator(client);
     T_NULL(client->rally_indicator);
     T_ASSERT(!indicator->inuse);
@@ -332,7 +332,7 @@ TEST(wc3_rally, explicit_entity_handoff_uses_smart_target_order) {
 
     T_ASSERT(G_SetRallyEntity(producer, target));
     T_ASSERT(G_ApplyRallyOrder(producer, produced));
-    T_ASSERT(produced->orders->follow_target == target);
+    T_ASSERT(produced->movement.follow_target == target);
     T_ASSERT(produced->goalentity == target);
 }
 
@@ -356,7 +356,7 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     trained->stand = unit_stand;
     trained->data.UnitBalance = &balance;
     trained->health.value = trained->health.max_value = 100.0f;
-    G_SetUnitFlag(trained, UNIT_FLAG_TRAINING, true);
+    trained->training = true;
     trained->s.renderfx |= RF_HIDDEN;
     producer->build = trained;
 
@@ -364,7 +364,7 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     T_ASSERT(G_SetRallyPoint(producer, &latest));
     ai_train_build(producer);
 
-    T_ASSERT(!G_UnitHasFlag(trained, UNIT_FLAG_TRAINING));
+    T_ASSERT(!(trained && trained->training));
     T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
     T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
     T_NOT_NULL(trained->goalentity);
@@ -390,7 +390,7 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
     trained->stand = unit_stand;
     trained->data.UnitBalance = &balance;
     trained->health.value = trained->health.max_value = 100.0f;
-    G_SetUnitFlag(trained, UNIT_FLAG_TRAINING, true);
+    trained->training = true;
     trained->s.renderfx |= RF_HIDDEN;
     producer->build = trained;
     producer->health.max_value = 1000.0f;
@@ -398,12 +398,42 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
 
     ai_train_build(producer);
 
-    T_ASSERT(!G_UnitHasFlag(trained, UNIT_FLAG_TRAINING));
+    T_ASSERT(!(trained && trained->training));
     T_ASSERT(!(trained->s.renderfx & RF_HIDDEN));
     T_NULL(trained->goalentity);
-    T_NULL(trained->orders->follow_target);
+    T_NULL(trained->movement.follow_target);
     T_NULL(trained->build);
-    T_ASSERT(!G_GetBuildwork(trained) || G_GetBuildwork(trained)->ability == 0);
+    T_ASSERT(!trained->buildwork || trained->buildwork->ability == 0);
+}
+
+/* Public native119 reaches normal order admission even for Rally metadata. */
+TEST(wc3_rally, authored_ability_admits_native_replacement_and_rejection_preserves_queue) {
+    char const slk[]="ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;Y2;X1;K\"ARal\"\nC;X2;K\"ARal\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    reset_entities();setup_test_world();
+    edict_t *unit=rally_unit(MAKEFOURCC('h','f','o','o'),272,512);
+    unit->stand=unit_stand;unit_stand(unit);
+    vec2_t goal={1280,512},point={1600,768};uint32_t code=MAKEFOURCC('A','R','a','l');
+    T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_UnitHasRally(unit));
+    T_ASSERT(unit_issueorder(unit,"move",&goal));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,true,0,0));
+    T_ASSERT(unit_issueorder(unit,"setrally",&point));
+    T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);T_ASSERT(!unit_is_walking(unit));
+    vec2_t resolved;T_EQ(G_ResolveRallyTarget(unit,&resolved,NULL),RALLY_TARGET_POINT);
+    T_FEQ(resolved.x,point.x,0);T_FEQ(resolved.y,point.y,0);
+    T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!G_UnitHasRally(unit));
+    T_ASSERT(unit_issueorder(unit,"move",&goal));T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,true,0,0));
+    T_ASSERT(!unit_issueorder(unit,"setrally",&point));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
+    T_ASSERT(WriteGame(Test_TempPath("wc3-rally119.bin")));
+    T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(unit_issueorder(unit,"setrally",&point));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-rally119.bin")));
+    T_ASSERT(!G_UnitHasRally(unit));T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);T_ASSERT(!unit_issueorder(unit,"setrally",&point));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);remove(Test_TempPath("wc3-rally119.bin"));
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 #endif

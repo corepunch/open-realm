@@ -1,47 +1,603 @@
+Save244 is the checkpoint326 item-cast contract. A queued inventory
+packet retains the source item incarnation and ability attachment slot/generation;
+that attachment is distinct from retained execution code and active completion.
+Removing and repicking the same item cannot validate the old attachment token.
+The new cold-save fixtures exercise construction-held queued admission; they do
+not establish public item admission during scripted Pause. Both cold-save cases pass.
+
+The prior Save243 retains Binv's concrete-class node in the ordered ability-owner list.
+Its identity is the Binv class, independent of the displayed BuffID. Saved
+attachment order determines whether an action removes Binv before or after
+Apiv resets its shared contribution. Loading validates the one-to-one status
+/node relation and delegates each concrete owner's checks to its validator.
+Save242 and older timing contracts are rejected. Status fields and JASS
+snapshot12 are unchanged.
+
+The prior Save242 persists the unit's inherited private ability-clock count separately
+from availability. Binv saves its counted hold and frozen expiry remainder in
+the existing status fields. Its shared fade remains independent. Loading rejects
+negative or mismatched unit/status clock counts and invalid frozen remainders.
+Save241 and older layouts are rejected; JASS snapshot12 is unchanged.
+
+The prior Save241 gives owned temporary Invisibility statuses an independent primary
+expiry using the existing serialized class_timer fields. Their public timestamp
+is zero; expiry belongs to the saved deadline/sequence and a derived per-unit
+heap. Nonpositive refresh cancels expiry. A short/equal positive refresh retains
+the original request; a longer one replaces it at the actual primary clock.
+The existing fade origin/request and contribution identity remain separate.
+Loading validates the expiry clock, sequence, boolean and owner state; the
+Metamorphosis validator delegates these timer fields to Invisibility validation.
+Save240 and older layouts are rejected. JASS snapshot12 and the status record
+layout are unchanged; this is a timing-contract version change.
+
+The prior Save240 stores the canonical active user packet in a sparse ActiveOrder pool.
+Its original click, weak target incarnation, order ID, issuer and owner payload
+survive physical cancellation and scripted suspension. Physical point fallback
+does not rewrite that retained target packet. A saved revision protects callback
+replacements. Loading rejects malformed packet names, shapes, booleans, bounds
+and nonfinite coordinates/speeds. The pause release deadline and primary request
+sequence also persist and rebuild in the shared Move/Captain timer heap.
+Save239 and older game layouts are rejected; JASS snapshot12 is unchanged.
+
+The prior Save239 retains the origin of JASS event enums when scripts upcast them to
+plain handles. GetHandleId keeps the enum's numeric identity after restore.
+Event values have an explicit snapshot encoding; the loader rejects event
+values encoded with the obsolete generic scalar tag. Both game Save238 and
+older layouts and standalone JASS snapshots before version12 are rejected.
+Nested callback and sleeping-coroutine tests cover saved event identity.
+
+The prior Save238 adds the Attack guard's evaluated-policy flag, separately from its
+initialized anchor. The independent guard timer and queued numeric851987
+continuation survive save/load. Loading rejects invalid guard booleans,
+uninitialized active/evaluated owners, nonfinite anchors/ranges, negative ranges,
+and malformed active timer clocks or sequences. Save237 and older layouts are
+rejected.
+
+The prior Save237 adds the independent Attack cooldown primary timer. Deadline, clock
+epoch/span, sequence and active state survive without a target or an Attack
+think callback. Load rebuilds its heap entry and derives the compatibility
+caches from that timer. Invalid active clocks, invalid sequences and mismatched
+active-state caches are rejected. Save236 and older layouts are rejected.
+
+The prior Save236 stores damage-event amounts as real values. The event queue and JASS
+callback context retain a shared 32-bit payload: damage events interpret it as
+an IEEE float; spell/research/order IDs remain integers. Snapshot code copies
+those bits without numerical conversion, so fractional damage and full-width
+IDs both survive save/load. JASS snapshot version 11 and game Save236 reject the
+older integer-damage representation. A queued-event regression checks real
+damage, integer rawcode, target and source identity after restore.
+
+The prior Save235 change stores the initial Attack task's captured range alongside its reaction
+timer. Public target orders capture this value before changing the movement
+owner; changes to weapon range during the reaction do not replace it. Active
+reaction ranges must be finite and at least 32 (`FLT_MAX` is valid). Save234 and
+older layouts are rejected. The focused serializer tests cover retained target,
+deadline, sequence and captured range, plus invalid active ranges.
+
+The prior Save234 change stores the shared Apiv/Binv fade owner: first-contribution clock and
+request, temporary contribution count, permanent ownership and published state.
+Each temporary status retains contribution ownership, pending notification,
+held Attack suppression and its Attack incarnation. The independent suppression
+count is not the task-owned acquisition permission. Load validates live status
+classes, contribution/count agreement, canonical booleans and finite active
+timer clocks/sequences before rebuilding the derived queue. Save233 and older
+layouts are rejected. Saving/loading during synchronous invisibility publication
+is rejected rather than persisting a half-delivered notification.
+
+The prior Save233 change adds `attack_recovery_pending`, the independent Attack loss-intent bit
+corresponding to original flag40000. Invalid target loss sets it; current-target
+owner change does not. New explicit/automatic target admission clears it. Active
+recovery consumes it; inactive recovery preserves it, even without a retained
+target. The saved word must be zero or one. Save232 and earlier versions are
+rejected without migration. The inactive saved-state regression is a serializer
+contract, not proof of a publicly reachable inactive-loss sequence.
+
+The prior Save232 change stores Attack's initial-acquisition state, independent damage-point
+request, and eight failed-target weak identities with per-slot primary timers.
+Each timer retains deadline time/epoch/span, registration sequence and active
+state. Load rebuilds queue membership and rebases clocks; runtime list pointers
+are never serialized.
+
+An unfired initial acquisition request retains its deadline through pause,
+death and save/load. Later Patrol activation uses the measured 0.01-second
+restart. Actual Attack removal cancels the initial scan and pending reaction,
+unlike suspension. Private idle-combat return retains the saved guard point,
+state and registered `S_GuardReturnComplete` callback. A failed-target reference
+stores its captured birth separately from the current actor in that edict slot;
+a replacement incarnation must not inherit the old rejection.
+
+Active damage, reaction and failed-target requests require finite deadlines,
+finite positive clock spans, and nonzero sequences no greater than the saved
+registration sequence. Checkpoint 289 reproduced acceptance of invalid new timer
+metadata before the validation fix; checkpoint 290 passes the new rejection test
+and all 248 save tests in each edition. Its unchanged native Patrol comparisons
+also pass uninterrupted and cold saved replay. These checks establish the engine
+save contract; they do not establish a retail UI save/load contract.
+See [Patrol ownership and evidence](retail-pathfinding-engine.md#patrol-producer-candidate-native265272274-save232).
+
+Save231 adds preparatory item-ability identities and a spell-owned Move
+continuation. `moveContinuation_t` contains only destination point, speed and
+public order ID; it borrows no waypoint, group or client order pointer. The
+approach channel owns this value until cast creation consumes and clears it,
+then the scheduled cast record owns it. Cancellation discards it. Successful
+completion resumes the Move only while the cast still owns the actor; a callback
+replacement retains control. The loader requires finite coordinates, finite
+nonnegative speed and either the supported Move order or an empty value. A live
+continuation must match its restored approach receiver/owner and public head,
+or its active scheduled cast and `ordered_spell_move`; invalid owners reject
+load instead of reconstructing an unrelated Move.
+
+The preparation registry has a dedicated saved section immediately after the
+entity pools. Rows retain item/carrier indices and incarnations, configured
+alias/ordinal, identity slot/generation, the LIFO free chain and domain generation
+counter. Read reconstructs item lookup chains and checks the supplied rows,
+free-list graph and completeness against actual usable inventory attachments.
+An empty registry cannot silently erase held potion contributions. These are
+local retained identities, not literal native global agent IDs. Direct saves
+and loads reject open preparation frames; map reset invalidates their epoch
+before old frames unwind. Save230 and earlier layouts are rejected.
+
+Checkpoint253 passes 24 focused processes, 2,400 tests and 464,334 assertions,
+including the rerun of native249 scene1's 122 public records and 10 raw phase
+clocks in both editions. Facing/cast saved suffixes use path-state-cleared
+ReadGame, not an SV_Map cold restart. Explicit later Stop/Move cancellation and
+current-format malformed-save cases also pass in both editions: nonfinite
+facing data and a mismatched cast public head reject load, then a valid save
+restores successfully. These negative interventions are engine regressions,
+not new native oracles. Five native gates pass through four 253 reports and
+the 254 Itemdrop rerun, with unchanged production sources. The 255 direct-cast
+regression also confirms that successful `spell_commit` already clears temporary
+Move staging through channel/cast cancellation; the suspected leak is retracted
+without a production fix. This does not prove all EFFECT/save compositions.
+The 255 broader run passes all 24 processes, 2,402 tests and 464,402 assertions
+with zero failures. Final verification passes 120 focused Python tests in
+42.506 seconds and direct manifest loading of 614 entries/3,316 pins; the five
+native gates retain their composite253/254 scope. See [preparatory coupling ownership](hippogryph-couple.md#preparatory-item-callback-producer-accepted-native-evidence-pending-port).
+
+Save226 adds the game-owned Couple Instant `coupleInstant_t` pool. The edict's
+`couple_instant` pointer is runtime-excluded from the raw record and restored by
+the typed pool; the partner uses `F_EDICT`, with its incarnation and configured
+ability/order retained. Active, waiting, linked, resume and retiring state persist;
+`constructing` is a runtime-only callback guard. Shared spell/movement persistence
+retains approach ownership, while the existing deferred-release registry saves
+the absolute deadlines derived from each input's authored `UnitData.death`.
+Save225 and prior layouts are rejected. Private checkpoint204 passed its focused
+11-test, 15,338-assertion suite in each edition; merged-branch validation remains
+pending. See [Couple Instant ownership and limits](hippogryph-couple.md#couple-instant-implementation-and-validation).
+
+Save224 adds game-owned reciprocal target-coupling state in a sparse `couple_t`
+pool. The edict pointer is `F_IGNORE` with `FIELD_RUNTIME`; the pool descriptor
+allocates it on load and translates its partner through `F_EDICT`. Partner
+incarnation, configured ability, local/peer serials and active, reciprocal, ready
+and suspended flags survive. `S_CoupleApproachComplete` is registered in the C
+callback roster; shared physical-group persistence retains the ordinary zero-range
+target approach. Save223 and earlier layouts are rejected. Coupling checkpoint190
+exercises linked and lone ready saves, pause-role replay
+and cold continuation; full checkpoint175 predates this layout.
+See [target coupling](hippogryph-couple.md#save224-and-validation-status).
+
+Save223 retains Militia pairing's Hall pointer as `F_EDICT`, its spawn
+incarnation, conversion direction and captured `pair_range`. The callback roster
+registers `S_MilitiaApproachComplete`; shared physical-group state saves the
+ordinary target chase, including its facing-only continuation. Save222 and
+earlier layouts are rejected. Public-JASS scheduler tests cover cold loads
+during approach/facing, Stop/replacement, ability loss, Hall removal after
+scheduler reclamation, and pause/resume. See
+[Militia continuation](call-to-arms-and-militia.md#target-continuation-and-save223)
+for ownership and the current validation scope.
+
+Save222 retains Entangle's mine incarnation, admitted root site, phase, ability
+and public order identity in a sparse game-owned pool. Root's parent completion
+callback and placement retry counter/deadline/serial survive a cold load;
+`S_EntangleApproachComplete` and `S_EntangleRootComplete` are registered C
+callbacks. Derived primary-clock retry membership rebuilds from Root state.
+Save221 and earlier are rejected. Public scheduler tests cover unroot, approach,
+facing/root, interrupted or missing target/ability, callback replacement,
+pause/resume, and Stop during a saved half-second retry. See
+[Entangle ownership](retail-pathfinding-engine.md#entangle-engine-ownership-save222).
+
+Save221 retains ordinary Inventory pickup as a physical target continuation.
+The callback roster includes `S_InventoryPickupComplete`; item identity and the
+captured approach range use the existing Inventory fields. Live terminal range
+remains a separate Misc read. Save220 and earlier are rejected. Public scheduler
+tests cover saves before admission, during the approach and after range or
+item/Inventory mutations, including callback-owned Move and pause/removal.
+
+Save220 retains Inventory's independent item/recipient packet identities,
+captured terminal range and physical target lifetime policy. Give, Pawn and
+target-bound Drop restore their concrete move identity; both point and target
+completion callbacks are in the C-function roster. Removal and suspension release
+physical ownership without retaining its dead-target policy; resume reconstructs
+the approach. Save219 and earlier are rejected. Public Give tests cover saves
+before admission, queued activation and physical completion, plus item/recipient
+mutation, Inventory removal and hidden-orphan recovery. See
+[Inventory ownership](inventory-and-items.md#target-givepawn-ownership-and-callback-research).
+
+Save172 retains the logical scripted-pause admission/suspension/bypass phase
+alongside the retained user order and exact resume deadline. Physical suppression
+survives a cold save during pending resume; public unpause alone does not release
+it. Older layouts, including171, are rejected. See
+[staged suspension](retail-pathfinding-engine.md#scripted-pause-notifies-before-constructing-suspension-payoff287).
+
+Save171 retains ordered spell phase records as logical owner/target/item
+incarnations, class timing, phase, active/committed state and primary absolute
+deadline/sequence. Heap/pool membership is rebuilt without rearming; older
+formats are rejected. Reentrant saves inside a synchronous phase are rejected.
+See [ordered spell phases](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
+
+Save170 retains each target task's captured spatial-object owner/slot and
+restores its runtime pooled identity after spatial loading. Retired references fall back to
+the ordinary target mover; invalid slots and Save169 or earlier are rejected.
+See [captured widget regions](retail-pathfinding-engine.md#structure-spells-retain-a-captured-widget-region-payoff279).
+
+Save169 retains each physical target approach's pending Follow continuation and
+captured authored range. One-shot structure approaches retire their public head;
+current-form changes and cold saves preserve the already-built task sequence.
+Older formats and invalid continuation payloads are rejected. See
+[structure approaches](retail-pathfinding-engine.md#structure-targets-use-one-physical-approach-task-payoff278).
+
+Save168 retains the canonical game speed (0..2) and reapplies its wall-time rate
+on load. Movement and request clocks retain fixed simulation steps; scheduling
+remainders are derived server state. Invalid speed values and older save layouts
+are rejected. See [game-speed scheduling](retail-pathfinding-engine.md#game-speed-schedules-fixed-primary-steps-payoff275).
+
+Save167 persists game-authored support orientation and its heading cache.
+The entity snapshot prefix adds generic `pose_offset` radians, while movement
+retains `support_angle` to reproduce position/heading refresh boundaries.
+Earlier saves are rejected; the cold round-trip regression retains all three
+orientation components and the authoritative heading. See
+[ground support pose](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272).
+
 # Warcraft III Save/Load
 
-## Status slot indexes
+Save166 retains the accepted Attack target owner's availability suppression.
+Pending/rejected orders do not change it; loading does not derive it from public
+order IDs. Save165 and earlier layouts are rejected. See
+[Attack subscriptions](retail-pathfinding-engine.md#explicit-attack-owns-availability-suppression-payoff262).
 
-`unitState_t.timed_status_update_mask` indexes `statuses[]` slots with
-`level && timestamp`; `unitState_t.status_occupied_mask` indexes all occupied
-slots, including permanent statuses. Bit `MAX_UNIT_STATUSES` in the timed mask
-validates both indexes. An invalid index makes `G_UnitStatusLevel()` scan all
-slots, preserving correctness before the first update and immediately after
-load. `unit_updatestatuses()` rebuilds both masks from authoritative status
-records; status add/remove/refresh paths maintain them together. Raw/direct
-status edits must call `unit_status_invalidate_update_mask()`.
+Save165 retains Attack-owned neutral guard anchors, captured range, poll/return
+phase and exact primary request deadline/serial. Loading rebuilds timer-heap
+membership without rearming. Save164 and earlier layouts are rejected; the
+network contract is unchanged. See [guard timers](retail-pathfinding-target-visibility.md#attack-guard-timers-restart-neutral-movement-payoff254).
 
-Both fields are `F_IGNORE` / `FIELD_RUNTIME` in the unit-state serializer, so
-they are not saved. Status records and simulation-clock deadlines remain
-authoritative. Since `unitState_t` uses field-based serialization, adding these
-runtime-only fields does not change the save format version.
+Save164 retains completed visibility/exploration planes and the next ordered
+fog request. Loading preserves the plane until that request fires, including
+cold saves during pursuit fog loss. Row/geometry caches and client dirty flags
+are rebuilt separately. Save163 and earlier layouts are rejected; the network
+contract is unchanged. See [fog publication](retail-pathfinding-target-visibility.md#authoritative-fog-publication-and-reacquisition-payoff252).
+
+Save162 retains physical group destinations in native fine coordinates, including
+target samples and angular requests. Save161 and earlier versions are rejected
+rather than interpreting their world-coordinate goal as a fine destination.
+The network contract is unchanged. See [exact group destinations](retail-pathfinding-engine.md#physical-groups-retain-exact-fine-destinations-payoff246).
+
+Save161 persists the completed map-start flyer support field as logical grid
+values, dimensions, origin and cell size. Load validates sizes before allocation
+and rejects non-finite or truncated values. Removing initial widgets does not
+cause a rebuild on load. Save160 and earlier layouts are rejected; the network
+contract is unchanged. See [flyer support](retail-pathfinding-engine.md#shared-map-start-flyer-support-field-payoff228).
+
+Save160 retains inside-construction world absence and counted separation/pause
+ownership. Cold saves preserve the distinct building death, completion and
+forced-removal inverses. Save159 and earlier layouts are rejected. See
+[inside construction](retail-pathfinding-engine.md#inside-construction-owns-absence-and-work-separately-payoff227).
+
+Save159 retains Repair's work phase independently of its retained order.
+Primary Human construction remains separation-disabled after load, while
+ordinary Repair remains eligible. Pause and the common work inverse release
+the phase. Save158 and earlier versions are rejected. See
+[construction work](retail-pathfinding-engine.md#primary-human-construction-owns-separation-suppression-payoff226).
+
+Save158 retains the Hero's last published movement contribution and reversible
+item agility. A public speed override survives load, and subsequent item/level
+changes publish only their contribution delta. Save157 and earlier layouts are
+rejected. See [Hero movement](retail-pathfinding-engine.md#hero-agility-publishes-movement-deltas-payoff225).
+
+Save157 retains Attack target identity/incarnation and ordered subscription rank,
+rebuilds derived target lists, and validates ability-owned point recovery groups.
+Save156 and earlier layouts are rejected. The network contract is unchanged.
+See [Attack TargetLost recovery](retail-pathfinding-engine.md#attack-targetlost-retains-a-point-recovery-task-payoff223).
+
+Save156 retains the ability index owning a physical target chase and its
+registered completion callback. Load validates owner, receiver and member/task
+identity and preserves cached target samples and retained combat parents.
+Save155 and earlier layouts are rejected. The network contract is unchanged.
+See [Attack chase ownership](retail-pathfinding-engine.md#attack-chases-use-physical-target-groups-payoff222).
+
+Save155 retains queued target Move's issue-time point and unit class independently
+of its target incarnation. Load before activation preserves fallback after target
+loss, and a recycled slot cannot replace that target. Save154 and earlier layouts
+are rejected. The network contract is unchanged. See
+[queued Move](retail-pathfinding-engine.md#queued-move-retains-its-fallback-point-through-target-loss-payoff220).
+
+Save154 retains `shared_reveal`, the alliance expansion captured by the last
+UnitShareVision call. Load preserves it even if alliances have since changed;
+a later share call refreshes it. Save153 and earlier layouts are incompatible.
+See [unit reveal](retail-pathfinding-engine.md#unit-sharing-captures-a-reveal-mask-payoff217).
+
+Save153 retains `movement.follow_order_point` separately from the live Follow
+target and its sampled group destination. Loading before target loss therefore
+reissues the same original point for an approach; loading afterward resumes the
+ordinary point task. Persistent Follow still cancels on invalid loss. Save152
+and earlier layouts are incompatible. See [target-loss phases](retail-pathfinding-engine.md#target-loss-distinguishes-approach-from-persistent-follow-payoff216).
+
+Save152 retains the independent Show Map visibility policy and pending submitted
+toggles. A loaded pending command applies at the next simulation frame boundary,
+with detection and scripted fog flags independent. See [Show Map policy](retail-pathfinding-engine.md#show-map-retains-a-separate-visibility-policy-payoff215).
+
+Save151 adds the registered Root angular completion receiver and facing stage.
+Single-member angular owners may retain a receiver without a target; generation,
+callback and member validation still applies. Cold saves resume the turn and
+morph with identical physical heading, public head and deadline words. Save150
+and earlier layouts are incompatible. See [Root facing](retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211).
+
+Save150 retains bridge-owned angular cohorts, temporary turn overrides and
+logical visual-facing state. Load rebuilds the derived active visual set;
+invalid scalar/policy/member records are rejected. Save149 and older layouts
+are incompatible. See [timed-facing ownership](retail-pathfinding-engine.md#timed-facing-cohorts-retain-physical-and-visual-headings-payoff207).
+
+Save149 retains bounded variable-capacity queued-order rings. Capacity, head and
+count are scalar edict state; the sparse stream writes the allocated scalar
+entries and rebuilds its process pointer. Invalid bounds and missing backing
+records are rejected; Save148 and older layouts are incompatible. See
+[queued-order storage](retail-pathfinding-engine.md#queued-orders-grow-to-the-retail-admission-bound-payoff198).
+
+Save145 excludes the synchronous Blink target-loss validation window from saved
+edicts, including saves initiated during notification callbacks. The live bit
+remains unchanged while writing; loaded units use ordinary target validation.
+Save144 is rejected. See [Blink notification](retail-pathfinding-target-visibility.md#blink-notification-window-payoff182).
+
+Save137 replaces the old Permanent Invisibility millisecond window with the
+scalar origin, slope and pending primary-timer deadline/serial/active state.
+The ability rebuilds derived heap membership after load; no timer pointer or
+callback address is serialized. Save136 and older layouts are rejected.
+See [exact fade publication](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
+
+Save136 retains Follow subscription identities and the global registration
+sequence. Target-specific lists are rebuilt in registration order after load;
+links and delivery snapshots are derived and never serialized. Missing,
+duplicated, out-of-range or stale-incarnation subscriptions are rejected.
+Save135 and older layouts are rejected. See
+[synchronous target loss](retail-pathfinding-target-visibility.md#synchronous-world-presence-loss-payoff167).
+
+Save135 retained stable game-owned fog modifier records and their active
+application order, including stopped and script-unreferenced records. JASS
+handles bind after registry restoration. Save134 and older layouts are
+rejected. See [Move target visibility](retail-pathfinding-target-visibility.md).
+
+Save134 adds the retained coarse-route warp-marker classification state for
+member and physical-group paths. Save133 and older formats are rejected. See
+[formation warp markers](retail-pathfinding-formation-warp.md).
+
+Save133 adds Captain policy flags, the signed roster-strength counter, retained
+point/range and the periodic update deadline. Save132 and older formats are
+rejected. See [Captain policy](retail-pathfinding-captain-policy.md).
+
+Save132 adds logical Captain roster encounter order, actor references, authored
+home/creation phase and Town grouping policy. Physical Move indices remain an
+independent saved contract; backing allocations and private AI VM continuation
+are not serialized. Save131 and older formats are rejected. See
+[temporary Captain enrollment](retail-pathfinding-captain-enrollment.md).
 
 ## Contract
+
+Save131 added independently constructed public timed-life records, retained deadlines,
+registration serials and paused remaining durations. Heap/pool indexes are rebuilt.
+Save130 and older layouts are rejected. See [timed-life ownership](retail-pathfinding-timed-life.md).
+
+Save130 added the applying prevention mask to status records and independent
+Attack/Unit spell-prevention counters to their optional pool. Counts survive
+overlapping buffs and load; inverse callbacks release the captured contribution.
+Save129 and older layouts are rejected. See [counted prevention](retail-pathfinding-engine.md#counted-attack-prevention-feeds-captain-admission-payoff155).
 
 The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. Scripted save and load requests are deferred to VM-safe/session boundaries (see Scripted zone saves below).
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, the current save format version, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, the current merged format version, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
-- the fixed point-order waypoint edict ring and its circular allocation cursor;
-- one used flag per entity slot and a raw `edict_t` block for used slots;
-- sparse lifecycle records for all 29 component pools and ten direct edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
-- basic attack projectiles retain their launch-time attack type and owner incarnation, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
+- the initial point-order waypoint reserve and its allocation cursor, plus additional managed destination edicts;
+- one used flag per entity slot, a raw `edict_t` block for used slots, logical attack defaults/overrides, immutable sound profiles, bounded animation text, and retained native fine-route points;
+- sparse lifecycle records for all 29 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
+- ordinary fine-cell memberships after the pools: object count, owning-edict indexes and logical rectangles in entity save order; load rebuilds per-cell insertion ranks by prepending in that order;
+- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and a checksum over the complete preceding payload. Since version 74 the checksum folds native 64-bit words into four FNV-style lanes. The previous byte-wise FNV-1a dominated save/load time at about 6 MB per file.
 
-`WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
-Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Quest state is restored from its fixed slots even when the pre-load active quest count differs. Loading completely reloads the saved map first, then applies state.
+`WriteGame()` writes a same-directory temporary file and replaces the destination only after the footer, flush, and file sync succeed. Any failure removes the temporary file and preserves the previous save. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 
-The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. Version 90 adds the inline Warcraft player-score counters to `gameClient_t`, so completed training/construction, kills, gathered resources/upkeep, food maxima, item acquisition, and mercenary hires survive save/load. The exact-version reader rejects version 89 and earlier rather than migrating their shorter client layout.
+Version144 adds a logical live-unit-release section immediately before the
+range listeners: count, then unit slot/incarnation, unsigned request serial and
+absolute deadline/time/epoch/span. Heap placement is rebuilt; no removal callback
+or serial allocation repeats. JASS handles to pending releases retain their live
+identity until that deadline. The incompatible-version test rejects143.
+Before replacing the old map or loading accepted state, the game drains its
+outgoing primary requests through software0.2s, then discards the remaining
+process requests. First timer allocation inside a borrowed callback no longer
+resets that callback clock. See [pending request clocks](retail-pathfinding-engine.md#pending-request-clocks-survive-wrap-and-load-payoff181).
+
+Version143 adds game-owned range-listener state after physical Move groups and
+before hashtables/JASS. Each live registration stores its event slot, repeating
+deadline/serial, release deadline/serial and phase, and retained
+unit-slot/incarnation/flag rows. Heap indexes, allocation capacity and scratch
+lookup stamps are rebuilt. `wc3_range_listeners` covers cold restoration of
+registration phase, retained occupants and a partially completed release chain;
+the incompatible-version test rejects142. The edict/network prefix is unchanged.
+See [range listener requests](retail-pathfinding-engine.md#range-listeners-poll-ordered-occupants-at-request-deadlines-payoff180).
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
+
+The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 77 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 77 because its client-record boundary has no list count; version 77 saves are likewise rejected by older exact-version readers.
+
+Version109 retains the three coarse scheduler budgets per player and both
+route-owned admission records. Queue insertion ranks, request times, policy,
+owner, pending state, work and countdown are authoritative. Intrusive links and
+bucket heads/tails are runtime fields, rebuilt from unique saved ranks only
+after physical groups and unit routes have loaded. Invalid rank, class, policy,
+count, countdown or work rejects restoration; failed restoration clears all
+coarse queues before releasing groups. Version108 and older layouts are rejected.
+See [coarse/fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Version119 also stores independent logical proximity rectangles. Both indexes
+rebuild by prepending objects in saved order, preserving retained geometry and
+using the retail load-time cell ordering. Older versions are rejected.
+Version120 adds proximity map/object stamps after full compaction. Load rebuilds
+compact links in save order and registers a fresh scalar maintenance request;
+retained link identities and process pointers are not saved. See
+[spatial storage](retail-pathfinding-storage.md).
+
+Version121 adds fine map/object stamps and the validated16-bit fine request
+generation. Both maps fully compact before saving; ordinary owner rectangles
+rebuild as raw records in save order. Load registers independent proximity then
+fine maintenance requests. No publication-rank array or retained raw slot identity
+is persisted. Earlier versions are rejected.
+
+Version118 replaces serialized fine-cell publication ranks with logical rectangles.
+Retail `SpatialObject_Load` (`6f14d000`) re-emits ordinary memberships through
+`SpatialMap_InsertRectangle` (`6f14d380`); it does not restore the old cell chain.
+Version118 rebuilt derived ranks in the same object stream order through
+`G_LoadMoveSpatialObject`. Unchanged geometry links keep that rebuilt order;
+subsequent leave/reentry can change it normally. Poses, active routes, wait state,
+repulsion, scheduling and shared RNG retain their existing logical save fields.
+A spatial record is20 bytes instead of148; the obsolete global8-byte rank counter
+is also removed. Invalid rectangles, duplicate owners, inactive owners and
+truncated streams reject restoration and clear partially reconstructed membership.
+Version117 is rejected. See [spatial load order](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order).
+
+Version117 retains `movement.follow_target_spawn_time` beside the Follow target
+reference. Scheduled Follow and combat resumption reject a reused target slot
+whose incarnation differs. Temporary Smart combat can outlive the Follow parent;
+saving after public target removal but before deferred free preserves the combat
+head and pending work with the parent reference already withdrawn. An empty
+physical group drops its borrowed target on final detach while retaining its
+normal deferred allocation/admission lifetime. Current round-trips cover healthy
+Follow and the removed-parent combat interval; Version116 is rejected. Network
+messages are unchanged. See [Follow target loss](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
+
+Version116 extends the scalar `buildwork_t` pool with the Repair target's spawn
+generation and a target-retirement Boolean. `edict_t.build` remains an `F_EDICT`
+reference. Public RemoveUnit withdraws that reference immediately but retains
+the current Repair head until its scheduled owner finishes; saving during this
+interval must preserve that distinction. Direct target-slot reuse cannot become
+the old Repair target. The current native regression round-trips active work,
+pending activation and the removed-target interval. Version115 is rejected.
+See [Repair ownership](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation).
+
+Version102 moves the eight ordered status records out of the raw edict into an
+optional pool. Units with no applied statuses own no record storage. Insertion
+allocates all eight slots together, and removal retains the allocation until
+edict release so synchronous inverse callbacks keep stable slot addresses.
+The raw pointer is excluded from the edict payload; the pool serializes every
+slot, including vacant ones, and remaps each applying source through `F_EDICT`.
+Timing, rank, origin rawcode and numeric payloads remain unchanged. Loading
+restores absent storage as null. Version101 and earlier layouts are rejected.
+
+Version106 separates shared immutable unit sound profiles from mutable pending
+events. Save records contain logical variant arrays/counts and attack/death sound
+indices, never profile pointers. Load re-interns values and rejects oversized
+variant counts. Selection response requests still clear during load; owner/world
+pending events retain their existing saved-state behavior.
+
+Version105 adds the route-owned world-request memo fields. They are derived
+`FIELD_RUNTIME` data, cleared in both unit and group route serializers; restored
+native goals and route points remain authoritative. Older layouts are rejected.
+
+Version104 replaces the inline attack copies with shared immutable profiles and
+optional per-slot overrides. Each edict payload stores a two-bit ownership mask,
+both logical default profiles and the values of any owned overrides. Restore
+interns immutable defaults and allocates only saved overrides. No process pointer
+is serialized. Pool reset runs before restoring edicts so it cannot discard
+newly restored attack overrides. The other 29 lifecycle pools retain their own
+later payloads. Version103 and all earlier layouts are rejected.
+
+Version103 moves the sixteen-entry command ring into an optional pool. A fresh
+unit has no queue allocation. The first queued order allocates the full ring;
+clearing or consuming it retains storage until edict release, preserving entry
+addresses during synchronous cancellation callbacks. Head and count remain in
+the raw edict; the pool stores every entry, including unused slots, through the
+existing queued-order schema. Loading rejects out-of-range counters or a nonempty
+ring without storage. Wrapped FIFO order and Move context survive reconstruction.
+Version102 and earlier saves are rejected by the exact-version guard.
+
+Version85 retains unit owned-pool insertion sequences and the64-bit allocation
+counter. Birth and genuine owner transfer insert a unit at the pool head; a
+same-owner call preserves its position. Captain recruitment therefore remains
+ordered across removal, reused entity slots and saves taken before AI startup.
+Duplicate, out-of-range and missing spawned-unit sequences reject save/load.
+Four complete retail controls match 908 physical commits and 4344 saved suffix
+commits, including explicit bot-VM retirement before loading. See
+[captain owned-pool order](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots).
+
+Version79 additionally retains each unit’s latest submitted shared Move request,
+physical owner creation sequences and the next sequence. FIFO activation does
+not overwrite submission history; reused owner slots do not acquire an extra
+visit after loading. Zero, duplicate and out-of-range sequences are rejected.
+The two-pending-Shift regression repeats864 saved motion suffix commits, including
+a future external click after the earlier save. Version78 and all earlier layouts
+are rejected. See [queued group history](retail-pathfinding-engine.md#two-pending-shift-moves-retain-submission-history-and-physical-generations).
+
+The mixed active/idle Shift regression also reproduces1020 saved suffix commits
+under version79. No layout change is needed: common queued contexts, immediate
+idle activation and later cohort joining use the existing retained records. See
+[mixed Shift](retail-pathfinding-engine.md#mixed-active-and-idle-shift-share-one-submitted-request).
+
+Two independent active singleton point owners additionally reproduce844 saved
+suffix commits under version79, before and after later shared acquisition. See
+[independent owners](retail-pathfinding-engine.md#independent-active-owners-accept-the-same-pending-ground-request).
+
+Version78 retained Move-owned queued request context and active cohort request
+identity. Common point orders survive before activation; staggered activation
+creates fresh physical cohorts with deterministic member order. Saves on either
+side of the transition reproduce the original motion suffix. Version77 added
+the merged upstream Stop guard and disabled-ability list; both remain retained.
+
+Version76 partitions ordinary fine admission into sixteen player rows and saves
+`movement.fine_class` so cancellation can unlink the old row before changing
+owner. Work/countdown and FIFO head/tail/count are recursive records with mapped
+edict pointers. Validation rejects cross-row ownership, duplicate membership,
+invalid classes and malformed links before following them. Pending requests in
+all sixteen rows survive a real save/load; ordinary public ownership cancellation
+matches original final motion words before and after saved continuations. See
+[ordinary player queues](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player).
+
+Version62 adds `movement.fine_pose` and `movement.pose_valid`. Move keeps native
+fine-grid words between commits because published world coordinates can lose
+low bits. The raw primitive edict record retains both fields, and an eight-step
+resume matches the original fixture's fine/world/velocity/facing words.
+Rejected step previews leave them unchanged; explicit Move world commits
+invalidate the retained pose. The exact-version guard rejects61 and earlier
+layouts. JSVM remains7. See [retained fine pose](retail-pathfinding-engine.md#retained-fine-pose-reaches-move).
+
+Version61 adds `movement.flat_speed_bonus`, the flat bonus last published to
+Move by an accepted order or speed setter. It is independent of the current
+inventory, so loading after Boots removal preserves the original committed
+cap and subsequent position/velocity words. The primitive edict record owns
+this field; no callback or pointer relocation is added. The exact-version guard
+rejects60 and earlier layouts. JSVM remains7. See
+[flat bonus publication](retail-pathfinding-engine.md#flat-bonuses-retain-their-publication-state).
+
+Version67 persists the complete Move-owned fine route: count, current index,
+lane mask and native coordinate words. The process-owned pointer is excluded
+from the raw persistent record and reallocated from the explicit point payload;
+invalid counts, indices and nonfinite coordinates are rejected. Reload releases
+old curves before replacing edicts. The complete controlled wall detour resumes
+with the same remaining22 retail position/velocity/heading steps. Formats66 and
+earlier are incompatible; JASS snapshot7 and wire messages are unchanged. See
+[retained fine routes](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour).
 
 ### Save compatibility policy
 
 Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
+
+ORDER-01.5 extends the semantic JASS snapshot to version7 with callback
+`eventType`. Issued-order value/point/target snapshots already use the existing
+game-event fields; event type gates now remain correct after a yielded callback
+is restored. Both unread issued-order events and sleeping actions have round-trip
+coverage. This callback change left outer W3SV56 and the network protocol unchanged, but the
+embedded exact-version guard rejects a version6 JASS snapshot. See
+[immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership).
 
 Version 90 serializes current and default Warcraft III game difficulty as
 independent `level.setup` fields. This preserves a temporarily reduced current
@@ -65,6 +621,8 @@ The server's map-selection read checks both the format version and entity size b
 
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
+Version 77 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
+Upstream version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
 Version 71 persists local Team Resources collapse state in addition to multiboard display suppression by client slot from version 70. Older saves are rejected, following the normal no-migration policy.
 
 Version 72 adds `edict_t.aura_effect_role`, the stable source/recipient identity
@@ -89,13 +647,11 @@ Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Str
 
 Version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
 
-Version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.
+Upstream version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.
 
-Version 63 removes the redundant construction `active` flag: the record exists only during construction and is released on completion or stop. Version 62 saves are rejected because the serialized construction layout changed.
-
-Version 62 introduced serialization that writes the complete allocated record for every lifecycle pool, including scalar fields that have no fixup descriptor. Edict pool pointers are cleared from the raw edict record. The loader allocates fresh slots and fixes `F_EDICT` references after all entity records exist. It rejects duplicate owners, inactive owners, out-of-range indexes and invalid pool counts. Version 61's partial field streams and omitted pools cannot be loaded. See [pooled entity state](pooled-entity-state.md) for allocation and access rules.
-
-Version 59 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
+Format 90 merges the retained pathfinding/AI state with the full27-pool lifecycle layout.
+It rejects both branch format89 and upstream format64: entity layouts and streams differ.
+The upstream63/64 pool-presence and redundant-flag changes are retained in the combined format.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
 
@@ -147,7 +703,7 @@ by the exact-version guard.
 Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
 or lose the lifecycle state that gates authored player/team/color initialization. It also adds the WC3-owned mutable Blight cell plane immediately after the level-field stream and adds each unit's `blight_growth` alias/current-radius/next-update state to the raw `edict_t` contract. Load requires the saved Blight byte count to exactly match the freshly initialized map Blight grid and restores it before edicts/JASS state, so `SetBlight*` changes and `Abli` expansion progress survive without being reconstructed from nearby buildings. See [Blight](blight.md). Version 31 saves are rejected by the exact-version guard.
 
-Version 32 also adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
+Version32 introduced the historical `permanent_invisibility_reveal_until` millisecond deadline. Save137 removes that field and stores the scalar fade/request contract described above; older layouts are rejected rather than migrated.
 
 Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `LIGHTNINGEFFECT` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
 
@@ -159,9 +715,9 @@ Version 36 expands the raw `GAMECLIENT` Warcraft music state with per-client ses
 
 Version 37 adds the timer callback generation/pending fields, expands the bounded event ring, and adds the Undead Sacrifice queue relationship. A queued Shade carries `edict_s.sacrifice` and `sacrifice.worker` is relocated through an `F_EDICT` fixup; the saved worker generation and hidden/paused restoration scalars remain in the raw edict record. This lets a save taken while an Acolyte is hidden inside a Sacrificial Pit resume the same production item and cancel/complete safely instead of retaining a process pointer. Version 36 saves are rejected by the exact-version guard because the timer schema and event ring layout changed. See [Undead Sacrifice](sacrifice.md).
 
-Save format version 45 adds Way Gate destination/activation values and explicit approach state. `orders->waygate_target` and `orders->waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The exact version guard rejects version 44 saves independently of the `sizeof(edict_t)` header check. See [Way Gates](way-gates.md).
+Save format version 45 adds Way Gate destination/activation values and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The exact version guard rejects version 44 saves independently of the `sizeof(edict_t)` header check. See [Way Gates](way-gates.md).
 
-Ability-owned temporary summons rely on three already-persisted parts of the edict contract together: the `owner` `F_EDICT` fixup, the scalar `summon_ability` alias, and the raw timed-status record carrying `BTLF` (`timestamp`/`duration_ms`). The save regression suite covers that combined lifecycle so a loaded temporary summon keeps both provenance and its remaining timed-life state; no additional save-format field is required.
+Ability-owned temporary summons rely on three already-persisted parts of the edict contract together: the `owner` `F_EDICT` fixup, the scalar `summon_ability` alias, and the owned sparse timed-status record carrying `BTLF` (`timestamp`/`duration_ms`). The save regression suite covers that combined lifecycle so a loaded temporary summon keeps both provenance and its remaining timed-life state; no additional save-format field is required.
 
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`, `AI_CORPSE_RESERVED`, and `AI_CORPSE_IN_CARGO`) rides in the already-persisted `aiflags` edict field, while the existing persisted `cargo.units[]`/`cargo.count` links the Meat Wagon to the actual stored corpse edicts. Thus cargo occupancy, corpse identity, decay move/timer, and active corpse-consumer reservation survive save/load without a new format field. Graveyard `Agyd` production uses an ordinary owner-linked thinker plus `freetime`; `graveyard_think` is in the saved callback roster, so its cadence resumes without a format change. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
@@ -191,7 +747,14 @@ format version change remain follow-up work; see [Game difficulty](game-difficul
 
 ## JASS Snapshot
 
-The embedded snapshot starts with `JSVM`, snapshot format version 6, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+Save92/JSVM8 reject programs compiled with the former right-associated arithmetic
+and host JASS scalar operators. Chained expressions now retain left association,
+software scalar operations and truncating promotion. Token ordinals/operator
+identities are rebuilt from source; old continuations cannot be reused. Eight
+expression-authored Move continuations verify callback and movement state before
+and after order admission. See [compiled expression parity](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
+
+The embedded snapshot starts with `JSVM`, snapshot format version 9, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;
@@ -206,29 +769,53 @@ Handle encoding dispatches value handles, VM-owned payloads, and function handle
 
 JASS sound handle payloads remain part of the VM snapshot, but one-shot presentation parameters currently maintained by the game host (`SetSoundVolume`, `SetSoundPosition`, and `AttachSoundToUnit`) are transient. `ReadGame()` clears that host-side table before reconstructed sound handles can reuse an old pointer value. Scripts that need those presentation parameters after restore must set them again before the next `StartSound`; continuous playback state is not yet serialized.
 
-Point-order waypoints follow Quake II's body-queue/TRAIL pattern: 256 classless, collisionless, `SVF_NOCLIENT` edicts are reserved before map entities and recycled as a ring. Its base, count, and cursor live in serialized level state. Consequently `goalentity` and other waypoint references use the ordinary `F_EDICT` index relocation path; there is only one entity pointer address domain.
+Point-order waypoints initially reserve 256 classless, collisionless,
+`SVF_NOCLIENT` edicts before map entities. Allocation leases unused destinations;
+when the available batch runs out, it traces live actors' destination references
+and transitive `secondarygoal` chains before reclaiming storage. If every managed
+destination is referenced, it allocates another 128 ordinary edicts. A live order
+must never lose its destination to circular reuse. `SVF_MOVE_WAYPOINT` records
+membership in the saved `svflags`. Format101 requires this ownership marker and
+rejects older versions instead of reconstructing legacy destination membership.
+The reserve's base, count and cursor remain serialized. Additional destinations and all `goalentity`/chain
+references use ordinary `F_EDICT` index relocation. Leases and tracing bitsets are
+derived state rebuilt after load. The 304-member public-order regression checks
+retained destinations, saved continuation and bounded reuse after Stop.
+
+The event ring now accommodates 32,768 pending records, enough for both issued-order
+notifications for every supported world entity before dispatch. `F_STRUCT_RING`
+writes only an unread count followed by its mapped records, so changing runtime
+capacity retains the mapped record layout. Format101 covers the expanded queue
+contract and marked destination ownership; older versions are rejected. A regression
+publishes 4,096 point events across the ring boundary and verifies payloads,
+entity relocation and FIFO order after load. Food and Shadow Meld component
+capacity likewise follows the world entity bound; their existing sparse pool
+serialization is unchanged.
 
 Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a request while a synchronous JASS call or coroutine is actively executing. Yielded `TriggerSleepAction` coroutines are safe and resume from their saved semantic PC after load.
 
 ## Field Table
 
-`games/warcraft-3/game/g_save.c` keeps `edict_fields[]`, `client_fields[]` and
-per-pool schemas synchronized with their declarations. Fixed edict/client records
-and each owned pool record are copied as blocks; `field_t` describes pointer fixups,
-content serialization and process-owned exclusions. Unit statuses, cooldowns, Hero
-progression and weapon profiles live in the entity-owned `unit_state` pool.
-Status source pointers require nested fixups; scalar timestamps and incarnation
-IDs persist with the raw pool record. Animation request/property strings are
-interned content and use `F_ANIMSTRING`, never raw process addresses.
+`games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
+`edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as
+`abilitycooldowns[]` (cooldown rawcode/start/end) and scalar animation state therefore round-trip with that raw record
+and need no `field_t` entry. Animation requests and properties are immutable references: format107 excludes their
+pointers and writes bounded logical text separately. The adjacent `runtime_fields[]` and
+`client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
+common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
 
-`F` and `TF` describe struct-tag and typedef-backed members. For example, inventory
-slots use `TF(inventory_t, slots, F_EDICT, MAX_INVENTORY, FIELD_NONE)`.
+Status slots use the same rule in their optional pool record: scalar timing,
+rank and payload fields round-trip in the record, while the applying `source`
+is a nested `F_EDICT` field in `abilstatus->slots`. The edict's storage pointer
+is runtime state reconstructed by the pool stream.
+
+`EDICTFIELD(x, type)` describes one scalar field with `array_size == 0`. `EDICTFIELD(x, type, count)` describes a contiguous array from the base offset; the serializer walks `count` elements using the field type's element size. For example, the six inventory pointers use `EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY)` rather than six duplicate descriptors.
 
 - Add every persistent `edict_t` entity pointer to `fields[]` as `F_EDICT`, including array elements and nested fields.
 - Use `TFC(type, field, kind, capacity, count_field)` for a bounded typedef-backed array. The descriptor writes and restores `count_field` itself, then processes that many elements; do not map the count separately.
-- Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `orders->follow_target` must be encoded as entity indexes rather than raw pointers.
+- Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `movement.follow_target` must be encoded as entity indexes rather than raw pointers.
 - Do not add process-owned pointers such as path textures, metadata rows, or animations. `WriteEdict()` clears `FIELD_RUNTIME` pointers and `ReadEdict()` rebinds class metadata; spatial links are rebuilt with `gi.LinkEntity`.
-- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the versioned `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
+- Edict C callbacks (`think`, `stand`, `birth`, `prethink`, `die`, `idle`, `move`, `run`, `attack`, `pain`) use `F_CFUNCTION`, not `F_IGNORE`. Add every production assignment to the versioned `save_cfunctions[]` roster in `g_save.c`; an unrostered pointer fails the save instead of writing an address.
 - JASS `F_FUNCTION` remains name-string identity for timers and triggers. Do not overload it with C symbols.
 - Add remaining process-owned edict or client pointers to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
 - When adding a new pointer or changing an existing edict field, update the table and the round-trip test together. A raw pointer omitted from the table can write an address into the save file.
@@ -380,7 +967,7 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 
 The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
 
-Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while the Polymorph component is attached, in which case its `original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
+Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while `polymorph` is live, in which case `polymorph->original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
 
 `wc3_save.fog_exploration_round_trips_and_visibility_restarts_clear` checks that exploration survives, transient visibility clears, dirty rows request resynchronization, and (when compiled) packed masks match the byte grids.
 
@@ -402,7 +989,7 @@ level.time = gi.GetTime();
 ```
 
 Every persisted absolute deadline lives in this clock: `edict_s.spawn_time`, `edict_s.freetime`,
-`edict_s.route->time`, `heroabilitystatus_t.timestamp`, client `camera.start_time` /
+`edict_s.heatmap2_time`, `heroabilitystatus_t.timestamp`, client `camera.start_time` /
 `message.end_time` / `cinematic_end_time`, and `level.cinefilter`. A save taken at `level.time = 20800`
 must restore the server clock to `20800`; otherwise every deadline would sit ~20.7 s in the future and
 units would stall waiting for cooldowns that already elapsed. Symptom seen in the field:
@@ -412,10 +999,14 @@ Do not "fix" this by re-basing individual subsystems at load (the older per-time
 `started = gi.GetTime(); timeout = remaining` rebase). Restoring the server tick covers every
 deadline; a per-subsystem rebase silently misses the edict and client-presentation deadlines.
 
-JASS timers deliberately hold **no** clock-absolute state. `gtimer_s` stores `duration` plus a
-`remaining` countdown that `G_RunTimers` decrements by `FRAMETIME` each frame, so a timer reloads
-with exactly the time it had left and needs no rebase at all. Prefer this shape for any new
-persisted deadline.
+JASS timers retain `duration`, a `remaining` countdown and its `updated` simulation-millisecond
+cursor. `G_RunTimers` consumes `level.time - updated` once; repeated drains at the same clock
+cannot age a positive-duration timer. Pause materializes elapsed time; Resume and Start publish
+a fresh cursor. GetRemaining reports unconsumed elapsed time without modifying the timer.
+Save72 writes the cursor through `timer_fields[]` alongside the saved server clock. Load restores
+both together, with no per-timer rebase or compatibility conversion. Older formats are rejected.
+The prior fixed100ms decrement was incorrect once RunFrame drained at each5ms primary quantum.
+See [normal timer admission](retail-pathfinding-engine.md#public-timer-admission-reaches-move-from-zero).
 
 Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.
@@ -432,7 +1023,7 @@ CI covers that contract without retail maps in
 (`games/warcraft-3/game/tests/t_hero_saveload.c`). The test learns two Paladin
 skills, inserts two charged items, issues `unit_issueorder(..., "move", ...)`,
 steps until origin changes while `currentmove` is still `walk`, then
-`WriteGame`/`ReadGame` and checks origin, `unit_state->ranks[]`, `unit_state->overrides.added[]`,
+`WriteGame`/`ReadGame` and checks origin, `heroabilities[]`, `abilities.added[]`,
 inventory class/charges, and that one more walk think still advances.
 `wc3_save.hero_audit_*` drives `G_HeroSaveLoadAuditFrame` for hidden-first-Hero,
 paused/cinematic wait, and dest-snap retries. The audit saves through
@@ -748,14 +1339,760 @@ Cursor signal overlays and minimap point-routing flags are transient and clear
 on load (version 52 client layout). They never serialize an active input overlay.
 
 Version 53 persists each unit's explicit `UnitShareVision` recipient mask.
+Version 52 saves are rejected by the exact-version guard.
+
+Version 54 preserves explicit scripted turn-speed/window overrides and the
+pre-turn translation decision. These primitive fields change edict offsets;
+version 53 saves are rejected. The native-setter/steering save regression is
+`wc3_movement.scripted_turn_state_survives_save_load`; see
+[numerical movement integration](retail-pathfinding-engine.md).
+
+Format55 adds the committed Move XY velocity. It survives the raw edict save image; stopping/reset clears it in Move. Format54 is rejected because subsequent edict field offsets differ. The alternating-heading movement regression compares uninterrupted and resumed position/velocity words exactly.
+
+Version56 adds Move cohort identity and its level allocation cursor. Active selection groups retain membership and recompute survivor speed after load; a post-load Stop regression verifies the cap changes. The exact-version guard rejects55 and older saves. See [active Move cohort speed](retail-pathfinding-engine.md#active-move-cohort-speed).
+
+Version57 adds the explicit per-unit `current_order_id` (`F_INT`) used by
+ordinary point Move/Smart, separately from the pending FIFO and issued events.
+The active head survives active-plus-queued save/load; Stop and natural arrival
+retire it, and edict reuse starts at zero. Selection groups also retain their
+active Move command. Version56 and older records are rejected. Remaining
+command owners are ORDER-01.6; see
+[current point orders](retail-pathfinding-engine.md#current-point-order-ownership).
+
+
+The September30 upstream sync advances the outer format to **58**: the merged
+raw unit layout combines committed retail Move velocity/current-order state with
+explicit allied attack intent, and the camera field schema includes upstream
+orientation/noise state. Both parents' earlier layouts are rejected. Existing
+ROC/TFT round-trips cover live movement, allied intent and camera state; the
+previous-format rejection matrix includes versions39 through57.
+
+The subsequent September30 upstream sync advances the outer format to **59**.
+Camera noise parameters now live in `client.camera.noise[]`; `client.ps` retains
+only the game-evaluated `viewoffset`/`eyeoffset` samples. Both records use the
+existing raw `F_STRUCT` schema, so their changed layouts require rejecting58
+independently of the edict-size guard. ROC/TFT round-trips retain the parameters
+and all six sample components after clearing live state. The prior-version
+matrix now rejects39 through58; JSVM remains7. The network contract is the
+upstream-approved generic view-offset protocol; this merge adds no wire fields.
+
+Version63 persists Move primary-clock time/epoch/span, the5ms cursor and six-step callback phase, pending owner dispatch, exact sampled/committed fine pose and prediction time origin. Runtime dispatch flags and per-frame callback stamps are cleared on load. Save62 is rejected. See [the clock integration and restoration evidence](retail-pathfinding-engine.md#primary-clock-reaches-move-and-predicted-positions).
+
+Public `SetUnitPosition/Loc` clear active Move/Patrol, queued orders and group
+state before placement. A save immediately afterward retains the exact fine
+pose and remains stationary after load; no additional fields or format change
+are needed. See [forced-position restoration](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine).
+
+Version64 adds a counted byte stream of mutable terrain pathing immediately
+before Blight. It preserves native `SetTerrainPathable` changes separately from
+static entity footprints and transient dynamic occupancy. Load validates the
+byte count against the reloaded map, restores terrain and Blight, then bakes
+static footprints after entity reconstruction. The exact-version guard rejects
+63 and earlier. Edict, callback and JSVM7 layouts remain unchanged. See
+[terrain natives](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine).
+
+Version65 adds the two pathfinding-owner PRNG words to `level_fields`.
+Public `SetRandomSeed`/`GetRandomInt`/`GetRandomReal` use this state; saved
+continuation is tested through the compiled natives. Formats64 and earlier
+are rejected. Edict, callback and JSVM7 layouts remain unchanged. See
+[deterministic owner random state](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
+
+Version66 adds Move-owned authored repulsion: pending vector, packed
+configuration/category/rank/cooldown, active membership and relocated next
+pointers, plus the level list head and alternating owner phase. An actual idle
+overlap save reproduces subsequent positions, vectors, cooldown and random
+state exactly after load. Formats65 and earlier are rejected; JSVM7 and the
+callback roster are unchanged. See [repulsion integration](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units).
+
+
+### Retained adaptive routes (version68)
+
+Move retains accelerator-space points, count/index, native goal and radius beside
+its fine curve. The edict tail writes fine points followed by adaptive points;
+readers rebuild both allocations and reject invalid count/index, nonfinite and
+truncated data. Process pointers and the world bake revision are runtime fields.
+After the saved terrain and obstacles are rebuilt, restored coarse routes bind
+to the new world's bake revision. Exact-version checks reject earlier layouts.
+The public long Move scheduler regression compares180 continuation frames after
+loading, with retained coarse count/index; JASS snapshot7 and wire data are
+unchanged. See [the engine integration](retail-pathfinding-engine.md#retained-coarse-progress-refills-the-fine-route).
+
+
+### Moving-blocker waits (version69)
+
+Move persists the unsigned eligible-advance countdown and its blocker edict
+reference. The movement schema uses `F_INT` and `F_EDICT`; save/load converts the
+pointer to/from an edict index and rejects invalid pointers. A new order clears
+both values. Actor reclamation clears other actors' references before slot reuse
+while retaining their remaining waits. Public `RemoveUnit` defers reclamation;
+the identity clears at the Move removal callback. A public two-Move fixture saves
+with a live4-advance wait, removes its blocker, consumes all four waits despite
+query0, then resumes with an exact48-word continuation after load. See
+[the original policy and integration](retail-pathfinding-engine.md#ordered-moving-waits-reach-ordinary-move).
+
 
 ### Current combat and cargo state
 
-Format 57 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
+Format71 writes the current entity struct directly through the normal Quake II field serializer. Attack target incarnation, cooldown/backswing deadlines, per-weapon backswing points and range buffers, and pending Cargo Drop state live in that record. The cargo goal uses the ordinary `F_EDICT` fixup; its initiating rawcode and goal spawn identity remain scalar state. Invalid external pointers on write or unallocated goal indexes on load are rejected.
 
 All format-56 variants, including the former combat/cargo extensions and extensionless files, are rejected. There is no frozen entity projection, optional extension reader, or legacy propulsion-window migration. Explicit zero propulsion windows round-trip as authored runtime state.
 
 Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
+
+Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
+
+
+### Upstream combat/cargo merge (version70)
+
+The October1 merge combines format69's verified Move state with upstream's
+current combat and cargo fields. Both parent layouts are rejected, including
+prior69 and upstream57. The current raw record, recursive pointer fixups and
+owned route tails stay authoritative; no legacy projection or optional extension
+is introduced. Movement retains software scalar normalization, explicit zero
+window flags and the original pre-turn propulsion decision. Upstream's animation
+policy uses that existing decision to retain Stand while blocked and resume Walk
+when admitted, avoiding a second host-float/post-turn gate.
+
+Payoff31's countdown heading consumes the existing retained native prediction;
+it changes no field meaning or layout. Payoff31 retained save70; payoff32 advances the current format to71. The public
+oblique-wait regression saves before four held ticks and repeats120 exact
+position/native pose/velocity/facing/heading/wait/order words after load, then
+proves that ordinary Move resumes.
+
+
+### Fine retry state (version71)
+
+`edictMovement_s.retry_count` stores original path98 through the normal `F_INT`
+field entry. Save71 rejects prior70 and all older layouts. Peer20 fine retry
+saves count6/7, fine count0/indexUINT32_MAX, retained coarse points/index and
+peer wait identity/delay. The public JASS order test restores that live state,
+refills through the real thinker and repeats120 ticks/1440 state words including
+the owner random state. A focused field round-trip and prior-version rejection
+run in ROC/TFT. Network and JASS snapshot formats remain unchanged.
+
+Public ground creation now retains the original freshly committed native fine
+pose rather than reconstructing it from requested/published world XY. Save71
+already owns that representation, so no layout, callback or meaning changes.
+The [spawn regression](retail-pathfinding-engine.md#public-spawn-admission-and-initial-mover-pose)
+saves the fractional public getter result immediately and repeats640 scheduler
+continuation words through normal ReadGame/WriteGame.
+
+### Timer countdown cursor (version72)
+
+The new `gtimer_s.updated` field is ordinary authoritative timer state. It preserves
+elapsed time that has not yet been materialized into `remaining`, including a save
+between timer drains. Tests restore a callback-restarted timer with45ms unconsumed
+elapsed time, reject71 and all older listed versions, and resume public timer-driven
+Move through the fractional actor and subsequent RemoveUnit/CreateUnit lifetimes.
+The JASS snapshot remains7; no network fields or callback identities change.
+Original scalar heap deadlines, arbitrary short/zero periods and timer-clock epoch
+rebasing remain explicit numerical backlog work.
+
+### Singleton group route (version73)
+
+Move persists its singleton group adaptive chain independently of the member's
+adaptive/fine buffers. Points, count/index, final native destination and radius
+survive; the process-local bake revision is rebound after terrain/entity
+restoration. Two public oblique saves resume260 original movement commits,
+including a save immediately after intermediate arrival with both member
+buffers empty and the final public order still active. Version73 initially rejected version72 and earlier; the current version75
+reader also rejects version73; there is no migration. Group tail
+extent/index, finite coordinates and complete bytes are checked before use.
+See [retail group-destination payoff](retail-pathfinding-engine.md#public-oblique-move-retains-the-singleton-group-destination).
+
+
+### Physical Move groups (version74)
+
+Move's physical owners are independent of JASS collection handles. Save74 retains
+active owner identity, public goal, selected native formation point/heading,
+route buffers and counted member rows through `move_group_fields`. Member unit
+pointers use `F_EDICT` indices and saved spawn generations. Pool pointers,
+capacity, ticking and bake revisions are process-owned; loading reconstructs
+owners after edicts, rejects invalid/duplicate owners and members, then rebinds
+route revisions after the world bake. Map replacement/shutdown releases owners.
+Creation-order links and allocation slots are derived runtime fields. Loading
+sorts by saved sequence once; ordinary allocation prepends new owners and
+retirement unlinks them. Each owner pass snapshots pointer/sequence pairs so
+callbacks cannot make a reused or newly created group run in the old visit.
+The request-ID upper bound is also reconstructed from active, previous and
+queued identities; counter wrap retains authoritative collision checks. These
+runtime indexes do not add serialized fields or change edict size.
+Partial records clear runtime addresses before error cleanup. The same bounded,
+finite three-buffer payload helpers serve edict and group routes.
+
+A public two-unit group resumes87 exact original commits from saves during
+travel and the final partial-route retry. Invalid group counts, owner identity,
+references, generation, duplicate members, nonfinite destinations/points,
+route extents/indices and truncated tails are covered in RoC/TFT. There is no
+compatibility path for version73. See [shared Move payoff](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
+
+An ordinary owner with zero members remains valid until its next Move visit,
+including across save/load. `wc3_save.rejects_invalid_physical_group_payloads`
+checks this as a valid control and clears the restored registry before reading
+the next malformed payload. Expecting rejection instead leaves the registry
+count live, so the next isolated read overruns its newly allocated pointer array
+and crashes during cleanup. The production lifecycle round-trip is covered by
+`wc3_movement.public_mover_retirement_cancels_pending_and_active_owners`.
+
+
+### Pending fine searches (version75)
+
+Move retains the ordinary fine-search FIFO as edict links, with its shared
+work/countdown, owner visit counter and each unit's fine-request timestamp.
+The owner counter follows original157610/15aa80: starts at0x400, increments
+once per owner update and reloads0x400 after unsigned wrap. Fine retries
+use original168910's ten-visit gate; denied FIFO requests clear their timestamp.
+
+The serializer maps head/tail and per-unit previous/next links through
+`F_EDICT`, validates pointer bounds before traversal, and rejects inconsistent
+counts, cycles, disconnected queued units, dead records and malformed boolean
+values. Validation runs before writing and after all edicts are restored.
+The Save suite verifies FIFO order and interval continuation through actual
+`WriteGame`/`ReadGame`, twelve invalid graphs, and rejection of version74.
+Broader scheduler pools and accelerated request timestamps remain separate
+retail pathfinding work.
+
+
+Format80 adds physical Follow target edict/generation, refresh countdown and
+per-member arrival range. Loading validates target/member ownership, finite
+nonnegative ranges and bounded refresh state; all earlier exact versions through
+79 are rejected. The moving-target speed-change regression resumes2595 exact
+suffix commits from three saves during approach, persistent Follow and target
+travel. Destroyed timers release their JASS callback so retired slots cannot
+serialize a pointer into a replaced VM program. Unknown saved function names
+identify the field and name in the load diagnostic. See
+[Smart Follow parity](retail-pathfinding-engine.md#smart-follow-tracks-a-moving-target-through-a-speed-change).
+
+Ground Follow now cancels synchronously when its target dies or is removed,
+detaching its physical owner before stand. Actual original target pool/public
+handle reuse never silently adopts the replacement. The public death and
+removal journeys each match948 normal-frame commits and1746 Save80 suffix
+commits, including a save while the replacement exists but Follow is idle.
+[Payoff48 evidence](retail-pathfinding-engine.md#follow-cancels-synchronously-before-target-pool-reuse)
+records the exact scope; save format80 is unchanged.
+
+Public target axis teleport now keeps a retained point Move through turn waits;
+its retail fine arrival/retry policy owns completion instead of legacy near-goal
+settling. Four Follow teleport journeys match4091 normal commits and7872 saved
+suffix commits. A test-only commit observer records movement before same-clock
+JASS writes, and saves use completed-owner boundaries. Save80 is unchanged.
+[Payoff49 scope and evidence](retail-pathfinding-engine.md#follow-tracks-public-target-teleports-without-premature-point-settling)
+leaves collision resizing open.
+
+Public Chaos now changes unit type and collision in place after its authored
+requirements are met. Existing Follow groups retain their range; new nearby
+approaches use retail's half predicted edge distance and persistent Follow uses
+the resized radii. Five normal journeys match5075 commits and9725 saved suffix
+commits, including saves before deferred/research-gated morph. The retained
+ability itself owns pending work; removing it cancels the morph, and successful
+resolution consumes it. Save format80 is unchanged.
+[Payoff50 scope and evidence](retail-pathfinding-engine.md#follow-retains-active-range-and-admits-resized-targets-with-half-edge-approaches)
+leaves moving-unit occupancy, other locomotion/body families and exact automatic
+morph timing open.
+
+
+### Deferred type rebind and scalar timer owners (version81)
+
+Save81 retains the Chaos rawcode, pending phase and primary deadline; Move's
+pending type-rebind handoff and deadline; public timer raw timeout, scalar timing
+flag and deadline; and the separate path-owner scalar deadline/validity flag.
+Each deadline preserves time, epoch and span. Restoring these cursors avoids
+restarting the delayed type change or reconstructing a periodic deadline from
+integer server time. Version80 and all earlier exact layouts are rejected.
+
+Four saves during each public moving-radius journey cover enabled delivery,
+commit waiting, first resized motion and late travel. Ordinary continuation
+matches254 growth and4026 nine-case matrix suffix commits per RoC/TFT variant.
+These tests include future births and radius changes after restoration. General
+timer getters, paused scalar remainder, heap ties and epoch-crossing inputs remain
+open. See [the motion and deadline evidence](retail-pathfinding-engine.md#moving-radius-changes-retain-point-motion-and-scalar-owner-deadlines).
+
+
+Group-radius mutation now retains the live group maximum separately from its
+cached coarse-route footprint. Public group growth/shrink/removal journeys
+resume2207 exact motion commits and2193 owner footprint states from twelve
+Save81 checkpoints, including before/after pending Chaos rebind or member
+removal. Owner counters and player-row budgets publish before any standalone
+movement callback after restoration, through the generic A_OWNER_BEGIN phase.
+No format change is required. See [payoff52](retail-pathfinding-engine.md#local-group-maximum-and-retained-route-footprint-have-separate-lifetimes).
+
+### Standalone point forced arrival (version82)
+
+Save82 adds Move-owned `point_forced_arrival`, corresponding to original mover
+D8 bit10000 after terminal point retry4. It overrides the distance test while
+retaining the final angular gate; replacing/leaving Move clears it. Four
+checkpoints before partial search, after retry1, after force and during the
+final turn reproduce all46 retail suffix commits and normal order completion
+per RoC/TFT variant. Old versions including81 are rejected. See [blocked point
+goals](retail-pathfinding-engine.md#blocked-point-goals-retain-the-click-through-retry-and-forced-arrival).
+
+
+Ordinary outside-map point Move reuses Save82's retained public waypoint,
+clipped group routing goal, route buffers and forced-arrival flag. Four
+checkpoints reproduce47 original outside-west suffix commits per variant,
+with Stop and replacement clearing force after restoration. No serialized
+layout changes are introduced. See [outside point goals](retail-pathfinding-engine.md#outside-point-goals-clip-routing-while-retaining-the-public-click).
+
+Version83 retains Move's stationary captain membership callback phase, world
+home and mapped virtual-actor task reference. The hidden category2/radius0
+actor is a real server edict with persisted logical captain ownership.
+Recreating captains releases that ownership while outstanding physical tasks
+retain the old actor; Stop/replacement/removal release their references.
+These records do not serialize the bot JASS VM or its wider AI roster policy.
+Both178/250 native journeys have eight saved continuations each, including
+private point admission, final retry and forced arrival. Older versions are
+rejected. See [stationary captain callbacks](retail-pathfinding-engine.md#stationary-captain-range-callback-and-zero-radius-occupancy).
+
+
+Version84 adds stationary captain roster cardinality, per-member recruitment
+index and entered-state fields. Two independent target-follow owners can
+restore before their all-entered shared point handoff; group validation accepts
+a model-free captain target only through the member's active retained reference.
+Eight pair checkpoints reproduce1648 native suffix commits, including a saved
+one-member survivor after the peer completes; bot-free restore adds355 commits.
+Stop detaches physical owners synchronously so immediate saves are valid.
+Duplicate/out-of-range member indices, invalid roster/entry state and previous
+format83 are rejected. The bot VM and wider logical roster remain process-owned.
+See [stationary pair integration](retail-pathfinding-engine.md#stationary-captain-pair-private-followers-to-shared-arrival).
+
+
+Save84 also resumes the [mixed and blocked captain pairs](retail-pathfinding-engine.md#mixed-captain-pairs-and-blocked-home-retries).
+The mixed journey resumes2003 exact saved commits; blocked-home resumes2685,
+including bot-free restore, the first randomized retry, both naturally forced
+arrivals and the surviving peer. Actor placement and its actual listener center
+are restored independently of the authored shared point destination. No new
+snapshot fields are required for temporary coarse admission exclusions.
+
+Version86 adds Move's shared parameter pool, stable shared-owner counter, each
+physical group's shared binding and classification cooldown. The pool is written
+after edicts and before physical groups, so bindings resolve during restoration.
+Published speed, the pending minimum speed and the live maximum radius remain
+separate from the physical path's cached footprint. Loading checks unique IDs,
+finite nonnegative scalars, exact bound-group reference counts and the cooldown
+range, then releases both partial registries if validation fails. A zero-reference
+owner can await collection by the next Move prepass. Eight mixed thirteen-recruit
+continuations preserve4560 reference commits through12 seconds and9618 resumed
+commits. The range-departure extension below uses those same stored deadlines;
+the16-second second shared publication remains open. Version85 payloads
+are rejected before restoring the world.
+
+
+Captain range-departure reissue uses the existing Save86 actor reference and
+creation-phase deadline across the shared point leg. The eight-save regression
+covers11995/12000/12030ms around the exact12-second callback and reproduces7917
+continuation commits. Inactive shared followers now receive the same finite
+home/deadline and unique roster-index validation as private approaches. Six
+malformed saves are rejected. Reissue transfers the final physical reference
+without freeing a logically retired virtual actor between old-task stop and new
+private-target admission. Full logical roster retention after physical completion
+remains [the next movement task](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach).
+
+
+Version87 adds each Move member's logical captain actor reference and registered
+outer-circle membership. These survive physical task completion independently
+of the private target reference, preserving inner/outer counts and the exact
+second all-entered publication at16 seconds. All eight mixed13 checkpoints,
+including15995/16000/16020/17000ms, reproduce11132 continuation commits across
+the complete5462-commit journey. Completed logical members remain validated for
+finite deadlines/home coordinates, unique indices and a live owned actor; malformed
+logical references and booleans are rejected. Version86 payloads are rejected
+before restoring the world. The bot script VM remains process-owned; this format
+restores Move's membership and physical continuation.
+See [logical-roster reentry](retail-pathfinding-engine.md#logical-captain-roster-survives-physical-completion).
+
+
+Save87 also resumes largest-recruit public Stop before and after12+1 shared
+admission: eight checkpoints per variant reproduce11764/12572 suffix commits.
+Immediate post-Stop saves retain logical membership while physical references
+are already detached; the surviving shared owner has one binding. Later saved
+reentry reuses the shared pool slot with a new generation, and final natural
+cleanup leaves neither generation live. Explicit cancellation of the last
+binding remains separate from these largest-only controls. No format change
+is needed. See [largest-recruit cancellation](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
+
+
+Version88 persists the player AI VM initialization gate and accepts empty shared
+physical Move groups awaiting their next owner visit. Public Stop detaches their
+members immediately; shared publication precedes physical retirement, and the
+following prepass collects the zero-reference parameter owner. Eight complete
+all13 Stop checkpoints preserve pending, zero-reference and collected states.
+A second StartCampaignAI must not replay main after loading. The creation gate
+is persistent; private AI VM coroutines remain runtime-only and missing restored
+continuations produce an explicit diagnostic. This does not restore the entire
+AI VM. Out-of-range initialization bits and version87 saves are rejected.
+See [final binding Stop](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).
+
+
+Version89 integrates upstream interaction-route resumption. Its direction, goal
+reference, goal origin/spawn, timestamp, radius, mask and wait diagnostics are
+process-local caches and are cleared through `FIELD_RUNTIME` on save. Retail
+fine/coarse buffers, velocity, native pose/clock, retry/delay and logical captain
+membership remain serialized. The changed movement layout rejects version88
+saves. `wc3_save.route_resume_cache_and_wait_diagnostics_clear_on_round_trip` covers the cache reset;
+the retail captain saved-continuation regressions retain their exact suffixes.
+See [upstream movement integration](pathfinding.md#upstream-ai-integration-and-retail-movement).
+
+
+Version91 adds game-owned fine-cell insertion history. `WriteMoveSpatial` /
+`ReadMoveSpatial` preserve ordering across overlapping target/blocker queries;
+rebuilding from edict order would change identity termination after a save.
+Records contain plain bounds/ranks and owning indexes, with no process pointers.
+The loader rejects exhausted counters, invalid extents/ranks, duplicate or
+inactive owners and truncated records. Ten malformed inputs and a valid private
+serializer round-trip are covered by
+`wc3_save.fine_spatial_history_rejects_invalid_records`. The public overlapping
+Smart scenario matches eight saved continuations in both editions. Network
+layouts are unchanged. See [pathfinding insertion history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).
+
+Version93 stores independently published adaptive hierarchy state after terrain:
+all four map dimensions and the exact four-lane class bytes. A terrain write
+can leave the hierarchy stale until a regional footprint refresh; recomputing
+it globally during load would change subsequent routing. Read validates the
+complete shape/extent/classes before copying; restored entities then rebuild
+fine masks and static producer snapshots without publishing pending edits.
+Route revisions rebind to the loaded map lifetime rather than the legacy field
+epoch. Eight saved public terrain-edit/Move continuations retain4164 original
+commits and all observed regional classes. JSVM remains8; format92 and all older
+layouts are rejected. See [regional publication](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication).
+
+
+Pathfinding payoff85 adds the Move-owned region sample and validity bit in
+Save94. This baseline is independent of predicted presentation `old_origin`:
+a load immediately before region entry, callback teleport or callback removal
+must preserve the same next transition. The public original journey checks
+eight saved checkpoints and3418 subsequent motion commits, including10/25/50ms
+server-frame batches. See [region callback lifecycle](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
+
+
+## Suspended point orders and independent route lanes
+
+Save95 retains `moveFineRoute_t.adaptive_mask` and `group_mask`, separately
+from the current fine collision query. It also retains `movement.pause_order_id`,
+`pause_resume_pending` and the primary `pause_deadline` time/epoch/span.
+Loading during pathing-off travel, paused displacement or the pending resume
+restores route ownership and delayed reactivation through the normal Move
+scheduler. Eight checkpoints reproduce6171 original suffix commits, including
+10/25/50ms frame batches. Older versions are rejected; no migration is supplied.
+See [pathing/pause lifecycle](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+
+## Flight spatial history and primary-clock morph deadlines
+
+Save96 preserves active flight fine rectangles and link ranks. These records
+have category zero but remain spatially linked; older engine saves removed
+them and cannot provide the same return-to-ground history. The field layout
+is unchanged, but its meaning changes, so older versions are rejected.
+Chaos deadlines and Move's retained type-rebind deadline use the saved primary
+clock and now dispatch every primary quantum through the ability timer hook.
+See [movement-mode policy](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
+
+Format97 retains the applying Slow/Bloodlust ability rawcode and source
+incarnation in existing status fields. Public buff queries/removal and restored
+Move caps use that owner after load. Nine original modifier boundaries reproduce
+4356 saved suffix commits; old format96 is rejected rather than inventing missing
+origin semantics. See [modifier evidence](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
+
+## Way Gate edge ownership (Save98)
+
+The sparse Way Gate record retains its native1..255 edge ID and allocation
+attempt. Exhausted zero IDs survive load and do not retry on activation or
+destination queries. Duplicate ownership and active/configured zero IDs are
+rejected. See [the runtime contract](way-gates.md#native-allocation-lifetime).
+
+## Way Gate source publication history (Save99)
+
+The sparse ability record retains authored source half extents. The adaptive
+payload appends the base marker plane after the four lanes' published hierarchy
+classes. Class bytes must be0..2; source IDs use the entire byte domain.
+Loading restores both arrays directly, preserving unconditional overlap erasure
+rather than restamping surviving gates. Two actual removal/save/load sequences
+retain complete native publication hashes and subsequent ordinary routes.
+Older versions are rejected. See [overlap routing](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
+
+Format107 replaces inline animation request/property arrays with shared immutable
+records. Both pointer fields are runtime-only. The edict payload writes the
+logical 80-byte request and 128-byte property buffers; load rejects unterminated
+buffers, interns their text, and resolves the selected animation after rebinding
+object data. This retains per-unit edits independently of later type defaults.
+Model resource resets discard resolved selections while retaining logical text.
+
+### Installed formation rank (Save110)
+
+Save110 stores Move's installed low-nibble `formation_rank` as `F_INT`.
+Construction/type rebind install it before ability initialization; a row-pointer
+rebind or metadata edit alone must not change it. Group layout reads the
+instance value. Writers/loaders reject ranks above15; version109 is rejected
+rather than deriving a historical installed value from the current type row.
+See [mixed-rank evidence](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout).
+
+### Physical Alt point modifier (Save111)
+
+Save111 updates the transient client-menu mapping for `order_alt`; it is
+`F_IGNORE/FIELD_RUNTIME` and is explicitly cleared on restoration. The
+accepted physical group's existing saved flags retain its formation policy.
+No saved queued Alt reconstruction policy is invented: retail's original
+request lifetime and later fresh requests are distinct. Save110 is rejected
+before restoring the world. See [actual UI formation policy](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).
+
+### Retail Move and upstream ability lifecycle merge (version112)
+
+Format112 combines the verified Move records with upstream’s mandatory owner/target
+incarnation guards and updated optional ability pool layouts. Both parent formats
+(111 and upstream65) are rejected. Timed status source pointers remain in the
+owned sparse status pool; loading rebuilds its pointer references before resolving
+source generations. Shared channel and missile constructors publish goal changes
+through Move and retain the projectile producer’s scheduler/pose initialization.
+
+### Counted scalar timers and callback clocks (Save113 / JASS9)
+
+Save113 retains authored timeout separately from effective scalar period,
+120-second segment counts/residual, frozen paused remainder, raw deadline and
+registration serial. Timer publication/source clocks and the serial allocator
+are persisted. Borrowed due-clock state is retained in JASS snapshot9 for saved
+callback contexts; yielding releases it. Snapshot8 and Save112 are rejected.
+
+The indexed scalar heap, per-timer heap index and active C millisecond timer
+bitset are derived state. Load clears and rebuilds them from logical running/
+paused records. The reader rejects nonfinite scalar timer inputs/deadlines,
+impossible segment counts and running requests outside the adjacent epoch
+domains before queue reconstruction. Five actual public getter-driven Move
+continuations cross segmentation, pause/resume and the300-second wrap. See
+[counted timer evidence](retail-pathfinding-engine.md#counted-timer-requests-use-their-own-scalar-clock).
+
+### Callback mutation and deferred public timer release (Save114)
+
+Save114 adds each scalar timer's resume phase and logical destroyed/pending-release
+flags, plus the path owner's registration serial in the shared timer sequence.
+The authored follow-up after a resumed callback and exact deadline ties therefore
+survive restoration. JASS snapshot9 remains unchanged. Save113 is rejected.
+
+Pending-release links and the list head are derived, like heap indexes; loading
+reconstructs them from flags without resurrecting a destroyed public handle.
+The existing scheduled-frame runtime flag is intentionally not serialized.
+The regular frame owner restores that execution context before draining timers;
+a direct test harness must do the same. Five public callback-mutation Move
+continuations and the independent condition-pause/pending-retirement test cover
+these observation boundaries. See
+[callback mutation evidence](retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).
+
+### Captain siege roster range snapshot (Save115)
+
+Save115 adds`movement.captain_actor_siege`, the roster-derived retail captain6c.20
+flag. It is refreshed at logical attach/detach, rather than reconstructed from
+current weapons after loading. Physical approach ranges remain separately saved
+in their Move member records. A malformed Boolean or a siege flag on a noncaptain
+actor is rejected. Focused creation/weapon-edit/withdrawal round trips and the
+prior114 format rejection test cover this change. See
+[captain range evidence](retail-pathfinding-engine.md#captain-approach-ranges-retain-the-siege-roster-snapshot).
+
+### Format122: sparse widget region ownership
+
+Fine-map persistence now writes ordinary and widget region identities together
+in entity save order. Region membership is the actual compacted set of cells,
+including holes; cached raster pixels/pose/rotation survive so the next inverse
+raster preserves its lifecycle. Stamps remain saved, maintenance restarts at the
+existing load boundary, and no process pointer or allocator slot ID is serialized.
+One linear transpose avoids per-tree full-map scans. Format121 saves are rejected.
+See [region evidence](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).
+
+## Derived Move route capacities (format123)
+
+Format123 expands the game-local route layout with fine, adaptive and group
+point capacities. Both route field tables mark capacities `F_IGNORE` runtime
+state. Payloads still contain only their validated logical point counts and
+ordered coordinate words. Load reserves128-point blocks from those counts,
+and subsequent shorter refills reuse them. Previously reserved unused points
+and process pointers are never serialized. Formats122 and earlier are
+rejected because the instance layout differs. A three-buffer payload regression
+checks rebuilt capacity, exact words and reuse alongside the ordinary full
+Save/Load movement continuations. See
+[Payoff141](retail-pathfinding-engine.md#retained-search-history-and-route-capacity-payoff141)
+for the separate retained search-history/public outside-start evidence limits.
+
+## Individual physical Move execution (format124)
+
+Format124 saves `moveGroup_t.individual`: an ordinary point order's physical
+singleton schedules the unit-owned route, while selected/captain owners stage
+their member decisions together. Creation sequence controls encounter order
+and survives load; curve buffers remain with their existing logical owner.
+Private owners can be empty pending retirement or have one member, and cannot
+have a shared parameter identity or target. The reader rejects invalid boolean
+values and contradictory ownership. Prior formats are rejected without
+migration. Both complete mixed-crowd and enabled/disabled ground regressions
+save mid-order and compare every subsequent pose/vector/RNG/admission/retry and
+public sample against uninterrupted retail captures. See [Payoff144](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).
+
+
+## Retained support refresh state (format125)
+
+Format125 saves Move's `support_flags`, `support_point` and `support_valid` in
+the ordinary raw edict record. They are authoritative values, not pointers or
+reconstructible caches: recomputing the deep flag before the next support query
+changes amphibious entry/departure height. Load also retains the current height
+so unchanged-position ordinary physics cannot force an extra query. The focused
+regression saves immediately after the first deep-water refresh, verifies idle
+physics retains that height after load, then checks the second forced refresh.
+Format124 and earlier are rejected without migration. See
+[Payoff145](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).
+
+Version126 retains physical groups' hidden-target visit counters alongside their
+refresh countdown and cached destination. Save125 and older layouts are rejected.
+See [group speed and visibility](retail-pathfinding-group-speed.md).
+
+Version127 saves Attack's speed-cap exemption active state, absolute primary
+deadline (time/epoch/span) and unsigned request serial. Heap membership and
+positions are derived and rebuilt after restoration. An active-save regression
+checks the restored earliest request, its ordering at the path owner's equal
+deadline, removal/reuse and clock rebasing. Version126 and earlier layouts are
+rejected without migration. See [Attack exemption](retail-pathfinding-group-speed.md#attack-owned-cap-exemption-payoff151).
+
+
+Version128 saves the unit's independent combat-help suppression request,
+including active state, absolute primary deadline and unsigned serial. Attack's
+indexed heap holds both cap and help requests and rebuilds its derived indexes
+on load. A zero-damage broadcast regression verifies saved suppression, expiry,
+re-admission and removal. Version127 and earlier are rejected without migration.
+See [ordered ally help](retail-pathfinding-engine.md#ordered-ally-help-reaches-moving-peers-payoff152).
+
+
+Version129 retains configured Town AI availability independently of AI script
+initialization. Unit enrollment uses the saved aiflags contract. Creation and
+owner-transfer regressions round-trip an armed help request without rebasing its
+deadline or serial, and invalid availability bits are rejected. Version128 and
+earlier layouts are rejected without migration. See [AI help policy](retail-pathfinding-engine.md#town-ai-enrollment-selects-the-help-policy-payoff153).
+
+
+## Captain policy and periodic deadlines (Payoff159)
+
+Save133 retains Captain retreat/strength flags, the signed roster strength
+counter, retained point/range and one-second periodic deadline. Home changes,
+removal and actor goal events now reach the recovered non-combat policy rather
+than a health/power persistence heuristic. `CaptainAttack` is registered.
+Failing-first engine regressions, exact speed/update retail captures and scope
+limits are in [Captain policy](retail-pathfinding-captain-policy.md).
+
+### Upstream synchronization: format147
+
+The October9 merge combines the retained retail movement/scheduler layout
+(format146) with upstream dialogue context, aura source/recipient identity,
+wander state, queued destructable animation, texttag readiness/generations and
+word-wise buffered checksums. Format147 rejects both predecessors; the JASS
+snapshot is version10, retaining the borrowed retail timer clock together
+with dialogue event context. Compatibility TeleportCaptain logical positions
+are included in the existing Captain save block. Physical Captain movement
+continues through Move's retained actor rather than a per-member route cache.
+
+The transient `scheduled_think_frame` belongs below the engine-owned edict
+prefix. Keep every field through `areabounds` byte-identical to
+`server/server.h`; the October9 entity-state changes exposed a misplaced
+scheduler field that made server linking read the wrong liveness and bounds.
+The merged acquisition regressions exercise real `gi.LinkEntity`/`BoxEdicts`
+calls, including Hero and structure priority.
+
+### Completion rows: format148
+
+Move invalidates a completed member identity before synchronous completion
+callbacks, retaining that row until the next owner preparation. Preparation
+prunes backward with tail swaps; immediate forward compaction changes survivor
+order. Format148 stores null/zero identities alongside retained member values
+and accepts those slots on restore, while rejecting null/nonzero generations,
+nonfinite fields and invalid live ownership. Runtime `ticking` remains unsaved.
+Earlier formats are rejected; network layouts are unchanged. See
+[completion boundaries](retail-pathfinding-engine.md#completion-callbacks-preserve-traversal-and-retirement-boundaries-payoff194).
+
+
+Save179 replaces the building's millisecond Undead release marker with the
+unit's `build_summon_wait` primary deadline/epoch/span/serial/active fields.
+The Build owner rebuilds its derived heap on load; no heap positions or process
+pointers are persisted. See [worker-clock contract](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).
+
+
+Save181 adds the generation-checked `build_mine` reference retained by Undead
+Build after its one-second worker wait. Its per-target creator index is derived
+and rebuilt on load; stale/duplicate references fail validation. See
+[completion ownership](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).
+
+
+Version184 persists inactive ordinary fine identities using the exact empty
+integer rectangle and an explicit active/inactive discriminator. It also saves
+retirement-owned ability contributions separately from scripted Pause, allowing
+corpse/Hero revival to release only death's contribution. Noncanonical inactive
+coverage and older versions are rejected. Network layouts are unchanged. See
+[death/removal fine lifetime](retail-pathfinding-engine.md#death-and-removal-unpublish-fine-occupancy-without-destroying-its-identity-payoff301).
+
+
+Version185 adds Move's removal-owned separation contribution. Its signed depth
+was already saved; the new owner flag makes deferred destruction release exactly
+that contribution after load, retaining other owners. Older saves are rejected
+under the existing version policy. The flag fits existing instance padding;
+network layouts remain unchanged. See [counted removal](retail-pathfinding-engine.md#removal-owns-a-counted-separation-contribution-and-its-inverse-payoff302).
+
+
+### Retained walkable placement state (Save186)
+
+Save186 retains walkable placement rectangles, integer level arrays and completed
+static model ray inputs independently of live destructables. The spatial bucket
+index is derived and rebuilt. Live destructables save their logical entry
+handle and captured replacement-texture raster origin; duplicate/out-of-range
+handles and non-finite origins are rejected. Model snapshots contain
+no entity, animation, resource or process pointers. Payload bounds, finite
+geometry and truncation are checked before use. The ordinary release heap also
+retains pending destructable removal deadlines without reissuing removal.
+
+Cold resource rebinding restores a dead destructable's texture and flags without
+executing the death transition over its saved fine regions. Older save layouts
+are rejected; the network contract is unchanged. See
+[bridge placement](retail-pathfinding-engine.md#retained-bridge-placement-levels-and-replacement-footprints-payoff311).
+
+### Published unit collision profiles (Save187)
+
+Save187 retains `movement.collision_profile`, the logical publication state of a
+unit's physical profile. The mutable authored radius stays in `collision`; Move
+applies its physical minimum only after profile publication. Unpublished agents
+retain explicitly supplied geometry. Cold load restores the publication flag
+before rebuilding fine/proximity indexes. The numeric312 regression saves80
+finite producer scenes and resumes exact retail scalar states. Earlier save
+versions are rejected; no migration or network-format change is introduced.
+
+
+### Exceptional public speed (Save188)
+
+Public `SetUnitMoveSpeed` may retain a NaN word in a physical Move member.
+Save188 permits that scalar while retaining rejection of infinite/negative
+finite speeds and nonfinite geometry. The binary layout is unchanged, but the
+accepted value contract changed; prior versions are rejected. Payoff314 tests
+cold continuation immediately after Move, during exceptional motion and after
+finite restoration across five movement families. See
+[exceptional speed](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314).
+
+### Counted movement group isolation (Save191)
+
+Move's group-isolation count and the negative Polymorph owner's applied flag
+are serialized independently. A saved overlap must retain both contributions;
+removing one effect must not enable shared-group admission while the other
+remains. Restored groups stay separate until a subsequent eligible order. The
+existing turn/window fields retain the form's authored parameters. Prior save
+versions are rejected. See [Payoff318](retail-pathfinding-engine.md#counted-group-isolation-and-morph-turn-parameters-payoff318).
+
+### Counted ability work and morph requests (Save192)
+
+The new sparse `morph` pool stores independent transition/expiration primary
+requests, their deadline domains and sequence numbers, source/target types,
+Burrow category overrides and held-animation ownership. Avatar's transition
+request is also serialized. The saved timer owners rebuild their runtime heaps
+after load; animation callbacks do not replace the pending primary request.
+
+Ability disable records retain exclusive ownership and inventory contributions
+separately from pause and retirement. Unit-level exclusive availability,
+invulnerability and spell-immunity depths remain independent of script flags.
+Cargo retains each passenger's separation contribution. Existing spell state
+carries item-teleport source identity and delayed failed-target completion.
+
+Version 191 and other older layouts are rejected; no network format changes.
+Cold saves cover active transitions, pause, removal, independent ascent and
+counted overlap. The 219-test save suite and the affected unit, movement and
+spell suites pass in both editions. See the
+[separation integration checkpoint](retail-pathfinding-separation.md#integration-checkpoint334)
+and [Stone/Destroyer forms](stone-form.md).
 
 Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. Shared Warcraft III ability lifecycles also have combined round trips for an ability-owned timed summon, a live homing spell projectile (owner/target generations plus movement state), corpse reservation (flag plus owning status marker), an owned attached effect (owner plus target-generation guard), and Flare's caster-bound reveal thinker (callback, point, expiry, and owner incarnation). Far Sight remains covered separately as a player-scoped reveal thinker whose saved lifecycle is intentionally independent of caster identity. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
 
@@ -904,6 +2241,26 @@ not guaranteed. On filesystems without reflink support, restores materialize
 new live files in full. A separate aggregate quota, explicit storage audit
 command, and crash-recovery garbage collector remain future improvements.
 
+Format195 adds persisted script-owned corpse decay suspension in `aiflags`.
+`UnitSuspendDecay(false)` starts a new bone phase; suspended and resumed states
+round-trip through the current layout. Older versions are rejected.
+
+Format196 persists Town guard posts and their automatic-enrollment policy.
+The guard block follows Captain state: per-player count, identity sequence and
+replacement budget, then typed positions, assigned edict indexes, assignment
+counts and pending replacements. `edict.ai_guard_handle` is derived and rebuilt,
+not a field_t pointer or persisted array slot. Read validates indexes, ownership,
+unique membership, ordered post identities and finite coordinates; retained
+vacant/retired posts are valid. Old formats are rejected. See ORDER344 in
+[retail movement engine](retail-pathfinding-engine.md).
+
+Format200 assigns the saved status category `WC3_STATUS_STATE_MAGIC_LEASH`.
+Aerial Shackles applies it independently of the authored target BuffID, preserving
+execution locks and its separate defending-priority contribution across cold
+saves. Existing status storage retains this value; no pointer fixups or callback
+entries change. Versions through199 are rejected. Stock and custom BuffID
+round trips plus incompatible-version/layout checks are covered by Group354 in
+[retail movement engine](retail-pathfinding-engine.md#magic-leash-separates-attack-execution-from-defending-priority-group354).
 ### Hero score-screen snapshot and version 95
 
 The Heroes Used column is built from currently owned hero entities when the
@@ -977,114 +2334,62 @@ JASS verification scheduled with `jass_callbyname(..., true)` requires
 `jass_runevents` before inspecting its error state; enqueueing alone does not execute
 assertions.
 
-## Optional travel records and animation text (version 102)
+Upstream synchronization uses format213 to combine format212 pathfinding owners
+with upstream score attribution, item overrides, difficulty and timed visibility.
+Completed fog planes retain the existing pathfinding snapshot contract; timed
+Omniscience deadlines are saved alongside those planes. Older layouts are rejected.
 
-The entity layout now references `movement`, `orders`, `route` and `wander` pools.
-Their schemas retain entity identity and clear process-local route caches on load.
-Animation request/queue/property strings are immutable interned text in memory;
-`F_ANIMSTRING` clears raw pointers and appends content after each edict, then interns
-that content while reading. A save must not depend on the old string arena surviving.
-Version 102 rejects older layouts. The network protocol is unchanged.
-See [entity and player state](state-review.md) for ownership and regression tests.
+Format 214 changes the meaning of saved Captain target-event subscriptions. Roster membership owns death and owner-change events; retained target, follow and backup roles also own TargetLost. A unit with both roles retains their union and each event's FIFO rank. Format 213 records may contain a roster-only TargetLost subscription, which is invalid under the current contract. The exact-version guard rejects format 213 before restoring the world; no migration is provided. The `wc3_save.target378_rejects_version_213_before_captain_role_masks` regression checks the writer version, early rejection without live-state changes, and current-format restoration.
 
-## Impact callbacks and Immolation timing (version 122)
+ORDER-01.12 uses format 218: a worker hidden inside a gold mine owns one saved separation-disable count, and its retained user successor and Harvest phase heads (`852017`/`852018`/`852020`) keep their meaning across load. Format 217 is rejected before entity loading (`wc3_save.rejects_version_217_before_hidden_miner_order_retention`); no migration is provided.
 
-Version 122 appends `possession_projectile_death_think` to the callback roster.
-Possession's missile remains an edict while its Death sequence plays; saving in
-that interval must restore its callback and finish the effect without repeating
-ownership transfer. `wc3_spell.possession_apos_takes_over_and_consumes_caster`
-round-trips at impact and checks that the missile is freed afterward.
+Captain 376 uses format 217 for typed retained Town/Captain event records, Town preferred/latch owner clocks, Suicide AI-record state and the live classification word. Format 216 is rejected before entity or registry loading; no migration is implied. A public mutation changes live classification independently of authored rows, and physical publisher release removes stale listeners before slot reuse.
 
-Immolation uses seven substeps per second, independently of authored DataB.
-Its persistent status stores the elapsed substep count in `duration_ms` and the
-next deadline in `next_tick`; each substep drains DataB/7 mana and every seventh
-substep applies DataA damage. Zero drain still advances damage timing. Version
-121's variable-rate substep meaning is incompatible and is rejected. The custom
-rate regression covers RoC Data11/Data12 and TFT DataA1/DataB1, zero/fractional
-rates, toggle-off and continuation after save/load.
+## Upstream synchronization (Save225)
 
-`RebindEntityModels` also registers `WPN_ALINE` attack art for both weapon slots,
-matching spawn initialization. Numeric model handles from the saving process
-must never survive as projectile-model identities in the restored process.
-The network wire layout is unchanged; location cursor flags use the existing
-player stats delta (`net.location_cursor_flags_round_trip_and_clear`).
+Save225 adds the incoming persistent gameplay fields and callback roster to the
+reconciled serializer. Save224 and other prior layouts are rejected.
+Upstream version numbers 102–122 describe a different branch layout and are not
+compatible-format identifiers for this branch. Direct sparse pointers and embedded
+movement/order state remain authoritative; component headers, component-ID section
+ordering and travel-only movement allocation are not adopted. Existing native
+clock, target subscription, queue and cold-continuation contracts remain intact.
 
-The RoC effect and Force of Nature tests explicitly expect missing metadata to
-remain unresolved with `COMPAT_WORKAROUNDS=0`; effect assertions never dereference
-a missing presentation entity. Endurance Aura likewise expects no inferred
-BuffID in strict mode. Run `make test-wc3-engine COMPAT_WORKAROUNDS=0` to verify
-both archive variants with those compatibility fallbacks disabled.
+Possession's impact missile retains `possession_projectile_death_think` while its
+Death sequence plays. The callback roster must restore this continuation without
+repeating ownership transfer. `RebindEntityModels` also registers `WPN_ALINE` attack
+art for both weapon slots; saved numeric model handles are never restored as
+process-independent projectile identities.
 
-## Trained Hero proper names (version 121)
+Immolation retains seven substeps per second independently of authored DataB.
+Its status stores elapsed substeps in `duration_ms` and the next deadline in
+`next_tick`: each substep drains DataB/7 mana and every seventh applies DataA
+damage. Zero drain still advances damage timing. The merged version rejects
+layouts with incompatible timing semantics. Tests cover RoC Data11/Data12 and TFT
+DataA1/DataB1, zero/fractional rates, toggle-off and saved continuation.
 
-The selected `Propernames` value is stored in `unit_state.proper_name` and survives
-save/load independently of the unit profile's comma-separated name list. The field
-uses `F_ANIMSTRING`; pool records write and restore nested string values after their
-fixed-size record, in schema order. Version 121 rejects saves written with the
-incomplete version 120 pool-string layout. `wc3_save.field_trained_hero_proper_name_round_trip`
-checks the actual `WriteGame`/`ReadGame` path in Classic and TFT.
+A trained Hero's selected proper name persists independently of the profile's
+comma-separated name list. Serialize its string content rather than its process
+address. Incoming projectile attacker incarnations, launch-time damage profiles,
+Pillage ledgers and original Avatar scale likewise retain their owning records
+and require matching descriptors in the merged serializer.
 
-## Optional Soul Trap relationships (version 103)
+Metamorphosis captures its temporary health bonus in `morph_t`. That owned value
+survives native reverse scheduling and a save/load while the form is active, so
+the inverse removes the captured contribution rather than recomputing it from
+changed ability data.
 
-The carrier/target Soul Trap fields now live in the optional `soultrap` pool,
-not the raw edict. Its schema fixes `head`, `carrier`, `next` and `item` entity
-references and preserves their spawn incarnations, visibility owner and injected
-skill flags. Empty records are released by the ability lifecycle. Version 103
-rejects older saves; the network wire format remains unchanged. See
-[pooled state](pooled-entity-state.md#soul-trap-relationships).
+Status occupancy and timed-update indexes are derived from authoritative status
+slots, not saved as independent truth. Rebuild or invalidate them on loading and
+maintain them on add/remove/refresh; raw status edits must invalidate the indexes.
+Save rejection must clear partially decoded sparse attachments without dispatching
+gameplay inverses through invalid records. Early header/checksum rejection preserves
+the existing world; later failure does not promise whole-level or VM rollback.
 
-## Unit flags and derived stun (version 104)
-
-The raw edict stores `uint32_t unit_flags` instead of the independent alarm,
-invulnerability, pause, pathing and timed-life-pause booleans. Its explicit F_INT
-descriptor preserves every bit; ability-owned restore snapshots still store
-normalized booleans and change only their corresponding bit on restoration.
-
-The derived `stunned` field is removed rather than serialized as a bit. Loaded
-status records supply built-in and explicit STUNNED contributions immediately;
-expired records are ignored even before the next status cleanup. Version 104
-rejects older saves. Network fields and wire layouts do not change.
-
-## Whole-edict ownership extraction (version 105)
-
-Version 105 moves unit combat/progression/skills/statuses/cooldowns, sound response
-state, basic-attack missile state, physical inventory, carried resources and sight
-overrides to typed pools. Worker build project/preview fields move into retained
-orders; client placement selection moves into transient client menu state. More
-independent switches join `unit_flags`; four unused entity callbacks disappear.
-Older layouts are rejected. Network structures are unchanged.
-
-New records use the same owner-index and nested-field fixup contract as the older
-pools. The loader checks each pool's own capacity, including `MAX_ENTITIES` unit
-pools. The initialized move anchor stays beside authored moves instead of being
-placed after large pool BSS. Status slot addresses remain stable during gameplay;
-source pointers and instance IDs survive load, while runtime Hero shortcut pulses
-are cleared. Inventory slots retain entity references; missile reflection/profile,
-vision references and carry amounts retain their scalar values.
-
-The regressions cover absent-role queries, release/reuse/reset, every new pool's
-round trip, moved field descriptors, all unit flag bits, and pool admission before
-allocation. See [the ownership audit](state-review.md#whole-edict-ownership-pass)
-for lifetime and retained-base-field decisions.
-
-## Ownership rereview (version 106)
-
-The Wander record now persists its private waypoint's spawn incarnation, so a
-reused slot or repeated route serial cannot transfer ownership. Version 106 rejects
-older layouts. Build indicators' worker `owner` and retained-order preview pointer
-both use existing entity-reference fixups.
-
-`ReadPools` resets all typed pools when any record fails, including partial raw
-reads or invalid references. `ReadGame` resets old pools before replacing edicts
-and clears all new attachments if entity reading, pool loading or subsequent
-hashtable/VM/footer validation fails. It does not dispatch gameplay cleanup through
-partially decoded records. Early header/checksum rejection leaves the old entity
-world alone; later rejection does not promise level or VM rollback.
-
-Regressions cover a truncated final pool after every earlier pool loaded, and a
-checksummed extra payload byte after a valid VM snapshot. Both rejection paths
-must leave no typed records attached.
-
+The strict metadata tests keep unresolved RoC effect/Force of Nature art and
+Endurance Aura BuffID unresolved when `COMPAT_WORKAROUNDS=0`; presentation checks
+must not dereference missing effects. Incoming behavior tests and prior checkpoint
+counts do not establish validation of this merged source.
 
 ## Frontend Load Saved Game (RoC and TFT)
 
@@ -1120,117 +2425,3 @@ slot and verify that it disappears. A stale/invalid save must not crash or
 start a new map. Fixture-backed menu tests cover invalid and unreadable-save
 filtering, Quick Save naming, load dispatch, edition selection, and delete
 refresh. They do not exercise archive restoration or rendered retail layout.
-
-## Optional component attachments (version 107)
-
-Way Gate and Avatar records now attach through `edict_t.components`; their edict
-pointer fields are removed. Each concrete payload begins with an exact type ID
-and a runtime-only next link. `savePool_t.component` selects list lookup and
-attachment instead of an edict member offset. Save writes the type ID, excludes
-links, and restores only after decoding and validating the complete record.
-Truncated/rejected loads reset all pools and list heads. Earlier versions are
-rejected, and the network wire contract is unchanged.
-See [pooled state and components](pooled-entity-state.md#optional-components).
-
-## Second component slice (version 108)
-
-Polymorph, Raven Form, Ensnare and the artillery splash profile move onto the
-component list with `COMPONENT_POLYMORPH`, `COMPONENT_RAVEN`, `COMPONENT_ENSNARE`
-and `COMPONENT_ARTILLERY`. Their `edict_t` members and `F_IGNORE` schema rows are
-removed; each payload's field table starts with the runtime `component.next`
-exclusion and the pool descriptor carries the exact component ID. The model rebind
-after load reaches the Polymorph snapshot through `G_GetPolymorph`, and projectile
-impact in `g_phys.c` reads the saved splash profile through `G_GetArtillery`.
-Version 107 saves are rejected; the wire format is unchanged.
-
-## Third component slice (version 109)
-
-Sleep, Rally, Sacrifice, Unsummon and Blight Growth move onto the component list
-(`COMPONENT_SLEEP`, `COMPONENT_RALLY`, `COMPONENT_SACRIFICE`, `COMPONENT_UNSUMMON`,
-`COMPONENT_BLIGHT_GROWTH`). Their edict members and `F_IGNORE` schema rows are
-removed. `rally->entity`, `sacrifice->worker` and `unsummon->target` keep their
-`F_EDICT` fixups behind the runtime `component.next` exclusion; Blight Growth and
-Sleep payloads are scalar. The SC2API observation reads rally state through
-`G_GetRally`, and Train checks queued Sacrifice results through `G_GetSacrifice`.
-Version 108 saves are rejected; the wire format is unchanged.
-
-## Fourth component slice (version 110)
-
-Shadow Meld, Militia, Hero revival and worker build/repair state move onto the
-component list (`COMPONENT_SHADOWMELD`, `COMPONENT_MILITIA`, `COMPONENT_REVIVAL`,
-`COMPONENT_BUILDWORK`). `revival->producer` and `revival->queue_next` keep their
-`F_EDICT` fixups; Militia's `partner`, `partner_spawn_time` and `returning` remain
-runtime exclusions; Shadow Meld and Buildwork payloads are scalar. The production
-queue walkers (`ProductionNext`, HUD queue, `Get_Commands_f`) read revival state
-through `G_HeroIsReviving` and `G_GetRevival`. Version 109 saves are rejected; the
-wire format is unchanged.
-
-## Fifth component slice (version 111)
-
-Ancient Root, the Gold Mine admission record, Haunted/Entangled mine overlays, the
-Acolyte slot record, Cargo and Soul Trap move onto the component list
-(`COMPONENT_ANCIENT_ROOT`, `COMPONENT_GOLDMINE`, `COMPONENT_MINE_OVERLAY`,
-`COMPONENT_ACOLYTE_MINE`, `COMPONENT_CARGO`, `COMPONENT_SOULTRAP`). Every entity
-reference inside those payloads keeps its `F_EDICT` fixup (including the
-`cargo->units[]` array and the four Soul Trap links) behind the runtime
-`component.next` exclusion. `G_InitGoldMine` now attaches through `G_AddComponent`.
-Version 110 saves are rejected; the wire format is unchanged.
-
-## Sixth component slice (version 112)
-
-Research, the Food ledger and shop Stock move onto the component list
-(`COMPONENT_RESEARCH`, `COMPONENT_FOOD`, `COMPONENT_STOCK`). Research and Food
-payloads are scalar; Stock keeps its counted `items`/`units` struct arrays behind the
-runtime `component.next` exclusion. The edict schema no longer carries a `stock`
-member, which the shop stock round-trip test now asserts. Version 111 saves are
-rejected; the wire format is unchanged.
-
-## Seventh component slice (version 113)
-
-The spell Channel record moves onto the component list (`COMPONENT_CHANNEL`).
-`channel->source_item` keeps its `F_EDICT` fixup behind the runtime
-`component.next` exclusion; the cast serial, owner/target spawn times and origin
-stay scalar. Channel is also the last typed pool in the stream, so the truncated
-pool test still uses it. Version 112 saves are rejected; the wire format is unchanged.
-
-## Eighth component slice (version 114)
-
-Destructable and Construction move onto the component list
-(`COMPONENT_DESTRUCTABLE`, `COMPONENT_CONSTRUCTION`). The construction
-`primary_builder` and `worker` references keep their `F_EDICT` fixups; the
-destructable pathing textures and drop-set views stay process-owned exclusions and
-are rebuilt from object data after load, as before. The destructable section keeps
-`DESTRUCTABLE_POOL_CAP`. Version 113 saves are rejected; the wire format is unchanged.
-
-## Ninth component slice (version 115)
-
-Item moves onto the component list (`COMPONENT_ITEM`). The item `carrier`,
-`pending_use_carrier` and `soul_target` references keep their `F_EDICT` fixups;
-charges, drop ID, user data, the pawnable/droppable/death-drop overrides and the
-world/inventory placement remain plain values of the payload. The section keeps
-`LIFECYCLE_POOL_CAP`. Version 114 saves are rejected; the wire format is unchanged.
-
-### Runtime link handling
-
-`WritePool` and `ReadPool` clear the `component.next` link of every component
-pool record themselves, using the descriptor's component ID, so the per-type
-field tables no longer carry a `component.next` exclusion row. The written bytes
-are identical to the row-based exclusion (the link was already zero in the file),
-so the format version does not change; the earlier slice sections describe the
-rows as they were introduced.
-
-## Generated component sections (since version 116)
-
-The component save sections are generated from the `G_COMPONENTS` table in
-`g_local.h`, one per row. The ten direct `MAX_ENTITIES` pools are written first
-in their previous relative order (`orders`, `movement`, `route`, `wander`,
-`unit_state`, `sound`, `missile`, `inventory`, `harvest`, `vision`). The
-component sections follow in component-ID order, from `waygate` (1) through
-`pillage` (29). Each section's name, record size, capacity, field table and exact component
-ID come from its row, and restore allocates through the component registry
-(`G_AllocDetachedComponent`) instead of a per-type save allocator. Payload bytes,
-ID validation, link clearing and entity-reference fixups are unchanged; only the
-section order differs from version 115, so version 115 saves are rejected. The
-wire format is unchanged. Version 117 adds the Pillage building ledger and Avatar
-original-scale field. Version 118 adds the launch-time attacker incarnation to each
-basic attack missile; mismatched earlier versions are rejected.

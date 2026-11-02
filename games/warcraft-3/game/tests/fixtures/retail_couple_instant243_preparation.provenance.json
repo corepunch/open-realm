@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "projection_sha256": "7cac44149d64a15cc2db230068d82f52f80d3d1533acd67ad47d03a976ef3cf4",
+  "header_sha256": "4ed62fd76ff2c348dcf5ce3afe2eeb3c108cb05466b6c6210089af4af3ae6e0d",
+  "capture_files_sha256": {
+    "itemdrop_capture.py": "7607b3ec36e59420bf4fbb195a1272761acabb50877f11596dfe667129944fe9",
+    "itemdrop_make_map.py": "952142a6fc4ccd0a390a57dfccb3698f2271bc64815921b42b1d67c5b6efddb5",
+    "itemdrop_probe.j": "b4aea28fe0e64ff7a2c689bfc1acdb0ddff73beccc45a586e600e7c151ca07bc",
+    "probe.ai": "a6857c412666d7ebf97f5835c0f327c5b8ec1b00ad676b01270b70f6763f0975",
+    "RS-TARGET243-preparatory-setup-v4.w3m": "be64fb424519a81e004ac8f9590f611928e63f58142365792de9c17dbb47b8ea",
+    "RS-TARGET243-preparatory-setup-v4.json": "b84fbc8efaf8f86087d2bfc9c541db0da40413518991de860261c1308b6c9c59",
+    "itemdrop_observer.js": "5db03ea5da368c6435565e22f0aead365bd350c11441e1379d830c6005f50eeb",
+    "frozen-sources.json": "b8d708be4ee851384b6e9e2fd5a76f605f120c41206fcc8164a0814e41983169",
+    "observe1.jsonl": "1e716cd06e17efa07a258a05e7fc19a70df3aab434eae12fe60cda871ab5b12d",
+    "observe2.jsonl": "9b5e58b6f5912e006dd06378a87aa3294215aa46f40d7943635b85c008421075",
+    "observe1-preload.txt": "acf93437bff8169299394950c3d47da5272fe7e7d3826cbf7554a3aaaee74fcf",
+    "observe2-preload.txt": "90c5f91676e9b26efd94d22e4c74a4e4d1c94da3e21e9a77046c7b53cbdeec67",
+    "../control-diagnostic.jsonl": "23c0db690c44776a82298f3353c2e6e97648ff4065c33d11dc47163acc83b1ea",
+    "../control-diagnostic-preload.txt": "036c6f96a4ded56e83379f63b606d8e5dad199780b6b2fa43c7f1348eb653efb",
+    "../control-diagnostic.log": "c5082019124a74c5113fd388addeb008466875bd03d35e136ce1e768f90b4a4d"
+  },
+  "scope": "Native243 accepted stable observer v2 only. Header adapts Preload calls, preserving all remaining JASS source bytes. Control unused observer source differs; gameplay/map source identical.",
+  "limitations": [
+    "Only 131 selected native records are an equality oracle; no full numeric poll oracle.",
+    "The failed inline observer is excluded; no isolated cause is assigned.",
+    "Mana remains zero and potion charges remain one; no successful restoration/consumption claim.",
+    "Native spell event IDs 272..276 require typed role mapping; FourCC fields require typed conversion only.",
+    "This capture does not record GetSpellTargetUnit or spell target X/Y."
+  ],
+  "typed_event_source": "Original War3Patch.mpq Scripts/common.j: CHANNEL272 CAST273 EFFECT274 FINISH275 ENDCAST276"
+}

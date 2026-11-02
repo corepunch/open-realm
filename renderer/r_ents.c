@@ -43,7 +43,9 @@ static void R_YawEntityPlacement(mat4_t *out, modelPose_t const *pose) {
 }
 
 void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
-    modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
+    modelPose_t pose = { .origin = entity->origin, .angles = {
+        entity->angle + entity->pose_offset.yaw, entity->pose_offset.pitch, entity->pose_offset.roll },
+        .scale = entity->scale };
     mat4_t const *basis = R_EntityPose(entity, &pose);
     mat4_t placement;
 

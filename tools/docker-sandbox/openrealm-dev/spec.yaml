@@ -41,7 +41,7 @@ setup:
           xauth
         "
 
-        # Retail analysis needs a 32-bit Wine, a JRE for Ghidra and several hundred MB of downloads;
+        # Retail analysis needs a 32-bit Wine, a full JDK for Ghidra and several hundred MB of downloads;
         # keep it out of the default image so an unavailable package or release URL cannot break it.
         if [ "${{ kit.args.retail_tools }}" = "1" ]; then
           if ! dpkg --print-foreign-architectures | grep -qx i386; then
@@ -51,7 +51,6 @@ setup:
             wine
             wine64
             libwine:i386
-            openjdk-21-jre-headless
             python3-venv
             curl
             unzip
@@ -76,10 +75,17 @@ setup:
         tools_dir=/opt/openrealm-tools
         mkdir -p "$tools_dir"
 
-        ghidra_zip=/tmp/ghidra_12.1.4_PUBLIC_20260921.zip
+        jdk_tar=/tmp/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz
+        curl -fL --retry 3 -o "$jdk_tar" \
+          https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5%2B8/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz
+        echo '68982529869257d0ee6b824ec5aa270ff8b118bb438670da0b97ebdab178d7fb  '"$jdk_tar" | sha256sum -c -
+        tar -xzf "$jdk_tar" -C "$tools_dir"
+        rm -f "$jdk_tar"
+
+        ghidra_zip=/tmp/ghidra_12.2_PUBLIC_20261016.zip
         curl -fL --retry 3 -o "$ghidra_zip" \
-          https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip
-        echo 'ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db  '"$ghidra_zip" | sha256sum -c -
+          https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.2_build/ghidra_12.2_PUBLIC_20261016.zip
+        echo '2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67  '"$ghidra_zip" | sha256sum -c -
         unzip -q "$ghidra_zip" -d "$tools_dir"
         rm -f "$ghidra_zip"
 
@@ -98,17 +104,19 @@ setup:
         ln -sf "$tools_dir/frida-server.exe" /usr/local/bin/frida-server.exe
         cat > /usr/local/bin/ghidra <<'EOF'
         #!/bin/sh
-        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-        exec /opt/openrealm-tools/ghidra_12.1.4_PUBLIC/ghidraRun "$@"
+        export JAVA_HOME=/opt/openrealm-tools/jdk-25.0.5+8
+        exec /opt/openrealm-tools/ghidra_12.2_PUBLIC/ghidraRun "$@"
         EOF
         chmod 755 /usr/local/bin/ghidra
 
+        /opt/openrealm-tools/jdk-25.0.5+8/bin/java -version
+        /opt/openrealm-tools/jdk-25.0.5+8/bin/javac -version
         wine --version
         test -x /usr/local/bin/ghidra
         test -x /usr/local/bin/frida
         test -x /usr/local/bin/frida-ps
         test -x /usr/local/bin/frida-server.exe
-        test -x /opt/openrealm-tools/ghidra_12.1.4_PUBLIC/ghidraRun
+        test -x /opt/openrealm-tools/ghidra_12.2_PUBLIC/ghidraRun
         /opt/openrealm-tools/frida-venv/bin/python -c 'import frida; assert frida.__version__ == "17.19.0"'
         fi
 

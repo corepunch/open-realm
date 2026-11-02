@@ -40,7 +40,7 @@ static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
     fix.caster->s.player = fix.ally->s.player = 0; fix.enemy->s.player = 1;
     fix.caster->svflags |= SVF_MONSTER; fix.ally->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
     fix.caster->targtype = fix.ally->targtype = fix.enemy->targtype = TARG_GROUND;
-    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 100;
     fix.ally->health.value = fix.ally->health.max_value = 500;
     return fix;
@@ -65,8 +65,8 @@ TEST(wc3_spell, anti_magic_shell_respects_authored_enemy_target_mask) {
 }
 
 static uint32_t ams_remaining(edict_t const *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == BZ_BAM2) return unit->unit_state->statuses[i].data;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BAM2) return unit->abilstatus[i].data;
     return 0;
 }
 
@@ -160,12 +160,12 @@ TEST(wc3_spell, anti_magic_shell_dispels_spell_buffs_but_preserves_unholy_aura) 
     amsFix_t fix = ams_setup(slk, BZ_AMS);
     edict_t *aura_source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 16, 0);
 
-    fix.caster->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_AUFA, .level = 1);
+    fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_AUFA, .level = 1);
     aura_source->s.player = fix.ally->s.player;
     aura_source->targtype = TARG_GROUND;
     aura_source->svflags |= SVF_MONSTER;
     aura_source->data.UnitAbilities = &unholy_abilities;
-    aura_source->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AUAU, .level = 1);
+    aura_source->heroabilities[0] = MAKE(heroability_t, .code = BZ_AUAU, .level = 1);
     fix.ally->mana.max_value = fix.ally->mana.value = 100;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUFA, fix.ally));
@@ -321,7 +321,7 @@ TEST(wc3_spell, anti_magic_shell_absorption_survives_save_load) {
     T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 100));
     T_EQ(ams_remaining(fix.ally), 200);
     T_ASSERT(WriteGame(path));
-    memset(fix.ally->unit_state->statuses, 0, sizeof(fix.ally->unit_state->statuses));
+    memset(fix.ally->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*fix.ally->abilstatus));
     T_EQ(ams_remaining(fix.ally), 0);
     T_ASSERT(ReadGame(path));
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 1);

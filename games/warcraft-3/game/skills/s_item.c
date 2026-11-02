@@ -18,56 +18,42 @@
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
-/* A unit may carry souls and itself be trapped; retire only after both roles finish. */
-static void soul_trap_free_unused(edict_t *unit) {
-    soulTrap_t *souls = G_GetSoulTrap(unit);
-    if (unit && souls && !souls->head && !souls->carrier &&
-        !souls->item && !souls->trapped_ability_added &&
-        !souls->possession_added) G_FreeSoulTrap(unit);
-}
-
 static bool soul_trap_valid_link(edict_t const *carrier, edict_t const *target) {
-    soulTrap_t *souls = G_GetSoulTrap(target);
-    return carrier && carrier->inuse && target && target->inuse && souls &&
-        souls->carrier == carrier &&
-        souls->carrier_spawn_time == carrier->spawn_time &&
+    return carrier && carrier->inuse && target && target->inuse &&
+        target->soul_trap_carrier == carrier &&
+        target->soul_trap_carrier_spawn_time == carrier->spawn_time &&
         (target->aiflags & AI_SOUL_TRAPPED);
 }
 
 static void soul_trap_remove_possession(edict_t *carrier) {
-    soulTrap_t *souls = G_GetSoulTrap(carrier);
-    if (!carrier || !souls || !souls->possession_added || souls->head) return;
-    souls->possession_added = false;
-    if (G_ActorHasSkill(carrier, "Asou"))
+    if (!carrier || !carrier->soul_possession_added || carrier->soul_trap_head) return;
+    carrier->soul_possession_added = false;
+    if (G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(carrier, ID_SOUL_POSSESSION);
 }
 
 static void soul_trap_unlink(edict_t *target) {
-    soulTrap_t *souls = G_GetSoulTrap(target);
     edict_t *carrier, *current, *previous = NULL;
     uint32_t current_spawn, carrier_spawn, guard = 0;
-    if (!target || !souls) return;
-    carrier = souls->carrier;
-    soulTrap_t *carrier_souls = G_GetSoulTrap(carrier);
-    carrier_spawn = souls->carrier_spawn_time;
-    if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn && carrier_souls) {
-        current = carrier_souls->head;
-        current_spawn = carrier_souls->head_spawn_time;
+    if (!target) return;
+    carrier = target->soul_trap_carrier;
+    carrier_spawn = target->soul_trap_carrier_spawn_time;
+    if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn) {
+        current = carrier->soul_trap_head;
+        current_spawn = carrier->soul_trap_head_spawn_time;
         while (current && guard++ < globals.max_edicts) {
             edict_t *next;
             uint32_t next_spawn;
-            soulTrap_t const *current_souls = G_GetSoulTrap(current);
-            if (!current->inuse || current->spawn_time != current_spawn || !current_souls) break;
-            next = current_souls->next;
-            next_spawn = current_souls->next_spawn_time;
+            if (!current->inuse || current->spawn_time != current_spawn) break;
+            next = current->soul_trap_next;
+            next_spawn = current->soul_trap_next_spawn_time;
             if (current == target) {
                 if (previous) {
-                    soulTrap_t *previous_souls = G_GetSoulTrap(previous);
-                    previous_souls->next = next;
-                    previous_souls->next_spawn_time = next_spawn;
+                    previous->soul_trap_next = next;
+                    previous->soul_trap_next_spawn_time = next_spawn;
                 } else {
-                    carrier_souls->head = next;
-                    carrier_souls->head_spawn_time = next_spawn;
+                    carrier->soul_trap_head = next;
+                    carrier->soul_trap_head_spawn_time = next_spawn;
                 }
                 break;
             }
@@ -76,119 +62,115 @@ static void soul_trap_unlink(edict_t *target) {
             current_spawn = next_spawn;
         }
     }
-    souls->carrier = souls->next = NULL;
-    souls->carrier_spawn_time = souls->next_spawn_time = 0;
+    target->soul_trap_carrier = target->soul_trap_next = NULL;
+    target->soul_trap_carrier_spawn_time = target->soul_trap_next_spawn_time = 0;
     target->aiflags &= ~AI_SOUL_TRAPPED;
     if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn) {
-        G_RemoveUnitForcedVisibility(carrier, souls->viewer);
+        G_RemoveUnitForcedVisibility(carrier, target->soul_trap_viewer);
         soul_trap_remove_possession(carrier);
-        if (carrier != target) soul_trap_free_unused(carrier);
     }
-    souls->viewer = 0;
+    target->soul_trap_viewer = 0;
 }
 
 static void soul_trap_release_target(edict_t *target, vec2_t const *position, bool restore_world) {
-    soulTrap_t *souls = G_GetSoulTrap(target);
     bool remove_asou;
     edict_t *item;
     uint32_t item_spawn;
-    if (!target || !souls || !(target->aiflags & AI_SOUL_TRAPPED)) return;
+    if (!target || !(target->aiflags & AI_SOUL_TRAPPED)) return;
+    uint32_t const target_spawn = target->spawn_time;
+    vec2_t const release_position = position ? *position : target->s.origin2;
     soul_trap_unlink(target);
-    item = souls->item;
-    item_spawn = souls->item_spawn_time;
-    souls->item = NULL;
-    souls->item_spawn_time = 0;
-    if (item && item->inuse && item->spawn_time == item_spawn) {
-        item_t *rec = G_GetItem(item);
-        if (rec->soul_target == target && rec->soul_target_spawn_time == target->spawn_time) {
-            rec->soul_target = NULL;
-            rec->soul_target_spawn_time = 0;
-            G_RemoveItem(item);
-        }
+    if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target)) return;
+    item = target->soul_trap_item;
+    item_spawn = target->soul_trap_item_spawn_time;
+    target->soul_trap_item = NULL;
+    target->soul_trap_item_spawn_time = 0;
+    if (item && item->inuse && item->spawn_time == item_spawn &&
+        item->item->soul_target == target && item->item->soul_target_spawn_time == target->spawn_time) {
+        item->item->soul_target = NULL;
+        item->item->soul_target_spawn_time = 0;
+        G_RemoveItem(item);
     }
-    remove_asou = souls->trapped_ability_added;
-    souls->trapped_ability_added = false;
+    if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target) ||
+        (target->aiflags & AI_SOUL_TRAPPED)) return;
+    remove_asou = target->soul_trapped_ability_added;
+    target->soul_trapped_ability_added = false;
     if (restore_world && !M_IsDead(target)) {
         if (position) {
-            target->s.origin2 = *position;
-            target->s.origin.x = position->x;
-            target->s.origin.y = position->y;
-            target->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
+            target->s.origin2 = release_position;
+            target->s.origin.x = release_position.x;
+            target->s.origin.y = release_position.y;
+            target->s.origin.z = CM_GetHeightAtPoint(release_position.x, release_position.y);
         }
-        target->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(target,false);
         target->svflags &= ~SVF_NOCLIENT;
         target->s.flags &= ~EF_NOT_SELECTABLE;
         if (target->stand) target->stand(target);
+        if (!target->inuse || target->spawn_time != target_spawn || G_IsDeferredFree(target) ||
+            M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return;
+        S_RefreshUnitSeparation(target);
         gi.LinkEntity(target);
         if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
     }
-    if (remove_asou && G_ActorHasSkill(target, "Asou"))
+    if (remove_asou && G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
-    soul_trap_free_unused(target);
 }
 
 static void soul_trap_release_carried(edict_t *carrier, vec2_t const *position, bool restore_world) {
-    soulTrap_t *souls = G_GetSoulTrap(carrier);
     uint32_t guard = 0;
-    if (!carrier || !souls) return;
-    /* Releasing the last soul may free the carrier's record, so each pass re-reads it. */
-    while ((souls = G_GetSoulTrap(carrier)) && souls->head && guard++ < globals.max_edicts) {
-        edict_t *target = souls->head;
-        uint32_t spawn_time = souls->head_spawn_time;
-        if (!target->inuse || target->spawn_time != spawn_time || !soul_trap_valid_link(carrier, target)) {
-            /* A retired/reused slot no longer owns the old list's next link. */
-            souls->head = NULL;
-            souls->head_spawn_time = 0;
-            break;
+    if (!carrier) return;
+    while (carrier->soul_trap_head && guard++ < globals.max_edicts) {
+        edict_t *target = carrier->soul_trap_head;
+        uint32_t spawn_time = carrier->soul_trap_head_spawn_time;
+        if (!target->inuse || target->spawn_time != spawn_time) {
+            carrier->soul_trap_head = target->soul_trap_next;
+            carrier->soul_trap_head_spawn_time = target->soul_trap_next_spawn_time;
+            continue;
         }
         soul_trap_release_target(target, position, restore_world && target != carrier);
     }
     soul_trap_remove_possession(carrier);
-    soul_trap_free_unused(carrier);
 }
 
 static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     uint32_t const code = ID_SOUL_POSSESSION;
     if (!carrier || !carrier->inuse || M_IsDead(carrier) || !target || !target->inuse ||
         M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return false;
-    /* A unit may be both carrier and target; the two records are distinct only when the edicts are. */
-    soulTrap_t *carried = G_AddSoulTrap(carrier), *souls = G_AddSoulTrap(target);
-    if (!G_ActorHasSkill(carrier, "Asou")) {
+    if (!G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(carrier, code)) {
             fprintf(stderr, "Soul Trap: unable to add Asou possession state to carrier %.4s\n",
                     (cstring_t)&carrier->class_id);
-            soul_trap_free_unused(target);
-            soul_trap_free_unused(carrier);
             return false;
         }
-        carried->possession_added = true;
+        carrier->soul_possession_added = true;
     }
-    if (target != carrier && !G_ActorHasSkill(target, "Asou")) {
+    if (target != carrier && !G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(target, code)) {
             soul_trap_remove_possession(carrier);
             fprintf(stderr, "Soul Trap: unable to add Asou trapped state to target %.4s\n",
                     (cstring_t)&target->class_id);
-            soul_trap_free_unused(target);
-            soul_trap_free_unused(carrier);
             return false;
         }
-        souls->trapped_ability_added = true;
+        target->soul_trapped_ability_added = true;
     }
-    souls->carrier = carrier;
-    souls->carrier_spawn_time = carrier->spawn_time;
-    souls->next = carried->head;
-    souls->next_spawn_time = carried->head_spawn_time;
-    carried->head = target;
-    carried->head_spawn_time = target->spawn_time;
-    souls->viewer = target->s.player;
-    G_AddUnitForcedVisibility(carrier, souls->viewer);
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_next = carrier->soul_trap_head;
+    target->soul_trap_next_spawn_time = carrier->soul_trap_head_spawn_time;
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_viewer = target->s.player;
+    G_AddUnitForcedVisibility(carrier, target->soul_trap_viewer);
     target->aiflags |= AI_SOUL_TRAPPED;
+    S_RefreshUnitSeparation(target);
     S_SpellCancelChannel(target);
     G_ClearUnitOrderQueue(target);
-    target->goalentity = target->combatentity = target->orders->resource_goal = NULL;
+    S_SetMoveGoal(target, &target->secondarygoal, NULL);
+    target->combatentity = NULL;
+    S_SetMoveGoal(target, &target->goalentity, NULL);
     if (target->stand) target->stand(target);
-    target->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(target,true);
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
     if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
@@ -200,7 +182,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
         G_DeselectEntity(client, target);
         G_SyncClientSelection(client);
     }
-    target->selected = 0;
+    G_SetEntitySelectionMask(target, 0);
     G_InvalidateUnitShortcutsForUnit(target);
     return true;
 }
@@ -218,12 +200,10 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
         if (!call->target || call->target->type != SPELL_TARGET_UNIT ||
             !soul_trap_capture(ent, call->target->entity)) return false;
         if (call->source_item && call->source_item->inuse &&
-            call->source_item->spawn_time == call->source_item_spawn_time) {
-            item_t *rec = G_GetItem(call->source_item);
-            if (rec->carrier == ent) {
-                rec->soul_target = call->target->entity;
-                rec->soul_target_spawn_time = call->target->entity->spawn_time;
-            }
+            call->source_item->spawn_time == call->source_item_spawn_time &&
+            call->source_item->item->carrier == ent) {
+            call->source_item->item->soul_target = call->target->entity;
+            call->source_item->item->soul_target_spawn_time = call->target->entity->spawn_time;
         }
         return true;
     default:
@@ -232,41 +212,36 @@ BZ_ABILITY_PROC(CAbilitySoulTrap) {
 }
 
 static bool soul_trap_item_linked(edict_t const *carrier, edict_t const *item) {
-    item_t *rec = G_ItemState(item);
     edict_t const *target;
-    if (!carrier || !rec || !rec->soul_target) return false;
-    target = rec->soul_target;
-    soulTrap_t *souls = G_GetSoulTrap(target);
-    return target->inuse && souls && target->spawn_time == rec->soul_target_spawn_time &&
-        souls->item == item && souls->item_spawn_time == item->spawn_time &&
+    if (!carrier || !G_IsItem(item) || !item->item->soul_target) return false;
+    target = item->item->soul_target;
+    return target->inuse && target->spawn_time == item->item->soul_target_spawn_time &&
+        target->soul_trap_item == item && target->soul_trap_item_spawn_time == item->spawn_time &&
         soul_trap_valid_link(carrier, target);
 }
 
 static void soul_trap_finalize_consumed_item(edict_t *item) {
     edict_t *carrier, *target, *filled;
-    item_t *rec = G_GetItem(item), *filled_rec;
     uint32_t carrier_spawn, target_spawn;
     int32_t slot;
-    if (!item || !rec->soul_target) return;
-    target = rec->soul_target;
-    soulTrap_t *souls = G_GetSoulTrap(target);
-    target_spawn = rec->soul_target_spawn_time;
-    carrier = rec->pending_use_carrier;
-    carrier_spawn = rec->pending_use_carrier_spawn_time;
-    rec->soul_target = NULL;
-    rec->soul_target_spawn_time = 0;
-    if (!target->inuse || !souls || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
+    if (!item || !item->item->soul_target) return;
+    target = item->item->soul_target;
+    target_spawn = item->item->soul_target_spawn_time;
+    carrier = item->item->pending_use_carrier;
+    carrier_spawn = item->item->pending_use_carrier_spawn_time;
+    item->item->soul_target = NULL;
+    item->item->soul_target_spawn_time = 0;
+    if (!target->inuse || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
         !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
-    slot = rec->pending_use_slot;
-    filled = slot >= 0 && slot < (int32_t)G_InventoryCapacity(carrier) ? G_InventoryItem(carrier, slot) : NULL;
-    filled_rec = filled && filled->class_id == ID_FILLED_SOUL ? G_GetItem(filled) : NULL;
-    if (filled_rec && !filled_rec->soul_target) {
-        filled_rec->soul_target = target;
-        filled_rec->soul_target_spawn_time = target_spawn;
-        souls->item = filled;
-        souls->item_spawn_time = filled->spawn_time;
-        filled_rec->droppable_set = true;
-        filled_rec->droppable = false;
+    slot = item->item->pending_use_slot;
+    filled = slot >= 0 && slot < (int32_t)G_InventoryCapacity(carrier) ? carrier->inventory[slot] : NULL;
+    if (filled && filled->class_id == ID_FILLED_SOUL && !filled->item->soul_target) {
+        filled->item->soul_target = target;
+        filled->item->soul_target_spawn_time = target_spawn;
+        target->soul_trap_item = filled;
+        target->soul_trap_item_spawn_time = filled->spawn_time;
+        filled->item->droppable_set = true;
+        filled->item->droppable = false;
         return;
     }
     if (!G_ItemData(ID_FILLED_SOUL)->file) {
@@ -275,17 +250,16 @@ static void soul_trap_finalize_consumed_item(edict_t *item) {
     }
     filled = SP_SpawnAtLocationNoBirth(ID_FILLED_SOUL, carrier->s.player, &carrier->s.origin2);
     if (!filled) return;
-    filled_rec = G_GetItem(filled); /* The spawn attached the new item's record. */
-    filled_rec->droppable_set = true;
-    filled_rec->droppable = false;
-    slot = rec->pending_use_slot;
-    if (slot < 0 || slot >= (int32_t)G_InventoryCapacity(carrier) || G_InventoryItem(carrier, slot))
+    filled->item->droppable_set = true;
+    filled->item->droppable = false;
+    slot = item->item->pending_use_slot;
+    if (slot < 0 || slot >= (int32_t)G_InventoryCapacity(carrier) || carrier->inventory[slot])
         slot = G_FindFreeInventorySlot(carrier);
     if (slot >= 0 && G_AddItemToSlotInternal(carrier, filled, (uint32_t)slot, false)) {
-        filled_rec->soul_target = target;
-        filled_rec->soul_target_spawn_time = target_spawn;
-        souls->item = filled;
-        souls->item_spawn_time = filled->spawn_time;
+        filled->item->soul_target = target;
+        filled->item->soul_target_spawn_time = target_spawn;
+        target->soul_trap_item = filled;
+        target->soul_trap_item_spawn_time = filled->spawn_time;
     } else {
         fprintf(stderr, "Soul Trap: could not place filled Soul in carrier inventory\n");
         G_RemoveItem(filled);
@@ -293,48 +267,42 @@ static void soul_trap_finalize_consumed_item(edict_t *item) {
 }
 
 BZ_ABILITY_PROC(CAbilitySoulTrapped) {
-    soulTrap_t *souls = G_GetSoulTrap(ent);
     switch (msg) {
     case A_ITEM_PREVENT_DROP:
         return call && call->source_item && soul_trap_item_linked(ent, call->source_item);
     case A_ITEM_FINALIZE:
         if (call && call->source_item && call->source_item->inuse &&
             call->source_item->spawn_time == call->source_item_spawn_time &&
-            G_GetItem(call->source_item)->pending_use_carrier == ent)
+            call->source_item->item->pending_use_carrier == ent)
             soul_trap_finalize_consumed_item(call->source_item);
         return true;
     case A_ITEM_SCRIPT_REMOVE: {
         edict_t *item = call ? call->source_item : NULL;
-        item_t *rec = G_GetItem(item);
-        if (!soul_trap_item_linked(ent, item) || rec->carrier != ent ||
-            rec->inventory_slot < 0 || rec->inventory_slot >= MAX_INVENTORY ||
-            G_InventoryItem(ent, rec->inventory_slot) != item) return false;
-        return G_DetachItemAtScripted(ent, (uint32_t)rec->inventory_slot);
+        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
+            item->item->inventory_slot < 0 || item->item->inventory_slot >= MAX_INVENTORY ||
+            ent->inventory[item->item->inventory_slot] != item) return false;
+        return G_DetachItemAtScripted(ent, (uint32_t)item->item->inventory_slot);
     }
     case A_ITEM_SCRIPT_REATTACH: {
         edict_t *item = call ? call->source_item : NULL;
-        item_t *rec = G_GetItem(item);
         int32_t slot;
-        if (!soul_trap_item_linked(ent, item) || rec->carrier != ent ||
-            rec->inventory_slot != -1 || rec->in_world) return false;
+        if (!soul_trap_item_linked(ent, item) || item->item->carrier != ent ||
+            item->item->inventory_slot != -1 || item->item->in_world) return false;
         slot = G_FindFreeInventorySlot(ent);
         return slot >= 0 && G_ReattachItemAtScripted(ent, item, (uint32_t)slot);
     }
     case A_DEATH:
-        if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
-        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
-        if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, NULL, false);
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, NULL, false);
         return true;
     case A_DISABLE:
-        if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
-        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
-        if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, &ent->s.origin2, true);
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, &ent->s.origin2, true);
         return true;
     case A_UNIT_REMOVE:
-        if (ent && souls && souls->head) soul_trap_release_carried(ent, &ent->s.origin2, true);
-        souls = G_GetSoulTrap(ent); /* The carried release may have freed the record. */
-        if (ent && souls && (ent->aiflags & AI_SOUL_TRAPPED)) {
-            souls->trapped_ability_added = false;
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) {
+            ent->soul_trapped_ability_added = false;
             soul_trap_release_target(ent, NULL, false);
         }
         return true;
@@ -343,9 +311,16 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     }
 }
 
-BZ_ITEM_PROC(AbilityItemHeal) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call);
+static uint32_t item_use_code(edict_t *ent, abilityCall_t const *call,uint32_t fallback) {
+    if(call && call->item && call->item->code)return call->item->code;
+    return ent && ent->client ? S_SpellCurrentCode(ent,fallback) : fallback;
+}
+
+BZ_ABILITY_PROC(CAbilityItemHeal) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *target = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_HEAL);
     float amount = S_SpellData(code, 1, 1);
 
     if (!S_SpellIsAliveTarget(target) || amount <= 0 || target->health.value >= target->health.max_value) {
@@ -357,67 +332,44 @@ BZ_ITEM_PROC(AbilityItemHeal) {
 }
 
 
-static bool AbilityItemInvis_ItemUse(edict_t *clent) {
-    edict_t *target;
-    uint32_t code;
-    abilityLevel_t const *row;
-    cstring_t buff;
-    float duration;
-    bool has_status_slot;
-
-    if (!clent || !clent->client) return false;
-    code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','v','i'));
-    row = G_AbilityLevel(code, 1);
-    buff = row ? row->buffID : NULL;
-    target = G_GetMainSelectedUnit(clent->client);
-    duration = S_SpellHeroDuration(code, 1, target);
-    has_status_slot = buff && strlen(buff) == 4 && unit_findstatus(target, *((uint32_t const *)buff));
-
-    if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
-        return false;
-    if (!has_status_slot) {
-        FOR_LOOP(i, target->unit_state ? MAX_UNIT_STATUSES : 0)
-            if (!target->unit_state->statuses[i].level) { has_status_slot = true; break; }
-    }
-    if (!has_status_slot) return false;
-
-    target->s.renderfx |= RF_HIDDEN;
-    {
-        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
-        if (status) {
-            status->data = code;
-            /* The timed buff owns its persistent TargetArt; expiry, dispel and
-             * refresh use the common status-effect lifecycle. */
-            unit_status_enabletargetart(target, status, "origin");
-        }
-        if (status) return true;
-    }
-    if (!S_UnitHasTemporaryInvisibility(target, NULL)) {
-        fprintf(stderr, "WC3 invisibility item: authored status %.4s missing after use on unit %u\n",
-                buff,
-                target->s.number);
-        target->s.renderfx &= ~RF_HIDDEN;
-    }
-    return false;
+static bool AbilityItemInvis_ItemUse(edict_t *ent,abilityCall_t const *call) {
+    edict_t *target=item_use_caster(ent,call);
+    if(!S_SpellIsAliveTarget(target))return false;
+    uint32_t code=item_use_code(ent,call,MAKEFOURCC('A','I','v','i'));
+    /*62f280 uses HeroDur, or Dur plus the fresh constructor-zero additive.
+     * The concrete class is Binv; context retains the authored display ID. */
+    return S_ApplyTemporaryInvisibility(target,target,code,1,S_SpellBuffId(code,1),
+        S_SpellHeroDuration(code,1,target),2.0f);
 }
 
 BZ_ABILITY_PROC(CAbilityItemInvis) {
     switch (msg) {
+    case A_CAST_PROFILE:
+        /*617860/3ea160 initialize all three intrinsic clocks to RuntimeZero;
+         * AIvi data refresh does not import unit weapon or Cast1 timing. */
+        *call->cast_profile=(spellCastProfile_t){0};return true;
+    case A_EXECUTE:
     case A_ITEM_USE:
-        return AbilityItemInvis_ItemUse(call && call->entity ? call->entity : ent);
-    case A_STATUS_REMOVE:
+        return AbilityItemInvis_ItemUse(ent,call);
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(ent && call && call->status.slot && call->status.slot->invisibility_owned) {
+            S_TemporaryInvisibilityRelease(ent,call->status.slot);return true;
+        }
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
-            ent->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(ent,false);
         return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }
 }
 
-BZ_ITEM_PROC(AbilityItemManaRestore) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
+BZ_ABILITY_PROC(CAbilityItemManaRestore) {
+    if (msg != A_ITEM_USE) return false;
+    /* Preparatory use is owned by the carrier, independently of UI selection. */
+    edict_t *target = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
+    uint32_t code = call && call->item ? call->item->code :
+        ent && ent->client ? S_SpellCurrentCode(ent, ID_ITEM_MANA) : ID_ITEM_MANA;
     float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0 || target->mana.value >= target->mana.max_value) {
@@ -428,9 +380,7 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     return true;
 }
 
-/* World powerups target the collecting unit; ordinary carried item use keeps
- * the existing selected-unit client contract. Never read a client from a
- * server-side collector. */
+/* Inventory use and powerup pickup supply the actual carrier/collector. */
 static edict_t *item_stat_recipient(edict_t *ent) {
     if (!ent) return NULL;
     return ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
@@ -464,9 +414,9 @@ BZ_ABILITY_PROC(CAbilityStrengthMod) {
     if (!target || !G_UnitIsHero(target)) {
         return false;
     }
-    target->unit_state->hero.str += (uint32_t)str;
-    target->unit_state->hero.agi += (uint32_t)agi;
-    target->unit_state->hero.intel += (uint32_t)intel;
+    target->hero.str += (uint32_t)str;
+    target->hero.agi += (uint32_t)agi;
+    target->hero.intel += (uint32_t)intel;
     G_RecomputeHeroStats(target);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return true;
@@ -482,7 +432,7 @@ BZ_ABILITY_PROC(CAbilityExperienceMod) {
     if (!target || !G_UnitIsHero(target) || amount == 0) {
         return false;
     }
-    G_HeroSetXP(target, target->unit_state->hero.xp + amount);
+    G_HeroSetXP(target, target->hero.xp + amount);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return true;
 }
@@ -497,9 +447,9 @@ BZ_ABILITY_PROC(CAbilityLevelMod) {
     if (!target || !G_UnitIsHero(target) || levels == 0) {
         return false;
     }
-    uint32_t target_level = MIN(target->unit_state->hero.level + levels, G_MaxHeroLevel());
+    uint32_t target_level = MIN(target->hero.level + levels, G_MaxHeroLevel());
     uint32_t target_xp = G_HeroXPForLevel(target_level);
-    if (target_xp <= target->unit_state->hero.xp) {
+    if (target_xp <= target->hero.xp) {
         return false;
     }
     G_HeroSetXP(target, target_xp);
@@ -508,9 +458,10 @@ BZ_ABILITY_PROC(CAbilityLevelMod) {
 }
 
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
-BZ_ITEM_PROC(AbilityFigurineSkeleton) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
+BZ_ABILITY_PROC(CAbilityFigurineSkeleton) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *target = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_FIGURINE);
     uint32_t unit_id = S_SpellUnitId(code, 1);
 
     if (!target || !unit_id) {
@@ -525,12 +476,113 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     return true;
 }
 
-/* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
+/* Real item entry points pass a unit. Direct client ability calls retain their
+ * existing selected-unit behavior. */
 static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
-    item_t const *rec = G_ItemState(call ? call->source_item : NULL);
-    return rec ? rec->carrier : NULL;
+    if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
+    return NULL;
+}
+
+/* AIre keeps both authored resource amounts on the actual use recipient. */
+BZ_ABILITY_PROC(CAbilityItemRestore) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    edict_t *target = item_use_caster(ent, call);
+    uint32_t code = call->item->code;
+    float health = S_SpellData(code, 1, 1), mana = S_SpellData(code, 1, 2);
+    if (!target || !(health >= 0) || !(mana >= 0) ||
+        (health == 0 && mana == 0)) return false;
+    bool changed = false;
+    if (health > 0 && target->health.value < target->health.max_value) {
+        S_SpellHeal(target, health);
+        changed = true;
+    }
+    if (mana > 0 && target->mana.value < target->mana.max_value) {
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + mana);
+        changed = true;
+    }
+    if (changed) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return changed;
+}
+
+/* 672dd0 traverses profiles in UnitUI registration order. Count/select avoids
+ * allocating the native temporary vector and consumes exactly one purpose33
+ * draw only when the candidate set is nonempty. */
+static bool mechanical_critter_candidate(UnitUI_t const *ui, char tileset) {
+    UnitData_t const *data = G_UnitData(ui->id);
+    UnitBalance_t const *balance = G_UnitBalance(ui->id);
+    cstring_t tilesets = balance->tilesets ? balance->tilesets : ui->tilesets;
+    return data->race && !strcmp(data->race,"critters") &&
+        !balance->goldCost && !balance->lumberCost &&
+        S_UnitMovementType(data) != UNIT_MOVE_FLY &&
+        (!tileset || (tilesets && (strchr(tilesets,'*') || strchr(tilesets,tileset))));
+}
+
+static uint32_t mechanical_critter_choose(void) {
+    char tileset = level.mapinfo->mainGroundType;
+    uint32_t count = 0, selected;
+    FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    if (!count && tileset) {
+        tileset = 0;
+        FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    }
+    if (!count) return 0;
+    selected = wc3_random_range(level.purpose_random+WC3_RANDOM_CRITTERS,count);
+    FOR_LOOP(i,g_UnitUICount) {
+        if (!mechanical_critter_candidate(g_UnitUI+i,tileset)) continue;
+        if (!selected--) return g_UnitUI[i].id;
+    }
+    return 0;
+}
+
+/* The owned status carries the latent flag through save/load. A learned Amec
+ * ability or an unrelated Bmec status cannot manufacture the category. Reads
+ * never allocate, and apply/remove deliberately do not refresh separation. */
+bool S_UnitMechanicalCritter(edict_t const *unit) {
+    if (unit) FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus+i;
+        if (status->level && G_UnitStatusClassCode(status) == MAKEFOURCC('B','m','e','c') &&
+            status->data && G_AbilityCode(status->data) == MAKEFOURCC('A','m','e','c')) return true;
+    }
+    return false;
+}
+
+BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code, unit_id, count;
+    float sine, cosine;
+    vec2_t point;
+    if (msg == A_STATUS_REMOVE || msg == A_STATUS_REPLACE) {
+        if (call && call->status.slot) call->status.slot->data = 0;
+        return true;
+    }
+    if (msg == A_ITEM_ADD) {
+        (void)mechanical_critter_choose(); /* Native attachment/display preparation. */
+        return true;
+    }
+    if (msg != A_ITEM_USE) return CAbilityPassive(ent,msg,call);
+    if (!call || !call->item || !(caster = item_use_caster(ent,call))) return false;
+    code = call->item->code;
+    row = G_AbilityLevel(code,1);
+    if (!row || !(unit_id = mechanical_critter_choose())) return false;
+    count = wc3_int_bits(wc3_float_bits(S_SpellData(code,1,1)));
+    wc3_sincos(caster->s.angle,&sine,&cosine);
+    point.x = wc3_add(caster->s.origin2.x,wc3_mul(row->area,cosine));
+    point.y = wc3_add(caster->s.origin2.y,wc3_mul(row->area,sine));
+    FOR_LOOP(i,count) {
+        edict_t *summon = unit_create(caster->s.player,unit_id,&point,
+            wc3_div(caster->s.angle,wc3_float(0x3c8efa35)));
+        if (!summon) continue;
+        summon->owner = caster; summon->summon_ability = code;
+        G_SpawnAbilityEffectTarget(code,WC3_EFFECT_TARGET,0,summon,NULL,true);
+        unit_addtimedstatus(summon,"Bmec",1,S_SpellDuration(code,1,false));
+        heroabilitystatus_t *status = unit_findstatusclass(summon,MAKEFOURCC('B','m','e','c'));
+        if (status) status->data = code;
+        G_PublishSummonEvents(caster,summon);
+    }
+    return true;
 }
 
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
@@ -741,7 +793,7 @@ BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
-        if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
+        if (G_UnitStatusClassLevel(target, FS_SLKKey(buff))) continue;
         /* The shield charge is untimed. Its buff (BNss) owns persistent art,
          * which the shared status lifecycle removes when a spell consumes it. */
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
@@ -803,7 +855,7 @@ BZ_ABILITY_PROC(CAbilityItemResurrection) {
             break;
         }
         G_ReviveCorpse(selected, 1.0f);
-        if (raised_invulnerable) G_SetUnitFlag(selected, UNIT_FLAG_INVULNERABLE, true);
+        if (raised_invulnerable) selected->invulnerable = true;
         G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
         count++;
     }
@@ -870,9 +922,9 @@ BZ_ABILITY_PROC(CAbilityItemSpeedAoe) {
 }
 
 bool S_ItemSpeedActive(edict_t const *unit) {
-    if (!unit) return false;
-    FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t const *status = unit->unit_state->statuses + i;
+    if (!unit || !unit->abilstatus) return false;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
         ability_t const *ability = status->level && status->data ? S_AbilityItem(status->data).ability : NULL;
         if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
     }
@@ -890,10 +942,9 @@ BZ_ABILITY_PROC(CAbilityItemRebirth) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     picker = item_use_caster(ent, call);
     rune = call->source_item;
-    item_t *rec = G_ItemState(rune);
-    if (!picker || !rune || !rec || !rec->in_world ||
+    if (!picker || !rune || !G_IsItem(rune) || !rune->item->in_world ||
         rune->spawn_time != call->source_item_spawn_time) return false;
-    unit_id = rec->drop_id;
+    unit_id = rune->item->drop_id;
     if (!unit_id || G_UnitData(unit_id)->id != unit_id) return false;
     reborn = SP_SpawnAtLocation(unit_id, picker->s.player, &rune->s.origin2);
     if (!reborn) return false;
@@ -919,9 +970,10 @@ abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item) {
  * defense amount in DataA, radius in Area, duration in Dur/HeroDur and the
  * visible status rawcode in BuffID. Keep the item itself as a thin ability
  * carrier: the ability data decides the actual numbers. */
-BZ_ITEM_PROC(AbilityItemDefenseAoe) {
-    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
+BZ_ABILITY_PROC(CAbilityItemDefenseAoe) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *caster = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_DEFENSE_AOE);
     uint32_t level = 1;
     float bonus = S_SpellData(code, level, 1);
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
@@ -951,9 +1003,10 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
  * hour/minute and Dur as the false-time lifetime.  The false clock is a
  * simulation override, not a renderer-only tint, so all day/night consumers
  * see the same temporary time. */
-BZ_ITEM_PROC(AbilityItemChangeTOD) {
-    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
+BZ_ABILITY_PROC(CAbilityItemChangeTOD) {
+    if(msg!=A_ITEM_USE)return false;
+    edict_t *caster = item_use_caster(ent,call);
+    uint32_t code = item_use_code(ent,call,ID_ITEM_CHANGE_TIME);
     int32_t hour = (int32_t)S_SpellData(code, 1, 1);
     int32_t minute = (int32_t)S_SpellData(code, 1, 2);
     float duration = S_SpellDuration(code, 1, false);
@@ -1017,7 +1070,7 @@ BZ_ABILITY_PROC(CAbilityTinyStructure) {
         return false;
     }
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
-    if (building->inuse && G_GetConstruction(building) &&
+    if (building->inuse && building->construction &&
         S_SpellDuration(code, level, false) <= 0.0f)
         G_CompleteConstruction(building);
     return true;

@@ -72,7 +72,7 @@ static void hs_setup(hsFix_t *fix) {
     fix->enemy->health.value = 100; fix->enemy->health.max_value = 500;
     fix->mech->health.value = 100; fix->mech->health.max_value = 500;
     fix->far->health.value = 100; fix->far->health.max_value = 500;
-    fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ANHS, .level = 1);
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANHS, .level = 1);
     fix->caster->mana.value = fix->caster->mana.max_value = 200;
     fix->caster->health.value = fix->caster->health.max_value = 500;
 }
@@ -92,7 +92,7 @@ TEST(wc3_spell, healing_spray_first_wave_heals_friendlies_in_area) {
     hsFix_t fix; hs_setup(&fix);
     vec2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
-    T_EQ(G_GetChannel(fix.caster)->code, BZ_ANHS);
+    T_EQ(fix.caster->channel->code, BZ_ANHS);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
     T_FEQ(fix.ally2->health.value, 125, 0.001f);
     T_FEQ(fix.enemy->health.value, 100, 0.001f);
@@ -139,7 +139,7 @@ TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
     T_FEQ(fix.ally->health.value, 125, 0.001f);
     level.time = thinker->freetime; G_RunEntities();
     T_FEQ(fix.ally->health.value, 150, 0.001f);
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_ASSERT(!thinker->inuse);
     hs_done(&fix);
 }
@@ -152,7 +152,7 @@ TEST(wc3_spell, healing_spray_caster_move_cancels_remaining_waves) {
     T_NOT_NULL(thinker);
     fix.caster->s.origin2.x += 10; fix.caster->s.origin.x += 10;
     level.time = thinker->freetime; G_RunEntities();
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
     T_ASSERT(!thinker->inuse);
     hs_done(&fix);

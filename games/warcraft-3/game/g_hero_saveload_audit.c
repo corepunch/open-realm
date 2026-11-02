@@ -54,18 +54,18 @@ static void hsa_capture(edict_t const *hero, hsaSnap_t *snap) {
     snap->number = hero->s.number;
     snap->class_id = hero->class_id;
     snap->origin = hero->s.origin;
-    FOR_LOOP(i, hero->unit_state ? MAX_HERO_ABILITIES : 0) {
-        snap->abilities[i] = hero->unit_state->ranks[i].code;
-        snap->levels[i] = hero->unit_state->ranks[i].level;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        snap->abilities[i] = hero->heroabilities[i].code;
+        snap->levels[i] = hero->heroabilities[i].level;
     }
-    snap->added_count = (hero->unit_state ? ARRAY_COUNT(hero->unit_state->overrides.added) : 0);
+    snap->added_count = ARRAY_COUNT(hero->abilities.added);
     if (snap->added_count > MAX_ABILITIES) snap->added_count = MAX_ABILITIES;
-    FOR_LOOP(i, snap->added_count) snap->added[i] = hero->unit_state->overrides.added[i];
+    FOR_LOOP(i, snap->added_count) snap->added[i] = hero->abilities.added[i];
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t const *carried = G_InventoryItem(hero, i);
         if (!carried) continue;
         snap->inventory[i] = carried->class_id;
-        snap->charges[i] = G_GetItem(carried)->charges;
+        snap->charges[i] = carried->item->charges;
     }
     if (hero->currentmove && hero->currentmove->animation)
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));
@@ -151,7 +151,7 @@ static bool hsa_in_cinematic(edict_t const *hero) {
 }
 
 static bool hsa_ready_to_walk(edict_t const *hero, bool timed_out) {
-    if (!hsa_hero_ok(hero) || G_UnitHasFlag(hero, UNIT_FLAG_PAUSED)) return false;
+    if (!hsa_hero_ok(hero) || (hero && hero->paused)) return false;
     return timed_out || !hsa_in_cinematic(hero);
 }
 
@@ -163,14 +163,17 @@ static bool hsa_issue_walk(edict_t *hero) {
     };
     vec2_t dest, goal;
 
-    /* unit_issueorder("move") stays true when ClosestPathable snaps the click
-     * back onto the current cell (intro pocket). Require the waypoint to leave. */
+    /* The diagnostic needs a reachable walk, while public Move retains its
+     * requested click. Admit a pathable candidate here before issuing it. */
     FOR_LOOP(d, sizeof(dist) / sizeof(dist[0])) {
         FOR_LOOP(i, sizeof(dirs) / sizeof(dirs[0])) {
             dest.x = hero->s.origin2.x + dirs[i].x * dist[d];
             dest.y = hero->s.origin2.y + dirs[i].y * dist[d];
-            if (!unit_issueorder(hero, "move", &dest) || !hero->goalentity) continue;
-            goal = hero->goalentity->s.origin2;
+            pathAccelParams_t query={&dest,NULL,hero->collision,M_UnitStaticPathingFlags(hero)};
+            if (!G_ClosestMovePathPoint(&query,&goal)) continue;
+            if (fabsf(goal.x-hero->s.origin2.x)<=HSA_LEAVE_EPS &&
+                fabsf(goal.y-hero->s.origin2.y)<=HSA_LEAVE_EPS) continue;
+            if (!unit_issueorder(hero,"move",&goal) || !hero->goalentity) continue;
             if (fabsf(goal.x - hero->s.origin2.x) > HSA_LEAVE_EPS ||
                     fabsf(goal.y - hero->s.origin2.y) > HSA_LEAVE_EPS)
                 return true;
@@ -301,7 +304,7 @@ void G_HeroSaveLoadAuditFrame(void) {
     }
     /* PauseAllUnitsBJ freezes think; keep waiting. Cinematic UI already gated
      * WAIT_HERO; finale timeout fallback must still count walk frames. */
-    if (G_UnitHasFlag(hero, UNIT_FLAG_PAUSED)) return;
+    if ((hero && hero->paused)) return;
     if (!walking && !hsa_issue_walk(hero)) {
         hsa_finish("fail_order", hero);
         return;

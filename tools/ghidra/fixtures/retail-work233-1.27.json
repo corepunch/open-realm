@@ -1,0 +1,1120 @@
+{
+ "version": 1,
+ "task": "GROUP-04.6",
+ "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "kernel": {
+  "positions": [
+   {
+    "positions": [
+     [
+      1,
+      1
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      8,
+      8
+     ]
+    ],
+    "velocities": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "goal": [
+     10,
+     10
+    ]
+   },
+   {
+    "positions": [
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      1,
+      1
+     ]
+    ],
+    "velocities": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "goal": [
+     10,
+     10
+    ]
+   },
+   {
+    "positions": [
+     [
+      1,
+      1
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      8,
+      8
+     ]
+    ],
+    "velocities": [
+     [
+      4,
+      4
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      -4,
+      -4
+     ]
+    ],
+    "goal": [
+     10,
+     10
+    ]
+   }
+  ],
+  "elapsed": 2,
+  "rows": [
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 0,
+    "index": 2
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 2,
+    "index": 1
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 3,
+    "index": 1
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 4,
+    "index": 2
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 5,
+    "index": 2
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 6,
+    "index": 2
+   },
+   {
+    "case": 0,
+    "flags": 0,
+    "preferred": 7,
+    "index": 2
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 0,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 2,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 3,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 4,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 5,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 6,
+    "index": 0
+   },
+   {
+    "case": 0,
+    "flags": 512,
+    "preferred": 7,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 0,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 2,
+    "index": 1
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 3,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 4,
+    "index": 2
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 5,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 6,
+    "index": 1
+   },
+   {
+    "case": 1,
+    "flags": 0,
+    "preferred": 7,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 0,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 2,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 3,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 4,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 5,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 6,
+    "index": 0
+   },
+   {
+    "case": 1,
+    "flags": 512,
+    "preferred": 7,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 0,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 2,
+    "index": 1
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 3,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 4,
+    "index": 2
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 5,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 6,
+    "index": 1
+   },
+   {
+    "case": 2,
+    "flags": 0,
+    "preferred": 7,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 0,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 1,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 2,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 3,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 4,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 5,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 6,
+    "index": 0
+   },
+   {
+    "case": 2,
+    "flags": 512,
+    "preferred": 7,
+    "index": 0
+   }
+  ]
+ },
+ "instructions": {
+  "6f16c6d0": "55",
+  "6f16c6d1": "8bec",
+  "6f16c6d3": "83ec6c",
+  "6f16c6d6": "56",
+  "6f16c6d7": "8bf1",
+  "6f16c6d9": "8975d8",
+  "6f16c6dc": "f7868000000000020000",
+  "6f16c6e6": "7409",
+  "6f16c6e8": "33c0",
+  "6f16c6ea": "5e",
+  "6f16c6eb": "8be5",
+  "6f16c6ed": "5d",
+  "6f16c6ee": "c20400",
+  "6f16c6f1": "8b4e38",
+  "6f16c6f4": "33d2",
+  "6f16c6f6": "a18054cd6f",
+  "6f16c6fb": "53",
+  "6f16c6fc": "83cbff",
+  "6f16c6ff": "894ddc",
+  "6f16c702": "895df4",
+  "6f16c705": "8955f8",
+  "6f16c708": "8945ec",
+  "6f16c70b": "8945e8",
+  "6f16c70e": "8955f0",
+  "6f16c711": "85c9",
+  "6f16c713": "0f844b010000",
+  "6f16c719": "8b4508",
+  "6f16c71c": "83c004",
+  "6f16c71f": "33c9",
+  "6f16c721": "8945e0",
+  "6f16c724": "894de4",
+  "6f16c727": "57",
+  "6f16c728": "eb06",
+  "6f16c730": "8b4628",
+  "6f16c733": "8b5c0814",
+  "6f16c737": "8d45d4",
+  "6f16c73a": "50",
+  "6f16c73b": "8bcb",
+  "6f16c73d": "e8fe48ffff",
+  "6f16c742": "8d9384000000",
+  "6f16c748": "8d4dd0",
+  "6f16c74b": "8b00",
+  "6f16c74d": "8945a4",
+  "6f16c750": "8945a8",
+  "6f16c753": "8d45a8",
+  "6f16c756": "50",
+  "6f16c757": "e86432f0ff",
+  "6f16c75c": "8bf0",
+  "6f16c75e": "8d9380000000",
+  "6f16c764": "8d45a4",
+  "6f16c767": "50",
+  "6f16c768": "8d4dcc",
+  "6f16c76b": "e85032f0ff",
+  "6f16c770": "8d537c",
+  "6f16c773": "8b08",
+  "6f16c775": "894d9c",
+  "6f16c778": "8d4dc8",
+  "6f16c77b": "8b06",
+  "6f16c77d": "8945a0",
+  "6f16c780": "8d45a0",
+  "6f16c783": "50",
+  "6f16c784": "e82734f0ff",
+  "6f16c789": "8bf0",
+  "6f16c78b": "8d5378",
+  "6f16c78e": "8d459c",
+  "6f16c791": "50",
+  "6f16c792": "8d4dc4",
+  "6f16c795": "e81634f0ff",
+  "6f16c79a": "8b55e0",
+  "6f16c79d": "8b08",
+  "6f16c79f": "894d94",
+  "6f16c7a2": "8d4dc0",
+  "6f16c7a5": "8b06",
+  "6f16c7a7": "894598",
+  "6f16c7aa": "8d4598",
+  "6f16c7ad": "50",
+  "6f16c7ae": "e8dd32f0ff",
+  "6f16c7b3": "8b5508",
+  "6f16c7b6": "8d4dbc",
+  "6f16c7b9": "8bf0",
+  "6f16c7bb": "8d4594",
+  "6f16c7be": "50",
+  "6f16c7bf": "e8cc32f0ff",
+  "6f16c7c4": "8b08",
+  "6f16c7c6": "894dac",
+  "6f16c7c9": "8d4db8",
+  "6f16c7cc": "8b06",
+  "6f16c7ce": "8945b0",
+  "6f16c7d1": "8d45b0",
+  "6f16c7d4": "50",
+  "6f16c7d5": "8bd0",
+  "6f16c7d7": "e8e431f0ff",
+  "6f16c7dc": "50",
+  "6f16c7dd": "8d45ac",
+  "6f16c7e0": "50",
+  "6f16c7e1": "8bd0",
+  "6f16c7e3": "8d4db4",
+  "6f16c7e6": "e8d531f0ff",
+  "6f16c7eb": "8bd0",
+  "6f16c7ed": "8d4dfc",
+  "6f16c7f0": "e8bb33f0ff",
+  "6f16c7f5": "8b83a8000000",
+  "6f16c7fb": "f7808800000000002000",
+  "6f16c805": "741c",
+  "6f16c807": "f30f1045ec",
+  "6f16c80c": "0f2f45fc",
+  "6f16c810": "8b55f8",
+  "6f16c813": "762a",
+  "6f16c815": "8b5df0",
+  "6f16c818": "8b45fc",
+  "6f16c81b": "895df4",
+  "6f16c81e": "8945ec",
+  "6f16c821": "eb24",
+  "6f16c823": "f30f1045e8",
+  "6f16c828": "0f2f45fc",
+  "6f16c82c": "8b5df4",
+  "6f16c82f": "7613",
+  "6f16c831": "8b55f0",
+  "6f16c834": "8b45fc",
+  "6f16c837": "8955f8",
+  "6f16c83a": "8945e8",
+  "6f16c83d": "eb08",
+  "6f16c83f": "8b5df4",
+  "6f16c842": "eb03",
+  "6f16c844": "8b55f8",
+  "6f16c847": "8b45f0",
+  "6f16c84a": "8b4de4",
+  "6f16c84d": "40",
+  "6f16c84e": "8b75d8",
+  "6f16c851": "83c12c",
+  "6f16c854": "8945f0",
+  "6f16c857": "894de4",
+  "6f16c85a": "3b45dc",
+  "6f16c85d": "0f82cdfeffff",
+  "6f16c863": "5f",
+  "6f16c864": "83fbff",
+  "6f16c867": "0f45d3",
+  "6f16c86a": "5b",
+  "6f16c86b": "8bc2",
+  "6f16c86d": "5e",
+  "6f16c86e": "8be5",
+  "6f16c870": "5d",
+  "6f16c871": "c20400",
+  "6f16de50": "55",
+  "6f16de51": "8bec",
+  "6f16de53": "83ec08",
+  "6f16de56": "53",
+  "6f16de57": "56",
+  "6f16de58": "57",
+  "6f16de59": "8bf9",
+  "6f16de5b": "e800f8ffff",
+  "6f16de60": "8bcf",
+  "6f16de62": "e859f3ffff",
+  "6f16de67": "a144c7d36f",
+  "6f16de6c": "8d7754",
+  "6f16de6f": "56",
+  "6f16de70": "8bcf",
+  "6f16de72": "8906",
+  "6f16de74": "894604",
+  "6f16de77": "e874c0ffff",
+  "6f16de7c": "8b5d08",
+  "6f16de7f": "8bcf",
+  "6f16de81": "53",
+  "6f16de82": "56",
+  "6f16de83": "e858faffff",
+  "6f16de88": "f7878000000000020000",
+  "6f16de92": "740d",
+  "6f16de94": "8b03",
+  "6f16de96": "8945f8",
+  "6f16de99": "8b4304",
+  "6f16de9c": "8945fc",
+  "6f16de9f": "eb2c",
+  "6f16dea1": "53",
+  "6f16dea2": "8bcf",
+  "6f16dea4": "e827e8ffff",
+  "6f16dea9": "6bc82c",
+  "6f16deac": "8b4728",
+  "6f16deaf": "8b740114",
+  "6f16deb3": "8d4508",
+  "6f16deb6": "50",
+  "6f16deb7": "8bce",
+  "6f16deb9": "e88231ffff",
+  "6f16debe": "50",
+  "6f16debf": "8d45f8",
+  "6f16dec2": "8bce",
+  "6f16dec4": "50",
+  "6f16dec5": "e806dfeeff",
+  "6f16deca": "8d7754",
+  "6f16decd": "8d4df8",
+  "6f16ded0": "8b01",
+  "6f16ded2": "8906",
+  "6f16ded4": "8b4104",
+  "6f16ded7": "8b4f3c",
+  "6f16deda": "6a01",
+  "6f16dedc": "53",
+  "6f16dedd": "894604",
+  "6f16dee0": "e89bacffff",
+  "6f16dee5": "8d4508",
+  "6f16dee8": "8bcf",
+  "6f16deea": "50",
+  "6f16deeb": "e840050000",
+  "6f16def0": "85c0",
+  "6f16def2": "7410",
+  "6f16def4": "8b4508",
+  "6f16def7": "8b4f3c",
+  "6f16defa": "d1e8",
+  "6f16defc": "50",
+  "6f16defd": "e8feacffff",
+  "6f16df02": "eb1c",
+  "6f16df04": "8b773c",
+  "6f16df07": "8bce",
+  "6f16df09": "6a01",
+  "6f16df0b": "6a00",
+  "6f16df0d": "6a01",
+  "6f16df0f": "6aff",
+  "6f16df11": "e82aa8ffff",
+  "6f16df16": "81a688000000ffffdfff",
+  "6f16df20": "8b4728",
+  "6f16df23": "8b5f3c",
+  "6f16df26": "8bcb",
+  "6f16df28": "8b4014",
+  "6f16df2b": "8b80a8000000",
+  "6f16df31": "894508",
+  "6f16df34": "8bb088000000",
+  "6f16df3a": "c1ee17",
+  "6f16df3d": "e8bea8ffff",
+  "6f16df42": "8b8388000000",
+  "6f16df48": "83e601",
+  "6f16df4b": "7407",
+  "6f16df4d": "0d00008000",
+  "6f16df52": "eb05",
+  "6f16df54": "25ffff7fff",
+  "6f16df59": "898388000000",
+  "6f16df5f": "8b4508",
+  "6f16df62": "8b4f3c",
+  "6f16df65": "8a808a000000",
+  "6f16df6b": "240f",
+  "6f16df6d": "0fb6c0",
+  "6f16df70": "50",
+  "6f16df71": "e80aabffff",
+  "6f16df76": "8bcf",
+  "6f16df78": "e843d0ffff",
+  "6f16df7d": "50",
+  "6f16df7e": "8bcf",
+  "6f16df80": "e8ebf4ffff",
+  "6f16df85": "5f",
+  "6f16df86": "5e",
+  "6f16df87": "5b",
+  "6f16df88": "8be5",
+  "6f16df8a": "5d",
+  "6f16df8b": "c20400",
+  "6f161040": "55",
+  "6f161041": "8bec",
+  "6f161043": "ff7174",
+  "6f161046": "8d4170",
+  "6f161049": "50",
+  "6f16104a": "51",
+  "6f16104b": "ff7508",
+  "6f16104e": "8b0d483ad56f",
+  "6f161054": "e867b6ffff",
+  "6f161059": "8b4508",
+  "6f16105c": "5d",
+  "6f16105d": "c20400",
+  "6f15c6c0": "55",
+  "6f15c6c1": "8bec",
+  "6f15c6c3": "ff750c",
+  "6f15c6c6": "e885ffffff",
+  "6f15c6cb": "ff7514",
+  "6f15c6ce": "ff7510",
+  "6f15c6d1": "8d4840",
+  "6f15c6d4": "ff7044",
+  "6f15c6d7": "51",
+  "6f15c6d8": "ff7508",
+  "6f15c6db": "8bc8",
+  "6f15c6dd": "e8be070000",
+  "6f15c6e2": "8b4508",
+  "6f15c6e5": "5d",
+  "6f15c6e6": "c21000",
+  "6f15c650": "55",
+  "6f15c651": "8bec",
+  "6f15c653": "8b4508",
+  "6f15c656": "f7401400000080",
+  "6f15c65d": "8d4114",
+  "6f15c660": "7403",
+  "6f15c662": "8d4168",
+  "6f15c665": "5d",
+  "6f15c666": "c20400",
+  "6f15cea0": "55",
+  "6f15cea1": "8bec",
+  "6f15cea3": "8b550c",
+  "6f15cea6": "56",
+  "6f15cea7": "8b7508",
+  "6f15ceaa": "57",
+  "6f15ceab": "ff7514",
+  "6f15ceae": "8bf9",
+  "6f15ceb0": "8bce",
+  "6f15ceb2": "e8d92bf1ff",
+  "6f15ceb7": "8b06",
+  "6f15ceb9": "f30f10059c53cd6f",
+  "6f15cec1": "25ffffff7f",
+  "6f15cec6": "894514",
+  "6f15cec9": "0f2f4514",
+  "6f15cecd": "7607",
+  "6f15cecf": "a144c7d36f",
+  "6f15ced4": "8906",
+  "6f15ced6": "8b5510",
+  "6f15ced9": "8b4518",
+  "6f15cedc": "3bd0",
+  "6f15cede": "7425",
+  "6f15cee0": "2bd0",
+  "6f15cee2": "8d4d14",
+  "6f15cee5": "e8963ef1ff",
+  "6f15ceea": "50",
+  "6f15ceeb": "8d5748",
+  "6f15ceee": "8d4d0c",
+  "6f15cef1": "e8ca2af1ff",
+  "6f15cef6": "50",
+  "6f15cef7": "8bd6",
+  "6f15cef9": "8d4d08",
+  "6f15cefc": "e8af2cf1ff",
+  "6f15cf01": "8b08",
+  "6f15cf03": "890e",
+  "6f15cf05": "5f",
+  "6f15cf06": "8bc6",
+  "6f15cf08": "5e",
+  "6f15cf09": "5d",
+  "6f15cf0a": "c21400",
+  "6f0594a0": "55",
+  "6f0594a1": "8bec",
+  "6f0594a3": "8b510c",
+  "6f0594a6": "8b4908",
+  "6f0594a9": "56",
+  "6f0594aa": "e881b0ffff",
+  "6f0594af": "6a01",
+  "6f0594b1": "6a00",
+  "6f0594b3": "6a01",
+  "6f0594b5": "8bb0a8000000",
+  "6f0594bb": "8bce",
+  "6f0594bd": "6aff",
+  "6f0594bf": "e87cf21000",
+  "6f0594c4": "837d0800",
+  "6f0594c8": "740f",
+  "6f0594ca": "818e8800000000002000",
+  "6f0594d4": "5e",
+  "6f0594d5": "5d",
+  "6f0594d6": "c20400",
+  "6f0594d9": "81a688000000ffffdfff",
+  "6f0594e3": "5e",
+  "6f0594e4": "5d",
+  "6f0594e5": "c20400",
+  "6f168740": "55",
+  "6f168741": "8bec",
+  "6f168743": "51",
+  "6f168744": "53",
+  "6f168745": "8b5d08",
+  "6f168748": "33c0",
+  "6f16874a": "56",
+  "6f16874b": "8bf1",
+  "6f16874d": "83fbff",
+  "6f168750": "8bcb",
+  "6f168752": "8975fc",
+  "6f168755": "0f44c8",
+  "6f168758": "7505",
+  "6f16875a": "8d5802",
+  "6f16875d": "eb01",
+  "6f16875f": "43",
+  "6f168760": "81a688000000ffffefff",
+  "6f16876a": "3bcb",
+  "6f16876c": "7337",
+  "6f16876e": "57",
+  "6f16876f": "8d7e74",
+  "6f168772": "8bc1",
+  "6f168774": "c1e005",
+  "6f168777": "8d3c8f",
+  "6f16877a": "83c650",
+  "6f16877d": "03f0",
+  "6f16877f": "2bd9",
+  "6f168781": "8b06",
+  "6f168783": "85c0",
+  "6f168785": "740b",
+  "6f168787": "50",
+  "6f168788": "6a00",
+  "6f16878a": "8d4ee4",
+  "6f16878d": "e8ce1ffeff",
+  "6f168792": "c707ffffffff",
+  "6f168798": "83c620",
+  "6f16879b": "83c704",
+  "6f16879e": "4b",
+  "6f16879f": "75e0",
+  "6f1687a1": "8b75fc",
+  "6f1687a4": "5f",
+  "6f1687a5": "837d0c00",
+  "6f1687a9": "7407",
+  "6f1687ab": "8bce",
+  "6f1687ad": "e82e000000",
+  "6f1687b2": "837d1000",
+  "6f1687b6": "7407",
+  "6f1687b8": "8bce",
+  "6f1687ba": "e841000000",
+  "6f1687bf": "837d1400",
+  "6f1687c3": "740a",
+  "6f1687c5": "81a688000000ffffffcf",
+  "6f1687cf": "5e",
+  "6f1687d0": "5b",
+  "6f1687d1": "8be5",
+  "6f1687d3": "5d",
+  "6f1687d4": "c21000",
+  "6f168c00": "55",
+  "6f168c01": "8bec",
+  "6f168c03": "56",
+  "6f168c04": "6a01",
+  "6f168c06": "6a00",
+  "6f168c08": "6a01",
+  "6f168c0a": "6aff",
+  "6f168c0c": "8bf1",
+  "6f168c0e": "e82dfbffff",
+  "6f168c13": "8b4508",
+  "6f168c16": "0fb6c8",
+  "6f168c19": "8b8688000000",
+  "6f168c1f": "c1e11e",
+  "6f168c22": "25ffffff3f",
+  "6f168c27": "0bc8",
+  "6f168c29": "898e88000000",
+  "6f168c2f": "5e",
+  "6f168c30": "5d",
+  "6f168c31": "c20400"
+ },
+ "engine_tests": [
+  "wc3_movement.source233_matches_original_preference_prediction_and_bypass",
+  "wc3_movement.source233_birth_and_flight_rebind_choose_enabled_member",
+  "wc3_movement.selected_shift_input_matches_original_staggered_activation",
+  "wc3_movement.selected_two_shift_inputs_match_original_three_leg_journey"
+ ],
+ "pins": {
+  "tools/frida/research/work233_observer.js": "03ba9806c3e165cb455e6a7f522ade3fa469a24bb3118defc06ae92451708e02",
+  "tools/frida/research/work228_capture.py": "e346cdec1928b88a3e0aa62aa7497679fa768a2ad627020ef62084c56ad24a1a",
+  "tools/frida/research/work233_make_map.py": "52464d614bf4c43841f8970b7c080a7f9e0596be7ae23e724f1c7f7318cf9a89",
+  "tools/frida/research/work233_probe.j": "a02b1ebb3a111594f55cfdb0a7e5fb711642a1056de3dc6f7372099857946583",
+  "tools/ghidra/research/work233_oracle.py": "3389d557555d34fd54f8d3f29598487f360fb07ee2d12a5de34a674affae3421",
+  "tools/ghidra/research/Work233Evidence.java": "fbe3125c0f2fbb5c30279814eed01eb4ca0ead9bd5c5d61098b378c7d06548b9",
+  "tools/ghidra/research/foot03_rig.py": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61",
+  "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+  "tools/ghidra/verify_wc3_pathing_target_normalize218.py": "2e89109c7cb15ec3f6c698c6d1b5defbc6cf5d0d25c19244569e8ceae4384f2d"
+ },
+ "bundle_sha256": "80dcc6e6c7bb3e5f386dc075c6d5a2f2171f73202931481dd7a6836faa5c67d4",
+ "map_sha256": "679e658801f203953a1e93438a6a2e5341c3950e499e3dc03f99e7a96a85c908",
+ "markers": [
+  "P233 tick=0 label=start",
+  "P233 tick=1 begin=0",
+  "P233 tick=3 ordered=0",
+  "P233 tick=20 begin=1",
+  "P233 tick=22 ordered=1",
+  "P233 tick=40 begin=2",
+  "P233 tick=42 ordered=2",
+  "P233 tick=60 label=complete"
+ ],
+ "live_sources": [
+  {
+   "event": "source",
+   "phase": 0,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1050253713,
+      0
+     ],
+     "flags": 3224371200
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1050253713,
+      0
+     ],
+     "flags": 3224371200
+    }
+   ],
+   "index": 0
+  },
+  {
+   "event": "source",
+   "phase": 0,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1050253713,
+      0
+     ],
+     "flags": 3224371200
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1050253713,
+      0
+     ],
+     "flags": 3224371200
+    }
+   ],
+   "index": 0
+  },
+  {
+   "event": "source",
+   "phase": 1,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1074580656,
+      0
+     ],
+     "flags": 3222274048
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1074580656,
+      0
+     ],
+     "flags": 3224371200
+    }
+   ],
+   "index": 1
+  },
+  {
+   "event": "source",
+   "phase": 1,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1074580656,
+      0
+     ],
+     "flags": 3222274048
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1074580656,
+      0
+     ],
+     "flags": 3224371200
+    }
+   ],
+   "index": 1
+  },
+  {
+   "event": "source",
+   "phase": 2,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1082549724,
+      0
+     ],
+     "flags": 3222274048
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1082549724,
+      0
+     ],
+     "flags": 3222274048
+    }
+   ],
+   "index": 0
+  },
+  {
+   "event": "source",
+   "phase": 2,
+   "flags": 65536,
+   "goal": [
+    1111490560,
+    1098907648
+   ],
+   "members": [
+    {
+     "position": [
+      1103101952,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1082549724,
+      0
+     ],
+     "flags": 3222274048
+    },
+    {
+     "position": [
+      1098907648,
+      1098907648
+     ],
+     "velocity": [
+      0,
+      0
+     ],
+     "clock": [
+      1082549724,
+      0
+     ],
+     "flags": 3222274048
+    }
+   ],
+   "index": 0
+  }
+ ],
+ "limits": [
+  "Advances GROUP-04.6 source selection; persistent canonical candidate publication, completion/recovery and wider producer lifetimes remain open.",
+  "Original16c6d0 and its numerical/elapsed helpers execute unchanged over fixture-supplied group/member/path fields. Storm memory imports are host storage adapters. The full16de50 construction graph is statically mapped, not claimed executed by this oracle.",
+  "Two read-only captures certify fresh flight, actual hgry-to-ehip Chaos rebind and both-rebound source selection. Observer-free control matches all eight public markers; it does not expose private source decisions or prove whole trajectories equal. PreloadEnd wall-clock values differ and are not simulation state.",
+  "Existing frozen retail trajectories remain unchanged. No acceptance of overall CPU/FPS targets. No network or save-layout change.",
+  "Rejected same-type Chaos probes did not reach type rebind; the first oracle used the wrong owner clock. These attempts remain archived and do not define expectations."
+ ]
+}

@@ -94,6 +94,7 @@ native MissingAIAction takes nothing returns nothing
 native MissingAIValue takes nothing returns integer
 native StartCampaignAI takes player num, string script returns nothing
 
+native CaptainGoHome takes nothing returns nothing
 // Stock assault-group bookkeeping subset used by player-AI integration tests.
 globals
     integer array harass_qty

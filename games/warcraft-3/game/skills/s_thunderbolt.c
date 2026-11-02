@@ -50,7 +50,7 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 #define BZ_BOLT_PROC(NAME, SPEED) \
     BZ_ABILITY_PROC(C##NAME) { \
         switch (msg) { \
-        case A_INIT: if (call && S_AbilityClass(call)) SPEED = ConfigNumber(S_AbilityClass(call), "Missilespeed"); return true; \
+        case A_INIT: if (call && call->classname) SPEED = ConfigNumber(call->classname, "Missilespeed"); return true; \
         case A_EXECUTE: \
             if (!call || !call->item || !call->target) return false; \
             thunderbolt_execute(ent, *call->target, call->item); return true; \

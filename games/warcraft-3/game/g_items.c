@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "../common/wc3_pathing_widget.h"
 #include "skills/s_skills.h"
 
 /* Keep the native itemtype mapping in one table shared by GetItemType and the
@@ -47,7 +48,7 @@ static void G_RefreshInventoryUI(edict_t *unit) {
     }
 }
 
-static void G_ShowInventoryFull(edict_t *unit) {
+void G_ShowInventoryFull(edict_t *unit) {
     edict_t *player;
 
     if (!unit || unit->s.player >= MAX_PLAYERS || !level.mapinfo) {
@@ -96,25 +97,82 @@ bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item) {
 
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
-static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
-    cstring_t abilities;
+/* Synchronous item callbacks may replace either edict or its inventory binding. */
+typedef struct {
+    uint64_t epoch;
+    edict_t *unit;
+    edict_t const *item;
+    item_t const *state;
+    uint32_t unit_birth, item_birth;
+    bool unit_deferred, item_deferred;
+    edict_t *carrier;
+    int32_t slot;
+} itemBindingGuard_t;
 
-    /* Item-use permission gates gaining passive item effects, but removal must
-     * always reverse effects that were already applied. The permission can
-     * change while an item is carried (custom abilities/tech/scripted data),
-     * and blocking A_ITEM_REMOVE would leak the old stat bonus after a drop. */
-    if (apply && !G_InventoryCanUseItems(unit)) return;
-    abilities = G_ItemAbilityList(item);
-    if (!abilities || !*abilities) return;
+static itemBindingGuard_t G_ItemBindingGuard(edict_t *unit, edict_t const *item) {
+    item_t const *state = G_ItemState(item);
+    return (itemBindingGuard_t){.epoch=S_SpellPreparationEpoch(),.unit=unit,.item=item,
+        .state=state,.unit_birth=unit ? unit->spawn_time : 0,
+        .item_birth=item ? item->spawn_time : 0,
+        .unit_deferred=unit && G_IsDeferredFree(unit),
+        .item_deferred=item && G_IsDeferredFree(item),
+        .carrier=state ? state->carrier : NULL,.slot=state ? state->inventory_slot : -1};
+}
+
+static bool G_ItemBindingUnchanged(itemBindingGuard_t const *guard) {
+    if (guard->epoch != S_SpellPreparationEpoch()) return false;
+    if (!guard->item || !guard->item->inuse || guard->item->spawn_time != guard->item_birth ||
+        G_IsDeferredFree(guard->item) != guard->item_deferred || guard->item->item != guard->state || !guard->state)
+        return false;
+    if (guard->unit && (!guard->unit->inuse || guard->unit->spawn_time != guard->unit_birth ||
+        G_IsDeferredFree(guard->unit) != guard->unit_deferred)) return false;
+    return guard->state->carrier == guard->carrier && guard->state->inventory_slot == guard->slot;
+}
+
+static bool G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
+    if (apply && !G_InventoryCanUseItems(unit)) return true;
+    itemBindingGuard_t guard=G_ItemBindingGuard(unit,item);
+    bool attached = apply ? S_AttachPreparatoryItems(unit,(edict_t *)item) :
+                            S_DetachPreparatoryItems((edict_t *)item);
+    if (!attached || !G_ItemBindingUnchanged(&guard)) return false;
+    cstring_t abilities = G_ItemAbilityList(item);
+    if (!abilities || !*abilities) return true;
     PARSE_LIST(abilities, ability, parse_segment) {
         abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
-        abilityCall_t call = MAKE(abilityCall_t, .item = &entry);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &entry,
+            .source_item=(edict_t *)item,.source_item_spawn_time=item->spawn_time);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
+        if (!G_ItemBindingUnchanged(&guard)) return false;
     }
+    return true;
+}
+
+/* CItem vt160/164/168: independent mover category18, item query10,
+ * world radius1. Authored selectionSize is presentation geometry only. */
+static struct { float radius; uint8_t category, query; } const item_pathing = {1.f, 0x18, 0x10};
+
+uint8_t G_ItemPathingCategory(void) { return item_pathing.category; }
+
+static vec2_t G_ItemPlacementPosition(edict_t *item, vec2_t point, bool match_level) {
+    if (match_level) {
+        box2_t bounds = CM_GetWorldBounds();
+        point.x = wc3_widget_clamp_axis(point.x, bounds.min.x, bounds.max.x);
+        point.y = wc3_widget_clamp_axis(point.y, bounds.min.y, bounds.max.y);
+    }
+    vec2_t admitted = point;
+    G_FindWidgetPlacementPosition(item, &point, item_pathing.radius, item_pathing.query,
+                                  match_level, &admitted);
+    return admitted;
+}
+
+static void G_CommitItemPosition(edict_t *item, vec2_t point) {
+    item->s.origin2 = point;
+    item->s.origin.x = point.x;
+    item->s.origin.y = point.y;
+    item->s.origin.z = CM_GetHeightAtPoint(point.x, point.y);
 }
 
 void SP_SpawnItem(edict_t *self) {
-    item_t *rec;
     PATHSTR model_filename;
     cstring_t model;
     float scale;
@@ -122,6 +180,10 @@ void SP_SpawnItem(edict_t *self) {
     if (!self || !(model = self->data.ItemData->file)) {
         return;
     }
+    /* Retail6579b0 seeds both life scalars from ItemData.HP; 65ae40 clamps
+     * nonpositive/NaN current life while 65af00 retains the authored maximum. */
+    self->health.max_value = self->data.ItemData->HP;
+    self->health.value = self->health.max_value >= 0.0f ? self->health.max_value : 0.0f;
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
     scale = self->data.ItemData->scale;
@@ -138,24 +200,33 @@ void SP_SpawnItem(edict_t *self) {
         G_MiscVectorValue("ItemShadowSize", 1));
 #endif
     self->movetype = MOVETYPE_NONE;
+    self->collision = item_pathing.radius;
     self->targtype = TARG_ITEM;
-    rec = G_AddItem(self);
-    rec->carrier = NULL;
-    rec->inventory_slot = -1;
-    rec->in_world = true;
-    rec->drop_id = 0;
-    rec->charges = (uint32_t)MAX(0, (int32_t)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
+    if (!self->item) self->item = G_AllocItem();
+    assert(self->item);
+    self->item->carrier = NULL;
+    self->item->inventory_slot = -1;
+    self->item->in_world = true;
+    self->item->drop_id = 0;
+    /* Constructor658c10 supplies no support-level callback; public position
+     * writes6515f0 do. Do not substitute unit unstuck/recovery here. */
+    G_CommitItemPosition(self, G_ItemPlacementPosition(self, self->s.origin2, false));
+    self->item->charges = (uint32_t)MAX(0, (int32_t)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 
 /* Reject other entity kinds before traversing optional state; callers can reuse the validated record. */
 item_t *G_ItemState(edict_t const *item) {
     if (!item || !item->inuse || !item->class_id || item->targtype != TARG_ITEM) return NULL;
-    item_t *rec = G_GetItem(item);
+    item_t *rec = item ? item->item : NULL;
     return rec && (rec->in_world || rec->carrier || rec->pending_use_removal ||
         (item->data.ItemData && item->data.ItemData->file)) ? rec : NULL;
 }
 
 bool G_IsItem(edict_t const *item) { return G_ItemState(item) != NULL; }
+
+edict_t *G_InventoryItem(edict_t const *unit, uint32_t slot) {
+    return unit && slot < MAX_INVENTORY ? unit->inventory[slot] : NULL;
+}
 
 /* The item currently being visited by EnumItemsInRect, read back by the
  * GetEnumItem native inside the enum action (mirrors currentdestructable). */
@@ -226,6 +297,31 @@ static bool G_InventoryAbilityAvailable(edict_t const *unit, cstring_t ability) 
     return G_GetPlayerTechResearchedLevel(owner, required_upgrade) > 0;
 }
 
+/* Capacity and permissions share one lookup, including UnitAddAbility
+ * attachments. Authored inventory rows retain their existing priority. */
+static uint32_t inventory_ability_code(edict_t const *unit,bool *seen) {
+    *seen=false;
+    if(!unit || !unit->inuse)return 0;
+    cstring_t list=unit->data.UnitAbilities ? unit->data.UnitAbilities->abilList : NULL;
+    if(list) {
+        PARSE_LIST(list,abil,parse_segment) {
+            if(G_AbilityCodeName(abil)!=MAKEFOURCC('A','I','n','v'))continue;
+            *seen=true;
+            /* An authored row remains known after UnitRemoveAbility, but its
+             * removed attachment no longer grants slots or permission flags. */
+            if(G_ActorHasAbilityCode(unit,FS_SLKKey(abil)) && G_InventoryAbilityAvailable(unit,abil))return FS_SLKKey(abil);
+        }
+    }
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.added)) {
+        uint32_t code=unit->abilities.added[i];
+        if(G_AbilityCode(code)!=MAKEFOURCC('A','I','n','v'))continue;
+        *seen=true;
+        char name[5]={0};memcpy(name,&code,4);
+        if(G_InventoryAbilityAvailable(unit,name))return code;
+    }
+    return 0;
+}
+
 /* Classic ROC has a built-in six-slot hero inventory and no AInv data row.
  * AIab/AIa6 are attribute bonuses, never inventory aliases. An authored AInv
  * row (including zero capacity) remains authoritative when present. */
@@ -234,34 +330,18 @@ static bool G_UsesClassicHeroInventory(edict_t const *unit, cstring_t ability) {
         G_UnitIsHero(unit) && !G_AbilityDataName(ability)->id;
 }
 
-static bool G_InventoryAbilityFlag(edict_t const *unit, uint32_t data_index, bool roc_hero_default) {
-    cstring_t abilities = NULL;
-    bool has_inventory_ability = false;
-
-    if (!unit || !unit->inuse) return false;
-    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
-            abilityLevel_t const *ability_level;
-            uint32_t const code = G_AbilityCodeName(abil);
-
-            if (code != MAKEFOURCC('A','I','n','v')) continue;
-            has_inventory_ability = true;
-            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
-            if (G_UsesClassicHeroInventory(unit, abil)) return roc_hero_default;
-            ability_level = G_AbilityLevel(FS_SLKKey(abil), 1);
-            return ability_level &&
-                   data_index < sizeof(ability_level->data) / sizeof(ability_level->data[0]) &&
-                   ability_level->data[data_index].number != 0.0f;
-        }
+static bool G_InventoryAbilityFlag(edict_t const *unit,uint32_t data_index,bool roc_hero_default) {
+    if(!unit || !unit->inuse)return false;
+    bool has_inventory;
+    uint32_t code=inventory_ability_code(unit,&has_inventory);
+    if(code) {
+        char name[5]={0};memcpy(name,&code,4);
+        if(G_UsesClassicHeroInventory(unit,name))return roc_hero_default;
+        abilityLevel_t const *row=G_AbilityLevel(code,1);
+        return row && data_index<sizeof(row->data)/sizeof(row->data[0]) && row->data[data_index].number!=0;
     }
-
-    /* Reign of Chaos synthesizes the normal hero inventory when no inventory
-     * ability is authored. That stock hero inventory can use items and does
-     * not drop them on death; callers supply the appropriate default. */
-    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
-        return roc_hero_default;
-    return false;
+    /* Preserve the stock RoC Hero fallback when no inventory is attached. */
+    return !has_inventory && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit) && roc_hero_default;
 }
 
 bool G_InventoryCanUseItems(edict_t const *unit) {
@@ -272,8 +352,8 @@ bool G_InventoryCanUseItems(edict_t const *unit) {
 
 bool G_InventoryCanGetItems(edict_t const *unit) {
     /* inv4 / DataD gates player-issued pickup orders. Scripted/native item
-     * insertion deliberately uses G_PickupItem/G_AddItemToSlot directly,
-     * matching Warsmash's giveItem path which bypasses canGetItems. */
+     * insertion uses G_AddItemScripted, whose forced admission bypasses
+     * canGetItems as in original66eba0. */
     return G_InventoryAbilityFlag(unit, 3, true);
 }
 
@@ -319,26 +399,16 @@ static uint32_t G_InventoryAbilityCapacity(edict_t const *unit, cstring_t abilit
 }
 
 uint32_t G_InventoryCapacity(edict_t const *unit) {
-    cstring_t abilities = NULL;
-    bool has_inventory_ability = false;
-
-    if (!unit || !unit->inuse) return 0;
-    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
-            uint32_t const code = G_AbilityCodeName(abil);
-            if (code != MAKEFOURCC('A','I','n','v')) continue;
-            has_inventory_ability = true;
-            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
-            return G_InventoryAbilityCapacity(unit, abil);
-        }
+    if(!unit || !unit->inuse)return 0;
+    bool has_inventory;
+    uint32_t code=inventory_ability_code(unit,&has_inventory);
+    if(code) {
+        char name[5]={0};memcpy(name,&code,4);
+        return G_InventoryAbilityCapacity(unit,name);
     }
-
-    /* Restore the classic hero inventory when no inventory ability is authored.
-     * ROC map formats are <= 24; TFT/custom data may
-     * intentionally omit inventory, so do not synthesize there. */
-    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
-        return G_InventoryAbilityCapacity(unit, "AInv");
+    /* Classic Hero inventory is synthesized only when no inventory row exists. */
+    if(!has_inventory && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
+        return G_InventoryAbilityCapacity(unit,"AInv");
     return 0;
 }
 
@@ -381,6 +451,8 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
 
     if (!rec || rec->pending_use_removal) return;
     carrier = rec->carrier;
+    uint32_t item_spawn = item->spawn_time;
+    uint32_t carrier_spawn = carrier ? carrier->spawn_time : 0;
     slot = rec->inventory_slot;
     rec->pending_use_carrier = carrier;
     rec->pending_use_carrier_spawn_time = carrier ? carrier->spawn_time : 0;
@@ -393,18 +465,25 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
             }
         }
         if (slot >= 0) {
-            G_ApplyItemStats(carrier, item, false);
-            carrier->inventory->slots[slot] = NULL;
+            bool preparing = S_SpellPreparationBypassesTarget(carrier);
+            if (!G_ApplyItemStats(carrier, item, false)) return;
+            if (preparing && !S_SpellPreparationBypassesTarget(carrier)) return;
+            if (!item->inuse || item->spawn_time != item_spawn || G_IsDeferredFree(item) ||
+                item->item != rec) return;
+            if (!carrier->inuse || carrier->spawn_time != carrier_spawn ||
+                G_IsDeferredFree(carrier) || rec->carrier != carrier ||
+                G_InventoryItem(carrier, slot) != item) return;
+            carrier->inventory[slot] = NULL;
         }
         G_RefreshInventoryUI(carrier);
     }
 
     gi.UnlinkEntity(item);
-    rec->carrier = NULL;
-    rec->inventory_slot = -1;
-    rec->in_world = false;
-    rec->pending_use_removal = true;
-    item->s.renderfx |= RF_HIDDEN;
+    item->item->carrier = NULL;
+    item->item->inventory_slot = -1;
+    item->item->in_world = false;
+    item->item->pending_use_removal = true;
+    G_SetEntityHidden(item,true);
     item->svflags |= SVF_NOCLIENT;
     level.pending_consumed_item_cleanup = true;
 }
@@ -427,6 +506,36 @@ void G_CompleteItemUse(edict_t *unit, edict_t *item) {
     G_ConsumeItemCharge(item);
 }
 
+/* Preparatory item packets commit after ENDCAST. Native249 observes the
+ * decremented charge while the item remains carried in synchronous USE_ITEM.
+ * Exhausted perishables retire only after that callback returns. Ordinary item
+ * entry points retain their existing queued-event completion contract. */
+void G_CompletePreparatoryItemUse(edict_t *unit, edict_t *item) {
+    item_t *rec = G_ItemState(item);
+    if (!unit || !unit->inuse || G_IsDeferredFree(unit) || !rec ||
+        G_IsDeferredFree(item) || rec->pending_use_removal || rec->carrier != unit ||
+        !item->data.ItemData) return;
+    uint64_t epoch = S_SpellPreparationEpoch();
+    uint32_t unit_spawn = unit->spawn_time, item_spawn = item->spawn_time;
+    bool unlimited = item->data.ItemData->uses == 0;
+    if (!unlimited) {
+        if (!rec->charges) return;
+        --rec->charges;
+    }
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,
+        .type=EVENT_PLAYER_UNIT_USE_ITEM},EVENT_UNIT_USE_ITEM,false);
+    if (epoch != S_SpellPreparationEpoch()) return;
+    if (!unit->inuse || unit->spawn_time != unit_spawn || G_IsDeferredFree(unit) ||
+        !item->inuse || item->spawn_time != item_spawn || G_IsDeferredFree(item) ||
+        item->item != rec || rec->carrier != unit || rec->pending_use_removal ||
+        rec->inventory_slot < 0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot) != item) return;
+    if (!unlimited && !rec->charges && item->data.ItemData->perishable) {
+        G_RemoveItem(item);
+    } else {
+        G_RefreshInventoryUI(unit);
+    }
+}
+
 static bool G_ConsumedItemHasQueuedEvent(edict_t const *item) {
     if (!item) return false;
     for (uint32_t i = level.events.read; i < level.events.write; i++) {
@@ -444,7 +553,7 @@ void G_RunConsumedItemFrees(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *item = globals.edicts + i;
-        item_t *rec = item->inuse && item->targtype == TARG_ITEM ? G_GetItem(item) : NULL;
+        item_t *rec = item->inuse && item->targtype == TARG_ITEM ? item->item : NULL;
         if (!rec || !rec->pending_use_removal) continue;
         if (G_ConsumedItemHasQueuedEvent(item) ||
             (level.vm && jass_context_references_entity(level.vm, item))) {
@@ -472,7 +581,7 @@ int32_t G_FindFreeInventorySlot(edict_t const *unit) {
 /* A zero-slot inventory may still use a rune or ability-less quest powerup.
  * Ordinary items still require an available inventory slot. */
 static bool G_IsAbilitylessPowerup(edict_t const *item);
-static bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
+bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
     return G_InventoryCanUseItems(unit) &&
            (S_ItemPowerup(unit, item).ability || G_IsAbilitylessPowerup(item));
 }
@@ -488,22 +597,27 @@ bool G_CanPickupItem(edict_t *unit, edict_t *item) {
            !(item->s.renderfx & RF_HIDDEN) && !(item->svflags & SVF_NOCLIENT);
 }
 
-bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event) {
-    item_t *rec = G_GetItem(item);
-    if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || G_InventoryItem(unit, slot)) {
-        return false;
-    }
-
+/* Binding is shared by ordinary pickups and forced scripted insertion. The
+ * caller owns admission and the synchronous versus queued event boundary. */
+static bool G_BindItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
+    item_t *rec=item->item;
     gi.UnlinkEntity(item);
-    item->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(item,true);
     item->svflags |= SVF_NOCLIENT;
     rec->in_world = false;
     rec->carrier = unit;
     rec->inventory_slot = (int32_t)slot;
-    G_InitInventory(unit);
-    unit->inventory->slots[slot] = item;
-    G_ApplyItemStats(unit, item, true);
+
+    unit->inventory[slot] = item;
+    G_PublishMoveSpatialObject(item);
+    if (!G_ApplyItemStats(unit, item, true)) return false;
     G_RefreshInventoryUI(unit);
+    return true;
+}
+
+bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event) {
+    if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || unit->inventory[slot]) return false;
+    if (!G_BindItemToSlot(unit,item,slot)) return false;
     if (publish_event) {
         G_PlayerScoreItemGained(unit);
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
@@ -516,18 +630,59 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
-/* Transfer a carried item without manufacturing a world item. Native callers
- * may move an item regardless of player-issued drop permissions; order callers
- * validate those permissions before beginning an approach. The source and
- * recipient inventories change together only after every check succeeds. */
-static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, bool publish_drop) {
-    item_t *rec = G_ItemState(item);
+/*2182a0/66eba0 force insertion accepts hidden and detached unowned items.
+ * Visibility belongs to the world pickup producer, not this native. */
+static bool G_CanAddItemScripted(edict_t *unit, edict_t *item) {
+    return unit && unit->inuse && unit->targtype!=TARG_ITEM && !unit->destructable && !unit->client &&
+        !M_IsDead(unit) && G_IsItem(item) && !G_IsDeferredFree(item) && !item->item->pending_use_removal &&
+        (G_UnitHasInventory(unit) || G_CanConsumePickupPowerup(unit,item));
+}
+
+/* Script insertion completes Pickup on the current JASS stack. */
+bool G_AddItemToSlotScripted(edict_t *unit, edict_t *item, uint32_t slot) {
+    if(!G_CanAddItemScripted(unit,item) || item->item->carrier || slot>=G_InventoryCapacity(unit) || unit->inventory[slot])return false;
+    if (!G_BindItemToSlot(unit,item,slot)) return false;
+    G_PlayerScoreItemGained(unit);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
+    return true;
+}
+
+/* Detachment is separate from world publication and the next recipient's
+ * admission. A failed Give attachment retains a hidden unowned item, while
+ * RemoveUnit's retirement producer observes the already-cleared source slot. */
+bool G_DetachCarriedItem(edict_t *item) {
+    item_t *state=G_ItemState(item);
+    if (!state) return false;
+    edict_t *carrier=state->carrier;
+    itemBindingGuard_t guard=G_ItemBindingGuard(carrier,item);
+    if (!S_DetachPreparatoryItems(item) || !G_ItemBindingUnchanged(&guard)) return false;
+    int32_t slot=state->inventory_slot;
+    if(carrier && carrier->inuse) {
+        if(slot<0 || slot>=MAX_INVENTORY || carrier->inventory[slot]!=item) {
+            slot=-1;
+            FOR_LOOP(i,MAX_INVENTORY)if(carrier->inventory[i]==item){slot=i;break;}
+        }
+        if(slot>=0) {
+            if (!G_ApplyItemStats(carrier,item,false) || !G_ItemBindingUnchanged(&guard) ||
+                carrier->inventory[slot]!=item) return false;
+            carrier->inventory[slot]=NULL;
+        }
+        G_RefreshInventoryUI(carrier);
+    }
+    state->carrier=NULL;state->inventory_slot=-1;state->in_world=false;
+    return true;
+}
+
+/* Player Give detaches without world publication, then attempts recipient
+ * attachment. Scripted UnitAddItem uses its own world-drop producer below. */
+bool G_GiveCarriedItem(edict_t *recipient, edict_t *item) {
+    item_t *rec=G_ItemState(item);
     edict_t *source;
     int32_t source_slot, target_slot;
 
     if (!rec || rec->in_world || rec->pending_use_removal ||
         !recipient || !recipient->inuse || recipient->targtype == TARG_ITEM ||
-        G_GetDestructable(recipient) || recipient->client || M_IsDead(recipient) ||
+        recipient->destructable || recipient->client || M_IsDead(recipient) ||
         !G_UnitHasInventory(recipient))
         return false;
     source = rec->carrier;
@@ -542,26 +697,44 @@ static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, boo
     target_slot = G_FindFreeInventorySlot(recipient);
     if (target_slot < 0) return false;
 
-    G_ApplyItemStats(source, item, false);
-    source->inventory->slots[source_slot] = NULL;
-    G_InitInventory(recipient);
-    recipient->inventory->slots[target_slot] = item;
+    {
+        uint32_t const generation=item->spawn_time,recipient_spawn=recipient->spawn_time;
+        /*5667d0 publishes Drop while the original source slot still contains
+         * the item. A nested order changes movement, not this transaction. */
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=source,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+        if(!recipient->inuse || recipient->spawn_time!=recipient_spawn)return false;
+        if(!G_IsItem(item) || item->spawn_time!=generation) {
+            G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=recipient,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
+            return true;
+        }
+        source_slot=item->item->inventory_slot;
+        if(item->item->carrier!=source || source_slot<0 || source_slot>=MAX_INVENTORY ||
+           source->inventory[source_slot]!=item)return false;
+    }
+
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(recipient,item);
+    if (!G_DetachCarriedItem(item)) return false;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !recipient->inuse ||
+        recipient->spawn_time!=detach_guard.unit_birth ||
+        G_IsDeferredFree(recipient)!=detach_guard.unit_deferred) return false;
+    /*6695c0 rechecks capacity AFTER5667d0 detached the item. A callback that
+     * fills/removes Inventory must not roll that completed detach back. */
+    target_slot=G_FindFreeInventorySlot(recipient);
+    if(target_slot<0)return false;
+    recipient->inventory[target_slot] = item;
     rec->carrier = recipient;
     rec->inventory_slot = target_slot;
-    G_ApplyItemStats(recipient, item, true);
-    G_RefreshInventoryUI(source);
+    if (!G_ApplyItemStats(recipient, item, true)) return false;
     G_RefreshInventoryUI(recipient);
-    if (publish_drop) {
-        G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
-        G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
-    }
-    G_PublishEventWithSource(recipient, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
-    G_PublishEventWithSource(recipient, EVENT_UNIT_PICKUP_ITEM, item);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=recipient,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
     return true;
 }
 
-bool G_TransferCarriedItem(edict_t *recipient, edict_t *item) {
-    return G_TransferCarriedItemInternal(recipient, item, false);
+/* Per-instance SetItemPawnable overrides the authored ItemData flag. */
+bool G_ItemPawnable(edict_t const *item) {
+    if(!G_IsItem(item))return false;
+    ItemData_t const *data=item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
+    return item->item->pawnable_set ? item->item->pawnable : data && data->pawnable;
 }
 
 /* Ability-less powerups such as campaign Shimmerweed are quest pickups,
@@ -575,21 +748,38 @@ static bool G_IsAbilitylessPowerup(edict_t const *item) {
     return !abilities || !*abilities || !strcmp(abilities, "_");
 }
 
-static void G_CompletePowerupUse(edict_t *unit, edict_t *item) {
-    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
-    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
-    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
-    G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
-    G_GetItem(item)->charges = 0;
+/* Direct pickup callers retain queued publication. Scripted insertion and the
+ * Inventory terminal use the synchronous insertion sink recovered from retail. */
+static void G_ItemPickupEvent(edict_t *unit, edict_t *item, bool scripted) {
+    if(scripted)G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_PICKUP_ITEM},EVENT_UNIT_PICKUP_ITEM,false);
+    else {
+        G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+        G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    }
+}
+
+static void G_CompletePowerupUse(edict_t *unit, edict_t *item, bool scripted) {
+    uint32_t const generation=item->spawn_time;
+    G_ItemPickupEvent(unit,item,scripted);
+    if(!G_IsItem(item) || item->spawn_time!=generation)return;
+    if(scripted)G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_USE_ITEM},EVENT_UNIT_USE_ITEM,false);
+    else {
+        G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
+        G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
+    }
+    if(!G_IsItem(item) || item->spawn_time!=generation)return;
+    item->item->charges = 0;
     G_RetainConsumedItemForUseEvent(item);
 }
 
-bool G_PickupItem(edict_t *unit, edict_t *item) {
+static bool G_PickupItemInternal(edict_t *unit, edict_t *item, bool scripted) {
+    if(!(scripted ? G_CanAddItemScripted(unit,item) : G_CanPickupItem(unit,item)))return false;
+    uint32_t const generation=item->spawn_time;
     abilityitem_t powerup = S_ItemPowerup(unit, item);
     int32_t slot;
     bool added;
 
-    if (powerup.ability && G_CanPickupItem(unit, item)) {
+    if (powerup.ability) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &powerup, .source_item = item, .source_item_spawn_time = item->spawn_time);
         bool const used = S_AbilityMessage(unit, A_ITEM_USE, &call);
         /* Resurrection is a validated use: with no legal corpse, WC3 reports
@@ -598,18 +788,18 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         if (!used && (powerup.ability->proc == CAbilityItemResurrection ||
                       powerup.ability->proc == CAbilityItemRebirth)) return false;
         G_QueueOwnerSoundAlias(unit, "ItemGet");
-        G_CompletePowerupUse(unit, item);
+        if(G_IsItem(item) && item->spawn_time==generation)G_CompletePowerupUse(unit, item, scripted);
         return true;
     }
     if (G_CanConsumePickupPowerup(unit, item) &&
-        G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
+        G_IsAbilitylessPowerup(item)) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
-        G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
-        G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+        G_ItemPickupEvent(unit,item,scripted);
+        if(!G_IsItem(item) || item->spawn_time!=generation)return true;
         /* A quest powerup is consumed just once even without an ability.
          * Retain its live handle for pickup-trigger callbacks, but do not
          * fabricate a use-item event for an ability-less pickup. */
-        G_GetItem(item)->charges = 0;
+        item->item->charges = 0;
         G_RetainConsumedItemForUseEvent(item);
         return true;
     }
@@ -617,109 +807,81 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
     if (slot < 0) {
         return false;
     }
-    added = G_AddItemToSlot(unit, item, (uint32_t)slot);
+    added = scripted ? G_AddItemToSlotScripted(unit,item,(uint32_t)slot) : G_AddItemToSlot(unit,item,(uint32_t)slot);
     if (added) G_QueueOwnerSoundAlias(unit, "ItemGet");
     return added;
 }
 
-static void G_StopPickupOrder(edict_t *unit) {
-    unit->goalentity = NULL;
-    if (unit->stand) {
-        unit->stand(unit);
-    } else {
-        unit_stand(unit);
-    }
+bool G_PickupItem(edict_t *unit, edict_t *item) {
+    return G_PickupItemInternal(unit,item,false);
 }
 
-static void G_PickupItemThink(edict_t *unit) {
-    edict_t *item = unit->goalentity;
-    float distance;
-    float move_distance;
-
-    /* Tech or an ability override may revoke player pickup permission while
-     * the carrier is walking. Recheck at execution, not just at order issue. */
-    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item)) {
-        G_StopPickupOrder(unit);
-        return;
+/*2182a0 holds the original carrier, removes at its current position, then
+ * inserts. Source droppable metadata does not gate this scripted transaction. */
+bool G_AddItemScripted(edict_t *unit, edict_t *item) {
+    if(!G_CanAddItemScripted(unit,item))return false;
+    if(!G_CanConsumePickupPowerup(unit,item) && G_FindFreeInventorySlot(unit)<0)return false;
+    edict_t *carrier=item->item->carrier;
+    if(carrier) {
+        int32_t const slot=item->item->inventory_slot;
+        uint32_t const generation=item->spawn_time;
+        if(slot<0 || slot>=MAX_INVENTORY || !G_DropItemAtScripted(carrier,(uint32_t)slot,&carrier->s.origin2))return false;
+        if(!G_IsItem(item) || item->spawn_time!=generation)return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
-        G_ShowInventoryFull(unit);
-        G_StopPickupOrder(unit);
-        return;
-    }
-
-    distance = M_DistanceToGoal(unit);
-    if (distance <= ITEM_PICKUP_RANGE) {
-        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
-            !G_CanConsumePickupPowerup(unit, item)) {
-            G_ShowInventoryFull(unit);
-        }
-        G_StopPickupOrder(unit);
-        return;
-    }
-
-    move_distance = unit_movedistance(unit);
-    if (move_is_blocked(unit, distance, move_distance)) {
-        G_StopPickupOrder(unit);
-        return;
-    }
-    unit_changeangle(unit);
-    unit_moveindirection(unit);
+    return G_PickupItemInternal(unit,item,true);
 }
 
-static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, CAbilityInventory, .travel = true };
+/* World publication is shared by explicit drops and Inventory detachment;
+ * their callback boundaries remain owned by the respective producers. */
+static void G_PublishDroppedItem(edict_t *item,vec2_t point) {
+    item->item->in_world=true;
+    G_CommitItemPosition(item,G_ItemPlacementPosition(item,point,true));
+    G_SetEntityHidden(item,false);
+    item->svflags &= ~SVF_NOCLIENT;
+    gi.LinkEntity(item);
+    G_PublishMoveSpatialObject(item);
+}
 
-bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
-    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item) ||
-        (unit->aiflags & AI_IMMOBILE)) {
-        return false;
+/* V3 scene32: the removed Inventory no longer reports capacity. Release the
+ * retained raw slots without cancelling its already-admitted physical task. */
+void G_ReleaseRemovedInventory(edict_t *unit) {
+    uint32_t const spawn=unit->spawn_time;
+    FOR_LOOP(slot,MAX_INVENTORY) {
+        edict_t *item=unit->inventory[slot];
+        if(!G_IsItem(item) || item->item->carrier!=unit || item->item->inventory_slot!=(int32_t)slot)continue;
+        vec2_t const point=unit->s.origin2;
+        uint64_t epoch=S_SpellPreparationEpoch();
+        if (!G_DetachCarriedItem(item)) return;
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=spawn) return;
+        G_PublishDroppedItem(item,point);
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+        if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit))return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
-        G_ShowInventoryFull(unit);
-        return false;
-    }
-
-    unit->goalentity = item;
-    move_reset_progress(unit);
-    unit_setmove(unit, &item_move_pickup);
-    return true;
 }
 
 static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vec2_t const *position, bool play_sound) {
     edict_t *item;
-    item_t *rec;
-    vec2_t drop_position;
 
     if (!unit || !position || slot >= (uint32_t)G_InventoryCapacity(unit)) {
         return false;
     }
     item = G_InventoryItem(unit, slot);
-    rec = G_GetItem(item);
-    if (!G_IsItem(item) || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
+    item_t *rec = G_ItemState(item);
+    if (!rec || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
         rec->in_world) {
         return false;
     }
 
-    /* Warsmash finishes a point drop through setPointAndCheckUnstuck rather
-     * than assigning the requested coordinates blindly. Reuse OpenRealm's
-     * deterministic WC3 unstuck search so blocked terrain resolves to a legal
-     * nearby position while preserving the requested point as its fallback. */
-    drop_position = *position;
-    G_FindUnitUnstuckPosition(item, position, &drop_position);
-
-    G_ApplyItemStats(unit, item, false);
-    unit->inventory->slots[slot] = NULL;
-    rec->carrier = NULL;
-    rec->inventory_slot = -1;
-    rec->in_world = true;
-    item->s.origin.x = drop_position.x;
-    item->s.origin.y = drop_position.y;
-    item->s.origin.z = CM_GetHeightAtPoint(drop_position.x, drop_position.y);
-    item->s.origin2 = drop_position;
-    item->s.renderfx &= ~RF_HIDDEN;
-    item->svflags &= ~SVF_NOCLIENT;
-    gi.LinkEntity(item);
-    G_RefreshInventoryUI(unit);
+    vec2_t const requested=*position;
+    uint32_t const generation=item->spawn_time;
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+    if(!G_IsItem(item) || item->spawn_time!=generation)return true;
+    if(item->item->carrier!=unit || item->item->inventory_slot!=(int32_t)slot || unit->inventory[slot]!=item)return false;
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(unit,item);
+    if (!G_DetachCarriedItem(item)) return false;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !unit->inuse ||
+        unit->spawn_time!=detach_guard.unit_birth || G_IsDeferredFree(unit)) return false;
+    G_PublishDroppedItem(item,requested);
     if (play_sound) G_QueueOwnerSoundAlias(unit, "ItemDrop");
     return true;
 }
@@ -737,6 +899,24 @@ bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position) 
     if (unit && slot < G_InventoryCapacity(unit) &&
         G_ItemAbilitiesPreventDrop(unit, G_InventoryItem(unit, slot))) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
+}
+
+/* Native213940 removes a carried item through694ce0, publishes at the
+ * carrier, then performs the requested admitted write through65a340. */
+void G_SetItemPosition(edict_t *item, vec2_t const *position) {
+    if (!G_IsItem(item) || !position) return;
+    edict_t *carrier = item->item->carrier;
+    if (carrier) {
+        int32_t slot = item->item->inventory_slot;
+        if (slot < 0 || !G_DropItemAtInternal(carrier, (uint32_t)slot, &carrier->s.origin2, false)) return;
+    }
+    if(!G_IsItem(item) || item->item->pending_use_removal || item->item->carrier)return;
+    item->item->in_world=true;
+    G_SetEntityHidden(item,false);
+    item->svflags &= ~SVF_NOCLIENT;
+    G_CommitItemPosition(item, G_ItemPlacementPosition(item, *position, true));
+    gi.LinkEntity(item);
+    G_PublishMoveSpatialObject(item);
 }
 
 bool G_DropItem(edict_t *unit, uint32_t slot) {
@@ -771,8 +951,8 @@ bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot) {
     rec = G_ItemState(item);
     if (!rec || rec->carrier != unit || rec->inventory_slot != (int32_t)slot ||
         rec->in_world) return false;
-    G_ApplyItemStats(unit, item, false);
-    unit->inventory->slots[slot] = NULL;
+    if (!G_ApplyItemStats(unit, item, false) || G_InventoryItem(unit,slot)!=item) return false;
+    unit->inventory[slot] = NULL;
     rec->inventory_slot = -1;
     G_RefreshInventoryUI(unit);
     return true;
@@ -784,196 +964,44 @@ bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
         !rec || rec->carrier != unit || rec->inventory_slot != -1 ||
         rec->in_world || rec->pending_use_removal) return false;
     rec->inventory_slot = (int32_t)slot;
-    G_InitInventory(unit);
-    unit->inventory->slots[slot] = item;
-    G_ApplyItemStats(unit, item, true);
+
+    unit->inventory[slot] = item;
+    if (!G_ApplyItemStats(unit, item, true)) return false;
     G_RefreshInventoryUI(unit);
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
     return true;
 }
 
-static void G_StopDropItemOrder(edict_t *unit) {
-    if (!unit) return;
-    unit->goalentity = NULL;
-    if (unit->orders) unit->orders->item_drop = NULL;
-    if (unit->stand) unit->stand(unit);
-    else unit_stand(unit);
-}
-
-static void G_DropItemThink(edict_t *unit) {
-    edict_t *item = unit && unit->orders ? unit->orders->item_drop : NULL;
-    edict_t *destination = unit ? unit->goalentity : NULL;
-    item_t *rec = G_ItemState(item);
-    float distance;
-    float move_distance;
-    int32_t slot;
-
-    if (!unit || !destination || !rec || rec->carrier != unit || rec->in_world) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-    slot = rec->inventory_slot;
-    if (slot < 0 || slot >= MAX_INVENTORY || G_InventoryItem(unit, slot) != item) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-
-    distance = M_DistanceToGoal(unit);
-    if (distance <= ITEM_DROP_RANGE) {
-        vec2_t const position = destination->s.origin2;
-        G_DropItemAt(unit, (uint32_t)slot, &position);
-        G_StopDropItemOrder(unit);
-        return;
-    }
-
-    move_distance = unit_movedistance(unit);
-    if (move_is_blocked(unit, distance, move_distance)) {
-        G_StopDropItemOrder(unit);
-        return;
-    }
-    unit_changeangle(unit);
-    unit_moveindirection(unit);
-}
-
-static umove_t item_move_drop = {
-    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory, .travel = true
-};
-
-/* Use the authored GiveItemRange for unit-target handoff (separate from
- * DropItemRange). The two collision radii are included in unit reach. */
-static float G_GiveItemReach(edict_t const *source, edict_t const *recipient) {
-    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "GiveItemRange");
-    float range = value ? atof(value) : ITEM_DROP_RANGE;
-    return MAX(0.0f, range) + MAX(0.0f, source->collision) + MAX(0.0f, recipient->collision);
-}
-
-static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
-    item_t *rec = G_ItemState(item);
-    int32_t slot;
-    if (!source || !G_UnitIsWorldActive(source) || M_IsDead(source) ||
-        !G_UnitIsWorldActive(recipient) || M_IsDead(recipient) ||
-        recipient == source || (recipient->s.renderfx & RF_HIDDEN) ||
-        G_IsDeferredFree(recipient) || recipient->targtype == TARG_ITEM ||
-        G_GetDestructable(recipient) || recipient->client || !G_UnitHasInventory(recipient) ||
-        !G_PlayerTreatsPlayerAsAlly(source->s.player, recipient->s.player) ||
-        !G_InventoryCanDropItems(source) || !rec || rec->in_world ||
-        rec->carrier != source || !G_ItemDroppable(item) ||
-        G_ItemAbilitiesPreventDrop(source, item)) return false;
-    slot = rec->inventory_slot;
-    return slot >= 0 && slot < MAX_INVENTORY && G_InventoryItem(source, slot) == item;
-}
-
-static void G_GiveItemThink(edict_t *source) {
-    edict_t *item = source && source->orders ? source->orders->item_drop : NULL;
-    edict_t *recipient = source ? source->goalentity : NULL;
-    float distance, move_distance;
-
-    if (!G_CanGiveItemTarget(source, item, recipient)) {
-        G_StopDropItemOrder(source);
-        return;
-    }
-    distance = M_DistanceToGoal(source);
-    if (distance <= G_GiveItemReach(source, recipient)) {
-        if (!G_TransferCarriedItemInternal(recipient, item, true)) {
-            /* Warcraft drops an unaccepted item at the recipient's feet. A
-             * full inventory is not grounds for deleting the carried item. */
-            vec2_t const position = recipient->s.origin2;
-            if (G_DropItemAt(source, (uint32_t)G_GetItem(item)->inventory_slot, &position)) {
-                G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
-                G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
-            }
-        } else {
-            G_QueueOwnerSoundAlias(source, "ItemDrop");
-        }
-        G_StopDropItemOrder(source);
-        return;
-    }
-    move_distance = unit_movedistance(source);
-    if (move_is_blocked(source, distance, move_distance)) {
-        G_StopDropItemOrder(source);
-        return;
-    }
-    unit_changeangle(source);
-    unit_moveindirection(source);
-}
-
-static umove_t item_move_give = {
-    .animation = "walk", .think = G_GiveItemThink, .endfunc = NULL, .proc = CAbilityInventory, .travel = true
-};
-
-bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
-    if (!G_CanGiveItemTarget(source, item, recipient))
-        return false;
-    source->goalentity = recipient;
-    if (source->aiflags & AI_IMMOBILE) {
-        /* Buildings such as Rexxar's Stash cannot approach a Hero. Permit a
-         * direct handoff when the recipient is already within GiveItemRange. */
-        if (M_DistanceToGoal(source) > G_GiveItemReach(source, recipient)) {
-            source->goalentity = NULL;
-            return false;
-        }
-        source->orders->item_drop = item;
-        G_GiveItemThink(source);
-        return true;
-    }
-    move_reset_progress(source);
-    unit_setmove(source, &item_move_give);
-    /* unit_setmove clears a pending item_drop when replacing an old order. */
-    source->orders->item_drop = item;
-    unit_setanimation(source, "stand");
-    return true;
-}
-
-bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
-    item_t *rec = G_GetItem(item);
-    if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
-        !G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item) || (unit->aiflags & AI_IMMOBILE) ||
-        !G_IsItem(item) || rec->carrier != unit || rec->in_world ||
-        rec->inventory_slot < 0 || rec->inventory_slot >= MAX_INVENTORY ||
-        G_InventoryItem(unit, rec->inventory_slot) != item) {
-        return false;
-    }
-
-    unit->goalentity = Waypoint_add(position);
-    if (!unit->goalentity) return false;
-    move_reset_progress(unit);
-    unit_setmove(unit, &item_move_drop);
-    unit->orders->item_drop = item;
-    unit_setanimation(unit, "stand");
-    return true;
+/* Public RemoveItem calls the carried item's Drop producer before detaching.
+ * Internal consumption/Pawn already owns its event boundary and uses the
+ * transaction below directly, avoiding duplicate removal notifications. */
+void G_RemoveItemScripted(edict_t *item) {
+    if(!G_IsItem(item))return;
+    uint32_t const generation=item->spawn_time;
+    edict_t *carrier=item->item->carrier;
+    int32_t slot=item->item->inventory_slot;
+    if(carrier && carrier->inuse && slot>=0 && slot<MAX_INVENTORY && carrier->inventory[slot]==item)
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=carrier,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+    if(G_IsItem(item) && item->spawn_time==generation)G_RemoveItem(item);
 }
 
 void G_RemoveItem(edict_t *item) {
-    item_t *rec = G_GetItem(item);
-    edict_t *carrier;
-    int32_t slot;
-
-    if (!item || !item->inuse) {
-        return;
-    }
-    carrier = rec->carrier;
-    slot = rec->inventory_slot;
-    if (carrier && carrier->inuse) {
-        if (slot < 0 || slot >= MAX_INVENTORY || G_InventoryItem(carrier, slot) != item) {
-            slot = -1;
-            FOR_LOOP(i, MAX_INVENTORY) {
-                if (G_InventoryItem(carrier, i) == item) {
-                    slot = (int32_t)i;
-                    break;
-                }
-            }
-        }
-        if (slot >= 0) {
-            G_ApplyItemStats(carrier, item, false);
-            carrier->inventory->slots[slot] = NULL;
-        }
-        G_RefreshInventoryUI(carrier);
-    }
-    rec->carrier = NULL;
-    rec->inventory_slot = -1;
-    rec->in_world = false;
+    if(!G_IsItem(item))return;
+    if (!G_DetachCarriedItem(item)) return;
     G_FreeEdict(item);
+}
+
+/* V4 13 publishes retirement Drop after clearing the old unit's slot, while
+ * the item identity still resolves. A nested deletion cannot free its reuse. */
+static void G_RemoveRetiredItem(edict_t *unit,edict_t *item) {
+    uint32_t const generation=item->spawn_time;
+    itemBindingGuard_t detach_guard=G_ItemBindingGuard(unit,item);
+    if (!G_DetachCarriedItem(item)) return;
+    if (detach_guard.epoch!=S_SpellPreparationEpoch() || !unit->inuse ||
+        unit->spawn_time!=detach_guard.unit_birth) return;
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=unit,.source=item,.type=EVENT_PLAYER_UNIT_DROP_ITEM},EVENT_UNIT_DROP_ITEM,false);
+    if(G_IsItem(item) && item->spawn_time==generation)G_RemoveItem(item);
 }
 
 /* RemoveUnit is not a death drop: inventory objects carried by the retired
@@ -989,16 +1017,18 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
     bool inventory_owner;
 
     if (!unit || !unit->inuse || unit->targtype == TARG_ITEM) return;
+    uint64_t epoch=S_SpellPreparationEpoch();
+    uint32_t birth=unit->spawn_time;
     inventory_owner = G_InventoryCapacity(unit) > 0;
     FOR_LOOP(slot, MAX_INVENTORY) {
         edict_t *item = G_InventoryItem(unit, slot);
         if (!item) continue;
         inventory_owner = true;
-        item_t const *rec = G_ItemState(item);
-        if (rec && rec->carrier == unit)
-            G_RemoveItem(item);
+        if (G_IsItem(item) && item->item->carrier == unit)
+            G_RemoveRetiredItem(unit,item);
         else
-            unit->inventory->slots[slot] = NULL;
+            unit->inventory[slot] = NULL;
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth) return;
     }
     if (!inventory_owner) return;
     /* Detached items have carrier==unit but are not present in any slot.
@@ -1006,14 +1036,61 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
      * clear only the obsolete carrier link in that case. */
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *item = globals.edicts + i;
-        item_t *rec = item->inuse && item->targtype == TARG_ITEM ? G_GetItem(item) : NULL;
-        if (!rec) continue;
-        if (rec->carrier == unit) G_RemoveItem(item);
-        else if (rec->pending_use_carrier == unit) {
-            rec->pending_use_carrier = NULL;
-            rec->pending_use_carrier_spawn_time = 0;
+        if (!item->inuse || item->targtype != TARG_ITEM || !item->item) continue;
+        if (item->item->carrier == unit) G_RemoveRetiredItem(unit,item);
+        else if (item->item->pending_use_carrier == unit) {
+            item->item->pending_use_carrier = NULL;
+            item->item->pending_use_carrier_spawn_time = 0;
         }
+        if (epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth) return;
     }
+}
+
+/* The inventory instance owns immediate effects. The controller supplies UI
+ * context only; its current selection can be another unit or a shop. */
+bool G_UseImmediateItemAbility(edict_t *unit, edict_t *item, edict_t *controller,
+                              abilityitem_t const *ability) {
+    item_t *rec=G_ItemState(item);
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !rec ||
+       G_IsDeferredFree(item) || rec->pending_use_removal || rec->carrier!=unit ||
+       rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item ||
+       !ability || !ability->ability || !(ability->ability->flags&AB_ITEM))return false;
+    spellCastProfile_t profile;
+    abilityCall_t query={.item=ability,.cast_profile=&profile};
+    if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability->code);
+    uint64_t const epoch=S_SpellPreparationEpoch();
+    uint32_t const unit_birth=unit->spawn_time,item_birth=item->spawn_time;
+    abilityCall_t call={.item=ability,.client=controller,.source_item=item,
+        .source_item_spawn_time=item_birth};
+    bool const used=S_AbilityMessage(unit,A_ITEM_USE,&call);
+    if(!used || epoch!=S_SpellPreparationEpoch())return used;
+    /* Effects may synchronously remove or transfer their source. Completion
+     * must still refer to the same carried instance after those callbacks. */
+    if(!unit->inuse || unit->spawn_time!=unit_birth || G_IsDeferredFree(unit) ||
+       !item->inuse || item->spawn_time!=item_birth || G_IsDeferredFree(item) ||
+       item->item!=rec || rec->pending_use_removal || rec->carrier!=unit ||
+       rec->inventory_slot<0 || G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item)return used;
+    G_CompleteItemUse(unit,item);
+    return used;
+}
+
+/* Scripted no-target use admits an ordinary item command. Cursor handlers
+ * need their point/target producers and must not open a player's UI here. */
+bool G_UseItemNoTarget(edict_t *unit,edict_t *item) {
+    item_t const *rec=G_ItemState(item);
+    if(!unit || !unit->inuse || !G_InventoryCanUseItems(unit) || !rec ||
+       rec->carrier!=unit || rec->inventory_slot<0 ||
+       G_InventoryItem(unit,(uint32_t)rec->inventory_slot)!=item)return false;
+    cstring_t abilities=G_ItemAbilityList(item);
+    if(!abilities)return false;
+    PARSE_LIST(abilities,name,parse_segment) {
+        abilityitem_t ability=S_AbilityItem(FS_SLKKey(name));
+        if(!ability.ability || !(ability.ability->flags&AB_ITEM))continue;
+        spellCastProfile_t profile;
+        abilityCall_t query={.item=&ability,.cast_profile=&profile};
+        if(S_AbilityMessage(unit,A_CAST_PROFILE,&query))return S_OrderUseItem(unit,item,ability.code);
+    }
+    return false;
 }
 
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */
@@ -1039,13 +1116,11 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .entity = clent);
-        bool succeeded = false;
 
         if (!ability) continue;
         clent->client->menu.ability_code = FS_SLKKey(ability_name);
         if (ability->flags & AB_ITEM) {
-            succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
+            G_UseImmediateItemAbility(unit,item,clent,&ability_item);
         } else if (S_AbilityHasCommand(ability)) {
             clent->client->menu.ability_item = item;
             clent->client->menu.ability_item_spawn_time = item->spawn_time;
@@ -1059,7 +1134,6 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
             continue;
         }
 
-        if (succeeded) G_CompleteItemUse(unit, item);
         return;
     }
 }

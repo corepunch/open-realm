@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_math.h"
 #include <float.h>
 
 void repair_build_primary(edict_t *ent, edict_t *building);
@@ -30,9 +31,9 @@ static uint32_t repair_find_code(edict_t *ent, abilityProc_t wanted, uint32_t pr
     uint32_t fallback = 0;
     cstring_t abilities;
 
-    if (!ent || !ent->data.UnitAbilities) return 0;
-    abilities = ent->data.UnitAbilities->abilList;
-    if (!abilities) return 0;
+    if (!ent) return 0;
+    abilities = ent->data.UnitAbilities ? ent->data.UnitAbilities->abilList : NULL;
+    if (!abilities) abilities = "";
 
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
@@ -41,15 +42,55 @@ static uint32_t repair_find_code(edict_t *ent, abilityProc_t wanted, uint32_t pr
         if (handler != CAbilityRepair && handler != CAbilityRepairGeneric) continue;
         if (wanted && handler != wanted) continue;
         code = FS_SLKKey(ability_name);
+        if (!G_ActorHasAbilityCode(ent, code)) continue;
         if (preferred && code == preferred) return code;
         if (!fallback) fallback = code;
     }
-    return fallback;
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t code = ent->abilities.added[i];
+        abilityProc_t handler = repair_handler(code);
+        if (!code || !G_ActorHasAbilityCode(ent, code)) continue;
+        if (handler != CAbilityRepair && handler != CAbilityRepairGeneric) continue;
+        if (wanted && handler != wanted) continue;
+        if (preferred && code == preferred) return code;
+        if (!fallback) fallback = code;
+    }
+    return preferred ? 0 : fallback;
+}
+
+static cstring_t repair_order_name(uint32_t code) {
+    abilityitem_t item = S_AbilityItem(code);
+    return item.ability && item.ability->orders ? item.ability->orders[0] : NULL;
 }
 
 static AbilityData_t const *repair_data(edict_t *ent) {
-    buildwork_t const *work = G_GetBuildwork(ent);
-    return work && work->ability ? G_AbilityData(work->ability) : NULL;
+    return ent && ent->buildwork->ability ? G_AbilityData(ent->buildwork->ability) : NULL;
+}
+
+static edict_t *repair_owned_target(edict_t *ent) {
+    edict_t *target = ent ? ent->build : NULL;
+    return target && target->inuse && ent->buildwork && !ent->buildwork->target_removed &&
+        target->spawn_time == ent->buildwork->target_spawn_time ? target : NULL;
+}
+
+bool S_RepairSuppressesSeparation(edict_t const *ent) {
+    return ent && ent->buildwork && ent->buildwork->primary && ent->buildwork->working;
+}
+
+/* Native409630's primary Human construction branch publishes work; ordinary
+ * Repair and additional builders do not set Unit20.40000000. */
+static void repair_begin_work(edict_t *ent) {
+    if (ent->buildwork->working) return;
+    ent->buildwork->working = true;
+    if (ent->buildwork->primary) S_UnitAbilityEvent(ent, A_UNIT_WORK_STATE_CHANGED);
+}
+
+/* Native436e10 clears work before retiring the target identities. Pause also
+ * takes this inverse, retaining the order until its work phase starts again. */
+void S_SuspendRepairWork(edict_t *ent) {
+    if (!ent || !ent->buildwork || !ent->buildwork->working) return;
+    ent->buildwork->working = false;
+    S_UnitAbilityEvent(ent, A_UNIT_WORK_STATE_CHANGED);
 }
 
 static bool repair_list_has_token(cstring_t list, cstring_t full, cstring_t short_name) {
@@ -150,44 +191,48 @@ static bool repair_target_is_float(edict_t const *target) {
 }
 
 static bool repair_primary_active(edict_t *building) {
-    construction_t *site = G_GetConstruction(building);
     edict_t *worker;
-    if (!building || !site) return false;
-    worker = site->primary_builder;
+    if (!building || !building->construction) return false;
+    worker = building->construction->primary_builder;
     return worker && worker->inuse && !(worker->svflags & SVF_DEADMONSTER) && worker->build == building &&
            worker->currentmove && worker->currentmove->proc == CAbilityRepair;
 }
 
 static void repair_release(edict_t *ent) {
     edict_t *building;
-    buildwork_t *work = G_GetBuildwork(ent);
-    if (!work) return;
-    building = ent->build;
-    construction_t *site = G_GetConstruction(building);
-    if (work->primary && building && site && site->primary_builder == ent) {
-        site->primary_builder = NULL;
+    if (!ent || !ent->buildwork) return;
+    building = repair_owned_target(ent);
+    if (ent->buildwork->primary && building && building->construction && building->construction->primary_builder == ent) {
+        building->construction->primary_builder = NULL;
     }
-    if (ent->build == building) ent->build = NULL;
-    *work = (buildwork_t){ .component = work->component };
+    S_SuspendRepairWork(ent);
+    ent->build = NULL;
+    assert(ent->buildwork);
+    ent->buildwork->primary = false;
+    ent->buildwork->ability = 0;
+    ent->buildwork->target_spawn_time = 0;
+    ent->buildwork->target_removed = false;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
 }
 
 void S_CancelRepair(edict_t *ent) {
     abilityProc_t ability;
     edict_t *building;
     edict_t *goal;
-    buildwork_t const *work = G_GetBuildwork(ent);
 
-    if (!work || !work->ability) return;
-    ability = repair_handler(work->ability);
+    if (!ent || !ent->buildwork || !ent->buildwork->ability) return;
+    ability = repair_handler(ent->buildwork->ability);
     if (ability != CAbilityRepair && ability != CAbilityRepairGeneric) return;
-    building = ent->build;
+    building = repair_owned_target(ent);
     goal = ent->goalentity;
     /* A replacement order installs its goal before unit_setmove() cancels the
      * old Repair move. Preserve that replacement goal, but still retire the
      * Repair-owned goal on an ordinary Stop/stand transition. unit_stand()
      * clears build before switching moves, so when no build pointer remains the
      * current Repair goal is the best surviving identity for the old target. */
-    if (!building && ent->currentmove && ent->currentmove->proc == ability)
+    if (!building && !ent->build && !ent->buildwork->target_removed &&
+        ent->currentmove && ent->currentmove->proc == ability)
         building = goal;
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1) {
@@ -201,17 +246,16 @@ void S_CancelRepair(edict_t *ent) {
     }
 #endif
     repair_release(ent);
-    if (ent->goalentity == building) ent->goalentity = NULL;
+    if (ent->goalentity == building) S_SetMoveGoal(ent, &ent->goalentity, NULL);
 }
 
 /* Finish Repair consistently: completed Town Halls return their workers to gold mining. */
 static void repair_stop_reason(edict_t *ent, cstring_t reason) {
-    edict_t *building = ent ? ent->build : NULL;
-    construction_t *site = G_GetConstruction(building);
+    edict_t *building = repair_owned_target(ent);
     bool resume_harvest = building && ent && building->s.player == ent->s.player &&
                           building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
                           (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
-                           (!strcmp(reason, "work_target_invalid") && !site &&
+                           (!strcmp(reason, "work_target_invalid") && !building->construction &&
                             building->health.value >= building->health.max_value));
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1 && ent) {
@@ -232,13 +276,13 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
             ent && g_edicts ? (long)(ent - g_edicts) : -1L, reason ? reason : "unknown",
             building && g_edicts ? (long)(building - g_edicts) : -1L,
             building ? (cstring_t)&building->class_id : "----",
-            building ? (site != NULL) : 0,
+            building ? (building->construction != NULL) : 0,
             building ? building->health.value : 0.0f, building ? building->health.max_value : 0.0f,
-            ent && G_GetBuildwork(ent)->primary ? 1 : 0,
+            ent && ent->buildwork->primary ? 1 : 0,
             ent && ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
             ent && ent->goalentity && g_edicts ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
-    if (ent) ent->goalentity = NULL;
+    if (ent) S_SetMoveGoal(ent, &ent->goalentity, NULL);
     repair_release(ent);
     if (resume_harvest) {
         /* Retail returns Town Hall builders to work after the final Repair tick;
@@ -269,11 +313,10 @@ static bool repair_charge(edict_t *ent, float gold_rate, float lumber_rate) {
     if (!client) return false;
 
     seconds = (float)FRAMETIME / 1000.0f;
-    buildwork_t *work = G_GetBuildwork(ent);
-    work->gold_accum += MAX(0.0f, gold_rate) * seconds;
-    work->lumber_accum += MAX(0.0f, lumber_rate) * seconds;
-    gold_due = (int32_t)floorf(work->gold_accum);
-    lumber_due = (int32_t)floorf(work->lumber_accum);
+    ent->buildwork->gold_accum += MAX(0.0f, gold_rate) * seconds;
+    ent->buildwork->lumber_accum += MAX(0.0f, lumber_rate) * seconds;
+    gold_due = (int32_t)floorf(ent->buildwork->gold_accum);
+    lumber_due = (int32_t)floorf(ent->buildwork->lumber_accum);
 
     if (gold_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
         lumber_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
@@ -281,11 +324,11 @@ static bool repair_charge(edict_t *ent, float gold_rate, float lumber_rate) {
     }
     if (gold_due > 0) {
         client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold_due;
-        work->gold_accum -= gold_due;
+        ent->buildwork->gold_accum -= gold_due;
     }
     if (lumber_due > 0) {
         client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber_due;
-        work->lumber_accum -= lumber_due;
+        ent->buildwork->lumber_accum -= lumber_due;
     }
     if (gold_due || lumber_due) {
         G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
@@ -298,7 +341,7 @@ static bool repair_charge_power_cost(edict_t *ent, edict_t *building, AbilityDat
     float build_time;
     float cost_ratio;
 
-    if (!ent || !building || G_GetBuildwork(ent)->primary || G_BuildAllEnabled()) return true;
+    if (!ent || !building || ent->buildwork->primary || G_BuildAllEnabled()) return true;
     balance = building->data.UnitBalance;
     build_time = balance ? (float)balance->buildTime : 0.0f;
     cost_ratio = data ? data->level[0].data[2].number : 0.0f;
@@ -309,8 +352,7 @@ static bool repair_charge_power_cost(edict_t *ent, edict_t *building, AbilityDat
         ((float)balance->lumberRep / build_time) * cost_ratio);
 }
 
-static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bool primary) {
-    construction_t *site = G_GetConstruction(target);
+static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bool primary, bool approaching) {
     abilityProc_t handler = repair_handler(code);
     AbilityData_t const *data = G_AbilityData(code);
 
@@ -318,7 +360,7 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
     if (!target->data.UnitBalance || !repair_target_category_allowed(target, data)) return false;
     if (!repair_target_relation_allowed(ent, target, data)) return false;
 
-    if (site) {
+    if (target->construction) {
         /* Human power building is construction ownership, not ordinary Friend
          * Repair. Do not let an allied worker become another player's primary
          * or additional builder through this completed-unit target expansion. */
@@ -327,14 +369,16 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
         /* Power Build is a Human construction rule. Orc, Undead, and Night
          * Elf structures progress autonomously and ordinary Repair must not
          * become an accidental second construction clock for them. */
-        if (site->type != CONSTRUCTION_HUMAN) return false;
+        if (target->construction->type != CONSTRUCTION_HUMAN) return false;
         /* DataD is the extra-worker power-build ratio. The primary Human
          * builder always contributes at 1.0 and must not be rejected merely
          * because DataD is zero/missing for additional workers. */
-        return handler == CAbilityRepair && data && site->paused &&
+        return handler == CAbilityRepair && data && target->construction->paused &&
                (primary || data->level[0].data[3].number > 0.0f);
     }
-    return target->health.value < target->health.max_value;
+    /* Native3ff160 rejects less than one missing life. Walking retains the
+     * accepted target; the work owner observes completion after contact. */
+    return approaching || wc3_sub(target->health.max_value, target->health.value) >= 1.0f;
 }
 
 static float repair_range(edict_t *ent, edict_t const *target) {
@@ -372,12 +416,13 @@ static void repair_set_work(edict_t *ent) {
     edict_t *building = ent ? ent->build : NULL;
 
     if (!ent || !building) return;
-    ent->goalentity = building;
+    S_SetMoveGoal(ent, &ent->goalentity, building);
     move_reset_progress(ent);
-    if (repair_handler(G_GetBuildwork(ent)->ability) == CAbilityRepairGeneric)
+    if (repair_handler(ent->buildwork->ability) == CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_work);
     else
         unit_setmove(ent, &repair_move_work);
+    repair_begin_work(ent);
 }
 
 static bool repair_prepare_approach(edict_t *ent) {
@@ -393,7 +438,7 @@ static bool repair_prepare_approach(edict_t *ent) {
      * footprints. Following the entity also lets Repair track a target that
      * moves while the worker is approaching it. */
     if (!G_UnitIsStructure(building)) {
-        ent->goalentity = building;
+        S_SetMoveGoal(ent, &ent->goalentity, building);
         move_reset_progress(ent);
         return true;
     }
@@ -401,7 +446,7 @@ static bool repair_prepare_approach(edict_t *ent) {
     found = CM_FindApproachPointToFootprintForRadius(
         building, &ent->s.origin2, interaction_range, ent->collision, &approach);
     if (found) {
-        ent->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(ent, &ent->goalentity, Waypoint_add(&approach));
         move_reset_progress(ent);
         return true;
     }
@@ -409,7 +454,7 @@ static bool repair_prepare_approach(edict_t *ent) {
     /* Models without an authored footprint retain the legacy centre/collision
      * fallback, but still use collision-sized routing. */
     if (!building->pathtex) {
-        ent->goalentity = building;
+        S_SetMoveGoal(ent, &ent->goalentity, building);
         move_reset_progress(ent);
         return true;
     }
@@ -418,11 +463,12 @@ static bool repair_prepare_approach(edict_t *ent) {
 }
 
 static bool repair_set_walk(edict_t *ent) {
+    S_SuspendRepairWork(ent);
     if (!repair_prepare_approach(ent)) {
         repair_stop_reason(ent, "no_approach");
         return false;
     }
-    if (repair_handler(G_GetBuildwork(ent)->ability) == CAbilityRepairGeneric)
+    if (repair_handler(ent->buildwork->ability) == CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_walk);
     else
         unit_setmove(ent, &repair_move_walk);
@@ -430,11 +476,11 @@ static bool repair_set_walk(edict_t *ent) {
 }
 
 static void ai_repair_walk(edict_t *ent) {
-    edict_t *building = ent ? ent->build : NULL;
+    edict_t *building = repair_owned_target(ent);
     float distance, step;
-    buildwork_t const *work = G_GetBuildwork(ent);
 
-    if (!building || !repair_target_valid(ent, building, work->ability, work->primary)) {
+    if (!building || !repair_target_valid(ent, building, ent->buildwork->ability,
+                                           ent->buildwork->primary, true)) {
         repair_stop_reason(ent, "walk_target_invalid");
         return;
     }
@@ -452,11 +498,11 @@ static void ai_repair_walk(edict_t *ent) {
 
     unit_changeangle_for_radius(ent, ent->collision);
 
-    if (ent->movement->flow_goal_reached && !repair_in_range(ent, building)) {
+    if (ent->movement.flow_goal_reached && !repair_in_range(ent, building)) {
         repair_stop_reason(ent, "walk_goal_reached_out_of_range");
         return;
     }
-    if (ent->movement->flow_unreachable) {
+    if (ent->movement.flow_unreachable) {
         repair_stop_reason(ent, "walk_unreachable");
         return;
     }
@@ -464,13 +510,12 @@ static void ai_repair_walk(edict_t *ent) {
 }
 
 static void ai_repair(edict_t *ent) {
-    edict_t *building = ent ? ent->build : NULL;
-    construction_t *site = G_GetConstruction(building);
+    edict_t *building = repair_owned_target(ent);
     AbilityData_t const *data;
     edictStat_s *hp;
 
-    buildwork_t const *work = G_GetBuildwork(ent);
-    if (!building || !repair_target_valid(ent, building, work->ability, work->primary)) {
+    if (!building || !repair_target_valid(ent, building, ent->buildwork->ability,
+                                           ent->buildwork->primary, false)) {
         repair_stop_reason(ent, "work_target_invalid");
         return;
     }
@@ -479,22 +524,24 @@ static void ai_repair(edict_t *ent) {
         return;
     }
 
+    repair_begin_work(ent);
+
     data = repair_data(ent);
     hp = &building->health;
-    unit_facegoal(ent);
+    unit_changeangle(ent);
 
-    if (site) {
+    if (building->construction) {
         float ratio;
         float duration;
         float hp_gain;
         float start_hp;
 
-        if (!site->paused || !data) {
+        if (!building->construction->paused || !data) {
             repair_stop_reason(ent, "construction_not_paused_or_no_data");
             return;
         }
-        if (work->primary) {
-            if (site->primary_builder != ent) {
+        if (ent->buildwork->primary) {
+            if (building->construction->primary_builder != ent) {
                 repair_stop_reason(ent, "lost_primary_builder");
                 return;
             }
@@ -512,7 +559,7 @@ static void ai_repair(edict_t *ent) {
         }
 
         duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
-        site->progress += (float)FRAMETIME * ratio;
+        building->construction->progress += (float)FRAMETIME * ratio;
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
         hp_gain = (hp->max_value - start_hp) * ((float)FRAMETIME * ratio / duration);
@@ -520,11 +567,11 @@ static void ai_repair(edict_t *ent) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD repair-progress worker=%ld move=%s primary=%u ratio=%.3f building=%ld id=%.4s progress=%.1f/%.1f health=%.1f/%.1f frame=%u\n",
                 (long)(ent - g_edicts), ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
-                work->primary, ratio, (long)(building - g_edicts),
-                (cstring_t)&building->class_id, site->progress,
+                ent->buildwork->primary, ratio, (long)(building - g_edicts),
+                (cstring_t)&building->class_id, building->construction->progress,
                 duration, hp->value, hp->max_value, building->s.frame);
 #endif
-        if (site->progress >= duration) {
+        if (building->construction->progress >= duration) {
             G_CompleteConstruction(building);
             repair_stop_reason(ent, "construction_complete");
         }
@@ -603,9 +650,9 @@ static void ai_repair_legacy(edict_t *ent) {
     }
 }
 
-static umove_t repair_move_walk = { "walk", ai_repair_walk, NULL, CAbilityRepair, .travel = true };
+static umove_t repair_move_walk = { "walk", ai_repair_walk, NULL, CAbilityRepair };
 static umove_t repair_move_work = { "stand work", ai_repair, NULL, CAbilityRepair };
-static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, CAbilityRepairGeneric, .travel = true };
+static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, CAbilityRepairGeneric };
 static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, CAbilityRepairGeneric };
 static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, CAbilityRepair };
 
@@ -613,11 +660,10 @@ static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL,
  * approaching worker. An unfinished Human building can have several workers;
  * only a live worker executing the work move contributes progress. */
 bool S_RepairWorkerAdvancingHumanConstruction(edict_t const *worker, edict_t const *building) {
-    buildwork_t *work = G_GetBuildwork(worker);
-    return worker && building && worker->inuse && !G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) &&
+    return worker && building && worker->inuse && !worker->paused &&
            G_UnitIsWorldActive(worker) && !(worker->svflags & SVF_DEADMONSTER) &&
            worker->health.value > 0.0f && worker->build == building &&
-           work && work->ability &&
+           worker->buildwork && worker->buildwork->ability &&
            worker->currentmove == &repair_move_work;
 }
 
@@ -625,7 +671,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
     vec2_t origin;
     float angle;
 
-    if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
+    if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary, false)) return false;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD repair-begin worker=%ld building=%ld id=%.4s primary=%d origin=(%.1f,%.1f)\n",
             (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&building->class_id, primary,
@@ -633,7 +679,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
 #endif
     S_CancelRepair(ent);
     ent->build = building;
-    ent->goalentity = building;
+    S_SetMoveGoal(ent, &ent->goalentity, building);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD legacy-link worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f\n",
@@ -641,8 +687,14 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
                 (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 building->health.value, building->health.max_value);
     }
-    buildwork_t *work = G_AddBuildwork(ent);
-    *work = (buildwork_t){ .component = work->component, .ability = code, .primary = primary };
+    if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
+    assert(ent->buildwork);
+    ent->buildwork->primary = primary;
+    ent->buildwork->ability = code;
+    ent->buildwork->target_spawn_time = building->spawn_time;
+    ent->buildwork->target_removed = false;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
     move_reset_progress(ent);
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1) {
@@ -670,7 +722,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
         ent->s.origin2 = origin;
         ent->s.angle = angle - M_PI;
         gi.LinkEntity(ent);
-        G_GetConstruction(building)->primary_builder = ent;
+        building->construction->primary_builder = ent;
     }
 
     if (repair_in_range(ent, building)) repair_set_work(ent);
@@ -678,13 +730,39 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
     return true;
 }
 
-void repair_build_primary(edict_t *ent, edict_t *building) {
-    construction_t *site = G_GetConstruction(building);
-    uint32_t code = repair_find_code(ent, CAbilityRepair, 0);
-    if (!code || !repair_begin(ent, building, code, true)) {
-        if (building && site && site->primary_builder == ent)
-            site->primary_builder = NULL;
+/* Repair is a real user head, activated after the old Build retires. Its
+ * notification may replace or remove either participant before work starts. */
+static bool repair_notify_target(edict_t *ent,edict_t *building,uint32_t code) {
+    uint32_t spawn=ent->spawn_time,target_spawn=building->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(ent);
+    G_PublishIssuedTargetOrder(ent,repair_order_name(code),building,ent->s.player);
+    if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
+       S_UnitExecutionPaused(ent) || G_UnitMoveRevision(ent)!=revision)return false;
+    if(!building->inuse || building->spawn_time!=target_spawn || G_IsDeferredFree(building) || M_IsDead(building)) {
+        SAFE_CALL(ent->stand,ent);return false;
     }
+    return true;
+}
+
+static bool repair_resume_order(edict_t *ent) {
+    edict_t *target=repair_owned_target(ent);
+    uint32_t code=ent->buildwork ? ent->buildwork->ability : 0;
+    if(!target || !code)return false;
+    /* Work remains suspended until its owner visits again. Re-notify the
+     * saved head now; callback replacements own all subsequent execution. */
+    repair_notify_target(ent,target,code);
+    return true;
+}
+
+void repair_build_primary(edict_t *ent, edict_t *building) {
+    uint32_t code=repair_find_code(ent,CAbilityRepair,0);
+    uint32_t target_spawn=building->spawn_time;
+    if(code) {
+        ent->current_order_id=G_OrderId(repair_order_name(code));
+        if(repair_notify_target(ent,building,code) && repair_begin(ent,building,code,true))return;
+    }
+    if(building->inuse && building->spawn_time==target_spawn && building->construction &&
+       building->construction->primary_builder==ent)building->construction->primary_builder=NULL;
 }
 
 void repair_build_legacy(edict_t *ent, edict_t *building) {
@@ -700,9 +778,15 @@ void repair_build_legacy(edict_t *ent, edict_t *building) {
     ent->s.angle = angle - M_PI;
     gi.LinkEntity(ent);
     ent->build = building;
-    ent->goalentity = building;
-    buildwork_t *work = G_AddBuildwork(ent);
-    *work = (buildwork_t){ .component = work->component }; /* Legacy construction work has no concrete Repair rawcode. */
+    S_SetMoveGoal(ent, &ent->goalentity, building);
+    if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
+    assert(ent->buildwork);
+    ent->buildwork->primary = false;
+    ent->buildwork->ability = 0;
+    ent->buildwork->target_spawn_time = building->spawn_time;
+    ent->buildwork->target_removed = false;
+    ent->buildwork->gold_accum = 0.0f;
+    ent->buildwork->lumber_accum = 0.0f;
     unit_setmove(ent, &repair_legacy_move_work);
 }
 
@@ -711,7 +795,6 @@ bool G_UnitHasHumanRepair(edict_t *ent) {
 }
 
 bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred) {
-    construction_t *site = G_GetConstruction(target);
     abilityProc_t wanted = NULL;
     uint32_t code;
     bool primary = false;
@@ -724,24 +807,26 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred) {
     code = repair_find_code(ent, wanted, preferred);
     if (!code) return false;
 
-    if (site) {
+    if (target->construction) {
         /* Friend permits ordinary allied Repair, not construction ownership.
          * Reject before touching primary_builder so an allied Repair click can
          * never detach the owning player's Human builder. */
         if (target->s.player != ent->s.player) return false;
         if (repair_handler(code) != CAbilityRepair) return false;
         if (!repair_primary_active(target)) {
-            site->primary_builder = NULL;
+            target->construction->primary_builder = NULL;
             primary = true;
         }
     }
-    if (!repair_target_valid(ent, target, code, primary)) return false;
+    if (!repair_target_valid(ent, target, code, primary, false)) return false;
 
     return repair_begin(ent, target, code, primary);
 }
 
 bool S_RepairSmart(edict_t *ent, edict_t *target) {
-    return S_OrderRepair(ent, target, 0);
+    if (!S_OrderRepair(ent, target, 0)) return false;
+    ent->current_order_id = G_OrderId("smart");
+    return true;
 }
 
 #define REPAIR_AUTOCAST_MAX_TARGETS 256 // entities; bounded candidates considered by one Auto Repair acquisition scan
@@ -757,7 +842,6 @@ static void repair_autocast_set(edict_t *ent, bool enabled) {
 }
 
 static cstring_t repair_autocast_reject_reason(edict_t *ent, edict_t *target, uint32_t code) {
-    construction_t *site = G_GetConstruction(target);
     abilityProc_t handler;
     AbilityData_t const *data;
     bool primary = false;
@@ -773,15 +857,15 @@ static cstring_t repair_autocast_reject_reason(edict_t *ent, edict_t *target, ui
     data = G_AbilityData(code);
     if (!repair_target_category_allowed(target, data)) return "target_category";
     if (!repair_target_relation_allowed(ent, target, data)) return "target_relation";
-    if (site) {
+    if (target->construction) {
         if (handler != CAbilityRepair) return "construction_requires_human_repair";
-        if (!site->paused) return "construction_not_paused";
+        if (!target->construction->paused) return "construction_not_paused";
         if (!repair_primary_active(target)) primary = true;
         if (!primary && (!data || data->level[0].data[3].number <= 0.0f)) return "no_power_build_ratio";
     } else if (target->health.value >= target->health.max_value) {
         return "full_health";
     }
-    return repair_target_valid(ent, target, code, primary) ? NULL : "repair_target_rules";
+    return repair_target_valid(ent, target, code, primary, false) ? NULL : "repair_target_rules";
 }
 
 /* Warsmash CUnit.distance() compares unit edges by subtracting both collision
@@ -915,7 +999,7 @@ static bool repair_autocast_acquire(edict_t *ent) {
                 best->health.value, best->health.max_value);
     }
 #endif
-    if (!G_IssueUnitTargetOrder(ent, "repair", best, false, ent->s.player)) {
+    if (!G_IssueUnitTargetOrder(ent, repair_order_name(code), best, false, ent->s.player)) {
 #ifdef WC3_DEBUG_AUTOCAST
         if (G_AutocastDebugLevel() >= 1) {
             fprintf(stderr, "WC3_AUTOREPAIR order_failed worker=%ld target=%ld\n",
@@ -929,7 +1013,6 @@ static bool repair_autocast_acquire(edict_t *ent) {
 }
 
 static bool repair_selecttarget(edict_t *clent, edict_t *target) {
-    construction_t *site = G_GetConstruction(target);
     uint32_t code;
     abilityProc_t handler;
     bool issued = false;
@@ -943,18 +1026,18 @@ static bool repair_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
 
-    if (!site && target->health.value >= target->health.max_value) {
+    if (!target->construction && target->health.value >= target->health.max_value) {
         G_ShowCommandErrorKey(clent, "RepairHPmaxed", "Target is not damaged.");
         return false;
     }
-    if (site &&
-        (handler != CAbilityRepair || !site->paused)) {
+    if (target->construction &&
+        (handler != CAbilityRepair || !target->construction->paused)) {
         G_ShowCommandErrorKey(clent, "UnderConstruction", "That building is currently under construction.");
         return false;
     }
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if (G_IssueUnitTargetOrder(ent, "repair", target,
+        if (G_IssueUnitTargetOrder(ent, repair_order_name(code), target,
                                    clent->client->menu.order_queued,
                                    clent->client->ps.number)) {
             issued = true;
@@ -969,13 +1052,78 @@ static void repair_command(edict_t *clent) {
     clent->client->menu.supports_order_queue = true;
 }
 
+/* Concrete target orders are validated before generic FIFO replacement. The
+ * actual rawcode remains owned by Repair; internal construction uses the
+ * separate S_OrderRepair entry without inventing a public current command. */
+static abilityOrderResult_t repair_admit_order(edict_t *ent, abilityCall_t const *call) {
+    cstring_t order = call ? call->issued_target_order.order : NULL;
+    edict_t *target = call ? call->issued_target_order.target : NULL;
+    bool working = ent && (ent->currentmove == &repair_move_work ||
+                           ent->currentmove == &repair_generic_move_work);
+    /* Original4371b0 can intercept the retained work target. Approach has not
+     * published that identity yet: repeating Smart there replaces the head. */
+    if (order && !strcmp(order, "smart") && working && repair_owned_target(ent) == target &&
+        !call->issued_target_order.queued)
+        return ABILITY_ORDER_INTERCEPTED;
+    ability_t const *owner = FindAbilityByOrder(order);
+    if (!owner || (owner->proc != CAbilityRepair && owner->proc != CAbilityRepairGeneric))
+        return ABILITY_ORDER_UNHANDLED;
+    if (strcmp(order, owner->orders[0])) return ABILITY_ORDER_REJECTED;
+    abilityAliasRef_t ref = S_ResolveAbilityAlias(ent, FS_SLKKey(owner->classname));
+    if (!ref.alias || !G_UnitAbilityResearchAvailable(ent, ref.alias) ||
+        !G_IsUnitAbilityAvailable(ent, ref.alias)) return ABILITY_ORDER_REJECTED;
+    bool primary = target && target->construction && !repair_primary_active(target);
+    if (!repair_target_valid(ent, target, ref.alias, primary, false)) return ABILITY_ORDER_REJECTED;
+    if (working && repair_owned_target(ent) == target && ent->buildwork->ability == ref.alias &&
+        !call->issued_target_order.queued) return ABILITY_ORDER_INTERCEPTED;
+    return ABILITY_ORDER_ACCEPTED;
+}
+
+static abilityOrderResult_t repair_issue_order(edict_t *ent, abilityCall_t const *call) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    cstring_t name = repair_order_name(code);
+    if (!name || !call || !call->issued_target_order.order ||
+        strcmp(name, call->issued_target_order.order)) return ABILITY_ORDER_UNHANDLED;
+    if (!G_UnitAbilityResearchAvailable(ent, code) || !G_IsUnitAbilityAvailable(ent, code) ||
+        !S_OrderRepair(ent, call->issued_target_order.target, code)) return ABILITY_ORDER_REJECTED;
+    ent->current_order_id = G_OrderId(name);
+    return ABILITY_ORDER_ACCEPTED;
+}
+
+static bool repair_immediate_order(edict_t *ent, cstring_t order) {
+    ability_t const *owner = FindAbilityByOrder(order);
+    if (!owner || (owner->proc != CAbilityRepair && owner->proc != CAbilityRepairGeneric)) return false;
+    bool enabled = !strcmp(order, owner->orders[1]);
+    if (!enabled && strcmp(order, owner->orders[2])) return false;
+    abilityAliasRef_t ref = S_ResolveAbilityAlias(ent, FS_SLKKey(owner->classname));
+    if (!ref.alias || !G_UnitAbilityResearchAvailable(ent, ref.alias) ||
+        !G_IsUnitAbilityAvailable(ent, ref.alias) || repair_autocast_is_on(ent) == enabled) return false;
+    order_stop_cleanup(ent);
+    return G_SetUnitAutocast(ent, ref.alias, enabled);
+}
+
+static bool repair_target_removed(edict_t *ent, edict_t *target) {
+    if (!ent || !target || !ent->buildwork || ent->build != target) return false;
+    /* Retire the target reference immediately, but let the scheduled owner
+     * complete its public head. Native RemoveUnit retains Repair on return. */
+    ent->build = NULL;
+    ent->buildwork->target_removed = true;
+    S_SetMoveGoal(ent, &ent->goalentity, NULL);
+    return true;
+}
+
 #define BZ_REPAIR_PROC(NAME) \
     BZ_ABILITY_PROC(C##NAME) { \
         switch (msg) { \
-        case A_COMMAND: repair_command(call && call->entity ? call->entity : ent); return true; \
+        case A_ORDER_RESUME: return repair_resume_order(ent); \
+        case A_COMMAND: repair_command(call && call->client ? call->client : ent); return true; \
         case A_AUTOCAST_ON: return repair_autocast_is_on(ent); \
         case A_AUTOCAST_SET: repair_autocast_set(ent, call && call->enabled); return true; \
         case A_AUTOCAST_ACQUIRE: return repair_autocast_acquire(ent); \
+        case A_TARGET_ORDER_ADMIT: return repair_admit_order(ent, call); \
+        case A_ISSUED_TARGET_ORDER: return repair_issue_order(ent, call); \
+        case A_ORDER: return repair_immediate_order(ent, call ? call->order : NULL); \
+        case A_TARGET_REMOVED: return repair_target_removed(ent, call ? call->removed_target : NULL); \
         default: return false; \
         } \
     }

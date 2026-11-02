@@ -105,8 +105,10 @@ tools/parity/wc3.sh openrealm roc 'Maps/Campaign/NightElf01.w3m'
 WC3_DRY_RUN=1 tools/parity/wc3.sh retail tft
 ```
 
-Build the native executable first with `make BUILD=release FFMPEG=1 openwarcraft3`. `WC3_BINARY` can select a
-different build. Install Wine with your distribution's package manager (Arch/CachyOS: `sudo pacman -S wine gst-plugins-good`).
+The native launcher refreshes the default executable with `make openwarcraft3` before launch and stops on build failure.
+`WC3_BINARY` selects a different build without rebuilding. OpenRealm's `WC3_DRY_RUN=1` prints the command without requiring
+a built executable. See the [build and dry-run contract](../../docs/rendering-scene-workflow.md#parity-launcher-build-and-dry-run-contract).
+Install Wine with your distribution's package manager (Arch/CachyOS: `sudo pacman -S wine gst-plugins-good`).
 Wine's AVI demuxer may also need `gst-plugins-good`; a `Missing decoder: Audio Video Interleave` log means movie
 playback cannot be used as evidence yet. Use a consistent retail patch and locale for each comparison.
 

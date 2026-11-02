@@ -13,12 +13,13 @@
 #define IMMOLATION_MANA_RATE 7 // substeps/second; preserves stock one-point mana drain cadence
 #define ID_IMMOLATION_STATUS MAKEFOURCC('B','E','i','m')
 BZ_ABILITY_PROC(CAbilityImmolation) {
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(abilstatus);
     heroabilitystatus_t *status;
     uint32_t code;
     if (msg == A_TOGGLE_ON)
         return ent && unit_findstatus(ent, ID_IMMOLATION_STATUS) != NULL;
     if (msg == A_UPDATE) {
-        if (!ent || !ent->unit_state) return true;
+        if (!ent) return true;
         status = unit_findstatus(ent, ID_IMMOLATION_STATUS);
         if (!status || !status->level || !status->data) return true;
         if (!status->next_tick) status->next_tick = G_Time() + (IMMOLATION_TICK_MS + IMMOLATION_MANA_RATE - 1) / IMMOLATION_MANA_RATE;
@@ -61,7 +62,7 @@ BZ_ABILITY_PROC(CAbilityImmolation) {
     }
     if (msg != A_EXECUTE) return CAbilitySimpleSpell(ent, msg, call);
     code = call && call->item ? call->item->code : 0;
-    if (!code || !ent || !ent->unit_state) return true;
+    if (!code || !ent) return true;
     status = unit_findstatus(ent, ID_IMMOLATION_STATUS);
     if (status) {
         unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
@@ -112,9 +113,9 @@ BZ_ABILITY_PROC(CAbilityImmolation) {
 BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
     uint32_t code = MAKEFOURCC('c', 'o', 'l', 'd');
 
-    FOR_LOOP(i, caster->unit_state ? MAX_UNIT_STATUSES : 0) {
-        if (caster->unit_state->statuses[i].level && caster->unit_state->statuses[i].code == code) {
-            unit_removestatus(caster, &caster->unit_state->statuses[i], STATUS_REMOVE_SCRIPT);
+    FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
+        if (caster->abilstatus[i].level && G_UnitStatusClassCode(caster->abilstatus+i) == code) {
+            unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
         }
@@ -188,7 +189,7 @@ static void AbilityDarkRitual_Execute(edict_t *caster, spellTarget_t st, ability
 BZ_ABILITY_PROC(CAbilityDarkRitual) {
     abilityitem_t const *spell = call ? call->item : NULL;
     if (msg == A_COMMAND) {
-        edict_t *clent = call ? call->entity : NULL;
+        edict_t *clent = call ? call->client : NULL;
         edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : ent;
         if (caster && caster->mana.max_value > 0.0f && caster->mana.value >= caster->mana.max_value) {
             G_ShowCommandErrorKey(clent, "Manamaxed", NULL);
@@ -234,7 +235,7 @@ void divine_shield_think(edict_t *ent) {
     if (G_Time() < ent->spawn_time) return;
     /* Preserve innate/scripted invulnerability; independent status contributors
      * remain authoritative through unit_hasstatusstate after this thinker ends. */
-    G_SetUnitFlag(caster, UNIT_FLAG_INVULNERABLE, ent->resources);
+    caster->invulnerable = ent->resources;
     G_FreeEdict(ent);
 }
 
@@ -255,9 +256,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
         spell->code == MAKEFOURCC('A','H','d','s')) buff = "BHds";
 #endif
-    thinker->resources = G_UnitHasFlag(caster, UNIT_FLAG_INVULNERABLE);
+    thinker->resources = (caster && caster->invulnerable);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
-    G_SetUnitFlag(caster, UNIT_FLAG_INVULNERABLE, true);
+    caster->invulnerable = true;
     thinker->think = divine_shield_think;
     status = buff && strlen(buff) >= 4 ? S_SpellApplyTimedStatus(caster, buff, level, duration) : NULL;
     if (status) unit_status_enabletargetart(caster, status, "origin");
@@ -274,6 +275,3 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
 /* Name=Invulnerable
  * Ubertip="This unit cannot be damaged."
  */
-
-/* Couple Instant remains a non-spell ability with a stub command handler. */
-BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }

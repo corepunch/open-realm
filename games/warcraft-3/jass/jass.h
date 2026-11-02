@@ -75,7 +75,11 @@ struct jass_context {
     edict_t *unit;
     edict_t *enumunit;
     edict_t *source;
-    int32_t eventValue;
+    EVENTTYPE eventType;
+    union {
+        int32_t eventValue; /* Integer payload or opaque real-value bits. */
+        float eventRealValue; /* EVENT_UNIT_DAMAGED / EVENT_PLAYER_UNIT_DAMAGED. */
+    };
     uint32_t dialog_id, dialog_button_id;
     vec2_t point;
     uint8_t hasPoint;
@@ -85,6 +89,8 @@ struct jass_context {
     handle_t region;
     uint32_t timer_generation;
     uint8_t timer_pending;
+    wc3Clock_t timer_clock;
+    uint8_t hasTimerClock;
     jassFunc_t const *func;
 };
 
@@ -103,6 +109,7 @@ bool jass_callcoroutinebyname(jass_t *j, cstring_t name);
 bool jass_resume(jass_t *j, jasscoroutine_t *co);
 bool jass_coroutinedone(jasscoroutine_t const *co);
 void jass_runevents(jass_t *j);
+void jass_runnewevents(jass_t *j);
 void jass_sleep(jass_t *j, uint32_t msec);
 cstring_t jass_functionname(jassFunc_t const *func);
 cstring_t jass_currentfunctionname(jass_t *j);
@@ -126,6 +133,7 @@ handle_t jass_alloc(long size);
 void jass_free(handle_t ptr);
 jassContext_t const *jass_getcontext(jass_t *j);
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
+bool jass_dispatchtriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 jass_t *jass_getroot(jass_t *j);
 bool jass_isrunning(jass_t *j);
 bool jass_context_references_entity(jass_t *j, edict_t const *ent);

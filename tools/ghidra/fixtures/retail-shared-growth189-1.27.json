@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "owners": 129,
+  "block_size": 64,
+  "block_bytes": 3076,
+  "growth_allocations": 3,
+  "reuse_allocations": 0,
+  "final_live": 0,
+  "publication_phases": [
+    {
+      "radii": [
+        1061158912,
+        1071644672
+      ],
+      "departed": false,
+      "published": [
+        1056964608,
+        2139095039,
+        1071644672
+      ],
+      "references": 2
+    },
+    {
+      "radii": [
+        1061158912,
+        1078984704
+      ],
+      "departed": false,
+      "published": [
+        1056964608,
+        2139095039,
+        1078984704
+      ],
+      "references": 2
+    },
+    {
+      "radii": [
+        1061158912,
+        1078984704
+      ],
+      "departed": true,
+      "published": [
+        1056964608,
+        2139095039,
+        1061158912
+      ],
+      "references": 2
+    }
+  ],
+  "scope": "Original owner/registry/pool constructors and129 shared factories, three64-element Storm-backed blocks, original reference setters/publication/radius collection, zero-reference release and exact LIFO reuse. Supplied group/member registry bindings; public Captain trajectories remain separately verified."
+}

@@ -1,0 +1,9093 @@
+{
+  "version": 1,
+  "task": "GROUP-03.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_order_lifecycle.*",
+    "wc3_ability_dispatch.*",
+    "wc3_combat.*",
+    "wc3_save.rejects_prior_save_versions",
+    "wc3_save.rejects_layout_mismatch_before_selecting_map",
+    "wc3_save.current_format_uses_current_entity_layout",
+    "wc3_save.rejects_mismatched_entity_layout"
+  ],
+  "pins": {
+    "tools/frida/research/group354_probe.j": "faa663cf07056c55bbcd94a92257f9019ff6d7c03ed6159669f0b15e5ed58059",
+    "tools/frida/research/group354_observer.js": "bcae75bf0cada0d1bc0fb898eff47d69237592f7aa400262797e299358bf91f6",
+    "tools/frida/research/group338_capture.py": "4953b3161a152782f0c680af4ceb47df7fa73ebdeb0fed1939c95a37ef4ad2fa",
+    "tools/frida/research/group341_make_map.py": "240a3ebe2de78c3aaeb7979c1a801d5fe97d9d9ea77c73b38432ce74e350f64c",
+    "tools/ghidra/verify_wc3_pathing_group341.py": "41d21a01b87d90f69b87a2733e446ec102ed9b7db1dd0fdc8dfff3f11b154c4a",
+    "tools/ghidra/research/Group354Evidence.java": "892d0b471ede2f6be6ff6249ce2ec91a008198cd1fe504b1a601e22335c8bc45"
+  },
+  "capture_sources": [
+    {
+      "group338_capture.py": "4953b3161a152782f0c680af4ceb47df7fa73ebdeb0fed1939c95a37ef4ad2fa",
+      "group354_observer.js": "bcae75bf0cada0d1bc0fb898eff47d69237592f7aa400262797e299358bf91f6",
+      "group338_make_map.py": "c1e69c8c63a623297a5dd553af00deb7f2df5138f68c735520edd2f67df40960",
+      "group338_probe.j": "f18df8190ad4f83756cb48684896e6511436b3ee346fa708c19d5f76f0458f9c",
+      "queue263_ui_input.c": "1e4df3309b0b05956e9cd1c6722db502660fae5edafa4ee59eeb2b6a645d05e5",
+      "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+      "input.exe": "b412dc964f831b2b81374dc63e1ab8fbf8ae404ef6021b6453d9e4419d8e1dda",
+      "input.exe.so": "3d1a0bd2ba39a8fef1412f47a272cae5529d5d3c600e35b0c99d8c3c0cb79c5f",
+      "map": "3912eb3a6c23fda78de6a410031bdaf3dc02158e70509ad8aee46201de169357"
+    },
+    {
+      "group338_capture.py": "4953b3161a152782f0c680af4ceb47df7fa73ebdeb0fed1939c95a37ef4ad2fa",
+      "group354_observer.js": "bcae75bf0cada0d1bc0fb898eff47d69237592f7aa400262797e299358bf91f6",
+      "group338_make_map.py": "c1e69c8c63a623297a5dd553af00deb7f2df5138f68c735520edd2f67df40960",
+      "group338_probe.j": "f18df8190ad4f83756cb48684896e6511436b3ee346fa708c19d5f76f0458f9c",
+      "queue263_ui_input.c": "1e4df3309b0b05956e9cd1c6722db502660fae5edafa4ee59eeb2b6a645d05e5",
+      "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+      "input.exe": "b412dc964f831b2b81374dc63e1ab8fbf8ae404ef6021b6453d9e4419d8e1dda",
+      "input.exe.so": "3d1a0bd2ba39a8fef1412f47a272cae5529d5d3c600e35b0c99d8c3c0cb79c5f",
+      "map": "3912eb3a6c23fda78de6a410031bdaf3dc02158e70509ad8aee46201de169357"
+    },
+    {
+      "group338_capture.py": "4953b3161a152782f0c680af4ceb47df7fa73ebdeb0fed1939c95a37ef4ad2fa",
+      "group354_observer.js": "bcae75bf0cada0d1bc0fb898eff47d69237592f7aa400262797e299358bf91f6",
+      "group338_make_map.py": "c1e69c8c63a623297a5dd553af00deb7f2df5138f68c735520edd2f67df40960",
+      "group338_probe.j": "f18df8190ad4f83756cb48684896e6511436b3ee346fa708c19d5f76f0458f9c",
+      "queue263_ui_input.c": "1e4df3309b0b05956e9cd1c6722db502660fae5edafa4ee59eeb2b6a645d05e5",
+      "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+      "input.exe": "b412dc964f831b2b81374dc63e1ab8fbf8ae404ef6021b6453d9e4419d8e1dda",
+      "input.exe.so": "3d1a0bd2ba39a8fef1412f47a272cae5529d5d3c600e35b0c99d8c3c0cb79c5f",
+      "map": "3912eb3a6c23fda78de6a410031bdaf3dc02158e70509ad8aee46201de169357"
+    }
+  ],
+  "base_sha256": "ae56cb6e05d61c4f52256d9f2d6b7d94374da8499fa7abf070f704eef962bbff",
+  "map_sha256": "3912eb3a6c23fda78de6a410031bdaf3dc02158e70509ad8aee46201de169357",
+  "public": [
+    "G354 tick=0 scene=-1 label=start actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=1 scene=0 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=8 scene=0 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=8 scene=0 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=10 scene=0 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=10 scene=0 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=20 scene=0 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=20 scene=0 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=21 scene=1 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=28 scene=1 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000",
+    "G354 tick=28 scene=1 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000",
+    "G354 tick=30 scene=1 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000",
+    "G354 tick=30 scene=1 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=40 scene=1 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=40 scene=1 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=41 scene=2 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=48 scene=2 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071",
+    "G354 tick=48 scene=2 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071",
+    "G354 tick=50 scene=2 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071",
+    "G354 tick=50 scene=2 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071",
+    "G354 tick=60 scene=2 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071",
+    "G354 tick=60 scene=2 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=61 scene=3 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=68 scene=3 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819",
+    "G354 tick=68 scene=3 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819",
+    "G354 tick=70 scene=3 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819",
+    "G354 tick=70 scene=3 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.2665 y=521.1819",
+    "G354 tick=80 scene=3 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.2665 y=521.1819",
+    "G354 tick=80 scene=3 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=81 scene=4 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000",
+    "G354 tick=88 scene=4 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360",
+    "G354 tick=88 scene=4 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360",
+    "G354 tick=90 scene=4 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360",
+    "G354 tick=90 scene=4 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360",
+    "G354 tick=100 scene=4 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360",
+    "G354 tick=100 scene=4 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000",
+    "G354 tick=101 scene=5 label=complete actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+  ],
+  "events": [
+    {
+      "event": "marker",
+      "tick": 0,
+      "scene": -1,
+      "value": "G354 tick=0 scene=-1 label=start actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 1,
+      "scene": 0,
+      "value": "G354 tick=1 scene=0 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "runtime",
+      "tick": 8,
+      "scene": 0,
+      "near": 1125515264,
+      "health": 1128792064,
+      "difficulty": 1
+    },
+    {
+      "event": "marker",
+      "tick": 8,
+      "scene": 0,
+      "value": "G354 tick=8 scene=0 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "notify",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 8,
+      "scene": 0,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 8,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 8,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 8,
+      "scene": 0,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        890,
+        892
+      ],
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 35143696,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1614,
+        "e4": 0,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 34097171,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 35143696,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 34097171,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 8,
+      "scene": 0,
+      "value": "G354 tick=8 scene=0 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 8,
+      "scene": 0,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875009,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1614,
+        "e4": 0,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 34097171,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 8,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "validate-end",
+      "tick": 8,
+      "scene": 0,
+      "result": 150
+    },
+    {
+      "event": "marker",
+      "tick": 10,
+      "scene": 0,
+      "value": "G354 tick=10 scene=0 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "notify",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 10,
+      "scene": 0,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 10,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 10,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        890,
+        892
+      ],
+      "current": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 572014608,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1614,
+        "e4": 0,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 34097171,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 34097171,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 10,
+      "scene": 0,
+      "value": "G354 tick=10 scene=0 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 10,
+      "scene": 0,
+      "result": 0
+    },
+    {
+      "event": "scan",
+      "tick": 10,
+      "scene": 0,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 10,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        872,
+        874
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 10,
+      "scene": 0,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 10,
+      "scene": 0,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 10,
+      "scene": 0,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "validate",
+      "tick": 10,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 10,
+      "scene": 0,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 10,
+      "scene": 0,
+      "result": 0
+    },
+    {
+      "event": "marker",
+      "tick": 20,
+      "scene": 0,
+      "value": "G354 tick=20 scene=0 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 20,
+      "scene": 0,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            872,
+            874
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          872,
+          874
+        ],
+        "alternative": [
+          890,
+          892
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 20,
+      "scene": 0,
+      "value": "G354 tick=20 scene=0 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 21,
+      "scene": 1,
+      "value": "G354 tick=21 scene=1 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "runtime",
+      "tick": 28,
+      "scene": 1,
+      "near": 1125515264,
+      "health": 1128792064,
+      "difficulty": 1
+    },
+    {
+      "event": "marker",
+      "tick": 28,
+      "scene": 1,
+      "value": "G354 tick=28 scene=1 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "notify",
+      "tick": 28,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 28,
+      "scene": 1,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 28,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1681915904,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1681915904,
+        199229440
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 28,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 28,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 28,
+      "scene": 1,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        957,
+        1110
+      ],
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 28,
+      "scene": 1,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 1573008,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 28,
+      "scene": 1,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 28,
+      "scene": 1,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1073742926,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 28,
+      "scene": 1,
+      "value": "G354 tick=28 scene=1 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 28,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 30,
+      "scene": 1,
+      "value": "G354 tick=30 scene=1 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=1 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "notify",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 30,
+      "scene": 1,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 30,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 30,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        957,
+        1110
+      ],
+      "current": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 1573008,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1073742926,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 30,
+      "scene": 1,
+      "value": "G354 tick=30 scene=1 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 30,
+      "scene": 1,
+      "result": 0
+    },
+    {
+      "event": "scan",
+      "tick": 30,
+      "scene": 1,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 30,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        923,
+        1092
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 30,
+      "scene": 1,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 30,
+      "scene": 1,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 30,
+      "scene": 1,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "validate",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 30,
+      "scene": 1,
+      "result": 0
+    },
+    {
+      "event": "validate",
+      "tick": 30,
+      "scene": 1,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 30,
+      "scene": 1,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "validate-end",
+      "tick": 30,
+      "scene": 1,
+      "result": 150
+    },
+    {
+      "event": "marker",
+      "tick": 40,
+      "scene": 1,
+      "value": "G354 tick=40 scene=1 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "state",
+      "tick": 40,
+      "scene": 1,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            923,
+            1092
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          923,
+          1092
+        ],
+        "alternative": [
+          957,
+          1110
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 40,
+      "scene": 1,
+      "value": "G354 tick=40 scene=1 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 41,
+      "scene": 2,
+      "value": "G354 tick=41 scene=2 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "runtime",
+      "tick": 48,
+      "scene": 2,
+      "near": 1125515264,
+      "health": 1128792064,
+      "difficulty": 1
+    },
+    {
+      "event": "marker",
+      "tick": 48,
+      "scene": 2,
+      "value": "G354 tick=48 scene=2 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071"
+    },
+    {
+      "event": "notify",
+      "tick": 48,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 48,
+      "scene": 2,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 48,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 48,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 48,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 48,
+      "scene": 2,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        977,
+        1317
+      ],
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 48,
+      "scene": 2,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 1573008,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 48,
+      "scene": 2,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 48,
+      "scene": 2,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1073742926,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 48,
+      "scene": 2,
+      "value": "G354 tick=48 scene=2 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071"
+    },
+    {
+      "event": "state",
+      "tick": 48,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 50,
+      "scene": 2,
+      "value": "G354 tick=50 scene=2 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071"
+    },
+    {
+      "event": "state",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "notify",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 50,
+      "scene": 2,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 50,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 50,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        977,
+        1317
+      ],
+      "current": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 572014608,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875013,
+        "widget": 1614,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 570966034,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 570966034,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 50,
+      "scene": 2,
+      "value": "G354 tick=50 scene=2 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071"
+    },
+    {
+      "event": "state",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 50,
+      "scene": 2,
+      "result": 0
+    },
+    {
+      "event": "scan",
+      "tick": 50,
+      "scene": 2,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 50,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        885,
+        1299
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 50,
+      "scene": 2,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 50,
+      "scene": 2,
+      "actor": 0,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 50,
+      "scene": 2,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "validate",
+      "tick": 50,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 50,
+      "scene": 2,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 50,
+      "scene": 2,
+      "result": 0
+    },
+    {
+      "event": "marker",
+      "tick": 60,
+      "scene": 2,
+      "value": "G354 tick=60 scene=2 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.7341 y=522.6071"
+    },
+    {
+      "event": "state",
+      "tick": 60,
+      "scene": 2,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            885,
+            1299
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          885,
+          1299
+        ],
+        "alternative": [
+          977,
+          1317
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 60,
+      "scene": 2,
+      "value": "G354 tick=60 scene=2 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 61,
+      "scene": 3,
+      "value": "G354 tick=61 scene=3 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "runtime",
+      "tick": 68,
+      "scene": 3,
+      "near": 1125515264,
+      "health": 1128792064,
+      "difficulty": 1
+    },
+    {
+      "event": "marker",
+      "tick": 68,
+      "scene": 3,
+      "value": "G354 tick=68 scene=3 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819"
+    },
+    {
+      "event": "notify",
+      "tick": 68,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 68,
+      "scene": 3,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": null,
+        "move_present": true
+      },
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": null,
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 68,
+      "scene": 3,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        1677721600,
+        195035136
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        195035136
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 68,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 68,
+      "scene": 3,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 68,
+      "scene": 3,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        850,
+        1540
+      ],
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 68,
+      "scene": 3,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 68,
+      "scene": 3,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1073742926,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 68,
+      "scene": 3,
+      "value": "G354 tick=68 scene=3 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819"
+    },
+    {
+      "event": "state",
+      "tick": 68,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 70,
+      "scene": 3,
+      "value": "G354 tick=70 scene=3 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=1 x=515.2665 y=521.1819"
+    },
+    {
+      "event": "state",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "notify",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 70,
+      "scene": 3,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0
+    },
+    {
+      "event": "compare",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 70,
+      "scene": 3,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        1677721600,
+        195035136
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        195035136
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 70,
+      "scene": 3,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "accepted": 0,
+      "alternative": [
+        850,
+        1540
+      ],
+      "current": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1073742926,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 70,
+      "scene": 3,
+      "value": "G354 tick=70 scene=3 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=515.2665 y=521.1819"
+    },
+    {
+      "event": "state",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 70,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 70,
+      "scene": 3,
+      "result": 0
+    },
+    {
+      "event": "scan",
+      "tick": 70,
+      "scene": 3,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 2,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 70,
+      "scene": 3,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": null,
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        928,
+        1522
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 70,
+      "scene": 3,
+      "actor": 0,
+      "key": [
+        0,
+        0
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 70,
+      "scene": 3,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 70,
+      "scene": 3,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "marker",
+      "tick": 80,
+      "scene": 3,
+      "value": "G354 tick=80 scene=3 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=515.2665 y=521.1819"
+    },
+    {
+      "event": "state",
+      "tick": 80,
+      "scene": 3,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            928,
+            1522
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          928,
+          1522
+        ],
+        "alternative": [
+          850,
+          1540
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 80,
+      "scene": 3,
+      "value": "G354 tick=80 scene=3 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 81,
+      "scene": 4,
+      "value": "G354 tick=81 scene=4 label=setup actor=1752328550 target=1751609977 order=851983 stun=0 x=512.0000 y=512.0000"
+    },
+    {
+      "event": "runtime",
+      "tick": 88,
+      "scene": 4,
+      "near": 1125515264,
+      "health": 1128792064,
+      "difficulty": 1
+    },
+    {
+      "event": "marker",
+      "tick": 88,
+      "scene": 4,
+      "value": "G354 tick=88 scene=4 label=availability-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360"
+    },
+    {
+      "event": "notify",
+      "tick": 88,
+      "scene": 4,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 1573008,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 88,
+      "scene": 4,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 88,
+      "scene": 4,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1102,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 88,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 88,
+      "scene": 4,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3
+    },
+    {
+      "event": "compare",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 88,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 88,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "accepted": 0,
+      "alternative": [
+        862,
+        1747
+      ],
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 88,
+      "scene": 4,
+      "value": "G354 tick=88 scene=4 label=availability-after actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360"
+    },
+    {
+      "event": "state",
+      "tick": 88,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "scan",
+      "tick": 88,
+      "scene": 4,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 88,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 88,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 88,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 88,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 88,
+      "scene": 4,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "marker",
+      "tick": 90,
+      "scene": 4,
+      "value": "G354 tick=90 scene=4 label=inverse-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360"
+    },
+    {
+      "event": "state",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "notify",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 1573008,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 537411600,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 2,
+        "rawcode": 1751410807,
+        "flags": 536875012,
+        "widget": 1102,
+        "e4": 0,
+        "ec": 0,
+        "state194": 3,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 0,
+        "attack": {
+          "flags": 524434,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 524434,
+      "current": [
+        4294967295,
+        4294967295
+      ]
+    },
+    {
+      "event": "notify",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "minimum": 0,
+      "flags": 540949,
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "range",
+      "tick": 90,
+      "scene": 4,
+      "range": 1149861888,
+      "mode": 0,
+      "caller": "49e256",
+      "accepted": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "23a740",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "exempt",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3
+    },
+    {
+      "event": "compare",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 537923648,
+        "widget": 1094,
+        "e4": 0,
+        "ec": 0,
+        "state194": 8,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 1573008,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 90,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "rank",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1677721600,
+        199229440
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 90,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "compare-end",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "accepted": 0,
+      "alternative": [
+        862,
+        1747
+      ],
+      "current": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "marker",
+      "tick": 90,
+      "scene": 4,
+      "value": "G354 tick=90 scene=4 label=inverse-after actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360"
+    },
+    {
+      "event": "state",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "validate",
+      "tick": 90,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      }
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "23a740",
+      "result": 0
+    },
+    {
+      "event": "validate-end",
+      "tick": 90,
+      "scene": 4,
+      "result": 0
+    },
+    {
+      "event": "scan",
+      "tick": 90,
+      "scene": 4,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "rank",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 1,
+        "rawcode": 1751543663,
+        "flags": 577,
+        "widget": 5702,
+        "e4": 2,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 1,
+        "attack": {
+          "flags": 537411600,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        0,
+        0
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 90,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1694498816,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 1
+    },
+    {
+      "event": "rank",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "candidate": {
+        "identity": 0,
+        "rawcode": 1751609977,
+        "flags": 536875073,
+        "widget": 1606,
+        "e4": 0,
+        "ec": 0,
+        "state194": 0,
+        "class248": 0,
+        "movement": 2,
+        "forced": 0,
+        "owner": 3,
+        "attack": {
+          "flags": 572014608,
+          "prevention": 0,
+          "target": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "move_present": true
+      },
+      "bound": [
+        1694498816,
+        199229440
+      ],
+      "target": [
+        883,
+        1729
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "5fb040",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "495b90",
+      "result": 1
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "48e2c0",
+      "result": 0
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 0
+    },
+    {
+      "event": "range",
+      "tick": 90,
+      "scene": 4,
+      "range": 1137180672,
+      "mode": 0,
+      "caller": "49da13",
+      "accepted": 1
+    },
+    {
+      "event": "rank-end",
+      "tick": 90,
+      "scene": 4,
+      "actor": 3,
+      "key": [
+        1677721600,
+        199229440
+      ]
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "496b80",
+      "result": 150
+    },
+    {
+      "event": "predicate",
+      "tick": 90,
+      "scene": 4,
+      "address": "4959f0",
+      "result": 0
+    },
+    {
+      "event": "scan-end",
+      "tick": 90,
+      "scene": 4,
+      "result": null,
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      }
+    },
+    {
+      "event": "marker",
+      "tick": 100,
+      "scene": 4,
+      "value": "G354 tick=100 scene=4 label=end-before actor=1752328550 target=1751609977 order=851983 stun=0 x=531.9907 y=550.5360"
+    },
+    {
+      "event": "state",
+      "tick": 100,
+      "scene": 4,
+      "actor": {
+        "identity": 3,
+        "rawcode": 1752328550,
+        "flags": 512,
+        "widget": 1614,
+        "e4": 1,
+        "ec": 0,
+        "state194": 1,
+        "class248": 0,
+        "movement": 1,
+        "forced": 0,
+        "owner": 2,
+        "attack": {
+          "flags": 540949,
+          "prevention": 0,
+          "target": [
+            883,
+            1729
+          ]
+        },
+        "move_present": true
+      },
+      "attack": {
+        "flags": 540949,
+        "current": [
+          883,
+          1729
+        ],
+        "alternative": [
+          862,
+          1747
+        ],
+        "home": 0
+      },
+      "fallbackRange": 1157234688
+    },
+    {
+      "event": "marker",
+      "tick": 100,
+      "scene": 4,
+      "value": "G354 tick=100 scene=4 label=end-after actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    },
+    {
+      "event": "marker",
+      "tick": 101,
+      "scene": 5,
+      "value": "G354 tick=101 scene=5 label=complete actor=0 target=0 order=0 stun=0 x=0.0000 y=0.0000"
+    }
+  ],
+  "instructions": {
+    "6f49d680": "55",
+    "6f49d681": "8bec",
+    "6f49d683": "6aff",
+    "6f49d685": "684834a26f",
+    "6f49d68a": "64a100000000",
+    "6f49d690": "50",
+    "6f49d691": "83ec40",
+    "6f49d694": "53",
+    "6f49d695": "56",
+    "6f49d696": "57",
+    "6f49d697": "a19c68ce6f",
+    "6f49d69c": "33c5",
+    "6f49d69e": "50",
+    "6f49d69f": "8d45f4",
+    "6f49d6a2": "64a300000000",
+    "6f49d6a8": "894dec",
+    "6f49d6ab": "8b4130",
+    "6f49d6ae": "8945f0",
+    "6f49d6b1": "85c0",
+    "6f49d6b3": "7508",
+    "6f49d6b5": "e80686bbff",
+    "6f49d6ba": "8945f0",
+    "6f49d6bd": "f6405c04",
+    "6f49d6c1": "0f57c0",
+    "6f49d6c4": "660f1345b4",
+    "6f49d6c9": "7405",
+    "6f49d6cb": "660f13450c",
+    "6f49d6d0": "8b7508",
+    "6f49d6d3": "8b86ec010000",
+    "6f49d6d9": "8945bc",
+    "6f49d6dc": "85c0",
+    "6f49d6de": "745e",
+    "6f49d6e0": "6a00",
+    "6f49d6e2": "6a00",
+    "6f49d6e4": "8bc8",
+    "6f49d6e6": "e855d91500",
+    "6f49d6eb": "85c0",
+    "6f49d6ed": "750b",
+    "6f49d6ef": "8bce",
+    "6f49d6f1": "e86a0bffff",
+    "6f49d6f6": "85c0",
+    "6f49d6f8": "7444",
+    "6f49d6fa": "33ff",
+    "6f49d6fc": "c745d401000000",
+    "6f49d703": "f686fc01000002",
+    "6f49d70a": "bb00000020",
+    "6f49d70f": "743a",
+    "6f49d711": "855e5c",
+    "6f49d714": "7435",
+    "6f49d716": "39be00020000",
+    "6f49d71c": "7f2d",
+    "6f49d71e": "8b45f0",
+    "6f49d721": "f680fc01000002",
+    "6f49d728": "7421",
+    "6f49d72a": "85585c",
+    "6f49d72d": "741c",
+    "6f49d72f": "39b800020000",
+    "6f49d735": "7f14",
+    "6f49d737": "bb00002020",
+    "6f49d73c": "eb0d",
+    "6f49d73e": "8b7db8",
+    "6f49d741": "8b5db4",
+    "6f49d744": "c745d400000000",
+    "6f49d74b": "8b4dec",
+    "6f49d74e": "83caff",
+    "6f49d751": "6a01",
+    "6f49d753": "6aff",
+    "6f49d755": "8955d8",
+    "6f49d758": "c745b400000000",
+    "6f49d75f": "c745b800008003",
+    "6f49d766": "e8c5bdffff",
+    "6f49d76b": "85c0",
+    "6f49d76d": "7462",
+    "6f49d76f": "8b4dec",
+    "6f49d772": "8d45c8",
+    "6f49d775": "50",
+    "6f49d776": "56",
+    "6f49d777": "e80494ffff",
+    "6f49d77c": "8b55c8",
+    "6f49d77f": "8955d8",
+    "6f49d782": "83faff",
+    "6f49d785": "7518",
+    "6f49d787": "33c0",
+    "6f49d789": "33d2",
+    "6f49d78b": "8b4df4",
+    "6f49d78e": "64890d00000000",
+    "6f49d795": "59",
+    "6f49d796": "5f",
+    "6f49d797": "5e",
+    "6f49d798": "5b",
+    "6f49d799": "8be5",
+    "6f49d79b": "5d",
+    "6f49d79c": "c20c00",
+    "6f49d79f": "8b4dec",
+    "6f49d7a2": "8b8491dc000000",
+    "6f49d7a9": "83f803",
+    "6f49d7ac": "7405",
+    "6f49d7ae": "83f808",
+    "6f49d7b1": "751e",
+    "6f49d7b3": "8b849138020000",
+    "6f49d7ba": "85c0",
+    "6f49d7bc": "7413",
+    "6f49d7be": "8d4db4",
+    "6f49d7c1": "8bd6",
+    "6f49d7c3": "51",
+    "6f49d7c4": "8b4df0",
+    "6f49d7c7": "50",
+    "6f49d7c8": "e8b380ffff",
+    "6f49d7cd": "85c0",
+    "6f49d7cf": "74b6",
+    "6f49d7d1": "0b5db4",
+    "6f49d7d4": "0b7db8",
+    "6f49d7d7": "83bee400000003",
+    "6f49d7de": "7406",
+    "6f49d7e0": "81cb00000040",
+    "6f49d7e6": "8b86e8010000",
+    "6f49d7ec": "8945dc",
+    "6f49d7ef": "85c0",
+    "6f49d7f1": "7429",
+    "6f49d7f3": "8bc8",
+    "6f49d7f5": "e89683ffff",
+    "6f49d7fa": "85c0",
+    "6f49d7fc": "741e",
+    "6f49d7fe": "8b4ddc",
+    "6f49d801": "83c16c",
+    "6f49d804": "c745e801000000",
+    "6f49d80b": "8b4104",
+    "6f49d80e": "2301",
+    "6f49d810": "83f8ff",
+    "6f49d813": "740e",
+    "6f49d815": "e8063bbcff",
+    "6f49d81a": "eb09",
+    "6f49d81c": "c745e800000000",
+    "6f49d823": "33c0",
+    "6f49d825": "50",
+    "6f49d826": "8d4dc4",
+    "6f49d829": "e8829bd3ff",
+    "6f49d82e": "837de800",
+    "6f49d832": "8b45c4",
+    "6f49d835": "c745fc00000000",
+    "6f49d83c": "8945e0",
+    "6f49d83f": "0f8487000000",
+    "6f49d845": "81cf00004000",
+    "6f49d84b": "85c0",
+    "6f49d84d": "7443",
+    "6f49d84f": "8b4df0",
+    "6f49d852": "3bc1",
+    "6f49d854": "7508",
+    "6f49d856": "81cb0000c000",
+    "6f49d85c": "eb71",
+    "6f49d85e": "50",
+    "6f49d85f": "e81cc31f00",
+    "6f49d864": "8b4df0",
+    "6f49d867": "85c0",
+    "6f49d869": "7408",
+    "6f49d86b": "81cb00004000",
+    "6f49d871": "eb5c",
+    "6f49d873": "ff75e0",
+    "6f49d876": "e8e5e41e00",
+    "6f49d87b": "8b4df0",
+    "6f49d87e": "85c0",
+    "6f49d880": "7408",
+    "6f49d882": "81cf00002000",
+    "6f49d888": "eb4b",
+    "6f49d88a": "81cf00000008",
+    "6f49d890": "eb43",
+    "6f49d892": "8bce",
+    "6f49d894": "e8270affff",
+    "6f49d899": "85c0",
+    "6f49d89b": "7529",
+    "6f49d89d": "8b4dec",
+    "6f49d8a0": "83c16c",
+    "6f49d8a3": "8b4104",
+    "6f49d8a6": "2301",
+    "6f49d8a8": "83f8ff",
+    "6f49d8ab": "7504",
+    "6f49d8ad": "33c0",
+    "6f49d8af": "eb05",
+    "6f49d8b1": "e86a3abcff",
+    "6f49d8b6": "3bf0",
+    "6f49d8b8": "7512",
+    "6f49d8ba": "8b45dc",
+    "6f49d8bd": "f7402000800000",
+    "6f49d8c4": "7406",
+    "6f49d8c6": "81cb00004000",
+    "6f49d8cc": "8b4df0",
+    "6f49d8cf": "81cf00002008",
+    "6f49d8d5": "8b01",
+    "6f49d8d7": "ff90ec000000",
+    "6f49d8dd": "83f80c",
+    "6f49d8e0": "7c1c",
+    "6f49d8e2": "8b4df0",
+    "6f49d8e5": "e866781e00",
+    "6f49d8ea": "83f807",
+    "6f49d8ed": "7d0f",
+    "6f49d8ef": "c745d001000000",
+    "6f49d8f6": "81e7ffffdfff",
+    "6f49d8fc": "eb07",
+    "6f49d8fe": "c745d000000000",
+    "6f49d905": "8b550c",
+    "6f49d908": "8bc3",
+    "6f49d90a": "2500000060",
+    "6f49d90f": "8bcf",
+    "6f49d911": "8945c8",
+    "6f49d914": "81e10000e00b",
+    "6f49d91a": "8bc2",
+    "6f49d91c": "2500000060",
+    "6f49d921": "8945c0",
+    "6f49d924": "8b4510",
+    "6f49d927": "8945cc",
+    "6f49d92a": "250000e00b",
+    "6f49d92f": "3bc8",
+    "6f49d931": "0f82b7070000",
+    "6f49d937": "770c",
+    "6f49d939": "8b45c8",
+    "6f49d93c": "3b45c0",
+    "6f49d93f": "0f82a9070000",
+    "6f49d945": "837de800",
+    "6f49d949": "7425",
+    "6f49d94b": "f6864802000010",
+    "6f49d952": "751c",
+    "6f49d954": "8b4ddc",
+    "6f49d957": "8d45c0",
+    "6f49d95a": "50",
+    "6f49d95b": "ff75f0",
+    "6f49d95e": "e81d92ffff",
+    "6f49d963": "8b550c",
+    "6f49d966": "85c0",
+    "6f49d968": "7506",
+    "6f49d96a": "81cb00000008",
+    "6f49d970": "8165cc0000e00b",
+    "6f49d977": "8bc7",
+    "6f49d979": "8bcb",
+    "6f49d97b": "250000e00b",
+    "6f49d980": "81e100000068",
+    "6f49d986": "81e200000068",
+    "6f49d98c": "3b45cc",
+    "6f49d98f": "0f8259070000",
+    "6f49d995": "7708",
+    "6f49d997": "3bca",
+    "6f49d999": "0f824f070000",
+    "6f49d99f": "8b45d8",
+    "6f49d9a2": "83f8ff",
+    "6f49d9a5": "751c",
+    "6f49d9a7": "8b4dec",
+    "6f49d9aa": "8d4510",
+    "6f49d9ad": "50",
+    "6f49d9ae": "56",
+    "6f49d9af": "e8cc91ffff",
+    "6f49d9b4": "8b4510",
+    "6f49d9b7": "8945d8",
+    "6f49d9ba": "83f8ff",
+    "6f49d9bd": "0f842b070000",
+    "6f49d9c3": "8b4dec",
+    "6f49d9c6": "50",
+    "6f49d9c7": "8d45e4",
+    "6f49d9ca": "50",
+    "6f49d9cb": "e8d0aaffff",
+    "6f49d9d0": "f30f100564bfd66f",
+    "6f49d9d8": "8d4de4",
+    "6f49d9db": "0f2f45e4",
+    "6f49d9df": "b864bfd66f",
+    "6f49d9e4": "0f46c1",
+    "6f49d9e7": "8b4dec",
+    "6f49d9ea": "8b00",
+    "6f49d9ec": "8945e4",
+    "6f49d9ef": "e86caaffff",
+    "6f49d9f4": "8b16",
+    "6f49d9f6": "8bce",
+    "6f49d9f8": "8945c8",
+    "6f49d9fb": "ff92b8000000",
+    "6f49da01": "8b4dc8",
+    "6f49da04": "6a00",
+    "6f49da06": "50",
+    "6f49da07": "8945c0",
+    "6f49da0a": "8d45e4",
+    "6f49da0d": "50",
+    "6f49da0e": "e86ddbbbff",
+    "6f49da13": "85c0",
+    "6f49da15": "7519",
+    "6f49da17": "8b4dec",
+    "6f49da1a": "56",
+    "6f49da1b": "e830aeffff",
+    "6f49da20": "8bc8",
+    "6f49da22": "e829e81e00",
+    "6f49da27": "85c0",
+    "6f49da29": "7505",
+    "6f49da2b": "8945cc",
+    "6f49da2e": "eb30",
+    "6f49da30": "8b4dec",
+    "6f49da33": "81cb00000004",
+    "6f49da39": "83c16c",
+    "6f49da3c": "c745cc01000000",
+    "6f49da43": "8b4104",
+    "6f49da46": "2301",
+    "6f49da48": "83f8ff",
+    "6f49da4b": "7504",
+    "6f49da4d": "33c0",
+    "6f49da4f": "eb05",
+    "6f49da51": "e8ca38bcff",
+    "6f49da56": "3bc6",
+    "6f49da58": "7506",
+    "6f49da5a": "81cb00000001",
+    "6f49da60": "8b4df0",
+    "6f49da63": "f6415c04",
+    "6f49da67": "0f848f060000",
+    "6f49da6d": "8b01",
+    "6f49da6f": "8b7630",
+    "6f49da72": "ff90ec000000",
+    "6f49da78": "8b0da887d66f",
+    "6f49da7e": "8bd0",
+    "6f49da80": "8955e8",
+    "6f49da83": "8b4930",
+    "6f49da86": "8a4946",
+    "6f49da89": "0fb6c9",
+    "6f49da8c": "894d10",
+    "6f49da8f": "83f901",
+    "6f49da92": "7521",
+    "6f49da94": "837dd000",
+    "6f49da98": "751b",
+    "6f49da9a": "8b4df0",
+    "6f49da9d": "e8ce101d00",
+    "6f49daa2": "8b4d10",
+    "6f49daa5": "ba02000000",
+    "6f49daaa": "85c0",
+    "6f49daac": "0f44ca",
+    "6f49daaf": "8b55e8",
+    "6f49dab2": "894d10",
+    "6f49dab5": "8bc3",
+    "6f49dab7": "2500000008",
+    "6f49dabc": "83c800",
+    "6f49dabf": "7406",
+    "6f49dac1": "81cf00800000",
+    "6f49dac7": "83f902",
+    "6f49daca": "0f8c88020000",
+    "6f49dad0": "8bca",
+    "6f49dad2": "e8a9a35200",
+    "6f49dad7": "85c0",
+    "6f49dad9": "0f8579020000",
+    "6f49dadf": "81fe746c616f",
+    "6f49dae5": "0f870c010000",
+    "6f49daeb": "0f8485010000",
+    "6f49daf1": "81fe746c6168",
+    "6f49daf7": "0f8798000000",
+    "6f49dafd": "0f8473010000",
+    "6f49db03": "81fe776f6d65",
+    "6f49db09": "7766",
+    "6f49db0b": "743c",
+    "6f49db0d": "81fe626f6465",
+    "6f49db13": "7723",
+    "6f49db15": "0f84d1000000",
+    "6f49db1b": "81fe65746165",
+    "6f49db21": "0f844f010000",
+    "6f49db27": "81fe6e656465",
+    "6f49db2d": "0f84ed010000",
+    "6f49db33": "e9f8010000",
+    "6f49db38": "81fe6c6f6765",
+    "6f49db3e": "0f84a9010000",
+    "6f49db44": "e9e7010000",
+    "6f49db49": "8b4d08",
+    "6f49db4c": "8d45b8",
+    "6f49db4f": "50",
+    "6f49db50": "e88b8bf1ff",
+    "6f49db55": "f30f1000",
+    "6f49db59": "0f2f05acc7d36f",
+    "6f49db60": "0f86ec010000",
+    "6f49db66": "81cb00000200",
+    "6f49db6c": "e9e7010000",
+    "6f49db71": "8bc6",
+    "6f49db73": "2d616f7465",
+    "6f49db78": "0f8482010000",
+    "6f49db7e": "83e804",
+    "6f49db81": "0f8479010000",
+    "6f49db87": "83e807",
+    "6f49db8a": "0f8470010000",
+    "6f49db90": "e99b010000",
+    "6f49db95": "81fe6d756c68",
+    "6f49db9b": "772b",
+    "6f49db9d": "744d",
+    "6f49db9f": "81fe73616368",
+    "6f49dba5": "0f8455010000",
+    "6f49dbab": "81fe756f6868",
+    "6f49dbb1": "0f849b010000",
+    "6f49dbb7": "81fe65656b68",
+    "6f49dbbd": "0f843d010000",
+    "6f49dbc3": "e968010000",
+    "6f49dbc8": "81fe776f7468",
+    "6f49dbce": "0f842c010000",
+    "6f49dbd4": "81fe74697668",
+    "6f49dbda": "0f8440010000",
+    "6f49dbe0": "81fe77747768",
+    "6f49dbe6": "0f8544010000",
+    "6f49dbec": "81cb00100000",
+    "6f49dbf2": "e961010000",
+    "6f49dbf7": "81fe646f6175",
+    "6f49dbfd": "0f87ca000000",
+    "6f49dc03": "7471",
+    "6f49dc05": "81fe7274736f",
+    "6f49dc0b": "7744",
+    "6f49dc0d": "0f84ed000000",
+    "6f49dc13": "81fe6572676f",
+    "6f49dc19": "771f",
+    "6f49dc1b": "0f84df000000",
+    "6f49dc21": "81fe726f666f",
+    "6f49dc27": "74c3",
+    "6f49dc29": "81fe7472666f",
+    "6f49dc2f": "0f84cb000000",
+    "6f49dc35": "e9f6000000",
+    "6f49dc3a": "81fe6477686f",
+    "6f49dc40": "0f85ea000000",
+    "6f49dc46": "81cf00000044",
+    "6f49dc4c": "e907010000",
+    "6f49dc51": "81fe746f746f",
+    "6f49dc57": "74ed",
+    "6f49dc59": "81fe6272746f",
+    "6f49dc5f": "0f84ed000000",
+    "6f49dc65": "81fe6e69766f",
+    "6f49dc6b": "0f84af000000",
+    "6f49dc71": "e9ba000000",
+    "6f49dc76": "6a01",
+    "6f49dc78": "6a01",
+    "6f49dc7a": "6a00",
+    "6f49dc7c": "6a00",
+    "6f49dc7e": "e85d7df7ff",
+    "6f49dc83": "8b4d08",
+    "6f49dc86": "50",
+    "6f49dc87": "e8f4eefeff",
+    "6f49dc8c": "85c0",
+    "6f49dc8e": "741b",
+    "6f49dc90": "8b10",
+    "6f49dc92": "8bc8",
+    "6f49dc94": "6a00",
+    "6f49dc96": "ff922c030000",
+    "6f49dc9c": "85c0",
+    "6f49dc9e": "740b",
+    "6f49dca0": "81cb00001000",
+    "6f49dca6": "e9ad000000",
+    "6f49dcab": "8bc3",
+    "6f49dcad": "2500000001",
+    "6f49dcb2": "83c800",
+    "6f49dcb5": "740b",
+    "6f49dcb7": "81cb00000800",
+    "6f49dcbd": "e996000000",
+    "6f49dcc2": "81cb00200000",
+    "6f49dcc8": "e98b000000",
+    "6f49dccd": "81fe6c706e75",
+    "6f49dcd3": "7733",
+    "6f49dcd5": "7429",
+    "6f49dcd7": "81fe76726775",
+    "6f49dcdd": "7716",
+    "6f49dcdf": "0f8407ffffff",
+    "6f49dce5": "81fe6c6f6775",
+    "6f49dceb": "7543",
+    "6f49dced": "81cb00800000",
+    "6f49dcf3": "eb63",
+    "6f49dcf5": "8d86cf8f918a",
+    "6f49dcfb": "83f801",
+    "6f49dcfe": "7730",
+    "6f49dd00": "81cb00400000",
+    "6f49dd06": "eb50",
+    "6f49dd08": "81fe32677a75",
+    "6f49dd0e": "7718",
+    "6f49dd10": "81fe31677a75",
+    "6f49dd16": "733a",
+    "6f49dd18": "81fe6d6f7475",
+    "6f49dd1e": "7510",
+    "6f49dd20": "81cb00000400",
+    "6f49dd26": "eb30",
+    "6f49dd28": "81fe67697a75",
+    "6f49dd2e": "7422",
+    "6f49dd30": "6a01",
+    "6f49dd32": "6a01",
+    "6f49dd34": "6a00",
+    "6f49dd36": "6a00",
+    "6f49dd38": "e8c3b00f00",
+    "6f49dd3d": "8b4d08",
+    "6f49dd40": "50",
+    "6f49dd41": "e83aeefeff",
+    "6f49dd46": "85c0",
+    "6f49dd48": "740e",
+    "6f49dd4a": "81cb00080000",
+    "6f49dd50": "eb06",
+    "6f49dd52": "81cb00000100",
+    "6f49dd58": "8b45e0",
+    "6f49dd5b": "85c0",
+    "6f49dd5d": "7458",
+    "6f49dd5f": "8b4df0",
+    "6f49dd62": "50",
+    "6f49dd63": "e818be1f00",
+    "6f49dd68": "85c0",
+    "6f49dd6a": "744b",
+    "6f49dd6c": "8b4de0",
+    "6f49dd6f": "e8cc77d6ff",
+    "6f49dd74": "85c0",
+    "6f49dd76": "7408",
+    "6f49dd78": "81cf00000100",
+    "6f49dd7e": "eb37",
+    "6f49dd80": "837d1002",
+    "6f49dd84": "7c31",
+    "6f49dd86": "8b4de8",
+    "6f49dd89": "e8f2a05200",
+    "6f49dd8e": "85c0",
+    "6f49dd90": "7525",
+    "6f49dd92": "8b45e0",
+    "6f49dd95": "83b8e400000003",
+    "6f49dd9c": "7519",
+    "6f49dd9e": "8b4ddc",
+    "6f49dda1": "8b81b8020000",
+    "6f49dda7": "83bc81f400000003",
+    "6f49ddaf": "7506",
+    "6f49ddb1": "81cf00001000",
+    "6f49ddb7": "8b4508",
+    "6f49ddba": "83b8ec00000000",
+    "6f49ddc1": "7f21",
+    "6f49ddc3": "6a01",
+    "6f49ddc5": "6a01",
+    "6f49ddc7": "6a00",
+    "6f49ddc9": "6a00",
+    "6f49ddcb": "6872654542",
+    "6f49ddd0": "8bc8",
+    "6f49ddd2": "e8a9edfeff",
+    "6f49ddd7": "85c0",
+    "6f49ddd9": "8b4508",
+    "6f49dddc": "7506",
+    "6f49ddde": "81cf00000080",
+    "6f49dde4": "6a01",
+    "6f49dde6": "6a01",
+    "6f49dde8": "6a00",
+    "6f49ddea": "6a01",
+    "6f49ddec": "68736e6542",
+    "6f49ddf1": "8bc8",
+    "6f49ddf3": "e888edfeff",
+    "6f49ddf8": "85c0",
+    "6f49ddfa": "7506",
+    "6f49ddfc": "81cf00100000",
+    "6f49de02": "8b4df0",
+    "6f49de05": "6a01",
+    "6f49de07": "6a01",
+    "6f49de09": "6a01",
+    "6f49de0b": "6a01",
+    "6f49de0d": "68696f7041",
+    "6f49de12": "e869edfeff",
+    "6f49de17": "85c0",
+    "6f49de19": "741f",
+    "6f49de1b": "8b4d08",
+    "6f49de1e": "6a01",
+    "6f49de20": "6a01",
+    "6f49de22": "6a00",
+    "6f49de24": "6a01",
+    "6f49de26": "68696f7042",
+    "6f49de2b": "e850edfeff",
+    "6f49de30": "85c0",
+    "6f49de32": "7506",
+    "6f49de34": "81cf00200000",
+    "6f49de3a": "837d1001",
+    "6f49de3e": "7c29",
+    "6f49de40": "8b4de8",
+    "6f49de43": "e838a05200",
+    "6f49de48": "85c0",
+    "6f49de4a": "8b4508",
+    "6f49de4d": "751d",
+    "6f49de4f": "f6804802000010",
+    "6f49de56": "7414",
+    "6f49de58": "83b89401000003",
+    "6f49de5f": "750b",
+    "6f49de61": "81cf00000800",
+    "6f49de67": "eb03",
+    "6f49de69": "8b4508",
+    "6f49de6c": "837dd000",
+    "6f49de70": "0f85d7010000",
+    "6f49de76": "ffb0e4000000",
+    "6f49de7c": "8b45ec",
+    "6f49de7f": "8d4dd8",
+    "6f49de82": "8b55d8",
+    "6f49de85": "8b9490f4000000",
+    "6f49de8c": "e88fd01c00",
+    "6f49de91": "837d1002",
+    "6f49de95": "7c3b",
+    "6f49de97": "8b4de8",
+    "6f49de9a": "e8e19f5200",
+    "6f49de9f": "85c0",
+    "6f49dea1": "752f",
+    "6f49dea3": "f30f1045d8",
+    "6f49dea8": "0f2f050854cd6f",
+    "6f49deaf": "7206",
+    "6f49deb1": "81cf00000040",
+    "6f49deb7": "8b4508",
+    "6f49deba": "f6804802000004",
+    "6f49dec1": "7409",
+    "6f49dec3": "f7405c00000040",
+    "6f49deca": "7406",
+    "6f49decc": "81cf00000010",
+    "6f49ded2": "8b4df0",
+    "6f49ded5": "e8960c1d00",
+    "6f49deda": "85c0",
+    "6f49dedc": "757e",
+    "6f49dede": "f30f1045d8",
+    "6f49dee3": "0f2f054cc7d36f",
+    "6f49deea": "7215",
+    "6f49deec": "3945d4",
+    "6f49deef": "7408",
+    "6f49def1": "81cf00080000",
+    "6f49def7": "eb63",
+    "6f49def9": "81cf00000400",
+    "6f49deff": "eb5b",
+    "6f49df01": "0f2f052054cd6f",
+    "6f49df08": "7216",
+    "6f49df0a": "837dd400",
+    "6f49df0e": "7408",
+    "6f49df10": "81cf00040000",
+    "6f49df16": "eb44",
+    "6f49df18": "81cf00000200",
+    "6f49df1e": "eb3c",
+    "6f49df20": "0f2f0548c7d36f",
+    "6f49df27": "7208",
+    "6f49df29": "81cf00010000",
+    "6f49df2f": "eb2b",
+    "6f49df31": "0f2f05fc53cd6f",
+    "6f49df38": "7605",
+    "6f49df3a": "83cf08",
+    "6f49df3d": "eb1d",
+    "6f49df3f": "0f2f05e853cd6f",
+    "6f49df46": "7605",
+    "6f49df48": "83cf01",
+    "6f49df4b": "eb0f",
+    "6f49df4d": "0f2f05d453cd6f",
+    "6f49df54": "7606",
+    "6f49df56": "81cb00000080",
+    "6f49df5c": "837d1001",
+    "6f49df60": "0f8ce7000000",
+    "6f49df66": "8b4de8",
+    "6f49df69": "e8129f5200",
+    "6f49df6e": "85c0",
+    "6f49df70": "0f85d7000000",
+    "6f49df76": "3945cc",
+    "6f49df79": "7521",
+    "6f49df7b": "50",
+    "6f49df7c": "ff75c0",
+    "6f49df7f": "8d55e4",
+    "6f49df82": "68c0c7d36f",
+    "6f49df87": "8d4d10",
+    "6f49df8a": "e8211cbdff",
+    "6f49df8f": "8b4dc8",
+    "6f49df92": "50",
+    "6f49df93": "e8e8d5bbff",
+    "6f49df98": "85c0",
+    "6f49df9a": "745d",
+    "6f49df9c": "8b4d08",
+    "6f49df9f": "e89c75d6ff",
+    "6f49dfa4": "85c0",
+    "6f49dfa6": "740c",
+    "6f49dfa8": "8b4df0",
+    "6f49dfab": "e840dc1f00",
+    "6f49dfb0": "85c0",
+    "6f49dfb2": "7531",
+    "6f49dfb4": "8b4d08",
+    "6f49dfb7": "6a01",
+    "6f49dfb9": "e8d2e11e00",
+    "6f49dfbe": "85c0",
+    "6f49dfc0": "742b",
+    "6f49dfc2": "8b4508",
+    "6f49dfc5": "f7405c00000002",
+    "6f49dfcc": "741f",
+    "6f49dfce": "8bc8",
+    "6f49dfd0": "e82be41e00",
+    "6f49dfd5": "85c0",
+    "6f49dfd7": "7514",
+    "6f49dfd9": "8b4508",
+    "6f49dfdc": "83b8e801000000",
+    "6f49dfe3": "7408",
+    "6f49dfe5": "81cf00000044",
+    "6f49dfeb": "eb0c",
+    "6f49dfed": "837dcc00",
+    "6f49dff1": "7406",
+    "6f49dff3": "81cf00400000",
+    "6f49dff9": "8b4d08",
+    "6f49dffc": "f6814802000010",
+    "6f49e003": "754b",
+    "6f49e005": "8b01",
+    "6f49e007": "8d5510",
+    "6f49e00a": "52",
+    "6f49e00b": "ff902c010000",
+    "6f49e011": "f30f1005b8c7d36f",
+    "6f49e019": "f30f104d10",
+    "6f49e01e": "0f2fc1",
+    "6f49e021": "7608",
+    "6f49e023": "81cf00020000",
+    "6f49e029": "eb22",
+    "6f49e02b": "f30f1005c8c7d36f",
+    "6f49e033": "0f2fc1",
+    "6f49e036": "7605",
+    "6f49e038": "83cf04",
+    "6f49e03b": "eb10",
+    "6f49e03d": "f30f1005d8c7d36f",
+    "6f49e045": "0f2fc1",
+    "6f49e048": "7603",
+    "6f49e04a": "83cf02",
+    "6f49e04d": "8b4d08",
+    "6f49e050": "8b01",
+    "6f49e052": "ff90ec000000",
+    "6f49e058": "83f80c",
+    "6f49e05b": "7d08",
+    "6f49e05d": "81cf00000020",
+    "6f49e063": "eb0e",
+    "6f49e065": "8b4d08",
+    "6f49e068": "e8e3701e00",
+    "6f49e06d": "99",
+    "6f49e06e": "c1e004",
+    "6f49e071": "0bf8",
+    "6f49e073": "837dd400",
+    "6f49e077": "744d",
+    "6f49e079": "837dd000",
+    "6f49e07d": "7512",
+    "6f49e07f": "8b4d08",
+    "6f49e082": "e849b5ffff",
+    "6f49e087": "85c0",
+    "6f49e089": "7406",
+    "6f49e08b": "81cb00000010",
+    "6f49e091": "8b45f0",
+    "6f49e094": "8b88ec010000",
+    "6f49e09a": "85c9",
+    "6f49e09c": "745e",
+    "6f49e09e": "8d4508",
+    "6f49e0a1": "50",
+    "6f49e0a2": "e8e9e71500",
+    "6f49e0a7": "8b4dbc",
+    "6f49e0aa": "8bf0",
+    "6f49e0ac": "8d4510",
+    "6f49e0af": "50",
+    "6f49e0b0": "e8dbe71500",
+    "6f49e0b5": "f30f1006",
+    "6f49e0b9": "0f2f00",
+    "6f49e0bc": "763e",
+    "6f49e0be": "81cb00000002",
+    "6f49e0c4": "eb36",
+    "6f49e0c6": "81fe3170736f",
+    "6f49e0cc": "7418",
+    "6f49e0ce": "81fe3270736f",
+    "6f49e0d4": "7410",
+    "6f49e0d6": "81fe3370736f",
+    "6f49e0dc": "7408",
+    "6f49e0de": "81cb00000002",
+    "6f49e0e4": "eb16",
+    "6f49e0e6": "81cb00000020",
+    "6f49e0ec": "eb0e",
+    "6f49e0ee": "0f57c0",
+    "6f49e0f1": "660f13450c",
+    "6f49e0f6": "8b7d10",
+    "6f49e0f9": "8b5d0c",
+    "6f49e0fc": "8b4dc4",
+    "6f49e0ff": "c745fcffffffff",
+    "6f49e106": "85c9",
+    "6f49e108": "7409",
+    "6f49e10a": "ff4904",
+    "6f49e10d": "7504",
+    "6f49e10f": "8b31",
+    "6f49e111": "ff16",
+    "6f49e113": "8bc3",
+    "6f49e115": "8bd7",
+    "6f49e117": "8b4df4",
+    "6f49e11a": "64890d00000000",
+    "6f49e121": "59",
+    "6f49e122": "5f",
+    "6f49e123": "5e",
+    "6f49e124": "5b",
+    "6f49e125": "8be5",
+    "6f49e127": "5d",
+    "6f49e128": "c20c00",
+    "6f48e2c0": "8b81e0010000",
+    "6f48e2c6": "81c1dc010000",
+    "6f48e2cc": "56",
+    "6f48e2cd": "57",
+    "6f48e2ce": "2301",
+    "6f48e2d0": "83f8ff",
+    "6f48e2d3": "7437",
+    "6f48e2d5": "e84630bdff",
+    "6f48e2da": "8bf0",
+    "6f48e2dc": "85f6",
+    "6f48e2de": "742c",
+    "6f48e2e0": "8b4628",
+    "6f48e2e3": "8d4e24",
+    "6f48e2e6": "2301",
+    "6f48e2e8": "8bfe",
+    "6f48e2ea": "83f8ff",
+    "6f48e2ed": "7504",
+    "6f48e2ef": "33f6",
+    "6f48e2f1": "eb07",
+    "6f48e2f3": "e82830bdff",
+    "6f48e2f8": "8bf0",
+    "6f48e2fa": "8b07",
+    "6f48e2fc": "8bcf",
+    "6f48e2fe": "ff9088010000",
+    "6f48e304": "85c0",
+    "6f48e306": "7509",
+    "6f48e308": "85f6",
+    "6f48e30a": "75d4",
+    "6f48e30c": "5f",
+    "6f48e30d": "33c0",
+    "6f48e30f": "5e",
+    "6f48e310": "c3",
+    "6f48e311": "5f",
+    "6f48e312": "b801000000",
+    "6f48e317": "5e",
+    "6f48e318": "c3",
+    "6f495b90": "83793c00",
+    "6f495b94": "7e03",
+    "6f495b96": "33c0",
+    "6f495b98": "c3",
+    "6f495b99": "8b4120",
+    "6f495b9c": "2500001800",
+    "6f495ba1": "f7d8",
+    "6f495ba3": "1bc0",
+    "6f495ba5": "f7d8",
+    "6f495ba7": "c3",
+    "6f4dc980": "b801000000",
+    "6f4dc985": "c3",
+    "6f63e680": "b801000000",
+    "6f63e685": "c3"
+  },
+  "limits": [
+    "No full-frame or full-trajectory parity claim.",
+    "Pause-stun BPSE is a negative control; base CBuffStun is not inferred from its name.",
+    "The diagnostic mid-function observer changed priority words; its captures are excluded.",
+    "Other override classes, retained-target flag8000, and general GROUP-03.2 remain open."
+  ],
+  "bundle_sha256": "df384144c409831de3593b3812a4ac88a6d245e34307def761980494c34cb7cd"
+}

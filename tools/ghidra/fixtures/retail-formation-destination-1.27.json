@@ -1,0 +1,4243 @@
+{
+  "version": 1,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_entry": "6f16e250",
+  "query_entry": "6f1627e0",
+  "source": [
+    8,
+    8
+  ],
+  "map_size": 64,
+  "budget": 30,
+  "cases": [
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 40,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 42,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "open",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 48,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "wall",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 4294967295,
+      "destination": [
+        17.0,
+        9.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 0,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 1,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 2,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 0,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 1,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 2,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 0,
+      "query_result": 0,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 2,
+      "query_result": 2,
+      "destination": [
+        10.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 18,
+      "query_result": 18,
+      "destination": [
+        26.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 20,
+      "query_result": 20,
+      "destination": [
+        28.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 22,
+      "query_result": 22,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 40,
+      "query_result": 59,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 42,
+      "query_result": 60,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    },
+    {
+      "fixture": "gap",
+      "size_class": 3,
+      "lane": 3,
+      "offset": 48,
+      "query_result": 64,
+      "destination": [
+        8.0,
+        8.0
+      ]
+    }
+  ],
+  "source_report": {
+    "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/formation-adjust-engine-size-261002.json",
+    "sha256": "3c74bbac1a51908483d9f23fa6c5acbda3ca570079efcf8687d4fde519738f2d"
+  },
+  "scope": "384 complete original formation adjustments on supplied synthetic open/wall/gap64-cell maps, four footprint classes/four lanes/eight offsets. No portals, negative endpoints or hierarchy producer parity claim."
+}

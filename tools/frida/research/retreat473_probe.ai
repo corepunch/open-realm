@@ -1,0 +1,13 @@
+function main takes nothing returns nothing
+ call SetCampaignAI()
+ call CreateCaptains()
+ call SetCaptainHome(1,384,1664)
+ call InitAssault()
+ call AddAssault(6,'hfoo')
+ call SetGroupsFlee(true)
+ call Sleep(8.0)
+ call CaptainAttack(1664,384)
+ loop
+  call Sleep(1.0)
+ endloop
+endfunction

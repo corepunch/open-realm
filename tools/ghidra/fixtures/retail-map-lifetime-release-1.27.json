@@ -1,0 +1,122 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "cases": [
+    {
+      "cycle": 0,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 1,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 2,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 3,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 4,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 5,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 6,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 7,
+      "width": 8,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    },
+    {
+      "cycle": 8,
+      "width": 12,
+      "height": 8,
+      "retired_objects": 3,
+      "records_before": 40,
+      "records_after": 0,
+      "links_after": 0,
+      "cells_after": 0,
+      "request_cancelled": true,
+      "owner_allocations_remaining": 0,
+      "external_registry_bytes": 16384
+    }
+  ]
+}

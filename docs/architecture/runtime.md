@@ -4,6 +4,18 @@ OpenWarcraft3 uses Quake-style runtime configuration: small cvars select subsyst
 
 Project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants use the `BZ_` prefix. Keep new project-prefixed names on that prefix instead of adding another project namespace.
 
+## Fixed simulation scheduling
+
+The game import `SetSimulationRate(numerator, denominator)` selects the wall-time
+rate of fixed `RunFrame` steps. Game time still advances by `FRAMETIME` per step;
+movement and gameplay timers receive their usual simulation delta. Both arguments
+must be positive and produce an interval from 1 through `INT32_MAX` milliseconds.
+Zero-initialized server state means 1/1. Integer remainder accumulation preserves
+fractional deadlines, and setting an equivalent ratio preserves its phase.
+Pause freezes simulation. Existing unpause and hitch handling bounds catch-up.
+The game restores 1/1 at shutdown and reapplies its authored rate after loading.
+Rate scheduling state is derived; games save their logical speed setting.
+
 ## Cvar System Internals
 
 ### The `cvar_t` Struct
@@ -248,3 +260,36 @@ SC2 currently has no dynamic walkable-surface state. The shared router cannot re
 - [Client Architecture](client.md) — client main loop, input, and scene rendering
 - [Network Architecture](network.md) — loopback/UDP transport and connection handshake
 - [UI System Architecture](ui-system.md) — menu screens, FDF layout, in-game HUD
+
+## Server media identities
+
+`SV_ModelIndex`, `SV_ImageIndex`, `SV_FontIndex` and `SV_SoundIndexAlias` keep their
+Q2 configstring identities. Derived per-namespace string indexes make repeated
+registration independent of the populated pool size. Sound keys include both the
+path and its exact alias; matching remains case-sensitive. The lowest duplicate
+slot wins, and lookup stops at the first empty slot as before.
+
+`SV_SetConfigString` invalidates the affected index. The next registration rebuilds
+only its populated prefix, including when filling a manually edited hole exposes
+a later suffix. Ordinary append registration updates the index directly. Clearing
+`sv` on map reset also clears the derived tables. No wire or save format changes.
+
+`game_import.MediaRevision` is a mandatory monotonic resource revision. Media
+configstring edits and replacement of `sv` advance it; immutable game resource
+descriptors validate it before reusing model, image or sound indices. This is
+derived cache state and is neither serialized nor sent to clients.
+
+## Presentation during synchronous game work
+
+`game_import.FrameCheckpoint` lets a game yield presentation between completed
+actions without returning from its simulation stack. The host enables it only
+during server work in an active client world. The deadline reserves the maximum
+of the last sixteen client frame costs plus one millisecond, with a minimum
+quarter-millisecond work interval. A due checkpoint pumps window events and draws
+the last client snapshot through `CL_PresentationFrame`; it does not dispatch input,
+run commands, receive packets, prepare new entities or advance game time. A
+reentrancy guard prevents nested checkpoint drawing. The normal client frame
+receives only elapsed time since the most recent presentation, and the rate limiter
+uses the updated presentation boundary. Dedicated servers take the immediate
+no-op path. This preserves synchronous public native and callback semantics;
+post-batch simulation and snapshot costs still require independent measurement.

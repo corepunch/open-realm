@@ -85,7 +85,7 @@ void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player) {
     player->hero_count = 0;
     memset(player->heroes, 0, sizeof(player->heroes));
     FILTER_EDICTS(hero, hero->inuse && hero->s.player == player->number &&
-                  G_UnitIsHero(hero) && !G_UnitHasFlag(hero, UNIT_FLAG_TRAINING) && !G_IsDeferredFree(hero)) {
+                  G_UnitIsHero(hero) && !(hero && hero->training) && !G_IsDeferredFree(hero)) {
         uint32_t const index = player->hero_count++;
         wc3ScoreHeroSnapshot_t *entry;
         cstring_t art;
@@ -93,7 +93,7 @@ void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player) {
         entry = &player->heroes[index];
         entry->entity = hero->s.number;
         entry->rawcode = hero->class_id;
-        entry->level = MAX(1u, hero->unit_state->hero.level);
+        entry->level = MAX(1u, hero->hero.level);
         art = hero->data.UnitProfile ? hero->data.UnitProfile->art : NULL;
         if (art) strlcpy(entry->art, art, sizeof(entry->art));
     }
@@ -115,7 +115,7 @@ void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
 uint32_t G_PlayerScoreScriptedXP(uint32_t player) {
     uint64_t total = 0;
     FILTER_EDICTS(ent, ent->inuse && G_UnitIsHero(ent) && ent->s.player == player) {
-        total += ent->unit_state->score_level_xp;
+        total += ent->score_level_xp;
     }
     return (uint32_t)MIN(total, (uint64_t)INT32_MAX);
 }

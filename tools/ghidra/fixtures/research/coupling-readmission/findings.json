@@ -1,0 +1,16 @@
+{
+  "dll_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "call_chain": [
+    "67abe0 publishes issuedtarget before internalheadtest",
+    "679cc0 selectsability using6857e0 aftercallback",
+    "6857e0 targetbranch walks currentunit1dc abilitylist andcalls39a5a0",
+    "39a5a0 callsabilityvirtual260",
+    "Acoa vtable6fafc27c andAcoh6fafc5ac v260=43b760",
+    "43b760 delegatesv2fc=4be6c0",
+    "4be6c0 validatesinternald00ad anddelegatesv3184beda0",
+    "4beda0 sameowner+partnerDataA+partnerAcou+reciprocalDataA"
+  ],
+  "producer": "4e3c60 no local predicate; readiness4ef6f0 repeatsv318.",
+  "limits": "No native callbackability-removal/ownerchange capture; static validatesselection frontier, not exactfailedheadretirement timing.",
+  "engine_note": "Afterpeer issuedcallback, reversevalidation must ensure originalactor stillowns Acou. Forward helper withcachedoriginalability data alone doesnotprove sourcepresence."
+}

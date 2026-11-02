@@ -1,0 +1,311 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "comments": {
+    "6f05b580": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.",
+    "6f6864d0": "Payoff184: instruction-checked x86 ABI and full original range oracle. Two original instructions: LEA EAX,[ECX+164]; RET. No stack argument. PUSH1 in41d1f0 belongs to the later05b580 prediction argument, not this virtual getter.",
+    "6f41d1f0": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; original calls target virtualb8() then05b580 with predict1; if false, target-perimeter fallback68c250.795 full unmodified executions including authentic CUnit virtual getter and native absent-perimeter fallback; unchanged unit/mover bytes. Present perimeter remains excluded.",
+    "6f417f90": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; writes authored417a70 output for ability50 rank. Unused stack8 target, stackc add_buffer enables SpellCastRangeBuffer. Target-order producer438680 passes0, so approach takes authored range without that buffer.",
+    "6f417a70": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; out_scalar stack4, signed rank_index stack8. Lazy cache54; count row50, data54, scalar at data+1c+rank*68. Negative/out-of-bounds/absent row returns runtime zero.",
+    "6f438680": "Payoff184: shared CAbilitySimpleSpell target producer. HolyBolt vtable6fb61628+0c=60a530 delegates4259e0; d0161 reaches438680. Valid target passes virtual3ec. Producer virtual408(out,target,0) captures authored range without SpellCastRangeBuffer. Original4387ab calls41d1f0 with caster ECX and target/range; outside range pops old internal head then6926b0(d0174,target,range,0). Already-in-range branch queries05b340 with cd53d4; when needed replaces head using cd5480 FLT_MAX sentinel. Complete stop/completion timing is not live certified: all Payoff184 launch attempts lacked simulation markers."
+  },
+  "addition": {
+    "layouts": [
+      {
+        "name": "WC3SpellAbilityPrefix",
+        "length": 88,
+        "fields": [
+          {
+            "offset": 0,
+            "name": "vtable",
+            "type": "ptr:void",
+            "evidence": "HolyBolt RTTI vtable6fb61628 and shared spell dispatch4259e0."
+          },
+          {
+            "offset": 48,
+            "name": "caster",
+            "type": "ptr:WC3UnitOrdersPrefix",
+            "evidence": "438680 reads ability30 before Unit range query and internal approach creation."
+          },
+          {
+            "offset": 80,
+            "name": "rank_index",
+            "type": "i32",
+            "evidence": "417f90 pushes ability50 to417a70; signed negative rank returns zero; authored rows use0x68 stride."
+          },
+          {
+            "offset": 84,
+            "name": "cached_rank_rows",
+            "type": "ptr:void",
+            "evidence": "417a70 lazily resolves ability54 through6ac530 then reads row count50/data54."
+          }
+        ]
+      },
+      {
+        "name": "WC3UnitOrdersPrefix",
+        "length": 780,
+        "fields": [
+          {
+            "offset": 356,
+            "name": "mover_bridge",
+            "type": "WC3UnitMoverBridge",
+            "evidence": "Payoff184: authentic CUnit vtable6fb77eb0+b8 is6864d0, LEA EAX,[ECX+164]; RET without consuming stack.795 complete41d1f0 original calls resolve this embedded bridge."
+          }
+        ]
+      }
+    ],
+    "methods": [
+      {
+        "address": "6f05b580",
+        "name": "MoveBridge_IsTargetInConfiguredRange",
+        "returns": "u32",
+        "convention": "__thiscall",
+        "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.",
+        "parameters": [
+          {
+            "name": "bridge",
+            "type": "ptr:WC3UnitMoverBridge",
+            "storage": "ECX"
+          },
+          {
+            "name": "requested",
+            "type": "ptr:WC3PathScalar",
+            "storage": 4
+          },
+          {
+            "name": "target",
+            "type": "ptr:WC3UnitMoverBridge",
+            "storage": 8
+          },
+          {
+            "name": "predict",
+            "type": "u32",
+            "storage": 12
+          }
+        ]
+      },
+      {
+        "address": "6f6864d0",
+        "name": "CUnit_GetMoverBridge",
+        "returns": "ptr:WC3UnitMoverBridge",
+        "convention": "__thiscall",
+        "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. Two original instructions: LEA EAX,[ECX+164]; RET. No stack argument. PUSH1 in41d1f0 belongs to the later05b580 prediction argument, not this virtual getter.",
+        "parameters": [
+          {
+            "name": "unit",
+            "type": "ptr:WC3UnitOrdersPrefix",
+            "storage": "ECX"
+          }
+        ]
+      },
+      {
+        "address": "6f41d1f0",
+        "name": "Unit_IsTargetInSpellRange",
+        "returns": "u32",
+        "convention": "__thiscall",
+        "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; original calls target virtualb8() then05b580 with predict1; if false, target-perimeter fallback68c250.795 full unmodified executions including authentic CUnit virtual getter and native absent-perimeter fallback; unchanged unit/mover bytes. Present perimeter remains excluded.",
+        "parameters": [
+          {
+            "name": "unit",
+            "type": "ptr:WC3UnitOrdersPrefix",
+            "storage": "ECX"
+          },
+          {
+            "name": "requested",
+            "type": "ptr:WC3PathScalar",
+            "storage": 4
+          },
+          {
+            "name": "target",
+            "type": "ptr:void",
+            "storage": 8
+          }
+        ]
+      },
+      {
+        "address": "6f417f90",
+        "name": "CAbilitySpell_GetTargetCastRange",
+        "returns": "ptr:WC3PathScalar",
+        "convention": "__thiscall",
+        "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; writes authored417a70 output for ability50 rank. Unused stack8 target, stackc add_buffer enables SpellCastRangeBuffer. Target-order producer438680 passes0, so approach takes authored range without that buffer.",
+        "parameters": [
+          {
+            "name": "spell",
+            "type": "ptr:WC3SpellAbilityPrefix",
+            "storage": "ECX"
+          },
+          {
+            "name": "out_range",
+            "type": "ptr:WC3PathScalar",
+            "storage": 4
+          },
+          {
+            "name": "target",
+            "type": "ptr:void",
+            "storage": 8
+          },
+          {
+            "name": "add_buffer",
+            "type": "u32",
+            "storage": 12
+          }
+        ]
+      },
+      {
+        "address": "6f417a70",
+        "name": "CAbilitySpell_GetAuthoredCastRange",
+        "returns": "ptr:WC3PathScalar",
+        "convention": "__thiscall",
+        "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; out_scalar stack4, signed rank_index stack8. Lazy cache54; count row50, data54, scalar at data+1c+rank*68. Negative/out-of-bounds/absent row returns runtime zero.",
+        "parameters": [
+          {
+            "name": "spell",
+            "type": "ptr:WC3SpellAbilityPrefix",
+            "storage": "ECX"
+          },
+          {
+            "name": "out_range",
+            "type": "ptr:WC3PathScalar",
+            "storage": 4
+          },
+          {
+            "name": "rank_index",
+            "type": "i32",
+            "storage": 8
+          }
+        ]
+      }
+    ]
+  },
+  "records": [
+    {
+      "rename": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f41d1f0 from 'FUN_6f41d1f0' to 'Unit_IsTargetInSpellRange'\",\"warnings\":[\"Function name 'Unit_IsTargetInSpellRange' \u2014 main part 'Unit_IsTargetInSpellRange' is not PascalCase. Expected: UnitIstargetinspellrange\",\"Function name 'Unit_IsTargetInSpellRange' \u2014 main part 'Unit_IsTargetInSpellRange' contains underscores. Use PascalCase after the module prefix.\",\"Function name 'Unit_IsTargetInSpellRange' does not start with a recognized verb. First word 'Unit_' not in allowed list. Common verbs: Get, Set, Initialize, Process, Calculate, Find, Check, Handle\"]}"
+    },
+    {
+      "rename": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f417f90 from 'FUN_6f417f90' to 'CAbilitySpell_GetTargetCastRange'\",\"warnings\":[\"Function name 'CAbilitySpell_GetTargetCastRange' \u2014 main part 'CAbilitySpell_GetTargetCastRange' is not PascalCase. Expected: CabilityspellGettargetcastrange\",\"Function name 'CAbilitySpell_GetTargetCastRange' \u2014 main part 'CAbilitySpell_GetTargetCastRange' contains underscores. Use PascalCase after the module prefix.\"]}"
+    },
+    {
+      "rename": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f417a70 from 'FUN_6f417a70' to 'CAbilitySpell_GetAuthoredCastRange'\",\"warnings\":[\"Function name 'CAbilitySpell_GetAuthoredCastRange' \u2014 main part 'CAbilitySpell_GetAuthoredCastRange' is not PascalCase. Expected: CabilityspellGetauthoredcastrange\",\"Function name 'CAbilitySpell_GetAuthoredCastRange' \u2014 main part 'CAbilitySpell_GetAuthoredCastRange' contains underscores. Use PascalCase after the module prefix.\"]}"
+    },
+    {
+      "types": "{\"success\":true,\"console_output\":\"=== GHIDRA SCRIPT EXECUTION ===\\nScript: /home/lofcz/ghidra_scripts/Spell184Types.java\\nProgram: game.dll\\nTime: Thu Oct 08 21:28:00 CEST 2026\\n\\nFound script: /home/lofcz/ghidra_scripts/Spell184Types.java\\nSize: 11924 bytes\\n\\nScript provider: JavaScriptProvider\\n\\n--- SCRIPT OUTPUT ---\\n/home/lofcz/ghidra_scripts hasn't changed, with 1 file failing in previous build(s):\\nMcpInline_33232b9c66c9.java:5: error: illegal start of expression\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n     ^\\nMcpInline_33232b9c66c9.java:5: error: not a statement\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                               ^\\nMcpInline_33232b9c66c9.java:5: error: ';' expected\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                                                              ^\\nMcpInline_33232b9c66c9.java:5: error: ';' expected\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                                                                       ^\\nMcpInline_33232b9c66c9.java:5: error: ';' expected\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                                                                               ^\\nMcpInline_33232b9c66c9.java:5: error: not a statement\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                                                                                ^\\nMcpInline_33232b9c66c9.java:5: error: ';' expected\\ncat: /home/lofcz/ghidra_scripts/Payoff134CategoryReadback.java: No such file or directory\\n                                                                                         ^\\n\\n6f05b580 uint __thiscall MoveBridge_IsTargetInConfiguredRange(WC3UnitMoverBridge * bridge, WC3PathScalar * requested, WC3UnitMoverBridge * target, uint predict)\\n6f6864d0 WC3UnitMoverBridge * __thiscall CUnit_GetMoverBridge(WC3UnitOrdersPrefix * unit)\\n6f41d1f0 uint __thiscall Unit_IsTargetInSpellRange(WC3UnitOrdersPrefix * unit, WC3PathScalar * requested, void * target)\\n6f417f90 WC3PathScalar * __thiscall CAbilitySpell_GetTargetCastRange(WC3SpellAbilityPrefix * spell, WC3PathScalar * out_range, void * target, uint add_buffer)\\n6f417a70 WC3PathScalar * __thiscall CAbilitySpell_GetAuthoredCastRange(WC3SpellAbilityPrefix * spell, WC3PathScalar * out_range, int rank_index)\\nPASS: Spell range layout and5 explicit ABIs saved/read back.\\n\\n\\n=== SCRIPT COMPLETED SUCCESSFULLY ===\\n\"}"
+    },
+    {
+      "address": "6f05b580",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f05b580\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f6864d0",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f6864d0\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f41d1f0",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f41d1f0\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f417f90",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f417f90\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f417a70",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f417a70\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "address": "6f438680",
+      "result": "{\"status\":\"success\",\"message\":\"Set plate comment at 6f438680\",\"warnings\":[\"Plate comment missing Algorithm section\",\"Plate comment missing Parameters section\",\"Plate comment missing Returns section\"]}"
+    },
+    {
+      "saved": "{\"success\":true,\"program\":\"game.dll\",\"message\":\"Program saved successfully\"}"
+    },
+    {
+      "readback": "6f05b580",
+      "name": "MoveBridge_IsTargetInConfiguredRange",
+      "data": {
+        "address": "6f05b580",
+        "plate": "Static full body predicts both mover poses, converts world configured range to fine, adds target then source mover radius, clamps minimum.49, compares software squared distance, and treats abs squared difference below3a83126f as near equality.5fd270 uses this before selecting half-edge-distance approach.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Static full body predicts both mover poses, converts world configured range to fine, adds target then source mover radius, clamps minimum.49, compares software squared distance, and treats abs squared difference below3a83126f as near equality.5fd270 uses this before selecting half-edge-distance approach.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "readback": "6f6864d0",
+      "name": "CUnit_GetMoverBridge",
+      "data": {
+        "address": "6f6864d0",
+        "plate": "Actual CUnit vtable6fb77eb0 slotb8, ECX receiver, returnsECX+164 inEAX, RETplain. SetUnitPathing(false) obtains current occupancy from bridge05ac60.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff184: instruction-checked x86 ABI and full original range oracle. Two original instructions: LEA EAX,[ECX+164]; RET. No stack argument. PUSH1 in41d1f0 belongs to the later05b580 prediction argument, not this virtual getter.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Actual CUnit vtable6fb77eb0 slotb8, ECX receiver, returnsECX+164 inEAX, RETplain. SetUnitPathing(false) obtains current occupancy from bridge05ac60.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff184: instruction-checked x86 ABI and full original range oracle. Two original instructions: LEA EAX,[ECX+164]; RET. No stack argument. PUSH1 in41d1f0 belongs to the later05b580 prediction argument, not this virtual getter.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "readback": "6f41d1f0",
+      "name": "Unit_IsTargetInSpellRange",
+      "data": {
+        "address": "6f41d1f0",
+        "plate": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RET8; original calls target virtualb8() then05b580 with predict1; if false, target-perimeter fallback68c250.795 full unmodified executions including authentic CUnit virtual getter and native absent-perimeter fallback; unchanged unit/mover bytes. Present perimeter remains excluded.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RET8; original calls target virtualb8() then05b580 with predict1; if false, target-perimeter fallback68c250.795 full unmodified executions including authentic CUnit virtual getter and native absent-perimeter fallback; unchanged unit/mover bytes. Present perimeter remains excluded.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "readback": "6f417f90",
+      "name": "CAbilitySpell_GetTargetCastRange",
+      "data": {
+        "address": "6f417f90",
+        "plate": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RETc; writes authored417a70 output for ability50 rank. Unused stack8 target, stackc add_buffer enables SpellCastRangeBuffer. Target-order producer438680 passes0, so approach takes authored range without that buffer.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RETc; writes authored417a70 output for ability50 rank. Unused stack8 target, stackc add_buffer enables SpellCastRangeBuffer. Target-order producer438680 passes0, so approach takes authored range without that buffer.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "readback": "6f417a70",
+      "name": "CAbilitySpell_GetAuthoredCastRange",
+      "data": {
+        "address": "6f417a70",
+        "plate": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RET8; out_scalar stack4, signed rank_index stack8. Lazy cache54; count row50, data54, scalar at data+1c+rank*68. Negative/out-of-bounds/absent row returns runtime zero.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff184: instruction-checked x86 ABI and full original range oracle. RET8; out_scalar stack4, signed rank_index stack8. Lazy cache54; count row50, data54, scalar at data+1c+rank*68. Negative/out-of-bounds/absent row returns runtime zero.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "readback": "6f438680",
+      "name": "CAbilitySimpleSpell_BeginTargetApproach",
+      "data": {
+        "address": "6f438680",
+        "plate": "\nPayoff184: shared CAbilitySimpleSpell target producer. HolyBolt vtable6fb61628+0c=60a530 delegates4259e0; d0161 reaches438680. Valid target passes virtual3ec. Producer virtual408(out,target,0) captures authored range without SpellCastRangeBuffer. Original4387ab calls41d1f0 with caster ECX and target/range; outside range pops old internal head then6926b0(d0174,target,range,0). Already-in-range branch queries05b340 with cd53d4; when needed replaces head using cd5480 FLT_MAX sentinel. Complete stop/completion timing is not live certified: all Payoff184 launch attempts lacked simulation markers.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff184: shared CAbilitySimpleSpell target producer. HolyBolt vtable6fb61628+0c=60a530 delegates4259e0; d0161 reaches438680. Valid target passes virtual3ec. Producer virtual408(out,target,0) captures authored range without SpellCastRangeBuffer. Original4387ab calls41d1f0 with caster ECX and target/range; outside range pops old internal head then6926b0(d0174,target,range,0). Already-in-range branch queries05b340 with cd53d4; when needed replaces head using cd5480 FLT_MAX sentinel. Complete stop/completion timing is not live certified: all Payoff184 launch attempts lacked simulation markers.\nRecovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "rename": "{\"status\":\"success\",\"message\":\"Success: Renamed function at FUN_6f438680 from 'FUN_6f438680' to 'CAbilitySimpleSpell_BeginTargetApproach'\",\"warnings\":[\"Function name 'CAbilitySimpleSpell_BeginTargetApproach' \u2014 main part 'CAbilitySimpleSpell_BeginTargetApproach' is not PascalCase. Expected: CabilitysimplespellBegintargetapproach\",\"Function name 'CAbilitySimpleSpell_BeginTargetApproach' \u2014 main part 'CAbilitySimpleSpell_BeginTargetApproach' contains underscores. Use PascalCase after the module prefix.\"]}"
+    },
+    {
+      "saved": "{\"success\":true,\"program\":\"game.dll\",\"message\":\"Program saved successfully\"}"
+    }
+  ]
+}

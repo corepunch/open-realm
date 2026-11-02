@@ -27,7 +27,6 @@ void setup_test_world(void);
 void G_ResetTestSelectionChecks(void);
 uint32_t G_GetTestSelectionChecks(void);
 bool run_test_jass(cstring_t src);
-void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 
 #include "../game/hud/hud_utils.h"
@@ -258,12 +257,12 @@ TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
     G_SelectEntity(clent->client, unit);
     gi.CvarString = give_resources_cheat_cvar;
     G_ClientCommand(clent, 1, god);
-    T_ASSERT(G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE));
-    T_ASSERT(!G_UnitHasFlag(clent, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(unit->invulnerable);
+    T_ASSERT(!clent->invulnerable);
     T_Damage(unit, unit, 10);
     T_EQ(unit->health.value, unit->health.max_value);
     G_ClientCommand(clent, 1, kill);
-    T_ASSERT(!G_UnitHasFlag(clent, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!clent->invulnerable);
     T_ASSERT(unit->svflags & SVF_DEADMONSTER);
     T_EQ(unit->health.value, 0);
     T_ASSERT(!unit->selected);
@@ -319,19 +318,19 @@ TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget)
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    hero->unit_state->hero.level = 1;
-    hero->unit_state->hero.xp = 0;
-    hero->unit_state->hero.skillpoints = 0;
-    hero->unit_state->ranks[0].code = MAKEFOURCC('A','H','h','b');
-    hero->unit_state->ranks[0].level = 1;
+    hero->hero.level = 1;
+    hero->hero.xp = 0;
+    hero->hero.skillpoints = 0;
+    hero->heroabilities[0].code = MAKEFOURCC('A','H','h','b');
+    hero->heroabilities[0].level = 1;
     G_SelectEntity(client, hero);
 
     G_ClientCommand(&g_edicts[0], 2, command);
 
     max_level = G_MaxHeroLevel();
-    T_EQ((int)hero->unit_state->hero.level, (int)max_level);
-    T_EQ((int)hero->unit_state->hero.xp, (int)G_HeroXPForLevel(max_level));
-    T_EQ((int)hero->unit_state->hero.skillpoints, (int)(max_level - 1));
+    T_EQ((int)hero->hero.level, (int)max_level);
+    T_EQ((int)hero->hero.xp, (int)G_HeroXPForLevel(max_level));
+    T_EQ((int)hero->hero.skillpoints, (int)(max_level - 1));
 
     gi.CvarString = old_cvar;
 }
@@ -375,7 +374,7 @@ TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    hero->unit_state->hero.level = 1;
+    hero->hero.level = 1;
     hero->health.max_value = 700.0f;
     hero->health.value = 100.0f;
     hero->mana.max_value = 300.0f;
@@ -690,7 +689,7 @@ TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     G_ClientCommand(clent, 1, kill);
     G_ClientCommand(clent, 2, health);
     G_ClientCommand(clent, 2, mana);
-    T_ASSERT(!G_UnitHasFlag(clent, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!clent->invulnerable);
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
     unit->s.player = 1;
     unit->svflags |= SVF_MONSTER;
@@ -704,7 +703,7 @@ TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     G_ClientCommand(clent, 1, kill);
     G_ClientCommand(clent, 2, health);
     G_ClientCommand(clent, 2, mana);
-    T_ASSERT(!G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!unit->invulnerable);
     T_EQ((int)unit->health.value, 75);
     T_EQ((int)unit->mana.value, 20);
     unit->s.player = 0;
@@ -713,7 +712,7 @@ TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     G_ClientCommand(clent, 1, kill);
     G_ClientCommand(clent, 2, health);
     G_ClientCommand(clent, 2, mana);
-    T_ASSERT(!G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!unit->invulnerable);
     T_EQ((int)unit->health.value, 75);
     T_EQ((int)unit->mana.value, 20);
     gi.CvarString = old_cvar;
@@ -786,8 +785,8 @@ static edict_t *make_test_unit(void) {
     ent->health.max_value = 250.0f;
     ent->stand            = unit_stand;
     ent->movetype         = MOVETYPE_STEP;
-    ent->unit_state->attack1.type     = ATK_NORMAL;
-    ent->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(ent, 0)->type     = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     ent->targtype         = TARG_GROUND;
     unit_stand(ent);
     return ent;
@@ -989,12 +988,12 @@ TEST(wc3_game, unit_ignore_alarm_suppresses_ping_without_changing_combat) {
     alert_ping_count = 0;
     gi.MinimapPing = alert_test_minimap_ping;
     gi.configstring = alert_test_configstring;
-    G_SetUnitFlag(victim, UNIT_FLAG_IGNORE_ALARM, true);
+    victim->ignore_alarm = true;
     G_WC3_AttackAlert(victim, attacker);
     T_EQ(alert_ping_count, 0);
-    T_ASSERT(!G_UnitHasFlag(victim, UNIT_FLAG_PAUSED));
-    T_ASSERT(!G_UnitHasFlag(victim, UNIT_FLAG_INVULNERABLE));
-    G_SetUnitFlag(victim, UNIT_FLAG_IGNORE_ALARM, false);
+    T_ASSERT(!victim->paused);
+    T_ASSERT(!victim->invulnerable);
+    victim->ignore_alarm = false;
     G_WC3_AttackAlert(victim, attacker);
     T_EQ(alert_ping_count, 1);
     gi.MinimapPing = saved_ping;
@@ -1918,7 +1917,7 @@ TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
     gi.unicast = selection_test_unicast;
     UI_SendInfoPanel(player, units, 3);
     T_EQ(client->infopanel.entity, 0);
-    T_EQ(client->infopanel.count, 3);
+    T_EQ(client->infopanel.hp, 3);
 
     G_DeselectEntity(client, units[1]);
     multiselect_capture_count = 0;
@@ -1928,7 +1927,7 @@ TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
 
     T_EQ(multiselect_capture_count, 2);
     T_EQ(client->infopanel.entity, 0);
-    T_EQ(client->infopanel.count, 2);
+    T_EQ(client->infopanel.hp, 2);
 }
 
 TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
@@ -2202,7 +2201,7 @@ TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {
     G_SelectEntity(client, first);
     G_SelectEntity(client, second);
     client->infopanel.entity = 0;
-    client->infopanel.count = 2;
+    client->infopanel.hp = 2;
 
     T_ASSERT(G_FocusSelectedUnit(client, second));
     G_RefreshInfoPanel(player);
@@ -2238,8 +2237,11 @@ TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
     unit->mana.max_value = 100.0f;
     G_SelectEntity(client, unit);
 
-    /* Retain portrait identity so live stat refresh does not need to serialize FDF. */
+    /* Keep the legacy info-panel cache current so the test exercises only the
+     * per-frame live portrait producer and does not need to serialize FDF. */
     client->infopanel.entity = unit->s.number;
+    client->infopanel.hp = 311;
+    client->infopanel.mana = 33;
     client->infopanel.xp = 0;
     T_ASSERT(!player->inuse);
 
@@ -2251,6 +2253,8 @@ TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
 
     unit->health.value = 207.0f;
     unit->mana.value = 21.0f;
+    client->infopanel.hp = 207;
+    client->infopanel.mana = 21;
     G_UpdateClientInfoPanels();
     T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 207);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 21);
@@ -2274,7 +2278,8 @@ TEST(wc3_game, selected_unit_status_invalidation_resends_info_panel) {
     /* Simulate a panel already serialized, then status application invalidates
      * it. The next ordinary refresh must not accept the old cache as current. */
     client->infopanel.entity = unit->s.number;
-    client->infopanel.xp = (int32_t)unit->unit_state->hero.xp;
+    client->infopanel.hp = (int32_t)unit->health.value;
+    client->infopanel.xp = (int32_t)unit->hero.xp;
     G_InvalidateUnitInfoPanel(unit);
     T_EQ(client->infopanel.entity, UINT32_MAX);
 
@@ -2286,16 +2291,16 @@ TEST(wc3_game, selected_unit_status_invalidation_resends_info_panel) {
     gi.unicast = old_unicast;
 
     T_EQ(client->infopanel.entity, unit->s.number);
-    T_EQ(client->infopanel.xp, (int32_t)unit->unit_state->hero.xp);
+    T_EQ(client->infopanel.xp, (int32_t)unit->hero.xp);
 
     other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
     other->s.player = 0;
     G_SelectEntity(client, other);
     client->infopanel.entity = 0;
-    client->infopanel.count = 2;
+    client->infopanel.hp = 2;
     G_InvalidateUnitInfoPanel(unit);
     T_EQ(client->infopanel.entity, 0);
-    T_EQ(client->infopanel.count, 2);
+    T_EQ(client->infopanel.hp, 2);
 }
 
 TEST(wc3_game, loading_rows_support_roc_and_tft_schema) {
@@ -2332,6 +2337,29 @@ TEST(wc3_game, loading_layout_preserves_sprite_geometry_and_progress_binding) {
     T_FEQ(wire.size.width, 0, 0.00001f); T_FEQ(wire.size.height, 0, 0.00001f);
     T_ASSERT(UI_BuildFrameForWrite(&back, &wire, data, sizeof(data), text, sizeof(text)));
     T_EQ(wire.flags.type, FT_SPRITE); T_EQ(wire.tex.index, 18); T_STREQ(wire.text, "#!6");
+}
+
+/* Release compilation exposed X indexing into the adjacent Y array. Exercise all six authored anchors. */
+TEST(wc3_game, frame_serialization_preserves_both_axis_arrays) {
+    FRAMEDEF parent = { .Type = FT_FRAME }, frame = { .Type = FT_FRAME };
+    uiFrame_t wire; uint8_t data[128]; char text[128];
+    FOR_LOOP(axis, 2) {
+        framePoint_t *point = axis ? frame.Points.y : frame.Points.x;
+        FOR_LOOP(i, FPP_COUNT)
+            point[i] = (framePoint_t){ .used = true, .targetPos = i, .relativeTo = &parent,
+                                      .offset = (float)(axis * FPP_COUNT + i + 1) / 8 };
+    }
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&parent, &wire, data, sizeof(data), text, sizeof(text)));
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, data, sizeof(data), text, sizeof(text)));
+    FOR_LOOP(axis, 2) {
+        uiFramePoint_t const *point = axis ? wire.points.y : wire.points.x;
+        FOR_LOOP(i, FPP_COUNT) {
+            T_ASSERT(point[i].used); T_EQ(point[i].targetPos, i);
+            T_EQ(point[i].relativeTo, 1); T_EQ(point[i].offset, (axis * FPP_COUNT + i + 1) * 4096 - 1);
+        }
+    }
+    UI_ResetFrameWriteList();
 }
 
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
@@ -3378,8 +3406,8 @@ TEST(wc3_game, hero_xp_bar_serializes_current_level_progress_tooltip) {
 
     setup_test_world();
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
-    hero->unit_state->hero.level = 1;
-    hero->unit_state->hero.xp = 75;
+    hero->hero.level = 1;
+    hero->hero.xp = 75;
     hero_xp_bar_tooltip[0] = '\0';
     hero_xp_bar_value = 0.0f;
     gi.Write = hero_xp_bar_test_write;
@@ -3430,19 +3458,49 @@ TEST(wc3_game, region_contains_multirect_hits_second) {
     T_ASSERT(G_RegionContains(&r, &p));
 }
 
-TEST(wc3_game, region_contains_max_boundary_exclusive) {
-    /* Box2_containsPoint uses x < max.x (exclusive upper bound). */
+TEST(wc3_game, region_contains_entire_max_boundary_cell) {
+    /* Original05fcf0 includes the cell containing the authored maximum. */
     region_t r = {
         .rects[0] = { { 0.0f, 0.0f }, { 100.0f, 100.0f } },
         .num_rects = 1
     };
     vec2_t p = { 100.0f, 50.0f };   /* exactly at max.x */
-    T_ASSERT(!G_RegionContains(&r, &p));
+    T_ASSERT(G_RegionContains(&r, &p));
+    p.x=127.999f;T_ASSERT(G_RegionContains(&r,&p));
+    p.x=128;T_ASSERT(!G_RegionContains(&r,&p));
 }
 
 /* =========================================================================
  * G_FreeEdict
  * ========================================================================= */
+
+TEST(wc3_game, spawn_slot_index_preserves_order_cooldown_wrap_and_restore) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.time=10000;
+    edict_t *lower=NULL,*higher=NULL;
+    FOR_LOOP(i,1900) {
+        edict_t *ent=G_Spawn();
+        if(i==2)lower=ent;
+        if(i==256)higher=ent;
+    }
+    spawn_candidate_visits=0;
+    FOR_LOOP(i,128)T_NOT_NULL(G_Spawn());
+    T_ASSERT(spawn_candidate_visits<=128u);
+    G_FreeEdict(higher);level.time=10001;G_FreeEdict(lower);
+    uint32_t count=globals.num_edicts;
+    level.time=11000;T_ASSERT(G_Spawn()==g_edicts+count);
+    level.time=11001;T_ASSERT(G_Spawn()==higher);
+    level.time=11002;T_ASSERT(G_Spawn()==lower);
+    G_FreeEdict(higher);
+    cstring_t file=Test_TempPath("wc3-spawn-slot-index.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    level.time=12003;T_ASSERT(G_Spawn()==higher);
+    /* Preserve the original unsigned cooldown predicate at time wrap. */
+    level.time=UINT32_MAX-500;G_FreeEdict(lower);
+    level.time=500;T_ASSERT(G_Spawn()==lower);
+    remove(file);reset_entities();setup_test_world();
+}
 
 TEST(wc3_game, free_edict_clears_inuse) {
     edict_t *ent = make_test_unit();
@@ -3597,8 +3655,8 @@ TEST(wc3_game, learnability_first_ability_fills_slot0) {
     edict_t *ent = make_test_unit();
     uint32_t code = MAKEFOURCC('A','H','b','z');
     unit_learnability(ent, code);
-    T_EQ((int)ent->unit_state->ranks[0].code,  (int)code);
-    T_EQ((int)ent->unit_state->ranks[0].level, 1);
+    T_EQ((int)ent->heroabilities[0].code,  (int)code);
+    T_EQ((int)ent->heroabilities[0].level, 1);
 }
 
 TEST(wc3_game, learnability_same_code_increments_level) {
@@ -3606,9 +3664,9 @@ TEST(wc3_game, learnability_same_code_increments_level) {
     uint32_t code = MAKEFOURCC('A','H','b','z');
     unit_learnability(ent, code);
     unit_learnability(ent, code);
-    T_EQ((int)ent->unit_state->ranks[0].level, 2);
+    T_EQ((int)ent->heroabilities[0].level, 2);
     /* Should still be in slot 0, not duplicated in slot 1. */
-    T_EQ((int)ent->unit_state->ranks[1].code, 0);
+    T_EQ((int)ent->heroabilities[1].code, 0);
 }
 
 TEST(wc3_game, learnability_different_codes_fill_consecutive_slots) {
@@ -3617,9 +3675,9 @@ TEST(wc3_game, learnability_different_codes_fill_consecutive_slots) {
     uint32_t code2 = MAKEFOURCC('A','H','t','b');
     unit_learnability(ent, code1);
     unit_learnability(ent, code2);
-    T_EQ((int)ent->unit_state->ranks[0].code, (int)code1);
-    T_EQ((int)ent->unit_state->ranks[1].code, (int)code2);
-    T_EQ((int)ent->unit_state->ranks[1].level, 1);
+    T_EQ((int)ent->heroabilities[0].code, (int)code1);
+    T_EQ((int)ent->heroabilities[1].code, (int)code2);
+    T_EQ((int)ent->heroabilities[1].level, 1);
 }
 
 /* =========================================================================
@@ -3709,6 +3767,158 @@ TEST(wc3_game, fow_grid_uses_two_by_two_cells_per_tile) {
     G_FowShutdown();
 }
 
+#include "fixtures/retail_fog_queries253.h"
+extern void (*test_preload_marker)(cstring_t);
+static unsigned fog253_cursor;
+static bool fog253_mismatch;
+static void fog253_record(cstring_t marker) {
+    if (strncmp(marker,"F253 ",5)) return;
+    char normalized[512];snprintf(normalized,sizeof(normalized),"%s",marker);
+    char *handle=strstr(normalized," h=");
+    if(handle) {char *end=handle+3;if(*end=='-')end++;while(*end>='0' && *end<='9')end++;memmove(handle,end,strlen(end)+1);}
+    T_ASSERT(fog253_cursor<sizeof(fog253_markers)/sizeof(*fog253_markers));
+    if(fog253_cursor>=sizeof(fog253_markers)/sizeof(*fog253_markers)){fog253_mismatch=true;return;}
+    T_STREQ(normalized,fog253_markers[fog253_cursor].marker);
+    T_EQ(level.pathing_counter,fog253_markers[fog253_cursor].counter);
+    if(strcmp(normalized,fog253_markers[fog253_cursor].marker) || level.pathing_counter!=fog253_markers[fog253_cursor].counter)
+        {fprintf(stderr,"Fog253 row%u actual=%s expected=%s\n",fog253_cursor,normalized,fog253_markers[fog253_cursor].marker);fog253_mismatch=true;}
+    fog253_cursor++;
+}
+
+TEST(wc3_game, fog253_classifier_matches_original_policy_matrix) {
+    reset_entities();setup_test_world();G_FowInit();
+    vec2_t point={64,64};
+    uint32_t x=G_FowWorldToCellX(point.x),y=G_FowWorldToCellY(point.y);
+    unsigned index=y*level.fow.width+x,case_index=0;
+    FOR_LOOP(flags,4)FOR_LOOP(player,16)FOR_LOOP(state,4) {
+        fowPlayerGrid_t *grid=&level.fow.players[player];
+        grid->visible[index]=(state>>1)&1;grid->explored[index]=state&1;
+#ifdef WC3_FOW_PACKED_MASK
+        unsigned word=(x>>4)+y*grid->packed_stride,bit=1u<<(x&15);
+        SET_FLAG(grid->packed_visible[word],bit,state&2);
+        SET_FLAG(grid->packed_explored[word],bit,state&1);
+#endif
+        unsigned rdflags=(flags&1 ? 0 : RDF_NOFOGMASK)|(flags&2 ? 0 : RDF_NOFOG);
+        T_EQ(G_FowPointState(player,&point,rdflags),fog253_classification[case_index++]);
+    }
+    T_EQ(case_index,256u);T_EQ(G_FowPointState(MAX_PLAYERS,&point,0),0u);
+    T_EQ(G_FowPointState(0,NULL,0),0u);
+    /* Finite coordinates use the established world clamp at both edges. */
+    vec2_t edges[]={{level.fow.bounds.min.x-1000,level.fow.bounds.min.y-1000},
+        {level.fow.bounds.max.x+1000,level.fow.bounds.max.y+1000}};
+    FOR_LOOP(i,2) {
+        uint32_t cell=i ? level.fow.width*level.fow.height-1 : 0;
+        level.fow.players[0].visible[cell]=0;level.fow.players[0].explored[cell]=1;
+        T_EQ(G_FowPointState(0,&edges[i],0),WC3_FOG_STATE_FOGGED);
+    }
+    G_FowShutdown();T_EQ(G_FowPointState(0,&point,0),0u);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_game, fog253_public_queries_match_retail_and_cold_save) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_counter=1024;
+    level.pathing_due=false;level.fow_clock_valid=false;G_StartFowUpdates();
+    fog253_cursor=0;fog253_mismatch=false;test_preload_marker=fog253_record;
+    T_ASSERT(run_test_jass(fog253_script));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-fog253.bin");
+    FOR_LOOP(pass,2) {
+        if(fog253_mismatch)break;
+        bool saved=false;
+        if(pass){T_ASSERT(ReadGame(file));fog253_cursor=12;}
+        while(level.time<4100 && !fog253_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!pass && !saved && fog253_cursor==12){T_ASSERT(WriteGame(file));saved=true;}
+        }
+        T_EQ(fog253_cursor,sizeof(fog253_markers)/sizeof(*fog253_markers));
+        if(jass_rterror_pending(level.vm))fprintf(stderr,"Fog253 JASS: %s\n",jass_rterror_message(level.vm));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!pass)T_ASSERT(saved);
+    }
+    remove(file);test_preload_marker=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_FowShutdown();level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_game, fow_primary_request_publishes_stopped_modifier_at_next_deadline) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.scheduled_frame=true;
+    level.fow_clock_valid=false;G_StartFowUpdates();
+    T_EQ(wc3_float_bits(level.fow_deadline.time),0x3eccccceu);
+    fogModifier_t *mod=G_FogModifierCreate();
+    T_NOT_NULL(mod);
+    *mod=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_VISIBLE,.center={64,64},.radius=128};
+    G_FogModifierStart(mod);
+    uint32_t index=G_FowWorldToCellY(64)*level.fow.width+G_FowWorldToCellX(64);
+    T_ASSERT(level.fow.players[0].visible[index]);
+    G_FogModifierStop(mod);
+    level.pathing_clock.time=wc3_float(0x3e800000);G_RunTimers();
+    T_ASSERT(level.fow.players[0].visible[index]);
+    uint32_t serial=level.fow_sequence;
+    level.pathing_clock.time=wc3_float(0x3eccccce);G_RunTimers();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].explored[index]);
+    T_EQ(wc3_float_bits(level.fow_deadline.time),0x3f4cccceu);
+    T_ASSERT(level.fow_sequence>serial);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_game, fow_primary_request_rebases_without_publishing_early) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){299.75f,0,300};level.scheduled_frame=true;
+    G_StartFowUpdates();
+    fogModifier_t *mod=G_FogModifierCreate();
+    T_NOT_NULL(mod);
+    *mod=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_VISIBLE,.center={64,64},.radius=128};
+    G_FogModifierStart(mod);G_FogModifierStop(mod);
+    uint32_t index=G_FowWorldToCellY(64)*level.fow.width+G_FowWorldToCellX(64);
+    float after=wc3_sub(level.fow_deadline.time,300);
+    /* Cross the epoch through the normal five-millisecond publication step. */
+    level.pathing_clock.time=299.999f;
+    level.timer_clock=level.pathing_clock;level.timer_source_clock=level.pathing_clock;
+    level.timer_clock_valid=true;
+    G_RunTimers();
+    T_EQ(level.fow_deadline.epoch,1u);T_EQ(level.fow_deadline.time,after);
+    level.pathing_clock=(wc3Clock_t){0.125f,1,300};G_RunTimers();
+    T_ASSERT(level.fow.players[0].visible[index]);
+    level.pathing_clock.time=after;G_RunTimers();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_EQ(level.fow_deadline.time,wc3_add(after,wc3_div(4,10)));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, fog_completed_planes_restore_without_early_recomposition) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    fogWrite_t fog={.player=0,.state=WC3_FOG_STATE_VISIBLE};
+    vec2_t center={64,64};G_FowSetStateRadius(&fog,&center,96);
+    uint32_t cells=level.fow.width*level.fow.height;
+    uint8_t *visible=malloc(cells),*explored=malloc(cells);
+    T_ASSERT(visible && explored);if(!visible || !explored){free(visible);free(explored);return;}
+    memcpy(visible,level.fow.players[0].visible,cells);memcpy(explored,level.fow.players[0].explored,cells);
+    FILE *file=tmpfile();T_NOT_NULL(file);if(!file){free(visible);free(explored);return;}
+    T_ASSERT(G_WriteFowState(file));G_FowUpdate();
+    T_ASSERT(memcmp(visible,level.fow.players[0].visible,cells)!=0);
+    rewind(file);T_ASSERT(G_ReadFowState(file));
+    T_ASSERT(!memcmp(visible,level.fow.players[0].visible,cells));
+    T_ASSERT(!memcmp(explored,level.fow.players[0].explored,cells));
+    T_ASSERT(level.fow.players[0].client_connected);
+    T_ASSERT(!level.fow.players[1].client_connected);
+    /* Truncation, a foreign shape and invalid cell bits must be rejected. */
+    uint32_t shape[2]={level.fow.width,level.fow.height};
+    rewind(file);shape[0]++;fwrite(shape,sizeof(shape),1,file);rewind(file);T_ASSERT(!G_ReadFowState(file));
+    rewind(file);shape[0]--;fwrite(shape,sizeof(shape),1,file);fputc(0,file);fputc(4,file);
+    rewind(file);T_ASSERT(!G_ReadFowState(file));fclose(file);
+    file=tmpfile();T_NOT_NULL(file);
+    if(file){fwrite(shape,sizeof(shape),1,file);rewind(file);T_ASSERT(!G_ReadFowState(file));fclose(file);}
+    free(visible);free(explored);G_FowShutdown();reset_entities();setup_test_world();
+}
+
 TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     reset_entities();
     G_FowInit();
@@ -3727,116 +3937,277 @@ TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     G_FowShutdown();
 }
 
-/* Ultravision is a player-owned research effect consumed by the normal fog
- * rasterizer, not a permanent mutation of the unit's authored night sight. */
-static bool fow_ultravision_probe(uint32_t player) {
-    uint32_t const x = G_FowWorldToCellX(320.0f);
-    uint32_t const y = G_FowWorldToCellY(128.0f);
-    return level.fow.players[player].visible[y * level.fow.width + x] != 0;
+uint32_t G_TestFowSightBuilds(bool reset);
+void G_TestFowInvalidateSight(void);
+TEST(wc3_game, fow_stationary_sight_reuses_geometry_and_reexplores_masked_cells) {
+    reset_entities();G_FowInit();G_FowConnectPlayer(0);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,64);
+    unit->s.player=0;unit->health.value=unit->health.max_value=1;
+    unit->runtime.sight_radius.day=unit->runtime.sight_radius.night=128;
+    uint32_t cells=level.fow.width*level.fow.height;
+    uint8_t *visible=malloc(cells),*explored=malloc(cells);
+    G_TestFowSightBuilds(true);G_FowUpdate();
+    memcpy(visible,level.fow.players[0].visible,cells);
+    for(uint32_t i=0;i<64;i++)G_FowUpdate();
+    T_EQ(G_TestFowSightBuilds(false),1);
+    T_ASSERT(!memcmp(visible,level.fow.players[0].visible,cells));
+    /* A script may mask exploration while a stationary unit still owns sight. */
+    memset(level.fow.players[0].explored,0,cells);G_FowUpdate();
+    T_ASSERT(!memcmp(visible,level.fow.players[0].explored,cells));
+    for(uint32_t phase=0;phase<5;phase++) {
+        if(phase==0)unit->s.origin.x+=128;
+        if(phase==1)unit->runtime.sight_radius.day=unit->runtime.sight_radius.night=64;
+        if(phase==2){unit->shared_vision=2;G_FowConnectPlayer(1);}
+        if(phase==3)unit->health.value=0;
+        if(phase==4)unit->health.value=1;
+        G_FowUpdate();
+        for(uint32_t player=0;player<2;player++) {
+            memcpy(visible,level.fow.players[player].visible,cells);
+            memcpy(explored,level.fow.players[player].explored,cells);
+            G_TestFowInvalidateSight();G_FowUpdate();
+            T_ASSERT(!memcmp(visible,level.fow.players[player].visible,cells));
+            T_ASSERT(!memcmp(explored,level.fow.players[player].explored,cells));
+        }
+    }
+    free(visible);free(explored);G_FowShutdown();
 }
 
-static void fow_ultravision_clock(bool night) {
-    game.constants.gameDayHours = 24.0f;
-    game.constants.gameDayLength = 480.0f;
-    game.constants.dawnTimeGameHours = 6.0f;
-    game.constants.duskTimeGameHours = 18.0f;
-    level.timeofday = (timeOfDay_t){ 0 };
-    level.timeofday.elapsed = night ? 0.0f : 240.0f;
-}
-
-TEST(wc3_game, fow_ultravision_research_expands_only_night_sight) {
-    static UnitBalance_t const ultravision_unit = { .upgrades = "Reuv" };
-    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
-    edict_t *scout;
-
+void G_TestFowForceCasts(bool force);
+uint32_t G_TestFowCastBuilds(bool reset);
+TEST(wc3_game, fow_cast_cache_matches_ordered_shadow_and_rim_with_one_moving_source) {
     reset_entities(); setup_test_world();
-    fow_ultravision_clock(true);
-    G_FowInit(); G_FowConnectPlayer(0);
-    G_SetPlayerTechResearched(&game.clients[0], research, 0);
-    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
-    scout->s.player = 0;
-    scout->data.UnitBalance = &ultravision_unit;
-    scout->runtime.sight_radius.day = 192.0f;
-    scout->runtime.sight_radius.night = 64.0f;
-
-    G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(0));
-    G_SetPlayerTechResearched(&game.clients[0], research, 1);
-    G_FowUpdate();
-    T_ASSERT(fow_ultravision_probe(0));
-
-    G_SetPlayerTechResearched(&game.clients[0], research, 0);
-    G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(0));
-    T_ASSERT(level.fow.players[0].explored[
-        G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(320.0f)]);
-
-    fow_ultravision_clock(false);
-    G_FowUpdate();
-    T_ASSERT(fow_ultravision_probe(0));
-    G_FowShutdown();
-}
-
-TEST(wc3_game, fow_ultravision_requires_unit_upgrade_and_excludes_buildings) {
-    static UnitBalance_t const eligible = { .upgrades = "Reuv" };
-    static UnitBalance_t const not_eligible = { .upgrades = "" };
-    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
-    edict_t *scout;
-
-    reset_entities(); setup_test_world();
-    fow_ultravision_clock(true);
-    G_FowInit(); G_FowConnectPlayer(0);
-    G_SetPlayerTechResearched(&game.clients[0], research, 1);
-    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
-    scout->s.player = 0;
-    scout->runtime.sight_radius.day = 192.0f;
-    scout->runtime.sight_radius.night = 64.0f;
-
-    scout->data.UnitBalance = &not_eligible;
-    G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(0));
-    scout->data.UnitBalance = &eligible;
-    scout->runtime.flags |= UNIT_BALANCE_BUILDING;
-    G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(0));
-    scout->runtime.flags &= ~UNIT_BALANCE_BUILDING;
-    G_FowUpdate();
-    T_ASSERT(fow_ultravision_probe(0));
-    G_FowShutdown();
-}
-
-TEST(wc3_game, fow_ultravision_uses_source_owner_for_shared_vision) {
-    static UnitBalance_t const eligible = { .upgrades = "Reuv" };
-    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
-    edict_t *scout;
-
-    reset_entities(); setup_test_world();
-    fow_ultravision_clock(true);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512,-256}, .max = {1536,1792}));
     G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
-    G_SetPlayerTechResearched(&game.clients[0], research, 0);
-    G_SetPlayerTechResearched(&game.clients[1], research, 1);
-    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
-    scout->s.player = 0;
-    scout->data.UnitBalance = &eligible;
-    scout->runtime.sight_radius.day = 192.0f;
-    scout->runtime.sight_radius.night = 64.0f;
-    memset(level.alliances, 0, sizeof(level.alliances));
-    G_SetPlayerAlliance(G_GetPlayerByNumber(0), G_GetPlayerByNumber(1),
-                        ALLIANCE_SHARED_VISION, true);
+    edict_t *units[32], *trees[24];
+    FOR_LOOP(i, 32) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -480 + (int)(i % 8) * 224, -224 + (int)(i / 8) * 416);
+        units[i]->s.player = i & 1;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 193 + (i % 4) * 64;
+        units[i]->health.value = units[i]->health.max_value = 1;
+    }
+    FOR_LOOP(i, 24) {
+        trees[i] = alloc_test_unit(MAKEFOURCC('L','T','l','t'), -416 + (int)(i % 6) * 256, -96 + (int)(i / 6) * 384);
+        trees[i]->s.flags |= EF_FOW_BLOCKER;
+        trees[i]->health.value = trees[i]->health.max_value = 1;
+    }
+    uint32_t cells = level.fow.width * level.fow.height, height = level.fow.height;
+    size_t size = 3 * (2 * cells + 3 * height);
+    uint8_t *before = malloc(size), *expected = malloc(size);
+    T_NOT_NULL(before); T_NOT_NULL(expected);
+    edict_t *overlap = NULL;
+    for (uint32_t phase = 0; phase < 12; phase++) {
+        if (phase == 1) units[0]->s.origin.x += 64;
+        if (phase == 2) { trees[0]->health.value = 0; G_FowMarkBlockersDirty(); }
+        if (phase == 3) { trees[1]->s.origin.x += 64; G_FowMarkBlockersDirty(); }
+        if (phase == 4) { units[0]->shared_vision = 4; G_FowConnectPlayer(2); }
+        if (phase == 5) FOR_LOOP(p, 3) memset(level.fow.players[p].explored, 0, cells);
+        if (phase == 6) { trees[0]->health.value = 1; G_FowMarkBlockersDirty(); }
+        if (phase == 7) units[1]->health.value = 0;
+        if (phase == 8) units[0]->runtime.sight_radius.day = units[0]->runtime.sight_radius.night = 129;
+        if (phase == 9) { units[1]->health.value = 1; units[0]->shared_vision = 0; }
+        if (phase == 10) {
+            overlap = alloc_test_unit(MAKEFOURCC('L','T','l','t'), trees[1]->s.origin.x, trees[1]->s.origin.y);
+            overlap->s.flags |= EF_FOW_BLOCKER;
+            overlap->health.value = overlap->health.max_value = 1;
+            G_FowMarkBlockersDirty();
+        }
+        if (phase == 11) { overlap->health.value = 0; G_FowMarkBlockersDirty(); }
+        uint8_t *out = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; memcpy(out, planes[j], n); out += n; }
+        }
+        G_TestFowCastBuilds(true); G_FowUpdate();
+        if (phase == 0) T_EQ(G_TestFowCastBuilds(false), 32);
+        if (phase == 1 || phase == 8) T_EQ(G_TestFowCastBuilds(false), 1);
+        if (phase == 4 || phase == 5 || phase == 7 || phase == 9) T_EQ(G_TestFowCastBuilds(false), 0);
+        if (phase == 10 || phase == 11) T_EQ(G_TestFowCastBuilds(false), 0);
+        if (phase == 2 || phase == 3 || phase == 6) {
+            T_ASSERT(G_TestFowCastBuilds(false) > 0);
+            T_ASSERT(G_TestFowCastBuilds(false) < 32);
+        }
+        out = expected;
+        uint8_t const *saved = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) {
+                size_t n = j < 2 ? cells : height;
+                memcpy(out, planes[j], n); memcpy(planes[j], saved, n); out += n; saved += n;
+            }
+        }
+        /* Run the original production rasterizer from the same plane state,
+         * preserving the provider order and its live value2 rim propagation. */
+        G_TestFowForceCasts(true); G_FowUpdate();
+        saved = expected;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; T_EQ(memcmp(planes[j], saved, n), 0); saved += n; }
+        }
+        G_TestFowForceCasts(false);
+    }
+    free(before); free(expected); G_FowShutdown(); setup_test_world();
+}
 
+uint32_t G_TestFowSourceReplays(bool reset);
+uint32_t G_TestFowPrefixSkips(bool reset);
+uint32_t G_TestFowCoverSkips(bool reset);
+TEST(wc3_game, fow_covered_sources_skip_geometry_without_using_future_visibility) {
+    reset_entities(); setup_test_world();
+    /* Non-aligned bounds exercise partial right/bottom coverage tiles. */
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-97,-65}, .max = {1057,577}));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    edict_t *units[1024];
+    FOR_LOOP(i, 1024) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 512, 256);
+        units[i]->s.player = 0; units[i]->shared_vision = 2;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 2048;
+    }
+    G_TestFowCoverSkips(true); G_TestFowCastBuilds(true); G_TestFowSourceReplays(true);
     G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(0));
-    T_ASSERT(!fow_ultravision_probe(1));
-    G_SetPlayerTechResearched(&game.clients[0], research, 1);
+    T_EQ(G_TestFowCastBuilds(false), 1);
+    T_EQ(G_TestFowSourceReplays(false), 2);
+    T_EQ(G_TestFowCoverSkips(false), 2046);
+    uint32_t cells = level.fow.width * level.fow.height;
+    uint8_t *expected = malloc(cells); T_NOT_NULL(expected);
+    memcpy(expected, level.fow.players[0].visible, cells);
+    FOR_LOOP(i, cells) T_EQ(expected[i], 1);
+    /* Every source moves. Covered sources still need no first-move geometry
+     * allocation; only the first actual contributor is rasterized. */
+    FOR_LOOP(i, 1024) units[i]->s.origin.x += (i & 1) ? 64 : -64;
+    G_TestFowCoverSkips(true); G_TestFowCastBuilds(true); G_TestFowSourceReplays(true);
     G_FowUpdate();
-    T_ASSERT(fow_ultravision_probe(0));
-    T_ASSERT(fow_ultravision_probe(1));
+    T_EQ(G_TestFowCastBuilds(false), 1);
+    T_EQ(G_TestFowSourceReplays(false), 2);
+    T_EQ(G_TestFowCoverSkips(false), 2046);
+    FOR_LOOP(p, 2) {
+        T_EQ(memcmp(expected, level.fow.players[p].visible, cells), 0);
+        memset(level.fow.players[p].explored, 0, cells);
+    }
+    G_FowUpdate();
+    FOR_LOOP(p, 2) T_EQ(memcmp(expected, level.fow.players[p].explored, cells), 0);
+    G_TestFowForceCasts(true); G_FowUpdate();
+    FOR_LOOP(p, 2) {
+        T_EQ(memcmp(expected, level.fow.players[p].visible, cells), 0);
+        T_EQ(memcmp(expected, level.fow.players[p].explored, cells), 0);
+    }
+    free(expected); G_FowShutdown(); setup_test_world();
+}
 
-    scout->s.player = 1;
-    G_SetPlayerTechResearched(&game.clients[1], research, 0);
+TEST(wc3_game, fow_unchanged_blocker_cells_retain_sight_after_damage_and_overlap) {
+    reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->s.player = 0;
+    unit->runtime.sight_radius.day = unit->runtime.sight_radius.night = 512;
+    edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 256, 64);
+    tree->s.flags |= EF_FOW_BLOCKER; tree->health.value = tree->health.max_value = 100;
     G_FowUpdate();
-    T_ASSERT(!fow_ultravision_probe(1));
-    G_FowShutdown();
+    G_TestFowSourceReplays(true); G_TestFowCastBuilds(true);
+    tree->health.value = 50; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    edict_t *duplicate = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 256, 64);
+    duplicate->s.flags |= EF_FOW_BLOCKER;
+    G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    tree->health.value = 0; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    duplicate->health.value = 0; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_ASSERT(G_TestFowSourceReplays(false) > 0); T_ASSERT(G_TestFowCastBuilds(false) > 0);
+    uint32_t cells = level.fow.width * level.fow.height;
+    uint8_t *expected = malloc(cells); T_NOT_NULL(expected);
+    memcpy(expected, level.fow.players[0].visible, cells);
+    G_TestFowForceCasts(true); G_FowUpdate();
+    T_EQ(memcmp(expected, level.fow.players[0].visible, cells), 0);
+    free(expected); G_FowShutdown(); setup_test_world();
+}
+
+TEST(wc3_game, fow_prefix_checkpoints_match_full_ordered_replay_across_dirty_blocks) {
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512,-256}, .max = {1536,1792}));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    edict_t *units[800], *trees[12], *inserted = NULL;
+    FOR_LOOP(i, 800) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -320 + (i % 3) * 512, 256 + (i % 2) * 512);
+        units[i]->s.player = 0; units[i]->shared_vision = 2;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 257;
+        units[i]->health.value = units[i]->health.max_value = 1;
+    }
+    FOR_LOOP(i, 12) {
+        trees[i] = alloc_test_unit(MAKEFOURCC('L','T','l','t'), -192 + (i % 3) * 512, 128 + (i / 3) * 256);
+        trees[i]->s.flags |= EF_FOW_BLOCKER;
+        trees[i]->health.value = trees[i]->health.max_value = 1;
+    }
+    uint32_t cells = level.fow.width * level.fow.height, height = level.fow.height;
+    size_t size = 3 * (2 * cells + 3 * height);
+    uint8_t *before = malloc(size), *expected = malloc(size);
+    T_NOT_NULL(before); T_NOT_NULL(expected);
+    for (uint32_t phase = 0; phase < 12; phase++) {
+        /* The independent oracle invalidates caches; establish valid ordered
+         * checkpoints before applying the next mutation. */
+        G_FowUpdate();
+        /* Relocate an early duplicate onto another existing source. This
+         * dirties its block but leaves the accumulated prefix unchanged. */
+        if (phase == 0) units[0]->s.origin2 = units[1]->s.origin2;
+        if (phase == 1) units[799]->s.origin.y += 512;
+        if (phase == 2) { units[0]->s.origin.y += 512; units[799]->s.origin.x += 64; }
+        if (phase == 3) units[0]->runtime.sight_radius.day = units[0]->runtime.sight_radius.night = 64;
+        if (phase == 4) {
+            FOR_LOOP(p, 3) memset(level.fow.players[p].explored, 0, cells);
+            units[799]->s.origin.x -= 64;
+        }
+        if (phase == 5) { trees[0]->health.value = 0; G_FowMarkBlockersDirty(); }
+        if (phase == 6) units[0]->health.value = 0;
+        if (phase == 7) { units[799]->shared_vision |= 4; G_FowConnectPlayer(2); }
+        if (phase == 8) {
+            inserted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 1280, 1536);
+            inserted->s.player = 0; inserted->runtime.sight_radius.day = inserted->runtime.sight_radius.night = 193;
+        }
+        if (phase == 9) G_FreeEdict(inserted);
+        if (phase == 10) units[400]->s.player = 1;
+        if (phase == 11) FOR_LOOP(i, 800) units[i]->s.origin.y -= 64;
+        FOR_LOOP(p, 3) {
+            memset(level.fow.players[p].dirty_visible_rows, 0, height);
+            memset(level.fow.players[p].dirty_explored_rows, 0, height);
+        }
+        uint8_t *out = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; memcpy(out, planes[j], n); out += n; }
+        }
+        G_TestFowSourceReplays(true); G_TestFowPrefixSkips(true); G_FowUpdate();
+        if (phase == 0 || phase == 1 || phase == 4) {
+            T_ASSERT(G_TestFowPrefixSkips(false) > 0);
+            T_ASSERT(G_TestFowSourceReplays(false) < 800 * 2);
+        }
+        out = expected;
+        uint8_t const *saved = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) {
+                size_t n = j < 2 ? cells : height;
+                memcpy(out, planes[j], n); memcpy(planes[j], saved, n); out += n; saved += n;
+            }
+        }
+        G_TestFowForceCasts(true); G_FowUpdate();
+        saved = expected;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; T_EQ(memcmp(planes[j], saved, n), 0); saved += n; }
+        }
+        G_TestFowForceCasts(false);
+    }
+    free(before); free(expected); G_FowShutdown(); setup_test_world();
 }
 
 TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
@@ -4008,8 +4379,8 @@ TEST(wc3_game, fow_world_items_follow_position_instead_of_default_owner) {
     item = alloc_test_unit(MAKEFOURCC('I','t','e','m'), 1024.0f, 1024.0f);
     item->s.player = 0; /* Unowned map items can retain this default owner. */
     item->targtype = TARG_ITEM;
-    G_AddItem(item);
-    G_GetItem(item)->in_world = true;
+    item->item = G_AllocItem();
+    item->item->in_world = true;
 
     G_FowUpdate();
 
@@ -4040,12 +4411,12 @@ TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 200.0f, 0.0f);
     guard->s.player = 0; enemy->s.player = 1;
     guard->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
-    guard->unit_state->attack1.type = ATK_NORMAL;
-    guard->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(guard, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(guard, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->targtype = TARG_GROUND;
-    guard->unit_state->attack1.cooldown = 1.0f; guard->unit_state->attack1.damageBase = 1;
-    guard->unit_state->attack1.range = 64.0f; guard->runtime.acquisition_range = 300.0f;
-    guard->currentmove = &holdpos_move_stand;
+    S_AttackProfileWrite(guard, 0)->cooldown = 1.0f; S_AttackProfileWrite(guard, 0)->damageBase = 1;
+    S_AttackProfileWrite(guard, 0)->range = 64.0f; guard->runtime.acquisition_range = 300.0f;
+    M_SetMove(guard,&holdpos_move_stand);
     gi.LinkEntity(guard); gi.LinkEntity(enemy);
     level.time = 300;
 
@@ -4077,179 +4448,6 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     uint32_t behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(288.0f);
     T_ASSERT(level.fow.players[0].visible[blocker_index]);
     T_ASSERT(!level.fow.players[0].visible[behind_index]);
-    G_FowShutdown();
-}
-
-bool G_FowTestReindexBlockers(void);
-void G_FowTestRevealBlockerRim(fowPlayerGrid_t *, uint32_t, uint32_t, int, bool);
-
-/* A compact row-bit index must visit the same blockers, in the same order, as
- * the original rectangular scan: a marker with value 2 can reveal a later
- * blocker in the same pass. Also protect word-edge masks, map clipping,
- * mixed source visibility and rebuilds after blocker additions/removals. */
-TEST(wc3_game, fow_blocker_rim_bit_index_matches_rectangular_reference) {
-    static int const radii[] = { 0, 1, 2, 5, 15, 32, 48 };
-    fowPlayerGrid_t *fast, *reference;
-    uint32_t width, height, cells;
-    box2_t const old_bounds = CM_GetWorldBounds();
-
-    reset_entities();
-    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f},
-                                        .max = {8192.0f, 8192.0f}));
-    G_FowInit();
-    width = level.fow.width;
-    height = level.fow.height;
-    cells = width * height;
-    fast = &level.fow.players[0];
-    reference = &level.fow.players[1];
-    T_ASSERT(width > 65 && height > 65 && level.fow.blocked != NULL);
-    if (width <= 65 || height <= 65 || !level.fow.blocked) {
-        G_FowShutdown();
-        CM_SetupTestWorldBounds(&old_bounds);
-        return;
-    }
-
-    FOR_LOOP(pattern, 5) {
-        /* The fifth pattern after a dense one exercises full clearing of
-         * stale index bits when blockers move or disappear. */
-        FOR_LOOP(y, height) {
-            FOR_LOOP(x, width) {
-                uint32_t const i = y * width + x;
-                level.fow.blocked[i] = pattern == 0 ? 0 :
-                    pattern == 1 ? (x == 31 || x == 32 || x == 63 || x == 64) :
-                    pattern == 2 ? (x + y) % 3 == 0 :
-                    pattern == 3 ? (x * 19 + y * 23) % 43 == 0 :
-                                   (x > 30 && x < 66 && y == height / 2);
-            }
-        }
-        T_ASSERT(G_FowTestReindexBlockers());
-        FOR_LOOP(r, sizeof(radii) / sizeof(*radii)) {
-            FOR_LOOP(c, 5) {
-                uint32_t const cx = c == 0 ? 0 :
-                    c == 1 ? width - 1 : c == 2 ? width / 2 :
-                    c == 3 ? 32 : 63;
-                uint32_t const cy = c == 0 ? 0 :
-                    c == 1 ? height - 1 : height / 2;
-                FOR_LOOP(i, cells) {
-                    uint32_t const x = i % width, y = i / width;
-                    /* This includes initially visible blockers and an
-                     * ordered chain of blockers adjacent to visible cells. */
-                    uint8_t const vis = (uint8_t)(
-                        (x == cx && y == cy) ||
-                        (x == 30 && y == height / 2) ||
-                        ((x * 7 + y * 11 + c) % 37 == 0));
-                    fast->visible[i] = reference->visible[i] = vis;
-                    fast->explored[i] = reference->explored[i] = vis;
-                }
-                memset(fast->visible_rows, 0, height);
-                memset(fast->dirty_visible_rows, 0, height);
-                memset(fast->dirty_explored_rows, 0, height);
-                memset(reference->visible_rows, 0, height);
-                memset(reference->dirty_visible_rows, 0, height);
-                memset(reference->dirty_explored_rows, 0, height);
-
-                G_FowTestRevealBlockerRim(fast, cx, cy, radii[r], true);
-                G_FowTestRevealBlockerRim(reference, cx, cy, radii[r], false);
-                FOR_LOOP(i, cells) {
-                    T_EQ(fast->visible[i], reference->visible[i]);
-                    T_EQ(fast->explored[i], reference->explored[i]);
-                    T_ASSERT(fast->visible[i] <= 1);
-                }
-                FOR_LOOP(y, height) {
-                    T_EQ(fast->visible_rows[y], reference->visible_rows[y]);
-                    T_EQ(fast->dirty_visible_rows[y], reference->dirty_visible_rows[y]);
-                    T_EQ(fast->dirty_explored_rows[y], reference->dirty_explored_rows[y]);
-                }
-            }
-        }
-    }
-    G_FowShutdown();
-    CM_SetupTestWorldBounds(&old_bounds);
-}
-
-/* Rebuilding the blocker plane after movement must produce the same sight
- * mask when the original geometry returns. This exercises octant recursion,
- * transient rim markers and deterministic traversal/commit ordering. */
-TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
-    edict_t *revealer, *blocker;
-    uint8_t *original;
-    uint32_t width, height, cx, original_blocker, moved_blocker;
-
-    reset_entities();
-    G_FowInit();
-    G_FowConnectPlayer(0);
-    width = level.fow.width;
-    height = level.fow.height;
-    cx = G_FowWorldToCellX(256.0f);
-    T_ASSERT(width > 7 && height > 4 && cx >= 3 && cx + 3 < width);
-    if (width <= 7 || height <= 4 || cx < 3 || cx + 3 >= width) {
-        G_FowShutdown();
-        return;
-    }
-
-    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 192.0f);
-    revealer->s.player = 0;
-    revealer->runtime.sight_radius.day = 192.0f;
-    revealer->health.value = revealer->health.max_value = 100.0f;
-    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 384.0f, 192.0f);
-    blocker->s.flags |= EF_FOW_BLOCKER;
-    blocker->health.value = blocker->health.max_value = 100.0f;
-
-    G_FowUpdate();
-    original_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(384.0f);
-    moved_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(128.0f);
-    T_ASSERT(level.fow.blocked[original_blocker]);
-    T_ASSERT(level.fow.players[0].visible[G_FowWorldToCellY(192.0f) * width + cx]);
-    original = gi.MemAlloc(width * height);
-    T_NOT_NULL(original);
-    if (!original) {
-        G_FowShutdown();
-        return;
-    }
-    memcpy(original, level.fow.players[0].visible, width * height);
-
-    blocker->s.origin.x = blocker->s.origin2.x = 128.0f;
-    G_FowMarkBlockersDirty();
-    G_FowUpdate();
-    T_ASSERT(!level.fow.blocked[original_blocker]);
-    T_ASSERT(level.fow.blocked[moved_blocker]);
-
-    blocker->s.origin.x = blocker->s.origin2.x = 384.0f;
-    G_FowMarkBlockersDirty();
-    G_FowUpdate();
-    T_ASSERT(level.fow.blocked[original_blocker]);
-    FOR_LOOP(i, width * height) {
-        T_EQ(original[i], level.fow.players[0].visible[i]);
-        T_ASSERT(level.fow.players[0].visible[i] <= 1); /* no leaked rim markers */
-    }
-    gi.MemFree(original);
-    G_FowShutdown();
-}
-
-/* Corner-adjacent sight sources enter both the shadowcasting and rim paths.
- * Off-map rows and columns must neither be visited nor hide on-map blockers. */
-TEST(wc3_game, fow_shadowcast_blocker_rim_clips_at_map_corner) {
-    edict_t *revealer, *blocker;
-    uint32_t source_index, blocker_index;
-
-    reset_entities();
-    G_FowInit();
-    G_FowConnectPlayer(0);
-    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    revealer->s.player = 0;
-    revealer->runtime.sight_radius.day = 256.0f;
-    revealer->health.value = revealer->health.max_value = 100.0f;
-    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 0.0f);
-    blocker->s.flags |= EF_FOW_BLOCKER;
-    blocker->health.value = blocker->health.max_value = 100.0f;
-
-    G_FowUpdate();
-    source_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(0.0f);
-    blocker_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
-    T_ASSERT(level.fow.blocked[blocker_index]);
-    T_ASSERT(level.fow.players[0].visible[source_index]);
-    T_ASSERT(level.fow.players[0].visible[blocker_index]);
-    T_ASSERT(level.fow.players[0].explored[blocker_index]);
     G_FowShutdown();
 }
 
@@ -4389,6 +4587,7 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
  * numbers).
  * ========================================================================= */
 
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 static volatile float acquisition_bench_sink;
 
@@ -4520,25 +4719,26 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     gi.LinkEntity(first); gi.LinkEntity(second);
     indicator = G_Spawn();
     indicator->svflags = SVF_OWNER_ONLY;
-    G_SetUnitFlag(indicator, UNIT_FLAG_RALLY_INDICATOR, true);
+    indicator->rally_indicator = true;
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
-    S_SetCarriedResource(first, RETURN_RESOURCE_GOLD, 37);
-    G_SetUnitFlag(first, UNIT_FLAG_IGNORE_ALARM, true);
-    G_SetUnitSharedVision(first, 0, true); G_SetUnitSharedVision(first, 7, true);
-    G_InitMissile(first);
-    first->missile->reflected = true;
-    ((sleep_t *)G_AddSleep(first))->can_sleep = true;
+    first->harvested_gold = 37;
+    first->ignore_alarm = true;
+    first->shared_vision = (1u << 0) | (1u << 7);
+    first->projectile_reflected = true;
+    if (!first->sleep) first->sleep = G_AllocSleep();
+    assert(first->sleep);
+    first->sleep->can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
     first->owner = second;
-    first->orders->follow_target = second;
-    first->orders->explicit_allied_attack = true;
-    G_InitInventory(first);
-    first->inventory->slots[2] = second;
-    G_AddCargo(first);
-    G_GetCargo(first)->units[3] = second;
+    S_SetFollowTarget(first,second);
+    first->movement.explicit_allied_attack = true;
+    first->inventory[2] = second;
+    if (!first->cargo) first->cargo = G_AllocCargo();
+    assert(first->cargo);
+    first->cargo->units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -4547,15 +4747,16 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     G_UpdateTimeOfDay();
     ai_stand(first);
     T_ASSERT(G_UnitIsSleeping(first));
-    first->animation_props = G_InternAnimationName("alternate,work");
-    first->animation_request = G_InternAnimationName("stand ready");
+    G_StoreUnitAnimationProperties(first, "alternate,work");
+    G_StoreUnitAnimationRequest(first, "stand ready");
     T_ASSERT(first->currentmove != NULL);
     umove_t const *const saved_move = first->currentmove;
-    first->unit_state->statuses[0] = (heroabilitystatus_t){
+    G_EnsureUnitStatusSlots(first);
+    first->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','m','i','l'), .level = 1,
         .timestamp = 40000, .duration_ms = 45000, .data = 300
     };
-    first->unit_state->cooldowns[0] = (abilityCooldown_t){
+    first->abilitycooldowns[0] = (abilityCooldown_t){
         .code = MAKEFOURCC('A','H','t','b'), .start_time = 3000, .end_time = 12000
     };
     level.framenum = 1234;
@@ -4616,14 +4817,16 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_controller = second;
     game.clients[0].camera.target_mode = CAMERA_TARGET_FOLLOW_FACING;
     game.clients[0].camera.orient_eye = (vec3_t){ 11.0f, 22.0f, 33.0f };
-    game.clients[0].camera.pan.active = true;
-    game.clients[0].camera.pan.time = 4321;
-    game.clients[0].camera.pan.start = (vec2_t){ 10.0f, 20.0f };
-    game.clients[0].camera.pan.destination = (vec2_t){ 110.0f, 220.0f };
-    game.clients[0].camera.pan.rate = (vec2_t){ 100.0f, 200.0f };
+    game.clients[0].camera.pan_active = true;
+    game.clients[0].camera.pan_start_time = 4321;
+    game.clients[0].camera.pan_start = (vec2_t){ 10.0f, 20.0f };
+    game.clients[0].camera.pan_destination = (vec2_t){ 110.0f, 220.0f };
+    game.clients[0].camera.pan_rate = (vec2_t){ 100.0f, 200.0f };
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude = 9.5f;
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity = 3.25f;
     game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only = true;
+    game.clients[0].ps.viewoffset = (vec3_t){ 1.5f, -2.25f, 3.75f };
+    game.clients[0].ps.eyeoffset = (vec3_t){ -4.5f, 5.25f, -6.75f };
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
@@ -4634,21 +4837,22 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
-    S_SetCarriedResource(first, RETURN_RESOURCE_GOLD, 0);
-    G_SetUnitFlag(first, UNIT_FLAG_IGNORE_ALARM, false);
-    first->vision->shared = 0;
-    first->missile->reflected = false;
-    G_GetSleep(first)->can_sleep = false;
-    G_GetSleep(first)->sleeping = false;
+    first->harvested_gold = 0;
+    first->ignore_alarm = false;
+    first->shared_vision = 0;
+    first->projectile_reflected = false;
+    first->sleep->can_sleep = false;
+    first->sleep->sleeping = false;
     first->owner = NULL;
-    first->orders->follow_target = NULL;
-    first->orders->explicit_allied_attack = false;
-    first->inventory->slots[2] = NULL;
-    G_GetCargo(first)->units[3] = NULL;
-    first->animation_props = "";
-    first->animation_request = "";
-    memset(first->unit_state->statuses, 0, sizeof(first->unit_state->statuses));
-    memset(first->unit_state->cooldowns, 0, sizeof(first->unit_state->cooldowns));
+    S_SetFollowTarget(first,NULL);
+    first->movement.explicit_allied_attack = false;
+    first->inventory[2] = NULL;
+    first->cargo->units[3] = NULL;
+    G_StoreUnitAnimationProperties(first, "");
+    G_StoreUnitAnimationRequest(first, "");
+    G_EnsureUnitStatusSlots(first);
+    memset(first->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*first->abilstatus));
+    memset(first->abilitycooldowns, 0, sizeof(first->abilitycooldowns));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.cinematic_portrait = 0;
     game.clients[0].ps.team = 0;
@@ -4666,6 +4870,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_mode = CAMERA_TARGET_FOLLOW;
     game.clients[0].camera.orient_eye = (vec3_t){ 0.0f, 0.0f, 0.0f };
     memset(game.clients[0].camera.noise, 0, sizeof(game.clients[0].camera.noise));
+    game.clients[0].ps.viewoffset = (vec3_t){ 0 };
+    game.clients[0].ps.eyeoffset = (vec3_t){ 0 };
     G_ClearCameraPan(&game.clients[0]);
     game.clients[0].rally_indicator = NULL;
     saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
@@ -4679,22 +4885,22 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     /* The sleeping unit's persistent ACsp overlay is a linked, non-selectable
      * edict and is included in the raw world query after save/load. */
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 4);
-    T_EQ(g_edicts[first - g_edicts].harvest->gold, 37);
-    T_EQ(g_edicts[first - g_edicts].vision->shared, (1u << 0) | (1u << 7));
-    T_ASSERT(g_edicts[first - g_edicts].missile->reflected);
-    T_ASSERT(G_UnitHasFlag(&g_edicts[first - g_edicts], UNIT_FLAG_IGNORE_ALARM));
-    T_ASSERT(G_GetSleep(&g_edicts[first - g_edicts])->can_sleep);
-    T_ASSERT(G_GetSleep(&g_edicts[first - g_edicts])->sleeping);
+    T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
+    T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
+    T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
+    T_ASSERT(g_edicts[first - g_edicts].ignore_alarm);
+    T_ASSERT(g_edicts[first - g_edicts].sleep->can_sleep);
+    T_ASSERT(g_edicts[first - g_edicts].sleep->sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
-    T_EQ(g_edicts[first - g_edicts].unit_state->statuses[0].code, MAKEFOURCC('B','m','i','l'));
-    T_EQ(g_edicts[first - g_edicts].unit_state->statuses[0].timestamp, 40000);
-    T_EQ(g_edicts[first - g_edicts].unit_state->statuses[0].duration_ms, 45000);
-    T_EQ(g_edicts[first - g_edicts].unit_state->statuses[0].data, 300);
-    T_EQ(g_edicts[first - g_edicts].unit_state->cooldowns[0].code, MAKEFOURCC('A','H','t','b'));
-    T_EQ(g_edicts[first - g_edicts].unit_state->cooldowns[0].start_time, 3000);
-    T_EQ(g_edicts[first - g_edicts].unit_state->cooldowns[0].end_time, 12000);
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].code, MAKEFOURCC('B','m','i','l'));
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].timestamp, 40000);
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].duration_ms, 45000);
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].data, 300);
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].code, MAKEFOURCC('A','H','t','b'));
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].start_time, 3000);
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].end_time, 12000);
     T_EQ(level.framenum, 1234);
     T_EQ(level.time, 5678);
     T_FEQ(level.timeofday.elapsed, 240.0f, 0.001f);
@@ -4736,12 +4942,12 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.camera_bounds.min.x, -100.0f, 0.001f);
     T_FEQ(level.camera_bounds.max.y, 50.0f, 0.001f);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
-    T_ASSERT(g_edicts[first - g_edicts].orders->follow_target == &g_edicts[second - g_edicts]);
-    T_ASSERT(g_edicts[first - g_edicts].orders->explicit_allied_attack);
-    T_ASSERT(G_InventoryItem(&g_edicts[first - g_edicts], 2) == &g_edicts[second - g_edicts]);
-    T_ASSERT(G_GetCargo(&g_edicts[first - g_edicts])->units[3] == &g_edicts[second - g_edicts]);
-    T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");
-    T_STREQ(g_edicts[first - g_edicts].animation_request, "stand ready");
+    T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].movement.explicit_allied_attack);
+    T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].cargo->units[3] == &g_edicts[second - g_edicts]);
+    T_STREQ(G_UnitAnimationProperties(g_edicts + (first - g_edicts)), "alternate,work");
+    T_STREQ(G_UnitAnimationRequest(g_edicts + (first - g_edicts)), "stand ready");
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
     T_ASSERT(g_edicts[first - g_edicts].think == monster_think);
     /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
@@ -4764,18 +4970,24 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(game.clients[0].camera.orient_eye.x, 11.0f, 0.001f);
     T_FEQ(game.clients[0].camera.orient_eye.y, 22.0f, 0.001f);
     T_FEQ(game.clients[0].camera.orient_eye.z, 33.0f, 0.001f);
-    T_ASSERT(game.clients[0].camera.pan.active);
-    T_EQ(game.clients[0].camera.pan.time, 4321);
-    T_FEQ(game.clients[0].camera.pan.start.x, 10.0f, 0.001f);
-    T_FEQ(game.clients[0].camera.pan.start.y, 20.0f, 0.001f);
-    T_FEQ(game.clients[0].camera.pan.destination.x, 110.0f, 0.001f);
-    T_FEQ(game.clients[0].camera.pan.destination.y, 220.0f, 0.001f);
-    T_FEQ(game.clients[0].camera.pan.rate.x, 100.0f, 0.001f);
-    T_FEQ(game.clients[0].camera.pan.rate.y, 200.0f, 0.001f);
+    T_ASSERT(game.clients[0].camera.pan_active);
+    T_EQ(game.clients[0].camera.pan_start_time, 4321);
+    T_FEQ(game.clients[0].camera.pan_start.x, 10.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.pan_start.y, 20.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.pan_destination.x, 110.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.pan_destination.y, 220.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.pan_rate.x, 100.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.pan_rate.y, 200.0f, 0.001f);
     T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].magnitude, 9.5f, 0.001f);
     T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].velocity, 3.25f, 0.001f);
     T_ASSERT(game.clients[0].camera.noise[CAMERA_NOISE_SOURCE].vert_only);
     T_FEQ(game.clients[0].camera.noise[CAMERA_NOISE_TARGET].magnitude, 0.0f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.x, 1.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.y, -2.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.viewoffset.z, 3.75f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.x, -4.5f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.y, 5.25f, 0.001f);
+    T_FEQ(game.clients[0].ps.eyeoffset.z, -6.75f, 0.001f);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
     /* The window class belongs to the reconnecting client, which reports it again before begin. */
@@ -4799,7 +5011,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
-/* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+/* Stable timer handles remain bounded even after a timer is destroyed. */
 TEST(wc3_timer, registry_enforces_capacity_without_reusing_destroyed_slots) {
     gtimer_t *first, *timer = NULL;
 
@@ -4824,6 +5036,7 @@ TEST(wc3_timer, registry_enforces_capacity_without_reusing_destroyed_slots) {
     T_EQ(level.num_timers, MAX_TIMERS);
 }
 
+/* Load restores the Q2 server tick and the timer countdown cursor together. */
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = Test_TempPath("wc3-save-clock.bin");
     gtimer_t *timer;
@@ -4846,6 +5059,8 @@ TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     T_ASSERT(timer->running && !timer->paused);
     T_EQ(G_TimerRemaining(timer), 2000u);
     G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    level.time += FRAMETIME; G_RunTimers();
     T_EQ(G_TimerRemaining(timer), 2000u - FRAMETIME);
     remove(filename);
 }
@@ -4882,65 +5097,32 @@ static field_t const *find_save_field(cstring_t name) {
 }
 
 static void prepare_save_field(edict_t *unit, cstring_t name) {
+    if (!strncmp(name, "abilstatus[", strlen("abilstatus["))) {
+        G_EnsureUnitStatusSlots(unit);
+        return;
+    }
     savePool_t const *pool = find_save_pool(name);
     if (pool && !SavePoolSlot(unit, pool)) {
-        void *slot = SavePoolAlloc(pool);
-        AttachPoolSlot(unit, pool, slot);
+        void *slot = pool->alloc();
+        memcpy((uint8_t *)unit + pool->offset, &slot, sizeof(slot));
     }
 }
 
-/* Pool admission must respect the selected pool, including full-sized unit pools. */
-TEST(wc3_save, pool_capacity_is_checked_before_allocating_records) {
-    reset_entities();
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    G_InitHarvest(unit);
-    unit->harvest->gold = 17;
-    savePool_t pool = { "harvest", offsetof(edict_t, harvest), sizeof(harvest_t),
-                        harvest_fields, SaveAllocHarvest, 1 };
-    FILE *f = tmpfile();
-    T_ASSERT(f != NULL);
-    T_ASSERT(WritePool(f, &pool));
-    G_FreeHarvest(unit);
-    rewind(f);
-    T_ASSERT(!ReadPool(f, &pool));
-    T_NULL(unit->harvest);
-    pool.capacity = MAX_ENTITIES;
-    rewind(f);
-    T_ASSERT(ReadPool(f, &pool));
-    T_ASSERT(unit->harvest != NULL);
-    T_EQ(unit->harvest->gold, 17);
-    fclose(f);
-    FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
-        if (!strcmp(save_pools[i].name, "unit_state"))
-            T_EQ(save_pools[i].capacity, MAX_ENTITIES);
-    }
-}
-
-/* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save.
- * `lvalue` is re-evaluated after ReadGame because component records are re-attached from freshly restored pool slots. */
-#define SAVE_SCALAR_FIELD_TEST(name, schema, lvalue, saved, ftype, CHECK) \
+/* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
+#define SAVE_INT_FIELD_TEST(name, field, saved) \
 TEST(wc3_save, name) { \
     cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
-    field_t const *desc = find_save_field(schema); \
+    field_t const *desc = find_save_field(#field); \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
-    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, ftype); T_EQ(desc->array_size, 0); } \
-    prepare_save_field(unit, schema); \
-    lvalue = saved; \
-    T_ASSERT(WriteGame(filename)); lvalue = 0; T_ASSERT(ReadGame(filename)); CHECK(lvalue, saved); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
+    prepare_save_field(unit, #field); \
+    unit->field = saved; \
+    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_EQ(unit->field, saved); \
     remove(filename); \
 }
-#define SAVE_CHECK_INT(actual, saved) T_EQ(actual, saved)
-#define SAVE_CHECK_FLOAT(actual, saved) T_FEQ(actual, saved, 0.001f)
-#define SAVE_INT_FIELD_TEST(name, field, saved) SAVE_SCALAR_FIELD_TEST(name, #field, unit->field, saved, F_INT, SAVE_CHECK_INT)
-#define SAVE_FLOAT_FIELD_TEST(name, field, saved) SAVE_SCALAR_FIELD_TEST(name, #field, unit->field, saved, F_FLOAT, SAVE_CHECK_FLOAT)
-/* Component payloads are reached through their typed getter instead of an edict member. */
-#define SAVE_COMPONENT_INT_FIELD_TEST(name, pool, Getter, member, saved) \
-    SAVE_SCALAR_FIELD_TEST(name, #pool "->" #member, Getter(unit)->member, saved, F_INT, SAVE_CHECK_INT)
-#define SAVE_COMPONENT_FLOAT_FIELD_TEST(name, pool, Getter, member, saved) \
-    SAVE_SCALAR_FIELD_TEST(name, #pool "->" #member, Getter(unit)->member, saved, F_FLOAT, SAVE_CHECK_FLOAT)
 
-#define SAVE_PTR_LVALUE_TEST(name, schema, lvalue, count) \
+#define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
 TEST(wc3_save, name) { \
     cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
     field_t const *desc = find_save_field(schema); \
@@ -4948,29 +5130,38 @@ TEST(wc3_save, name) { \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     edict_t *target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, count); } \
-    prepare_save_field(unit, schema); \
-    lvalue = target; \
-    T_ASSERT(WriteGame(filename)); lvalue = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(lvalue == target); \
-    lvalue = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
+    prepare_save_field(unit, #field); \
+    unit->field = target; \
+    T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
+    unit->field = (edict_t *)((uint8_t *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
     remove(filename); \
 }
-#define SAVE_PTR_FIELD_TEST(name, schema, field, count) SAVE_PTR_LVALUE_TEST(name, schema, unit->field, count)
-#define SAVE_COMPONENT_PTR_FIELD_TEST(name, pool, Getter, member, count) \
-    SAVE_PTR_LVALUE_TEST(name, #pool "->" #member, Getter(unit)->member, count)
 
-SAVE_INT_FIELD_TEST(field_unit_flags_round_trip, unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE | UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING | UNIT_FLAG_TIMED_LIFE_PAUSED | UNIT_FLAG_TRAINING | UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED | UNIT_FLAG_RALLY_INDICATOR | UNIT_FLAG_USES_ALT_ICON | UNIT_FLAG_ANIMATION_OVERRIDE | UNIT_FLAG_VERTEX_COLOR_SET | UNIT_FLAG_VERTEX_COLOR_OVERRIDE_SET)
+#define SAVE_FLOAT_FIELD_TEST(name, field, saved) \
+TEST(wc3_save, name) { \
+    cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
+    field_t const *desc = find_save_field(#field); \
+    reset_entities(); \
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
+    prepare_save_field(unit, #field); \
+    unit->field = saved; \
+    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_FEQ(unit->field, saved, 0.001f); \
+    remove(filename); \
+}
 
 SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e', 'a'))
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
-SAVE_INT_FIELD_TEST(field_build_project_round_trip, orders->build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
+SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_current_order_id_round_trip, current_order_id, 851986)
 SAVE_INT_FIELD_TEST(field_aura_effect_role_round_trip, aura_effect_role, AURA_EFFECT_SOURCE)
-SAVE_INT_FIELD_TEST(field_wander_next_time_round_trip, wander->next_time, 9100)
-SAVE_INT_FIELD_TEST(field_wander_random_state_round_trip, wander->random_state, 0x1234567)
-SAVE_INT_FIELD_TEST(field_wander_goal_generation_round_trip, wander->goal_generation, 42)
-SAVE_INT_FIELD_TEST(field_waypoint_generation_round_trip, route->serial, 43)
-SAVE_PTR_FIELD_TEST(field_wander_goal_round_trip, "wander->goal", wander->goal, 0)
-SAVE_PTR_FIELD_TEST(field_wander_waypoint_round_trip, "wander->waypoint", wander->waypoint, 0)
+SAVE_INT_FIELD_TEST(field_wander_next_time_round_trip, wander_next_time, 9100)
+SAVE_INT_FIELD_TEST(field_wander_random_state_round_trip, wander_random_state, 0x1234567)
+SAVE_INT_FIELD_TEST(field_wander_goal_generation_round_trip, wander_goal_generation, 42)
+SAVE_INT_FIELD_TEST(field_waypoint_generation_round_trip, waypoint_generation, 43)
+SAVE_PTR_FIELD_TEST(field_wander_goal_round_trip, "wander_goal", wander_goal, 0)
+SAVE_PTR_FIELD_TEST(field_wander_waypoint_round_trip, "wander_waypoint", wander_waypoint, 0)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
 
 TEST(wc3_save, ability_owned_timed_summon_round_trip) {
@@ -4983,7 +5174,7 @@ TEST(wc3_save, ability_owned_timed_summon_round_trip) {
     summon = alloc_test_unit(MAKEFOURCC('h', 'w', 'a', 't'), 64.0f, 0.0f);
     summon->owner = owner;
     summon->summon_ability = MAKEFOURCC('A', 'H', 'w', 'e');
-    timed_life = &summon->unit_state->statuses[2];
+    timed_life = G_EnsureUnitStatusSlots(summon) + 2;
     *timed_life = (heroabilitystatus_t){
         .code = MAKEFOURCC('B', 'T', 'L', 'F'),
         .level = 1,
@@ -4997,6 +5188,7 @@ TEST(wc3_save, ability_owned_timed_summon_round_trip) {
     memset(timed_life, 0, sizeof(*timed_life));
     T_ASSERT(ReadGame(filename));
 
+    timed_life = summon->abilstatus + 2;
     T_ASSERT(summon->owner == owner);
     T_EQ(summon->summon_ability, MAKEFOURCC('A', 'H', 'w', 'e'));
     T_EQ(timed_life->code, MAKEFOURCC('B', 'T', 'L', 'F'));
@@ -5022,10 +5214,14 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     T_NOT_NULL(missile);
     T_ASSERT(missile->owner == caster);
     T_ASSERT(missile->goalentity == target);
-    T_ASSERT(G_GetChannel(missile));
-    T_EQ(G_GetChannel(missile)->owner_spawn_time, caster->spawn_time);
-    T_EQ(G_GetChannel(missile)->target_spawn_time, target->spawn_time);
+    T_ASSERT(missile->channel);
+    T_EQ(missile->channel->owner_spawn_time, caster->spawn_time);
+    T_EQ(missile->channel->target_spawn_time, target->spawn_time);
     T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    T_EQ(S_MoveSchedulingClass(missile), 15);
+    T_ASSERT(missile->movement.adaptive_disabled && missile->no_pathing);
+    T_EQ(missile->movement.fine_class, 15);
+    T_EQ(missile->collision, 0);
     T_ASSERT(WriteGame(filename));
 
     missile->owner = NULL;
@@ -5034,8 +5230,8 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     missile->velocity = 0.0f;
     missile->movetype = MOVETYPE_NONE;
     missile->currentmove = NULL;
-    G_GetChannel(missile)->owner_spawn_time = 0;
-    G_GetChannel(missile)->target_spawn_time = 0;
+    missile->channel->owner_spawn_time = 0;
+    missile->channel->target_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
 
     T_ASSERT(S_SpellProjectileOwner(missile) == caster);
@@ -5044,6 +5240,10 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     T_FEQ(missile->velocity, 0.9f, 0.001f);
     T_EQ(missile->movetype, MOVETYPE_FLYMISSILE);
     T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    T_EQ(S_MoveSchedulingClass(missile), 15);
+    T_ASSERT(missile->movement.adaptive_disabled && missile->no_pathing);
+    T_EQ(missile->movement.fine_class, 15);
+    T_EQ(missile->collision, 0);
     remove(filename);
 }
 
@@ -5060,8 +5260,9 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     thinker->class_id = ability;
     thinker->s.origin2 = (vec2_t){ 192.0f, -64.0f };
     thinker->spawn_time = 34567;
-    G_AddChannel(thinker);
-    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->think = human_ability_think;
 
     T_ASSERT(WriteGame(filename));
@@ -5069,7 +5270,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     thinker->class_id = 0;
     thinker->s.origin2 = (vec2_t){ 0 };
     thinker->spawn_time = 0;
-    G_GetChannel(thinker)->owner_spawn_time = 0;
+    thinker->channel->owner_spawn_time = 0;
     thinker->think = NULL;
     T_ASSERT(ReadGame(filename));
 
@@ -5079,7 +5280,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
     T_FEQ(thinker->s.origin2.x, 192.0f, 0.001f);
     T_FEQ(thinker->s.origin2.y, -64.0f, 0.001f);
     T_EQ(thinker->spawn_time, 34567);
-    T_EQ(G_GetChannel(thinker)->owner_spawn_time, caster->spawn_time);
+    T_EQ(thinker->channel->owner_spawn_time, caster->spawn_time);
 
     caster->spawn_time++;
     T_NULL(S_SpellChannelOwner(thinker));
@@ -5102,7 +5303,7 @@ TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
     T_ASSERT(WriteGame(filename));
 
     corpse->aiflags &= ~AI_CORPSE_RESERVED;
-    memset(corpse->unit_state->statuses, 0, sizeof(corpse->unit_state->statuses));
+    memset(corpse->abilstatus, 0, G_UnitStatusSlotCount(corpse) * sizeof(*corpse->abilstatus));
     T_ASSERT(ReadGame(filename));
 
     T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
@@ -5146,84 +5347,41 @@ TEST(wc3_save, owned_target_effect_round_trip_preserves_owner_and_target_generat
     T_ASSERT(effect->s.flags & EF_NOT_SELECTABLE);
     remove(filename);
 }
-SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, vision->shared, (1u << 0) | (1u << 7))
-SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvest->lumber, 37)
-SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvest->gold, 41)
-/* Saved animation text must survive destruction of every interned process address. */
-TEST(wc3_save, animation_strings_restore_after_intern_storage_is_released) {
-    cstring_t file = Test_TempPath("animation-strings.bin");
-    reset_entities();
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    int const index = unit - g_edicts;
-    unit->animation_request = G_InternAnimationName("stand ready");
-    unit->animation_props = G_InternAnimationName("alternate,work");
-    unit->queued_animation = G_InternAnimationName("stand third");
-    T_ASSERT(WriteGame(file));
-    reset_entities();
-    G_FreeAnimationNames();
-    T_ASSERT(ReadGame(file));
-    unit = g_edicts + index;
-    T_STREQ(unit->animation_request, "stand ready");
-    T_STREQ(unit->animation_props, "alternate,work");
-    T_STREQ(unit->queued_animation, "stand third");
-    T_ASSERT(unit->animation_request == G_InternAnimationName("stand ready"));
-    remove(file);
-}
-
-/* A saved destination retains incarnation, but process-local routing fields must rebuild. */
-TEST(wc3_save, route_cache_rebuilds_after_load) {
-    cstring_t file = Test_TempPath("route-cache.bin");
-    reset_entities();
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    unit->route = G_AllocRoute();
-    unit->route->field = 73;
-    unit->route->serial = 42;
-    T_ASSERT(WriteGame(file));
-    T_ASSERT(ReadGame(file));
-    T_NOT_NULL(unit->route);
-    T_EQ(unit->route->field, 0);
-    T_EQ(unit->route->serial, 42);
-    remove(file);
-}
-SAVE_COMPONENT_INT_FIELD_TEST(field_peons_inside_round_trip, goldmine, G_GetGoldMine, occupants, 5)
+SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
+SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
+SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
+SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
+SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
 SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
-SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, missile->attack_type, ATK_PIERCE)
-SAVE_INT_FIELD_TEST(field_projectile_owner_spawn_time_round_trip, missile->owner_spawn_time, 250)
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_avatar_original_scale_round_trip, avatar, G_GetAvatar, original_scale, 1.35f)
-SAVE_INT_FIELD_TEST(field_attack_cooldown_end_time_round_trip, unit_state->attack_cooldown_end_time, 12345)
-SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, unit_state->attack_backswing_end_time, 12346)
-/* The splash profile is a component payload: the edict schema no longer carries an artillery member. */
+SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
+SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, attack_backswing_end_time, 12346)
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = Test_TempPath("wc3-save-artillery-profile.bin");
+    field_t const *desc = find_save_field("artillery");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    artillery_t *splash = G_AddArtillery(projectile);
-    *splash = (artillery_t) { .component = splash->component, .attack_type = ATK_SIEGE,
-        .area_targets = WC3_TARGET_FLAG_GROUND, .targets_allowed = WC3_TARGET_FLAG_GROUND,
-        .area_full = 40.0f, .area_medium = 80.0f, .area_small = 120.0f, .factor_medium = 0.5f, .factor_small = 0.25f };
-    T_NULL(find_save_field("artillery"));
-    T_EQ(find_save_field("artillery->area_full")->type, F_FLOAT);
+    if (!projectile->artillery) projectile->artillery = G_AllocArtillery();
+    assert(projectile->artillery);
+    *projectile->artillery = (artillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
+                                                  40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
+    T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_IGNORE);
     T_ASSERT(WriteGame(filename)); G_FreeArtillery(projectile);
     T_ASSERT(ReadGame(filename));
-    splash = G_GetArtillery(projectile);
-    T_NOT_NULL(splash);
-    if (!splash) { remove(filename); return; }
-    T_EQ(splash->component.id, COMPONENT_ARTILLERY);
-    T_EQ(splash->attack_type, ATK_SIEGE);
-    T_EQ(splash->area_targets, WC3_TARGET_FLAG_GROUND);
-    T_FEQ(splash->area_full, 40.0f, 0.001f);
-    T_FEQ(splash->area_medium, 80.0f, 0.001f);
-    T_FEQ(splash->area_small, 120.0f, 0.001f);
-    T_FEQ(splash->factor_medium, 0.5f, 0.001f);
-    T_FEQ(splash->factor_small, 0.25f, 0.001f);
+    T_EQ(projectile->artillery->attack_type, ATK_SIEGE);
+    T_EQ(projectile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(projectile->artillery->area_full, 40.0f, 0.001f);
+    T_FEQ(projectile->artillery->area_medium, 80.0f, 0.001f);
+    T_FEQ(projectile->artillery->area_small, 120.0f, 0.001f);
+    T_FEQ(projectile->artillery->factor_medium, 0.5f, 0.001f);
+    T_FEQ(projectile->artillery->factor_small, 0.25f, 0.001f);
     remove(filename);
 }
-SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, unit_state->autocast, MAKEFOURCC('A', 'h', 'e', 'a'))
-SAVE_COMPONENT_INT_FIELD_TEST(field_channel_code_round_trip, channel, G_GetChannel, code, MAKEFOURCC('A', 'H', 'd', 'r'))
-SAVE_COMPONENT_INT_FIELD_TEST(field_channel_serial_round_trip, channel, G_GetChannel, serial, 7)
+SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
+SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel->code, MAKEFOURCC('A', 'H', 'd', 'r'))
+SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel->serial, 7)
 
 TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     uint32_t const formats[] = { 24, 25 };
@@ -5231,6 +5389,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
         PATHSTR filename;
         edict_t *shop;
+        field_t const *stock_desc;
         field_t const *items_desc;
         field_t const *units_desc;
 
@@ -5243,21 +5402,22 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
-        G_AddStock(shop);
-        G_GetStock(shop)->item_slots = 11;
-        G_GetStock(shop)->unit_slots = 9;
-        G_GetStock(shop)->items_initialized = true;
-        G_GetStock(shop)->item_count = 1;
-        G_GetStock(shop)->items[0] = (shopStockItem_t){
+        if (!shop->stock) shop->stock = G_AllocStock();
+        assert(shop->stock);
+        shop->stock->item_slots = 11;
+        shop->stock->unit_slots = 9;
+        shop->stock->items_initialized = true;
+        shop->stock->item_count = 1;
+        shop->stock->items[0] = (shopStockItem_t){
             .id = MAKEFOURCC('s','p','r','o'),
             .current = 1,
             .maximum = 3,
             .delay_start = 5000,
             .delay_end = 65000,
         };
-        G_GetStock(shop)->units_initialized = true;
-        G_GetStock(shop)->unit_count = 1;
-        G_GetStock(shop)->units[0] = (shopStockItem_t){
+        shop->stock->units_initialized = true;
+        shop->stock->unit_count = 1;
+        shop->stock->units[0] = (shopStockItem_t){
             .id = MAKEFOURCC('n','m','e','r'),
             .current = 0,
             .maximum = 2,
@@ -5265,11 +5425,13 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
             .delay_end = 14000,
         };
 
+        stock_desc = find_save_field("stock");
         items_desc = find_save_field("stock->items");
         units_desc = find_save_field("stock->units");
-        T_NULL(find_save_field("stock")); /* Stock is a component payload; the edict schema has no member for it. */
+        T_NOT_NULL(stock_desc);
         T_NOT_NULL(items_desc);
         T_NOT_NULL(units_desc);
+        if (stock_desc) T_EQ(stock_desc->type, F_IGNORE);
         if (items_desc) {
             T_EQ(items_desc->type, F_STRUCT);
             T_EQ(items_desc->array_size, MAX_SHOP_STOCK);
@@ -5286,97 +5448,88 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_ASSERT(ReadGame(filename));
         T_EQ(level.stock.item_slots, 11);
         T_EQ(level.stock.unit_slots, 9);
-        T_EQ(G_GetStock(shop)->item_slots, 11);
-        T_EQ(G_GetStock(shop)->unit_slots, 9);
-        T_ASSERT(G_GetStock(shop)->items_initialized);
-        T_EQ(G_GetStock(shop)->item_count, 1);
-        T_EQ(G_GetStock(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
-        T_EQ(G_GetStock(shop)->items[0].current, 1);
-        T_EQ(G_GetStock(shop)->items[0].maximum, 3);
-        T_EQ(G_GetStock(shop)->items[0].delay_start, 5000);
-        T_EQ(G_GetStock(shop)->items[0].delay_end, 65000);
-        T_ASSERT(G_GetStock(shop)->units_initialized);
-        T_EQ(G_GetStock(shop)->unit_count, 1);
-        T_EQ(G_GetStock(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
-        T_EQ(G_GetStock(shop)->units[0].current, 0);
-        T_EQ(G_GetStock(shop)->units[0].maximum, 2);
-        T_EQ(G_GetStock(shop)->units[0].delay_start, 9000);
-        T_EQ(G_GetStock(shop)->units[0].delay_end, 14000);
+        T_EQ(shop->stock->item_slots, 11);
+        T_EQ(shop->stock->unit_slots, 9);
+        T_ASSERT(shop->stock->items_initialized);
+        T_EQ(shop->stock->item_count, 1);
+        T_EQ(shop->stock->items[0].id, MAKEFOURCC('s','p','r','o'));
+        T_EQ(shop->stock->items[0].current, 1);
+        T_EQ(shop->stock->items[0].maximum, 3);
+        T_EQ(shop->stock->items[0].delay_start, 5000);
+        T_EQ(shop->stock->items[0].delay_end, 65000);
+        T_ASSERT(shop->stock->units_initialized);
+        T_EQ(shop->stock->unit_count, 1);
+        T_EQ(shop->stock->units[0].id, MAKEFOURCC('n','m','e','r'));
+        T_EQ(shop->stock->units[0].current, 0);
+        T_EQ(shop->stock->units[0].maximum, 2);
+        T_EQ(shop->stock->units[0].delay_start, 9000);
+        T_EQ(shop->stock->units[0].delay_end, 14000);
         remove(filename);
     }
 }
-SAVE_COMPONENT_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel, G_GetChannel, owner_spawn_time, 200)
-SAVE_COMPONENT_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel, G_GetChannel, target_spawn_time, 300)
-/* Component payload descriptors remain concrete even though the edict no longer has these members. */
-TEST(wc3_save, avatar_component_fields_round_trip) {
-    cstring_t filename = Test_TempPath("wc3-avatar-fields.bin");
-    reset_entities();
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    avatar_t *avatar = G_AddAvatar(unit);
-    avatar->level = 2; avatar->damage = 31; avatar->armor = 7; avatar->health = 600;
-    T_EQ(find_save_field("avatar->level")->type, F_INT);
-    T_EQ(find_save_field("avatar->damage")->type, F_INT);
-    T_EQ(find_save_field("avatar->armor")->type, F_FLOAT);
-    T_EQ(find_save_field("avatar->health")->type, F_FLOAT);
-    T_ASSERT(WriteGame(filename));
-    G_FreeAvatar(unit);
-    T_ASSERT(ReadGame(filename));
-    avatar = G_GetAvatar(unit);
-    T_NOT_NULL(avatar);
-    if (avatar) {
-        T_EQ(avatar->level, 2); T_EQ(avatar->damage, 31);
-        T_FEQ(avatar->armor, 7, 0.001f); T_FEQ(avatar->health, 600, 0.001f);
-    }
-    remove(filename);
-}
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven, G_GetRaven, fly_height, 125.0f)
+SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel->owner_spawn_time, 200)
+SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel->target_spawn_time, 300)
+SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar->level, 2)
+SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar->damage, 31)
+SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar->armor, 7.0f)
+SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar->health, 600.0f)
+SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven->fly_height, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_unitinfo_prop_window_round_trip, unitinfo.PropWindow, 37.5f)
-SAVE_FLOAT_FIELD_TEST(field_attack1_backswing_round_trip, unit_state->attack1.backswingPoint, 0.35f)
-SAVE_FLOAT_FIELD_TEST(field_attack1_range_buffer_round_trip, unit_state->attack1.rangeBuffer, 42.0f)
-SAVE_FLOAT_FIELD_TEST(field_attack2_backswing_round_trip, unit_state->attack2.backswingPoint, 0.45f)
-SAVE_FLOAT_FIELD_TEST(field_attack2_range_buffer_round_trip, unit_state->attack2.rangeBuffer, 84.0f)
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven, G_GetRaven, rise_start, 1000.0f)
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven, G_GetRaven, rise_duration, 2.0f)
-SAVE_COMPONENT_INT_FIELD_TEST(field_raven_state_round_trip, raven, G_GetRaven, rise_state, RAVEN_RISE_ACTIVE)
-SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph, G_GetPolymorph, ability, MAKEFOURCC('A', 'p', 'l', 'y'))
-SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph, G_GetPolymorph, buff, MAKEFOURCC('B', 'p', 'l', 'y'))
-SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph, G_GetPolymorph, form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
-SAVE_COMPONENT_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph, G_GetPolymorph, original_model, 37)
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph, G_GetPolymorph, original_scale, 1.35f)
-SAVE_COMPONENT_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph, G_GetPolymorph, original_move_speed, 270.0f)
-SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, unit_state->temporary_health_bonus, 600.0f)
-SAVE_FLOAT_FIELD_TEST(field_temporary_mana_bonus_round_trip, unit_state->temporary_mana_bonus, 125.0f)
-SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)
-
-TEST(wc3_save, field_trained_hero_proper_name_round_trip) {
-    cstring_t filename = Test_TempPath("wc3-save-trained-hero-proper-name.bin");
-    field_t const *desc = find_save_field("unit_state->proper_name");
-    reset_entities();
-    edict_t *hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0.0f, 0.0f);
-    T_NOT_NULL(desc);
-    if (desc) T_EQ(desc->type, F_ANIMSTRING);
-    hero->unit_state->proper_name = G_InternAnimationName("TestHeroProperName");
-    T_ASSERT(WriteGame(filename));
-    hero->unit_state->proper_name = NULL;
-    T_ASSERT(ReadGame(filename));
-    T_STREQ(hero->unit_state->proper_name, "TestHeroProperName");
-    remove(filename);
+TEST(wc3_save, attack_profiles_preserve_shared_defaults_and_owned_overrides) {
+    reset_entities(); setup_test_world();
+    vec2_t point = {64, 64};
+    edict_t *first = unit_create(0, MAKEFOURCC('h','f','o','o'), &point, 0);
+    point.x = 192;
+    edict_t *second = unit_create(0, MAKEFOURCC('h','f','o','o'), &point, 0);
+    uint32_t first_id = first->s.number, second_id = second->s.number;
+    S_AttackProfileWrite(first, 0)->backswingPoint = 0.35f;
+    S_AttackProfileWrite(first, 0)->rangeBuffer = 42;
+    S_AttackProfileWrite(first, 1)->backswingPoint = 0.45f;
+    S_AttackProfileWrite(first, 1)->rangeBuffer = 84;
+    unitAttack_t shared = *S_AttackProfileRead(second, 0);
+    T_NULL(second->attack_overrides[0]);
+    cstring_t file = Test_TempPath("openrealm-shared-attack-profiles.bin");
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    first = g_edicts + first_id; second = g_edicts + second_id;
+    T_FEQ(S_AttackProfileRead(first, 0)->backswingPoint, 0.35f, 0);
+    T_FEQ(S_AttackProfileRead(first, 0)->rangeBuffer, 42, 0);
+    T_FEQ(S_AttackProfileRead(first, 1)->backswingPoint, 0.45f, 0);
+    T_FEQ(S_AttackProfileRead(first, 1)->rangeBuffer, 84, 0);
+    T_NOT_NULL(first->attack_overrides[0]); T_NOT_NULL(first->attack_overrides[1]);
+    T_NULL(second->attack_overrides[0]);
+    T_EQ(memcmp(S_AttackProfileRead(second, 0), &shared, sizeof(shared)), 0);
+    remove(file);
+    reset_entities(); setup_test_world();
 }
+SAVE_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven->rise_start, 1000.0f)
+SAVE_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven->rise_duration, 2.0f)
+SAVE_INT_FIELD_TEST(field_raven_state_round_trip, raven->rise_state, RAVEN_RISE_ACTIVE)
+SAVE_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph->ability, MAKEFOURCC('A', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph->buff, MAKEFOURCC('B', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph->form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
+SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph->original_model, 37)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph->original_scale, 1.35f)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph->original_move_speed, 270.0f)
+SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
+SAVE_FLOAT_FIELD_TEST(field_temporary_mana_bonus_round_trip, temporary_mana_bonus, 125.0f)
+SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)
+SAVE_INT_FIELD_TEST(field_animation_override_round_trip, animation_override, 1)
 
 TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
     cstring_t filename = Test_TempPath("wc3-save-hero-shortcut-alert.bin");
-    field_t const *desc = find_save_field("unit_state->shortcut_alert_until");
+    field_t const *desc = find_save_field("hero_shortcut_alert_until");
     edict_t *unit;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc);
     if (desc) T_ASSERT(desc->type == F_IGNORE && desc->flags == FIELD_RUNTIME);
-    unit->unit_state->shortcut_alert_until = 12345;
+    unit->hero_shortcut_alert_until = 12345;
     T_ASSERT(WriteGame(filename));
-    unit->unit_state->shortcut_alert_until = 0;
+    unit->hero_shortcut_alert_until = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->unit_state->shortcut_alert_until, 0);
+    T_EQ(unit->hero_shortcut_alert_until, 0);
     remove(filename);
 }
 
@@ -5388,29 +5541,27 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    blightGrowth_t *growth = G_AddBlightGrowth(unit);
-    growth->ability = ability;
-    growth->radius = 146.0f;
-    growth->next_update = 12345;
-    G_AddDestructable(unit);
-    G_GetDestructable(unit)->blighted = true;
+    if (!unit->blight_growth) unit->blight_growth = G_AllocBlightGrowth();
+    assert(unit->blight_growth);
+    unit->blight_growth->ability = ability;
+    unit->blight_growth->radius = 146.0f;
+    unit->blight_growth->next_update = 12345;
+    if (!unit->destructable) unit->destructable = G_AllocDestructable();
+    assert(unit->destructable);
+    unit->destructable->blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(WriteGame(filename));
 
     G_SetBlightPoint(&point, false);
     G_FreeBlightGrowth(unit);
-    G_GetDestructable(unit)->blighted = false;
+    unit->destructable->blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
-    growth = G_GetBlightGrowth(unit); /* Restore attaches a fresh pool slot. */
-    T_NOT_NULL(growth);
-    if (growth) {
-        T_EQ(growth->ability, ability);
-        T_FEQ(growth->radius, 146.0f, 0.001f);
-        T_EQ(growth->next_update, 12345u);
-    }
-    T_ASSERT(G_GetDestructable(unit)->blighted);
+    T_EQ(unit->blight_growth->ability, ability);
+    T_FEQ(unit->blight_growth->radius, 146.0f, 0.001f);
+    T_EQ(unit->blight_growth->next_update, 12345u);
+    T_ASSERT(unit->destructable->blighted);
     remove(filename);
 }
 
@@ -5445,18 +5596,19 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    G_AddChannel(unit);
-    G_GetChannel(unit)->origin = (vec2_t){ 12.5f, 34.5f };
-    T_ASSERT(WriteGame(filename)); G_GetChannel(unit)->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
-    T_FEQ(G_GetChannel(unit)->origin.x, 12.5f, 0.001f); T_FEQ(G_GetChannel(unit)->origin.y, 34.5f, 0.001f);
+    if (!unit->channel) unit->channel = G_AllocChannel();
+    assert(unit->channel);
+    unit->channel->origin = (vec2_t){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); unit->channel->origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
+    T_FEQ(unit->channel->origin.x, 12.5f, 0.001f); T_FEQ(unit->channel->origin.y, 34.5f, 0.001f);
     remove(filename);
 }
 
 TEST(wc3_save, movement_guard_state_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-movement-guard.bin");
-    field_t const *position = find_save_field("orders->guard_position");
-    field_t const *state = find_save_field("orders->guard_state");
-    field_t const *holding = find_save_field("orders->holding_position");
+    field_t const *position = find_save_field("movement.guard_position");
+    field_t const *state = find_save_field("movement.guard_state");
+    field_t const *holding = find_save_field("movement.holding_position");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
 
@@ -5464,17 +5616,17 @@ TEST(wc3_save, movement_guard_state_round_trip) {
     T_NOT_NULL(state); if (state) T_EQ(state->type, F_INT);
     T_NOT_NULL(holding); if (holding) T_EQ(holding->type, F_INT);
 
-    unit->orders->guard_position = (vec2_t){ 123.5f, 456.5f };
-    unit->orders->guard_state = GUARD_RETURNING;
-    unit->orders->holding_position = true;
+    unit->movement.guard_position = (vec2_t){ 123.5f, 456.5f };
+    unit->movement.guard_state = GUARD_RETURNING;
+    unit->movement.holding_position = true;
     T_ASSERT(WriteGame(filename));
     memset(&unit->movement, 0, sizeof(unit->movement));
     T_ASSERT(ReadGame(filename));
 
-    T_FEQ(unit->orders->guard_position.x, 123.5f, 0.001f);
-    T_FEQ(unit->orders->guard_position.y, 456.5f, 0.001f);
-    T_EQ(unit->orders->guard_state, GUARD_RETURNING);
-    T_ASSERT(unit->orders->holding_position);
+    T_FEQ(unit->movement.guard_position.x, 123.5f, 0.001f);
+    T_FEQ(unit->movement.guard_position.y, 456.5f, 0.001f);
+    T_EQ(unit->movement.guard_state, GUARD_RETURNING);
+    T_ASSERT(unit->movement.holding_position);
     remove(filename);
 }
 
@@ -5487,32 +5639,31 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit_index = globals.num_edicts;
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     goal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 128, 0);
-    G_BeginMovement(unit);
-    unit->movement->route_resume_direction = (vec2_t){ 1.0f, 0.0f };
-    unit->movement->route_resume_goal_origin = goal->s.origin2;
-    unit->movement->route_resume_goal = goal;
-    unit->movement->route_resume_goal_spawn = goal->spawn_time;
-    unit->movement->route_resume_time = 1234;
-    unit->movement->route_resume_radius = 31.0f;
-    unit->movement->route_resume_flags = CM_PATHING_UNWALKABLE;
-    unit->movement->route_resume_valid = true;
-    unit->movement->route_resume_active = true;
-    unit->movement->path_wait_active = true;
-    unit->movement->path_wait_start = 5678;
-    unit->movement->path_wait_goal_number = goal->s.number;
-    unit->movement->path_wait_goal_spawn = goal->spawn_time;
-    unit->movement->path_wait_origin = unit->s.origin2;
+    unit->movement.route_resume_direction = (vec2_t){ 1.0f, 0.0f };
+    unit->movement.route_resume_goal_origin = goal->s.origin2;
+    S_SetMoveGoal(unit, &unit->movement.route_resume_goal, goal);
+    unit->movement.route_resume_goal_spawn = goal->spawn_time;
+    unit->movement.route_resume_time = 1234;
+    unit->movement.route_resume_radius = 31.0f;
+    unit->movement.route_resume_flags = CM_PATHING_UNWALKABLE;
+    unit->movement.route_resume_valid = true;
+    unit->movement.route_resume_active = true;
+    unit->movement.path_wait_active = true;
+    unit->movement.path_wait_start = 5678;
+    unit->movement.path_wait_goal_number = goal->s.number;
+    unit->movement.path_wait_goal_spawn = goal->spawn_time;
+    unit->movement.path_wait_origin = unit->s.origin2;
 
     T_ASSERT(WriteGame(filename));
-    unit->movement->route_resume_goal = (edict_t *)(uintptr_t)1;
+    S_SetMoveGoal(unit, &unit->movement.route_resume_goal, (edict_t *)(uintptr_t)1);
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
-    T_NULL(unit->movement->route_resume_goal);
-    T_ASSERT(!unit->movement->route_resume_valid);
-    T_ASSERT(!unit->movement->route_resume_active);
-    T_ASSERT(!unit->movement->path_wait_active);
-    T_EQ(unit->movement->route_resume_time, 0);
-    T_EQ(unit->movement->path_wait_start, 0);
+    T_NULL(unit->movement.route_resume_goal);
+    T_ASSERT(!unit->movement.route_resume_valid);
+    T_ASSERT(!unit->movement.route_resume_active);
+    T_ASSERT(!unit->movement.path_wait_active);
+    T_EQ(unit->movement.route_resume_time, 0);
+    T_EQ(unit->movement.path_wait_start, 0);
     remove(filename);
 }
 
@@ -5523,37 +5674,41 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
 
     setup_test_world();
     reset_entities();
-    unit_index = globals.num_edicts;
-    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 200, 0);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    /* A physical return requires the real spawn's mover/profile ownership. */
+    unit = unit_create(0,MAKEFOURCC('h', 'p', 'e', 'a'),&(vec2_t){200,0},0);
+    unit_index=(int)(unit-g_edicts);
     unit->stand = unit_stand;
     unit->die = unit_die;
     unit_stand(unit);
     order_stop(unit);
-    T_ASSERT(unit->orders->guard_state != GUARD_NONE);
+    T_ASSERT(unit->movement.guard_state != GUARD_NONE);
 
     S_UnitAbilityEvent(unit, A_AUTO_COMBAT_START);
     unit->s.origin2.x = unit->s.origin.x = 400;
     gi.LinkEntity(unit);
     T_ASSERT(S_UnitAbilityEvent(unit, A_AUTO_COMBAT_END));
-    T_ASSERT(unit->orders->guard_state == GUARD_RETURNING);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_ASSERT(WriteGame(filename));
 
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
-    T_ASSERT(unit->orders->guard_state == GUARD_RETURNING);
+    T_ASSERT(unit->movement.guard_state == GUARD_RETURNING);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
     T_NOT_NULL(unit->goalentity);
     if (unit->goalentity) {
         T_FEQ(unit->goalentity->s.origin2.x, 200, 0.001f);
         T_FEQ(unit->goalentity->s.origin2.y, 0, 0.001f);
     }
-    unit->s.origin2 = unit->orders->guard_position;
-    unit->s.origin.x = unit->s.origin2.x;
-    unit->s.origin.y = unit->s.origin2.y;
-    gi.LinkEntity(unit);
-    unit->currentmove->think(unit);
-    T_ASSERT(unit->orders->guard_state == GUARD_IDLE);
+    /* Return owns a saved physical point task; complete it through the real
+     * scheduler rather than teleporting around its retained mover state. */
+    FOR_LOOP(i,2000) {
+        if(unit->movement.guard_state==GUARD_IDLE)break;
+        level.time+=5;globals.RunFrame();
+    }
+    T_ASSERT(unit->movement.guard_state == GUARD_IDLE);
     T_ASSERT(unit->currentmove->think == ai_stand);
     remove(filename);
 }
@@ -5576,59 +5731,22 @@ TEST(wc3_save, live_creep_guard_return_move_resumes_after_round_trip) {
     unit->s.origin2.x = unit->s.origin.x = 900;
     gi.LinkEntity(unit);
     G_CreepGuardAutoCombat(unit);
-    T_ASSERT(G_CreepGuardCombatEnd(unit));
-    T_ASSERT(unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(G_CreepGuardIssueReturn(unit, &unit->movement.creep_guard_origin));
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
     T_ASSERT(unit->goalentity);
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
-    T_ASSERT(unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
     T_ASSERT(unit->goalentity);
     T_FEQ(unit->goalentity->s.origin2.x, 128.0f, 0.001f);
-    unit->s.origin2 = unit->orders->creep_guard_origin;
+    unit->s.origin2 = unit->movement.creep_guard_origin;
     unit->s.origin.x = unit->s.origin2.x;
     gi.LinkEntity(unit);
-    G_CreepGuardTick(unit);
-    T_ASSERT(unit->orders->creep_guard_phase == CREEP_GUARD_IDLE);
-    remove(filename);
-}
-
-TEST(wc3_save, creep_guard_return_retry_state_round_trip) {
-    cstring_t filename = Test_TempPath("wc3-save-creep-guard-return.bin");
-    int unit_index;
-    edict_t *unit;
-
-    setup_test_world();
-    reset_entities();
-    unit_index = globals.num_edicts;
-    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
-    unit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    unit->stand = unit_stand;
-    unit->die = unit_die;
-    unit_stand(unit);
-    G_CreepGuardInit(unit);
-    unit->s.origin2.x = unit->s.origin.x = 900;
-    gi.LinkEntity(unit);
-    unit->orders->creep_guard_phase = CREEP_GUARD_RETURNING;
-    unit->orders->creep_guard_return_retries = 2;
-    unit->orders->creep_guard_retry_at_ms = 9000;
-    unit->orders->creep_guard_last_hit_ms = 2000;
-    unit->orders->creep_guard_outside_ms = 3000;
-    T_ASSERT(WriteGame(filename));
-    if (unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING) unit->orders->creep_guard_phase = CREEP_GUARD_IDLE;
-    unit->orders->creep_guard_return_retries = 0;
-    unit->orders->creep_guard_retry_at_ms = 0;
-    T_ASSERT(ReadGame(filename));
-    unit = g_edicts + unit_index;
-    T_ASSERT(unit->orders->creep_guard_enabled);
-    T_ASSERT(unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING);
-    T_EQ(unit->orders->creep_guard_return_retries, 2u);
-    T_EQ(unit->orders->creep_guard_retry_at_ms, 9000u);
-    T_EQ(unit->orders->creep_guard_last_hit_ms, 2000u);
-    T_EQ(unit->orders->creep_guard_outside_ms, 3000u);
-    T_FEQ(unit->orders->creep_guard_origin.x, 128, 0.001f);
+    G_CreepGuardMoveArrived(unit);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_IDLE);
     remove(filename);
 }
 
@@ -5639,11 +5757,11 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->vertex_color = MAKE(color32_t, 11, 22, 33, 0);
-    G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    unit->vertex_color_set = true;
     T_ASSERT(WriteGame(filename));
-    unit->vertex_color = COLOR32_WHITE; G_SetUnitFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET, false);
+    unit->vertex_color = COLOR32_WHITE; unit->vertex_color_set = false;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET));
+    T_ASSERT(unit->vertex_color_set);
     T_EQ(unit->vertex_color.r, 11); T_EQ(unit->vertex_color.g, 22);
     T_EQ(unit->vertex_color.b, 33); T_EQ(unit->vertex_color.a, 0);
     remove(filename);
@@ -5699,49 +5817,47 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
-    G_AddConstruction(unit);
-    G_GetConstruction(unit)->type = CONSTRUCTION_NAGA;
-    G_GetConstruction(unit)->worker = worker;
-    G_GetConstruction(unit)->worker_spawn_time = 1234;
-    G_GetConstruction(unit)->worker_inside = true;
-    G_GetConstruction(unit)->consumes_worker = true;
-    G_GetConstruction(unit)->restore_invulnerable = true;
-    G_GetConstruction(unit)->worker_release_time = 5678;
-    G_GetConstruction(unit)->restore_paused = true;
-    G_GetConstruction(unit)->restore_hidden = true;
-    G_GetConstruction(unit)->paid = true;
-    G_GetConstruction(unit)->payer = 3;
-    G_GetConstruction(unit)->gold = 100;
-    G_GetConstruction(unit)->lumber = 80;
+    if (!unit->construction) unit->construction = G_AllocConstruction();
+    assert(unit->construction);
+    unit->construction->type = CONSTRUCTION_NAGA;
+    unit->construction->worker = worker;
+    unit->construction->worker_spawn_time = 1234;
+    unit->construction->worker_inside = true;
+    unit->construction->consumes_worker = true;
+    unit->construction->restore_invulnerable = true;
+    unit->construction->restore_paused = true;
+    unit->construction->restore_hidden = true;
+    unit->construction->paid = true;
+    unit->construction->payer = 3;
+    unit->construction->gold = 100;
+    unit->construction->lumber = 80;
 
     T_ASSERT(WriteGame(filename));
-    G_GetConstruction(unit)->type = CONSTRUCTION_NONE;
-    G_GetConstruction(unit)->worker = NULL;
-    G_GetConstruction(unit)->worker_spawn_time = 0;
-    G_GetConstruction(unit)->worker_inside = false;
-    G_GetConstruction(unit)->consumes_worker = false;
-    G_GetConstruction(unit)->restore_invulnerable = false;
-    G_GetConstruction(unit)->restore_paused = false;
-    G_GetConstruction(unit)->restore_hidden = false;
-    G_GetConstruction(unit)->worker_release_time = 0;
-    G_GetConstruction(unit)->paid = false;
-    G_GetConstruction(unit)->payer = 0;
-    G_GetConstruction(unit)->gold = 0;
-    G_GetConstruction(unit)->lumber = 0;
+    unit->construction->type = CONSTRUCTION_NONE;
+    unit->construction->worker = NULL;
+    unit->construction->worker_spawn_time = 0;
+    unit->construction->worker_inside = false;
+    unit->construction->consumes_worker = false;
+    unit->construction->restore_invulnerable = false;
+    unit->construction->restore_paused = false;
+    unit->construction->restore_hidden = false;
+    unit->construction->paid = false;
+    unit->construction->payer = 0;
+    unit->construction->gold = 0;
+    unit->construction->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(G_GetConstruction(unit)->type, CONSTRUCTION_NAGA);
-    T_ASSERT(G_GetConstruction(unit)->worker == worker);
-    T_EQ(G_GetConstruction(unit)->worker_spawn_time, 1234);
-    T_ASSERT(G_GetConstruction(unit)->worker_inside);
-    T_ASSERT(G_GetConstruction(unit)->consumes_worker);
-    T_ASSERT(G_GetConstruction(unit)->restore_invulnerable);
-    T_ASSERT(G_GetConstruction(unit)->restore_paused);
-    T_ASSERT(G_GetConstruction(unit)->restore_hidden);
-    T_EQ(G_GetConstruction(unit)->worker_release_time, 5678);
-    T_ASSERT(G_GetConstruction(unit)->paid);
-    T_EQ(G_GetConstruction(unit)->payer, 3);
-    T_EQ(G_GetConstruction(unit)->gold, 100);
-    T_EQ(G_GetConstruction(unit)->lumber, 80);
+    T_EQ(unit->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(unit->construction->worker == worker);
+    T_EQ(unit->construction->worker_spawn_time, 1234);
+    T_ASSERT(unit->construction->worker_inside);
+    T_ASSERT(unit->construction->consumes_worker);
+    T_ASSERT(unit->construction->restore_invulnerable);
+    T_ASSERT(unit->construction->restore_paused);
+    T_ASSERT(unit->construction->restore_hidden);
+    T_ASSERT(unit->construction->paid);
+    T_EQ(unit->construction->payer, 3);
+    T_EQ(unit->construction->gold, 100);
+    T_EQ(unit->construction->lumber, 80);
     remove(filename);
 }
 
@@ -5761,22 +5877,23 @@ TEST(wc3_save, tiny_construction_round_trips_in_roc_and_tft_map_state) {
         snprintf(name, sizeof(name), "wc3-save-tiny-construction-%u.bin", (unsigned)formats[i]);
         snprintf(filename, sizeof(filename), "%s", Test_TempPath(name));
         building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
-        G_AddConstruction(building);
-        G_GetConstruction(building)->type = CONSTRUCTION_TINY;
-        G_GetConstruction(building)->progress = 4000.0f;
-        G_GetConstruction(building)->duration_ms = 9000.0f;
+        if (!building->construction) building->construction = G_AllocConstruction();
+        assert(building->construction);
+        building->construction->type = CONSTRUCTION_TINY;
+        building->construction->progress = 4000.0f;
+        building->construction->duration_ms = 9000.0f;
         building->build = building;
 
         T_ASSERT(WriteGame(filename));
-        G_GetConstruction(building)->type = CONSTRUCTION_NONE;
-        G_GetConstruction(building)->progress = 0.0f;
-        G_GetConstruction(building)->duration_ms = 0.0f;
+        building->construction->type = CONSTRUCTION_NONE;
+        building->construction->progress = 0.0f;
+        building->construction->duration_ms = 0.0f;
         building->build = NULL;
         T_ASSERT(ReadGame(filename));
-        T_ASSERT(G_GetConstruction(building));
-        T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_TINY);
-        T_FEQ(G_GetConstruction(building)->progress, 4000.0f, 0.001f);
-        T_FEQ(G_GetConstruction(building)->duration_ms, 9000.0f, 0.001f);
+        T_ASSERT(building->construction);
+        T_EQ(building->construction->type, CONSTRUCTION_TINY);
+        T_FEQ(building->construction->progress, 4000.0f, 0.001f);
+        T_FEQ(building->construction->duration_ms, 9000.0f, 0.001f);
         T_ASSERT(building->build == building);
         remove(filename);
     }
@@ -5791,37 +5908,39 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     parent->resources = 7777;
-    G_AddMineOverlay(overlay);
-    G_GetMineOverlay(overlay)->parent = parent;
-    G_GetMineOverlay(overlay)->parent_spawn_time = parent->spawn_time;
-    G_GetMineOverlay(overlay)->income_time = 12345;
-    G_GetMineOverlay(overlay)->active_interval_index = 3;
-    G_GetMineOverlay(overlay)->entangle_permanent_before = true;
-    G_AddAcolyteMine(acolyte);
-    G_GetAcolyteMine(acolyte)->mine = overlay;
-    G_GetAcolyteMine(acolyte)->mine_spawn_time = overlay->spawn_time;
-    G_GetAcolyteMine(acolyte)->slot = 4;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->parent = parent;
+    overlay->mineoverlay->parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay->income_time = 12345;
+    overlay->mineoverlay->active_interval_index = 3;
+    overlay->mineoverlay->entangle_permanent_before = true;
+    if (!acolyte->acolyte_mine) acolyte->acolyte_mine = G_AllocAcolyteMine();
+    assert(acolyte->acolyte_mine);
+    acolyte->acolyte_mine->mine = overlay;
+    acolyte->acolyte_mine->mine_spawn_time = overlay->spawn_time;
+    acolyte->acolyte_mine->slot = 4;
 
     T_ASSERT(WriteGame(filename));
-    G_GetMineOverlay(overlay)->parent = NULL;
-    G_GetMineOverlay(overlay)->parent_spawn_time = 0;
-    G_GetMineOverlay(overlay)->income_time = 0;
-    G_GetMineOverlay(overlay)->active_interval_index = 0;
-    G_GetMineOverlay(overlay)->entangle_permanent_before = false;
-    G_GetAcolyteMine(acolyte)->mine = NULL;
-    G_GetAcolyteMine(acolyte)->mine_spawn_time = 0;
-    G_GetAcolyteMine(acolyte)->slot = -1;
+    overlay->mineoverlay->parent = NULL;
+    overlay->mineoverlay->parent_spawn_time = 0;
+    overlay->mineoverlay->income_time = 0;
+    overlay->mineoverlay->active_interval_index = 0;
+    overlay->mineoverlay->entangle_permanent_before = false;
+    acolyte->acolyte_mine->mine = NULL;
+    acolyte->acolyte_mine->mine_spawn_time = 0;
+    acolyte->acolyte_mine->slot = -1;
     parent->resources = 0;
     T_ASSERT(ReadGame(filename));
 
-    T_ASSERT(G_GetMineOverlay(overlay)->parent == parent);
-    T_EQ(G_GetMineOverlay(overlay)->parent_spawn_time, parent->spawn_time);
-    T_EQ(G_GetMineOverlay(overlay)->income_time, 12345);
-    T_EQ(G_GetMineOverlay(overlay)->active_interval_index, 3);
-    T_ASSERT(G_GetMineOverlay(overlay)->entangle_permanent_before);
-    T_ASSERT(G_GetAcolyteMine(acolyte)->mine == overlay);
-    T_EQ(G_GetAcolyteMine(acolyte)->mine_spawn_time, overlay->spawn_time);
-    T_EQ(G_GetAcolyteMine(acolyte)->slot, 4);
+    T_ASSERT(overlay->mineoverlay->parent == parent);
+    T_EQ(overlay->mineoverlay->parent_spawn_time, parent->spawn_time);
+    T_EQ(overlay->mineoverlay->income_time, 12345);
+    T_EQ(overlay->mineoverlay->active_interval_index, 3);
+    T_ASSERT(overlay->mineoverlay->entangle_permanent_before);
+    T_ASSERT(acolyte->acolyte_mine->mine == overlay);
+    T_EQ(acolyte->acolyte_mine->mine_spawn_time, overlay->spawn_time);
+    T_EQ(acolyte->acolyte_mine->slot, 4);
     T_EQ(parent->resources, 7777);
     remove(filename);
 }
@@ -5834,35 +5953,36 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
     reset_entities();
     tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
     overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
-    G_AddMineOverlay(overlay);
-    G_GetMineOverlay(overlay)->entangle_tree = tree;
-    G_GetMineOverlay(overlay)->entangle_tree_spawn_time = tree->spawn_time;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->entangle_tree = tree;
+    overlay->mineoverlay->entangle_tree_spawn_time = tree->spawn_time;
     T_NOT_NULL(desc);
     if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
     T_ASSERT(WriteGame(filename));
-    G_AddMineOverlay(overlay);
-    G_GetMineOverlay(overlay)->entangle_tree = NULL;
-    G_GetMineOverlay(overlay)->entangle_tree_spawn_time = 0;
+    if (!overlay->mineoverlay) overlay->mineoverlay = G_AllocMineOverlay();
+    assert(overlay->mineoverlay);
+    overlay->mineoverlay->entangle_tree = NULL;
+    overlay->mineoverlay->entangle_tree_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(G_GetMineOverlay(overlay)->entangle_tree == tree);
-    T_EQ(G_GetMineOverlay(overlay)->entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
+    T_EQ(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
 
     /* A recycled edict slot must not inherit the previous tree identity. */
     tree->spawn_time++;
-    T_ASSERT(G_GetMineOverlay(overlay)->entangle_tree == tree);
-    T_NE(G_GetMineOverlay(overlay)->entangle_tree_spawn_time, tree->spawn_time);
+    T_ASSERT(overlay->mineoverlay->entangle_tree == tree);
+    T_NE(overlay->mineoverlay->entangle_tree_spawn_time, tree->spawn_time);
     remove(filename);
 }
 
-SAVE_COMPONENT_PTR_FIELD_TEST(field_primary_builder_round_trip, construction, G_GetConstruction, primary_builder, 0)
-SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "unit_state->statuses.source", unit_state->statuses[3].source, 0)
-
+SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
+SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus->slots.source", abilstatus[3].source, 0)
 TEST(wc3_save, status_source_incarnation_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-status-source-incarnation.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     edict_t *source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
-    heroabilitystatus_t *slot = &unit->unit_state->statuses[3];
+    heroabilitystatus_t *slot = G_EnsureUnitStatusSlots(unit) + 3;
 
     slot->code = MAKEFOURCC('B', 'E', 'e', 'r');
     slot->level = 1;
@@ -5876,12 +5996,13 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
         .policy = WC3_STATUS_MOD_ADD, .value = 2.0f,
         .owner = WC3_STATUS_MOD_OWNER_AUTHORED
     };
-    unit->unit_state->next_status_id = 20;
+    unit->next_status_instance_id = 20;
     T_ASSERT(WriteGame(filename));
     slot->source = NULL;
     slot->source_spawn_time = 0;
     slot->modifiers[0].owner = 0;
     T_ASSERT(ReadGame(filename));
+    slot = unit->abilstatus + 3;
     T_ASSERT(slot->source == source);
     T_EQ(slot->source_spawn_time, source->spawn_time);
     T_EQ(slot->instance_id, 19);
@@ -5889,78 +6010,56 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
     T_EQ(slot->modifier_count, 1);
     T_EQ(slot->modifiers[0].owner, WC3_STATUS_MOD_OWNER_AUTHORED);
     T_FEQ(slot->modifiers[0].value, 2.0f, 0.001f);
-    T_EQ(unit->unit_state->next_status_id, 20);
+    T_EQ(unit->next_status_instance_id, 20);
     source->spawn_time++;
     T_NULL(S_SpellStatusSource(slot));
     remove(filename);
 }
-SAVE_COMPONENT_PTR_FIELD_TEST(field_construction_worker_round_trip, construction, G_GetConstruction, worker, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_rally_entity_round_trip, rally, G_GetRally, entity, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_producer_round_trip, revival, G_GetRevival, producer, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_revival_queue_next_round_trip, revival, G_GetRevival, queue_next, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, sacrifice, G_GetSacrifice, worker, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_unsummon_target_round_trip, unsummon, G_GetUnsummon, target, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_goldmine_round_trip, goldmine, G_GetGoldMine, mine, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, mineoverlay, G_GetMineOverlay, parent, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, mineoverlay, G_GetMineOverlay, caster, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, mineoverlay, G_GetMineOverlay, entangle_tree, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_acolyte_mine_round_trip, acolyte_mine, G_GetAcolyteMine, mine, 0)
-SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory->slots", inventory->slots[3], MAX_INVENTORY)
-SAVE_PTR_LVALUE_TEST(field_cargo_round_trip, "cargo->units", G_GetCargo(unit)->units[4], MAX_CARGO)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_item_carrier_round_trip, item, G_GetItem, carrier, 0)
+SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
+SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
+SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)
+SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival->queue_next", revival->queue_next, 0)
+SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice->worker", sacrifice->worker, 0)
+SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine->mine", goldmine->mine, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay->parent", mineoverlay->parent, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay->caster", mineoverlay->caster, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay->entangle_tree", mineoverlay->entangle_tree, 0)
+SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine->mine", acolyte_mine->mine, 0)
+SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
+SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo->units", cargo->units[4], MAX_CARGO)
+SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item->carrier", item->carrier, 0)
 SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
-SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "orders->attackmove_waypoint", orders->attackmove_waypoint, 0)
-SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "orders->patrol_a", orders->patrol_a, 0)
-SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "orders->patrol_b", orders->patrol_b, 0)
-SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "orders->patrol_target", orders->patrol_target, 0)
+SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "movement.attackmove_waypoint", movement.attackmove_waypoint, 0)
+SAVE_PTR_FIELD_TEST(field_move_wait_blocker_round_trip, "movement.wait_blocker", movement.wait_blocker, 0)
+SAVE_INT_FIELD_TEST(field_move_wait_delay_round_trip, movement.wait_delay, 25)
+SAVE_INT_FIELD_TEST(field_move_retry_count_round_trip, movement.retry_count, 7)
+SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "movement.patrol_a", movement.patrol_a, 0)
+SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "movement.patrol_b", movement.patrol_b, 0)
+SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", movement.patrol_target, 0)
 SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
-SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "orders->item_drop", orders->item_drop, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_spell_item_round_trip, channel, G_GetChannel, source_item, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_head_round_trip, soultrap, G_GetSoulTrap, head, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, soultrap, G_GetSoulTrap, carrier, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_soul_trap_next_round_trip, soultrap, G_GetSoulTrap, next, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, item, G_GetItem, pending_use_carrier, 0)
-SAVE_COMPONENT_PTR_FIELD_TEST(field_item_soul_target_round_trip, item, G_GetItem, soul_target, 0)
-SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soultrap, G_GetSoulTrap, head_spawn_time, 210)
-SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soultrap, G_GetSoulTrap, carrier_spawn_time, 220)
-SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soultrap, G_GetSoulTrap, next_spawn_time, 230)
-SAVE_COMPONENT_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soultrap, G_GetSoulTrap, trapped_ability_added, 1)
-SAVE_COMPONENT_INT_FIELD_TEST(field_soul_possession_added_round_trip, soultrap, G_GetSoulTrap, possession_added, 1)
-SAVE_COMPONENT_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item, G_GetItem, pending_use_carrier_spawn_time, 240)
-SAVE_COMPONENT_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item, G_GetItem, pending_use_slot, 4)
-SAVE_COMPONENT_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item, G_GetItem, soul_target_spawn_time, 250)
+SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "item_drop", item_drop, 0)
+SAVE_PTR_FIELD_TEST(field_spell_item_round_trip, "spell_item", spell_item, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_head_round_trip, "soul_trap_head", soul_trap_head, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, "soul_trap_carrier", soul_trap_carrier, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_next_round_trip, "soul_trap_next", soul_trap_next, 0)
+SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item->pending_use_carrier", item->pending_use_carrier, 0)
+SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item->soul_target", item->soul_target, 0)
+SAVE_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soul_trap_head_spawn_time, 210)
+SAVE_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soul_trap_carrier_spawn_time, 220)
+SAVE_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soul_trap_next_spawn_time, 230)
+SAVE_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soul_trapped_ability_added, 1)
+SAVE_INT_FIELD_TEST(field_soul_possession_added_round_trip, soul_possession_added, 1)
+SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item->pending_use_carrier_spawn_time, 240)
+SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item->pending_use_slot, 4)
+SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item->soul_target_spawn_time, 250)
 SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
-SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "orders->resource_goal", orders->resource_goal, 0)
+SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
 SAVE_PTR_FIELD_TEST(field_build_round_trip, "build", build, 0)
-SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "orders->build_preview", orders->build_preview, 0)
+SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_preview, 0)
 
 #undef SAVE_PTR_FIELD_TEST
 #undef SAVE_INT_FIELD_TEST
-
-/* Stun remains a live-status query across load, independent of explicit pause. */
-TEST(wc3_save, unit_flags_and_overlapping_stuns_restore_without_a_cache) {
-    cstring_t path = Test_TempPath("wc3-unit-flags-status.bin");
-    reset_entities(); setup_test_world(); level.time = 1000;
-    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    int index = unit - g_edicts;
-    G_SetUnitFlag(unit, UNIT_FLAG_PAUSED, true);
-    G_SetUnitFlag(unit, UNIT_FLAG_NO_PATHING, true);
-    unit_addtimedstatus(unit, "Bstu", 1, 0.1f);
-    unit_applystatus(unit, &(status_application_t){ .buff = "Bq01", .level = 1,
-        .duration = 0.2f, .state_mask = WC3_STATUS_STATE_STUNNED });
-    T_ASSERT(WriteGame(path));
-    unit->unit_flags = 0; memset(unit->unit_state->statuses, 0, sizeof(unit->unit_state->statuses));
-    T_ASSERT(ReadGame(path)); unit = g_edicts + index;
-    T_EQ(unit->unit_flags, UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING);
-    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
-    level.time = 1100;
-    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
-    level.time = 1200;
-    T_ASSERT(!unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
-    T_EQ(unit->unit_flags, UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING);
-    remove(path);
-}
 
 TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-soul-trap.bin");
@@ -5971,37 +6070,36 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     filled->class_id = MAKEFOURCC('s','o','u','l');
     filled->targtype = TARG_ITEM;
     carrier->s.player = 0; target->s.player = 1;
-    G_AddSoulTrap(carrier);
-    G_AddSoulTrap(target);
-    G_GetSoulTrap(carrier)->head = target; G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
-    G_GetSoulTrap(target)->carrier = carrier; G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
-    G_GetSoulTrap(target)->item = filled; G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
-    G_AddItem(filled);
-    G_GetItem(filled)->soul_target = target; G_GetItem(filled)->soul_target_spawn_time = target->spawn_time;
+    carrier->soul_trap_head = target; carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_carrier = carrier; target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_item = filled; target->soul_trap_item_spawn_time = filled->spawn_time;
+    if (!filled->item) filled->item = G_AllocItem();
+    assert(filled->item);
+    filled->item->soul_target = target; filled->item->soul_target_spawn_time = target->spawn_time;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
 
     T_ASSERT(WriteGame(filename));
-    G_GetSoulTrap(carrier)->head = NULL; G_GetSoulTrap(carrier)->head_spawn_time = 0;
-    G_GetSoulTrap(target)->carrier = NULL; G_GetSoulTrap(target)->carrier_spawn_time = 0;
-    G_GetSoulTrap(target)->item = NULL; G_GetSoulTrap(target)->item_spawn_time = 0;
-    G_GetItem(filled)->soul_target = NULL; G_GetItem(filled)->soul_target_spawn_time = 0;
-    carrier->vision->forced[1] = 0;
+    carrier->soul_trap_head = NULL; carrier->soul_trap_head_spawn_time = 0;
+    target->soul_trap_carrier = NULL; target->soul_trap_carrier_spawn_time = 0;
+    target->soul_trap_item = NULL; target->soul_trap_item_spawn_time = 0;
+    filled->item->soul_target = NULL; filled->item->soul_target_spawn_time = 0;
+    carrier->forced_visibility_count[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(G_GetSoulTrap(carrier)->head == target);
-    T_EQ(G_GetSoulTrap(carrier)->head_spawn_time, target->spawn_time);
-    T_ASSERT(G_GetSoulTrap(target)->carrier == carrier);
-    T_EQ(G_GetSoulTrap(target)->carrier_spawn_time, carrier->spawn_time);
-    T_ASSERT(G_GetSoulTrap(target)->item == filled);
-    T_EQ(G_GetSoulTrap(target)->item_spawn_time, filled->spawn_time);
-    T_ASSERT(G_GetItem(filled)->soul_target == target);
-    T_EQ(G_GetItem(filled)->soul_target_spawn_time, target->spawn_time);
+    T_ASSERT(carrier->soul_trap_head == target);
+    T_EQ(carrier->soul_trap_head_spawn_time, target->spawn_time);
+    T_ASSERT(target->soul_trap_carrier == carrier);
+    T_EQ(target->soul_trap_carrier_spawn_time, carrier->spawn_time);
+    T_ASSERT(target->soul_trap_item == filled);
+    T_EQ(target->soul_trap_item_spawn_time, filled->spawn_time);
+    T_ASSERT(filled->item->soul_target == target);
+    T_EQ(filled->item->soul_target_spawn_time, target->spawn_time);
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(!M_IsDead(target));
-    T_EQ(carrier->vision->forced[1], 1);
+    T_EQ(carrier->forced_visibility_count[1], 1);
     T_ASSERT(G_UnitIsForcedVisibleToPlayer(carrier, 1));
     T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 2));
     remove(filename);
@@ -6011,17 +6109,16 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = Test_TempPath("wc3-save-nested-runtime.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    militia_t *state = G_AddMilitia(unit);
-    state->partner = (edict_t *)(uintptr_t)1;
-    G_AddDestructable(unit);
-    G_GetDestructable(unit)->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
-    ARRAY_COUNT(G_GetDestructable(unit)->drop_sets) = 7;
+    if (!unit->destructable) unit->destructable = G_AllocDestructable();
+    assert(unit->destructable);
+    unit->destructable->drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(unit->destructable->drop_sets) = 7;
     T_ASSERT(WriteGame(filename));
-    state->partner = NULL; G_GetDestructable(unit)->drop_sets = NULL;
-    ARRAY_COUNT(G_GetDestructable(unit)->drop_sets) = 0;
+    unit->destructable->drop_sets = NULL;
+    ARRAY_COUNT(unit->destructable->drop_sets) = 0;
     T_ASSERT(ReadGame(filename));
-    T_ASSERT((!G_GetMilitia(unit) || !G_GetMilitia(unit)->partner) && (!G_GetDestructable(unit) || !G_GetDestructable(unit)->drop_sets));
-    T_EQ(ARRAY_COUNT(G_GetDestructable(unit)->drop_sets), 0);
+    T_ASSERT(!unit->destructable || !unit->destructable->drop_sets);
+    T_EQ(ARRAY_COUNT(unit->destructable->drop_sets), 0);
     remove(filename);
 }
 
@@ -6029,14 +6126,14 @@ TEST(wc3_save, round_trip_actor_abilities) {
     cstring_t filename = Test_TempPath("wc3-save-abilities.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    unit->unit_state->overrides.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->unit_state->overrides.added) = 1;
-    unit->unit_state->overrides.removed[0] = MAKEFOURCC('A', '0', '0', '2'); ARRAY_COUNT(unit->unit_state->overrides.removed) = 1;
-    unit->unit_state->overrides.permanent[0] = MAKEFOURCC('A', '0', '0', '3'); ARRAY_COUNT(unit->unit_state->overrides.permanent) = 1;
-    T_ASSERT(WriteGame(filename)); memset(&unit->unit_state->overrides, 0, sizeof(unit->unit_state->overrides)); T_ASSERT(ReadGame(filename));
-    T_EQ(ARRAY_COUNT(unit->unit_state->overrides.added), 1); T_EQ(unit->unit_state->overrides.added[0], MAKEFOURCC('A', '0', '0', '1'));
-    T_EQ(ARRAY_COUNT(unit->unit_state->overrides.removed), 1); T_EQ(unit->unit_state->overrides.removed[0], MAKEFOURCC('A', '0', '0', '2'));
-    T_EQ(ARRAY_COUNT(unit->unit_state->overrides.permanent), 1); T_EQ(unit->unit_state->overrides.permanent[0], MAKEFOURCC('A', '0', '0', '3'));
-    ARRAY_COUNT(unit->unit_state->overrides.added) = MAX_ABILITIES + 1;
+    unit->abilities.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->abilities.added) = 1;
+    unit->abilities.removed[0] = MAKEFOURCC('A', '0', '0', '2'); ARRAY_COUNT(unit->abilities.removed) = 1;
+    unit->abilities.permanent[0] = MAKEFOURCC('A', '0', '0', '3'); ARRAY_COUNT(unit->abilities.permanent) = 1;
+    T_ASSERT(WriteGame(filename)); memset(&unit->abilities, 0, sizeof(unit->abilities)); T_ASSERT(ReadGame(filename));
+    T_EQ(ARRAY_COUNT(unit->abilities.added), 1); T_EQ(unit->abilities.added[0], MAKEFOURCC('A', '0', '0', '1'));
+    T_EQ(ARRAY_COUNT(unit->abilities.removed), 1); T_EQ(unit->abilities.removed[0], MAKEFOURCC('A', '0', '0', '2'));
+    T_EQ(ARRAY_COUNT(unit->abilities.permanent), 1); T_EQ(unit->abilities.permanent[0], MAKEFOURCC('A', '0', '0', '3'));
+    ARRAY_COUNT(unit->abilities.added) = MAX_ABILITIES + 1;
     T_ASSERT(!WriteGame(filename)); remove(filename);
 }
 
@@ -6098,28 +6195,30 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
     unit->spawn_time = 2468; mine->spawn_time = 369; chain->spawn_time = 1357;
-    G_InitVisibility(unit);
-    unit->vision->reveal_until = 97531;
+    unit->permanent_invisibility_fade.origin=(wc3Clock_t){17.25f,3,300};
+    unit->permanent_invisibility_fade.slope=.25f;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
-    G_AddChannel(chain);
-    G_GetChannel(chain)->owner_spawn_time = unit->spawn_time;
+    if (!chain->channel) chain->channel = G_AllocChannel();
+    assert(chain->channel);
+    chain->channel->owner_spawn_time = unit->spawn_time;
     chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
-    G_AddChannel(chain_marker);
-    chain_marker->owner = chain; G_GetChannel(chain_marker)->owner_spawn_time = chain->spawn_time;
-    chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
+    if (!chain_marker->channel) chain_marker->channel = G_AllocChannel();
+    assert(chain_marker->channel);
+    chain_marker->owner = chain; chain_marker->channel->owner_spawn_time = chain->spawn_time;
+    S_SetMoveGoal(chain_marker, &chain_marker->goalentity, mine); chain_marker->resources = mine->spawn_time;
     reincarnation->owner = unit; reincarnation->class_id = MAKEFOURCC('A', 'O', 'r', 'e');
-    G_AddChannel(reincarnation); assert(G_GetChannel(reincarnation));
-    G_GetChannel(reincarnation)->owner_spawn_time = unit->spawn_time;
-    acid_bomb->owner = unit; acid_bomb->goalentity = mine; acid_bomb->class_id = MAKEFOURCC('A', 'N', 'a', 'b');
-    G_AddChannel(acid_bomb); assert(G_GetChannel(acid_bomb));
-    G_GetChannel(acid_bomb)->owner_spawn_time = unit->spawn_time;
-    G_GetChannel(acid_bomb)->target_spawn_time = mine->spawn_time;
+    reincarnation->channel = G_AllocChannel(); assert(reincarnation->channel);
+    reincarnation->channel->owner_spawn_time = unit->spawn_time;
+    acid_bomb->owner = unit; S_SetMoveGoal(acid_bomb, &acid_bomb->goalentity, mine); acid_bomb->class_id = MAKEFOURCC('A', 'N', 'a', 'b');
+    acid_bomb->channel = G_AllocChannel(); assert(acid_bomb->channel);
+    acid_bomb->channel->owner_spawn_time = unit->spawn_time;
+    acid_bomb->channel->target_spawn_time = mine->spawn_time;
     morph->owner = unit; morph->resources = MAKEFOURCC('h', 'd', 'h', 'u');
-    G_AddChannel(morph); assert(G_GetChannel(morph));
-    G_GetChannel(morph)->owner_spawn_time = unit->spawn_time;
+    morph->channel = G_AllocChannel(); assert(morph->channel);
+    morph->channel->owner_spawn_time = unit->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
@@ -6127,19 +6226,20 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     land_mine->think = death_aoe->think = monster_think;
     reincarnation->think = acid_bomb->think = morph->think = monster_think;
     reincarnation->owner = acid_bomb->owner = acid_bomb->goalentity = morph->owner = NULL;
-    G_GetChannel(reincarnation)->owner_spawn_time = G_GetChannel(acid_bomb)->owner_spawn_time = 0;
-    G_GetChannel(acid_bomb)->target_spawn_time = G_GetChannel(morph)->owner_spawn_time = 0;
+    reincarnation->channel->owner_spawn_time = acid_bomb->channel->owner_spawn_time = 0;
+    acid_bomb->channel->target_spawn_time = morph->channel->owner_spawn_time = 0;
     morph->resources = 0;
     chain->resources = chain->freetime = 0;
-    chain_marker->class_id = chain_marker->svflags = G_GetChannel(chain_marker)->owner_spawn_time = chain_marker->resources = 0;
-    chain_marker->owner = chain_marker->goalentity = NULL;
-    G_InitVisibility(unit);
-    unit->vision->reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
+    chain_marker->owner = S_SetMoveGoal(chain_marker, &chain_marker->goalentity, NULL);
+    memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade)); unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->stand == unit_stand && unit->birth == unit_birth && unit->die == unit_die && unit->think == monster_think);
-    T_EQ(unit->vision->reveal_until, 97531);
+    T_EQ(unit->permanent_invisibility_fade.origin.time,17.25f);
+    T_EQ(unit->permanent_invisibility_fade.origin.epoch,3);T_EQ(unit->permanent_invisibility_fade.origin.span,300);
+    T_EQ(unit->permanent_invisibility_fade.slope,.25f);
     T_ASSERT(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE);
     T_ASSERT(mine->think == blight_mine_think && mine->stand == unit_stand);
     T_ASSERT(!idle->think && idle->stand == unit_stand);
@@ -6153,11 +6253,11 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(land_mine->think == land_mine_think && death_aoe->think == death_damage_aoe_think);
     T_ASSERT(reincarnation->think == reincarnation_think && acid_bomb->think == acid_bomb_think);
     T_ASSERT(reincarnation->owner == unit && acid_bomb->owner == unit && acid_bomb->goalentity == mine);
-    T_EQ(G_GetChannel(reincarnation)->owner_spawn_time, unit->spawn_time);
-    T_EQ(G_GetChannel(acid_bomb)->owner_spawn_time, unit->spawn_time);
-    T_EQ(G_GetChannel(acid_bomb)->target_spawn_time, mine->spawn_time);
+    T_EQ(reincarnation->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(acid_bomb->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(acid_bomb->channel->target_spawn_time, mine->spawn_time);
     T_ASSERT(morph->think == morph_end && morph->owner == unit);
-    T_EQ(G_GetChannel(morph)->owner_spawn_time, unit->spawn_time);
+    T_EQ(morph->channel->owner_spawn_time, unit->spawn_time);
     T_EQ(morph->resources, MAKEFOURCC('h', 'd', 'h', 'u'));
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     T_ASSERT(far_sight->think == far_sight_think);
@@ -6166,13 +6266,13 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_EQ(far_sight->spawn_time, 9876);
     T_ASSERT(chain->think == chain_lightning_think && chain->owner == unit);
     T_EQ(chain->class_id, MAKEFOURCC('A', 'O', 'c', 'l'));
-    T_EQ(G_GetChannel(chain)->owner_spawn_time, unit->spawn_time);
+    T_EQ(chain->channel->owner_spawn_time, unit->spawn_time);
     T_FEQ(chain->s.origin2.x, 321.0f, 0.001f); T_FEQ(chain->s.origin2.y, 654.0f, 0.001f);
     T_FEQ(chain->collision, 500.0f, 0.001f); T_FEQ(chain->wait, 45.0f, 0.001f);
     T_FEQ(chain->velocity, 0.9f, 0.001f); T_EQ(chain->resources, 3); T_EQ(chain->freetime, 4321);
     T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
-    T_EQ(G_GetChannel(chain_marker)->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
+    T_EQ(chain_marker->channel->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
 }
 
@@ -6189,14 +6289,14 @@ TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
     thinker->think = lsh_think;
     T_ASSERT(WriteGame(filename));
     thinker->owner = thinker->goalentity = NULL;
-    G_GetChannel(thinker)->owner_spawn_time = G_GetChannel(thinker)->target_spawn_time = 0;
+    thinker->channel->owner_spawn_time = thinker->channel->target_spawn_time = 0;
     thinker->think = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(thinker->think == lsh_think);
     T_ASSERT(S_SpellChannelOwner(thinker) == owner);
     T_ASSERT(S_SpellChannelTarget(thinker) == target);
-    T_EQ(G_GetChannel(thinker)->owner_spawn_time, owner->spawn_time);
-    T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
+    T_EQ(thinker->channel->owner_spawn_time, owner->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
     remove(filename);
 }
 
@@ -6275,6 +6375,37 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     T_ASSERT(G_RegionFromHandle(restored_region) == restored_data);
     level.events = old_events;
     remove(filename);
+}
+
+/* Position samples visit only live region subscribers, including reused slots. */
+TEST(wc3_game, region_position_index_skips_unrelated_handlers_and_tracks_reuse) {
+    extern uint32_t G_TestMoveRegionEventVisits(bool);
+    reset_entities();setup_test_world();memset(&level.events,0,sizeof(level.events));
+    G_ResetMoveRegionEvents();
+    FOR_LOOP(i,MAX_EVENTS) {
+        bool region=i==0 || i==63 || i==64 || i==MAX_EVENTS-1;
+        event_t *event=G_MakeEvent(region ? EVENT_GAME_ENTER_REGION : EVENT_UNIT_DEATH);
+        T_EQ(event,level.events.handlers+i);
+    }
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    unit->svflags|=SVF_MONSTER;
+    G_TestMoveRegionEventVisits(true);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){256,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    level.events.handlers[63].inuse=false;
+    G_TrackMoveRegionEvent(level.events.handlers+63);
+    T_EQ(G_MakeEvent(EVENT_UNIT_DEATH),level.events.handlers+63);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){384,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),3);
+    level.events.handlers[63].inuse=false;
+    G_TrackMoveRegionEvent(level.events.handlers+63);
+    T_EQ(G_MakeEvent(EVENT_GAME_LEAVE_REGION),level.events.handlers+63);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){512,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    G_ResetMoveRegionEvents();
+    G_UnitRegionPositionChanged(unit,&(vec2_t){128,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    memset(&level.events,0,sizeof(level.events));reset_entities();setup_test_world();
 }
 
 TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {
@@ -6442,6 +6573,113 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+TEST(wc3_save, issued_order_context_survives_unread_and_sleeping_callbacks) {
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-issued-order-context-save-test.bin");
+    reset_entities(); setup_test_world();
+    /* Player events register on the reserved client edict, outside world use. */
+    g_edicts[0].client = &game.clients[0];
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer started = 0\n"
+        "  integer finished = 0\n"
+        "endglobals\n"
+        "function checkOrder takes integer index returns nothing\n"
+        "  if index <= 2 then\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"move\"), \"first callback retains Move ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 192.0 and GetOrderPointY() == 64.0, \"first callback retains Move point\")\n"
+        "  else\n"
+        "    call BJassAssert(GetIssuedOrderId() == OrderId(\"smart\"), \"second callback retains Smart ID\")\n"
+        "    call BJassAssert(GetOrderPointX() == 256.0 and GetOrderPointY() == 96.0, \"second callback retains Smart point\")\n"
+        "  endif\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"saved callback retains its ordered unit\")\n"
+        "endfunction\n"
+        "function onPoint takes nothing returns nothing\n"
+        "  local integer index\n"
+        "  set started = started + 1\n"
+        "  set index = started\n"
+        "  call checkOrder(index)\n"
+        "  call TriggerSleepAction(0.1)\n"
+        "  call checkOrder(index)\n"
+        "  set finished = finished + 1\n"
+        "endfunction\n"
+        "function verifySleeping takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 0, \"both event families suspend for both submissions\")\n"
+        "endfunction\n"
+        "function verifyFinished takes nothing returns nothing\n"
+        "  call BJassAssert(started == 4 and finished == 4, \"all saved callbacks resume exactly once\")\n"
+        "endfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"move\", 192.0, 64.0), \"Move accepted\")\n"
+        "  call BJassAssert(IssuePointOrder(testUnit, \"smart\", 256.0, 96.0), \"Smart accepted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 64.0, 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER, null)\n"
+        "  call TriggerRegisterUnitEvent(t, testUnit, EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+        "  call TriggerAddAction(t, function onPoint)\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            unit = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100;
+    unit->stand = unit_stand; unit_stand(unit);
+    jass_callbyname(level.vm, "issue", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifySleeping", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+    T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
+    level.time += 200; jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyFinished", true); jass_runevents(level.vm);
+    T_STREQ(jass_rterror_message(level.vm), "");
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_active_move_group) {
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-move-group-save-test.bin");
+    reset_entities(); setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
+    edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    fast->stand = slow->stand = unit_stand;
+    unit_stand(fast); unit_stand(slow);
+    fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
+    G_SetEntitySelectionMask(fast, G_SetEntitySelectionMask(slow, 1 << clent->client->ps.number));
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
+    uint32_t group_id = fast->movement.group_id;
+    T_ASSERT(group_id && slow->movement.group_id == group_id);
+    uint32_t next_id = level.next_move_group_id;
+    T_ASSERT(WriteGame(filename));
+    fast->movement.group_id = slow->movement.group_id = 0;
+    level.next_move_group_id = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(fast->movement.group_id, group_id); T_EQ(slow->movement.group_id, group_id);
+    T_EQ(fast->current_order_id, G_OrderId("move"));
+    T_EQ(slow->current_order_id, G_OrderId("move"));
+    T_EQ(level.next_move_group_id, next_id);
+    T_EQ(ARRAY_COUNT(level.move_groups),1); T_EQ(level.move_groups[0]->count,2);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
+    T_ASSERT(unit_issueimmediateorder(slow, "stop"));
+    T_EQ(slow->current_order_id, 0);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates(); T_EQ(level.move_groups[0]->count,1);
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),300,0.001f);
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = Test_TempPath("wc3-waypoint-save-test.bin");
     vec2_t destination = { 192.0f, 96.0f };
@@ -6454,14 +6692,14 @@ TEST(wc3_save, round_trip_waypoint_references) {
     T_ASSERT(waypoint >= g_edicts && waypoint < g_edicts + globals.num_edicts);
     T_ASSERT(waypoint->svflags & SVF_NOCLIENT);
     G_InitWaypoints(); T_EQ(globals.num_edicts, count);
-    unit->goalentity = waypoint;
-    unit->orders->attackmove_waypoint = waypoint;
+    S_SetMoveGoal(unit, &unit->goalentity, waypoint);
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, waypoint);
     T_ASSERT(WriteGame(filename));
     waypoint->s.origin2 = (vec2_t){ 0 };
-    unit->goalentity = unit->orders->attackmove_waypoint = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL));
     Waypoint_add(&(vec2_t){ 1.0f, 1.0f });
     T_ASSERT(ReadGame(filename));
-    T_ASSERT(unit->goalentity == waypoint && unit->orders->attackmove_waypoint == waypoint);
+    T_ASSERT(unit->goalentity == waypoint && unit->movement.attackmove_waypoint == waypoint);
     T_FEQ(waypoint->s.origin2.x, destination.x, 0.01f); T_FEQ(waypoint->s.origin2.y, destination.y, 0.01f);
     T_EQ(level.waypoints.cursor, cursor);
     remove(filename);
@@ -6821,18 +7059,18 @@ TEST(wc3_save, round_trip_jass_timers) {
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
     level.time = 100;
-    level.timers[1].duration = 4 * FRAMETIME; level.timers[1].remaining = 4 * FRAMETIME;
+    G_TimerStart(&level.timers[1], 4 * FRAMETIME, true, level.timers[1].handler);
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
     T_EQ(level.time, 100);
     T_EQ(G_TimerRemaining(&level.timers[1]), 4 * FRAMETIME);
     jass_callbyname(level.vm, "verifyRestored", false);
-    /* Countdown timers ignore level.time entirely: only elapsed frames expire them. */
-    FOR_LOOP(i, 4) G_RunTimers();
+    /* The restored cursor consumes actual time once, independent of drain count. */
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
-    FOR_LOOP(i, 4) G_RunTimers();
+    FOR_LOOP(i, 4) { level.time += FRAMETIME; G_RunTimers(); }
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -6889,6 +7127,149 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     remove(filename);
 }
 
+/* Original233d50 returns the retained timeout, even after Pause/Resume.
+ * It is independent of the request's effective minimum scheduling interval. */
+TEST(wc3_jass, timer_timeout_preserves_public_scalar_before_after_pause_and_save) {
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    T_ASSERT(run_test_jass("globals\n timer scalarTimer=null\nendglobals\n"
+        "function check takes nothing returns nothing\n"
+        "call BJassAssert(TimerGetTimeout(scalarTimer)==0.0001,\"timeout lost scalar word\")\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set scalarTimer=CreateTimer()\ncall TimerStart(scalarTimer,0.0001,false,null)\n"
+        "call check()\ncall PauseTimer(scalarTimer)\ncall check()\ncall ResumeTimer(scalarTimer)\ncall check()\nendfunction\n"));
+    cstring_t file=Test_TempPath("wc3-timer-timeout116.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    jass_callbyname(level.vm,"check",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
+    level.time = 1000;
+    gtimer_t *timer = G_AllocJassTimer(); T_NOT_NULL(timer); if (!timer) return;
+    G_TimerStart(timer, 100, false, NULL);
+    FOR_LOOP(i, 10) G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 100u); T_EQ(timer->updated, 1000u);
+    level.time = 1035; G_TimerPause(timer);
+    T_EQ(timer->remaining, 65u); T_EQ(timer->updated, 1035u);
+    level.time = 2000; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 65u);
+    G_TimerResume(timer); T_EQ(timer->updated, 2000u);
+    level.time = 2025; G_RunTimers(); G_RunTimers(); T_EQ(G_TimerRemaining(timer), 40u);
+    timer->scalar_timeout=123.5f; /* A C producer replaces any earlier public scalar. */
+    G_TimerStart(timer, 12, false, NULL); T_EQ(G_TimerRemaining(timer), 12u);
+    T_EQ(timer->scalar_timeout, 12/1000.0f);
+    level.time = 2035; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 2u); T_ASSERT(timer->running);
+    level.time = 2037; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 0u); T_ASSERT(!timer->running);
+    G_TimerStart(timer, 100, true, NULL); G_TimerDestroy(timer);
+    level.time = 3000; G_RunTimers(); T_ASSERT(!timer->running && timer->paused);
+    T_EQ(G_TimerRemaining(timer), 100u);
+}
+
+/* Exercise both producers across a membership-word boundary and restoration.
+ * C host milliseconds never age public scalar requests, and vice versa. */
+TEST(wc3_save, mixed_timer_domains_keep_sparse_membership_after_save) {
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=1000;level.scheduled_frame=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==70\ncall TimerStart(CreateTimer(),1.0,false,null)\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    T_EQ(level.num_timers,70u);
+    G_TimerStart(level.timers,50,false,NULL);
+    G_TimerStart(level.timers+64,100,false,NULL);
+    G_TimerStart(level.timers+69,200,true,NULL);
+    G_TimerPause(level.timers+64);
+    level.time=1050;G_RunTimers();
+    T_ASSERT(!level.timers[0].running);T_EQ(G_TimerRemaining(level.timers+64),100u);
+    T_EQ(G_TimerRemaining(level.timers+69),150u);T_ASSERT(level.timers[1].running);
+    G_TimerResume(level.timers+64);level.time=1150;G_RunTimers();
+    T_ASSERT(!level.timers[64].running);T_EQ(G_TimerRemaining(level.timers+69),50u);
+    cstring_t file=Test_TempPath("wc3-mixed-timer117.bin");T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,70)G_TimerDestroy(level.timers+i);
+    T_ASSERT(ReadGame(file));remove(file);
+    T_EQ(G_TimerRemaining(level.timers+69),50u);T_ASSERT(level.timers[1].running);
+    level.time=1200;G_RunTimers();T_EQ(G_TimerRemaining(level.timers+69),200u);
+    G_TimerPause(level.timers+69);T_ASSERT(level.timers[69].paused);
+    level.scheduled_frame=true;
+    FOR_LOOP(i,210) {
+        G_RunTimers();wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    FOR_LOOP(i,70)if(i!=0 && i!=64 && i!=69)T_ASSERT(!level.timers[i].running);
+    T_EQ(G_TimerRemaining(level.timers+69),200u);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;
+}
+
+TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
+    cstring_t file = Test_TempPath("openwarcraft3-timer-elapsed-save.bin");
+    cstring_t script = "globals\ntimer moverTimer\ninteger calls=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset calls=calls+1\n"
+        "if calls==1 then\ncall TimerStart(GetExpiredTimer(),0.2,false,function on_tick)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset moverTimer=CreateTimer()\n"
+        "call TimerStart(moverTimer,0.1,true,function on_tick)\nendfunction\n"
+        "function first takes nothing returns nothing\ncall BJassAssert(calls==1,\"timer restarted early\")\nendfunction\n"
+        "function second takes nothing returns nothing\ncall BJassAssert(calls==2,\"timer restart deadline missed\")\nendfunction\n";
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=0;level.timer_clock_valid=false;
+    T_ASSERT(run_test_jass(script));level.scheduled_frame=true;
+    while(level.time<105) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"first",false);
+    gtimer_t *timer=level.timers;T_EQ(timer->duration,200u);T_EQ(timer->updated,105u);
+    while(level.time<145) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    wc3Clock_t clock=G_TimerQueryClock(NULL);
+    uint32_t remaining=wc3_float_bits(G_TimerRemainingScalar(timer,&clock));
+    uint32_t sequence=timer->scalar_sequence,deadline=wc3_float_bits(timer->scalar_deadline.time);
+    T_ASSERT(WriteGame(file));G_TimerDestroy(timer);level.time=1000;T_ASSERT(ReadGame(file));
+    level.scheduled_frame=true;timer=level.timers;clock=G_TimerQueryClock(NULL);
+    T_EQ(level.time,145u);T_EQ(wc3_float_bits(G_TimerRemainingScalar(timer,&clock)),remaining);
+    T_EQ(timer->scalar_sequence,sequence);T_EQ(wc3_float_bits(timer->scalar_deadline.time),deadline);
+    T_EQ(level.timer_heap_count,1);T_EQ(timer->scalar_heap_index,0);
+    G_RunTimers();clock=G_TimerQueryClock(NULL);remaining=wc3_float_bits(G_TimerRemainingScalar(timer,&clock));
+    G_RunTimers();clock=G_TimerQueryClock(NULL);T_EQ(wc3_float_bits(G_TimerRemainingScalar(timer,&clock)),remaining);
+    while(level.time<295) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"first",false);
+    while(level.time<305) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"second",false);
+    T_ASSERT(!timer->running);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;remove(file);
+}
+
+/* Original240350 finishes the current direct call after expiry-trigger mutation;
+ * public retirement and deferred storage cleanup are independently saved. */
+TEST(wc3_save, timer_expiry_condition_pause_and_pending_public_retirement) {
+    cstring_t file=Test_TempPath("wc3-timer118-retirement.bin");
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=0;level.scheduled_frame=false;
+    T_ASSERT(run_test_jass(
+        "globals\ntimer directTimer=null\ntimer retiredTimer=null\ninteger calls=0\nendglobals\n"
+        "function condition takes nothing returns boolean\ncall PauseTimer(GetExpiredTimer())\nreturn true\nendfunction\n"
+        "function direct takes nothing returns nothing\nset calls=calls+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "set directTimer=CreateTimer()\ncall TriggerAddCondition(t,Condition(function condition))\n"
+        "call TriggerRegisterTimerExpireEvent(t,directTimer)\ncall TimerStart(directTimer,0.01,false,function direct)\n"
+        "set retiredTimer=CreateTimer()\ncall TimerStart(retiredTimer,10.0,true,function direct)\nendfunction\n"
+        "function retire takes nothing returns nothing\ncall DestroyTimer(retiredTimer)\n"
+        "call BJassAssert(TimerGetTimeout(retiredTimer)==0.0,\"retired public timeout lookup\")\n"
+        "call TimerStart(retiredTimer,0.0,true,function direct)\nendfunction\n"
+        "function verify takes nothing returns nothing\ncall BJassAssert(calls==1,\"condition pause lost the current direct callback\")\n"
+        "call BJassAssert(TimerGetRemaining(retiredTimer)==0.0,\"retired timer restored as public live\")\nendfunction\n"));
+    level.scheduled_frame=true;jass_callbyname(level.vm,"retire",true);jass_runevents(level.vm);
+    T_ASSERT(level.timers[1].destroyed && level.timers[1].destroy_pending && level.timers[1].running);
+    T_ASSERT(WriteGame(file));G_TimerDestroy(level.timers+1);T_ASSERT(ReadGame(file));
+    level.scheduled_frame=true; /* Runtime frame ownership is deliberately rebuilt, not saved. */
+    T_ASSERT(level.timers[1].destroyed && level.timers[1].destroy_pending && level.timers[1].running);
+    FOR_LOOP(i,4){G_RunTimers();wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);}
+    T_ASSERT(!level.timers[1].running && !level.timers[1].destroy_pending);T_EQ(level.timer_release_head,0u);
+    jass_callbyname(level.vm,"verify",true);jass_runevents(level.vm);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;remove(file);
+}
+
 TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -6912,7 +7293,10 @@ TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
         "  call BJassAssert(timerFired == 0, \"paused timer expiration action still ran\")\n"
         "endfunction\n"));
 
-    G_RunTimers();
+    /* Exercise the queued C timer event path. Scalar public callbacks drain
+     * synchronously, so changing only level.time would never queue this event. */
+    level.scheduled_frame=false;G_TimerStart(level.timers,0,true,NULL);
+    G_RunTimers();T_ASSERT(level.timers[0].running);T_ASSERT(!level.timers[0].scalar_timing);
     jass_callbyname(level.vm, "PausePending", false);
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "VerifyDropped", false);
@@ -6974,7 +7358,10 @@ TEST(wc3_jass, disabled_triggers_allow_explicit_execution_but_ignore_events) {
         "  call BJassAssert(enabledEventRuns == 1, \"enabled trigger missed timer event\")\n"
         "endfunction\n"));
 
+    wc3_clock_advance(&level.pathing_clock, G_ClockMinimumDelay(), 0);
+    level.scheduled_frame = true;
     G_RunTimers();
+    level.scheduled_frame = false;
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "VerifyDisabledTriggerPaths", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -7186,16 +7573,16 @@ TEST(wc3_save, rejects_corruption_without_mutation) {
     uint8_t byte = 0;
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    S_SetCarriedResource(unit, RETURN_RESOURCE_GOLD, 37);
+    unit->harvested_gold = 37;
     T_ASSERT(WriteGame(filename));
     f = fopen(filename, "r+b");
     T_ASSERT(f != NULL && fseek(f, sizeof(uint32_t), SEEK_SET) == 0 && fread(&byte, 1, 1, f) == 1);
     byte ^= 0x80;
     T_ASSERT(fseek(f, sizeof(uint32_t), SEEK_SET) == 0 && fwrite(&byte, 1, 1, f) == 1);
     fclose(f);
-    S_SetCarriedResource(unit, RETURN_RESOURCE_GOLD, 99);
+    unit->harvested_gold = 99;
     T_ASSERT(!ReadGame(filename));
-    T_EQ((unit->harvest ? unit->harvest->gold : 0), 99);
+    T_EQ(unit->harvested_gold, 99);
     remove(filename);
 }
 
@@ -7205,17 +7592,17 @@ TEST(wc3_save, rejects_script_identity_without_mutation) {
     edict_t *unit;
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    S_SetCarriedResource(unit, RETURN_RESOURCE_GOLD, 37);
+    unit->harvested_gold = 37;
     T_ASSERT(WriteGame(filename));
     T_ASSERT(jass_dobuffer(level.vm, extra));
-    S_SetCarriedResource(unit, RETURN_RESOURCE_GOLD, 99);
+    unit->harvested_gold = 99;
     T_ASSERT(!ReadGame(filename));
-    T_EQ((unit->harvest ? unit->harvest->gold : 0), 99);
+    T_EQ(unit->harvested_gold, 99);
     remove(filename);
 }
 
-/* A unit removed before save has a stale edict pointer in its JASS global.
- * Save must succeed and the global must load back as null. */
+/* A fully released unit has a stale edict pointer in its JASS global. Pending
+ * releases retain the identity (wc3_unit_releases); finish the real drain here. */
 TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
     cstring_t filename = Test_TempPath("wc3-stale-handle-save-test.bin");
     T_ASSERT(run_test_jass(
@@ -7229,6 +7616,9 @@ TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(killedUnit == null, \"stale handle should be null after load\")\n"
         "endfunction\n"));
+    edict_t *unit=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(unit);
+    if(!unit)return;
+    T_ASSERT(G_IsDeferredFree(unit));level.scheduled_frame=true;G_RunTimers();T_ASSERT(!unit->inuse);
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     jass_callbyname(level.vm, "verify", false);
@@ -7266,6 +7656,48 @@ TEST(wc3_save, removed_unit_is_removed_from_group_before_save) {
  * Suite runner
  * ========================================================================= */
 
+TEST(wc3_game, selection_index_visits_members_in_live_edict_order) {
+    reset_entities(); setup_test_world();
+    gameClient_t *client = game.clients;
+    client->ps.number = 0;
+    edict_t *units[4096];
+    FOR_LOOP(i, 4096) { units[i] = G_Spawn(); units[i]->health.value = 1; }
+    G_SetEntitySelectionMask(units[4000], 1);
+    G_SetEntitySelectionMask(units[100], 1);
+    G_SetEntitySelectionMask(units[2000], 2);
+    G_ResetTestSelectionChecks();
+    uint32_t count = 0;
+    FOR_SELECTED_UNITS(client, ent) {
+        T_ASSERT(ent == units[count ? 4000 : 100]);
+        count++;
+    }
+    T_EQ(count, 2);
+    T_EQ(G_GetTestSelectionChecks(), 2);
+    /* As with the former edict loop, callbacks may remove a future member
+     * and add a later one; the same traversal must observe both changes. */
+    count = 0;
+    FOR_SELECTED_UNITS(client, ent) {
+        if (!count) {
+            T_ASSERT(ent == units[100]);
+            G_SetEntitySelectionMask(units[4000], 0);
+            G_SetEntitySelectionMask(units[4095], 1);
+        } else T_ASSERT(ent == units[4095]);
+        count++;
+    }
+    T_EQ(count, 2);
+    G_ResetSpawnCache(); /* allocator cache reset is not selection reset */
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[100]);
+    G_SetEntitySelectionMask(units[100], 0);
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[4095]);
+    G_FreeEdict(units[4095]);
+    T_NULL(G_NextSelectedEntity(client, 0));
+    client->ps.number = 1;
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[2000]);
+    G_RebuildSelectionIndex();
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[2000]);
+    reset_entities(); setup_test_world();
+}
+
 #endif /* BZ_TESTS */
 
 #ifdef BZ_TESTS
@@ -7285,4 +7717,479 @@ TEST(wc3_test_utils, temp_paths_are_private_to_this_test_process) {
     T_EQ(remove(path), 0);
 }
 #endif
+
+bool G_FowTestReindexBlockers(void);
+void G_FowTestRevealBlockerRim(fowPlayerGrid_t *, uint32_t, uint32_t, int, bool);
+static void fow_ultravision_clock(bool night) {
+    game.constants.gameDayHours = 24.0f;
+    game.constants.gameDayLength = 480.0f;
+    game.constants.dawnTimeGameHours = 6.0f;
+    game.constants.duskTimeGameHours = 18.0f;
+    level.timeofday = (timeOfDay_t){ 0 };
+    level.timeofday.elapsed = night ? 0.0f : 240.0f;
+}
+static bool fow_ultravision_probe(uint32_t player) {
+    uint32_t const x = G_FowWorldToCellX(320.0f);
+    uint32_t const y = G_FowWorldToCellY(128.0f);
+    return level.fow.players[player].visible[y * level.fow.width + x] != 0;
+}
+
+TEST(wc3_save, animation_strings_restore_after_intern_storage_is_released) {
+    cstring_t file = Test_TempPath("animation-strings.bin");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    int const index = unit - g_edicts;
+    G_StoreUnitAnimationRequest(unit,"stand ready");
+    G_StoreUnitAnimationProperties(unit,"alternate,work");
+    strlcpy(unit->queued_animation,"stand third",sizeof(unit->queued_animation));
+    T_ASSERT(WriteGame(file));
+    reset_entities();
+    G_ClearUnitAnimationText();
+    T_ASSERT(ReadGame(file));
+    unit = g_edicts + index;
+    T_STREQ(G_UnitAnimationRequest(unit), "stand ready");
+    T_STREQ(G_UnitAnimationProperties(unit), "alternate,work");
+    T_STREQ(unit->queued_animation, "stand third");
+    edict_t other={0};G_StoreUnitAnimationRequest(&other,"stand ready");
+    T_EQ(G_UnitAnimationRequest(unit),G_UnitAnimationRequest(&other));
+    remove(file);
+}
+
+TEST(wc3_save, avatar_component_fields_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-avatar-fields.bin");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    avatar_t *avatar = (unit->avatar ? unit->avatar : (unit->avatar=G_AllocAvatar()));
+    avatar->level = 2; avatar->damage = 31; avatar->armor = 7; avatar->health = 600;
+    T_EQ(find_save_field("avatar->level")->type, F_INT);
+    T_EQ(find_save_field("avatar->damage")->type, F_INT);
+    T_EQ(find_save_field("avatar->armor")->type, F_FLOAT);
+    T_EQ(find_save_field("avatar->health")->type, F_FLOAT);
+    T_ASSERT(WriteGame(filename));
+    G_FreeAvatar(unit);
+    T_ASSERT(ReadGame(filename));
+    avatar = unit->avatar;
+    T_NOT_NULL(avatar);
+    if (avatar) {
+        T_EQ(avatar->level, 2); T_EQ(avatar->damage, 31);
+        T_FEQ(avatar->armor, 7, 0.001f); T_FEQ(avatar->health, 600, 0.001f);
+    }
+    remove(filename);
+}
+
+TEST(wc3_save, field_trained_hero_proper_name_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-trained-hero-proper-name.bin");
+    field_t const *desc = find_save_field("proper_name");
+    reset_entities();
+    edict_t *hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0.0f, 0.0f);
+    T_NOT_NULL(desc);
+    if (desc) T_EQ(desc->type, F_LSTRING);
+    hero->proper_name = "TestHeroProperName";
+    T_ASSERT(WriteGame(filename));
+    hero->proper_name = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_STREQ(hero->proper_name, "TestHeroProperName");
+    remove(filename);
+}
+
+TEST(wc3_game, fow_blocker_rim_bit_index_matches_rectangular_reference) {
+    static int const radii[] = { 0, 1, 2, 5, 15, 32, 48 };
+    fowPlayerGrid_t *fast, *reference;
+    uint32_t width, height, cells;
+    box2_t const old_bounds = CM_GetWorldBounds();
+
+    reset_entities();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f},
+                                        .max = {8192.0f, 8192.0f}));
+    G_FowInit();
+    width = level.fow.width;
+    height = level.fow.height;
+    cells = width * height;
+    fast = &level.fow.players[0];
+    reference = &level.fow.players[1];
+    T_ASSERT(width > 65 && height > 65 && level.fow.blocked != NULL);
+    if (width <= 65 || height <= 65 || !level.fow.blocked) {
+        G_FowShutdown();
+        CM_SetupTestWorldBounds(&old_bounds);
+        return;
+    }
+
+    FOR_LOOP(pattern, 5) {
+        /* The fifth pattern after a dense one exercises full clearing of
+         * stale index bits when blockers move or disappear. */
+        FOR_LOOP(y, height) {
+            FOR_LOOP(x, width) {
+                uint32_t const i = y * width + x;
+                level.fow.blocked[i] = pattern == 0 ? 0 :
+                    pattern == 1 ? (x == 31 || x == 32 || x == 63 || x == 64) :
+                    pattern == 2 ? (x + y) % 3 == 0 :
+                    pattern == 3 ? (x * 19 + y * 23) % 43 == 0 :
+                                   (x > 30 && x < 66 && y == height / 2);
+            }
+        }
+        T_ASSERT(G_FowTestReindexBlockers());
+        FOR_LOOP(r, sizeof(radii) / sizeof(*radii)) {
+            FOR_LOOP(c, 5) {
+                uint32_t const cx = c == 0 ? 0 :
+                    c == 1 ? width - 1 : c == 2 ? width / 2 :
+                    c == 3 ? 32 : 63;
+                uint32_t const cy = c == 0 ? 0 :
+                    c == 1 ? height - 1 : height / 2;
+                FOR_LOOP(i, cells) {
+                    uint32_t const x = i % width, y = i / width;
+                    /* This includes initially visible blockers and an
+                     * ordered chain of blockers adjacent to visible cells. */
+                    uint8_t const vis = (uint8_t)(
+                        (x == cx && y == cy) ||
+                        (x == 30 && y == height / 2) ||
+                        ((x * 7 + y * 11 + c) % 37 == 0));
+                    fast->visible[i] = reference->visible[i] = vis;
+                    fast->explored[i] = reference->explored[i] = vis;
+                }
+                memset(fast->visible_rows, 0, height);
+                memset(fast->dirty_visible_rows, 0, height);
+                memset(fast->dirty_explored_rows, 0, height);
+                memset(reference->visible_rows, 0, height);
+                memset(reference->dirty_visible_rows, 0, height);
+                memset(reference->dirty_explored_rows, 0, height);
+
+                G_FowTestRevealBlockerRim(fast, cx, cy, radii[r], true);
+                G_FowTestRevealBlockerRim(reference, cx, cy, radii[r], false);
+                FOR_LOOP(i, cells) {
+                    T_EQ(fast->visible[i], reference->visible[i]);
+                    T_EQ(fast->explored[i], reference->explored[i]);
+                    T_ASSERT(fast->visible[i] <= 1);
+                }
+                FOR_LOOP(y, height) {
+                    T_EQ(fast->visible_rows[y], reference->visible_rows[y]);
+                    T_EQ(fast->dirty_visible_rows[y], reference->dirty_visible_rows[y]);
+                    T_EQ(fast->dirty_explored_rows[y], reference->dirty_explored_rows[y]);
+                }
+            }
+        }
+    }
+    G_FowShutdown();
+    CM_SetupTestWorldBounds(&old_bounds);
+}
+
+TEST(wc3_game, fow_shadowcast_blocker_rim_clips_at_map_corner) {
+    edict_t *revealer, *blocker;
+    uint32_t source_index, blocker_index;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 256.0f;
+    revealer->health.value = revealer->health.max_value = 100.0f;
+    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 0.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 100.0f;
+
+    G_FowUpdate();
+    source_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(0.0f);
+    blocker_index = G_FowWorldToCellY(0.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    T_ASSERT(level.fow.blocked[blocker_index]);
+    T_ASSERT(level.fow.players[0].visible[source_index]);
+    T_ASSERT(level.fow.players[0].visible[blocker_index]);
+    T_ASSERT(level.fow.players[0].explored[blocker_index]);
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
+    edict_t *revealer, *blocker;
+    uint8_t *original;
+    uint32_t width, height, cx, original_blocker, moved_blocker;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    width = level.fow.width;
+    height = level.fow.height;
+    cx = G_FowWorldToCellX(256.0f);
+    T_ASSERT(width > 7 && height > 4 && cx >= 3 && cx + 3 < width);
+    if (width <= 7 || height <= 4 || cx < 3 || cx + 3 >= width) {
+        G_FowShutdown();
+        return;
+    }
+
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 192.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 192.0f;
+    revealer->health.value = revealer->health.max_value = 100.0f;
+    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 384.0f, 192.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 100.0f;
+
+    G_FowUpdate();
+    original_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(384.0f);
+    moved_blocker = G_FowWorldToCellY(192.0f) * width + G_FowWorldToCellX(128.0f);
+    T_ASSERT(level.fow.blocked[original_blocker]);
+    T_ASSERT(level.fow.players[0].visible[G_FowWorldToCellY(192.0f) * width + cx]);
+    original = gi.MemAlloc(width * height);
+    T_NOT_NULL(original);
+    if (!original) {
+        G_FowShutdown();
+        return;
+    }
+    memcpy(original, level.fow.players[0].visible, width * height);
+
+    blocker->s.origin.x = blocker->s.origin2.x = 128.0f;
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_ASSERT(!level.fow.blocked[original_blocker]);
+    T_ASSERT(level.fow.blocked[moved_blocker]);
+
+    blocker->s.origin.x = blocker->s.origin2.x = 384.0f;
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_ASSERT(level.fow.blocked[original_blocker]);
+    FOR_LOOP(i, width * height) {
+        T_EQ(original[i], level.fow.players[0].visible[i]);
+        T_ASSERT(level.fow.players[0].visible[i] <= 1); /* no leaked rim markers */
+    }
+    gi.MemFree(original);
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_ultravision_requires_unit_upgrade_and_excludes_buildings) {
+    static UnitBalance_t const eligible = { .upgrades = "Reuv" };
+    static UnitBalance_t const not_eligible = { .upgrades = "" };
+    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
+    edict_t *scout;
+
+    reset_entities(); setup_test_world();
+    fow_ultravision_clock(true);
+    G_FowInit(); G_FowConnectPlayer(0);
+    G_SetPlayerTechResearched(&game.clients[0], research, 1);
+    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
+    scout->s.player = 0;
+    scout->runtime.sight_radius.day = 192.0f;
+    scout->runtime.sight_radius.night = 64.0f;
+
+    scout->data.UnitBalance = &not_eligible;
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(0));
+    scout->data.UnitBalance = &eligible;
+    scout->runtime.flags |= UNIT_BALANCE_BUILDING;
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(0));
+    scout->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    G_FowUpdate();
+    T_ASSERT(fow_ultravision_probe(0));
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_ultravision_research_expands_only_night_sight) {
+    static UnitBalance_t const ultravision_unit = { .upgrades = "Reuv" };
+    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
+    edict_t *scout;
+
+    reset_entities(); setup_test_world();
+    fow_ultravision_clock(true);
+    G_FowInit(); G_FowConnectPlayer(0);
+    G_SetPlayerTechResearched(&game.clients[0], research, 0);
+    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
+    scout->s.player = 0;
+    scout->data.UnitBalance = &ultravision_unit;
+    scout->runtime.sight_radius.day = 192.0f;
+    scout->runtime.sight_radius.night = 64.0f;
+
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(0));
+    G_SetPlayerTechResearched(&game.clients[0], research, 1);
+    G_FowUpdate();
+    T_ASSERT(fow_ultravision_probe(0));
+
+    G_SetPlayerTechResearched(&game.clients[0], research, 0);
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(0));
+    T_ASSERT(level.fow.players[0].explored[
+        G_FowWorldToCellY(128.0f) * level.fow.width + G_FowWorldToCellX(320.0f)]);
+
+    fow_ultravision_clock(false);
+    G_FowUpdate();
+    T_ASSERT(fow_ultravision_probe(0));
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_ultravision_uses_source_owner_for_shared_vision) {
+    static UnitBalance_t const eligible = { .upgrades = "Reuv" };
+    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
+    edict_t *scout;
+
+    reset_entities(); setup_test_world();
+    fow_ultravision_clock(true);
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    G_SetPlayerTechResearched(&game.clients[0], research, 0);
+    G_SetPlayerTechResearched(&game.clients[1], research, 1);
+    scout = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 128.0f, 128.0f);
+    scout->s.player = 0;
+    scout->data.UnitBalance = &eligible;
+    scout->runtime.sight_radius.day = 192.0f;
+    scout->runtime.sight_radius.night = 64.0f;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_SetPlayerAlliance(G_GetPlayerByNumber(0), G_GetPlayerByNumber(1),
+                        ALLIANCE_SHARED_VISION, true);
+
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(0));
+    T_ASSERT(!fow_ultravision_probe(1));
+    G_SetPlayerTechResearched(&game.clients[0], research, 1);
+    G_FowUpdate();
+    T_ASSERT(fow_ultravision_probe(0));
+    T_ASSERT(fow_ultravision_probe(1));
+
+    scout->s.player = 1;
+    G_SetPlayerTechResearched(&game.clients[1], research, 0);
+    G_FowUpdate();
+    T_ASSERT(!fow_ultravision_probe(1));
+    G_FowShutdown();
+}
+
+TEST(wc3_save, pool_capacity_is_checked_before_allocating_records) {
+    reset_entities();edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    unit->channel=G_AllocChannel();T_NOT_NULL(unit->channel);unit->channel->code=17;
+    savePool_t pool={"channel",offsetof(edict_t,channel),sizeof(channel_t),channel_fields,SaveAllocChannel,1};
+    FILE *f=tmpfile();T_NOT_NULL(f);if(!f)return;
+    T_ASSERT(WritePool(f,&pool));G_FreeChannel(unit);rewind(f);
+    T_ASSERT(!ReadPool(f,&pool));T_NULL(unit->channel);
+    pool.capacity=2048;rewind(f);T_ASSERT(ReadPool(f,&pool));T_NOT_NULL(unit->channel);
+    if(unit->channel)T_EQ(unit->channel->code,17);
+    fclose(f);
+    FOR_LOOP(i,sizeof(save_pools)/sizeof(save_pools[0]))
+        if(!strcmp(save_pools[i].name,"abilstatus"))T_EQ(save_pools[i].capacity,MAX_ENTITIES);
+}
+
+TEST(wc3_save, route_identity_and_generation_survive_load) {
+    cstring_t file = Test_TempPath("route-cache.bin");
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->heatmap2 = 73;
+    unit->waypoint_generation = 42;
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(unit->inuse);
+    /* Native route identity is serialized; it is not an optional cache pointer. */
+    T_EQ(unit->heatmap2, 73);
+    T_EQ(unit->waypoint_generation, 42);
+    remove(file);
+}
+
+TEST(wc3_save, unit_flags_and_overlapping_stuns_restore_without_a_cache) {
+    cstring_t path = Test_TempPath("wc3-unit-flags-status.bin");
+    reset_entities(); setup_test_world(); level.time = 1000;
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    int index = unit - g_edicts;
+    unit->paused = true;
+    unit->no_pathing = true;
+    unit_addtimedstatus(unit, "Bstu", 1, 0.1f);
+    unit_applystatus(unit, &(status_application_t){ .buff = "Bq01", .level = 1,
+        .duration = 0.2f, .state_mask = WC3_STATUS_STATE_STUNNED });
+    T_ASSERT(WriteGame(path));
+    unit->paused=false;unit->no_pathing=false; memset(unit->abilstatus, 0, G_UnitStatusSlotCount(unit)*sizeof(*unit->abilstatus));
+    T_ASSERT(ReadGame(path)); unit = g_edicts + index;
+    T_ASSERT(unit->paused && unit->no_pathing);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
+    level.time = 1100;
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
+    level.time = 1200;
+    T_ASSERT(!unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
+    T_ASSERT(unit->paused && unit->no_pathing);
+    remove(path);
+}
+
+/* These profiles are the same authored inputs as the owner continuation tests. */
+#include "fixtures/retail_patrol_hfoo_profile.h"
+#include "fixtures/retail_patrol_hfoo_weapons.h"
+slkTestData_t *parse_slk_string(cstring_t);
+void free_slk_rows(slkTestData_t *);
+
+static void Save232RejectBadTimer(abilityPrimaryTimer_t *timer) {
+    abilityPrimaryTimer_t original=*timer;
+    cstring_t rejected=Test_TempPath("save232-invalid-attack-timer.bin");
+    T_ASSERT(original.active);
+    T_ASSERT(S_ValidateAttackTargets());
+    FOR_LOOP(mode,6) {
+        *timer=original;
+        switch(mode) {
+        case 0: timer->sequence=0;break;
+        case 1: timer->sequence=level.timer_sequence+1;break;
+        case 2: timer->deadline.span=0;break;
+        case 3: timer->deadline.span=-1;break;
+        case 4: timer->deadline.span=NAN;break;
+        case 5: timer->deadline.span=INFINITY;break;
+        }
+        T_ASSERT(!S_ValidateAttackTargets());
+        T_ASSERT(!WriteGame(rejected));
+        *timer=original;
+        T_ASSERT(S_ValidateAttackTargets());
+    }
+    remove(rejected);
+}
+
+TEST(wc3_save, rejects_invalid_save232_attack_timer_metadata) {
+    reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint32_t old_flags=level.setup.map_flags,old_seed=level.setup.random_seed;
+    float old_reaction=game.constants.reactionDelay;
+    level.setup.map_flags=0;level.setup.random_seed=0x77617233u;G_InitMapRandom();
+    game.constants.reactionDelay=.75f;
+    bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    cstring_t names[]={"UnitData","UnitBalance","UnitWeapons"};
+    cstring_t texts[]={tft?patrol_tft_UnitData:patrol_roc_UnitData,
+        tft?patrol_tft_UnitBalance:patrol_roc_UnitBalance,
+        tft?patrol_tft_UnitWeapons:patrol_roc_UnitWeapons};
+    slkTestData_t *rows[3],*old[3];
+    FOR_LOOP(i,3){rows[i]=parse_slk_string(texts[i]);old[i]=G_SetSLKRows(names[i],rows[i]);}
+    bool ready=run_test_jass(
+        "function main takes nothing returns nothing\nlocal unit a=CreateUnit(Player(0),'hfoo',512.0,512.0,0.0)\n"
+        "local unit b=CreateUnit(Player(1),'hfoo',640.0,512.0,180.0)\n"
+        "call PauseUnit(b,true)\ncall SetUnitAcquireRange(a,137.25)\n"
+        "call IssuePointOrder(a,\"patrol\",1024.0,512.0)\nendfunction\n");
+    T_ASSERT(ready);
+    edict_t *unit=NULL,*target=NULL;
+    FILTER_EDICTS(u,u->inuse && u->class_id==MAKEFOURCC('h','f','o','o')) {
+        if(u->s.player==0)unit=u;else if(u->s.player==1)target=u;
+    }
+    T_NOT_NULL(unit);T_NOT_NULL(target);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t valid=Test_TempPath("save232-valid-attack-timer.bin");
+    if(ready && unit && target) {
+        unsigned index=unit-g_edicts,target_index=target-g_edicts;
+        /* Obtain both timers from actual acquisition and damage scheduling. */
+        FOR_LOOP(i,200){if(unit->attack_reaction.active)break;level.time+=5;globals.RunFrame();}
+        T_ASSERT(unit->attack_reaction.active);
+        if(unit->attack_reaction.active)Save232RejectBadTimer(&unit->attack_reaction);
+        FOR_LOOP(i,400){if(unit->attack_damage.active)break;level.time+=5;globals.RunFrame();}
+        T_ASSERT(unit->attack_damage.active);
+        if(unit->attack_damage.active)Save232RejectBadTimer(&unit->attack_damage);
+        /* Exercise the real failed-arrival inverse, not a manufactured cache. */
+        T_ASSERT(S_OrderAttack(unit,target));
+        S_AttackTargetChaseComplete(unit,unit,false);
+        abilityPrimaryTimer_t *failed=NULL;
+        FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)
+            if(unit->attack_failed_targets[i].target==target && unit->attack_failed_targets[i].timer.active)
+                failed=&unit->attack_failed_targets[i].timer;
+        T_NOT_NULL(failed);
+        if(failed)Save232RejectBadTimer(failed);
+        T_ASSERT(WriteGame(valid));
+        bool loaded=ReadGame(valid);T_ASSERT(loaded);
+        if(loaded){unit=g_edicts+index;target=g_edicts+target_index;
+            T_ASSERT(S_ValidateAttackTargets());
+            unsigned retained=0;
+            FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)
+                retained+=unit->attack_failed_targets[i].timer.active && unit->attack_failed_targets[i].target==target;
+            T_EQ(retained,1);
+        }
+    }
+    remove(valid);
+    level.started=false;reset_entities();setup_test_world();
+    FOR_LOOP(i,3){G_SetSLKRows(names[i],old[i]);free_slk_rows(rows[i]);}
+    level.setup.map_flags=old_flags;level.setup.random_seed=old_seed;
+    game.constants.reactionDelay=old_reaction;
+}
+
 #endif

@@ -41,7 +41,7 @@ static void charm_setup(charmFix_t *fix, uint32_t target_type) {
     fix->caster->s.player = 0; fix->target->s.player = 1;
     fix->caster->svflags |= SVF_MONSTER; fix->target->svflags |= SVF_MONSTER;
     fix->caster->targtype = fix->target->targtype = TARG_GROUND;
-    fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ANCH, .level = 1);
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANCH, .level = 1);
     fix->caster->mana.value = fix->caster->mana.max_value = 200;
     fix->target->health.value = fix->target->health.max_value = 500;
     fix->target->data.UnitBalance = &fix->target_balance;
@@ -79,7 +79,7 @@ TEST(wc3_spell, charm_rejects_dead_hero_resistant_and_unbalanced_targets) {
     charm_done(&fix);
 
     charm_setup(&fix, MAKEFOURCC('n','f','t','t'));
-    fix.target->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ACSK, .level = 1);
+    fix.target->heroabilities[0] = MAKE(heroability_t, .code = BZ_ACSK, .level = 1);
     mana = fix.caster->mana.value;
     T_ASSERT(S_UnitIsResistant(fix.target));
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANCH, fix.target));

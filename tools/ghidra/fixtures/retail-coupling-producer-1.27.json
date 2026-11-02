@@ -1,0 +1,598 @@
+{
+  "version": 1,
+  "task": "TARGET-01.2",
+  "engine_parity": false,
+  "pins": {
+    "accepted": {
+      "sources": {
+        "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+        "itemdrop_make_map.py": "7909f2376e753f4c3d6e6bf7624c00b6564c57b73a9369d160d906a1cb2e7b57",
+        "itemdrop_observer.js": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a",
+        "itemdrop_probe.j": "64d05dffaa602a64c4b301f23b6d7eb031bad641287d0a742656f98a73f7c2a9"
+      },
+      "map": "f373cd766271b876768857c263b850f6d7b80ba303274dbc38fa6236de3bd3ac",
+      "public": "dff523d74f7c26330e879c0e8cb84c07215b730c4dadb9e4c937280e6c5aa690"
+    },
+    "rejected_missing_abilities": {
+      "sources": {
+        "itemdrop_capture.py": "f117909276295c4ba3d7832f0883f2a5e565c73a7c5eab30aa55cb752aa6b13e",
+        "itemdrop_make_map.py": "4c71633bbb0b350c91bbd609354fa265cfe0be9cb9558bcc3dda8a72cdd94b4c",
+        "itemdrop_observer.js": "d0d3df02ddb4c4f6c03be16a9ac146d48d9341ed4a2d446fdd4ceafaea778e9a",
+        "itemdrop_probe.j": "1e3818261d2dcf44c8576df63601bbb123ccd990a4269f9c83512ef03bdfb789"
+      },
+      "map": "5d78895b59e9ad122ec906e99f99f0ea0567eee6c089bb2b3bab43de292881e8",
+      "public": "2c5055ad679d6f9c665ef6ac3785fe2fea9e65b89326799043885250764f2361"
+    }
+  },
+  "metadata_task": "TARGET-01.2-militia",
+  "scope": "Public-added target coupling; initial missing-ability rejection is separate, not producer proof.",
+  "bundle_sha256": "0afa306424152534bf1a1b9ab88889813a69cad87d06df82b844d82116a69335",
+  "archive_availability_provenance": {
+    "selected-rows.json": {
+      "war3.mpq-UnitAbilities.slk": [
+        {
+          "unitAbilID": "earc",
+          "sortAbil": "c2",
+          "comment(s)": "Archer",
+          "auto": "_",
+          "abilList": "Acoa,Ashm",
+          "InBeta": "1"
+        },
+        {
+          "unitAbilID": "ehip",
+          "sortAbil": "c2",
+          "comment(s)": "Hippogryph",
+          "auto": "_",
+          "abilList": "Acoh",
+          "InBeta": "1"
+        }
+      ],
+      "war3.mpq-UpgradeData.slk": [
+        {
+          "upgradeid": "Reht",
+          "comments": "nightelf hippogryph taming",
+          "class": "_",
+          "race": "nightelf",
+          "flag": "16384",
+          "used": "1",
+          "maxlevel": "1",
+          "inherit": "1",
+          "goldbase": "100",
+          "goldmod": "0",
+          "lumberbase": "50",
+          "lumbermod": "0",
+          "timebase": "30",
+          "timemod": "0",
+          "effect1": "_",
+          "base1": "-",
+          "mod1": "-",
+          "effect2": "_",
+          "base2": "-",
+          "mod4": "-"
+        }
+      ],
+      "War3x.mpq-UnitAbilities.slk": [
+        {
+          "unitAbilID": "earc",
+          "sortAbil": "c2",
+          "comment(s)": "Archer",
+          "auto": "_",
+          "abilList": "Aco2,Ashm,Aien,Ault",
+          "InBeta": "1"
+        },
+        {
+          "unitAbilID": "ehip",
+          "sortAbil": "c2",
+          "comment(s)": "Hippogryph",
+          "auto": "_",
+          "abilList": "Aco3,Ault",
+          "InBeta": "1"
+        },
+        {
+          "unitAbilID": "ehpr",
+          "sortAbil": "c2",
+          "comment(s)": "Hippogryph Rider",
+          "auto": "_",
+          "abilList": "Adec,Ault",
+          "InBeta": "1"
+        }
+      ],
+      "War3x.mpq-UpgradeData.slk": [
+        {
+          "upgradeid": "Reht",
+          "comments": "nightelf hippogryph taming",
+          "class": "_",
+          "race": "nightelf",
+          "sort": "_",
+          "used": "1",
+          "global": "0",
+          "maxlevel": "1",
+          "inherit": "1",
+          "goldbase": "75",
+          "goldmod": "0",
+          "lumberbase": "75",
+          "lumbermod": "0",
+          "timebase": "30",
+          "timemod": "0",
+          "effect1": "_",
+          "base1": "-",
+          "mod1": "-",
+          "code1": "-",
+          "effect2": "_",
+          "base2": "-",
+          "mod2": "-",
+          "code2": "-",
+          "effect3": "_",
+          "base3": "-",
+          "mod3": "-",
+          "code3": "-",
+          "effect4": "_",
+          "base4": "-",
+          "mod4": "-",
+          "code4": "-",
+          "version": "0",
+          "InBeta": "1"
+        }
+      ],
+      "War3Patch.mpq-UnitAbilities.slk": [
+        {
+          "unitAbilID": "earc",
+          "sortAbil": "c2",
+          "comment(s)": "Archer",
+          "auto": "_",
+          "abilList": "Aco2,Ashm,Aien,Ault,Aegr",
+          "InBeta": "1"
+        },
+        {
+          "unitAbilID": "ehip",
+          "sortAbil": "c2",
+          "comment(s)": "Hippogryph",
+          "auto": "_",
+          "abilList": "Aco3,Ault",
+          "InBeta": "1"
+        },
+        {
+          "unitAbilID": "ehpr",
+          "sortAbil": "c2",
+          "comment(s)": "Hippogryph Rider",
+          "auto": "_",
+          "abilList": "Adec,Ault",
+          "InBeta": "1"
+        }
+      ],
+      "War3Patch.mpq-UpgradeData.slk": [
+        {
+          "upgradeid": "Reht",
+          "comments": "nightelf hippogryph taming",
+          "class": "_",
+          "race": "nightelf",
+          "sort": "_",
+          "used": "1",
+          "global": "0",
+          "maxlevel": "1",
+          "inherit": "1",
+          "goldbase": "75",
+          "goldmod": "0",
+          "lumberbase": "75",
+          "lumbermod": "0",
+          "timebase": "30",
+          "timemod": "0",
+          "effect1": "_",
+          "base1": "-",
+          "mod1": "-",
+          "code1": "-",
+          "effect2": "_",
+          "base2": "-",
+          "mod2": "-",
+          "code2": "-",
+          "effect3": "_",
+          "base3": "-",
+          "mod3": "-",
+          "code3": "-",
+          "effect4": "_",
+          "base4": "-",
+          "mod4": "-",
+          "code4": "-",
+          "version": "0",
+          "InBeta": "1"
+        }
+      ]
+    },
+    "extraction.json": [
+      {
+        "archive": "war3.mpq",
+        "file": "Units/UnitAbilities.slk",
+        "exit": 0,
+        "bytes": 35491,
+        "sha256": "7895f8ee7dd494db7dee74f580828594e31a932bf5eaf36d74b277c2b0463d35",
+        "stderr": ""
+      },
+      {
+        "archive": "war3.mpq",
+        "file": "Units/NightElfUnitFunc.txt",
+        "exit": 0,
+        "bytes": 8882,
+        "sha256": "030cd2fea0459988705cf29974e4243cee197cabceff49135fd0d6ecca152ad9",
+        "stderr": ""
+      },
+      {
+        "archive": "war3.mpq",
+        "file": "Units/UpgradeData.slk",
+        "exit": 0,
+        "bytes": 28530,
+        "sha256": "d47feced6adc774e7443c12adb30e303fb75ae52ddbd1b1a7144c5520ef00f1e",
+        "stderr": ""
+      },
+      {
+        "archive": "War3x.mpq",
+        "file": "Units/UnitAbilities.slk",
+        "exit": 0,
+        "bytes": 76839,
+        "sha256": "691eea91dbc3545efbef3d46d35d6ad421c55b6e66021ef23f7e12b176efe2c3",
+        "stderr": ""
+      },
+      {
+        "archive": "War3x.mpq",
+        "file": "Units/NightElfUnitFunc.txt",
+        "exit": 0,
+        "bytes": 11619,
+        "sha256": "2ff9a86122f3e76cf17339cf853af4c81f8939ef5fa3dc4c8f2e7689026a2767",
+        "stderr": ""
+      },
+      {
+        "archive": "War3x.mpq",
+        "file": "Units/UpgradeData.slk",
+        "exit": 0,
+        "bytes": 36366,
+        "sha256": "0fd1a241a367f754bd5899c94debe6b5a3753f3763e287ca10efb3cbb4ed4862",
+        "stderr": ""
+      },
+      {
+        "archive": "War3Patch.mpq",
+        "file": "Units/UnitAbilities.slk",
+        "exit": 0,
+        "bytes": 79235,
+        "sha256": "156052e0f5c7d8b69c2e299a8d975d94bffd64731b65fbac194a712a706e9410",
+        "stderr": ""
+      },
+      {
+        "archive": "War3Patch.mpq",
+        "file": "Units/NightElfUnitFunc.txt",
+        "exit": 0,
+        "bytes": 12000,
+        "sha256": "cb5891f3c4ed9f7435d2112cc9be7a467e7e139e8011aaba12802ec2b0b4e226",
+        "stderr": ""
+      },
+      {
+        "archive": "War3Patch.mpq",
+        "file": "Units/UpgradeData.slk",
+        "exit": 0,
+        "bytes": 36366,
+        "sha256": "ede42e9f642db364ddd932c9279ee03d366bd176d1dea1da1d003678d5523bbf",
+        "stderr": ""
+      }
+    ],
+    "map-unit-overrides.json": {
+      "version": 2,
+      "bytes": 732,
+      "consumed": 732,
+      "sha256": "7dc6eac32f95125c131fd2dadf8b6cd536e37674d1a4d2efc00db221de71b92c",
+      "tables": [
+        [
+          {
+            "old": "hfoo",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "Hpal",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "edoc",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "edcm",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "edot",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "edtm",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "ewsp",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          },
+          {
+            "old": "egol",
+            "new": "\u0000\u0000\u0000\u0000",
+            "modifications": [
+              {
+                "field": "urpo",
+                "type": 0,
+                "value": 2,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpp",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpg",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              },
+              {
+                "field": "urpr",
+                "type": 0,
+                "value": 17,
+                "end": "\u0000\u0000\u0000\u0000"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "old": "hfoo",
+            "new": "hF00",
+            "modifications": [
+              {
+                "field": "ufor",
+                "type": 0,
+                "value": 0,
+                "end": "hF00"
+              }
+            ]
+          },
+          {
+            "old": "hfoo",
+            "new": "hF01",
+            "modifications": [
+              {
+                "field": "ufor",
+                "type": 0,
+                "value": 1,
+                "end": "hF01"
+              }
+            ]
+          },
+          {
+            "old": "hfoo",
+            "new": "hF02",
+            "modifications": [
+              {
+                "field": "ufor",
+                "type": 0,
+                "value": 2,
+                "end": "hF02"
+              }
+            ]
+          },
+          {
+            "old": "hfoo",
+            "new": "hF03",
+            "modifications": [
+              {
+                "field": "ufor",
+                "type": 0,
+                "value": 3,
+                "end": "hF03"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    "findings.json": {
+      "scope": "Original archive rows and inherited probe overrides; no new live experiment or engine parity claim",
+      "base_archive": {
+        "earc": "Acoa,Ashm",
+        "ehip": "Acoh"
+      },
+      "War3x.mpq": {
+        "earc": "Aco2,Ashm,Aien,Ault",
+        "ehip": "Aco3,Ault",
+        "ehpr": "Adec,Ault"
+      },
+      "War3Patch.mpq": {
+        "earc": "Aco2,Ashm,Aien,Ault,Aegr",
+        "ehip": "Aco3,Ault",
+        "ehpr": "Adec,Ault"
+      },
+      "requirements": "Original NightElfAbilityFunc Acoa/Acoh/Aco2/Aco3 require Reht. Patch UpgradeData Reht effect1..4 are underscores, so that row has no ability-add effect. Research does not supply the absent target ability via authored upgrade effects.",
+      "map_overrides": "Initial176 listfile has no Units/UnitAbilities.slk; war3map.w3u parsed to exact732byte end, no earc/ehip/ehpr or uabi modifications.",
+      "interpretation": "Initial .w3m stock earc/ehip levels0 for Acoa/Acoh are consistent with effective patch unit ability lists using separate Acoi aliases Aco2/Aco3. Explicit UnitAddAbility probes should be labelled authored target-coupling witnesses, not stockpatched instant-coupling evidence.",
+      "archive_priority": "common/common.c FS_ArchiveRank prioritizes War3Patch over base/expansion. Effective mounted rows must be distinguished from bare original basearchive content.",
+      "limits": "Does not reconstruct every original edition-specific virtual data overlay. Concludes directly from these extracted rows, map overrides and supplied public level0 observations."
+    }
+  }
+}

@@ -1,0 +1,7486 @@
+{
+  "version": 1,
+  "task": "MAP-04.2/GROUP-04.6",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "pins": {
+    "tools/frida/research/capscope273_probe.j": "5daf2811806cd880ef17ae0075adf56ada932b6f1f39f75ac015c8b11d2f4a3e",
+    "tools/frida/research/capscope273_probe.ai": "f13c4b451061d127b93207c88dd490b161b7aafc14df95606d17b05474ac42b2",
+    "tools/frida/research/capscope273_observer.js": "a4e108a107682bf83e50fd0368be28777b380108430363f450821bdf0375207b",
+    "tools/frida/research/capscope273_make_map.py": "602682fe9830c3af6761c47abad2226bd90873dbf107b8585171f0eda75bb30f",
+    "tools/ghidra/research/Capscope273Evidence.java": "bba5a1db08b70fbb4b45bece8051360a64e17642ca735b5f630724f200ca662d",
+    "tools/ghidra/research/capscope273_oracle.py": "d2077b89011c1a24d39402edd2648993b620ee4bec1f9f77f7512457b4611034",
+    "tools/ghidra/research/capscope273_header.py": "3219b92f7e02afc3275540bee67b7a02bfcf66cfa13f73734b0f0445ec2f189e",
+    "tools/ghidra/verify_wc3_pathing_capscope273.py": "50dcd8b0ff715602f259f96f90862ce841695fc73031538491a1b71e0ffd26cb",
+    "tools/frida/research/rank264_capture.py": "5a5f530cacf36863700617c1d0290c6e632eb74beff2812675653d4930643a87",
+    "tools/ghidra/research/foot03_rig.py": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+  },
+  "bundle_sha256": "2c10368321c3319b02e425c14f8f975002c0016b3cb01bac22d5d3328ed28527",
+  "map_sha256": "6f233dbe44b620f6bd6c685fd8942245bd7de4433a128f49234be2d5fcd657f9",
+  "events": [
+    {
+      "event": "publish",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-enter",
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-leave",
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-enter",
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-leave",
+      "request": [
+        720,
+        790
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        720,
+        790
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        777,
+        811
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-enter",
+      "request": [
+        777,
+        811
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        777,
+        811
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        777,
+        811
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-leave",
+      "request": [
+        777,
+        811
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-enter",
+      "request": [
+        777,
+        811
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        777,
+        811
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        777,
+        811
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-leave",
+      "request": [
+        777,
+        811
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        777,
+        811
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        796,
+        831
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-enter",
+      "request": [
+        796,
+        831
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        796,
+        831
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        796,
+        831
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-leave",
+      "request": [
+        796,
+        831
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-enter",
+      "request": [
+        796,
+        831
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        796,
+        831
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        796,
+        831
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-leave",
+      "request": [
+        796,
+        831
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        796,
+        831
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        815,
+        851
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-enter",
+      "request": [
+        815,
+        851
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        815,
+        851
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        815,
+        851
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-leave",
+      "request": [
+        815,
+        851
+      ],
+      "flags": 2049,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-enter",
+      "request": [
+        815,
+        851
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        815,
+        851
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 1,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        815,
+        851
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-leave",
+      "request": [
+        815,
+        851
+      ],
+      "flags": 6145,
+      "targetId": [
+        757,
+        773
+      ],
+      "target": {
+        "object": 0,
+        "counter": 0,
+        "retired": false
+      },
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        815,
+        851
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-enter",
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "acquire-leave",
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-enter",
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 0,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 0,
+      "phase": "release-leave",
+      "request": [
+        815,
+        854
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 0,
+      "depth": 1,
+      "request": [
+        815,
+        854
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-enter",
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-leave",
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-enter",
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-leave",
+      "request": [
+        721,
+        858
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        721,
+        858
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "acquire-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-enter",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 11,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 11,
+      "phase": "release-leave",
+      "request": [
+        815,
+        862
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 11,
+      "depth": 1,
+      "request": [
+        815,
+        862
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-enter",
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-leave",
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-enter",
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-leave",
+      "request": [
+        778,
+        907
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        778,
+        907
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870913,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870913,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870913,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870913,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870913,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870913,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 536870912,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "acquire-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-enter",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 31,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 31,
+      "phase": "release-leave",
+      "request": [
+        798,
+        911
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 31,
+      "depth": 1,
+      "request": [
+        798,
+        911
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-enter",
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-leave",
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": true,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-enter",
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-leave",
+      "request": [
+        721,
+        956
+      ],
+      "flags": 0,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            757,
+            773
+          ],
+          "ready": false,
+          "record": {
+            "object": 0,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        721,
+        956
+      ],
+      "result": 1
+    },
+    {
+      "event": "publish",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870913,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870913,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 536870912,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "result": 4294967295
+    },
+    {
+      "event": "publish",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 1,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "acquire-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": true,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": true,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": true,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-enter",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 1,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 1,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "enter",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "target-toggle",
+      "tick": 60,
+      "phase": "leave",
+      "on": 0,
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "scope",
+      "tick": 60,
+      "phase": "release-leave",
+      "request": [
+        834,
+        960
+      ],
+      "flags": 3328,
+      "targetId": [
+        4294967295,
+        4294967295
+      ],
+      "target": null,
+      "cache": null,
+      "rows": [
+        {
+          "index": 0,
+          "id": [
+            674,
+            674
+          ],
+          "ready": false,
+          "record": {
+            "object": 3,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 1,
+          "id": [
+            705,
+            705
+          ],
+          "ready": false,
+          "record": {
+            "object": 2,
+            "counter": 0,
+            "retired": false
+          }
+        },
+        {
+          "index": 2,
+          "id": [
+            736,
+            736
+          ],
+          "ready": false,
+          "record": {
+            "object": 1,
+            "counter": 0,
+            "retired": false
+          }
+        }
+      ]
+    },
+    {
+      "event": "published",
+      "tick": 60,
+      "depth": 1,
+      "request": [
+        834,
+        960
+      ],
+      "result": 1
+    }
+  ],
+  "instructions": {
+    "6f16aff0": "8b81f4000000",
+    "6f16aff6": "85c0",
+    "6f16aff8": "7410",
+    "6f16affa": "837838ff",
+    "6f16affe": "751c",
+    "6f16b000": "c781f400000000000000",
+    "6f16b00a": "e8610e0000",
+    "6f16b00f": "85c0",
+    "6f16b011": "7407",
+    "6f16b013": "8b8098000000",
+    "6f16b019": "c3",
+    "6f16b01a": "33c0",
+    "6f16b01c": "c3",
+    "6f16be70": "8b91e0000000",
+    "6f16be76": "8b89dc000000",
+    "6f16be7c": "e9af86eeff",
+    "6f16da60": "55",
+    "6f16da61": "8bec",
+    "6f16da63": "e888d5ffff",
+    "6f16da68": "85c0",
+    "6f16da6a": "7410",
+    "6f16da6c": "837d0800",
+    "6f16da70": "7407",
+    "6f16da72": "ff4040",
+    "6f16da75": "5d",
+    "6f16da76": "c20400",
+    "6f16da79": "ff4840",
+    "6f16da7c": "5d",
+    "6f16da7d": "c20400",
+    "6f169c50": "55",
+    "6f169c51": "8bec",
+    "6f169c53": "83ec08",
+    "6f169c56": "53",
+    "6f169c57": "56",
+    "6f169c58": "57",
+    "6f169c59": "6a01",
+    "6f169c5b": "8bf1",
+    "6f169c5d": "e8fe3d0000",
+    "6f169c62": "8b450c",
+    "6f169c65": "8d5e1c",
+    "6f169c68": "b90c000000",
+    "6f169c6d": "895df8",
+    "6f169c70": "8dbeac000000",
+    "6f169c76": "894dfc",
+    "6f169c79": "c70000000000",
+    "6f169c7f": "8b4508",
+    "6f169c82": "c70000000000",
+    "6f169c88": "eb06",
+    "6f169c90": "8b03",
+    "6f169c92": "8bf0",
+    "6f169c94": "8b151086d66f",
+    "6f169c9a": "c1ee1f",
+    "6f169c9d": "85f6",
+    "6f169c9f": "752f",
+    "6f169ca1": "3b421c",
+    "6f169ca4": "730c",
+    "6f169ca6": "8b4a0c",
+    "6f169ca9": "833cc1fe",
+    "6f169cad": "743a",
+    "6f169caf": "8b4dfc",
+    "6f169cb2": "c707ffffffff",
+    "6f169cb8": "83c30c",
+    "6f169cbb": "83c704",
+    "6f169cbe": "49",
+    "6f169cbf": "895df8",
+    "6f169cc2": "894dfc",
+    "6f169cc5": "75c9",
+    "6f169cc7": "5f",
+    "6f169cc8": "5e",
+    "6f169cc9": "5b",
+    "6f169cca": "8be5",
+    "6f169ccc": "5d",
+    "6f169ccd": "c20800",
+    "6f169cd0": "8bd8",
+    "6f169cd2": "81e3ffffff7f",
+    "6f169cd8": "3b5a3c",
+    "6f169cdb": "736f",
+    "6f169cdd": "8b4a2c",
+    "6f169ce0": "833cd9fe",
+    "6f169ce4": "8b5df8",
+    "6f169ce7": "75c6",
+    "6f169ce9": "85f6",
+    "6f169ceb": "740a",
+    "6f169ced": "8b4a2c",
+    "6f169cf0": "25ffffff7f",
+    "6f169cf5": "eb03",
+    "6f169cf7": "8b4a0c",
+    "6f169cfa": "8b4cc104",
+    "6f169cfe": "33f6",
+    "6f169d00": "8b4118",
+    "6f169d03": "3b4304",
+    "6f169d06": "0f44f1",
+    "6f169d09": "85f6",
+    "6f169d0b": "74a2",
+    "6f169d0d": "8b8690000000",
+    "6f169d13": "8b8ea8000000",
+    "6f169d19": "8945f8",
+    "6f169d1c": "8d45f8",
+    "6f169d1f": "50",
+    "6f169d20": "e8bbeeffff",
+    "6f169d25": "8b8698000000",
+    "6f169d2b": "8b4dfc",
+    "6f169d2e": "ff4040",
+    "6f169d31": "833fff",
+    "6f169d34": "750a",
+    "6f169d36": "8b450c",
+    "6f169d39": "ff00",
+    "6f169d3b": "e978ffffff",
+    "6f169d40": "8b4508",
+    "6f169d43": "8937",
+    "6f169d45": "ff00",
+    "6f169d47": "e96cffffff",
+    "6f169d4c": "8b5df8",
+    "6f169d4f": "e95effffff",
+    "6f169d60": "55",
+    "6f169d61": "8bec",
+    "6f169d63": "83ec08",
+    "6f169d66": "8b151086d66f",
+    "6f169d6c": "8bc1",
+    "6f169d6e": "53",
+    "6f169d6f": "56",
+    "6f169d70": "57",
+    "6f169d71": "bf0c000000",
+    "6f169d76": "8945f8",
+    "6f169d79": "8d581c",
+    "6f169d7c": "897dfc",
+    "6f169d7f": "90",
+    "6f169d80": "8b03",
+    "6f169d82": "8bf0",
+    "6f169d84": "c1ee1f",
+    "6f169d87": "85f6",
+    "6f169d89": "7510",
+    "6f169d8b": "3b421c",
+    "6f169d8e": "735c",
+    "6f169d90": "8b4a0c",
+    "6f169d93": "833cc1fe",
+    "6f169d97": "741b",
+    "6f169d99": "eb51",
+    "6f169d9b": "8bf8",
+    "6f169d9d": "81e7ffffff7f",
+    "6f169da3": "3b7a3c",
+    "6f169da6": "7341",
+    "6f169da8": "8b4a2c",
+    "6f169dab": "833cf9fe",
+    "6f169daf": "8b7dfc",
+    "6f169db2": "7538",
+    "6f169db4": "85f6",
+    "6f169db6": "740a",
+    "6f169db8": "8b4a2c",
+    "6f169dbb": "25ffffff7f",
+    "6f169dc0": "eb03",
+    "6f169dc2": "8b4a0c",
+    "6f169dc5": "8b74c104",
+    "6f169dc9": "33c9",
+    "6f169dcb": "8b4618",
+    "6f169dce": "3b4304",
+    "6f169dd1": "0f44ce",
+    "6f169dd4": "85c9",
+    "6f169dd6": "7414",
+    "6f169dd8": "8b8198000000",
+    "6f169dde": "ff4840",
+    "6f169de1": "8b151086d66f",
+    "6f169de7": "eb03",
+    "6f169de9": "8b7dfc",
+    "6f169dec": "83c30c",
+    "6f169def": "4f",
+    "6f169df0": "897dfc",
+    "6f169df3": "758b",
+    "6f169df5": "8b4df8",
+    "6f169df8": "6a00",
+    "6f169dfa": "e8613c0000",
+    "6f169dff": "5f",
+    "6f169e00": "5e",
+    "6f169e01": "5b",
+    "6f169e02": "8be5",
+    "6f169e04": "5d",
+    "6f169e05": "c3",
+    "6f16bcf0": "55",
+    "6f16bcf1": "8bec",
+    "6f16bcf3": "83ec1c",
+    "6f16bcf6": "56",
+    "6f16bcf7": "8bf1",
+    "6f16bcf9": "8975f8",
+    "6f16bcfc": "e8ef020000",
+    "6f16bd01": "8bce",
+    "6f16bd03": "85c0",
+    "6f16bd05": "740e",
+    "6f16bd07": "8b06",
+    "6f16bd09": "6a00",
+    "6f16bd0b": "ff5010",
+    "6f16bd0e": "33c0",
+    "6f16bd10": "5e",
+    "6f16bd11": "8be5",
+    "6f16bd13": "5d",
+    "6f16bd14": "c3",
+    "6f16bd15": "8d45fc",
+    "6f16bd18": "50",
+    "6f16bd19": "8d45f4",
+    "6f16bd1c": "50",
+    "6f16bd1d": "e82edfffff",
+    "6f16bd22": "837dfc00",
+    "6f16bd26": "8bce",
+    "6f16bd28": "760d",
+    "6f16bd2a": "e831e0ffff",
+    "6f16bd2f": "83c8ff",
+    "6f16bd32": "5e",
+    "6f16bd33": "8be5",
+    "6f16bd35": "5d",
+    "6f16bd36": "c3",
+    "6f16bd37": "53",
+    "6f16bd38": "57",
+    "6f16bd39": "8d45e4",
+    "6f16bd3c": "50",
+    "6f16bd3d": "8d9ee8000000",
+    "6f16bd43": "e828020000",
+    "6f16bd48": "8bf8",
+    "6f16bd4a": "8d4b04",
+    "6f16bd4d": "51",
+    "6f16bd4e": "8d4df4",
+    "6f16bd51": "8d5704",
+    "6f16bd54": "e8573ef0ff",
+    "6f16bd59": "53",
+    "6f16bd5a": "8bd7",
+    "6f16bd5c": "8d4dfc",
+    "6f16bd5f": "8bf0",
+    "6f16bd61": "e84a3ef0ff",
+    "6f16bd66": "8b7df8",
+    "6f16bd69": "33db",
+    "6f16bd6b": "8b08",
+    "6f16bd6d": "894dec",
+    "6f16bd70": "8b06",
+    "6f16bd72": "33f6",
+    "6f16bd74": "8945f0",
+    "6f16bd77": "8d45ec",
+    "6f16bd7a": "8bcf",
+    "6f16bd7c": "50",
+    "6f16bd7d": "56",
+    "6f16bd7e": "e82d000000",
+    "6f16bd83": "85c0",
+    "6f16bd85": "7401",
+    "6f16bd87": "43",
+    "6f16bd88": "46",
+    "6f16bd89": "83fe0c",
+    "6f16bd8c": "72e9",
+    "6f16bd8e": "8bcf",
+    "6f16bd90": "e8cbdfffff",
+    "6f16bd95": "8b17",
+    "6f16bd97": "8bcf",
+    "6f16bd99": "6a00",
+    "6f16bd9b": "ff5210",
+    "6f16bd9e": "5f",
+    "6f16bd9f": "8bc3",
+    "6f16bda1": "5b",
+    "6f16bda2": "5e",
+    "6f16bda3": "8be5",
+    "6f16bda5": "5d",
+    "6f16bda6": "c3"
+  },
+  "engine_tests": [
+    "wc3_movement.capscope273_original_target_alias_pending_drop_and_nested_depth",
+    "wc3_movement.capscope273_captain_uses_canonical_admission_before_shared_publication",
+    "wc3_movement.capscope273_captain_nested_replacement_rejection_and_cold_save"
+  ],
+  "limits": [
+    "Canonical Captain admission/publication and target fallback.24 unchanged original fixture cases;16 engine cases cover no target,distinct,member alias,invalid generation at outer depths0/3,ready/drop. Cached/retired region cases are original-code evidence only; current engine Captain producer has no cached-region input.",
+    "Two complete read-only Captain repeats and observer-free control retain182 identical public markers;17 publications each,3 with target fallback,68 member scope boundaries and68 target-toggle boundaries. Capture runner metadata retains its historical GROUP-03.2 task label and extra unused sources; actual map/probe/AI/observer pins are explicit.",
+    "No arbitrary notification reentrancy, no full MAP-04.2 or GROUP-04.6 closure, no new performance claim. Existing movement and save fixtures are unchanged."
+  ]
+}

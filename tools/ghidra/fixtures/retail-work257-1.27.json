@@ -1,0 +1,919 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.stop247*",
+    "wc3_movement.recovery183*",
+    "wc3_movement.public_stop*",
+    "wc3_movement.primary_clock_public_move_save_pause_and_stop",
+    "wc3_movement.public_speed_turn_stop_and_boundary_restart*",
+    "wc3_movement.selected*",
+    "wc3_movement.target221*",
+    "wc3_movement.public_captain_go_home*",
+    "wc3_order_lifecycle.*",
+    "wc3_interrupt.*",
+    "wc3_save.rejects_prior_save_versions",
+    "wc3_save.rejects_layout_mismatch_before_selecting_map",
+    "wc3_movement.stop257*",
+    "wc3_movement.pathing_pause_and_displacement_match_original_and_saved_continuations",
+    "pathfinding.fine_scope*",
+    "pathfinding.coarse_scope*",
+    "pathfinding.captain_distance_excludes_widget_bounds_and_restores_pending_terrain"
+  ],
+  "pins": {
+    "tools/frida/research/work257_observer.js": "ab635842f05a8df108868222909ae2dcaffd565d58eefec539147c6ef6f98f0f",
+    "tools/ghidra/research/work257_oracle.py": "d936ca26bdc9e2c2eb34722213348ad7248533130b21fb42c093a20dff9b6c95",
+    "tools/ghidra/research/Work257Evidence.java": "55d2310ed69eab22e4c6ffde51726d529be29b47a91d9fb6ea5e6b47595a4346",
+    "tools/frida/research/target222_capture.py": "850343c8f953687d4fe5223aa35a4f2f5ce89fbab32711c3826b3eee55361548",
+    "tools/ghidra/fixtures/retail-work247-1.27.json": "622ce15028e0fde08cf54237703528c2fb6f7d15850ec60740e3e021ebc71058",
+    "tools/ghidra/fixtures/retail-work247-1.27.json.gz": "238875288e5210f93d548b58b6c890bb41da373e6e42171456bc39ccfa2ea1b4",
+    "tools/ghidra/research/foot03_rig.py": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+  },
+  "bundle_sha256": "cd72e9ea62a26d7d52a6067267c2aa76c8c4d84a0c867c9a8413211e824ad79a",
+  "instructions": {
+    "6f69a840": "55",
+    "6f69a841": "8bec",
+    "6f69a843": "83ec10",
+    "6f69a846": "56",
+    "6f69a847": "8bf1",
+    "6f69a849": "8b06",
+    "6f69a84b": "ff90d4000000",
+    "6f69a851": "6a01",
+    "6f69a853": "8bce",
+    "6f69a855": "8945fc",
+    "6f69a858": "e83319ffff",
+    "6f69a85d": "85c0",
+    "6f69a85f": "753e",
+    "6f69a861": "8b06",
+    "6f69a863": "8bce",
+    "6f69a865": "6a01",
+    "6f69a867": "ff90d0000000",
+    "6f69a86d": "8d45fc",
+    "6f69a870": "50",
+    "6f69a871": "686040656f",
+    "6f69a876": "8d8e64010000",
+    "6f69a87c": "e8cf219cff",
+    "6f69a881": "8b06",
+    "6f69a883": "8bce",
+    "6f69a885": "6a00",
+    "6f69a887": "ff90d0000000",
+    "6f69a88d": "6a01",
+    "6f69a88f": "8d45f0",
+    "6f69a892": "8bce",
+    "6f69a894": "50",
+    "6f69a895": "e8e69bfeff",
+    "6f69a89a": "5e",
+    "6f69a89b": "8be5",
+    "6f69a89d": "5d",
+    "6f69a89e": "c3",
+    "6f69a89f": "6a00",
+    "6f69a8a1": "6a00",
+    "6f69a8a3": "8d8e64010000",
+    "6f69a8a9": "e8a2219cff",
+    "6f69a8ae": "6a01",
+    "6f69a8b0": "8d45f0",
+    "6f69a8b3": "8bce",
+    "6f69a8b5": "50",
+    "6f69a8b6": "e8c59bfeff",
+    "6f69a8bb": "5e",
+    "6f69a8bc": "8be5",
+    "6f69a8be": "5d",
+    "6f69a8bf": "c3",
+    "6f651590": "55",
+    "6f651591": "8bec",
+    "6f651593": "56",
+    "6f651594": "8bf1",
+    "6f651596": "8b5610",
+    "6f651599": "8b4e0c",
+    "6f65159c": "e88f2fa0ff",
+    "6f6515a1": "85c0",
+    "6f6515a3": "7438",
+    "6f6515a5": "33d2",
+    "6f6515a7": "81780c6c67612b",
+    "6f6515ae": "0f44d0",
+    "6f6515b1": "85d2",
+    "6f6515b3": "7428",
+    "6f6515b5": "837a2000",
+    "6f6515b9": "7522",
+    "6f6515bb": "8b06",
+    "6f6515bd": "8bce",
+    "6f6515bf": "ff7508",
+    "6f6515c2": "ff90b8000000",
+    "6f6515c8": "8bc8",
+    "6f6515ca": "e861a7a0ff",
+    "6f6515cf": "8b4e34",
+    "6f6515d2": "85c9",
+    "6f6515d4": "7407",
+    "6f6515d6": "5e",
+    "6f6515d7": "5d",
+    "6f6515d8": "e93327a1ff",
+    "6f6515dd": "5e",
+    "6f6515de": "5d",
+    "6f6515df": "c20400",
+    "6f063d10": "55",
+    "6f063d11": "8bec",
+    "6f063d13": "33d2",
+    "6f063d15": "395104",
+    "6f063d18": "7623",
+    "6f063d1a": "56",
+    "6f063d1b": "8b7508",
+    "6f063d1e": "8bff",
+    "6f063d20": "8b4108",
+    "6f063d23": "8b0490",
+    "6f063d26": "85c0",
+    "6f063d28": "740c",
+    "6f063d2a": "85f6",
+    "6f063d2c": "7405",
+    "6f063d2e": "ff4040",
+    "6f063d31": "eb03",
+    "6f063d33": "ff4840",
+    "6f063d36": "42",
+    "6f063d37": "3b5104",
+    "6f063d3a": "72e4",
+    "6f063d3c": "5e",
+    "6f063d3d": "5d",
+    "6f063d3e": "c20400",
+    "6f6864d0": "8d8164010000",
+    "6f6864d6": "c3",
+    "6f68c190": "55",
+    "6f68c191": "8bec",
+    "6f68c193": "8b415c",
+    "6f68c196": "a900000100",
+    "6f68c19b": "741a",
+    "6f68c19d": "837d0800",
+    "6f68c1a1": "740b",
+    "6f68c1a3": "84c0",
+    "6f68c1a5": "7907",
+    "6f68c1a7": "a900000008",
+    "6f68c1ac": "7409",
+    "6f68c1ae": "b801000000",
+    "6f68c1b3": "5d",
+    "6f68c1b4": "c20400",
+    "6f68c1b7": "33c0",
+    "6f68c1b9": "5d",
+    "6f68c1ba": "c20400"
+  },
+  "events": [
+    {
+      "event": "unit-toggle-enter",
+      "seq": 0,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 1,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 2,
+      "scene": 0,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 3,
+      "scene": 0,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 4,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 5,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 6,
+      "scene": 0,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 7,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 8,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 9,
+      "scene": 0,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 10,
+      "scene": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 11,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 12,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 13,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 14,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 15,
+      "scene": 0,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 16,
+      "scene": 0,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 17,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 18,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 19,
+      "scene": 0,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 20,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 21,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 22,
+      "scene": 0,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 23,
+      "scene": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 24,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 25,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 26,
+      "scene": 1,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 27,
+      "scene": 1,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 28,
+      "scene": 1,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 29,
+      "scene": 1,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 30,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 31,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 32,
+      "scene": 1,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "placement",
+      "seq": 33,
+      "scene": 1,
+      "counter": 3,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 34,
+      "scene": 1,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "commit",
+      "seq": 35,
+      "scene": 1,
+      "counter": 3,
+      "mode": 0
+    },
+    {
+      "event": "inner-exit",
+      "seq": 36,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 37,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 38,
+      "scene": 1,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 39,
+      "scene": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 40,
+      "scene": 1,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 41,
+      "scene": 1,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 42,
+      "scene": 1,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 43,
+      "scene": 1,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 44,
+      "scene": 1,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 45,
+      "scene": 1,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 46,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 47,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 48,
+      "scene": 1,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 49,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 50,
+      "scene": 1,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 51,
+      "scene": 1,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 52,
+      "scene": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 53,
+      "scene": 1,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 54,
+      "scene": 1,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 55,
+      "scene": 2,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 56,
+      "scene": 2,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 57,
+      "scene": 2,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 58,
+      "scene": 2,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 59,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 60,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 61,
+      "scene": 2,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "placement",
+      "seq": 62,
+      "scene": 2,
+      "counter": 3,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 63,
+      "scene": 2,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 64,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 65,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 66,
+      "scene": 2,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 67,
+      "scene": 2
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 68,
+      "scene": 2,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 69,
+      "scene": 2,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 70,
+      "scene": 2,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 71,
+      "scene": 2,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 72,
+      "scene": 2,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 73,
+      "scene": 2,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 74,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 75,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 76,
+      "scene": 2,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "placement",
+      "seq": 77,
+      "scene": 2,
+      "counter": 3,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 78,
+      "scene": 2,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 79,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 80,
+      "scene": 2,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 81,
+      "scene": 2,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 82,
+      "scene": 2
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 83,
+      "scene": 2,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 84,
+      "scene": 2,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 85,
+      "scene": 3,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 86,
+      "scene": 3,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 87,
+      "scene": 3,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 88,
+      "scene": 3,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 89,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 90,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 91,
+      "scene": 3,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 92,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 93,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 94,
+      "scene": 3,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 95,
+      "scene": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 96,
+      "scene": 3,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 97,
+      "scene": 3,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 98,
+      "scene": 3,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 99,
+      "scene": 3,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 100,
+      "scene": 3,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 101,
+      "scene": 3,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 102,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 103,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 104,
+      "scene": 3,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 105,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 106,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 107,
+      "scene": 3,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 108,
+      "scene": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 109,
+      "scene": 3,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 110,
+      "scene": 3,
+      "on": 0,
+      "regions": 0
+    }
+  ],
+  "limits": [
+    "Integrates ordinary nonstructure unit exclusions around bridge Stop recovery. Existing bridge and pose expectations remain unchanged; duplicate public cleanup and notification reentrancy remain open MAP-04.2.",
+    "Original16-case unit kernel supplies canonical unit tag/liveness and vtable wrapper using original6864d0 getter; no Unit factory/public scene is inferred from this synthetic setup.",
+    "Public captures use the unchanged Work247 map and its earlier observer-free control explicitly. Stock Footman has no widget regions; original063d10 list kernel and engine four-region composition cover region storage independently.",
+    "No performance claim, new save layout or full original save-file capture. Engine save continuations preserve logical state."
+  ]
+}

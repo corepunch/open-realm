@@ -1,0 +1,12 @@
+{
+  "scope": "Public event publication for internal reciprocal852141 and peerStop851972; callbacks numericids, nointernalstring",
+  "setup": "Public-added Acoa/Acoh333/ Reht1, same far832 pair",
+  "scenes": [
+    "normal plusStopArcher115",
+    "normal plusStopHippo115",
+    "reciprocal issuedtarget callback nestedHippoMove",
+    "peerStop issuedimmediate callback nestedHippoMove"
+  ],
+  "callbacks": "registeredplayerunit target/point/immediate, filteredtwoactors; numericorder+actorrole1Archer2Hippo+targetrole+currentheads",
+  "limits": "No general nested callback policy outside these scopes."
+}

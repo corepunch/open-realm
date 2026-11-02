@@ -15,6 +15,10 @@
  * is killed.
  */
 #include "s_skills.h"
+#include "jass/jass.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
+#include "games/warcraft-3/common/wc3_attack_priority.h"
 
 void attack_walk(edict_t *ent);
 void attack_melee(edict_t *ent);
@@ -30,12 +34,646 @@ static bool attack_target_out_of_range(edict_t *ent);
 static bool attack_target_out_of_base_range(edict_t *ent);
 static bool attack_target_too_close(edict_t *ent);
 static bool attack_is_cooling_down(edict_t const *ent);
-static bool attack_cooldown_elapsed(edict_t *ent);
+static bool attack_cooldown_elapsed(edict_t *ent, bool tick_recovery);
 static float attack_speed_divisor(edict_t *self);
 static void attack_set_backswing_deadline(edict_t *ent);
 static float attack_backswing_remaining(edict_t const *ent);
 static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
+static umove_t attack_move_reaction = { "stand ready", NULL, NULL, CAbilityAttack };
+static void attack_reaction_cancel(edict_t *unit);
+static void attack_damage_cancel(edict_t *unit);
+static void attack_damage_fire(edict_t *unit);
+static void attack_swing_complete(edict_t *unit);
+static bool attack_damage_owner(edict_t const *unit);
+static void attack_reaction_fire(edict_t *unit);
+static void attack_begin_reaction(edict_t *unit,edict_t *target);
+static void attack_cooldown_fire(edict_t *unit);
+static void attack_cooldown_cancel(edict_t *unit);
+static float attack_cooldown_remaining(edict_t const *unit);
+static void attack_cooldown_sync(edict_t *unit);
+static bool attack_arm_cooldown(edict_t *unit,float seconds,bool swing);
+static umove_t attack_move_finish = { "stand ready", NULL, NULL, CAbilityAttack };
+static umove_t attack_move_recovery;
+static void attack_resume_after_combat(edict_t *attacker);
+static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason);
+static void attack_recover_target_task(edict_t *attacker, edict_t const *target,
+    bool forced, bool capture_requested, cstring_t reason);
+static void attack_set_cooldown(edict_t *ent, float seconds);
+static unitAttack_t const *attack_ground_profile(edict_t const *ent);
+
+/* Attack's TargetLost subscription is independent of retained Move parents.
+ * Per-target lists cost O(1) to bind/unbind and O(subscribers) to deliver. Save
+ * logical registration ranks; rebuild these derived links in that order. */
+typedef struct { uint16_t target,prev,next; } attackTargetLink_t;
+typedef struct { uint16_t head,tail; uint32_t count; } attackTargetList_t;
+static attackTargetLink_t attack_target_links[MAX_ENTITIES];
+static attackTargetList_t attack_target_lists[MAX_ENTITIES];
+#ifdef BZ_TESTS
+static uint32_t attack_target_visits;
+static void (*attack_test_target_lost)(edict_t *);
+static void (*attack_test_acquire)(edict_t const *,bool,float);
+static void (*attack_test_damage)(edict_t const *);
+#endif
+
+static uint16_t attack_target_identity(edict_t const *unit) {
+    uintptr_t offset=(uintptr_t)unit-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*unit)*MAX_ENTITIES && !(offset%sizeof(*unit)) ?
+        (uint16_t)(offset/sizeof(*unit)+1) : 0;
+}
+
+static void attack_target_unlink(uint16_t id) {
+    attackTargetLink_t *link=attack_target_links+id-1;
+    if(!link->target)return;
+    attackTargetList_t *list=attack_target_lists+link->target-1;
+    if(link->prev)attack_target_links[link->prev-1].next=link->next;
+    else list->head=link->next;
+    if(link->next)attack_target_links[link->next-1].prev=link->prev;
+    else list->tail=link->prev;
+    assert(list->count);list->count--;*link=(attackTargetLink_t){0};
+}
+
+static void attack_target_link(uint16_t id,uint16_t target) {
+    attackTargetList_t *list=attack_target_lists+target-1;
+    attack_target_links[id-1]=(attackTargetLink_t){target,list->tail,0};
+    if(list->tail)attack_target_links[list->tail-1].next=id;
+    else list->head=id;
+    list->tail=id;list->count++;
+}
+
+static void attack_set_alternative(edict_t *unit,edict_t *target) {
+    unit->attack_alternative=target;
+    unit->attack_alternative_spawn_time=target ? target->spawn_time : 0;
+}
+
+/*497e20 cancels cooldown only while the discarded damage point is still
+ * pending. A completed hit retains cooldown and the independent swing clock. */
+static void attack_release_target_timing(edict_t *unit) {
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    if(unit->attack_damage.active && wc3_sub(unit->attack_damage.deadline.time,now.time)>0) {
+        attack_cooldown_cancel(unit);
+    }
+    attack_reaction_cancel(unit);attack_damage_cancel(unit);
+}
+
+static void attack_set_target(edict_t *unit,edict_t *target) {
+    attack_release_target_timing(unit);
+    uint16_t id=attack_target_identity(unit),other=attack_target_identity(target);
+    if(id)attack_target_unlink(id);
+    unit->attack_target=target;unit->attack_target_spawn_time=target ? target->spawn_time : 0;
+    /*49aa18/494420 clear pending loss for new explicit/automatic targets.
+     * Releasing a target alone is not the active recovery consume frontier. */
+    if(target)unit->attack_recovery_pending=false;
+    if(target && level.next_attack_target_sequence==UINT64_MAX)gi.error("Attack: exhausted target subscription sequence");
+    unit->attack_target_sequence=target ? ++level.next_attack_target_sequence : 0;
+    if(id && other)attack_target_link(id,other);
+    G_SetUnitTargetSubscription(TARGET_OWNER_ATTACK,unit,target);
+}
+
+static int attack_target_compare(void const *a,void const *b) {
+    edict_t const *x=g_edicts+*(uint16_t const *)a,*y=g_edicts+*(uint16_t const *)b;
+    return (x->attack_target_sequence>y->attack_target_sequence)-
+        (x->attack_target_sequence<y->attack_target_sequence);
+}
+
+static bool attack_saved_timer_valid(abilityPrimaryTimer_t const *timer) {
+    return timer->sequence && timer->sequence<=level.timer_sequence &&
+        isfinite(timer->deadline.time) && isfinite(timer->deadline.span) &&
+        timer->deadline.span>0;
+}
+
+bool S_ValidateAttackTargets(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *unit=g_edicts+i,*target=unit->attack_target;
+        if(!unit->inuse)continue;
+        if(unit->attack_recovery_pending>1)return false;
+        if(*(uint8_t const *)&unit->attack_guard.initialized>1 ||
+           *(uint8_t const *)&unit->attack_guard.evaluated>1 ||
+           *(uint8_t const *)&unit->attack_guard.returning>1 ||
+           *(uint8_t const *)&unit->attack_guard.timer.active>1)return false;
+        if((unit->attack_guard.evaluated || unit->attack_guard.returning || unit->attack_guard.timer.active) &&
+           !unit->attack_guard.initialized)return false;
+        if(unit->attack_guard.initialized &&
+           (!isfinite(unit->attack_guard.point.x) || !isfinite(unit->attack_guard.point.y) ||
+            !isfinite(unit->attack_guard.range) || unit->attack_guard.range<0))return false;
+        if(unit->attack_guard.timer.active && !attack_saved_timer_valid(&unit->attack_guard.timer))return false;
+        FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+            attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+            if(slot->target) {
+                if(!attack_target_identity(slot->target) || !slot->timer.active ||
+                   !attack_saved_timer_valid(&slot->timer))return false;
+            } else if(slot->target_spawn_time || slot->timer.active)return false;
+        }
+        if(unit->attack_damage.active && (!attack_damage_owner(unit) ||
+           !attack_saved_timer_valid(&unit->attack_damage)))return false;
+        /* Cooldown survives target release and unrelated Move ownership. */
+        if(unit->attack_cooldown.active!=unit->attack_cooldown_active ||
+           (unit->attack_cooldown.active && !attack_saved_timer_valid(&unit->attack_cooldown)))return false;
+        if(unit->attack_reaction.active && (!target || unit->currentmove!=&attack_move_reaction ||
+           M_IsDead((edict_t *)unit) || !attack_saved_timer_valid(&unit->attack_reaction) ||
+           !isfinite(unit->attack_reaction_range) || unit->attack_reaction_range<32.0f))return false;
+        if(unit->attack_alternative && !attack_target_identity(unit->attack_alternative))return false;
+        if(!unit->attack_alternative && unit->attack_alternative_spawn_time)return false;
+        if(!target) {if(unit->attack_target_sequence)return false;continue;}
+        if(!attack_target_identity(target) || !target->inuse || G_IsDeferredFree(target) ||
+           unit->goalentity!=target || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack ||
+           unit->attack_target_spawn_time!=target->spawn_time || !unit->attack_target_sequence ||
+           unit->attack_target_sequence>level.next_attack_target_sequence)return false;
+        units[count++]=i;
+    }
+    qsort(units,count,sizeof(*units),attack_target_compare);
+    FOR_LOOP(i,count)if(i && !attack_target_compare(units+i-1,units+i))return false;
+    return true;
+}
+
+static void attack_targets_reset(void) {
+    memset(attack_target_links,0,sizeof(attack_target_links));memset(attack_target_lists,0,sizeof(attack_target_lists));
+}
+
+static void attack_targets_rebuild(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    attack_targets_reset();
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].attack_target)units[count++]=i;
+    qsort(units,count,sizeof(*units),attack_target_compare);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+units[i];uint16_t target=attack_target_identity(unit->attack_target);
+        if(target)attack_target_link(units[i]+1,target);
+    }
+}
+
+static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed);
+
+/* Freeze this notification's registration frontier before callbacks. Removal,
+ * reuse or reissue must not deliver a new registration in the outer pass. */
+static void attack_deliver_target_event(edict_t *target,bool owner_changed) {
+    uint16_t id=attack_target_identity(target);
+    if(!id || !attack_target_lists[id-1].count)return;
+    uint32_t count=attack_target_lists[id-1].count,pos=0;
+    struct {uint64_t sequence;uint32_t incarnation;uint16_t index;} delivery[count];
+    for(uint16_t next=attack_target_lists[id-1].head;next;next=attack_target_links[next-1].next) {
+        edict_t *unit=g_edicts+next-1;
+        delivery[pos++]=(typeof(delivery[0])){unit->attack_target_sequence,unit->spawn_time,next-1};
+    }
+    assert(pos==count);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+delivery[i].index;
+        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
+           unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
+        S_DeliverAttackTargetEvent(unit,target,owner_changed ? A_TARGET_OWNER_CHANGED : A_TARGET_LOST);
+    }
+}
+
+void S_DeliverAttackTargetEvent(edict_t *unit,edict_t *target,abilityMsg_t message) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || unit->attack_target!=target ||
+       unit->attack_target_spawn_time!=target->spawn_time)return;
+#ifdef BZ_TESTS
+    uint64_t sequence=unit->attack_target_sequence;
+    uint32_t birth=unit->spawn_time;
+    attack_target_visits++;
+    if(attack_test_target_lost)attack_test_target_lost(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->attack_target_sequence!=sequence || unit->attack_target!=target)return;
+#endif
+    bool owner_changed=message==A_TARGET_OWNER_CHANGED;
+    if(owner_changed) {
+        /*49b160 only current-target subscribers observe owner change. */
+        if(unit->attack_alternative==target && unit->attack_alternative_spawn_time==target->spawn_time)
+            attack_set_alternative(unit,NULL);
+        if(!G_PlayerTreatsPlayerAsAlly(target->s.player,unit->s.player))return;
+    }
+    attack_target_lost(unit,target,owner_changed);
+}
+
+/* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
+ * deadline. These indexes are derived; only deadline/serial/active are saved. */
+/* Native startup001d70 /001c80 and Math_RoundHalf; these are not map tuning. */
+#define ATTACK_MINIMUM_CHASE_RANGE 32.0f /* Native00b5d0 ->d6bf64. */
+#define ATTACK_BLINK_RETENTION_RANGE 2000.0f /* Native013500 ->d6fb40. */
+#define ATTACK_TARGET_RECOVERY_MARGIN 50.0f /* Native49d280 Math_RuntimeFifty. */
+#define ATTACK_AI_HELP_RADIUS 900.0f
+#define ATTACK_HELP_SUPPRESSION 3.0f
+#define ATTACK_AI_HELP_SUPPRESSION 0.5f
+
+enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_GUARD, ATTACK_TIMER_SCAN, ATTACK_TIMER_REACTION, ATTACK_TIMER_DAMAGE, ATTACK_TIMER_COOLDOWN, ATTACK_TIMER_FAILED_FIRST, ATTACK_TIMER_COUNT=ATTACK_TIMER_FAILED_FIRST+ATTACK_FAILED_TARGET_SLOTS };
+static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
+static uint32_t attack_cap_count;
+
+static abilityPrimaryTimer_t *attack_primary_timer(uint32_t key) {
+    edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
+    unsigned kind=key%ATTACK_TIMER_COUNT;
+    if(kind>=ATTACK_TIMER_FAILED_FIRST)return &unit->attack_failed_targets[kind-ATTACK_TIMER_FAILED_FIRST].timer;
+    switch (kind) {
+    case ATTACK_TIMER_HELP: return &unit->combat_help;
+    case ATTACK_TIMER_SWING: return &unit->attack_swing;
+    case ATTACK_TIMER_GUARD: return &unit->attack_guard.timer;
+    case ATTACK_TIMER_SCAN: return &unit->attack_scan;
+    case ATTACK_TIMER_REACTION: return &unit->attack_reaction;
+    case ATTACK_TIMER_DAMAGE: return &unit->attack_damage;
+    case ATTACK_TIMER_COOLDOWN: return &unit->attack_cooldown;
+    default: return &unit->attack_speed_cap;
+    }
+}
+static bool attack_cap_less(uint32_t a,uint32_t b) {
+    abilityPrimaryTimer_t const *left=attack_primary_timer(a),*right=attack_primary_timer(b);
+    return left->deadline.time==right->deadline.time ? left->sequence<right->sequence :
+        left->deadline.time<right->deadline.time;
+}
+static void attack_cap_put(uint32_t position,uint32_t unit) {
+    attack_cap_heap[position]=unit;attack_cap_positions[unit]=position+1;
+}
+static void attack_cap_remove(edict_t *unit,unsigned kind) {
+    uint32_t slot=(unit-g_edicts)*ATTACK_TIMER_COUNT+kind,position=attack_cap_positions[slot];
+    if(!position)return;
+    attack_cap_positions[slot]=0;position--;
+    uint32_t last=attack_cap_heap[--attack_cap_count];
+    if(position==attack_cap_count)return;
+    while(position && attack_cap_less(last,attack_cap_heap[(position-1)/2])) {
+        attack_cap_put(position,attack_cap_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<attack_cap_count) {
+        uint32_t child=position*2+1;
+        if(child+1<attack_cap_count && attack_cap_less(attack_cap_heap[child+1],attack_cap_heap[child]))child++;
+        if(!attack_cap_less(attack_cap_heap[child],last))break;
+        attack_cap_put(position,attack_cap_heap[child]);position=child;
+    }
+    attack_cap_put(position,last);
+}
+static void attack_cap_insert(edict_t *unit,unsigned kind) {
+    uint32_t slot=(unit-g_edicts)*ATTACK_TIMER_COUNT+kind,position=attack_cap_count++;
+    while(position && attack_cap_less(slot,attack_cap_heap[(position-1)/2])) {
+        attack_cap_put(position,attack_cap_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    attack_cap_put(position,slot);
+}
+static void attack_failed_target_expire(edict_t *unit,unsigned slot) {
+    attack_cap_remove(unit,ATTACK_TIMER_FAILED_FIRST+slot);
+    unit->attack_failed_targets[slot]=(attackFailedTarget_t){0};
+}
+static void attack_failed_targets_clear(edict_t *unit) {
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS)attack_failed_target_expire(unit,i);
+}
+static bool attack_failed_target_allowed(edict_t const *unit,edict_t const *target) {
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+        attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+        if(slot->target==target && slot->target_spawn_time==target->spawn_time)return false;
+    }
+    return true;
+}
+/*495c00: same weak identity refreshes its slot; otherwise the last empty
+ * slot wins, or the earliest remaining timer (strict comparison keeps ties). */
+static void attack_failed_target_remember(edict_t *unit,edict_t *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) ||
+       !S_AttackCanTarget(unit,target))return;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    unsigned selected=UINT32_MAX;float least=0;
+    FOR_LOOP(i,ATTACK_FAILED_TARGET_SLOTS) {
+        attackFailedTarget_t const *slot=unit->attack_failed_targets+i;
+        if(slot->target==target && slot->target_spawn_time==target->spawn_time){selected=i;break;}
+        if(!slot->target) {selected=i;least=0;continue;}
+        float remaining=slot->timer.active ? MAX(0,wc3_sub(slot->timer.deadline.time,now.time)) : 0;
+        if(selected==UINT32_MAX || remaining<least){selected=i;least=remaining;}
+    }
+    attack_failed_target_expire(unit,selected);
+    attackFailedTarget_t *slot=unit->attack_failed_targets+selected;
+    *slot=(attackFailedTarget_t){.target=target,.target_spawn_time=target->spawn_time,
+        .timer={.active=true,.deadline=now,.sequence=++level.timer_sequence}};
+    slot->timer.deadline.time=wc3_add(now.time,10.0f);
+    attack_cap_insert(unit,ATTACK_TIMER_FAILED_FIRST+selected);
+}
+
+static bool attack_owner_present(edict_t const *unit) {
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.removed))
+        if(unit->abilities.removed[i]==MAKEFOURCC('A','a','t','k'))return false;
+    return true;
+}
+static bool attack_cap_present(edict_t const *unit) {
+    if(!attack_owner_present(unit))return false;
+    float range;
+    return S_UnitAttackApproachRange(unit,&range);
+}
+static void attack_cap_begin(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !attack_cap_present(unit))return;
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    /* Queued deadlines are raw until the epoch drain; a new direct producer
+     * after that drain observes the already-rebased deadline. */
+    float remaining=wc3_sub(unit->attack_speed_cap.deadline.time,now.time);
+    if(!wc3_attack_speed_cap_rearm(unit->attack_speed_cap.active,remaining))return;
+    attack_cap_remove(unit,ATTACK_TIMER_CAP);
+    unit->attack_speed_cap.active=true;
+    unit->attack_speed_cap.deadline=now;
+    unit->attack_speed_cap.deadline.time=wc3_add(now.time,3);
+    unit->attack_speed_cap.sequence=++level.timer_sequence;
+    attack_cap_insert(unit,ATTACK_TIMER_CAP);
+}
+static void attack_cap_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_CAP);unit->attack_speed_cap.active=false;
+}
+static void attack_help_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_HELP);unit->combat_help.active=false;
+}
+static void attack_swing_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_SWING);unit->attack_swing.active=false;
+}
+/*493ff0 selects idle0.5 and retained-target1.0, measured from d6bf40/44.
+ * The request belongs to Attack even while Move owns the active unit task. */
+static void attack_reaction_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_REACTION);unit->attack_reaction.active=false;
+}
+static void attack_damage_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_DAMAGE);unit->attack_damage.active=false;
+}
+static void attack_cooldown_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_COOLDOWN);unit->attack_cooldown.active=false;
+    unit->attack_cooldown_active=false;unit->attack_cooldown_remaining=0;
+    unit->attack_cooldown_end_time=0;
+}
+static void attack_damage_arm(edict_t *unit,unitAttack_t const *profile,float divisor,float cooldown) {
+    attack_damage_cancel(unit);
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    /*49d130 clamps the authored damage point below the cooldown by the
+     * native Chaos commit quantum;060190 admits a minimum0.0001 request. */
+    float delay=MIN(wc3_div(profile->damagePoint,divisor),
+        wc3_sub(cooldown,.01f));
+    delay=MAX(delay,wc3_float(0x38d1b717));
+    unit->attack_damage=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    unit->attack_damage.deadline.time=wc3_add(now.time,delay);
+    unit->wait=0;
+    attack_cap_insert(unit,ATTACK_TIMER_DAMAGE);
+}
+static void attack_acquire_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_SCAN);unit->attack_scan.active=false;
+}
+static void attack_acquire_disable(edict_t *unit) {
+    unit->attack_scan_enabled=false;
+    /*49d260 leaves the initial2000 request alive;493ff0 consumes it once. */
+    if(!unit->attack_scan_initial_pending)attack_acquire_cancel(unit);
+}
+static void attack_acquire_arm(edict_t *unit,wc3Clock_t now,float delay) {
+    attack_acquire_cancel(unit);
+    unit->attack_scan=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    /* Primary queues retain outgoing-span scalar deadlines. Normalizing a
+     * future request here makes it due again inside the old-span drain. */
+    unit->attack_scan.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(unit,ATTACK_TIMER_SCAN);
+}
+static void attack_acquire_enable(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       !attack_owner_present(unit) || !CAbilityAttack(unit,A_UNIT_OWNED,NULL) ||
+       S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))return;
+    if((int32_t)unit->attack_invisibility_suppression>0)return;
+    unit->attack_scan_enabled=true;
+    if(!unit->attack_scan_initial_pending)
+        attack_acquire_arm(unit,G_TimerQueryClock(NULL),.01f);
+}
+void S_AttackEnableAcquisition(edict_t *unit) {
+    if(S_UnitExecutionPaused(unit))return;
+    attack_acquire_enable(unit);
+}
+
+static void attack_acquire_ensure(edict_t *unit,bool attachment) {
+    /* Spawn attaches abilities before publishing authored health. A fresh
+     * attachment is not a corpse merely because that scalar is still zero;
+     * later Stand/Move refreshes retain their ordinary live-unit guard. */
+    if(unit && attack_target_identity(unit) && unit->inuse &&
+       (attachment ? !(unit->svflags&SVF_DEADMONSTER) : !M_IsDead(unit)) && !G_IsDeferredFree(unit) &&
+       (int32_t)unit->attack_invisibility_suppression<1 &&
+       !unit->attack_scan.active && (attachment || (!unit->paused &&
+       !S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')))) && attack_owner_present(unit) && CAbilityAttack(unit,A_UNIT_OWNED,NULL)) {
+        unit->attack_scan_enabled=true;
+        float delay=unit->attack_target ? 1 : .5f;
+        /*4993b0 consumes one purpose-stream2 real only on attachment. */
+        if(attachment) {
+            delay=wc3_mul(delay,wc3_random_unit(level.purpose_random+2));
+            unit->attack_scan_initial_pending=true;
+        }
+        attack_acquire_arm(unit,G_TimerQueryClock(NULL),delay);
+#ifdef BZ_TESTS
+        if(attachment && attack_test_acquire)attack_test_acquire(unit,true,delay);
+#endif
+    }
+}
+
+static bool attack_acquire_patrol(edict_t const *unit) {
+    return unit->current_order_id==WC3_ORDER_ID_PATROL_TWO_POINTS &&
+        unit->movement.patrol_target && unit->goalentity==unit->movement.patrol_target &&
+        move_is_active_order_walk(unit);
+}
+
+/* Native00b570 initializes the guard poll period independently of map tuning.
+ * GuardDistance and GuardReturnTime remain authored Misc values. */
+#define ATTACK_GUARD_POLL_PERIOD 2.0f
+
+static void attack_guard_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_GUARD);
+    unit->attack_guard.timer.active=false;
+}
+
+/*5fd270 executes d014e before its physical task. The attached Attack owner
+ * receives49e940 even when its weapons are temporarily unavailable. */
+void S_AttackMoveTaskStarted(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return;
+    if(unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+        attack_guard_cancel(unit);
+        unit->attack_guard.evaluated=false;
+        unit->attack_guard.returning=false;
+    }
+}
+
+static void attack_guard_arm(edict_t *unit,bool returning) {
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    attack_guard_cancel(unit);
+    unit->attack_guard.returning=returning;
+    unit->attack_guard.timer=(abilityPrimaryTimer_t){.active=true,.deadline=now,
+        .sequence=++level.timer_sequence};
+    unit->attack_guard.timer.deadline.time=wc3_add(now.time,
+        returning ? game.constants.guardReturnTime : ATTACK_GUARD_POLL_PERIOD);
+    attack_cap_insert(unit,ATTACK_TIMER_GUARD);
+}
+
+static bool attack_guard_outside(edict_t const *unit) {
+    return !S_UnitPointInMoveRange(unit,&unit->attack_guard.point,unit->attack_guard.range);
+}
+
+/* d014a runs after point completion. Ordinary player units capture a new
+ * anchor; neutral units retain theirs and evaluate its guard request. */
+static void attack_guard_stand(edict_t *unit) {
+    if(!unit || !unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit) || !attack_cap_present(unit))return;
+    unit->attack_guard.evaluated=true;
+    unit->attack_guard.returning=false;
+    if(unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+        unit->attack_guard.point=unit->s.origin2;
+        unit->attack_guard.range=game.constants.guardDistance;
+        unit->attack_guard.initialized=true;
+        attack_guard_cancel(unit);
+        return;
+    }
+    if(!unit->attack_guard.initialized) {
+        unit->attack_guard.point=unit->s.origin2;
+        unit->attack_guard.range=game.constants.guardDistance;
+        unit->attack_guard.initialized=true;
+    }
+    attack_guard_arm(unit,attack_guard_outside(unit));
+}
+
+static void attack_guard_fire(edict_t *unit) {
+    bool returning=unit->attack_guard.returning;
+    attack_guard_cancel(unit);
+    if(!unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit) ||
+       !attack_cap_present(unit))return;
+    if(!returning) {
+        if(attack_guard_outside(unit))attack_guard_arm(unit,true);
+        else {
+            /* Native053630 rearms the same periodic request. Preserve its
+             * serial so tied guard cohorts do not acquire a new priority. */
+            unit->attack_guard.timer.active=true;
+            unit->attack_guard.timer.deadline.time=wc3_add(
+                unit->attack_guard.timer.deadline.time,ATTACK_GUARD_POLL_PERIOD);
+            attack_cap_insert(unit,ATTACK_TIMER_GUARD);
+        }
+        return;
+    }
+    /* Timer rearm uses its request deadline; physical queries use the current
+     * source-clock quantum. They differ when a request falls between quanta. */
+    uint32_t const birth=unit->spawn_time;
+    uint32_t const attack_generation=unit->attack_invisibility_generation;
+    /*497fc0 ignores Move admission's return before appending d0013. */
+    G_CreepGuardIssueReturn(unit,&unit->attack_guard.point);
+    if(unit->inuse && unit->spawn_time==birth && !G_IsDeferredFree(unit)) {
+        /* Internal label only; numeric d0013 is not a registered JASS string. */
+        unitOrder_t next={.order="attack-guard-sleep",.target_type=UNIT_ORDER_TARGET_NONE,
+            .issuer_player=unit->s.player,.order_id=851987};
+        if(G_AppendUnitOrder(unit,&next) && !unit->current_order_id)
+            G_UnitStartNextQueuedOrder(unit);
+        if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return;
+        /*49e940 after admitting Move/appending d0013: ordinary player cancel. */
+        if(unit->attack_invisibility_generation==attack_generation &&
+           unit->s.player<PLAYER_NEUTRAL_AGGRESSIVE && !G_UnitIsStructure(unit)) {
+            attack_guard_cancel(unit);unit->attack_guard.evaluated=false;
+            unit->attack_guard.returning=false;
+        }
+    }
+}
+
+static void attack_acquire_fire(edict_t *);
+
+static void attack_primary_fire(void) {
+    uint32_t key=attack_cap_heap[0];
+    edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
+    unsigned kind=key%ATTACK_TIMER_COUNT;
+    if(kind>=ATTACK_TIMER_FAILED_FIRST){attack_failed_target_expire(unit,kind-ATTACK_TIMER_FAILED_FIRST);return;}
+    switch (kind) {
+    case ATTACK_TIMER_HELP: attack_help_cancel(unit); break;
+    case ATTACK_TIMER_GUARD: attack_guard_fire(unit); break;
+    case ATTACK_TIMER_SCAN: attack_acquire_fire(unit); break;
+    case ATTACK_TIMER_REACTION: attack_reaction_fire(unit); break;
+    case ATTACK_TIMER_DAMAGE: attack_damage_fire(unit); break;
+    case ATTACK_TIMER_COOLDOWN: attack_cooldown_fire(unit); break;
+    case ATTACK_TIMER_SWING:
+        attack_swing_cancel(unit);
+        /* Replacement orders, death and slot reuse cannot inherit completion. */
+        if (unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit)) {
+            if(unit->currentmove==&attack_move_finish)
+                attack_finish_after_combat(unit,unit->goalentity,"swing_complete");
+            else attack_swing_complete(unit);
+        }
+        break;
+    default: attack_cap_cancel(unit); break;
+    }
+}
+
+/* Native05f230 materializes the ordered spatial candidates before invoking
+ * abilities. Reuse buffers, and borrow a distinct one for nested broadcasts:
+ * callbacks must not overwrite the outer query or mutate its stamp traversal. */
+typedef struct {uint32_t index,birth;} attackHelpMember_t;
+typedef struct attackHelpQuery_s {
+    struct attackHelpQuery_s *next;
+    attackHelpMember_t *members;
+    uint32_t count,capacity,owners;
+} attackHelpQuery_t;
+static attackHelpQuery_t *attack_help_queries;
+static void attack_help_queries_reset(void) {
+    while(attack_help_queries) {
+        attackHelpQuery_t *query=attack_help_queries;attack_help_queries=query->next;
+        free(query->members);free(query);
+    }
+}
+static void attack_help_collect(void *data,edict_t const *unit) {
+    attackHelpQuery_t *query=data;
+    if(unit->s.player>=MAX_PLAYERS || !(query->owners&(1u<<unit->s.player)))return;
+    if(query->count==query->capacity) {
+        uint32_t capacity=MIN(MAX_ENTITIES,query->capacity ? query->capacity*2 : 64);
+        attackHelpMember_t *members=realloc(query->members,capacity*sizeof(*members));
+        if(!members)gi.error("Attack help: cannot retain spatial candidates");
+        query->members=members;query->capacity=capacity;
+    }
+    query->members[query->count++]=(attackHelpMember_t){unit-g_edicts,unit->spawn_time};
+}
+static vec2_t attack_help_fine_position(edict_t const *unit,box2_t bounds) {
+    return unit->movement.pose_valid && !memcmp(&unit->s.origin2,&unit->movement.pose_world,sizeof(vec2_t)) ?
+        unit->movement.fine_pose : (vec2_t){wc3_grid_coordinate(unit->s.origin2.x,bounds.min.x,32),
+            wc3_grid_coordinate(unit->s.origin2.y,bounds.min.y,32)};
+}
+static void attack_call_for_help(edict_t *victim,edict_t *source) {
+    if(!source || victim->combat_help.active || !victim->inuse || G_IsDeferredFree(victim) ||
+        (victim->s.renderfx&RF_HIDDEN) || victim->s.player>=MAX_PLAYERS)return;
+    attackHelpQuery_t *query=attack_help_queries;
+    if(query)attack_help_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Attack help: cannot acquire spatial query");
+    query->count=0;
+    query->owners=0;
+    player_t const *owner=&game.clients[victim->s.player].ps;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        player_t const *helper=&game.clients[i].ps;
+        if(G_GetPlayerAlliance(owner,helper,ALLIANCE_HELP_REQUEST) &&
+            G_GetPlayerAlliance(helper,owner,ALLIANCE_HELP_RESPONSE))query->owners|=1u<<i;
+    }
+    uint32_t victim_birth=victim->spawn_time,source_birth=source->spawn_time;
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t center={wc3_grid_coordinate(victim->s.origin2.x,bounds.min.x,32),
+        wc3_grid_coordinate(victim->s.origin2.y,bounds.min.y,32)};
+    /* Native688060: neutral radius wins over Town AI's initialized900. */
+    float world_radius=victim->s.player>=PLAYER_NEUTRAL_AGGRESSIVE ? game.constants.creepCallForHelp :
+        victim->aiflags&AI_TOWN_OWNED ? ATTACK_AI_HELP_RADIUS : game.constants.callForHelp;
+    float radius=wc3_div(world_radius,32);
+    S_QueryMoveProximityContext(victim->aiflags&AI_TOWN_OWNED ? NULL : victim,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    FOR_LOOP(i,query->count) {
+        if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim) ||
+            !source->inuse || source->spawn_time!=source_birth || G_IsDeferredFree(source))break;
+        attackHelpMember_t member=query->members[i];edict_t *unit=g_edicts+member.index;
+        if(!unit->inuse || unit->spawn_time!=member.birth || G_IsDeferredFree(unit) || IS_HOLLOW(unit) ||
+            !unit->data.UnitData || unit->s.player>=MAX_PLAYERS)continue;
+        vec2_t point=attack_help_fine_position(unit,bounds);
+        float dx=wc3_sub(point.x,center.x),dy=wc3_sub(point.y,center.y);
+        /* Query token0xb selects05ce60: compare against the query radius
+         * plus the candidate's canonical radius, not its center alone. */
+        float reach=wc3_add(radius,wc3_div(MAX(1,unit->collision),32));
+        if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))continue;
+        S_UnitAllyCombatAlert(unit,victim,source);
+        /* Native66e9e0 publishes Town help only at this real recipient
+         * frontier. The separate pre-damage self alert does not reach it. */
+        if(unit->inuse && unit->spawn_time==member.birth && !G_IsDeferredFree(unit) &&
+           source->inuse && source->spawn_time==source_birth && !G_IsDeferredFree(source) &&
+           victim->inuse && victim->spawn_time==victim_birth && !G_IsDeferredFree(victim))
+            G_BotTownHelpRecipient(unit,victim,source);
+    }
+    query->next=attack_help_queries;attack_help_queries=query;
+    /*66e9c5: notify the victim's Captain after the recipient traversal.
+     * Callback removal/reuse must not redirect contact to a new incarnation. */
+    if(victim->inuse && victim->spawn_time==victim_birth && !G_IsDeferredFree(victim) &&
+       source->inuse && source->spawn_time==source_birth && !G_IsDeferredFree(source))
+        G_BotCaptainCombatContact(victim,source);
+    /* Native66e700 arms the selected suppression after all recipient callbacks, even if
+     * the victim has no Attack ability or the damage amount is zero. */
+    if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim))return;
+    attack_cap_remove(victim,ATTACK_TIMER_HELP);
+    victim->combat_help=(abilityPrimaryTimer_t){.deadline=G_TimerQueryClock(NULL),
+        .sequence=++level.timer_sequence,.active=true};
+    victim->combat_help.deadline.time=wc3_add(victim->combat_help.deadline.time,
+        victim->aiflags&AI_TOWN_OWNED ? ATTACK_AI_HELP_SUPPRESSION : ATTACK_HELP_SUPPRESSION);
+    attack_cap_insert(victim,ATTACK_TIMER_HELP);
+}
 
 #define ID_MEAT_WAGON MAKEFOURCC('u','m','t','w')
 #define ID_MEAT_WAGON_IMPACT MAKEFOURCC('u','m','t','i')
@@ -98,7 +736,7 @@ typedef struct {
 
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
-    if (!attacker || !attacker->unit_state || slot >= 2) return false;
+    if (!attacker || slot >= 2) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
     if (S_AncientHasRootAbility(attacker)) {
         /* Root/Unroot transitions must not retain an attack order from the
@@ -106,39 +744,175 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
         if (S_AncientIsMorphing(attacker)) return false;
         enabled = S_AncientAttackMask(attacker);
     }
-    return (enabled & (1u << slot)) != 0;
+    if (!(enabled & (1u << slot))) return false;
+    if (attacker->abilstatus) {
+        unitStatusStorage_t const *state = (unitStatusStorage_t const *)attacker->abilstatus;
+        unitAttack_t const *profile = S_AttackProfileRead(attacker, slot);
+        uint32_t targets = profile->targetsAllowed;
+        bool special = targets == WC3_TARGET_FLAG_NONE || targets == WC3_TARGET_FLAG_TREE ||
+            targets == WC3_TARGET_FLAG_WALL || targets == WC3_TARGET_FLAG_DEBRIS;
+        if (state->attack_prevention[0] && state->attack_prevention[0] <= INT32_MAX &&
+            profile->weapon == WPN_NORMAL && !special) return false;
+        if (state->attack_prevention[1] && state->attack_prevention[1] <= INT32_MAX &&
+            profile->weapon >= WPN_INSTANT && profile->weapon <= WPN_MLINE && !special) return false;
+        if (state->attack_prevention[2] && state->attack_prevention[2] <= INT32_MAX && special) return false;
+    }
+    return true;
 }
 
-/* Attack 1/2 remain the authored runtime copies. Select the compatible slot
+/*498790 constructs token29 from the attached Attack object, independently
+ * of its execution availability and of ordinary Attack target validation. */
+bool S_AttackQueryTargetMask(edict_t const *attacker,uint32_t *mask) {
+    *mask=0;
+    if(!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k')))return false;
+    bool contributed=false;
+    bool const retained=attacker->attack_target && attacker->attack_target->inuse &&
+        attacker->attack_target->spawn_time==attacker->attack_target_spawn_time;
+    FOR_LOOP(slot,2) {
+        if(!S_UnitAttackSlotEnabled(attacker,slot))continue;
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        uint32_t const raw=profile->targetsAllowed;
+        if(raw==WC3_TARGET_FLAG_NONE)continue;
+        if(retained && (profile->weapon<WPN_INSTANT || profile->weapon>WPN_MLINE ||
+           raw==WC3_TARGET_FLAG_TREE || raw==WC3_TARGET_FLAG_WALL || raw==WC3_TARGET_FLAG_DEBRIS))continue;
+        *mask|=raw;contributed=true;
+    }
+    if(contributed && !*mask)*mask=0xfdd1f00eu;
+    return true;
+}
+
+/*6a9ef0: zero is an unspecified group, not a request to exclude everyone. */
+static uint32_t attack_query_normalize_mask(uint32_t mask) {
+    if(!(mask&0x03000000u))mask|=WC3_TARGET_FLAG_ALIVE;
+    if(!(mask&0x0001f000u))mask|=0x0001f000u;
+    if(!(mask&0xc0000000u))mask|=0xc0000000u;
+    if(!(mask&0x0c000000u))mask|=0x0c000000u;
+    if(!(mask&0x30000000u))mask|=0x30000000u;
+    if(!(mask&0x000007feu))mask|=0x0000000eu;
+    if(!(mask&0x00c00000u))mask|=0x00c00000u;
+    if(!(mask&0x00300000u))mask|=WC3_TARGET_FLAG_VULNERABLE;
+    return mask;
+}
+
+/*48e1a0/519730: only the enabled concrete ResistantSkin owner contributes.
+ * Hero identity itself is a separate target fact, not this ability guard. */
+static bool attack_query_resistant_skin(edict_t const *unit) {
+#define QUERY_SKIN(code_) do { \
+    uint32_t const code=(code_); \
+    abilityitem_t const item=S_AbilityItem(code); \
+    if(code && item.ability && item.ability->proc==CAbilityResistantSkin && \
+       G_ActorHasAbilityCode(unit,code) && !S_AbilityExecutionDisabled(unit,code) && \
+       G_IsUnitAbilityAvailable(unit,code) && G_AbilityRequirementsSatisfied(unit,code))return true; \
+} while(0)
+    uint32_t count;uint32_t const *codes=G_UnitAbilityCodes(unit->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)QUERY_SKIN(codes[i]);
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.added))QUERY_SKIN(unit->abilities.added[i]);
+    FOR_LOOP(i,MAX_HERO_ABILITIES)if(unit->heroabilities[i].level)QUERY_SKIN(unit->heroabilities[i].code);
+#undef QUERY_SKIN
+    return false;
+}
+
+/*6ae980 and6a8170 are query facts/constraints. Detection, fog, Cyclone,
+ * Ethereal and Attack execution policy belong to their independent owners. */
+bool S_UnitMatchesTargetMask(edict_t const *target,uint32_t raw,edict_t const *source) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) || target->destructable ||
+       target->targtype==TARG_ITEM)return false;
+    bool const hidden=target->script_world_hidden ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    if(hidden && !(raw&WC3_TARGET_FLAG_HIDDEN))return false;
+    uint32_t categories=target->data.UnitData && target->data.UnitData->targetType ?
+        G_ParseTargetMask(target->data.UnitData->targetType)&0x1eu : G_TargetFlagForType(target->targtype);
+    if(S_AncientHasRootAbility(target))categories=G_TargetFlagForType(G_UnitTargetType(target));
+    uint32_t facts=categories | (M_IsDead((edict_t *)target) ? WC3_TARGET_FLAG_DEAD : WC3_TARGET_FLAG_ALIVE) |
+        (G_UnitIsInvulnerable(target) ? WC3_TARGET_FLAG_INVULNERABLE : WC3_TARGET_FLAG_VULNERABLE) |
+        ((target->unit_classification&WC3_UNIT_CLASS_MECHANICAL) ? WC3_TARGET_FLAG_MECHANICAL : WC3_TARGET_FLAG_ORGANIC) |
+        ((target->unit_classification&WC3_UNIT_CLASS_SAPPER) ? WC3_TARGET_FLAG_SAPPER : WC3_TARGET_FLAG_NONSAPPER) |
+        ((target->unit_classification&WC3_UNIT_CLASS_ANCIENT) ? WC3_TARGET_FLAG_ANCIENT : WC3_TARGET_FLAG_NONANCIENT);
+    uint8_t const first=(uint8_t)target->class_id;
+    facts|=first>='A' && first<='Z' ? WC3_TARGET_FLAG_HERO : WC3_TARGET_FLAG_NONHERO;
+    if(((facts|raw)&WC3_TARGET_FLAG_NONE) || !(facts&0x7feu))return false;
+    uint32_t const mask=attack_query_normalize_mask(raw),common=facts&mask;
+    if(!(common&0x7feu) || !(common&0x03000000u) || !(common&0x00300000u))return false;
+    if(!(facts&0x1eu))return true;
+    if(!(common&0x0c000000u) || !(common&0x00c00000u) ||
+       !(common&0x30000000u) || !(common&0xc0000000u))return false;
+    if(source && (mask&0x1f000u)!=0x1f000u) {
+        uint32_t relation;
+        uint32_t const owner=S_UnitMechanicalCritter(target) ? PLAYER_NEUTRAL_PASSIVE : target->s.player;
+        if(target==source)relation=WC3_TARGET_FLAG_SELF;
+        else if(owner==source->s.player)relation=WC3_TARGET_FLAG_PLAYER;
+        else {
+            if(source->s.player>=MAX_PLAYERS || owner>=MAX_PLAYERS)return false;
+            uint32_t const alliance=level.alliances[source->s.player][owner];
+            relation=!(alliance&(1u<<ALLIANCE_PASSIVE)) ? WC3_TARGET_FLAG_ENEMY :
+                alliance&(1u<<ALLIANCE_SHARED_SPELLS) ? WC3_TARGET_FLAG_ALLY : WC3_TARGET_FLAG_NEUTRAL;
+        }
+        if(!(mask&relation))return false;
+    }
+    return !source || (mask&WC3_TARGET_FLAG_HERO) || !attack_query_resistant_skin(target);
+}
+
+/* Original9d72f0 tests attack damage type, not delivery style or slot admission.
+ * Disabled siege weapons still contribute to the captain's retained flag.
+ * The authored acquisition radius bounds the effective weapon range. */
+bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker) {
+    if (!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k'))) return false;
+    FOR_LOOP(slot,2) {
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        if (profile->type==ATK_SIEGE && MIN(profile->range,attacker->runtime.acquisition_range)>600) return true;
+    }
+    return false;
+}
+
+/* An existing profile with no enabled slots yields zero, not an absent Attack
+ * object. Move uses that distinction for the private captain approach. */
+bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum) {
+    *maximum=0;
+    if (!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k'))) return false;
+    FOR_LOOP(slot,2) {
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        if (S_UnitAttackSlotEnabled(attacker,slot))
+            *maximum=MAX(*maximum,MIN(profile->range,attacker->runtime.acquisition_range));
+    }
+    return true;
+}
+
+/* Attack slots expose immutable defaults or the unit's owned override. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
-static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
+static unitAttack_t const *attack_target_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     uint32_t retaliation = S_AncientIsRooted(attacker) ? S_AncientRetaliationAttackMask(attacker) : 0;
-    if (attacker && target && G_GetDestructable(target) && target->targtype == TARG_TREE) {
-        if (attacker->unit_state->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->unit_state->attack1;
-        if (attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->unit_state->attack2;
+    if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
+        if (S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return S_AttackProfileRead(attacker, 0);
+        if (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return S_AttackProfileRead(attacker, 1);
     }
     /* Target eligibility and active weapon selection must agree for Ethereal
      * victims, including dual-weapon units and rooted Ancient retaliation. */
     if (attacker && target && flag && unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {
-        if (attacker->unit_state->attack1.type == ATK_MAGIC && (attacker->unit_state->attack1.targetsAllowed & flag) &&
-            (S_UnitAttackSlotEnabled(attacker, 0) || (retaliation & 1u))) return &attacker->unit_state->attack1;
-        if (attacker->unit_state->attack2.type == ATK_MAGIC && (attacker->unit_state->attack2.targetsAllowed & flag) &&
-            (S_UnitAttackSlotEnabled(attacker, 1) || (retaliation & 2u))) return &attacker->unit_state->attack2;
-        return &attacker->unit_state->attack1; /* Callers reject unqualified targets. */
+        if (S_AttackProfileRead(attacker, 0)->type == ATK_MAGIC && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 0) || (retaliation & 1u))) return S_AttackProfileRead(attacker, 0);
+        if (S_AttackProfileRead(attacker, 1)->type == ATK_MAGIC && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 1) || (retaliation & 2u))) return S_AttackProfileRead(attacker, 1);
+        return S_AttackProfileRead(attacker, 0); /* Callers reject unqualified targets. */
     }
-    if (attacker && flag && attacker->unit_state->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
-        (attacker->unit_state->attack1.targetsAllowed & flag)) return &attacker->unit_state->attack1;
-    if (attacker && flag && attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
-        (attacker->unit_state->attack2.targetsAllowed & flag)) return &attacker->unit_state->attack2;
+    if (attacker && flag && S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
+        (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 0);
+    if (attacker && flag && S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
+        (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 1);
     /* Rooted Ancients may retaliate with their weapon profile even when Root's
      * authored mask disables player-issued attacks; explicit orders are still
      * validated by S_AttackCanTarget before this profile is selected. */
-    if (attacker && flag && retaliation && attacker->unit_state->attack1.type != ATK_NONE && (retaliation & 1u) &&
-        (attacker->unit_state->attack1.targetsAllowed & flag)) return &attacker->unit_state->attack1;
-    if (attacker && flag && retaliation && attacker->unit_state->attack2.type != ATK_NONE && (retaliation & 2u) &&
-        (attacker->unit_state->attack2.targetsAllowed & flag)) return &attacker->unit_state->attack2;
-    return attacker ? &attacker->unit_state->attack1 : NULL;
+    if (attacker && flag && retaliation && S_AttackProfileRead(attacker, 0)->type != ATK_NONE && (retaliation & 1u) &&
+        (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 0);
+    if (attacker && flag && retaliation && S_AttackProfileRead(attacker, 1)->type != ATK_NONE && (retaliation & 2u) &&
+        (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 1);
+    return attacker ? S_AttackProfileRead(attacker, 0) : NULL;
+}
+
+static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
+    if (attacker && attacker->currentmove && attacker->currentmove->proc==CAbilityAttackGround)
+        return attack_ground_profile(attacker);
+    return attack_target_profile(attacker,target);
 }
 
 bool S_AttackProfileIsMelee(unitAttack_t const *attack) {
@@ -168,20 +942,20 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     G_InheritUnitTeamColor(rocket, ent);
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
-    G_InitMissile(rocket);
-    rocket->missile->attack_type = desc->attack_type;
-    rocket->missile->owner_spawn_time = ent->spawn_time;
+
+    rocket->projectile_attack_type = desc->attack_type;
+    rocket->projectile_owner_spawn_time = ent->spawn_time;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
-        channel_t *cast = G_AddChannel(rocket);
+        channel_t *cast = (rocket->channel ? rocket->channel : (rocket->channel=G_AllocChannel()));
         cast->origin = *desc->fixed_target;
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
-        rocket->goalentity = desc->target;
-        cast->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
+        rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
-            artillery_t *splash = G_AddArtillery(rocket);
+            artillery_t *splash = (rocket->artillery ? rocket->artillery : (rocket->artillery=G_AllocArtillery()));
             splash->attack_type = desc->attack->type;
             splash->area_targets = desc->area_targets;
             splash->targets_allowed = desc->attack->targetsAllowed;
@@ -192,7 +966,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
             splash->factor_small = desc->attack->factorSmall;
             splash->tree_attack_allowed = desc->tree_attack_allowed;
             if (desc->impaling_line && ent->data.UnitWeapons) {
-                UnitWeapon_t const *weapon = desc->attack == &ent->unit_state->attack2 ?
+                UnitWeapon_t const *weapon = desc->attack == S_AttackProfileRead(ent, 1) ?
                     &ent->data.UnitWeapons->attack2 : &ent->data.UnitWeapons->attack1;
                 splash->spill_distance = MAX(0.0f, weapon->spillDistance);
                 splash->spill_radius = MAX(0.0f, weapon->spillRadius);
@@ -200,13 +974,13 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
             }
         }
     } else {
-        rocket->goalentity = desc->target;
+        S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
     }
     /* Missile Splash follows a unit instead of the artillery impact point.
      * Both weapons snapshot their splash profile when the projectile launches,
      * so morphs, upgrades and target changes cannot change an in-flight hit. */
     if (desc->attack && (desc->attack->weapon == WPN_ARTILLERY || desc->attack->weapon == WPN_MSPLASH)) {
-        artillery_t *splash = G_AddArtillery(rocket);
+        artillery_t *splash = (rocket->artillery ? rocket->artillery : (rocket->artillery=G_AllocArtillery()));
         splash->attack_type = desc->attack->type;
         splash->area_targets = desc->area_targets;
         splash->targets_allowed = desc->attack->targetsAllowed;
@@ -217,7 +991,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         splash->factor_small = desc->attack->factorSmall;
     }
     rocket->owner = ent;
-    rocket->movetype = MOVETYPE_FLYMISSILE;
+    S_InitMoveProjectile(rocket);
     G_StartProjectilePresentation(rocket);
 //    rocket->clipmask = MASK_SHOT;
 //    rocket->solid = SOLID_BBOX;
@@ -246,11 +1020,15 @@ static float ai_rolldamage1(edict_t *self, int weapon) {
     float damageBase = atk->damageBase;
     (void)weapon;
     FOR_LOOP(i, atk->numberOfDice) {
-        /* Warsmash treats a malformed zero-sided die as contributing +1
-         * instead of taking modulo zero. Normal Warcraft data has S > 0. */
-        damageBase += atk->sidesPerDie
-                    ? (float)(rand() % atk->sidesPerDie + 1)
-                    : 1.0f;
+        /*4989af ->695c70 ->1ec180: ordinary authored dice consume purpose2,
+         * one unsigned mulhi draw per die (also for sides0/1). This shares
+         * the stream with attachment jitter. The >16 Gaussian branch and
+         * native zero-dice rejection remain separate numeric parity work;
+         * preserve their preexisting behavior in this bounded owner fix. */
+        if(atk->numberOfDice<=16)
+            damageBase+=(float)(wc3_random_range(level.purpose_random+2,atk->sidesPerDie)+1);
+        else
+            damageBase+=atk->sidesPerDie ? (float)(rand()%atk->sidesPerDie+1) : 1.0f;
     }
     return damageBase + atk->temporaryDamageBonus;
 }
@@ -273,10 +1051,12 @@ static uint32_t attack_retaliation_mask(edict_t const *ent) {
 }
 
 static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
-    return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE);
+    return ((mask & 1u) && S_AttackProfileRead(ent, 0)->type != ATK_NONE) || ((mask & 2u) && S_AttackProfileRead(ent, 1)->type != ATK_NONE);
 }
 
 static bool can_attack(edict_t const *ent) {
+    /* Native weapon reactions require the attached Attack execution owner. */
+    if(S_AbilityExecutionDisabled(ent,MAKEFOURCC('A','a','t','k')))return false;
     if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
         S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
@@ -293,16 +1073,18 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
         (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
-         !(((mask & 1u) && attacker->unit_state->attack1.type == ATK_MAGIC &&
-             (attacker->unit_state->attack1.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target)))) ||
-           ((mask & 2u) && attacker->unit_state->attack2.type == ATK_MAGIC &&
-             (attacker->unit_state->attack2.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
-    if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if (G_GetDestructable(target)) return G_DestructableCanBeAttackedBy(attacker, target);
+         !(((mask & 1u) && S_AttackProfileRead(attacker, 0)->type == ATK_MAGIC &&
+             (S_AttackProfileRead(attacker, 0)->targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target)))) ||
+           ((mask & 2u) && S_AttackProfileRead(attacker, 1)->type == ATK_MAGIC &&
+             (S_AttackProfileRead(attacker, 1)->targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
+    if ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target)) return false;
+    /* Native4968e0 TargetLost uses flags1: detection without the fog test. */
+    if (!G_FowPlayerCanQueryUnit(attacker->s.player,target,UNIT_VISIBILITY_IGNORE_FOG)) return false;
+    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
-    return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
-                    ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)));
+    return flag && (((mask & 1u) && S_AttackProfileRead(attacker, 0)->type != ATK_NONE && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) ||
+                    ((mask & 2u) && S_AttackProfileRead(attacker, 1)->type != ATK_NONE && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)));
 }
 
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
@@ -318,8 +1100,131 @@ static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target)
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
 static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason) {
+    attack_recover_target_task(attacker,target,false,false,reason);
+}
+
+/*4968e0 ordinary recovery validates a resolved alternative independently of
+ * current Attack ownership.496b80 selects the FIRST compatible enabled slot;
+ * no alliance filter is supplied to6a8170. The separately unproved adjusted
+ * owner2bc/2c0 branch is not represented by current attack_target. */
+static bool attack_task_target_valid(edict_t const *attacker,edict_t const *target,bool require_visibility) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) || target==attacker ||
+       M_IsDead((edict_t *)target))return false;
+    bool const item=G_IsItem(target),generic=item || G_IsDestructable(target);
+    bool const hidden=target->script_world_hidden ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    /*13c is Unit5c100 or generic-widget life<=0. Hidden rejection is a
+     * separate Unit/ITEM branch (1f1ae0 casts 'item'), not Destructable. */
+    if(hidden && (!generic || item))return false;
+    cstring_t setting=Stb_IniCacheFind(&game.config.misc,"Misc","MagicImmunesResistDamage");
+    cstring_t version=gi.CvarString ? gi.CvarString("fs_expansion","0") : NULL;
+    bool const expansion=version && atoi(version)!=0;
+    bool const resist=expansion && setting && atoi(setting)!=0;
+    unitAttack_t const *selected=NULL;
+    FOR_LOOP(slot,2) {
+        if(!S_UnitAttackSlotEnabled(attacker,slot))continue;
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        uint32_t const raw=profile->targetsAllowed;
+        if(raw&WC3_TARGET_FLAG_NONE)continue;
+        if(generic) {
+            uint32_t const category=item ? WC3_TARGET_FLAG_ITEM :
+                (target->data.DestructableData ? G_ParseTargetMask(target->data.DestructableData->targetType) :
+                 G_TargetFlagForType(target->targtype));
+            uint32_t const facts=category |
+                WC3_TARGET_FLAG_ALIVE |
+                (G_UnitIsInvulnerable(target) ? WC3_TARGET_FLAG_INVULNERABLE : WC3_TARGET_FLAG_VULNERABLE);
+            uint32_t const common=facts&attack_query_normalize_mask(raw);
+            if(!(common&0x7feu) || !(common&0x03000000u) || !(common&0x00300000u))continue;
+        } else {
+            if(!S_UnitMatchesTargetMask(target,raw,NULL))continue;
+            if(resist && S_UnitSpellImmune(target) && profile->type==ATK_MAGIC)continue;
+            /*6a6fe0 native damage types1/2/3/5/6 are these C enums;
+             * native4 is magic, while native0 ('spells') bypasses both. */
+            bool const physical=profile->type==ATK_NORMAL || profile->type==ATK_PIERCE ||
+                profile->type==ATK_SIEGE || profile->type==ATK_CHAOS || profile->type==ATK_HERO;
+            if(resist && physical && (target->ethereal_depth>0 ||
+               unit_hasstatusstate(target,WC3_STATUS_STATE_ETHEREAL)))continue;
+        }
+        selected=profile;break;
+    }
+    if(!selected)return false;
+    if(!generic && !G_FowPlayerCanQueryUnit(attacker->s.player,target,
+        require_visibility ? 0 : UNIT_VISIBILITY_IGNORE_FOG))return false;
+    /*23a740 tests physical flight and forced-ground ownership; an authored
+     * AIR target category alone does not bypass minimum range. Ensnare and
+     * the other grounding owners clear the engine's live AI_FLYING flag. */
+    if(generic || !(target->aiflags&AI_FLYING)) {
+        float const minimum=attacker->data.UnitWeapons ? attacker->data.UnitWeapons->minimumAttackRange : 0;
+        /*49cab0 retains the authored range below its scalar near-equality
+         * threshold;498520 then returns this first selected bound range. */
+        float range=selected->range,acquisition=G_AcquisitionRange(attacker);
+        if(acquisition<range && fabsf(wc3_sub(range,acquisition))>=wc3_float(0x3a83126f))
+            range=acquisition;
+        /*49cab0 sets8000 for every nonzero authored minimum, including
+         * negative values;05b580 owns the range input's own normalization. */
+        if(minimum!=0 && minimum<range &&
+           fabsf(wc3_sub(minimum,range))>=wc3_float(0x3a83126f) &&
+           S_UnitTargetInMoveRange(attacker,target,minimum))return false;
+    }
+    return true;
+}
+
+static bool attack_recovery_alternative_valid(edict_t const *attacker,edict_t const *target) {
+    return attack_task_target_valid(attacker,target,true);
+}
+
+/* Original49d280: loss intent, task acquisition permission and an explicit
+ * capture request are independent. d016f remains on the logical task chain
+ * during reaction, chase, facing, swing and cooldown; physical group existence
+ * is neither necessary nor sufficient. Finishing d016a may retain its target
+ * until swing expiry, but497190 cannot pop it to publish another point task. */
+static void attack_recover_target_task(edict_t *attacker, edict_t const *target,
+    bool forced, bool capture_requested, cstring_t reason) {
     if (!attacker || M_IsDead(attacker) || !attacker->currentmove ||
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
+    bool active=attacker->attack_target && attacker->attack_target==target;
+    bool capture=active && attacker->currentmove!=&attack_move_finish && (capture_requested ||
+        (attacker->attack_recovery_pending && attacker->attack_acquisition_suppressed));
+    vec2_t point={0};float range=0;
+    if(capture && target->inuse && attacker->attack_target_spawn_time==target->spawn_time &&
+       !target->target_loss_transient) {
+        float fine[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,fine);
+        box2_t bounds=CM_GetWorldBounds();
+        point=(vec2_t){wc3_world_coordinate(fine[0],bounds.min.x,32),
+            wc3_world_coordinate(fine[1],bounds.min.y,32)};
+        FOR_LOOP(slot,2)if(S_UnitAttackSlotEnabled(attacker,slot))
+            range=MAX(range,S_AttackProfileRead(attacker,slot)->range);
+        range=wc3_add(wc3_add(range,target->collision),ATTACK_TARGET_RECOVERY_MARGIN);
+    } else capture=false;
+    /*49d3ea consumes only an active recovery. Inactive entry preserves it. */
+    if(active)attacker->attack_recovery_pending=false;
+    if(active && forced)attack_set_alternative(attacker,NULL);
+    else if(active) {
+        edict_t *alternative=attacker->attack_alternative;
+        /*49d424: unresolved weak identities retain their words. Only a
+         * resolved but invalid candidate is cleared by ordinary recovery. */
+        if(alternative && alternative->inuse &&
+           alternative->spawn_time==attacker->attack_alternative_spawn_time &&
+           !attack_recovery_alternative_valid(attacker,alternative))
+            attack_set_alternative(attacker,NULL);
+    }
+    if(capture) {
+        uint32_t birth=attacker->spawn_time;
+        S_EndUnitTargetChase(attacker,CAbilityAttack);
+        attack_set_target(attacker,NULL);
+        unit_leavecombat(attacker);
+        S_SetMoveGoal(attacker,&attacker->goalentity,Waypoint_add(&point));
+        edict_t *goal=attacker->goalentity;
+        uint32_t revision=G_UnitMoveRevision(attacker);
+        unit_setmove(attacker,&attack_move_recovery);
+        if(!attacker->inuse || attacker->spawn_time!=birth || G_IsDeferredFree(attacker) ||
+           G_UnitMoveRevision(attacker)!=revision+1 ||
+           attacker->currentmove!=&attack_move_recovery || attacker->goalentity!=goal)return;
+        if(S_UnitPointInMoveRange(attacker,&point,range) ||
+           !S_BeginUnitPointApproach(attacker,&point,range,CAbilityAttack,S_AttackRecoveryComplete))
+            S_AttackRecoveryComplete(attacker,attacker,true);
+        return;
+    }
     G_BotTraceAssaultUnit(attacker, "assault_attack_ended",
         "reason=%s target=%u target_inuse=%d target_alive=%d target_type=%c%c%c%c target_spawn_matches=%d distance=%.1f retained_attackmove=%d patrol=%d follow=%d",
         reason ? reason : "unspecified", target ? target->s.number : UINT32_MAX,
@@ -328,32 +1233,45 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
         target ? (char)((target->class_id >> 8) & 255) : '-',
         target ? (char)((target->class_id >> 16) & 255) : '-',
         target ? (char)((target->class_id >> 24) & 255) : '-',
-        target && attacker->unit_state->attack_target_spawn_time == target->spawn_time,
+        target && attacker->attack_target_spawn_time == target->spawn_time,
         target ? Vector2_distance(&attacker->s.origin2, &target->s.origin2) : 0.0f,
-        attacker->orders->attackmove_waypoint != NULL,
-        attacker->orders->patrol_a != NULL, attacker->orders->follow_target != NULL);
+        attacker->movement.attackmove_waypoint != NULL,
+        attacker->movement.patrol_a != NULL, attacker->movement.follow_target != NULL);
     unit_leavecombat(attacker);
-    attacker->goalentity = NULL;
-    attacker->unit_state->attack_target_spawn_time = 0;
-    attacker->orders->explicit_allied_attack = false;
+    S_SetMoveGoal(attacker, &attacker->goalentity, NULL);
+    attack_set_target(attacker,NULL);
+    attacker->movement.explicit_allied_attack = false;
+    /* Native497e20 releases the target, but d016a waits on the independent
+     * +200 timer. Retain the public head/FIFO until d01b2, never until cooldown. */
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    if (!G_BuildingIsUnsummoning(attacker) && attacker->attack_swing.active &&
+        attacker->attack_swing.deadline.time>now.time) {
+        unit_setmove(attacker,&attack_move_finish);
+        attacker->wait=0;
+        return;
+    }
+    attack_resume_after_combat(attacker);
+}
+
+static void attack_resume_after_combat(edict_t *attacker) {
     if (G_BuildingIsUnsummoning(attacker)) {
-        attacker->currentmove = NULL;
+        M_SetMove(attacker,NULL);
         attacker->animation = NULL;
         attacker->wait = 0;
         return;
     }
-    if (attacker->orders->patrol_a) {
+    if (attacker->movement.patrol_a) {
         order_patrol_resume(attacker);
-    } else if (attacker->orders->attackmove_waypoint) {
-        order_attackmove(attacker, attacker->orders->attackmove_waypoint);
-    } else if (attacker->orders->follow_target) {
+    } else if (attacker->movement.attackmove_waypoint) {
+        order_attackmove(attacker, attacker->movement.attackmove_waypoint);
+    } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
-    } else if (G_CreepGuardCombatEnd(attacker)) {
-        return;
-    } else if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) {
-        return;
-    } else if (attacker->stand) {
-        attacker->stand(attacker);
+    } else {
+        G_CreepGuardCombatEnd(attacker);
+        bool const private_home=attacker->movement.guard_state==GUARD_COMBAT;
+        if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) return;
+        if(private_home && attacker->stand==unit_stand)unit_stand_preserve_attack_guard(attacker);
+        else if (attacker->stand) attacker->stand(attacker);
     }
 }
 
@@ -362,12 +1280,12 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
     bool allied = attacker && target && attacker->s.player < MAX_PLAYERS &&
         target->s.player < MAX_PLAYERS && attacker->s.player != target->s.player &&
         G_PlayerTreatsPlayerAsAlly(attacker->s.player, target->s.player) &&
-        !attacker->orders->explicit_allied_attack;
+        !attacker->movement.explicit_allied_attack;
     /* Existing attack orders are combat orders, unlike the explicit Attack
      * command which may deliberately target an allied unit.  Alliance changes
      * must therefore end an automatic/cinematic attack before its next hit. */
     if ((S_AttackCanTarget(attacker, target) || attack_can_retaliate(attacker, target)) && !allied &&
-        attacker->unit_state->attack_target_spawn_time == target->spawn_time) {
+        attacker->attack_target_spawn_time == target->spawn_time) {
         return false;
     }
     if (attacker) attack_finish_after_combat(attacker, attacker->goalentity, "target_invalid");
@@ -394,19 +1312,19 @@ static float const g_default_damage_table[8][8] = {
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
  * existing OpenRealm physical-attack contract. */
-static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk);
-int G_AttackDamage(edict_t *attacker, edict_t *target, int base) {
+static float attack_damage_type(edict_t *attacker, edict_t *target, float base, uint32_t atk);
+float G_AttackDamage(edict_t *attacker, edict_t *target, float base) {
     return attack_damage_type(attacker, target, base,
-                              attacker && attacker->unit_state && target ? attack_profile(attacker, target)->type : 0);
+                              attacker && target ? attack_profile(attacker, target)->type : 0);
 }
 
-int G_AttackDamageWithType(edict_t *attacker, edict_t *target, int base, uint32_t type) {
+float G_AttackDamageWithType(edict_t *attacker, edict_t *target, float base, uint32_t type) {
     return attack_damage_type(attacker, target, base, type);
 }
 
-static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk) {
+static float attack_damage_type(edict_t *attacker, edict_t *target, float base, uint32_t atk) {
     if (!attacker || !target || base <= 0) return base;
-    uint32_t def = target->unit_state ? target->unit_state->defense_type : 0;
+    uint32_t def = target->defense_type;
     if (atk >= 8) atk = 0;
     if (def >= 8) def = 7;
 
@@ -428,19 +1346,17 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
         dmg = dmg / (1.0f + armor * armor_coefficient);
     else
         dmg = dmg * (2.0f - powf(1.0f - armor_coefficient, -armor));
-    int result = (int)dmg;
-    return result < 1 ? 1 : result;
+    return dmg < 1.0f ? 1.0f : dmg;
 }
 
 /* Apply damage to target from attacker.
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, bool primary_attack) {
+static void T_DamageInternal(edict_t *target, edict_t *attacker, float damage, bool primary_attack) {
     bool instant_kill;
 
-    if (!target || G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) ||
-        unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
+    if (!target || G_UnitIsInvulnerable(target) ||
         S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
     }
@@ -450,6 +1366,13 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
                    ((target->svflags & SVF_MONSTER) ||
                     (G_IsDestructable(target) && G_DestructableCanBeAttackedBy(attacker, target))) &&
                    G_PlayerInstantKill(attacker->s.player);
+    if (!G_IsDestructable(target)) {
+        /* Native69b380 notifies AI self before the ordinary packet observers;
+         * this runs even while the source's help query is suppressed. */
+        if(target->aiflags&AI_TOWN_OWNED && attacker)S_UnitAllyCombatAlert(target,target,attacker);
+        S_UnitCombatAlert(target,attacker,0);
+        attack_call_for_help(target,attacker);
+    }
     damage = S_ManaShieldDamage(target, damage);
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
     if (damage <= 0) return;
@@ -466,13 +1389,11 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     if (primary_attack && attacker)
         S_PillageOnAttackDamage(attacker, target, MIN(target->health.value, (float)damage));
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
-    G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
-    G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
+    G_PublishEventWithRealValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
+    G_PublishEventWithRealValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
-    FOR_LOOP(i, target->unit_state ? MAX_UNIT_STATUSES : 0)
-        if (target->unit_state->statuses[i].level && target->unit_state->statuses[i].code == MAKEFOURCC('B','U','s','l'))
-            unit_removestatus(target, target->unit_state->statuses + i, STATUS_REMOVE_SCRIPT);
+    S_SleepDamageWake(target);
     unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
@@ -488,15 +1409,14 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
         return;
     }
     G_AddHealth(target, -damage);
-    G_CreepGuardDamaged(target);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {
-        abilityCall_t call = MAKE(abilityCall_t, .entity = attacker);
+        abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
         S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
-        target->orders->creep_guard_phase != CREEP_GUARD_RETURNING &&
+        target->movement.creep_guard_phase != CREEP_GUARD_RETURNING &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
             S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);
@@ -510,7 +1430,7 @@ static void T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     }
 }
 
-void T_Damage(edict_t *target, edict_t *attacker, int damage) {
+void T_Damage(edict_t *target, edict_t *attacker, float damage) {
     T_DamageInternal(target, attacker, damage, false);
 }
 
@@ -521,7 +1441,7 @@ bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t
            (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
 }
 
-void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, float damage) {
     if (!S_AttackHitAllowed(attacker, target, target)) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
@@ -529,18 +1449,18 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     S_PermanentInvisibilityReveal(attacker);
     damage = S_OrbAnnihilationDamage(attacker,
         S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
-    damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
+    damage = damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          + unit_status_modifier_total(attacker, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT)
-                                         - S_SoulBurnDamageReduction(attacker)));
+                                         - S_SoulBurnDamageReduction(attacker));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
-        damage += (int)S_SpellData(bash.alias, bash.level, 3);
+        damage += S_SpellData(bash.alias, bash.level, 3);
         S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));
     } }
-    damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
+    damage += S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
     S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);
@@ -548,25 +1468,27 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
+    S_OrbOnHit(attacker,target,true);
     T_DamageInternal(target, attacker, damage, true);
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
-    { uint32_t cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
+    { uint32_t cleave_code = G_UnitAbilityClassLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
             MAKEFOURCC('A','N','c','a') : MAKEFOURCC('A','C','c','e');
-    uint32_t cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
+    uint32_t cleave_level = G_UnitAbilityClassLevel(attacker, cleave_code);
     if (cleave_level) {
         float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
         float fraction = S_SpellData(cleave_code, cleave_level, 1);
         FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_AttackHitAllowed(attacker, target, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
-            T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
+            T_Damage(other, attacker, MAX(1.0f, damage * fraction));
     } }
     S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
     S_SlowPoisonOnHit(attacker, target);
-    S_OrbOnHit(attacker, target);
+    S_OrbOnHit(attacker,target,false);
+    S_FreezingBreathOnHit(attacker, target);
     S_PoisonOnHit(attacker, target);
     {
         unitAttack_t const *profile = attack_profile(attacker, target);
@@ -583,9 +1505,9 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
             float const thorns = S_ThornsMeleeDamageReturn(target, damage);
             float const carapace = S_SpikedCarapaceDamageReturn(target, damage);
             float const barricades = S_SpikedBarricadesDamageReturn(target, damage);
-            if (thorns > 0.0f) T_Damage(attacker, target, (int)thorns);
+            if (thorns > 0.0f) T_Damage(attacker, target, thorns);
             if (carapace > 0.0f && attacker->inuse && !M_IsDead(attacker))
-                T_Damage(attacker, target, (int)carapace);
+                T_Damage(attacker, target, carapace);
             /* Spikes are magic retaliation: go through spell immunity and
              * anti-magic absorption, not the plain physical-damage path. */
             if (barricades > 0.0f && attacker->inuse && !M_IsDead(attacker))
@@ -624,14 +1546,14 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
                   (!missile_splash || other == primary || S_SpellIsEnemy(attacker, other))) {
         float const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         float factor;
-        int damage;
+        float damage;
 
         if (distance <= profile->area_full) factor = 1.0f;
         else if (distance <= profile->area_medium) factor = profile->factor_medium;
         else if (distance <= profile->area_small) factor = profile->factor_small;
         else continue;
         if (factor <= 0.0f) continue;
-        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
+        damage = attack_damage_type(attacker, other, MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
         if (other == primary) {
             primary_hit = true;
             S_ResolveAttackHit(attacker, other, damage);
@@ -640,7 +1562,7 @@ static void resolve_splash_point_hit(edict_t *attacker, edict_t *primary, vec2_t
         }
     }
     if (missile_splash && !primary_hit && primary && primary->inuse && primary != attacker && !M_IsDead(primary)) {
-        int const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
+        float const damage = attack_damage_type(attacker, primary, raw_damage, profile->attack_type);
         S_ResolveAttackHit(attacker, primary, damage);
     }
     /* A direct, researched tree attack is legal even if the weapon's splash
@@ -700,7 +1622,7 @@ void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
     profile.area_full = atk->areaFull; profile.area_medium = atk->areaMedium; profile.area_small = atk->areaSmall;
     profile.factor_medium = atk->factorMedium; profile.factor_small = atk->factorSmall;
     if (attacker->data.UnitWeapons)
-        profile.area_targets = atk == &attacker->unit_state->attack2 ? attacker->data.UnitWeapons->attack2.areaTargets
+        profile.area_targets = atk == S_AttackProfileRead(attacker, 1) ? attacker->data.UnitWeapons->attack2.areaTargets
                                                        : attacker->data.UnitWeapons->attack1.areaTargets;
     impact = target->s.origin2;
     S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);
@@ -710,24 +1632,63 @@ static bool attack_animation_can_finish(edict_t const *ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
 
+/* The public one-shot head owns completion, independent of the target's life.
+ * At a committed hit retain the target until d01b2; target loss may detach it
+ * earlier through the same finishing state. No second swing can begin. */
+static bool attack_hold_once(edict_t *ent, umove_t const *move, edict_t const *target) {
+    if (ent->currentmove!=move || ent->goalentity!=target || ent->current_order_id!=G_OrderId("attackonce"))
+        return false;
+    unit_setmove(ent,&attack_move_finish);
+    ent->wait=0;
+    return true;
+}
+
 static void attack_set_backswing_deadline(edict_t *ent) {
     uint32_t duration = (uint32_t)ceilf(MAX(0.0f, ACTIVE_ATTACK(ent)->backswingPoint /
                                                       attack_speed_divisor(ent)) * 1000.0f);
-    ent->unit_state->attack_backswing_end_time = G_Time() + duration;
+    ent->attack_backswing_end_time = G_Time() + duration;
+}
+
+static void attack_swing_begin(edict_t *ent) {
+    float remaining=attack_cooldown_remaining(ent);
+    float previous=remaining;
+    float delay=wc3_attack_swing_delay(ACTIVE_ATTACK(ent)->backswingPoint,
+                                      attack_speed_divisor(ent),&remaining);
+    if (remaining!=previous) attack_arm_cooldown(ent,remaining,false);
+    attack_swing_cancel(ent);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    ent->attack_swing=(abilityPrimaryTimer_t){.active=true,.deadline=now,
+                                             .sequence=++level.timer_sequence};
+    ent->attack_swing.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(ent,ATTACK_TIMER_SWING);
 }
 
 static float attack_backswing_remaining(edict_t const *ent) {
-    int32_t remaining = ent ? (int32_t)(ent->unit_state->attack_backswing_end_time - G_Time()) : 0;
+    int32_t remaining = ent ? (int32_t)(ent->attack_backswing_end_time - G_Time()) : 0;
     return remaining > 0 ? remaining / 1000.0f : 0.0f;
+}
+
+/*4946b0 evaluates the damage-point geometry after arming d01b2. The
+ * selected slot's buffer applies here independently of cooldown readiness. */
+static bool attack_commit_in_range(edict_t const *ent,edict_t const *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target))return false;
+    unitAttack_t const *profile=attack_target_profile(ent,target);
+    float ensnare=S_EnsnareMeleeRange(ent);
+    float range=ensnare>0 ? ensnare : profile->range;
+    range=range>=ATTACK_MINIMUM_CHASE_RANGE ? range : ATTACK_MINIMUM_CHASE_RANGE;
+    range=wc3_add(range,profile->rangeBuffer);
+    return S_UnitTargetInMoveRange(ent,target,range) || S_UnitTargetOnPerimeter(ent,target);
 }
 
 static void damage_target(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
-    if (attack_stop_if_target_invalid(ent)) return;
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
     attack_set_backswing_deadline(ent);
-    S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
+    attack_swing_begin(ent);
+    if(attack_commit_in_range(ent,target))
+        S_ResolveAttackHit(ent,target,G_AttackDamage(ent,target,ai_rolldamage1(ent,1)));
+    if (attack_hold_once(ent,move,target)) return;
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
      * not resolve a usable attack sequence. Their damage-point timer still
@@ -743,10 +1704,15 @@ static void damage_target(edict_t *ent) {
 
 static void throw_missile(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
-    if (attack_stop_if_target_invalid(ent)) {
+    edict_t *other = ent->goalentity;
+    umove_t const *move=ent->currentmove;
+    attack_set_backswing_deadline(ent);
+    attack_swing_begin(ent);
+    if(!attack_commit_in_range(ent,other)) {
+        if(attack_hold_once(ent,move,other))return;
+        if(!attack_animation_can_finish(ent))attack_ranged_cooldown(ent);
         return;
     }
-    edict_t *other = ent->goalentity;
     /* Roll at launch, but defer target armor/type mitigation until impact so
      * armor or defense changes while the projectile is in flight are honored. */
     int damage = (int)ai_rolldamage1(ent, 1);
@@ -756,7 +1722,6 @@ static void throw_missile(edict_t *ent) {
     vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     vec2_t impact = other->s.origin2;
     cstring_t missile_art = S_SearingArrowsMissileArt(ent);
-    attack_set_backswing_deadline(ent);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
@@ -766,58 +1731,47 @@ static void throw_missile(edict_t *ent) {
         .damage = damage,
         .attack_type = atk->type,
         .attack = atk,
-        .impaling_line = atk->weapon == WPN_ALINE && G_ImpalingBoltResearchLevel(ent) > 0 &&
-                         !G_IsDestructable(other),
-        .tree_attack_allowed = atk->weapon == WPN_ALINE &&
-                               G_ImpalingBoltResearchLevel(ent) > 0 && G_IsDestructable(other),
-        .area_targets = ent->data.UnitWeapons ? (atk == &ent->unit_state->attack2 ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
+        .impaling_line = atk->weapon == WPN_ALINE && G_ImpalingBoltResearchLevel(ent) > 0 && !G_IsDestructable(other),
+        .tree_attack_allowed = atk->weapon == WPN_ALINE && G_ImpalingBoltResearchLevel(ent) > 0 && G_IsDestructable(other),
+        .area_targets = ent->data.UnitWeapons ? (atk == S_AttackProfileRead(ent, 1) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
+    if (attack_hold_once(ent,move,other)) return;
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
      * projectile launch point instead. */
-    if (S_AttackCanTarget(ent, ent->goalentity) && !attack_animation_can_finish(ent))
+    if (ent->currentmove==move && ent->goalentity==other &&
+        S_AttackCanTarget(ent,other) && !attack_animation_can_finish(ent))
         attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
 //    gi.WritePosition(&origin);
-//    gi.WriteShort(ent->unit_state->attack1.projectile.model);
-//    gi.WriteShort(ent->unit_state->attack1.projectile.speed);
-//    gi.WriteShort(Vector2_len(&dir) * 1000 / ent->unit_state->attack1.projectile.speed);
+//    gi.WriteShort(S_AttackProfileRead(ent, 0)->projectile.model);
+//    gi.WriteShort(S_AttackProfileRead(ent, 0)->projectile.speed);
+//    gi.WriteShort(Vector2_len(&dir) * 1000 / S_AttackProfileRead(ent, 0)->projectile.speed);
 //    gi.WriteAngle(atan2(dir.y, dir.x));
 //    gi.multicast(&ent->s.origin, MULTICAST_PHS);
 }
 
 static void ai_melee(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
+    attack_cooldown_elapsed(ent, false);
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    /* The target must still satisfy the true weapon range at damage point.
-     * RngBuff is cooldown hysteresis only; it must never preserve a pending
-     * melee hit after the target has escaped the real attack envelope. */
-    if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent)) {
-        ent->wait = 0.0f;
-        attack_walk(ent);
-        return;
-    }
-    unit_facegoal(ent);
-    unit_runwait(ent, damage_target);
+    /* d01b1 retains windup while the target moves.4946b0 evaluates buffered
+     * geometry at the primary deadline; base-range exit is not cancellation. */
+    /* The physical facing task has completed. The d01b1 wait must not
+     * run generic route steering again while waiting for damage. */
 }
 
 static void ai_ranged(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
+    attack_cooldown_elapsed(ent, false);
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    /* A projectile is committed only at damage point.  Until then, leaving
-     * true range cancels the windup and returns to chase just like melee. */
-    if (attack_target_out_of_base_range(ent) || attack_target_too_close(ent)) {
-        ent->wait = 0.0f;
-        attack_walk(ent);
-        return;
-    }
-    unit_facegoal(ent);
-    unit_runwait(ent, throw_missile);
+    /* Moving beyond base range does not retire the primary damage wait. */
+    /* Facing is complete; projectile commit belongs to d01b1. */
 }
 
 static float attack_minimum_range(edict_t const *ent) {
@@ -858,28 +1812,51 @@ static void attack_retreat_from_target(edict_t *ent) {
     if (len <= 0.001f) dir = MAKE(vec2_t, cosf(ent->s.angle + (float)M_PI), sinf(ent->s.angle + (float)M_PI));
     else { dir.x /= len; dir.y /= len; }
     ent->s.angle = atan2f(dir.y, dir.x);
-    G_BeginMovement(ent);
-    ent->movement->heading = ent->s.angle;
-    ent->movement->flow_direct = true;
-    ent->movement->flow_generation = 0;
+    ent->movement.heading = ent->s.angle;
+    ent->movement.flow_direct = true;
+    ent->movement.flow_generation = 0;
     unit_moveindirection(ent);
 }
 
 /* RngBuff applies until the simulation-time deadline, even while another
  * ability owns the unit's think callback. */
 static bool attack_is_cooling_down(edict_t const *ent) {
-    return ent && ent->unit_state->attack_cooldown_end_time &&
-        (int32_t)(ent->unit_state->attack_cooldown_end_time - G_Time()) > 0;
+    return attack_cooldown_remaining(ent)>0;
 }
 
-/* Recovery animation waits use seconds; derive them only when needed from simulation milliseconds. */
-static float attack_cooldown_remaining(edict_t const *ent) {
-    return attack_is_cooling_down(ent) ? (ent->unit_state->attack_cooldown_end_time - G_Time()) / 1000.0f : 0.0f;
+static float attack_cooldown_remaining(edict_t const *unit) {
+    if(!unit || !unit->attack_cooldown.active)return 0;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    return wc3_sub(unit->attack_cooldown.deadline.time,now.time);
 }
-
+static void attack_cooldown_sync(edict_t *unit) {
+    float remaining=MAX(0,attack_cooldown_remaining(unit));
+    unit->attack_cooldown_active=unit->attack_cooldown.active;
+    unit->attack_cooldown_remaining=remaining;
+    /* Compatibility/display cache; never used to decide readiness. */
+    double milliseconds=ceil((double)remaining*1000);
+    uint32_t room=UINT32_MAX-G_Time();
+    uint32_t duration=milliseconds>=room ? room : (uint32_t)milliseconds;
+    unit->attack_cooldown_end_time=unit->attack_cooldown.active ? G_Time()+duration : 0;
+}
 static void attack_set_cooldown(edict_t *ent, float seconds) {
-    uint32_t duration = (uint32_t)ceilf(MAX(0.0f, seconds) * 1000.0f);
-    ent->unit_state->attack_cooldown_end_time = G_Time() + duration;
+    attack_cooldown_cancel(ent);
+    if(seconds<0)return;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    float delay=MAX(seconds,wc3_float(0x38d1b717));
+    ent->attack_cooldown=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    ent->attack_cooldown.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(ent,ATTACK_TIMER_COOLDOWN);
+    attack_cooldown_sync(ent);
+}
+/*49d130 grants the cap first, then replaces only a strictly shorter remaining
+ * cooldown. Damage is armed only in that same replacement branch. */
+static bool attack_arm_cooldown(edict_t *unit,float seconds,bool swing) {
+    if(swing)attack_cap_begin(unit);
+    if(!(attack_cooldown_remaining(unit)<seconds))return false;
+    attack_set_cooldown(unit,seconds);
+    if(swing)attack_damage_arm(unit,ACTIVE_ATTACK(unit),attack_speed_divisor(unit),seconds);
+    return true;
 }
 
 /* Centralize attack-range geometry so buffered cooldown range and true firing
@@ -912,23 +1889,43 @@ static bool attack_target_out_of_base_range(edict_t *ent) {
     return !ent || attack_target_out_of_range_for_mode(ent, ent->goalentity, false);
 }
 
+/* Unit+ec contributors in4959f0/49d680. This is target acquisition prevention,
+ * separate from a unit voluntarily holding fire or losing movement. */
+static bool attack_target_prevents_acquisition(edict_t const *target) {
+    return G_UnitIsSleeping(target) || unit_hasstatusstate(target,WC3_STATUS_STATE_SLEEPING) ||
+        S_UnitMechanicalCritter(target) || S_UnitHasStatus(target,MAKEFOURCC('B','p','o','s'));
+}
+
 /* Movement-disabled attackers (ordinary towers/buildings) must not auto-acquire
  * something they can see but can never approach.  Mobile units still acquire
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
-bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
+static bool attack_can_acquire_target(edict_t const *attacker, edict_t const *target) {
     if (S_UnitIsEntanglingRooted(attacker) || !S_AttackCanTarget(attacker, target)) return false;
-    if ((attacker->aiflags & AI_IMMOBILE) &&
-        (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
+    bool town=(attacker->aiflags&AI_TOWN_OWNED)!=0;
+    if(attack_target_prevents_acquisition(target) && !town)return false;
+    /* Natural sleep also owns A_NO_ACQUIRE for the sleeper's own idle policy.
+     * Its target-side exception must agree in both scans and notifications. */
+    if(S_UnitAbilityEvent((edict_t *)target,A_NO_ACQUIRE) &&
+       !(town && G_UnitIsSleeping(target)))return false;
+    if ((attacker->aiflags & AI_IMMOBILE) && attack_target_out_of_range_for(attacker, target))
         return false;
     return true;
 }
 
-/* Weapon cooldown advances independently of the owning think callback; recovery remains move-local. */
-static bool attack_cooldown_elapsed(edict_t *ent) {
+bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
+    return attack_can_acquire_target(attacker,target) &&
+        (!(attacker->aiflags & AI_IMMOBILE) || !attack_target_too_close_for(attacker,target));
+}
+
+/* Refresh the compatibility remaining field from the authoritative deadline;
+ * advancing simulation time does not depend on this ability's think callback. */
+static bool attack_cooldown_elapsed(edict_t *ent, bool tick_recovery) {
     float const step = FRAMETIME / 1000.0f;
-    ent->wait = MAX(0.0f, ent->wait - step);
-    return !attack_is_cooling_down(ent) && ent->wait <= 0.0f;
+    attack_cooldown_sync(ent);
+    if (tick_recovery)
+        ent->wait = MAX(0.0f, ent->wait - step);
+    return attack_cooldown_remaining(ent)<=0 && ent->wait <= 0.0f;
 }
 
 static void ai_melee_cooldown(edict_t *ent) {
@@ -937,7 +1934,7 @@ static void ai_melee_cooldown(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    ready = attack_cooldown_elapsed(ent);
+    ready = attack_cooldown_elapsed(ent, true);
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
     } else if (ready) {
@@ -957,7 +1954,7 @@ static void ai_ranged_cooldown(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    ready = attack_cooldown_elapsed(ent);
+    ready = attack_cooldown_elapsed(ent, true);
     if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
     } else if (ready) {
@@ -974,26 +1971,28 @@ static void ai_attack_walk(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    cooldown_ready = attack_cooldown_elapsed(ent);
+    cooldown_ready = attack_cooldown_elapsed(ent, true);
+    if (S_UnitTargetChaseActive(ent,CAbilityAttack)) return;
     if (attack_target_out_of_range(ent)) {
         /* Hold Position and movement-disabled structures cannot chase an
          * out-of-range target.  Finish the attack behavior instead of leaving
          * an immobile tower stuck forever in attack_walk. */
-        if (ent->orders->holding_position || (ent->aiflags & AI_IMMOBILE)) {
+        if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
             attack_finish_after_combat(ent, ent->goalentity, "immobile_target_out_of_range");
             return;
         }
         if (!S_UnitCanTranslate(ent)) return;
-        if (ent->goalentity->targtype == TARG_WALL)
-            unit_changeangle(ent);
-        else
-            unit_changeangle_for_radius(ent, ent->collision);
-        if (ent->movement->flow_unreachable) return;
+        /* Native49a240: the nonpersistent physical request captures range
+         * and delegates cached-target sampling/path work to Move. */
+        float range=S_EnsnareMeleeRange(ent);
+        if(range<=0)range=ACTIVE_ATTACK(ent)->range;
+        if(S_BeginUnitTargetChase(ent,ent->goalentity,MAX(ATTACK_MINIMUM_CHASE_RANGE,range),CAbilityAttack,S_AttackTargetChaseComplete))return;
+        unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
         /* Artillery minimum range is a real dead zone. Mobile siege units back
          * away until they can fire; Hold Position/immobile attackers cannot. */
-        if (ent->orders->holding_position || (ent->aiflags & AI_IMMOBILE)) {
+        if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
             attack_finish_after_combat(ent, ent->goalentity, "immobile_target_too_close");
             return;
         }
@@ -1001,31 +2000,180 @@ static void ai_attack_walk(edict_t *ent) {
         attack_retreat_from_target(ent);
     } else {
         if (!cooldown_ready) {
-            ent->wait = MAX(ent->wait, attack_cooldown_remaining(ent));
-            if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY ||
-                ACTIVE_ATTACK(ent)->weapon == WPN_MSPLASH || ACTIVE_ATTACK(ent)->weapon == WPN_MBOUNCE ||
-                ACTIVE_ATTACK(ent)->weapon == WPN_ALINE)
+            ent->wait = MAX(ent->wait, ent->attack_cooldown_remaining);
+            if (G_WeaponUsesProjectile(ACTIVE_ATTACK(ent)->weapon))
                 unit_setmove(ent, &attack_move_ranged_cooldown);
             else
                 unit_setmove(ent, &attack_move_melee_cooldown);
             return;
         }
-        if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY ||
-            ACTIVE_ATTACK(ent)->weapon == WPN_MSPLASH || ACTIVE_ATTACK(ent)->weapon == WPN_MBOUNCE ||
-            ACTIVE_ATTACK(ent)->weapon == WPN_ALINE)
+        /*495180/49a240: an in-range mobile attacker turns through Move before
+         * starting weapon windup. FLT_MAX is the request's bypass sentinel;
+         * the physical owner still enforces its independent facing gate. */
+        if(!S_UnitTargetInFacingWindow(ent,ent->goalentity,game.constants.attackHalfAngle) &&
+           S_BeginUnitTargetChase(ent,ent->goalentity,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete))return;
+        if (G_WeaponUsesProjectile(ACTIVE_ATTACK(ent)->weapon))
             attack_ranged(ent);
         else
             attack_melee(ent);
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, CAbilityAttack, .travel = true };
+static void attack_chase_leave(edict_t *unit) {
+    S_EndUnitTargetChase(unit,CAbilityAttack);
+}
+
+/*603110 uses an unranked center-only widget query, not acquisition range.
+ *602ad0 compares predicted WORLD distances and preserves the first exact tie. */
+typedef struct {
+    edict_t const *source,*excluded;
+    edict_t *selected;
+    box2_t bounds;
+    vec2_t origin;
+    float best;
+} attackFailureQuery_t;
+
+static bool attack_failure_candidate(void *data,edict_t *candidate) {
+    attackFailureQuery_t *query=data;
+    if(candidate==query->excluded || candidate==query->source ||
+       !(candidate->svflags&SVF_MONSTER) || M_IsDead(candidate) ||
+       ((candidate->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(candidate)) ||
+       G_PlayerTreatsPlayerAsAlly(query->source->s.player,candidate->s.player) ||
+       attack_target_prevents_acquisition(candidate))return true;
+    float fine[2];S_PredictUnitFinePointAt(candidate,&level.pathing_clock,fine);
+    float dx=wc3_sub(wc3_world_coordinate(fine[0],query->bounds.min.x,32),query->origin.x);
+    float dy=wc3_sub(wc3_world_coordinate(fine[1],query->bounds.min.y,32),query->origin.y);
+    float squared=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+    if(squared<query->best){query->best=squared;query->selected=candidate;}
+    return true;
+}
+
+static bool attack_failure_alternative(edict_t *unit) {
+    if(!(unit->aiflags&AI_TOWN_OWNED) || !unit->attack_target)return false;
+    float fine[2];S_PredictUnitFinePointAt(unit,&level.pathing_clock,fine);
+    box2_t bounds=CM_GetWorldBounds();
+    attackFailureQuery_t query={.source=unit,.excluded=unit->attack_target,.bounds=bounds,.best=FLT_MAX,
+        .origin={wc3_world_coordinate(fine[0],bounds.min.x,32),wc3_world_coordinate(fine[1],bounds.min.y,32)}};
+    S_VisitMoveCircle(fine,500.0f/32,attack_failure_candidate,&query);
+    edict_t *target=query.selected;
+    if(!target)return false;
+    uint32_t spawn=unit->spawn_time,target_spawn=target->spawn_time;
+    order_stop_cleanup(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit))return true;
+    if(!target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target))return false;
+    bool accepted;
+    if(G_UnitIsInvulnerable(target) || !S_AttackCanTarget(unit,target))
+        accepted=S_IssueFollowOrder(unit,target,G_OrderId("attack"));
+    else accepted=S_OrderAttack(unit,target);
+    if(!accepted)return false;
+    /* Internal target admission does not run the JASS wrapper's invulnerable
+     * target-to-point conversion. Retail still emits the target order event. */
+    unit->current_order_id=G_OrderId("attack");
+    S_UnitAbilityOrderAccepted(unit,"attack");
+    G_PublishIssuedTargetOrder(unit,"attack",target,unit->s.player);
+    return true;
+}
+
+/* d0196/499310 requires full visibility at physical arrival. TargetLost uses
+ * detection-only validation; ordinary hidden group visits do not end Attack. */
+void S_AttackTargetChaseComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack)return;
+    if(!arrived) {
+        attack_failed_target_remember(unit,unit->attack_target);
+        if(attack_failure_alternative(unit))return;
+        /*603110/5fb190 retire the failed Attack approach before Town idle
+         * dispatch. A failed physical owner must not restart the same chase. */
+        uint32_t spawn=unit->spawn_time;
+        attack_finish_after_combat(unit,unit->goalentity,"chase_unreachable");
+        if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+           (unit->aiflags&AI_TOWN_OWNED))G_BotDispatchAIStop(unit);
+        return;
+    }
+    if(attack_stop_if_target_invalid(unit))return;
+    if(!G_FowPlayerCanTrackUnit(unit->s.player,unit->goalentity)) {
+        attack_finish_after_combat(unit,unit->goalentity,"hidden_arrival");return;
+    }
+    ai_attack_walk(unit);
+}
+
+static umove_t attack_move_walk = { .animation="walk", .think=ai_attack_walk, .proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
+/* Move owns the d016c point recovery; Attack retains its public head and
+ * independent swing deadline. No target validation may reacquire this point. */
+static umove_t attack_move_recovery = { .animation="walk", .proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
+
+/* 628a10 calls495740 before forced recovery;495750 owns the inverse. */
+uint32_t S_AttackInvisibilityAcquire(edict_t *unit) {
+    if(!unit || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return false;
+    if(!unit->attack_invisibility_generation)unit->attack_invisibility_generation=1;
+    uint32_t generation=unit->attack_invisibility_generation;
+    unit->attack_invisibility_suppression++;
+    attack_acquire_disable(unit);
+    /*628a10 uses the pending-user-successor query, as Harvest's687f60
+     * continuation does. Internal task phases are not queued user orders. */
+    bool capture=G_UnitQueuedOrderCount(unit)==0;
+    attack_recover_target_task(unit,unit->attack_target,true,capture,"invisibility_activated");
+    return generation;
+}
+void S_AttackInvisibilityRelease(edict_t *unit,uint32_t generation) {
+    if(!unit || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))return;
+    if(!generation || unit->attack_invisibility_generation!=generation)return;
+    unit->attack_invisibility_suppression--;
+    if((int32_t)unit->attack_invisibility_suppression<1 &&
+       !unit->attack_acquisition_suppressed && !S_UnitExecutionPaused(unit))
+        attack_acquire_enable(unit);
+}
+
+void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver==unit && unit->currentmove==&attack_move_recovery)
+        attack_finish_after_combat(unit,unit->goalentity,arrived ? "recovery_arrival" : "recovery_unreachable");
+}
+
+static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed) {
+    /*49b51a..55a: Blink alone tests committed centers with both radii.
+     *49d353..35a excludes the transient target from point capture even when
+     * the later task chain could admit it. Retain the independent swing wait. */
+    if(target->target_loss_transient &&
+       !S_UnitTargetInCommittedMoveRange(unit,target,ATTACK_BLINK_RETENTION_RANGE)) {
+        attack_finish_after_combat(unit,target,"blink_out_of_range");return;
+    }
+    /*49b420 validates detection, not fog. A valid target keeps the same owner. */
+    if(!owner_changed && !G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
+       unit->attack_target_spawn_time==target->spawn_time)return;
+    /*49b582 sets loss intent;49b160 owner change does not manufacture it.
+     * The common recovery consumes existing intent, not the event's name. */
+    if(!owner_changed)unit->attack_recovery_pending=true;
+    /*497190 retains d016a while +200 is armed; the existing finishing move
+     * completes that independent swing before advancing the public queue. */
+    attack_finish_after_combat(unit,target,"target_lost");
+}
+
 static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, CAbilityAttack };
-static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, CAbilityAttack };
+static umove_t attack_move_melee = { .animation="attack", .think=ai_melee, .endfunc=attack_melee_cooldown, .proc=CAbilityAttack, .leave=attack_release_target_timing };
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
-static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, CAbilityAttack };
+static umove_t attack_move_ranged = { .animation="attack range", .think=ai_ranged, .endfunc=attack_ranged_cooldown, .proc=CAbilityAttack, .leave=attack_release_target_timing };
+
+/* Native497da0: counters belong to the current Attack object; missing Attack
+ * skips both directions. Unsigned arithmetic retains the signed32 word wrap. */
+void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release) {
+    unitAttack_t const *active = NULL;
+    uint32_t active_slot = UINT32_MAX;
+    if (!unit || !(mask & 7) || !G_ActorHasAbilityCode(unit, MAKEFOURCC('A','a','t','k'))) return;
+    if (unit->currentmove == &attack_move_melee || unit->currentmove == &attack_move_ranged ||
+        unit->currentmove == &attack_move_melee_cooldown || unit->currentmove == &attack_move_ranged_cooldown) {
+        active = ACTIVE_ATTACK(unit);
+        FOR_LOOP(slot,2) if (active == S_AttackProfileRead(unit, slot)) active_slot = slot;
+    }
+    G_EnsureUnitStatusSlots(unit);
+    unitStatusStorage_t *state = (unitStatusStorage_t *)unit->abilstatus;
+    FOR_LOOP(i,3) if (mask & (1u << i)) state->attack_prevention[i] += release ? UINT32_MAX : 1;
+    if (!release && active_slot != UINT32_MAX && !S_UnitAttackSlotEnabled(unit, active_slot))
+        attack_finish_after_combat(unit, unit->goalentity, "attack_prevented");
+}
 
 void attack_walk(edict_t *self) {
+    attack_release_target_timing(self);
     unit_setmove(self, &attack_move_walk);
 }
 
@@ -1040,13 +2188,17 @@ static void order_attack_internal(edict_t *self, edict_t *target, bool retaliati
      * issued by T_Damage(), so clear both invisibility and the explicit Hide
      * hold-fire state before installing the attack behavior. */
     S_ShadowMeldBreak(self);
-    self->orders->explicit_allied_attack = false;
+    self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
-    self->goalentity = target;
-    self->unit_state->attack_target_spawn_time = target->spawn_time;
+    S_EndUnitTargetChase(self,CAbilityAttack);
+    S_SetMoveGoal(self, &self->goalentity, target);
+    attack_set_target(self,target);
     /* Birth and other non-attack moves can leave a long wait on the unit.
      * Preserve waits only while an authored weapon cooldown is still active. */
-    if (!attack_is_cooling_down(self)) self->wait = 0.0f;
+    if (!attack_is_cooling_down(self)) {
+        attack_cooldown_cancel(self);
+        self->wait = 0.0f;
+    }
     attack_walk(self);
 }
 
@@ -1059,13 +2211,18 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
         !S_AttackCanTarget(self, target))
         return false;
-    S_SpellCancelChannel(self);
-    self->orders->attackmove_waypoint = NULL;
-    self->orders->patrol_a = self->orders->patrol_b = self->orders->patrol_target = NULL;
-    self->orders->follow_target = NULL;
-    self->orders->holding_position = false;
-    order_attack(self, target);
-    self->orders->explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetFollowTarget(self,NULL);
+    self->movement.holding_position = false;
+    /*49a980's ordinary public order has no retained request context. Its
+     * initial physical task follows d0163 even for a repeated target or an
+     * active weapon cooldown; automatic replacement uses order_attack. */
+    attack_begin_reaction(self, target);
+    self->attack_acquisition_suppressed = true;
+    self->movement.explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
     return true;
 }
 
@@ -1077,7 +2234,7 @@ bool S_SearingArrowsIssueOrder(edict_t *attacker, edict_t *target, uint32_t abil
     uint32_t level;
     if (!attacker || !target || G_AbilityCode(ability) != MAKEFOURCC('A','H','f','a') ||
         !G_UnitAbilityLevel(attacker, ability) || !S_AttackCanTarget(attacker, target) ||
-        !attacker->unit_state || attacker->unit_state->attack1.weapon != WPN_MISSILE) return false;
+        S_AttackProfileRead(attacker, 0)->weapon != WPN_MISSILE) return false;
     level = G_UnitAbilityLevel(attacker, ability);
     app = (status_application_t){
         .buff = GetClassName(ability), .level = level, .source_ability = ability,
@@ -1095,10 +2252,10 @@ static float attack_speed_divisor(edict_t *self) {
     float const agi_bonus = game.constants.combatConstantsLoaded
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
-    float total_bonus = (float)self->unit_state->hero.agi * agi_bonus +
+    float total_bonus = (float)self->hero.agi * agi_bonus +
                       unit_status_modifier_total(self, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
-    total_bonus += S_EnduranceAttackBonus(self);
+    total_bonus=S_ApplyEnduranceAttackBonus(self,total_bonus);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * combines authored buffs/debuffs with Agility before applying the same
      * timing bounds. */
@@ -1107,20 +2264,26 @@ static float attack_speed_divisor(edict_t *self) {
 }
 
 void attack_melee_cooldown(edict_t *self) {
+    /* Presentation may finish before d01b1 (including a short/fallback
+     * animation). Its end callback cannot cancel the primary damage owner. */
+    if(self->attack_damage.active)return;
     float divisor = attack_speed_divisor(self);
     /* A normal animated swing starts its cooldown at attack_melee(). The
      * animation end callback can run well after damage point, so retain that
      * deadline instead of restarting cooldown - damagePoint from here. The
      * fallback covers callers that enter recovery without an active swing
      * deadline (for example zero-length animation paths). */
-    if (self->currentmove != &attack_move_melee) {
-        attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    if (self->currentmove == &attack_move_melee)
+        attack_cooldown_elapsed(self, false);
+    else {
+        attack_arm_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor,false);
         /* Direct calls without a preceding swing model the damage point at
          * recovery entry; normal attack moves set this at the committed hit. */
         attack_set_backswing_deadline(self);
     }
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = MAX(attack_cooldown_remaining(self), attack_backswing_remaining(self));
+    self->wait = MAX(self->attack_cooldown_remaining,
+                     attack_backswing_remaining(self));
     /* The next swing must satisfy both authored gates: weapon cooldown from
      * swing start and backswing after damage point.  If both have already
      * elapsed, transition explicitly instead of parking on wait==0. */
@@ -1130,48 +2293,68 @@ void attack_melee_cooldown(edict_t *self) {
 void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
-    attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
+    /* Native49d130(...,1) grants the exemption at weapon windup, before
+     * comparing the cooldown request. Explicit attacks reach this too. */
     unit_setmove(self, &attack_move_melee);
-    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
+    attack_arm_cooldown(self,wc3_div(ACTIVE_ATTACK(self)->cooldown,divisor),true);
 }
 
 void attack_ranged_cooldown(edict_t *self) {
+    if(self->attack_damage.active)return;
     float divisor = attack_speed_divisor(self);
-    if (self->currentmove != &attack_move_ranged) {
-        attack_set_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
+    if (self->currentmove == &attack_move_ranged)
+        attack_cooldown_elapsed(self, false);
+    else {
+        attack_arm_cooldown(self, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor,false);
         attack_set_backswing_deadline(self);
     }
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = MAX(attack_cooldown_remaining(self), attack_backswing_remaining(self));
+    self->wait = MAX(self->attack_cooldown_remaining,
+                     attack_backswing_remaining(self));
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
 void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
-    attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_ranged);
-    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
+    attack_arm_cooldown(self,wc3_div(ACTIVE_ATTACK(self)->cooldown,divisor),true);
 }
 
-/* ---- Attack Ground --------------------------------------------------------
- * Warsmash exposes Attack Ground for ARTILLERY weapons. The order keeps the
- * clicked point authoritative, walks a mobile siege unit into its normal
- * min/max range band, and snapshots that same point into each projectile at
- * the damage point. */
+/* Original494350 prefers the first enabled artillery/line slot and falls
+ * back to slot0. Ordinary weapons retain the same approach/point head, but
+ * have no ground-delivery operation. This is weapon policy, not a unit list. */
+static unsigned attack_ground_slot(edict_t const *ent) {
+    FOR_LOOP(slot,2) {
+        weaponType_t weapon=S_AttackProfileRead(ent,slot)->weapon;
+        if (S_UnitAttackSlotEnabled(ent,slot) && (weapon==WPN_ARTILLERY || weapon==WPN_MLINE)) return slot;
+    }
+    return 0;
+}
+
+static unitAttack_t const *attack_ground_profile(edict_t const *ent) {
+    return S_AttackProfileRead(ent,attack_ground_slot(ent));
+}
+
+static bool attack_ground_fires(edict_t const *ent) {
+    weaponType_t weapon=attack_ground_profile(ent)->weapon;
+    return S_UnitAttackSlotEnabled(ent,attack_ground_slot(ent)) &&
+           (weapon==WPN_ARTILLERY || weapon==WPN_MLINE);
+}
+
 static bool attack_ground_valid(edict_t const *ent) {
     return ent && ent->inuse && !M_IsDead((edict_t *)ent) &&
-           S_UnitAttackSlotEnabled(ent, 0) && ent->unit_state->attack1.type != ATK_NONE &&
-           (ent->unit_state->attack1.weapon == WPN_ARTILLERY || ent->unit_state->attack1.weapon == WPN_ALINE) && !S_UnitIsCycloned(ent) &&
+           ((S_UnitAttackSlotEnabled(ent,0) && S_AttackProfileRead(ent,0)->type!=ATK_NONE) ||
+            (S_UnitAttackSlotEnabled(ent,1) && S_AttackProfileRead(ent,1)->type!=ATK_NONE)) && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }
 
 static float attack_ground_distance(edict_t const *ent) {
-    return ent ? Vector2_distance(&ent->s.origin2, &G_GetChannel(ent)->origin) : FLT_MAX;
+    return ent ? Vector2_distance(&ent->s.origin2, &ent->channel->origin) : FLT_MAX;
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
-    return !ent || attack_ground_distance(ent) > ent->unit_state->attack1.range;
+    return !ent || !S_UnitPointInMoveRange(ent,&ent->channel->origin,attack_ground_profile(ent)->range);
 }
 
 static bool attack_ground_too_close(edict_t const *ent) {
@@ -1182,12 +2365,13 @@ static bool attack_ground_too_close(edict_t const *ent) {
 static void attack_ground_walk(edict_t *ent);
 static void attack_ground_ranged(edict_t *ent);
 static void attack_ground_cooldown(edict_t *ent);
+static umove_t attack_ground_move_hold;
 
 static void attack_ground_stop(edict_t *ent) {
     if (!ent) return;
-    ent->goalentity = NULL;
+    S_SetMoveGoal(ent, &ent->goalentity, NULL);
     if (ent->stand) ent->stand(ent);
-    else ent->currentmove = NULL;
+    else M_SetMove(ent,NULL);
 }
 
 static void throw_artillery_ground(edict_t *ent) {
@@ -1198,18 +2382,21 @@ static void throw_artillery_ground(edict_t *ent) {
     vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    impact = G_GetChannel(ent)->origin;
+    if (!attack_ground_fires(ent)) { unit_setmove(ent,&attack_ground_move_hold); return; }
+    attack_set_backswing_deadline(ent);
+    attack_swing_begin(ent);
+    impact = ent->channel->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
-    origin = Matrix4_multiply_vector3(&matrix, &ent->unit_state->attack1.origin);
+    origin = Matrix4_multiply_vector3(&matrix, &attack_ground_profile(ent)->origin);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .fixed_target = &impact,
-        .speed = ent->unit_state->attack1.projectile.speed,
-        .model = ent->unit_state->attack1.projectile.model,
+        .speed = attack_ground_profile(ent)->projectile.speed,
+        .model = attack_ground_profile(ent)->projectile.model,
         .damage = damage,
-        .attack = &ent->unit_state->attack1,
-        .area_targets = ent->data.UnitWeapons ? ent->data.UnitWeapons->attack1.areaTargets : 0,
+        .attack = attack_ground_profile(ent),
+        .area_targets = ent->data.UnitWeapons ? (attack_ground_slot(ent) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttackGround &&
         !attack_animation_can_finish(ent))
@@ -1219,55 +2406,216 @@ static void throw_artillery_ground(edict_t *ent) {
 static void ai_attack_ground_ranged(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    unit_facegoal(ent);
-    unit_runwait(ent, throw_artillery_ground);
+    /* Facing is complete; ground projectile commit belongs to d01b1. */
 }
 
 static void ai_attack_ground_cooldown(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
-    else unit_runwait(ent, attack_ground_ranged);
+    else {
+        attack_cooldown_sync(ent);
+        if(attack_cooldown_remaining(ent)<=0 && !ent->attack_swing.active)
+            attack_ground_ranged(ent);
+    }
+}
+
+/* A non-ground weapon keeps the point order until replacement. Recheck the
+ * live profile so a weapon rebind neither fires the old slot nor loses the head. */
+static void ai_attack_ground_hold(edict_t *ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
+    else if (attack_ground_fires(ent)) attack_ground_ranged(ent);
+    else unit_changeangle(ent);
+}
+
+/* The failed physical task leaves the logical Ground head dormant. In
+ * particular, its next owner visit must not create another point approach. */
+static void ai_attack_ground_failed(edict_t *ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+}
+
+static void attack_ground_begin_approach(edict_t *ent) {
+    if(!ent || !ent->inuse || G_IsDeferredFree(ent) || !ent->channel || !S_UnitCanTranslate(ent))return;
+    if(!S_UnitTargetChaseActive(ent,CAbilityAttackGround)) {
+        float range=attack_ground_profile(ent)->range;
+        if(S_UnitPointInMoveRange(ent,&ent->channel->origin,range))range=FLT_MAX;
+        if(!S_BeginUnitPointApproach(ent,&ent->channel->origin,range,CAbilityAttackGround,S_AttackGroundComplete))
+            S_AttackGroundComplete(ent,ent,false);
+    }
 }
 
 static void ai_attack_ground_walk(edict_t *ent) {
     if (S_UnitIsEntanglingRooted(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
-    if (attack_ground_out_of_range(ent)) {
-        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
-        if (!S_UnitCanTranslate(ent)) return;
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-    } else if (attack_ground_too_close(ent)) {
-        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
-        if (!S_UnitCanTranslate(ent)) return;
-        attack_retreat_from_target(ent);
-    } else {
-        attack_ground_ranged(ent);
+    if(!S_UnitCanTranslate(ent)) {
+        if(attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) {
+            if(ent->aiflags&AI_IMMOBILE)attack_ground_stop(ent);
+        } else attack_ground_ranged(ent);
+        return;
     }
+    attack_ground_begin_approach(ent);
 }
 
-static umove_t attack_ground_move_walk = { "walk", ai_attack_ground_walk, NULL, CAbilityAttackGround, .travel = true };
+static void attack_ground_leave(edict_t *ent) {
+    S_EndUnitTargetChase(ent,CAbilityAttackGround);
+}
+
+static umove_t attack_ground_move_walk = {.animation="walk",.think=ai_attack_ground_walk,.proc=CAbilityAttackGround,
+    .sample_pose=S_PublishMovement,.leave=attack_ground_leave};
 static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
-static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
+static umove_t attack_ground_move_ranged = { .animation="attack range", .think=ai_attack_ground_ranged,
+    .endfunc=attack_ground_cooldown, .proc=CAbilityAttackGround, .leave=attack_release_target_timing };
+
+/*49a390: ordinary d01b2 completion requests another physical facing task
+ * even when already in range and aligned. It is independent of weapon-ready
+ * time; arrival rechecks readiness through the existing Attack owner. */
+static void attack_swing_complete(edict_t *unit) {
+    if(S_UnitExecutionPaused(unit) || !S_UnitCanTranslate(unit) ||
+       unit->attack_damage.active ||
+       (unit->currentmove!=&attack_move_melee && unit->currentmove!=&attack_move_ranged &&
+        unit->currentmove!=&attack_move_melee_cooldown && unit->currentmove!=&attack_move_ranged_cooldown))return;
+    if(attack_stop_if_target_invalid(unit))return;
+    edict_t *target=unit->goalentity;
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(unit);
+    float range=attack_target_out_of_base_range(unit) ?
+        MAX(ATTACK_MINIMUM_CHASE_RANGE,ACTIVE_ATTACK(unit)->range) : FLT_MAX;
+    attack_walk(unit);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision+1 || unit->currentmove!=&attack_move_walk ||
+       unit->goalentity!=target || !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    S_BeginUnitTargetChase(unit,target,range,CAbilityAttack,S_AttackTargetChaseComplete);
+}
+
+static bool attack_damage_owner(edict_t const *unit) {
+    return !M_IsDead((edict_t *)unit) &&
+        (unit->currentmove==&attack_move_melee || unit->currentmove==&attack_move_ranged ||
+         unit->currentmove==&attack_ground_move_ranged);
+}
+
+/* d01b1 is a clock callback, not an animation/frame countdown. Revalidate
+ * retained targets at the actual commit frontier; callbacks may replace the
+ * owner, and the existing delivery functions already preserve successors. */
+static void attack_damage_fire(edict_t *unit) {
+    attack_damage_cancel(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) || S_UnitExecutionPaused(unit))return;
+    if(S_UnitIsEntanglingRooted(unit)) {
+        /* Roots prevent commitment without discarding the logical attack.
+         * The consumed timer cannot leave an assetless windup stranded: its
+         * approach think waits for the independent status owner to release. */
+        if(unit->currentmove==&attack_ground_move_ranged)attack_ground_walk(unit);
+        else if(unit->currentmove==&attack_move_melee || unit->currentmove==&attack_move_ranged)
+            attack_walk(unit);
+        return;
+    }
+    if(unit->currentmove==&attack_ground_move_ranged) {
+        throw_artillery_ground(unit);return;
+    }
+    bool melee=unit->currentmove==&attack_move_melee;
+    if(!melee && unit->currentmove!=&attack_move_ranged)return;
+#ifdef BZ_TESTS
+    if(attack_test_damage)attack_test_damage(unit);
+#endif
+    if(melee)damage_target(unit);else throw_missile(unit);
+}
+static umove_t attack_ground_move_hold = { "stand ready", ai_attack_ground_hold, NULL, CAbilityAttackGround };
+static umove_t attack_ground_move_failed = { "stand ready", ai_attack_ground_failed, NULL, CAbilityAttackGround };
+
+void S_AttackGroundComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || unit->currentmove!=&attack_ground_move_walk)return;
+    if(!arrived && unit->movement.group_id)return;
+    if(!arrived) {
+        vec2_t point=unit->channel->origin;
+        uint32_t spawn=unit->spawn_time;
+        /*603110 recovers the mover without consuming this public head.
+         * The configured computer then tries transport before AI immediate. */
+        S_StopUnitMovementWithRecovery(unit);
+        unit_setmove(unit,&attack_ground_move_failed);
+        if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+           (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&point))G_BotDispatchAIStop(unit);
+        return;
+    }
+    attack_ground_ranged(unit);
+}
 
 static void attack_ground_walk(edict_t *ent) {
     unit_setmove(ent, &attack_ground_move_walk);
 }
 
 static void attack_ground_cooldown(edict_t *ent) {
-    float divisor = attack_speed_divisor(ent);
+    if(ent->attack_damage.active)return;
     unit_setmove(ent, &attack_ground_move_cooldown);
-    ent->wait = MAX(0.0f, MAX(ent->unit_state->attack1.cooldown - ent->unit_state->attack1.damagePoint,
-                               ent->unit_state->attack1.backswingPoint) / divisor);
-    if (ent->wait <= 0.0f) attack_ground_ranged(ent);
+    attack_cooldown_sync(ent);
+    ent->wait=MAX(ent->attack_cooldown_remaining,attack_backswing_remaining(ent));
+    if(attack_cooldown_remaining(ent)<=0 && !ent->attack_swing.active)attack_ground_ranged(ent);
 }
 
 static void attack_ground_ranged(edict_t *ent) {
+    if (!attack_ground_fires(ent)) { unit_setmove(ent,&attack_ground_move_hold); ent->wait=0; return; }
     float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
+    /* Native49a4f0 uses the same swing producer for a firing point task;
+     * the non-firing ground hold above must not acquire an exemption. */
     unit_setmove(ent, &attack_ground_move_ranged);
-    ent->wait = ent->unit_state->attack1.damagePoint / divisor;
+    attack_arm_cooldown(ent,wc3_div(attack_ground_profile(ent)->cooldown,divisor),true);
+    if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
+}
+
+/*49a4f0 is d01b0, separate from reaction, damage and swing completion. Its
+ * retained-target branch may replace a physical request already in motion. */
+static void attack_cooldown_fire(edict_t *unit) {
+    attack_cooldown_cancel(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       S_UnitExecutionPaused(unit) || S_UnitIsEntanglingRooted(unit) ||
+       unit->currentmove==&attack_move_reaction)return;
+    bool ground=unit->currentmove==&attack_ground_move_ranged ||
+        unit->currentmove==&attack_ground_move_cooldown || unit->currentmove==&attack_ground_move_hold;
+    if(ground && attack_ground_fires(unit)) {
+        attack_ground_ranged(unit);return;
+    }
+    edict_t *target=unit->attack_target;
+    if(!target || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack ||
+       unit->currentmove==&attack_move_finish)return;
+    if(unit->goalentity!=target || !target->inuse || G_IsDeferredFree(target) ||
+       target->spawn_time!=unit->attack_target_spawn_time ||
+       !attack_task_target_valid(unit,target,false)) {
+        attack_finish_after_combat(unit,unit->goalentity,"cooldown_target_invalid");return;
+    }
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(unit);
+    S_EndUnitTargetChase(unit,CAbilityAttack);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       G_UnitMoveRevision(unit)!=revision || unit->attack_target!=target ||
+       !target->inuse || G_IsDeferredFree(target) || target->spawn_time!=target_birth)return;
+    attack_walk(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       G_UnitMoveRevision(unit)!=revision+1 || unit->currentmove!=&attack_move_walk ||
+       unit->goalentity!=target || !target->inuse || G_IsDeferredFree(target) ||
+       target->spawn_time!=target_birth)return;
+    unit->wait=0;
+    /*495180 with visibility0 queries the target position separately. Fog
+     * starts a fresh chase for a mobile source; detection failure above ends
+     * the task. Arrival will perform its own full visibility validation. */
+    if(!G_FowPointIsVisible(unit->s.player,&target->s.origin2)) {
+        if(!S_UnitCanTranslate(unit)) {
+            attack_finish_after_combat(unit,target,"cooldown_position_hidden");return;
+        }
+        float range=S_EnsnareMeleeRange(unit);
+        if(range<=0)range=ACTIVE_ATTACK(unit)->range;
+        S_BeginUnitTargetChase(unit,target,MAX(ATTACK_MINIMUM_CHASE_RANGE,range),
+            CAbilityAttack,S_AttackTargetChaseComplete);
+        return;
+    }
+    ai_attack_walk(unit);
+}
+
+static bool attack_ground_rejects_minimum(edict_t const *unit,vec2_t const *point) {
+    if(!attack_ground_fires(unit))return false;
+    float minimum=attack_minimum_range(unit),range=attack_ground_profile(unit)->range;
+    float difference=wc3_float(wc3_float_bits(wc3_sub(minimum,range))&0x7fffffffu);
+    return minimum>0 && (minimum<range || difference<wc3_float(0x3a83126f)) &&
+        S_UnitPointInMoveRange(unit,point,minimum);
 }
 
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
@@ -1275,19 +2623,28 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
 
     if (!unit || !point || S_UnitIsEntanglingRooted(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
         S_UnitPolymorphed(unit)) return false;
+    if(attack_ground_rejects_minimum(unit,point))return false;
     waypoint = Waypoint_add(point);
     if (!waypoint) return false;
-    unit->orders->attackmove_waypoint = NULL;
-    unit->orders->patrol_a = unit->orders->patrol_b = unit->orders->patrol_target = NULL;
-    unit->orders->follow_target = NULL;
-    unit->orders->holding_position = false;
-    if (unit->movement) unit->movement->group_speed = 0.0f;
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
+    S_SetFollowTarget(unit,NULL);
+    unit->movement.holding_position = false;
+    unit->movement.group_speed = 0.0f;
     S_SpellCancelChannel(unit);
-    unit->goalentity = waypoint;
-    unit->unit_state->attack_target_spawn_time = 0;
+    S_SetMoveGoal(unit, &unit->goalentity, waypoint);
+    unit->attack_target_spawn_time = 0;
+    move_reset_progress(unit);
+    if (!unit->channel) unit->channel = G_AllocChannel();
+    assert(unit->channel);
+    unit->channel->origin = *point;
     attack_ground_walk(unit);
-    G_AddChannel(unit);
-    G_GetChannel(unit)->origin = *point;
+    attack_ground_begin_approach(unit);
+    /* An intrinsically immobile source consumes the point task during
+     * admission: near holds the Ground head, far completes it immediately. */
+    if(unit->aiflags&AI_IMMOBILE)ai_attack_ground_walk(unit);
     return true;
 }
 
@@ -1301,11 +2658,11 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
         (!S_SpellIsEnemy(ent, target) && !S_SpellIsFriend(ent, target)))) {
         return false;
     }
-    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
-        if (e == target) continue;
-        if (G_IssueUnitTargetOrder(e, "attack", target,
-                                   ent->client->menu.order_queued,
-                                   ent->client->ps.number)) {
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(ent->client,G_OrderId("attack"),ent->client->menu.order_queued,&selection);
+    G_PreparePlayerTargetOrders(&selection,"attack",target);
+    FOR_LOOP(i,selection.count) {
+        if (G_IssuePlayerTargetOrder(&selection,i)) {
             issued = true;
         }
     }
@@ -1315,71 +2672,560 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
 
 /* Attack-move: walk toward the goal, but each tick prefer engaging the
  * nearest enemy within acquisition range over continuing to walk. */
+static umove_t attackmove_move_walk;
+/*49a980 consumes the range-zero point task during admission. Starting this
+ * physical owner is independent of the later Attack acquisition scan. */
+static void attackmove_start_point_task(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) ||
+       unit->currentmove!=&attackmove_move_walk || !unit->goalentity || !S_UnitCanTranslate(unit))return;
+    if(!S_UnitTargetChaseActive(unit,CAbilityAttack))
+        if(!S_BeginUnitPointApproach(unit,&unit->goalentity->s.origin2,0,CAbilityAttack,S_AttackMoveComplete))
+            S_AttackMoveComplete(unit,unit,false);
+}
 static void ai_attackmove_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
+            S_UnitAbilityEvent(ent,A_AUTO_COMBAT_START);
             order_attack(ent, enemy);
             return;
         }
     }
 
-    float distance = M_DistanceToGoal(ent);
-    float move_distance = unit_movedistance(ent);
-
-    if (!S_UnitCanTranslate(ent)) return;
-    if (move_should_arrive(ent, move_distance)) {
-        /* A shared attack-move waypoint may be across blocked terrain. Don't
-         * snap onto it based only on Euclidean proximity: each mover must be
-         * able to reach the goal in its own collision-sized flow field. */
-        uint32_t const heatmap = M_RefreshHeatmapForMover(ent, ent->goalentity, ent->collision);
-        if (heatmap && CM_FlowCanReach(heatmap, ent->s.origin.x, ent->s.origin.y) &&
-            M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
-            ent->s.origin2 = ent->goalentity->s.origin2;
-            gi.LinkEntity(ent);
-        }
-        ent->orders->attackmove_waypoint = NULL;
-        ent->stand(ent);
-    } else if (move_is_blocked(ent, distance, move_distance)) {
-        ent->orders->attackmove_waypoint = NULL;
-        ent->stand(ent);
-    } else {
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-    }
+    attackmove_start_point_task(ent);
 }
 
-static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, CAbilityAttack, .travel = true };
+/* Retire the point task before ferry/AI admission, preserving its destination
+ * independently of the waypoint released by stand and order callbacks. */
+void S_AttackMoveComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || unit->currentmove!=&attackmove_move_walk)return;
+    /* Cancellation calls back while the old physical binding is retained.
+     * Only the terminal scan clears it before reporting cannot-path. */
+    if(!arrived && unit->movement.group_id)return;
+    vec2_t point=unit->goalentity ? unit->goalentity->s.origin2 : unit->s.origin2;
+    uint32_t spawn=unit->spawn_time;
+    S_SetMoveGoal(unit,&unit->movement.attackmove_waypoint,NULL);
+    unit->stand(unit);
+    if(!arrived && unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+       (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&point))G_BotDispatchAIStop(unit);
+}
+
+static umove_t attackmove_move_walk = {.animation="walk",.think=ai_attackmove_walk,.proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement,.leave=attack_chase_leave};
+
+/*49d680's ordinary player priority is independent of encounter order. Query
+ * just the incoming and retained targets; do not rescan the neighborhood. */
+static bool attack_priority_worker(edict_t const *unit) {
+    return unit && (unit->unit_classification&WC3_UNIT_CLASS_PEON)!=0;
+}
+
+/*495880/4959a0: evaluate collateral around the candidate's predicted world
+ * center. The widget query reads committed candidate centers and adds each
+ * candidate's collision radius. Its friendly mask is Help Response, while
+ * enemy membership is the inverse of passive alliance. */
+typedef struct {
+    edict_t const *owner;
+    box2_t bounds;
+    vec2_t center;
+    float radius;
+    uint32_t mask,friends,enemies;
+} attackSplashPriorityQuery_t;
+
+static void attack_splash_priority_candidate(void *data,edict_t const *candidate) {
+    attackSplashPriorityQuery_t *query=data;
+    if(!candidate->inuse || G_IsDeferredFree(candidate) || candidate->s.player>=MAX_PLAYERS ||
+       !(query->mask&G_TargetFlagForType(G_UnitTargetType(candidate))))return;
+    vec2_t point=attack_help_fine_position(candidate,query->bounds);
+    float dx=wc3_sub(point.x,query->center.x),dy=wc3_sub(point.y,query->center.y);
+    float reach=wc3_add(query->radius,wc3_div(MAX(1,candidate->collision),32));
+    if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))return;
+    player_t const *owner=&game.clients[query->owner->s.player].ps;
+    player_t const *other=&game.clients[candidate->s.player].ps;
+    if(G_GetPlayerAlliance(owner,other,ALLIANCE_HELP_RESPONSE))query->friends++;
+    else if(!G_GetPlayerAlliance(owner,other,ALLIANCE_PASSIVE) && !G_UnitIsInvulnerable(candidate))query->enemies++;
+}
+
+static bool attack_splash_priority(edict_t const *unit,edict_t const *target,
+                                  unitAttack_t const *weapon,uint32_t *base) {
+    if(weapon->weapon!=WPN_ARTILLERY && weapon->weapon!=WPN_MLINE)return true;
+    if(!unit->data.UnitWeapons)return true;
+    uint32_t mask=weapon==S_AttackProfileRead(unit,1) ? unit->data.UnitWeapons->attack2.areaTargets :
+        unit->data.UnitWeapons->attack1.areaTargets;
+    uint32_t affinity=mask&0x1f000u;
+    if(affinity && !(affinity&0x6000u))return true;
+    attackSplashPriorityQuery_t query={.owner=unit,.bounds=CM_GetWorldBounds(),
+        .mask=mask&0x7feu,.radius=wc3_div(weapon->areaSmall,32)};
+    if(!query.mask)query.mask=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_AIR|WC3_TARGET_FLAG_STRUCTURE;
+    float point[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    /*058900 world publication followed by05ce60's world-to-fine projection. */
+    query.center=(vec2_t){
+        wc3_grid_coordinate(wc3_world_coordinate(point[0],query.bounds.min.x,32),query.bounds.min.x,32),
+        wc3_grid_coordinate(wc3_world_coordinate(point[1],query.bounds.min.y,32),query.bounds.min.y,32)};
+    S_QueryMoveProximityContext(NULL,(float[]){query.center.x,query.center.y},query.radius,
+        attack_splash_priority_candidate,&query);
+    /* Signed bytes at originalce5d08, rows friends0..9, columns enemies1..13. */
+    static int8_t const collateral[10][13]={
+        {7,7,7,7,7,7,7,7,7,7,7,7,7},
+        {2,4,5,6,6,6,6,6,6,6,6,6,6},
+        {0,1,3,4,5,5,5,5,6,6,6,6,6},
+        {-1,0,1,2,3,3,4,4,5,5,5,5,5},
+        {-1,-1,0,0,1,2,2,3,3,3,4,4,5},
+        {-1,-1,-1,0,0,0,1,1,2,2,2,3,3},
+        {-1,-1,-1,-1,-1,0,0,0,0,1,1,2,2},
+        {-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0},
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0},
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}};
+    int rank=collateral[MIN(query.friends,9)][MAX(1,MIN(query.enemies,13))-1];
+    if(rank<0)return false;
+    *base=(uint32_t)rank<<23;
+    return true;
+}
+
+/*49da60: Town policy is independent of a running script VM. Player AI
+ * difficulty is currently normal in GetAIDifficulty; map difficulty below is
+ * the separate SetGameDifficulty state. */
+static uint64_t attack_town_priority(edict_t const *unit,edict_t const *target,
+    edict_t const *victim,unitAttack_t const *weapon,wc3AttackPriority_t const *facts,
+    float range,uint64_t key) {
+    bot_t const *bot=&level.bots[unit->s.player];
+    bool melee=bot->mode==BOT_MELEE;
+    uint32_t difficulty=level.setup.difficulty;
+    if(difficulty==1 && !facts->low_level_neutral && melee)difficulty=2;
+    uint32_t low=(uint32_t)key,high=(uint32_t)(key>>32);
+    if(facts->counterattack)high|=0x00008000u;
+    if(difficulty>1) {
+        switch(target->class_id) {
+        case MAKEFOURCC('o','a','l','t'):case MAKEFOURCC('h','a','l','t'):
+        case MAKEFOURCC('e','a','t','e'):case MAKEFOURCC('u','a','o','d'):
+            if(target->build && target->build->revival && target->build->revival->reviving)
+                low|=0x00100000u;
+            else low|=facts->in_range && facts->retained ? 0x00080000u : 0x00002000u;
+            break;
+        case MAKEFOURCC('h','c','a','s'):case MAKEFOURCC('h','k','e','e'):case MAKEFOURCC('h','t','o','w'):
+        case MAKEFOURCC('o','g','r','e'):case MAKEFOURCC('o','f','r','t'):case MAKEFOURCC('o','s','t','r'):
+        case MAKEFOURCC('e','t','o','l'):case MAKEFOURCC('e','t','o','a'):case MAKEFOURCC('e','t','o','e'):
+        case MAKEFOURCC('u','n','p','l'):case MAKEFOURCC('u','n','p','1'):case MAKEFOURCC('u','n','p','2'):
+            low|=0x00004000u;break;
+        case MAKEFOURCC('h','l','u','m'):case MAKEFOURCC('e','d','o','b'):case MAKEFOURCC('o','f','o','r'):
+        case MAKEFOURCC('u','g','r','v'):case MAKEFOURCC('h','w','t','w'):
+            low|=0x00001000u;break;
+        case MAKEFOURCC('e','g','o','l'):case MAKEFOURCC('u','g','o','l'):
+            low|=0x00008000u;break;
+        case MAKEFOURCC('h','h','o','u'):case MAKEFOURCC('o','t','r','b'):case MAKEFOURCC('u','z','i','g'):
+        case MAKEFOURCC('u','z','g','1'):case MAKEFOURCC('u','z','g','2'):
+            low|=0x00010000u;break;
+        /* Preserve the executable's literal hvit/ovin spellings. */
+        case MAKEFOURCC('h','v','i','t'):case MAKEFOURCC('e','d','e','n'):
+        case MAKEFOURCC('o','v','i','n'):case MAKEFOURCC('u','t','o','m'):
+            low|=0x00040000u;break;
+        case MAKEFOURCC('e','m','o','w'):
+            low|=target->mana.value>50 ? 0x00020000u : 0x00010000u;break;
+        case MAKEFOURCC('o','h','w','d'):case MAKEFOURCC('o','t','o','t'):
+            high|=0x44000000u;break;
+        default:
+            if(G_ActorHasAbilityCode(target,MAKEFOURCC('A','T','r','n')))low|=0x00000800u;
+            break;
+        }
+    }
+    if(victim && victim->s.player<MAX_PLAYERS &&
+       G_GetPlayerAlliance(&game.clients[victim->s.player].ps,&game.clients[unit->s.player].ps,ALLIANCE_SHARED_SPELLS)) {
+        if(G_UnitIsHero(victim) && !(victim->aiflags&AI_ILLUSION))high|=0x00010000u;
+        else if(difficulty>1 && victim->defense_type==3 && attack_profile(target,victim)->type==ATK_SIEGE)
+            high|=0x00100000u;
+    }
+    if(!attack_target_prevents_acquisition(target) &&
+       !S_UnitHasStatus(target,MAKEFOURCC('B','E','e','r')))high|=0x80000000u;
+    /* Native lookup requests Bens with derived-class matching, including
+     * Bena/Beng and the Web family. */
+    if(!S_UnitIsEnsnared(target))high|=0x00001000u;
+    if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','p','o','i')) &&
+       !S_UnitHasStatus(target,MAKEFOURCC('B','p','o','i')))high|=0x00002000u;
+    if(difficulty && attack_priority_worker(target) && S_UnitHasSpellTask(target))high|=0x00080000u;
+    if(!facts->low_level_neutral) {
+        uint32_t damage=weapon->type<8 ? weapon->type : 0,armor=target->defense_type<8 ? target->defense_type : 7;
+        float multiplier=game.constants.combatConstantsLoaded ? game.constants.damageBonus[damage][armor] : g_default_damage_table[damage][armor];
+        if(difficulty>1) {
+            if(multiplier>=wc3_float(0x3f333333))high|=0x40000000u;
+            if(!(target->unit_classification&WC3_UNIT_CLASS_SUMMONED) || (target->aiflags&AI_ILLUSION))high|=0x10000000u;
+        }
+        if(melee) {
+            if(multiplier>=2)high|=facts->mobile ? 0x00000800u : 0x00040000u;
+            else if(multiplier>=1.5f)high|=facts->mobile ? 0x00000400u : 0x00020000u;
+            else if(multiplier>=1)high|=0x00000100u;
+            else if(multiplier>wc3_float(0x3f19999a))high|=0x00000008u;
+            else if(multiplier>wc3_float(0x3ecccccd))high|=0x00000001u;
+            else if(multiplier>wc3_float(0x3e4ccccd))low|=0x80000000u;
+        }
+        if(difficulty) {
+            if(facts->in_range || S_UnitTargetInCommittedMoveRange(unit,target,wc3_add(range,150))) {
+                if((G_UnitIsHero(target) && !(target->aiflags&AI_ILLUSION) && (bot->flags&BOT_TARGET_HEROES)) ||
+                   (G_UnitIsStructure(target) && target->construction && !G_BuildingUpgradeActive(target) &&
+                    G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k'))))high|=0x44000000u;
+                else if(facts->in_range)high|=0x00004000u;
+            }
+            if(!attack_priority_worker(target)) {
+                if(target->health.value<100)high|=0x00000200u;
+                else if(target->health.value<200)high|=0x00000004u;
+                else if(target->health.value<300)high|=0x00000002u;
+            }
+        }
+    }
+    if(target->s.player<PLAYER_NEUTRAL_AGGRESSIVE)high|=0x20000000u;
+    else high|=(G_UnitIsHero(target) ? target->hero.level : MAX(0,G_CorpseUnitLevel(target)))<<4;
+    if(!facts->mobile) {
+        uint32_t type=target->class_id;
+        low|=type==MAKEFOURCC('o','s','p','1') || type==MAKEFOURCC('o','s','p','2') || type==MAKEFOURCC('o','s','p','3') ? 0x20000000u : 0x02000000u;
+    } else {
+        if(!facts->low_level_neutral && (unit->aiflags&AI_FLYING))low|=0x10000000u;
+        if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) &&
+           S_UnitMoveSpeed((edict_t *)unit)>S_UnitMoveSpeed((edict_t *)target))low|=0x02000000u;
+    }
+    return ((uint64_t)high<<32)|low;
+}
+
+static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target) || G_UnitIsInvulnerable(target) ||
+       !S_AttackCanTarget(unit,target))return 0;
+    bool armed=G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k')) &&
+        attack_mask_has_weapon(target,attack_order_mask(target)) && !target->paused &&
+        !S_AbilityExecutionDisabled(target,MAKEFOURCC('A','a','t','k')) &&
+        !S_UnitIsCycloned(target) && !S_UnitIsEntanglingRooted(target) &&
+        S_HumanAttackPriorityEnabled(target) && S_CargoAttacksEnabled(target);
+    edict_t const *victim=armed ? target->attack_target : NULL;
+    if(victim && (!victim->inuse || G_IsDeferredFree(victim) ||
+       victim->spawn_time!=target->attack_target_spawn_time))victim=NULL;
+    wc3AttackTargetRelation_t relation=WC3_ATTACK_TARGET_IDLE;
+    /*49d8bd: retained minimum-range weapons defend even outside our range.
+     * The binder tests authored !=0, including negatives, rather than the
+     * nonnegative distance used by movement/weapon admission. */
+    if(!victim && (unit_hasstatusstate(target,WC3_STATUS_STATE_MAGIC_LEASH) ||
+       (target==unit->attack_target && target->data.UnitWeapons &&
+        target->data.UnitWeapons->minimumAttackRange!=0)))relation=WC3_ATTACK_TARGET_ALLY;
+    if(victim==unit)relation=WC3_ATTACK_TARGET_SELF;
+    else if(victim) {
+        /*49d8b2 asks for the victim's spell grant to the observer. Passive
+         * alliance and the reverse grant do not confer defending priority. */
+        if(victim->s.player<MAX_PLAYERS && unit->s.player<MAX_PLAYERS &&
+           G_GetPlayerAlliance(&game.clients[victim->s.player].ps,
+               &game.clients[unit->s.player].ps,ALLIANCE_SHARED_SPELLS))relation=WC3_ATTACK_TARGET_ALLY;
+        else relation=S_SpellIsEnemy((edict_t *)unit,(edict_t *)victim) ? WC3_ATTACK_TARGET_ENEMY : WC3_ATTACK_TARGET_NEUTRAL;
+    }
+    /*49d8e2/685150: the neutral policy belongs to the attacker. */
+    uint32_t level=G_UnitIsHero(unit) ? unit->hero.level : MAX(0,G_CorpseUnitLevel(unit));
+    unitAttack_t const *weapon=attack_profile(unit,target);
+    float range=MAX(ATTACK_MINIMUM_CHASE_RANGE,MIN(weapon->range,unit->runtime.acquisition_range));
+    wc3AttackPriority_t facts={
+        /*48e260: Roots and Ensnare/Web virtual18c preserve mobile priority
+         * while Move prevention still prohibits actual translation. */
+        .mobile=G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v')) &&
+            (S_UnitCanTranslate(target) || S_UnitIsEntanglingRooted(target) || S_UnitIsEnsnared(target)),
+        .both_flying=(unit->aiflags&AI_FLYING) && (target->aiflags&AI_FLYING),
+        .fortified=target->defense_type==3, /* Native Unit+e4 defType fort. */
+        .armed=armed,.relation=relation,
+        .counterattack=armed && !attack_priority_worker(target) && !G_UnitIsInvulnerable(unit) && S_AttackCanTarget(target,unit),
+        .low_level_neutral=unit->s.player>=PLAYER_NEUTRAL_AGGRESSIVE && level<7,
+        .in_range=S_UnitTargetInCommittedMoveRange(unit,target,range),
+        .retained=target==unit->attack_target
+    };
+    uint32_t base=0x03800000u;
+    if(!attack_splash_priority(unit,target,weapon,&base))return 0;
+    uint64_t key=wc3_attack_priority(&facts);
+    /* Artillery replaces the three base bits; relation/threat bits are
+     * independent even when the collateral table selects zero. */
+    key=(key&~(UINT64_C(0x03800000)<<32))|((uint64_t)base<<32);
+    if((unit->aiflags&AI_TOWN_OWNED) && unit->s.player<MAX_PLAYERS)
+        key=attack_town_priority(unit,target,victim,weapon,&facts,range,key);
+    return key;
+}
+
+#ifdef BZ_TESTS
+uint64_t G_TestAttackTargetPriority(edict_t const *unit,edict_t const *target) {
+    return attack_target_priority(unit,target);
+}
+#endif
+
+/*49e3a0: an equal priority needs strictly less squared distance. A source
+ * world query and two committed target queries belong to Move's scalar API. */
+static bool attack_should_replace_available_target(edict_t *unit,edict_t *target) {
+    edict_t const *old=unit->attack_target;
+    if(old==target)return false;
+    uint64_t incoming=attack_target_priority(unit,target);
+    if(!incoming)return false;
+    uint64_t retained=attack_target_priority(unit,old);
+    bool replace=incoming!=retained ? incoming>retained :
+        S_UnitCommittedTargetDistanceSquared(unit,target)<S_UnitCommittedTargetDistanceSquared(unit,old);
+    if(!replace)attack_set_alternative(unit,target);
+    return replace;
+}
+
+/*493d20 revisits one weak alternative only after the ordinary scan found no
+ * target. Its 2000-unit committed range is independent of acquisition radius. */
+edict_t *S_AttackAlternativeTarget(edict_t *unit) {
+    edict_t *target=unit ? unit->attack_alternative : NULL;
+    if(!target || unit->attack_target || unit->paused || !target->inuse || G_IsDeferredFree(target) ||
+        target->spawn_time!=unit->attack_alternative_spawn_time || !attack_cap_present(unit) ||
+        !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) || !S_UnitCanTranslate(unit) ||
+        !attack_can_acquire_target(unit,target) || G_UnitIsInvulnerable(target) ||
+        G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
+        !G_FowPlayerCanTrackUnit(unit->s.player,target) ||
+        !S_UnitTargetInCommittedMoveRange(unit,target,2000.0f))return NULL;
+    float maximum=0,minimum=attack_minimum_range(unit);
+    S_UnitAttackApproachRange(unit,&maximum);
+    if(G_UnitTargetType(target)!=TARG_AIR && minimum>0 && minimum<maximum &&
+        fabsf(wc3_sub(minimum,maximum))>=wc3_float(0x3a83126f) &&
+        S_UnitTargetInCommittedMoveRange(unit,target,minimum))return NULL;
+    return attack_target_priority(unit,target) ? target : NULL;
+}
+
+/*493d20/493b20 seed a retained key and compare unsigned Attack priority,
+ * then strict committed-center distance. The generic AI nearest query has a
+ * different policy and cannot stand in for this Attack-owned selector. */
+static edict_t *attack_scan_point_target(edict_t *unit) {
+    /*493d20 source Widget20.1; adjusted retained2bc/2c0 has no mapped
+     * public producer. Keep493ff0 scan rearming independent of this gate. */
+    if(unit->script_world_hidden)return NULL;
+    uint32_t birth=unit->spawn_time;
+    bool mobile=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) && S_UnitCanTranslate(unit);
+    float range=G_AcquisitionRange(unit),maximum=0;
+    if(!mobile) {S_UnitAttackApproachRange(unit,&maximum);range=MIN(range,maximum);}
+    if(!(range>0))return NULL;
+    attackHelpQuery_t *query=attack_help_queries;
+    if(query)attack_help_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Attack: cannot acquire scan query");
+    query->count=0;query->owners=UINT32_MAX;
+    vec2_t center=attack_help_fine_position(unit,CM_GetWorldBounds());
+    float radius=wc3_div(wc3_add(range,S_MoveCollisionRadius(unit)),32);
+    S_QueryMoveProximityContext(NULL,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    edict_t *retained=unit->attack_target,*best=NULL;uint32_t selected_birth=0;
+    uint64_t best_key=0;
+    if(retained && retained->inuse && !G_IsDeferredFree(retained) &&
+       retained->spawn_time==unit->attack_target_spawn_time) {
+        best=retained;selected_birth=retained->spawn_time;best_key=attack_target_priority(unit,retained);
+    }
+    FOR_LOOP(i,query->count) {
+        if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))break;
+        attackHelpMember_t member=query->members[i];edict_t *target=g_edicts+member.index;
+        if(!target->inuse || G_IsDeferredFree(target) || target->spawn_time!=member.birth ||
+           target==unit || target==best || !(target->svflags&SVF_MONSTER) ||
+           G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
+           G_UnitIsInvulnerable(target) || !G_FowPlayerCanTrackUnit(unit->s.player,target) ||
+           !attack_failed_target_allowed(unit,target) ||
+           !S_AttackCanAutoAcquire(unit,target) || !S_UnitTargetInCommittedMoveRange(unit,target,range))continue;
+        float minimum=attack_minimum_range(unit),selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+        if(minimum>0 && minimum<selected && fabsf(wc3_sub(minimum,selected))>=wc3_float(0x3a83126f) &&
+           G_UnitTargetType(target)!=TARG_AIR && S_UnitTargetInCommittedMoveRange(unit,target,minimum))continue;
+        uint64_t key=attack_target_priority(unit,target);
+        if(!key || key<best_key || (best && key==best_key &&
+           S_UnitCommittedTargetDistanceSquared(unit,target)>=S_UnitCommittedTargetDistanceSquared(unit,best)))continue;
+        best=target;best_key=key;selected_birth=member.birth;
+    }
+    query->next=attack_help_queries;attack_help_queries=query;
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return NULL;
+    if(!best && mobile)return S_AttackAlternativeTarget(unit);
+    return best && best!=retained && best_key && best->inuse && !G_IsDeferredFree(best) &&
+        best->spawn_time==selected_birth ? best : NULL;
+}
+
+/*49ea80 owns d01af independently of the acquisition poll. The retained
+ * Attack target subscription supplies identity and inverse cancellation. */
+static void attack_reaction_fire(edict_t *unit) {
+    attack_reaction_cancel(unit);
+    if(!unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+       unit->currentmove!=&attack_move_reaction)return;
+    edict_t *target=unit->attack_target;
+    if(!target || !target->inuse || G_IsDeferredFree(target) ||
+       target->spawn_time!=unit->attack_target_spawn_time || !S_AttackCanTarget(unit,target)) {
+        attack_finish_after_combat(unit,target,"reaction_target_lost");return;
+    }
+    /*49b3d0 pops reaction then67df00 executes the next task synchronously.
+     * Its d016f constructs the chase before the next physical-owner visit. */
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(unit);
+    attack_walk(unit);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision+1 || unit->currentmove!=&attack_move_walk ||
+       unit->goalentity!=target || !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    /*494630 constructs the initial d016f even when range/facing already
+     * pass. Its physical arrival precedes495180's ordinary swing query;
+     * bypassing it loses a complete owner visit on an aligned acquisition. */
+    if(S_BeginUnitTargetChase(unit,target,unit->attack_reaction_range,CAbilityAttack,S_AttackTargetChaseComplete))return;
+    ai_attack_walk(unit);
+}
+static void attack_begin_reaction(edict_t *unit,edict_t *target) {
+    if(!S_AttackCanTarget(unit,target))return;
+    /*d016f captures its range before changing the movement owner. Native
+     * comparison clamps NaN to32;68c250 also accepts a widget perimeter. */
+    float ensnare=S_EnsnareMeleeRange(unit);
+    float range=ensnare>0 ? ensnare : attack_target_profile(unit,target)->range;
+    range=range>=ATTACK_MINIMUM_CHASE_RANGE ? range : ATTACK_MINIMUM_CHASE_RANGE;
+    if(S_UnitTargetInMoveRange(unit,target,range) || S_UnitTargetOnPerimeter(unit,target))range=FLT_MAX;
+    uint32_t birth=unit->spawn_time,target_birth=target->spawn_time;
+    S_ShadowMeldBreak(unit);
+    unit->movement.explicit_allied_attack=false;
+    unit_entercombat(unit,target);
+    S_EndUnitTargetChase(unit,CAbilityAttack);
+    attack_release_target_timing(unit);
+    unit_setmove(unit,&attack_move_reaction);
+    if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=birth ||
+       unit->currentmove!=&attack_move_reaction || !target->inuse ||
+       G_IsDeferredFree(target) || target->spawn_time!=target_birth)return;
+    S_SetMoveGoal(unit,&unit->goalentity,target);
+    attack_set_target(unit,target);
+    unit->attack_reaction_range=range;
+    unit->wait=0;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    float delay=wc3_mul(wc3_random_unit(level.purpose_random+9),game.constants.reactionDelay);
+    unit->attack_reaction=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    unit->attack_reaction.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(unit,ATTACK_TIMER_REACTION);
+    S_StopUnitMovementWithRecovery(unit);
+}
+
+static void attack_acquire_fire(edict_t *unit) {
+#ifdef BZ_TESTS
+    if(attack_test_acquire)attack_test_acquire(unit,false,0);
+#endif
+    bool initial=unit->attack_scan_initial_pending;
+    unit->attack_scan_initial_pending=false;
+    attack_acquire_cancel(unit);
+    if(initial && !unit->attack_scan_enabled)return;
+    if(!unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit))return;
+    attack_acquire_arm(unit,G_TimerQueryClock(NULL),unit->attack_target ? 1 : .5f);
+    /* Point Patrol, the private idle-combat return, AI point tasks and idle
+     * Stand use this Attack-owned timer. Follow and active Attack retain their
+     * independent paths until their owner transitions are verified. */
+    bool patrol=attack_acquire_patrol(unit);
+    bool idle=unit->currentmove && unit->currentmove->think==ai_stand;
+    bool returning=unit->movement.guard_state==GUARD_RETURNING &&
+        unit->currentmove && unit->currentmove->proc==CAbilityMove;
+    if(idle && (!(unit->svflags&SVF_MONSTER) || G_BuildingUpgradeActive(unit) ||
+       unit->movement.creep_guard_phase==CREEP_GUARD_RETURNING))return;
+    if((!S_UnitUsesAIPointMove(unit) && !patrol && !idle && !returning) || unit->paused || unit->attack_acquisition_suppressed ||
+       !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')) ||
+       S_AbilityExecutionDisabled(unit,MAKEFOURCC('A','a','t','k')) ||
+       !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
+       S_UnitAbilityEvent(unit,A_NO_ACQUIRE))return;
+    uint32_t birth=unit->spawn_time;
+    bool fresh=!unit->attack_target;
+    edict_t *target=attack_scan_point_target(unit);
+    if(!target){if(!unit->attack_target)attack_failed_targets_clear(unit);return;}
+    uint32_t target_birth=target->spawn_time,revision=G_UnitMoveRevision(unit);
+    S_UnitAbilityEvent(unit,A_AUTO_COMBAT_START);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       G_UnitMoveRevision(unit)!=revision ||
+       !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    /*494513..494525: fresh automatic admission, not a blanket player policy. */
+    if(fresh && unit->attack_guard.evaluated && !unit->attack_guard.returning)
+        attack_guard_arm(unit,attack_guard_outside(unit));
+    if(fresh)attack_begin_reaction(unit,target);else order_attack(unit,target);
+    if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit) ||
+       !target->inuse || target->spawn_time!=target_birth || G_IsDeferredFree(target))return;
+    if(unit->goalentity==target && unit->currentmove && unit->currentmove->proc==CAbilityAttack)
+        G_CreepGuardAutoCombat(unit);
+    if(fresh)G_BotCaptainCombatContact(unit,target);
+}
+
+/* Original6510b0 broadcasts d01a5 through the widget index. Ordinary pose
+ * publication does not produce this event. Keep the materialized list private
+ * across callbacks, as for help notifications, and validate retained identities. */
+#define ATTACK_AVAILABILITY_RADIUS 1100.0f /* Original0153f0 -> d70744. */
+static void attack_target_available(edict_t *target) {
+    if(!target || !target->inuse || G_IsDeferredFree(target))return;
+    attackHelpQuery_t *query=attack_help_queries;
+    if(query)attack_help_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Attack: cannot acquire availability query");
+    query->count=0;query->owners=UINT32_MAX;
+    uint32_t birth=target->spawn_time;
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t center=attack_help_fine_position(target,bounds);
+    float radius=wc3_div(ATTACK_AVAILABILITY_RADIUS,32);
+    S_QueryMoveProximityContext(NULL,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    FOR_LOOP(i,query->count) {
+        if(!target->inuse || target->spawn_time!=birth || G_IsDeferredFree(target))break;
+        attackHelpMember_t member=query->members[i];edict_t *unit=g_edicts+member.index;
+        if(!unit->inuse || unit->spawn_time!=member.birth || G_IsDeferredFree(unit) ||
+            unit==target || M_IsDead(unit) || unit->paused || (unit->s.renderfx&RF_HIDDEN) ||
+            !(unit->svflags&SVF_MONSTER) || !attack_cap_present(unit))continue;
+        vec2_t point=attack_help_fine_position(unit,bounds);
+        float dx=wc3_sub(point.x,center.x),dy=wc3_sub(point.y,center.y);
+        float reach=wc3_add(radius,wc3_div(MAX(1,unit->collision),32));
+        if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))continue;
+        /*49e130.4000: explicit target Attack and other active owners suppress
+         * acquisition. Attack Move retains its waypoint and public head. */
+        if(unit->attack_acquisition_suppressed)continue;
+        if(unit->currentmove && unit->currentmove->proc!=CAbilityAttack &&
+            unit->currentmove->think!=ai_stand)continue;
+        if(S_UnitIsCycloned(unit) || !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
+            G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
+            G_UnitIsInvulnerable(target) || S_UnitAbilityEvent(unit,A_NO_ACQUIRE) ||
+            !attack_can_acquire_target(unit,target) ||
+            !G_FowPlayerCanTrackUnit(unit->s.player,target))continue;
+        float range=G_AcquisitionRange(unit);
+        /*498e50 clamps a movement-ineligible owner's acquisition radius to
+         * its maximum enabled weapon range. Speed zero is still an enabled
+         * Move ability; removal and translation prevention are separate. */
+        bool can_approach=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) &&
+            S_UnitCanTranslate(unit);
+        if(!can_approach) {
+            float maximum;
+            S_UnitAttackApproachRange(unit,&maximum);
+            range=MIN(range,maximum);
+        }
+        /*49e256 passes prediction selector0: stored centers, both radii. */
+        if(!S_UnitTargetInCommittedMoveRange(unit,target,range))continue;
+        /*49e277/49e2b7 then require the selected weapon's predicted reach.
+         * A long-range incompatible second slot cannot admit this target. */
+        if(!can_approach) {
+            float selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+            if(!S_UnitTargetInMoveRange(unit,target,MAX(ATTACK_MINIMUM_CHASE_RANGE,selected)))continue;
+        }
+        /*49e2c4 tests the candidate's active flight, unlike explicit task
+         * validation and scan dead zones. Reject before granting exemption. */
+        float minimum=attack_minimum_range(unit);
+        float selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+        if(!can_approach)selected=MAX(ATTACK_MINIMUM_CHASE_RANGE,selected);
+        if(G_UnitTargetType(target)==TARG_AIR && minimum>0 && minimum<selected &&
+            fabsf(wc3_sub(minimum,selected))>=wc3_float(0x3a83126f) &&
+            S_UnitTargetInMoveRange(unit,target,minimum))continue;
+        attack_cap_begin(unit);
+        /* Exemption also survives ranking rejection, as in49e130. */
+        if(attack_should_replace_available_target(unit,target))order_attack(unit,target);
+    }
+    query->next=attack_help_queries;attack_help_queries=query;
+}
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(edict_t *self, edict_t *waypoint) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    S_SpellCancelChannel(self);
-    self->orders->attackmove_waypoint = waypoint;
-    self->orders->patrol_a = NULL;
-    self->orders->patrol_b = NULL;
-    self->orders->patrol_target = NULL;
-    self->orders->follow_target = NULL;
-    self->orders->holding_position = false;
-    self->goalentity = waypoint;
-    self->unit_state->attack_target_spawn_time = 0;
+    self->attack_acquisition_suppressed = false;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, waypoint);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    S_SetFollowTarget(self,NULL);
+    self->movement.holding_position = false;
+    S_SetMoveGoal(self, &self->goalentity, waypoint);
+    attack_set_target(self,NULL);
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
+    attackmove_start_point_task(self);
 }
 
 static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
-    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(clent->client,G_OrderId("attack"),clent->client->menu.order_queued,&selection);
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
         vec2_t target = *location;
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
         CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
-        if (G_IssueUnitPointOrder(ent, "attack", &target,
-                                  clent->client->menu.order_queued,
-                                  clent->client->ps.number, 0.0f)) {
+        if (G_IssuePlayerPointOrder(ent,"attack",&target,selection.units[i].mode,clent->client->ps.number,0)) {
             any = true;
         }
     }
@@ -1390,22 +3236,276 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     return any;
 }
 
-BZ_COMMAND_PROC(AbilityAttack) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = attack_menu_selecttarget;
-    clent->client->menu.on_location_selected = attackmove_selectlocation;
-    clent->client->menu.supports_order_queue = true;
+/* Keep constructor-only admission separate from the authored Attack procedure:
+ * dispatcher contracts are cached by procedure identity. */
+BZ_ABILITY_PROC(CAbilityAttackScan) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK: return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT);
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_INIT: attack_acquire_ensure(ent,true);return false;
+    default: return false;
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityAttack) {
+    switch (msg) {
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_INIT:
+        attack_acquire_ensure(ent,true);return false;
+    case A_UNIT_OWNED:
+        if (!ent) return false;
+        if (ent->data.UnitWeapons && ent->data.UnitWeapons->attacksEnabled) return true;
+        FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
+        return false;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_QUEUE_ORDER_START,A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_TARGET_OWNER_CHANGED,A_UNIT_TYPE_CHANGED,A_UNIT_INIT);
+    case A_QUEUE_ORDER_START:
+        if(call && call->queued_order && call->queued_order->order_id==851987 &&
+           !strcmp(call->queued_order->order,"attack-guard-sleep")) {
+            /*498ff0 without Asla has no work after active-head publication.
+             * Optional Asla activation remains an explicit review dependency. */
+            if(G_ActorHasAbilityCode(ent,MAKEFOURCC('A','s','l','a')))
+                return QUEUED_ORDER_UNHANDLED; /* Required317: actual524e00(1) owner. */
+            unit_stand_preserve_attack_guard(ent);
+            return QUEUED_ORDER_REPLACED;
+        }
+        return QUEUED_ORDER_UNHANDLED;
+    case A_TARGET_AVAILABLE:
+        if(!ent && call)attack_target_available(call->lost_target);
+        return false;
+    case A_TARGET_ORDER_ADMIT: {
+        if (!ent || !call || !call->issued_target_order.order ||
+            (strcmp(call->issued_target_order.order,"attack") &&
+             strcmp(call->issued_target_order.order,"attackonce"))) return ABILITY_ORDER_UNHANDLED;
+        if (S_UnitPolymorphed(ent) || S_UnitIsCycloned(ent)) return ABILITY_ORDER_REJECTED;
+        edict_t *target=call->issued_target_order.target;
+        if (!target || !target->inuse) return ABILITY_ORDER_REJECTED;
+        if (!strcmp(call->issued_target_order.order,"attackonce")) return ABILITY_ORDER_UNHANDLED;
+        /* Original207160 converts before admission. A queued order therefore
+         * owns this position snapshot, never the rejected target's identity. */
+        if (G_UnitIsInvulnerable(target) || !S_AttackCanTarget(ent,target)) {
+            if (!call->issued_target_order.point) return ABILITY_ORDER_REJECTED;
+            *call->issued_target_order.point=target->s.origin2;
+            return ABILITY_ORDER_POINT;
+        }
+        return ABILITY_ORDER_UNHANDLED;
+    }
+    case A_ISSUED_TARGET_ORDER:
+        if (!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"attackonce"))
+            return ABILITY_ORDER_UNHANDLED;
+        return S_OrderAttack(ent,call->issued_target_order.target) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_UNIT_TYPE_CHANGED:
+        attack_acquire_ensure(ent,false);return false;
+    case A_UNIT_STAND:
+        /* Completed Move executes the scan-enable task before idle Stand.
+         * Do not restart an already-enabled periodic owner or an independent
+         * pause/ability disable; the initial2000 request keeps its deadline. */
+        if(ent && !ent->attack_scan_enabled && !S_UnitExecutionPaused(ent) &&
+           !S_AbilityExecutionDisabled(ent,MAKEFOURCC('A','a','t','k')))
+            S_AttackEnableAcquisition(ent);
+        else attack_acquire_ensure(ent,false);
+        if(ent)ent->attack_acquisition_suppressed=false;
+        if(!call || !call->stand.preserve_attack_guard) {attack_guard_stand(ent);}
+        return false;
+    case A_UNIT_OWNER_CHANGING:
+        if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;ent->attack_guard.evaluated=false;ent->attack_guard.returning=false;}return false;
+    case A_UNIT_SUSPEND:
+        if(ent){attack_set_alternative(ent,NULL);attack_acquire_disable(ent);attack_damage_cancel(ent);attack_reaction_cancel(ent);}
+        return false;
+    case A_UNIT_RESUME:
+        if(ent && ent->inuse && !G_IsDeferredFree(ent) && !M_IsDead(ent)) {
+            /*40bb00 has released this ability's counter before notification.
+             * The unit's physical pause flag is cleared later by its owner. */
+            attack_acquire_enable(ent);
+            if(ent->currentmove==&attack_move_melee || ent->currentmove==&attack_move_ranged)
+                attack_walk(ent);
+            else if(ent->currentmove==&attack_ground_move_ranged)
+                attack_ground_walk(ent);
+        }
+        return false;
+    case A_ORDER_ACCEPTED:
+        /* Public identity belongs to the accepted user head. Acquisition and
+         * retaliation call order_attack directly and retain the existing head. */
+        if (!ent || !call || !call->order || !ent->currentmove) return false;
+        /* The ordinary Move task executes d014c ->49e980 ->49d260.
+         * A callback replacement must not retain the old periodic scan. */
+        if(!strcmp(call->order,"move") && ent->currentmove->proc==CAbilityMove)
+            attack_acquire_disable(ent);
+        if(!strcmp(call->order,"stop") || !strcmp(call->order,"move") ||
+           !strcmp(call->order,"patrol") || !strcmp(call->order,"holdposition") ||
+           !strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") ||
+           !strcmp(call->order,"attackground"))attack_set_alternative(ent,NULL);
+        /* Native enemy Smart owns851971 even when Attack executes its task.
+         * Omitting Smart here retained the previous spell head (or idle0).
+         * The physical-owner check preserves callback-installed replacements. */
+        if (((!strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") || !strcmp(call->order,"smart")) &&
+             ent->currentmove->proc==CAbilityAttack) ||
+            (!strcmp(call->order,"attackground") && ent->currentmove->proc==CAbilityAttackGround)) {
+            ent->current_order_id=G_OrderId(call->order);
+            return true;
+        }
+        return false;
+    case A_TIMERS_RESET:
+        attack_targets_reset();
+        attack_help_queries_reset();
+        attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));return true;
+    case A_TIMERS_REBUILD:
+        attack_targets_rebuild();
+        attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
+            FOR_LOOP(j,ATTACK_FAILED_TARGET_SLOTS)if(g_edicts[i].attack_failed_targets[j].timer.active)
+                attack_cap_insert(g_edicts+i,ATTACK_TIMER_FAILED_FIRST+j);
+            if(g_edicts[i].attack_scan.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SCAN);
+            if(g_edicts[i].attack_reaction.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_REACTION);
+            if(g_edicts[i].attack_damage.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_DAMAGE);
+            if(g_edicts[i].attack_cooldown.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_COOLDOWN);
+            attack_cooldown_sync(g_edicts+i);
+            if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
+            if(g_edicts[i].combat_help.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_HELP);
+            if(g_edicts[i].attack_swing.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SWING);
+            if(g_edicts[i].attack_guard.timer.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_GUARD);
+        }
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!attack_cap_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){attack_primary_timer(attack_cap_heap[0])->deadline,
+            attack_primary_timer(attack_cap_heap[0])->sequence,CAbilityAttack};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(attack_cap_count)attack_primary_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,attack_cap_count) {
+            abilityPrimaryTimer_t *timer=attack_primary_timer(attack_cap_heap[i]);
+            timer->deadline.time=wc3_sub(timer->deadline.time,call->clock_span);timer->deadline.epoch++;
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        /* Real frames merge exact requests in TimerDrain. Direct owner tests
+         * retain the same expiration predicate without scanning all entities. */
+        if(!level.scheduled_frame)while(attack_cap_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(attack_primary_timer(attack_cap_heap[0])->deadline.time>now.time)break;
+            attack_primary_fire();
+        }
+        return true;
+    case A_ALLY_COMBAT_ALERT: {
+        edict_t *victim=call ? call->combat_alert.victim : NULL;
+        edict_t *source=call ? call->combat_alert.source : NULL;
+        if(!ent || !victim || !source || ent->s.player>=MAX_PLAYERS || victim->s.player>=MAX_PLAYERS || source->s.player>=MAX_PLAYERS)return false;
+        player_t const *helper=&game.clients[ent->s.player].ps,*owner=&game.clients[victim->s.player].ps;
+        if(!G_GetPlayerAlliance(owner,helper,ALLIANCE_HELP_REQUEST) ||
+           !G_GetPlayerAlliance(helper,owner,ALLIANCE_HELP_RESPONSE) ||
+           G_PlayerTreatsPlayerAsAlly(ent->s.player,source->s.player))return false;
+        return CAbilityAttack(ent,A_COMBAT_ALERT,call);
+    }
+    case A_COMBAT_ALERT:
+        /* Native4935e0 rejects null sources, packet bit2 and suspension before
+         * setting the bit. Retaliation eligibility is a later decision. */
+        if(ent && call && call->combat_alert.source && !(call->combat_alert.flags&2) && !ent->paused)
+            attack_cap_begin(ent);
+        return false;
+    case A_AUTO_COMBAT_START:
+        attack_cap_begin(ent);return false;
+    case A_DISABLE:
+        if(ent) {
+            attack_failed_targets_clear(ent);
+            /*493530 cancels six Attack controls: swing200, cooldown1d8,
+             *reaction1c4, damage1ec, scan294 and guard280. Initial2000 only
+             *survives suspension/death. Unit-owned help d01b3 is independent. */
+            ent->attack_scan_enabled=false;ent->attack_scan_initial_pending=false;
+            attack_acquire_cancel(ent);attack_reaction_cancel(ent);attack_damage_cancel(ent);
+            attack_swing_cancel(ent);attack_guard_cancel(ent);
+            attack_cooldown_cancel(ent);
+            attack_set_alternative(ent,NULL);
+            attack_cap_cancel(ent);
+            ent->attack_invisibility_suppression=0;
+            if(!++ent->attack_invisibility_generation)++ent->attack_invisibility_generation;
+            if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
+                sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
+            /*3f4c70 ->497ba0 ->49d280 forced retirement releases the owned
+             *target task and continues its parent. Cancelling +200 first
+             *prevents ordinary recovery from retaining a detached thinker.
+             *Parent completion may run callbacks: do not write afterward. */
+            if(ent->currentmove==&attack_ground_move_ranged ||
+               ent->currentmove==&attack_ground_move_cooldown ||
+               ent->currentmove==&attack_ground_move_hold)
+                attack_ground_stop(ent); /*497190 pops committed Ground d0169. */
+            else if(ent->attack_target)
+                attack_recover_target_task(ent,ent->goalentity,true,false,"ability_detached");
+        }
+        return false;
+    case A_TARGET_OWNER_CHANGED:
+    case A_TARGET_LOST:
+        if(call && call->lost_target) {
+            if(ent)S_DeliverAttackTargetEvent(ent,call->lost_target,msg);
+            else attack_deliver_target_event(call->lost_target,msg==A_TARGET_OWNER_CHANGED);
+        }
+        return false;
+    case A_MOVE_LEAVE:
+        attack_acquire_ensure(ent,false);
+        if(ent && call && call->next_move_proc!=CAbilityAttack) {
+            ent->attack_acquisition_suppressed=false;
+            /* Internal target loss releases current before returning to its
+             * parent; an external replacement retires the still-live owner. */
+            if(ent->attack_target || ent->paused)attack_set_alternative(ent,NULL);
+            S_EndUnitTargetChase(ent,CAbilityAttack);attack_set_target(ent,NULL);
+        }
+        return false;
+    case A_DEATH:
+        if(ent) {
+            attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);
+            /* Native124c's killed eighth unit retains its unfired attach
+             * request.493ff0 clears2000, observes cleared4000, and retires it
+             * without rearming or querying. Final removal still cancels. */
+            attack_acquire_disable(ent);
+        }
+        return false;
+    case A_UNIT_RETIRE:
+        if(ent) {
+            if(call && call->retirement.destroying)attack_cooldown_cancel(ent);
+            attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);
+            /* unit_die retires world ownership before A_DEATH. Preserve the
+             * same unfired dead request across that notification; destroying
+             * storage or live retirement still cancels it. */
+            ent->attack_scan_enabled=false;
+            if(!ent->attack_scan_initial_pending || !M_IsDead(ent) || (call && call->retirement.destroying))
+                attack_acquire_cancel(ent);
+        }
+        return false;
+    case A_UNIT_REMOVING:
+    case A_UNIT_REMOVE:
+        if(ent){attack_failed_targets_clear(ent);attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_cooldown_cancel(ent);attack_guard_cancel(ent);attack_acquire_cancel(ent);}
+        return false;
+    case A_TARGET_REMOVED: {
+        if (!call) return false;
+        bool handled = CAbilityMove(ent, msg, call) != 0;
+        if (ent->goalentity != call->removed_target) return handled;
+        attack_finish_after_combat(ent, call->removed_target, "target_removed");
+        return true;
+    }
+    case A_COMMAND: {
+        edict_t *clent = call && call->client ? call->client : ent;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_entity_selected = attack_menu_selecttarget;
+        clent->client->menu.on_location_selected = attackmove_selectlocation;
+        clent->client->menu.supports_order_queue = true;
+        return true;
+    }
+    default: return false;
+    }
 }
 
 static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
     if (!clent || !clent->client || !location) return false;
-    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if (ent->unit_state->attack1.weapon != WPN_ARTILLERY && ent->unit_state->attack1.weapon != WPN_ALINE) continue;
-        if (G_IssueUnitPointOrder(ent, "attackground", location,
-                                  clent->client->menu.order_queued,
-                                  clent->client->ps.number, 0.0f)) any = true;
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(clent->client,G_OrderId("attackground"),clent->client->menu.order_queued,&selection);
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
+        if (S_AttackProfileRead(ent, 0)->weapon != WPN_ARTILLERY) continue;
+        if (G_IssuePlayerPointOrder(ent,"attackground",location,selection.units[i].mode,clent->client->ps.number,0)) any = true;
     }
     if (any) {
         S_SpellCursorSplat(clent, 0.0f);
@@ -1418,7 +3518,7 @@ static float attack_ground_cursor_radius(gameClient_t *client) {
     float radius = 0.0f;
     if (!client) return 200.0f;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
-        unitAttack_t const *attacks[] = { &ent->unit_state->attack1, &ent->unit_state->attack2 };
+        unitAttack_t const *attacks[] = { S_AttackProfileRead(ent, 0), S_AttackProfileRead(ent, 1) };
         FOR_LOOP(i, 2) {
             unitAttack_t const *attack = attacks[i];
             if (!S_UnitAttackSlotEnabled(ent, i) ||

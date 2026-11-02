@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "engine_parity": false,
+  "projection_sha256": "0810ee1bbded560fcb16ffbb52e94ce18d44695a8ba00e673da1e31283c1fff2",
+  "capture_files_sha256": {
+    "TargetCouplingInstant193V3.json": "7efd109261a6ba2d84dddc69cb55bda9cec16f608bb2e7f6938bd3da17e6092c",
+    "TargetCouplingInstant193V3.w3m": "3a229f1c103dc69597444bdbac63fd664591ba17da205765ea1d66a9ba96774d",
+    "audit_stock.py": "22227b538d2904b23164a9a47d38f5137f228c8d82444ae4f68d2a98a08fd321",
+    "capture-design.json": "783bf56b29ecac0f5706b4db42e79d7223f96999c7cbd1a2576254730c44e684",
+    "capture-launch.py": "889539e498a8ca280b587bdda7c7a6681705ff9fcedcbc962a54e4d7af79eac1",
+    "control1-preload.txt": "d2cb1cb4640b4609b84bc7cd8061081395a3e1dc97a18f0d39da619cc7ed727f",
+    "control1.jsonl": "690b3a4fc5dd7b5dd83623b1cda5eb9519f056cc5e1434e52373ddfa9c16b155",
+    "frozen-sources.json": "b786382bac3080349b745ad39d1b3143afadfdf274ea6d9aca61d7a55ceb9431",
+    "itemdrop_capture.py": "1e1f4c64f0a5765eb22c0d4185d4777f007a0dc46dc0b96f8209ba1f9ebe2b37",
+    "itemdrop_make_map.py": "053b94ef2d8d212612dadb9cc29f2ee2dde4425bd6967e4f1f27fae515a771c9",
+    "itemdrop_observer.js": "7ffd6b6060efccc9874329cd0cdcf2906c6cd323fe19f5b24f90e6544df07554",
+    "itemdrop_probe.j": "9bab0aaaae973223416452786606682453ef41aee144da813f26c977e094b521",
+    "observe1-preload.txt": "1c0011a155f2ff14a4ad0775dc6bd21c2b41ae1b8195f9d1f8c23381a178498f",
+    "observe1.jsonl": "2b9f5ef641537f36c577e6a2f8df2f555fc48fdc691311ba4bf70a4862c5ed2b",
+    "observe2-preload.txt": "c4750ed07c311b9a78931db3017254e953c936a7bf2d2040877fa6bb159c86df",
+    "observe2.jsonl": "f7868390b84abe6a38ebe1238eb094adbde5e98d2f5fd3a7ee4cfc62a31c0d7f",
+    "source-before-map.json": "ef480ec26bf8786b75fb374a2d9b3d54f217075a360813853c059b6cd4b0bb85",
+    "validated-summary.json": "23fdfce80b3c854c66029ea9d44da4d15f0ff0d62c6e5a1a423f646b2b1a156f"
+  },
+  "accepted_runs": [
+    "observe1",
+    "observe2",
+    "control1"
+  ],
+  "excluded_runs": {},
+  "ordered_rows": 540,
+  "public_markers_per_capture": 1539,
+  "public_sha256": "c72fbdff86ff2d2a2d90d49c9c2cac3812f83e2fc2c5c80658531e45e076948e",
+  "limits": [
+    "Phase1precommit excluded; all globalphase0/phase2 order and absolute rawclock words retained.",
+    "Actorrole maps from unique authoredspeed+initialXY; no sorting, offsets or numerical tolerances.",
+    "Six stocksinglepartner scenes: near/far immediatebothdirections, far explicitbothdirections; no already-facing or literalfloatadjacency claim.",
+    "Correctnativeprofiles Archer.6/60 Hippo.4/61; source table/rawparsedprofile evidence separate.",
+    "Nativeprovenance only; engineparity requires separate actualCregressions."
+  ]
+}

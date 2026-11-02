@@ -1,0 +1,2785 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.owner303*",
+    "wc3_movement.scope301*",
+    "wc3_movement.scope300*",
+    "wc3_ability_dispatch.*",
+    "wc3_order_lifecycle.*",
+    "wc3_repulsion_policy.*",
+    "wc3_unit_releases.*",
+    "wc3_save.*",
+    "wc3_building.*"
+  ],
+  "pins": {
+    "tools/frida/research/owner303_capture.py": "53ee899862d997d1ef68dd98455087e992e46f1de29a773e26f6cae31ce39b2e",
+    "tools/frida/research/owner303_observer.js": "5cbe190a94e9e83fc7e8752769c141f26ab43a359d022dd5cf084183ab966a97",
+    "tools/frida/research/owner303_make_map.py": "0c15fd6cbe0c12486aa930da6329a4e8f031014018735320335d81f15a56966f",
+    "tools/frida/research/owner303_probe.j": "61ad1c9d5c4308fe01e9ee419c53d7aec164cf81e75d1ea7d942b52628c2c993",
+    "tools/ghidra/research/Owner303Evidence.java": "9bf5704313474d3418dc8f2f5f5198fef9773e51ba4a8e2fc55d3e2ce8b7db27",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/research/sep_research_map.py": "ac652093f75423ad6ce9af7ce327029e8a5c8895cf5f9f73f756dfdd9561dd2d",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "tools/frida/research/smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+    "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "tools/frida/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19"
+  },
+  "bundle_sha256": "5b11ec3663dcd54772e0ee557df6ea1ddea3b9de5f8526a0e4a03d6065790fba",
+  "map_sha256": "613cf4b775d3607a8b8bc67a29e18915fd9eccc91a76834372c7c76ac01e734c",
+  "helper_sha256": {
+    "owned-ui-input.exe": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+    "owned-ui-input.exe.so": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1"
+  },
+  "markers": [
+    "O303 tick=0 scene=0 label=start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=0 scene=0 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=0 scene=0 label=created type=1748185139 order=0 life=420.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=1 scene=0 label=before type=1748185139 order=0 life=420.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=1 scene=0 label=after type=1748185139 order=0 life=0.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=3 scene=0 label=settled type=1748185139 order=0 life=0.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=6 scene=1 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=6 scene=1 label=created type=1764962355 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=7 scene=1 label=before type=1764962355 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=7 scene=1 label=after type=1764962355 order=0 life=0.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=9 scene=1 label=settled type=1764962355 order=0 life=0.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=12 scene=2 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=12 scene=2 label=created type=1714630707 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=13 scene=2 label=before type=1714630707 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=13 scene=2 label=after type=1714630707 order=0 life=0.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=15 scene=2 label=settled type=1714630707 order=0 life=0.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=18 scene=3 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=18 scene=3 label=created type=1752461175 order=0 life=1500.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=19 scene=3 label=before type=1752461175 order=0 life=1500.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=19 scene=3 label=after type=1752461175 order=0 life=0.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=21 scene=3 label=settled type=1752461175 order=0 life=0.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=24 scene=4 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=24 scene=4 label=created type=1748185139 order=0 life=420.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=25 scene=4 label=before type=1748185139 order=0 life=420.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=25 scene=4 label=after type=1748185139 order=0 life=420.000 speed=150.000 x=656.000 y=656.000",
+    "O303 tick=27 scene=4 label=settled type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=30 scene=5 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=30 scene=5 label=created type=1764962355 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=31 scene=5 label=before type=1764962355 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=31 scene=5 label=after type=1764962355 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=33 scene=5 label=settled type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=36 scene=6 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=36 scene=6 label=created type=1714630707 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=37 scene=6 label=before type=1714630707 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=37 scene=6 label=after type=1714630707 order=0 life=420.000 speed=0.000 x=656.000 y=656.000",
+    "O303 tick=39 scene=6 label=settled type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=42 scene=7 label=scene-start type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=42 scene=7 label=created type=1752461175 order=0 life=1500.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=43 scene=7 label=before type=1752461175 order=0 life=1500.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=43 scene=7 label=after type=1752461175 order=0 life=1500.000 speed=0.000 x=640.000 y=640.000",
+    "O303 tick=45 scene=7 label=settled type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000",
+    "O303 tick=47 scene=8 label=complete type=0 order=0 life=0.000 speed=0.000 x=0.000 y=0.000"
+  ],
+  "stages": [
+    [
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 513,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 801,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 801,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 801,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1764962355,
+          "flags": 513,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1764962355,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1764962355,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1764962355,
+          "flags": 800,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871425,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871712,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871712,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871712,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1752461175,
+          "flags": 119297,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1752461175,
+          "flags": 70432,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1752461175,
+          "flags": 70432,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1752461175,
+          "flags": 70432,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852292
+      },
+      {
+        "event": "move-cleanup",
+        "caller": "0x5fdae5",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x600433",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "move-dispatch",
+        "caller": "0x71f17",
+        "task_event": 852344
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1748185139,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "move-cancel",
+        "caller": "0x407710",
+        "task_event": null
+      },
+      {
+        "event": "unit-stop-enter",
+        "caller": "0x5fc18a",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "unit-stop-exit"
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1748185139,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5fcd40",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1764962355,
+          "flags": 521,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1764962355,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1764962355,
+          "flags": 520,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1764962355,
+          "flags": 521,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1764962355,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1764962355,
+          "flags": 777,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1764962355,
+          "flags": 777,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871433,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871432,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871432,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871433,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871689,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871689,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1714630707,
+          "flags": 536871689,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a510",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x55c520",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x5e66f0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x4992a0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ],
+    [
+      {
+        "event": "remove-enter",
+        "state": {
+          "code": 1752461175,
+          "flags": 119305,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "remove-exit",
+        "state": {
+          "code": 1752461175,
+          "flags": 119304,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "state",
+        "state": {
+          "code": 1752461175,
+          "flags": 119304,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-enter",
+        "state": {
+          "code": 1752461175,
+          "flags": 119305,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-enter",
+        "state": {
+          "code": 1752461175,
+          "flags": 119561,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "death-exit",
+        "state": {
+          "code": 1752461175,
+          "flags": 119561,
+          "suppression": 1,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "inactivity-exit",
+        "state": {
+          "code": 1752461175,
+          "flags": 70409,
+          "suppression": 0,
+          "abilities": [
+            {
+              "classGetter": "0x41a430",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a730",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a790",
+              "disabled": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x517210",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x63b760",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a4d0",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x59c040",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            },
+            {
+              "classGetter": "0x41a780",
+              "disabled": [
+                1,
+                1,
+                0
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "event": "destroy"
+      }
+    ]
+  ],
+  "instructions": {
+    "6f679bb0": "56",
+    "6f679bb1": "8bf1",
+    "6f679bb3": "f7465c00010000",
+    "6f679bba": "7524",
+    "6f679bbc": "e88f3ee1ff",
+    "6f679bc1": "85c0",
+    "6f679bc3": "741d",
+    "6f679bc5": "81665cffdfffff",
+    "6f679bcc": "c78654020000ffffffff",
+    "6f679bd6": "c78650020000ffffffff",
+    "6f679be0": "5e",
+    "6f679be1": "c3",
+    "6f679be2": "8bce",
+    "6f679be4": "e887500100",
+    "6f679be9": "814e5c00010000",
+    "6f679bf0": "8bce",
+    "6f679bf2": "8b06",
+    "6f679bf4": "6a00",
+    "6f679bf6": "ff90a0000000",
+    "6f679bfc": "834e5c20",
+    "6f679c00": "8d8e64010000",
+    "6f679c06": "6a01",
+    "6f679c08": "e863239eff",
+    "6f679c0d": "6844c7d36f",
+    "6f679c12": "8d8e98000000",
+    "6f679c18": "e873e59dff",
+    "6f679c1d": "8bce",
+    "6f679c1f": "e87ca10100",
+    "6f679c24": "6aff",
+    "6f679c26": "6aff",
+    "6f679c28": "8bce",
+    "6f679c2a": "e8e173fdff",
+    "6f679c2f": "8bce",
+    "6f679c31": "e84a71fdff",
+    "6f679c36": "8bce",
+    "6f679c38": "e883fdcdff",
+    "6f679c3d": "8bce",
+    "6f679c3f": "e8cc99ffff",
+    "6f679c44": "6a01",
+    "6f679c46": "6a01",
+    "6f679c48": "8bce",
+    "6f679c4a": "e831e6ffff",
+    "6f679c4f": "6853010d00",
+    "6f679c54": "8bce",
+    "6f679c56": "e8c5820100",
+    "6f679c5b": "6878010d00",
+    "6f679c60": "8bce",
+    "6f679c62": "e8b9820100",
+    "6f679c67": "6844010d00",
+    "6f679c6c": "8bce",
+    "6f679c6e": "e8ad820100",
+    "6f679c73": "6a04",
+    "6f679c75": "8bce",
+    "6f679c77": "e8248b0100",
+    "6f679c7c": "8bce",
+    "6f679c7e": "5e",
+    "6f679c7f": "e97c420000",
+    "6f600340": "56",
+    "6f600341": "8bf1",
+    "6f600343": "57",
+    "6f600344": "f6462004",
+    "6f600348": "7405",
+    "6f60034a": "e871bdffff",
+    "6f60034f": "8b7e30",
+    "6f600352": "85ff",
+    "6f600354": "7509",
+    "6f600356": "8bce",
+    "6f600358": "e86359a5ff",
+    "6f60035d": "8bf8",
+    "6f60035f": "6a02",
+    "6f600361": "8bcf",
+    "6f600363": "e8b8420900",
+    "6f600368": "8bce",
+    "6f60036a": "e851bcffff",
+    "6f60036f": "8bce",
+    "6f600371": "e82abbffff",
+    "6f600376": "8bcf",
+    "6f600378": "e823c30900",
+    "6f60037d": "85c0",
+    "6f60037f": "0f848c000000",
+    "6f600385": "8b4030",
+    "6f600388": "3d71010d00",
+    "6f60038d": "7423",
+    "6f60038f": "3d74010d00",
+    "6f600394": "741c",
+    "6f600396": "3d70010d00",
+    "6f60039b": "7415",
+    "6f60039d": "3d73010d00",
+    "6f6003a2": "740e",
+    "6f6003a4": "3d6b010d00",
+    "6f6003a9": "7407",
+    "6f6003ab": "3d9d020d00",
+    "6f6003b0": "755f",
+    "6f6003b2": "8b8688000000",
+    "6f6003b8": "238684000000",
+    "6f6003be": "53",
+    "6f6003bf": "83f8ff",
+    "6f6003c2": "7445",
+    "6f6003c4": "8d8e84000000",
+    "6f6003ca": "e8510fa6ff",
+    "6f6003cf": "85c0",
+    "6f6003d1": "7436",
+    "6f6003d3": "6a01",
+    "6f6003d5": "6a01",
+    "6f6003d7": "6a00",
+    "6f6003d9": "6a01",
+    "6f6003db": "6872616341",
+    "6f6003e0": "8bc8",
+    "6f6003e2": "e899c7e8ff",
+    "6f6003e7": "85c0",
+    "6f6003e9": "740a",
+    "6f6003eb": "6a01",
+    "6f6003ed": "57",
+    "6f6003ee": "8bc8",
+    "6f6003f0": "e80b04faff",
+    "6f6003f5": "c78688000000ffffffff",
+    "6f6003ff": "c78684000000ffffffff",
+    "6f600409": "816620ffbfffff",
+    "6f600410": "5b",
+    "6f600411": "8d8e90000000",
+    "6f600417": "e8a402a6ff",
+    "6f60041c": "56",
+    "6f60041d": "8bcf",
+    "6f60041f": "e89c62a5ff",
+    "6f600424": "56",
+    "6f600425": "8bcf",
+    "6f600427": "e8b462a5ff",
+    "6f60042c": "8bcf",
+    "6f60042e": "e80da40900",
+    "6f600433": "f7462000080000",
+    "6f60043a": "740e",
+    "6f60043c": "816620fff7ffff",
+    "6f600443": "8bcf",
+    "6f600445": "e866540900",
+    "6f60044a": "836620fb",
+    "6f60044e": "5f",
+    "6f60044f": "5e",
+    "6f600450": "c3",
+    "6f5fc120": "56",
+    "6f5fc121": "57",
+    "6f5fc122": "8bf1",
+    "6f5fc124": "e847b3e0ff",
+    "6f5fc129": "8b7e30",
+    "6f5fc12c": "85ff",
+    "6f5fc12e": "7511",
+    "6f5fc130": "8bce",
+    "6f5fc132": "e8899ba5ff",
+    "6f5fc137": "8bf8",
+    "6f5fc139": "85ff",
+    "6f5fc13b": "0f84dc000000",
+    "6f5fc141": "8bce",
+    "6f5fc143": "e878feffff",
+    "6f5fc148": "8bce",
+    "6f5fc14a": "e851fdffff",
+    "6f5fc14f": "8d8e90000000",
+    "6f5fc155": "e86645a6ff",
+    "6f5fc15a": "56",
+    "6f5fc15b": "8bcf",
+    "6f5fc15d": "e85ea5a5ff",
+    "6f5fc162": "56",
+    "6f5fc163": "8bcf",
+    "6f5fc165": "e876a5a5ff",
+    "6f5fc16a": "56",
+    "6f5fc16b": "8bcf",
+    "6f5fc16d": "e8bea5a5ff",
+    "6f5fc172": "56",
+    "6f5fc173": "8bcf",
+    "6f5fc175": "e8d6a5a5ff",
+    "6f5fc17a": "6a02",
+    "6f5fc17c": "8bcf",
+    "6f5fc17e": "e89d840900",
+    "6f5fc183": "8bcf",
+    "6f5fc185": "e8b6e60900",
+    "6f5fc18a": "f7462000080000",
+    "6f5fc191": "740e",
+    "6f5fc193": "816620fff7ffff",
+    "6f5fc19a": "8bcf",
+    "6f5fc19c": "e80f970900",
+    "6f5fc1a1": "8b8688000000",
+    "6f5fc1a7": "238684000000",
+    "6f5fc1ad": "53",
+    "6f5fc1ae": "83f8ff",
+    "6f5fc1b1": "7445",
+    "6f5fc1b3": "8d8e84000000",
+    "6f5fc1b9": "e86251a6ff",
+    "6f5fc1be": "85c0",
+    "6f5fc1c0": "7436",
+    "6f5fc1c2": "6a01",
+    "6f5fc1c4": "6a01",
+    "6f5fc1c6": "6a00",
+    "6f5fc1c8": "6a01",
+    "6f5fc1ca": "6872616341",
+    "6f5fc1cf": "8bc8",
+    "6f5fc1d1": "e8aa09e9ff",
+    "6f5fc1d6": "85c0",
+    "6f5fc1d8": "740a",
+    "6f5fc1da": "6a01",
+    "6f5fc1dc": "57",
+    "6f5fc1dd": "8bc8",
+    "6f5fc1df": "e81c46faff",
+    "6f5fc1e4": "c78688000000ffffffff",
+    "6f5fc1ee": "c78684000000ffffffff",
+    "6f5fc1f8": "816620ffbfffff",
+    "6f5fc1ff": "f6462004",
+    "6f5fc203": "5b",
+    "6f5fc204": "7417",
+    "6f5fc206": "816620fbbfffff",
+    "6f5fc20d": "8bcf",
+    "6f5fc20f": "e84c500900",
+    "6f5fc214": "8bcf",
+    "6f5fc216": "5f",
+    "6f5fc217": "5e",
+    "6f5fc218": "e9e31c0800",
+    "6f5fc21d": "5f",
+    "6f5fc21e": "5e",
+    "6f5fc21f": "c3",
+    "6f5fcd40": "b8766f6d41",
+    "6f5fcd45": "c3"
+  },
+  "instruction_count": 218,
+  "function_count": 4,
+  "limits": [
+    "This engine chunk fixes direct death ownership only; broad MAP-04.2 remains open.",
+    "New capture extends beyond RemoveUnit return and observes a deferred first-disable recovery. Earlier return-window fixtures are unchanged; full removal chronology needs separate integration.",
+    "Observer fine resolver returned null and certifies no fine identity, coverage or counter geometry.",
+    "Blocked engine terrain is a non-stock negative control, not a new retail blocked-death capture."
+  ]
+}

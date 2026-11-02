@@ -1,0 +1,8 @@
+{
+ "name": "alliances_human05",
+ "probe": "alliances",
+ "base": {
+  "mpq": "war3.mpq",
+  "member": "Maps\\Campaign\\Human05.w3m"
+ }
+}

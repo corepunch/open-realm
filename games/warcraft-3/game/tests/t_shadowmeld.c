@@ -51,8 +51,8 @@ static void shadowmeld_setup_as(shadowmeldFix_t *fix, uint32_t class_id) {
     fix->unit = alloc_test_unit(class_id, 0, 0);
     fix->unit->s.player = 0;
     fix->unit->svflags |= SVF_MONSTER;
-    fix->unit->unit_state->overrides.added[0] = ID_ASHM;
-    ARRAY_COUNT(fix->unit->unit_state->overrides.added) = 1;
+    fix->unit->abilities.added[0] = ID_ASHM;
+    ARRAY_COUNT(fix->unit->abilities.added) = 1;
     fix->unit->stand = unit_stand;
     unit_stand(fix->unit);
 }
@@ -122,8 +122,8 @@ TEST(wc3_shadowmeld, availability_is_scoped_to_each_shadowmeld_class) {
     gameClient_t *client;
 
     shadowmeld_setup(&fix);
-    fix.unit->unit_state->overrides.added[1] = ID_AHID;
-    ARRAY_COUNT(fix.unit->unit_state->overrides.added) = 2;
+    fix.unit->abilities.added[1] = ID_AHID;
+    ARRAY_COUNT(fix.unit->abilities.added) = 2;
     client = &game.clients[0];
     client->ps.number = 0;
     fix.unit->s.player = 0;
@@ -146,7 +146,7 @@ TEST(wc3_shadowmeld, availability_is_scoped_to_each_shadowmeld_class) {
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
 
-    G_GetShadowMeld(fix.unit)->hide_order_active = true;
+    fix.unit->shadowmeld->hide_order_active = true;
     G_SetPlayerAbilityAvailable(client, ID_ASHM, true);
     G_SetPlayerAbilityAvailable(client, ID_AHID, false);
     T_ASSERT(S_AbilityMessage(fix.unit, A_VALIDATE, &standard_call));
@@ -162,18 +162,18 @@ TEST(wc3_shadowmeld, availability_is_scoped_to_each_shadowmeld_class) {
 TEST(wc3_shadowmeld, akama_variant_is_distinct_and_suppresses_auto_acquire) {
     shadowmeldFix_t fix;
     shadowmeld_setup(&fix);
-    fix.unit->unit_state->overrides.added[0] = ID_AHID;
-    ARRAY_COUNT(fix.unit->unit_state->overrides.added) = 1;
+    fix.unit->abilities.added[0] = ID_AHID;
+    ARRAY_COUNT(fix.unit->abilities.added) = 1;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
     T_ASSERT(S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
 
     shadowmeld_done(&fix);
 }
@@ -185,7 +185,7 @@ TEST(wc3_shadowmeld, passive_fades_after_stationary_night_interval) {
     G_UpdateTimeOfDay();
 
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
     shadowmeld_tick(fix.unit, 1499);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
@@ -206,39 +206,39 @@ TEST(wc3_shadowmeld, update_dispatch_rechecks_dynamic_and_authored_ownership) {
 
     shadowmeld_setup(&fix);
     fix.unit->data.UnitAbilities = &empty_abilities;
-    fix.unit->unit_state->overrides.added_count = 0;
-    memset(fix.unit->unit_state->ranks, 0, sizeof(fix.unit->unit_state->ranks));
+    fix.unit->abilities.added_count = 0;
+    memset(fix.unit->heroabilities, 0, sizeof(fix.unit->heroabilities));
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(!G_GetShadowMeld(fix.unit) ||
-             (!G_GetShadowMeld(fix.unit)->active && !G_GetShadowMeld(fix.unit)->fading));
+    T_ASSERT(!fix.unit->shadowmeld ||
+             (!fix.unit->shadowmeld->active && !fix.unit->shadowmeld->fading));
 
     /* Runtime ability addition must become visible on the very next tick. */
     T_ASSERT(G_ActorAddSkill(fix.unit, ID_ASHM));
     shadowmeld_tick(fix.unit, 1);
-    T_NOT_NULL(G_GetShadowMeld(fix.unit));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_NOT_NULL(fix.unit->shadowmeld);
+    T_ASSERT(fix.unit->shadowmeld->fading);
 
     /* Removal uses the normal disable event to break the active fade. */
     T_ASSERT(G_ActorRemoveSkill(fix.unit, ID_ASHM));
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(!G_GetShadowMeld(fix.unit)->fading);
-    T_ASSERT(!G_GetShadowMeld(fix.unit)->active);
+    T_ASSERT(!fix.unit->shadowmeld->fading);
+    T_ASSERT(!fix.unit->shadowmeld->active);
 
     /* Authored list changes and hero ranks cannot depend on a cached bit. */
     fix.unit->data.UnitAbilities = &native_abilities;
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     S_ShadowMeldBreak(fix.unit); /* unit-type changes retire the old fade */
     fix.unit->data.UnitAbilities = &empty_abilities;
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(!G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(!fix.unit->shadowmeld->fading);
 
-    fix.unit->unit_state->ranks[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
+    fix.unit->heroabilities[0] = MAKE(heroability_t, .code = ID_AHID, .level = 1);
     shadowmeld_tick(fix.unit, 1);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_done(&fix);
 }
 
@@ -252,7 +252,7 @@ TEST(wc3_shadowmeld, passive_fade_duration_uses_authored_shm1) {
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_tick(fix.unit, 749);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
     shadowmeld_tick(fix.unit, 1);
@@ -275,7 +275,7 @@ TEST(wc3_shadowmeld, owner_presentation_uses_smoothstep_ghost_alpha) {
     G_UpdateTimeOfDay();
 
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     T_FEQ(S_ShadowMeldPresentationAlpha(fix.unit), 1.0f, 0.001f);
 
     level.time += 750;
@@ -305,7 +305,7 @@ TEST(wc3_shadowmeld, owner_ghost_alpha_multiplies_authored_vertex_alpha) {
     clent->client = &game.clients[0];
     clent->client->ps.number = 0;
     fix.unit->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
-    G_SetUnitFlag(fix.unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    fix.unit->vertex_color_set = true;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
     S_RunAbilityUpdates(fix.unit);
@@ -349,11 +349,9 @@ TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
     clent->client = &game.clients[0];
     clent->client->ps.number = 0;
     fix.unit->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
-    G_SetUnitFlag(fix.unit, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    fix.unit->vertex_color_set = true;
 
     fix.unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    G_InitVisibility(fix.unit);
-    fix.unit->vision->reveal_until = 0;
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 70);
 
@@ -382,7 +380,7 @@ TEST(wc3_shadowmeld, daylight_cancels_fade_and_active_invisibility) {
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->fading);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
     T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.unit, 1));
 
@@ -396,14 +394,14 @@ TEST(wc3_shadowmeld, hide_ambush_suppresses_acquisition_and_uses_same_fade) {
     G_UpdateTimeOfDay();
 
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
     S_RunAbilityUpdates(fix.unit);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
 
     S_UnitAbilityEvent(fix.unit, A_MOVE_LEAVE);
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
 
     shadowmeld_done(&fix);
@@ -458,8 +456,8 @@ TEST(wc3_shadowmeld, hide_button_preserves_already_active_shadowmeld) {
 
     G_ClientCommand(clent, 2, button);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->fading);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->fading);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(client->commands_dirty);
 
     shadowmeld_done(&fix);
@@ -484,7 +482,7 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     }
     client->commands_dirty = false;
     G_ClientCommand(clent, 2, button);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(client->commands_dirty);
     T_EQ(G_UnitAbilityLevel(fix.unit, ID_ASHM), 1);
     T_ASSERT(G_ActorHasSkill(fix.unit, "Ashm"));
@@ -519,7 +517,7 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
 
     client->commands_dirty = false;
     T_ASSERT(unit_issueimmediateorder(fix.unit, "stop"));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(client->commands_dirty);
     T_STREQ(G_CommandButtonValue("normal", "alternate", false), "normal");
     {
@@ -540,16 +538,16 @@ TEST(wc3_shadowmeld, stop_retires_explicit_hide_then_allows_passive_refade) {
     S_RunAbilityUpdates(fix.unit);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
 
     T_ASSERT(unit_issueimmediateorder(fix.unit, "stop"));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
 
     shadowmeld_done(&fix);
 }
@@ -561,13 +559,13 @@ TEST(wc3_shadowmeld, hold_position_allows_passive_shadowmeld_without_hide_hold_f
     G_UpdateTimeOfDay();
 
     T_ASSERT(unit_issueimmediateorder(fix.unit, "holdposition"));
-    T_ASSERT(fix.unit->orders->holding_position);
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->movement.holding_position);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(fix.unit->orders->holding_position);
+    T_ASSERT(fix.unit->movement.holding_position);
     T_ASSERT(!S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
 
     shadowmeld_done(&fix);
@@ -579,8 +577,8 @@ TEST(wc3_shadowmeld, attack_order_immediately_breaks_shadowmeld_and_hide) {
     edict_t *enemy;
     shadowmeld_setup(&fix);
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->unit_state->attack1.type = ATK_NORMAL;
-    fix.unit->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
@@ -592,12 +590,12 @@ TEST(wc3_shadowmeld, attack_order_immediately_breaks_shadowmeld_and_hide) {
     S_RunAbilityUpdates(fix.unit);
     shadowmeld_tick(fix.unit, 1500);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
 
     order_attack(fix.unit, enemy);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->fading);
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->fading);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
     T_EQ(fix.unit->goalentity, enemy);
     T_NOT_NULL(fix.unit->currentmove);
     T_EQ(fix.unit->currentmove->proc, CAbilityAttack);
@@ -612,8 +610,8 @@ TEST(wc3_shadowmeld, explicit_hide_does_not_retaliate_when_hit_during_fade) {
     shadowmeld_setup(&fix);
     fix.unit->health.value = fix.unit->health.max_value = 100.0f;
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->unit_state->attack1.type = ATK_NORMAL;
-    fix.unit->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
@@ -623,14 +621,14 @@ TEST(wc3_shadowmeld, explicit_hide_does_not_retaliate_when_hit_during_fade) {
     enemy->svflags |= SVF_MONSTER;
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
     S_RunAbilityUpdates(fix.unit);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
 
     T_Damage(fix.unit, enemy, 1);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
-    T_ASSERT(G_GetShadowMeld(fix.unit)->fading);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->fading);
     T_ASSERT(fix.unit->goalentity != enemy);
     T_ASSERT(!fix.unit->currentmove || fix.unit->currentmove->proc != CAbilityAttack);
 
@@ -644,11 +642,11 @@ TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
     uint32_t i;
     shadowmeld_setup_as(&fix, MAKEFOURCC('E', 't', 'y', 'r'));
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->unit_state->attack1.type = ATK_NORMAL;
-    fix.unit->unit_state->attack1.cooldown = 1.0f;
-    fix.unit->unit_state->attack1.damageBase = 10;
-    fix.unit->unit_state->attack1.range = 150.0f;
-    fix.unit->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(fix.unit, 0)->damageBase = 10;
+    S_AttackProfileWrite(fix.unit, 0)->range = 150.0f;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     fix.unit->runtime.acquisition_range = 128.0f;
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
     enemy->s.player = 1;
@@ -659,7 +657,7 @@ TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
     G_UpdateTimeOfDay();
 
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
     T_ASSERT(!S_UnitAbilityEvent(fix.unit, A_IDLE));
     T_ASSERT(!(fix.unit->aiflags & AI_AUTOCAST_ACTIVE));
@@ -675,7 +673,7 @@ TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
     T_ASSERT(G_ShouldAcquireThisFrame(fix.unit));
     ai_stand(fix.unit);
 
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_NULL(fix.unit->goalentity);
     T_ASSERT(!fix.unit->currentmove || fix.unit->currentmove->proc != CAbilityAttack);
 
@@ -700,7 +698,7 @@ TEST(wc3_save, shadowmeld_state_round_trips) {
     S_ShadowMeldBreak(fix.unit);
     T_ASSERT(ReadGame(filename));
     fix.unit = g_edicts + unit_number;
-    T_ASSERT(G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld->hide_order_active);
     T_ASSERT(S_ShadowMeldActive(fix.unit));
     T_ASSERT(S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
 
@@ -715,7 +713,7 @@ TEST(wc3_shadowmeld, ambush_is_rejected_during_day) {
     G_UpdateTimeOfDay();
 
     T_ASSERT(!unit_issueimmediateorder(fix.unit, "ambush"));
-    T_ASSERT(!G_GetShadowMeld(fix.unit) || !G_GetShadowMeld(fix.unit)->hide_order_active);
+    T_ASSERT(!fix.unit->shadowmeld || !fix.unit->shadowmeld->hide_order_active);
 
     shadowmeld_done(&fix);
 }

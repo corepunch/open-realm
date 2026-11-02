@@ -1,0 +1,1583 @@
+{
+  "schema": 1,
+  "scope": "One native observation and fresh unhooked control; no full engine or global class parity claim.",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "base_map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f",
+  "final_source_sha256": {
+    "tools/frida/research/invisibility324_probe.j": "28534a29fd5d42c933baff4d6c794ed084741635d3fb7af9608c78a6e5324765",
+    "tools/frida/research/invisibility324_make_map.py": "76ad8e6e3d55a65b167ece040401c1a2e220bb37986c5a6254c081d2a45dc0ee",
+    "tools/frida/research/invisibility324_observer.js": "fee37f507a7a30f60d4d9289a48685bb200ee002ccd038840a70afe23908d4df",
+    "build/tests/invisibility324/native/Invisibility324-v4.w3m": "ddf4d628e10c1116a54dd39e5cc258866df3f17d15f5d0f2c2cae951f63a26f1"
+  },
+  "map_changed_members": {
+    "war3map.j": "0959ccd925cebdbc525e206eca003dabc27e0768f4fbdd958c604301232ea9d1",
+    "war3map.w3a": "5fcca42b06c98873f6a22fc99a339a574217d1228008e584d92e4f66cc44d770"
+  },
+  "capture_stages": [
+    {
+      "version": "v1",
+      "disposition": "Failed inventory: hfoo UnitAddAbility AInv, pickup/use false. Sleep admitted. One extra owned control loading Continue logged. No overlap claim.",
+      "sha256": {
+        "Invisibility324-v1.w3m": "2da096fddb7620ef37833bc062a0be1df0f2810659565db29ac123baf007434b",
+        "observe-v1.jsonl": "4984f3968d81a06e8d17300591bceb6a301d4b7dfd21d41508cee02f33aacd40",
+        "control-v1.jsonl": "c177774e17a289f22ac2daab27be54b1c1b57be0b507235fc53505aec633adec",
+        "freeze-v1.json": "f3baaf947f1c34be49f81edad777c8557c20bc631997daf09c5cf02a8e27547d"
+      }
+    },
+    {
+      "version": "v2",
+      "disposition": "Stock Hpal fixed inventory; admissions and244 public records agree. Actual AIv1 expiry120; Apiv published immediately: wrong AIvi alias and type1 float overrides ineffective. Not intended duration proof.",
+      "sha256": {
+        "Invisibility324-v2.w3m": "9ec17ff5c3c38f6f13b3217f056a48e3c4ec0519d61c244daeb60e75cd2ba78c",
+        "observe-v2.jsonl": "db619f98e9a7a264a9c590ae86b66a5de43fe142f932355efc5587d94ba8ba4b",
+        "control-v2.jsonl": "0b2f9bfc7f3044b3e5ec2dee978ea5910e5b9584057c633f121825d3eb53e243",
+        "freeze-v2.json": "1a7f0bad6afb4055de0f7ba5b4b85c2bcca0997d0ca3cd093748d5b3ba998c60"
+      }
+    },
+    {
+      "version": "v3",
+      "disposition": "Correct alias/type2: Binv4,Apiv3,Sleep12;244 public records exact. Initial guard remained2 from ignored Usl1 data pointer0. Completed before two inverse actions were requested.",
+      "sha256": {
+        "Invisibility324-v3.w3m": "fe1d135dc692e6aa3e1117178eee6e3f4ee17e1c148f84d6b63b167f8cf1b6db",
+        "observe-v3.jsonl": "d70d4c321db565dc6527ccbbc55a671b9e6e8eb47802625cae9262b84b189d5b",
+        "control-v3.jsonl": "d576f657cc7758559171c08871e765b8bc790230a56578ae95a0b49d23d5cceb",
+        "freeze-v3.json": "8e8647ee239d940cffcb0f534a6f6a87dc813b737f7f72658ca1d80d01005f60"
+      }
+    },
+    {
+      "version": "v4",
+      "disposition": "Accepted measured guard2 scope with inverse actions.246 public records exact,436 observer records. No private repeat.",
+      "sha256": {
+        "Invisibility324-v4.w3m": "ddf4d628e10c1116a54dd39e5cc258866df3f17d15f5d0f2c2cae951f63a26f1",
+        "observe-v4.jsonl": "7634b610addb8e9d42d6ea9fea1764fa6f91d3c5c323c3305f7bd90594d395f6",
+        "control-v4.jsonl": "3a217e278bcb72da0c53732a7f328b4ebd4f0ad6be68409c0f979dde655fc36b",
+        "freeze-v4.json": "350747d367f8aff93a6edc290408aa7157a87bf32d36b0add23893687df5450b"
+      }
+    }
+  ],
+  "inputs": {
+    "recipient": "stock Hpal with natural AInv; original299 map/profile/placement retained",
+    "item": "stock pinv, actual alias AIv1 / class AIvi",
+    "binv_duration_word": 1082130432,
+    "item_fade_word": 1073741824,
+    "apiv_fade_word": 1077936128,
+    "sleep_duration_word": 1094713344,
+    "sleep_initial_guard_word": 1073741824,
+    "ignored_guard_override": {
+      "field": "Usl1",
+      "type": 2,
+      "level": 1,
+      "data_pointer": 0,
+      "requested_word": 1065353216,
+      "effective_word": 1073741824
+    },
+    "period_seconds": 0.5,
+    "ticks_per_scene": 24,
+    "scenes": 3
+  },
+  "public_stream": {
+    "count": 246,
+    "sha256": "e9d0ddb1db44b124f32fa0d2238c6244e57b486ea680a8f518910c7aa03df3e0",
+    "control_exact": true,
+    "rows": [
+      "I324 tick=0 scene=0 label=start",
+      "I324 tick=0 scene=0 label=inventory level=1",
+      "I324 tick=0 scene=0 label=ability result=1",
+      "I324 tick=0 scene=0 label=pickup result=1",
+      "I324 tick=0 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=0 scene=0 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=0 scene=0 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=1 scene=0 label=use result=1",
+      "I324 tick=1 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=1 scene=0 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=1 scene=0 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=2 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=2 scene=0 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=2 scene=0 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=3 scene=0 label=sleep-order result=1",
+      "I324 tick=3 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=3 scene=0 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=3 scene=0 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=4 scene=0 label=spell event=291 code=1093874228",
+      "I324 tick=4 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=4 scene=0 label=state inv=1 sleep=1 guard=1 apiv=0",
+      "I324 tick=4 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=5 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=5 scene=0 label=state inv=1 sleep=1 guard=1 apiv=0",
+      "I324 tick=5 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=6 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=6 scene=0 label=state inv=1 sleep=1 guard=1 apiv=0",
+      "I324 tick=6 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=7 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=7 scene=0 label=state inv=1 sleep=1 guard=1 apiv=0",
+      "I324 tick=7 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=8 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=8 scene=0 label=state inv=1 sleep=1 guard=0 apiv=0",
+      "I324 tick=8 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=9 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=9 scene=0 label=state inv=1 sleep=1 guard=0 apiv=0",
+      "I324 tick=9 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=10 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=10 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=10 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=11 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=11 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=11 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=12 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=12 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=12 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=13 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=13 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=13 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=14 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=14 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=14 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=15 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=15 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=15 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=16 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=16 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=16 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=17 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=17 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=17 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=18 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=18 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=18 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=19 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=19 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=19 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=20 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=20 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=20 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=21 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=21 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=21 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=22 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=22 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=22 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=23 scene=0 label=pose x=1136.000 y=432.000",
+      "I324 tick=23 scene=0 label=state inv=0 sleep=1 guard=0 apiv=0",
+      "I324 tick=23 scene=0 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=24 scene=1 label=inventory level=1",
+      "I324 tick=24 scene=1 label=ability result=1",
+      "I324 tick=24 scene=1 label=pickup result=1",
+      "I324 tick=24 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=24 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=24 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=25 scene=1 label=use result=1",
+      "I324 tick=25 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=25 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=25 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=26 scene=1 label=add-apiv result=1",
+      "I324 tick=26 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=26 scene=1 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=26 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=27 scene=1 label=sleep-order result=1",
+      "I324 tick=27 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=27 scene=1 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=27 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=28 scene=1 label=spell event=291 code=1093874228",
+      "I324 tick=28 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=28 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=28 scene=1 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=29 scene=1 label=pause",
+      "I324 tick=29 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=29 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=29 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=30 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=30 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=30 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=31 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=31 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=31 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=32 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=32 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=32 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=33 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=33 scene=1 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=33 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=34 scene=1 label=remove-negative",
+      "I324 tick=34 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=34 scene=1 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=34 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=35 scene=1 label=remove-apiv result=1",
+      "I324 tick=35 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=35 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=35 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=36 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=36 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=36 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=37 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=37 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=37 scene=1 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=38 scene=1 label=unpause",
+      "I324 tick=38 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=38 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=38 scene=1 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=39 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=39 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=39 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=40 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=40 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=40 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=41 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=41 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=41 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=42 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=42 scene=1 label=state inv=1 sleep=0 guard=0 apiv=0",
+      "I324 tick=42 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=43 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=43 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=43 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=44 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=44 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=44 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=45 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=45 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=45 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=46 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=46 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=46 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=47 scene=1 label=pose x=1136.000 y=432.000",
+      "I324 tick=47 scene=1 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=47 scene=1 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=48 scene=2 label=inventory level=1",
+      "I324 tick=48 scene=2 label=ability result=1",
+      "I324 tick=48 scene=2 label=pickup result=1",
+      "I324 tick=48 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=48 scene=2 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=48 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=49 scene=2 label=add-apiv result=1",
+      "I324 tick=49 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=49 scene=2 label=state inv=0 sleep=0 guard=0 apiv=1",
+      "I324 tick=49 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=50 scene=2 label=use result=1",
+      "I324 tick=50 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=50 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=50 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=51 scene=2 label=sleep-order result=1",
+      "I324 tick=51 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=51 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=51 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=52 scene=2 label=spell event=291 code=1093874228",
+      "I324 tick=52 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=52 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=52 scene=2 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=53 scene=2 label=pause",
+      "I324 tick=53 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=53 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=53 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=54 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=54 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=54 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=55 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=55 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=55 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=56 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=56 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=56 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=57 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=57 scene=2 label=state inv=1 sleep=1 guard=1 apiv=1",
+      "I324 tick=57 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=58 scene=2 label=remove-negative",
+      "I324 tick=58 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=58 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=58 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=59 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=59 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=59 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=60 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=60 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=60 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=61 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=61 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=61 scene=2 label=visibility invisible=0 paused=1 head=851973",
+      "I324 tick=62 scene=2 label=unpause",
+      "I324 tick=62 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=62 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=62 scene=2 label=visibility invisible=0 paused=0 head=851973",
+      "I324 tick=63 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=63 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=63 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=64 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=64 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=64 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=65 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=65 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=65 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=66 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=66 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=66 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=67 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=67 scene=2 label=state inv=1 sleep=0 guard=0 apiv=1",
+      "I324 tick=67 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=68 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=68 scene=2 label=state inv=0 sleep=0 guard=0 apiv=1",
+      "I324 tick=68 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=69 scene=2 label=remove-apiv result=1",
+      "I324 tick=69 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=69 scene=2 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=69 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=70 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=70 scene=2 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=70 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=71 scene=2 label=pose x=1136.000 y=432.000",
+      "I324 tick=71 scene=2 label=state inv=0 sleep=0 guard=0 apiv=0",
+      "I324 tick=71 scene=2 label=visibility invisible=0 paused=0 head=0",
+      "I324 tick=72 scene=3 label=complete"
+    ]
+  },
+  "observer_footer": {
+    "event": "trace-end",
+    "installed": true,
+    "complete": true,
+    "counts": {
+      "module": 1,
+      "marker": 247,
+      "unit-state": 72,
+      "buff-enter": 30,
+      "buff-leave": 30,
+      "unit-enter": 28,
+      "unit-leave": 28
+    },
+    "sequence": 436,
+    "dropped": 0,
+    "overflow": false,
+    "readOnly": true,
+    "pending_queries": 0
+  },
+  "private_effective_duration_arguments": [
+    {
+      "seq": 12,
+      "last_public_tick": 0,
+      "scene": 0,
+      "duration_word": 1082130432,
+      "concrete_vtable_rva": "0xb3fca8"
+    },
+    {
+      "seq": 32,
+      "last_public_tick": 4,
+      "scene": 0,
+      "duration_word": 1094713344,
+      "concrete_vtable_rva": "0xb0aa60"
+    },
+    {
+      "seq": 34,
+      "last_public_tick": 4,
+      "scene": 0,
+      "duration_word": 1073741824,
+      "concrete_vtable_rva": "0xb0a6e4"
+    },
+    {
+      "seq": 130,
+      "last_public_tick": 24,
+      "scene": 1,
+      "duration_word": 1082130432,
+      "concrete_vtable_rva": "0xb3fca8"
+    },
+    {
+      "seq": 153,
+      "last_public_tick": 28,
+      "scene": 1,
+      "duration_word": 1094713344,
+      "concrete_vtable_rva": "0xb0aa60"
+    },
+    {
+      "seq": 155,
+      "last_public_tick": 28,
+      "scene": 1,
+      "duration_word": 1073741824,
+      "concrete_vtable_rva": "0xb0a6e4"
+    },
+    {
+      "seq": 221,
+      "last_public_tick": 37,
+      "scene": 1,
+      "duration_word": 1073741824,
+      "concrete_vtable_rva": "0xb3fca8"
+    },
+    {
+      "seq": 298,
+      "last_public_tick": 49,
+      "scene": 2,
+      "duration_word": 1082130432,
+      "concrete_vtable_rva": "0xb3fca8"
+    },
+    {
+      "seq": 314,
+      "last_public_tick": 52,
+      "scene": 2,
+      "duration_word": 1094713344,
+      "concrete_vtable_rva": "0xb0aa60"
+    },
+    {
+      "seq": 316,
+      "last_public_tick": 52,
+      "scene": 2,
+      "duration_word": 1073741824,
+      "concrete_vtable_rva": "0xb0a6e4"
+    },
+    {
+      "seq": 383,
+      "last_public_tick": 61,
+      "scene": 2,
+      "duration_word": 1075838976,
+      "concrete_vtable_rva": "0xb3fca8"
+    }
+  ],
+  "private_fade_arguments": [
+    {
+      "seq": 14,
+      "last_public_tick": 0,
+      "scene": 0,
+      "fade_word": 1073741824,
+      "count_before": 0
+    },
+    {
+      "seq": 132,
+      "last_public_tick": 24,
+      "scene": 1,
+      "fade_word": 1073741824,
+      "count_before": 0
+    },
+    {
+      "seq": 140,
+      "last_public_tick": 25,
+      "scene": 1,
+      "fade_word": 1077936128,
+      "count_before": 1
+    },
+    {
+      "seq": 278,
+      "last_public_tick": 48,
+      "scene": 2,
+      "fade_word": 1077936128,
+      "count_before": 0
+    },
+    {
+      "seq": 289,
+      "last_public_tick": 49,
+      "scene": 2,
+      "fade_word": 1077936128,
+      "count_before": 0
+    },
+    {
+      "seq": 295,
+      "last_public_tick": 49,
+      "scene": 2,
+      "fade_word": 1077936128,
+      "count_before": 0
+    },
+    {
+      "seq": 300,
+      "last_public_tick": 49,
+      "scene": 2,
+      "fade_word": 1073741824,
+      "count_before": 1
+    },
+    {
+      "seq": 378,
+      "last_public_tick": 61,
+      "scene": 2,
+      "fade_word": 1077936128,
+      "count_before": 1
+    }
+  ],
+  "private_frozen_binv_remaining": [
+    {
+      "seq": 174,
+      "last_public_tick": 28,
+      "scene": 1,
+      "remaining_word": 1073741824,
+      "clock_depth": 1
+    },
+    {
+      "seq": 333,
+      "last_public_tick": 52,
+      "scene": 2,
+      "remaining_word": 1075838976,
+      "clock_depth": 1
+    }
+  ],
+  "public_sample_private_states": [
+    {
+      "seq": 8,
+      "tick": 0,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 19,
+      "tick": 1,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 23,
+      "tick": 2,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 28,
+      "tick": 3,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 37,
+      "tick": 4,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 1053248
+    },
+    {
+      "seq": 43,
+      "tick": 5,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 47,
+      "tick": 6,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 51,
+      "tick": 7,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 55,
+      "tick": 8,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 59,
+      "tick": 9,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 67,
+      "tick": 10,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 71,
+      "tick": 11,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 75,
+      "tick": 12,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 79,
+      "tick": 13,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 83,
+      "tick": 14,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 87,
+      "tick": 15,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 91,
+      "tick": 16,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 95,
+      "tick": 17,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 99,
+      "tick": 18,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 103,
+      "tick": 19,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 107,
+      "tick": 20,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 111,
+      "tick": 21,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 115,
+      "tick": 22,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 119,
+      "tick": 23,
+      "scene": 0,
+      "unit_identity": [
+        849,
+        856
+      ],
+      "contributions": 0,
+      "suspension": 1,
+      "clock_depth": 0,
+      "flags": 1053184
+    },
+    {
+      "seq": 126,
+      "tick": 24,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 137,
+      "tick": 25,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 144,
+      "tick": 26,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 149,
+      "tick": 27,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 158,
+      "tick": 28,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 2,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 1053248
+    },
+    {
+      "seq": 181,
+      "tick": 29,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 185,
+      "tick": 30,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 189,
+      "tick": 31,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 193,
+      "tick": 32,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 197,
+      "tick": 33,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 202,
+      "tick": 34,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 207,
+      "tick": 35,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 211,
+      "tick": 36,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 215,
+      "tick": 37,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 228,
+      "tick": 38,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 232,
+      "tick": 39,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781889
+    },
+    {
+      "seq": 236,
+      "tick": 40,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781889
+    },
+    {
+      "seq": 240,
+      "tick": 41,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 244,
+      "tick": 42,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 252,
+      "tick": 43,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 256,
+      "tick": 44,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 260,
+      "tick": 45,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 264,
+      "tick": 46,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 268,
+      "tick": 47,
+      "scene": 1,
+      "unit_identity": [
+        921,
+        973
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 275,
+      "tick": 48,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 282,
+      "tick": 49,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 305,
+      "tick": 50,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 310,
+      "tick": 51,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 319,
+      "tick": 52,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 2,
+      "clock_depth": 0,
+      "flags": 1053248
+    },
+    {
+      "seq": 340,
+      "tick": 53,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 3150400
+    },
+    {
+      "seq": 344,
+      "tick": 54,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 3150400
+    },
+    {
+      "seq": 348,
+      "tick": 55,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 3150400
+    },
+    {
+      "seq": 354,
+      "tick": 56,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 358,
+      "tick": 57,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 3,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 363,
+      "tick": 58,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 367,
+      "tick": 59,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 371,
+      "tick": 60,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 375,
+      "tick": 61,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 1,
+      "clock_depth": 1,
+      "flags": 19927616
+    },
+    {
+      "seq": 390,
+      "tick": 62,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 17830464
+    },
+    {
+      "seq": 394,
+      "tick": 63,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781889
+    },
+    {
+      "seq": 398,
+      "tick": 64,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781889
+    },
+    {
+      "seq": 402,
+      "tick": 65,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 406,
+      "tick": 66,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 410,
+      "tick": 67,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 2,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 416,
+      "tick": 68,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 1,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 16781825
+    },
+    {
+      "seq": 425,
+      "tick": 69,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 429,
+      "tick": 70,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    },
+    {
+      "seq": 433,
+      "tick": 71,
+      "scene": 2,
+      "unit_identity": [
+        880,
+        1094
+      ],
+      "contributions": 0,
+      "suspension": 0,
+      "clock_depth": 0,
+      "flags": 4609
+    }
+  ],
+  "item_activation_scene2": {
+    "rows": [
+      {
+        "seq": 285,
+        "event": "unit-enter",
+        "function_rva": "0x694b20",
+        "contributions": 1,
+        "fade_word": 0
+      },
+      {
+        "seq": 286,
+        "event": "unit-enter",
+        "function_rva": "0x68b780",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 287,
+        "event": "unit-leave",
+        "function_rva": "0x68b780",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 288,
+        "event": "unit-leave",
+        "function_rva": "0x694b20",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 289,
+        "event": "unit-enter",
+        "function_rva": "0x6696e0",
+        "contributions": 0,
+        "fade_word": 1077936128
+      },
+      {
+        "seq": 290,
+        "event": "unit-leave",
+        "function_rva": "0x6696e0",
+        "contributions": 1,
+        "fade_word": null
+      },
+      {
+        "seq": 291,
+        "event": "unit-enter",
+        "function_rva": "0x694b20",
+        "contributions": 1,
+        "fade_word": 0
+      },
+      {
+        "seq": 292,
+        "event": "unit-enter",
+        "function_rva": "0x68b780",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 293,
+        "event": "unit-leave",
+        "function_rva": "0x68b780",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 294,
+        "event": "unit-leave",
+        "function_rva": "0x694b20",
+        "contributions": 0,
+        "fade_word": null
+      },
+      {
+        "seq": 295,
+        "event": "unit-enter",
+        "function_rva": "0x6696e0",
+        "contributions": 0,
+        "fade_word": 1077936128
+      },
+      {
+        "seq": 296,
+        "event": "unit-leave",
+        "function_rva": "0x6696e0",
+        "contributions": 1,
+        "fade_word": null
+      },
+      {
+        "seq": 297,
+        "event": "buff-enter",
+        "function_rva": "0x63ce40",
+        "duration_word": 1082130432,
+        "fade_word": 1073741824
+      },
+      {
+        "seq": 298,
+        "event": "buff-enter",
+        "function_rva": "0x532b50",
+        "duration_word": 1082130432,
+        "fade_word": null
+      },
+      {
+        "seq": 300,
+        "event": "unit-enter",
+        "function_rva": "0x6696e0",
+        "contributions": 1,
+        "fade_word": 1073741824
+      },
+      {
+        "seq": 301,
+        "event": "unit-leave",
+        "function_rva": "0x6696e0",
+        "contributions": 2,
+        "fade_word": null
+      },
+      {
+        "seq": 303,
+        "event": "marker",
+        "value": "I324 tick=50 scene=2 label=use result=1"
+      }
+    ],
+    "interpretation": "Actual UnitUseItem performs two release/reacquire pairs1->0->1->0->1 before Binv setup adds1->2. Releases fade0, reacquisitions fade3, Binv fade2.",
+    "attribution_limit": "Shared hooks did not capture return addresses. Apiv e0=62e600/e4=631360 match0/3 signatures, but upstream item-control sites are not proved by this trace."
+  },
+  "outcomes": [
+    "Sleep retains Unit54 while Binv expires between public9 and10.",
+    "Scene1 negative removal34 leaves Binv/clock1; Apiv removal35 preserves Binv; unpause38 resumes remainder2; expiry42->43 clears final contribution.",
+    "Scene2 negative removal58 leaves Binv; unpause62 reacquires Apiv count2; Binv expiry67->68 leavesApiv count1; removal69 clearsfinal."
+  ],
+  "limits": [
+    "One observation plus one fresh control; no private-repeat claim.",
+    "Private callback tick is last public marker, not an independent event timestamp.",
+    "IsUnitInvisible(Player1) retains inherited map viewer/alliance semantics.",
+    "Existing capture-wrapper metadata hashes legacy299 sources; independent freeze manifest pins actual324 inputs.",
+    "Initial guard2 measured; authored1/data-pointer0 is not effective.",
+    "Actual UnitUseItem control transitions differ from direct AIvi A_EXECUTE.",
+    "No independent callback clock captured."
+  ],
+  "capture_file_sha256": {
+    "observe-v4.jsonl": "7634b610addb8e9d42d6ea9fea1764fa6f91d3c5c323c3305f7bd90594d395f6",
+    "control-v4.jsonl": "3a217e278bcb72da0c53732a7f328b4ebd4f0ad6be68409c0f979dde655fc36b",
+    "Invisibility324-v4.w3m": "ddf4d628e10c1116a54dd39e5cc258866df3f17d15f5d0f2c2cae951f63a26f1"
+  }
+}

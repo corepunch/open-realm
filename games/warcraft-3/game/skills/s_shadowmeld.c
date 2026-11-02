@@ -10,11 +10,11 @@
 static uint32_t shadowmeld_fade_ms(edict_t const *unit);
 
 static bool shadowmeld_has_standard(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_ASHM) != 0;
+    return unit && G_UnitAbilityClassLevel(unit, ID_ASHM) != 0;
 }
 
 static bool shadowmeld_has_akama(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_AHID) != 0;
+    return unit && G_UnitAbilityClassLevel(unit, ID_AHID) != 0;
 }
 
 static bool shadowmeld_has_ability(edict_t const *unit) {
@@ -23,7 +23,7 @@ static bool shadowmeld_has_ability(edict_t const *unit) {
 
 static bool shadowmeld_ability_available(edict_t const *unit, bool akama) {
     uint32_t code = akama ? ID_AHID : ID_ASHM;
-    return unit && G_UnitAbilityLevel(unit, code) != 0 && G_IsUnitAbilityAvailable(unit, code);
+    return unit && G_UnitAbilityClassLevel(unit, code) != 0 && G_IsUnitAbilityAvailable(unit, code);
 }
 
 static bool shadowmeld_any_ability_available(edict_t const *unit) {
@@ -35,8 +35,8 @@ static bool shadowmeld_any_ability_available(edict_t const *unit) {
  * player-relative invisibility query decide owner/detector visibility without
  * colliding with RF_HIDDEN uses such as cargo, mines, training, or revival. */
 bool S_ShadowMeldActive(edict_t const *unit) {
-    shadowMeld_t const *meld = G_GetShadowMeld(unit);
-    return meld && unit->inuse && meld->active && shadowmeld_any_ability_available(unit);
+    return unit && unit->inuse && unit->shadowmeld && unit->shadowmeld->active &&
+           shadowmeld_any_ability_available(unit);
 }
 
 /* Presentation-only opacity for a viewer that is allowed to perceive the unit.
@@ -46,15 +46,14 @@ bool S_ShadowMeldActive(edict_t const *unit) {
 float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
     float t, eased;
     uint32_t elapsed, fade_ms;
-    shadowMeld_t const *meld = G_GetShadowMeld(unit);
 
-    if (!meld || !unit->inuse || !shadowmeld_any_ability_available(unit)) return 1.0f;
-    if (meld->active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
-    if (!meld->fading) return 1.0f;
+    if (!unit || !unit->inuse || !unit->shadowmeld || !shadowmeld_any_ability_available(unit)) return 1.0f;
+    if (unit->shadowmeld->active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
+    if (!unit->shadowmeld->fading) return 1.0f;
 
     fade_ms = shadowmeld_fade_ms(unit);
     if (!fade_ms) return 1.0f;
-    elapsed = G_Time() - meld->fade_start;
+    elapsed = G_Time() - unit->shadowmeld->fade_start;
     t = MIN(1.0f, MAX(0.0f, (float)elapsed / (float)fade_ms));
     eased = t * t * (3.0f - 2.0f * t);
     return 1.0f - (1.0f - WC3_SHADOWMELD_FRIENDLY_ALPHA) * eased;
@@ -62,21 +61,19 @@ float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
 
 static void shadowmeld_set_hide_order(edict_t *unit, bool active) {
     gameClient_t *client;
-    shadowMeld_t *meld = G_GetShadowMeld(unit);
 
-    assert(unit && meld);
-    if (meld->hide_order_active == active) return;
-    meld->hide_order_active = active;
+    assert(unit && unit->shadowmeld);
+    if (unit->shadowmeld->hide_order_active == active) return;
+    unit->shadowmeld->hide_order_active = active;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (client) G_InvalidateCommands(client);
 }
 
 void S_ShadowMeldBreak(edict_t *unit) {
-    shadowMeld_t *meld = G_GetShadowMeld(unit);
-    if (!meld) return;
-    meld->fade_start = 0;
-    meld->fading = false;
-    meld->active = false;
+    if (!unit || !unit->shadowmeld) return;
+    unit->shadowmeld->fade_start = 0;
+    unit->shadowmeld->fading = false;
+    unit->shadowmeld->active = false;
     shadowmeld_set_hide_order(unit, false);
 }
 
@@ -84,7 +81,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
     static uint32_t bad_code, bad_level;
     uint32_t code = shadowmeld_has_standard(unit) ? ID_ASHM :
                     shadowmeld_has_akama(unit) ? ID_AHID : 0;
-    uint32_t level = code ? G_UnitAbilityLevel(unit, code) : 0;
+    uint32_t level = code ? G_UnitAbilityClassLevel(unit, code) : 0;
     float duration = code && level ? S_SpellData(code, level, 1) : 0.0f; /* Shm1 / DataA */
 
     if (!(duration > 0.0f) || !isfinite(duration)) {
@@ -99,7 +96,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
 }
 
 static bool shadowmeld_stationary(edict_t const *unit) {
-    if (!unit || M_IsDead((edict_t *)unit) || G_UnitHasFlag(unit, UNIT_FLAG_TRAINING) || G_GetConstruction(unit) ||
+    if (!unit || M_IsDead((edict_t *)unit) || unit->training || unit->construction ||
         (unit->svflags & SVF_NOCLIENT) || S_GoldMineWorkerIsInside((edict_t *)unit))
         return false;
     /* Ordinary idle and Hold Position stand moves do not own an ability proc.
@@ -115,11 +112,11 @@ static bool shadowmeld_eligible(edict_t const *unit) {
 static void shadowmeld_update(edict_t *unit) {
     uint32_t now, fade_ms;
     bool eligible;
-    shadowMeld_t *meld;
 
     if (!unit || !unit->inuse) return;
-    if (!G_GetShadowMeld(unit) && !shadowmeld_has_ability(unit)) return;
-    meld = G_AddShadowMeld(unit);
+    if (!unit->shadowmeld && !shadowmeld_has_ability(unit)) return;
+    if (!unit->shadowmeld) unit->shadowmeld = G_AllocShadowMeld();
+    assert(unit->shadowmeld);
     if (!shadowmeld_any_ability_available(unit)) {
         S_ShadowMeldBreak(unit);
         return;
@@ -127,22 +124,22 @@ static void shadowmeld_update(edict_t *unit) {
     fade_ms = shadowmeld_fade_ms(unit);
     eligible = fade_ms && shadowmeld_eligible(unit);
     if (!eligible) {
-        meld->fade_start = 0;
-        meld->fading = false;
-        meld->active = false;
+        unit->shadowmeld->fade_start = 0;
+        unit->shadowmeld->fading = false;
+        unit->shadowmeld->active = false;
         return;
     }
-    if (meld->active) return;
+    if (unit->shadowmeld->active) return;
 
     now = G_Time();
-    if (!meld->fading) {
-        meld->fade_start = now;
-        meld->fading = true;
+    if (!unit->shadowmeld->fading) {
+        unit->shadowmeld->fade_start = now;
+        unit->shadowmeld->fading = true;
         return;
     }
-    if ((uint32_t)(now - meld->fade_start) >= fade_ms) {
-        meld->fading = false;
-        meld->active = true;
+    if ((uint32_t)(now - unit->shadowmeld->fade_start) >= fade_ms) {
+        unit->shadowmeld->fading = false;
+        unit->shadowmeld->active = true;
     }
 }
 
@@ -152,19 +149,31 @@ static void shadowmeld_update(edict_t *unit) {
  * distinct effect classes.  The Akama variant additionally disables automatic
  * enemy acquisition even when the player has not explicitly issued Hide. */
 static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call, bool akama) {
-    shadowMeld_t *meld = G_GetShadowMeld(ent);
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_ASHM) ||
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_AHID) ? UNIT_UPDATE_RUN : UNIT_UPDATE_POINTER(shadowmeld);
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        /* Init only breaks an existing Hide state after ownership loss.
+         * Fresh units have no such state, including authored Hide owners. */
+        return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UPDATE, A_NO_ACQUIRE, A_NO_RETALIATE, A_TOGGLE_ON,
+            A_MOVE_LEAVE, A_ORDER_ACCEPTED, A_DISABLE, A_DEATH, A_UNIT_REMOVE,
+            A_UNIT_INIT, A_VALIDATE, A_EXECUTE, A_COMMAND, A_TARGET_MODE_EXIT);
     case A_UPDATE:
         if (shadowmeld_ability_available(ent, akama)) shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);
     case A_NO_ACQUIRE:
         return ent && shadowmeld_ability_available(ent, akama) &&
-               ((meld && meld->hide_order_active) || (akama && shadowmeld_has_akama(ent)));
+               ((ent->shadowmeld && ent->shadowmeld->hide_order_active) || (akama && shadowmeld_has_akama(ent)));
     case A_NO_RETALIATE:
+        return ent && shadowmeld_ability_available(ent, akama) && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_TOGGLE_ON:
-        return ent && shadowmeld_ability_available(ent, akama) && meld && meld->hide_order_active;
+        return ent && shadowmeld_ability_available(ent, akama) && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_MOVE_LEAVE:
-        if (meld && (meld->active || meld->fading || meld->hide_order_active)) {
+        if (ent && ent->shadowmeld && (ent->shadowmeld->active || ent->shadowmeld->fading || ent->shadowmeld->hide_order_active)) {
             S_ShadowMeldBreak(ent);
             return true;
         }
@@ -184,14 +193,23 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return false;
     case A_VALIDATE:
         return ent && G_IsNight() && shadowmeld_ability_available(ent, akama);
+    case A_ORDER: {
+        if (!call || !call->order || strcmp(call->order,"ambush")) return false;
+        /* Both classes expose Hide. The actual unit's authored alias owns
+         * validation/execution, including the Akama acquisition policy. */
+        abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,akama ? ID_AHID : ID_ASHM);
+        if (!ref.alias) ref=S_ResolveAbilityAlias(ent,akama ? ID_ASHM : ID_AHID);
+        return ref.alias && S_CastNoTargetSpell(ent,ref.alias);
+    }
     case A_EXECUTE:
         if (!ent || !G_IsNight() || !shadowmeld_ability_available(ent, akama)) return false;
         order_stop_cleanup(ent);
-        meld = G_AddShadowMeld(ent);
+        if (!ent->shadowmeld) ent->shadowmeld = G_AllocShadowMeld();
+        assert(ent->shadowmeld);
         shadowmeld_set_hide_order(ent, true);
-        if (!meld->active) {
-            meld->fade_start = 0;
-            meld->fading = false;
+        if (!ent->shadowmeld->active) {
+            ent->shadowmeld->fade_start = 0;
+            ent->shadowmeld->fading = false;
         }
         return true;
     default:

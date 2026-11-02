@@ -340,7 +340,7 @@ TEST(wc3_sc2api_protocol, raw_spell_cannot_bypass_player_disable_mana_or_cooldow
     slkTestData_t *rows = parse_slk_string(slk), *saved = G_SetSLKRows("AbilityData", rows);
     edict_t *caster = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     caster->s.player = 0; caster->svflags |= SVF_MONSTER; caster->stand = unit_stand;
-    caster->unit_state->ranks[0] = (heroability_t){ .code = code, .level = 1 };
+    caster->heroabilities[0] = (heroability_t){ .code = code, .level = 1 };
     T_EQ(G_UnitAbilityLevel(caster, code), 1);
     caster->mana.max_value = caster->mana.value = 1000;
     wc3Sc2RawUnitCommand_t command = { .ability_id = G_OrderId("thunderclap"),

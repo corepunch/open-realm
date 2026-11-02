@@ -1,0 +1,30 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "records": [
+    {
+      "address": "6f206f00",
+      "name": "Jass_DispatchPointOrder",
+      "evidence": "Payoff191 BASE-01.2: two repeated public string/ById Move natives return1 and synchronously nest Move_HandlePointTask5ffb60 -> common MoveBridge_StartPoint05b970. Ordinary dispatcher point words match bridge inputs exactly; no nearest-pathable rewrite. Complete307 public markers match observer-free control. This native admission shares the ability/task movement entry with player ordinary requests, but does not manufacture a selected multi-unit Captain packet.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f5ffb60",
+      "name": "Move_HandlePointTask",
+      "evidence": "Payoff191 BASE-01.2: read-only entry trace confirms public JASS string and ById Move nest this point task ->05b970 (return5ffdb4). Both supply worldRange0, eventsd0196/d0198 and flag1; canonical1710a0 publishes3efae148 (.49 fine cells) synchronously. Engine point members must retain the clamped value at admission, including queued/prepared point members, rather than substitute it in only one decision consumer.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f9d44d0",
+      "name": "CaptainAI_PublishPointRequest",
+      "evidence": "Payoff191 BASE-01.2: repeated public mixed13 Captain AI scene produces three direct05b970 calls (return9d4580). ECX common bridge is exactly captain+44, not Unit+164. Inputs retain raw requested XY, flag1 and completiond0196/d0198. Home500 publishes417a0000 fine15.625; next two point200 requests publish40c80000 fine6.25. Same coordinate/range bridge as JASS, distinct virtual actor and9d16c0 member producer. Both complete entry streams and307 public markers match repeat/control.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f05b970",
+      "name": "MoveBridge_StartPoint",
+      "evidence": "Payoff191 BASE-01.2: common point bridge accepts Unit+164 from actual Move point task or CaptainAI+44 directly from9d44d0; RET20. Five live repeated complete calls show both producers share flag1 and arrival/cantpathd0196/d0198; zero JASS range publishes3efae148, AI500/200 publishes417a0000/40c80000. Original supplied-locals arithmetic slice05bb06..05bb4f adds20 raw inputs (zero, signed zero, minimum neighbors, small ranges, guarded exponents and exceptional words). Engine normalizes once into retained member range; zero sentinel is no longer patched only by group decision. This does not equate JASS singletons with selected/AI shared cohorts.",
+      "readback_matches": true
+    }
+  ]
+}

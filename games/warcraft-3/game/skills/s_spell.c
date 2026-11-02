@@ -30,7 +30,7 @@ typedef struct {
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
  * reads the ability code, validates mana/cooldown, configures targeting, and
  * dispatches an A_EXECUTE message once a valid target is
- * acquired.  channeled spells set G_GetChannel(ent) state; spell_run_frame()
+ * acquired.  channeled spells set ent->channel state; spell_run_frame()
  * enforces movement-cancel for them.
  *
  * Design mirrors:
@@ -54,7 +54,8 @@ static intptr_t spell_message(edict_t *ent, abilityMsg_t msg, abilityitem_t cons
 }
 
 BZ_ABILITY_PROC(CAbilityNoop) {
-    (void)ent; (void)msg; (void)call;
+    (void)ent;
+    if (msg == A_UNIT_EVENT_MASK) return S_UnitMessageSubscriptions(call, NULL, 0);
     return false;
 }
 
@@ -65,22 +66,21 @@ BZ_ABILITY_PROC(CAbilityPassive) {
 /* CAbilitySimpleSpell owns the shared command path and accepts validation
  * unless a concrete TFT procedure supplies stricter target rules. */
 BZ_ABILITY_PROC(CAbilitySimpleSpell) {
-    channel_t const *cast;
     (void)ent;
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_VALIDATE, A_MOVE_LEAVE, A_TARGET_MODE_EXIT);
     case A_COMMAND:
-        if (!call->entity) return false;
-        spell_cmd(call->entity);
+        if (!call->client) return false;
+        spell_cmd(call->client);
         return true;
     case A_TARGET_MODE_EXIT:
-        S_SpellCursorSplat(call->entity, 0.0f);
+        S_SpellCursorSplat(call->client, 0.0f);
         return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
-        /* Shared fallback for many procedures: only movement reads the channel. */
-        cast = G_GetChannel(ent);
-        if (ent && cast && cast->code == call->item->code) S_SpellCancelChannel(ent);
+        if (ent && ent->channel && ent->channel->code == call->item->code) S_SpellCancelChannel(ent);
         return true;
     default:
         return false;
@@ -91,7 +91,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
 BZ_ABILITY_PROC(CAbilityModalSpell) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
-    case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
+    case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
@@ -122,12 +122,19 @@ ability_t const *S_SpellAbilityForCode(uint32_t code) {
     return ability && (ability->flags & AB_SPELL) && ability->proc ? ability : NULL;
 }
 
+/* Physical approach capability does not opt a command into spell effects,
+ * item casting, combat alerts, or the generic command-card cursor. */
+static ability_t const *spell_target_approach_ability(uint32_t code) {
+    ability_t const *ability=code ? FindAbilityForCommand(GetClassName(code)) : NULL;
+    return ability && ability->proc && (ability->flags&(AB_SPELL|AB_TARGET_APPROACH)) ? ability : NULL;
+}
+
 uint32_t S_SpellLevel(edict_t *caster, uint32_t code) {
     if (!caster) {
         return 1;
     }
-    FOR_LOOP(i, caster->unit_state ? MAX_HERO_ABILITIES : 0) {
-        heroability_t const *ha = caster->unit_state->ranks + i;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *ha = caster->heroabilities + i;
         if (ha->level && ha->code == code) {
             return ha->level;
         }
@@ -209,8 +216,8 @@ static abilityCooldown_t *S_SpellFindCooldown(edict_t *caster, uint32_t code) {
     uint32_t const cooldown_code = S_SpellCooldownCode(code);
 
     if (!caster || !cooldown_code) return NULL;
-    FOR_LOOP(i, caster->unit_state ? MAX_UNIT_COOLDOWNS : 0) {
-        abilityCooldown_t *cooldown = caster->unit_state->cooldowns + i;
+    FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
+        abilityCooldown_t *cooldown = caster->abilitycooldowns + i;
         if (cooldown->code == cooldown_code) return cooldown;
     }
     return NULL;
@@ -222,9 +229,9 @@ static abilityCooldown_t *S_SpellAllocCooldown(edict_t *caster, uint32_t code) {
     abilityCooldown_t *available = NULL;
 
     if (!caster || !cooldown_code) return NULL;
-    G_InitUnitState(caster);
-    FOR_LOOP(i, caster->unit_state ? MAX_UNIT_COOLDOWNS : 0) {
-        abilityCooldown_t *cooldown = caster->unit_state->cooldowns + i;
+
+    FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
+        abilityCooldown_t *cooldown = caster->abilitycooldowns + i;
         if (cooldown->code == cooldown_code) return cooldown;
         if (!available && (!cooldown->code || (int32_t)(cooldown->end_time - now) <= 0)) available = cooldown;
     }
@@ -305,8 +312,7 @@ void S_SpellEndCooldown(edict_t *caster, uint32_t code) {
 
 void S_SpellResetCooldowns(edict_t *caster) {
     if (!caster) return;
-    if (!caster->unit_state) return;
-    memset(caster->unit_state->cooldowns, 0, sizeof(caster->unit_state->cooldowns));
+    memset(caster->abilitycooldowns, 0, sizeof(caster->abilitycooldowns));
     S_SpellInvalidateCooldownUI(caster);
 }
 
@@ -338,19 +344,15 @@ bool S_SpellCanPay(edict_t *caster, uint32_t code, uint32_t level) {
 }
 
 bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
-    if (!caster || !target) {
-        return false;
-    }
-    return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
+    return S_UnitTargetInMoveRange(caster,target,range);
 }
 
-static float spell_approach_range(uint32_t code, uint32_t level, ability_t const *spell) {
+static float spell_approach_range(edict_t *caster, uint32_t code, uint32_t level, ability_t const *spell) {
     abilityCall_t call;
     if (!spell) return S_SpellRange(code, level);
     abilityitem_t item = MAKE(abilityitem_t, .code = code, .ability = spell);
-    float const authored_range = S_SpellRange(code, level);
-    call = MAKE(abilityCall_t, .item = &item, .spell_approach_range = authored_range);
-    spell->proc(NULL, A_SPELL_APPROACH_RANGE, &call);
+    call = MAKE(abilityCall_t, .item = &item, .spell_approach_range = S_SpellRange(code, level));
+    spell->proc(caster, A_SPELL_APPROACH_RANGE, &call);
     return MAX(0.0f, call.spell_approach_range);
 }
 
@@ -390,6 +392,55 @@ bool S_SpellIsFriend(edict_t *caster, edict_t *target) {
         return false;
     }
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
+}
+
+/* Original 6ac5d0 owner classes, from the source owner's directional diplomacy
+ * (GetPlayerAlliance types 0 and 4): ally is PASSIVE with SHARED_SPELLS, neutral is
+ * PASSIVE without it, enemy lacks PASSIVE. The owner's W3I slot type is not consulted. */
+#define TARGS_SELF 0x1000u
+#define TARGS_PLAYER 0x2000u
+#define TARGS_ALLY 0x4000u
+#define TARGS_NEUTRAL 0x8000u
+#define TARGS_ENEMY 0x10000u
+#define TARGS_RELATIONS 0x1f000u
+
+static uint32_t targs_owner_class(uint32_t source, uint32_t owner) {
+    uint32_t alliances;
+    if (source == owner) return TARGS_PLAYER;
+    alliances = level.alliances[source][owner];
+    if (!(alliances & (1u << ALLIANCE_PASSIVE))) return TARGS_ENEMY;
+    return alliances & (1u << ALLIANCE_SHARED_SPELLS) ? TARGS_ALLY : TARGS_NEUTRAL;
+}
+
+bool S_SpellIsNeutral(edict_t const *caster, edict_t const *target) {
+    return caster && target && caster->s.player < MAX_PLAYERS && target->s.player < MAX_PLAYERS &&
+        targs_owner_class(caster->s.player, target->s.player) == TARGS_NEUTRAL;
+}
+
+/* Original ce61f0 token table, matched whole and case-insensitively like the other targs tokens. */
+static uint32_t targs_relation_bits(cstring_t targets) {
+    static struct { cstring_t full, short_name; uint32_t bits; } const tokens[] = {
+        {"self", NULL, TARGS_SELF}, {"player", "play", TARGS_PLAYER}, {"allies", "alli", TARGS_ALLY},
+        {"ally", NULL, TARGS_ALLY}, {"friend", "frie", TARGS_PLAYER | TARGS_ALLY},
+        {"neutral", "neut", TARGS_NEUTRAL}, {"enemies", "enem", TARGS_ENEMY}, {"enemy", NULL, TARGS_ENEMY},
+        {"notself", "nots", TARGS_PLAYER | TARGS_ALLY | TARGS_NEUTRAL | TARGS_ENEMY},
+    };
+    uint32_t bits = 0;
+    FOR_LOOP(i, sizeof(tokens) / sizeof(tokens[0]))
+        if (S_SpellTargetHasToken(targets, tokens[i].full, tokens[i].short_name)) bits |= tokens[i].bits;
+    return bits;
+}
+
+/* Original 6ae260 targs owner filter: 6a9ef0 admits every owner when no relation token is
+ * authored; otherwise 6ac5d0 admits the matching classes, and the source's own player only
+ * through player/friend (2000) or self (1000). The self token's unit-level restriction is the
+ * caller's. Ground,enemy,organic,neutral (Disease Cloud) therefore never reaches its owner's units. */
+bool S_TargsAllowsOwner(cstring_t targets, edict_t const *source, edict_t const *target) {
+    uint32_t const bits = targets ? targs_relation_bits(targets) : 0;
+    if (!(bits & TARGS_RELATIONS) || (bits & TARGS_RELATIONS) == TARGS_RELATIONS) return true;
+    if (!source || !target || source->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) return false;
+    if (source->s.player == target->s.player) return (bits & (TARGS_PLAYER | TARGS_SELF)) != 0;
+    return (bits & targs_owner_class(source->s.player, target->s.player)) != 0;
 }
 
 bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_name) {
@@ -436,7 +487,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     /* Mixed masks (for example Death Coil and Siphon Mana) have hostile and
      * friendly branches. The target's actual relationship selects the branch. */
     if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
-    status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
+    status = unit_findstatusclass(target, MAKEFOURCC('B', 'N', 's', 's'));
     if (!status) return false;
     unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
     unit_refreshstatusflags(target);
@@ -444,10 +495,42 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     return true;
 }
 
+/* Native Spell v38c defaults to true. These concrete owners return false,
+ * suppressing this common pre-effect notification (including projectile casts). */
+static bool spell_notifies_unit_target(ability_t const *ability) {
+    if (!ability) return false;
+    abilityProc_t proc=ability->proc;
+    return proc!=CAbilityAcidBomb && proc!=CAbilityCarrionSwarm &&
+        proc!=CAbilityBreathOfFire && proc!=CAbilityBreathOfFireCampaign &&
+        proc!=CAbilityChainLightning && proc!=CAbilityHealingWave &&
+        proc!=CAbilityHealingWaveCampaign && proc!=CAbilityTransmute &&
+        proc!=CAbilityShadowStrike && proc!=CAbilityThunderBolt &&
+        proc!=CAbilityFireBolt && proc!=CAbilityAbsorb && proc!=CAbilityEnsnare &&
+        proc!=CAbilityDrunkenHaze && proc!=CAbilityDrunkenHazeCampaign &&
+        proc!=CAbilityDeathCoil && proc!=CAbilityFlamingArrows &&
+        proc!=CAbilityBlackArrow && proc!=CAbilityColdArrows && proc!=CAbilityPoisonArrows;
+}
+
+/* Native428120 notifies before shield interception and concrete effects. Missing
+ * this zero-damage event incorrectly lets a slowed Captain member lower the
+ * shared speed. The receiver's passive AND shared-spells grants suppress it;
+ * buff polarity and the caster's reverse diplomacy do not decide this event. */
+bool S_PrepareUnitSpellEffect(edict_t *caster, uint32_t code, edict_t *target) {
+    if (caster && target && caster->s.player<MAX_PLAYERS && target->s.player<MAX_PLAYERS &&
+        spell_notifies_unit_target(S_SpellAbilityForCode(code))) {
+        player_t const *receiver=&game.clients[target->s.player].ps;
+        player_t const *source=&game.clients[caster->s.player].ps;
+        if (!G_GetPlayerAlliance(receiver,source,ALLIANCE_PASSIVE) ||
+            !G_GetPlayerAlliance(receiver,source,ALLIANCE_SHARED_SPELLS))
+            S_UnitCombatAlert(target,caster,0x10);
+    }
+    return !S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster,code,target);
+}
+
 bool S_SpellShieldImpactDeferred(uint32_t code) {
     ability_t const *ability = S_SpellAbilityForCode(code);
     return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
-                       ability->proc == CAbilityDeathCoil);
+                       ability->proc == CAbilityDeathCoil || ability->proc == CAbilityShadowStrike);
 }
 
 /* The authored targs mask without the unit-target visibility rule: area effects reach
@@ -484,26 +567,7 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     /* organic/mechanical are targtype tokens, not air/ground; TFT Cyclone authors organic. */
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
-    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) {
-        return true;
-    }
-    if (strstr(targets, "player") && caster && target->s.player == caster->s.player) {
-        return true;
-    }
-    if (strstr(targets, "ally") && caster && target->s.player != caster->s.player &&
-        caster->s.player < MAX_PLAYERS && target->s.player < MAX_PLAYERS &&
-        G_PlayerTreatsPlayerAsAlly(caster->s.player, target->s.player)) {
-        return true;
-    }
-    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) {
-        return true;
-    }
-    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) {
-        return true;
-    }
-    return !strstr(targets, "friend") && !strstr(targets, "player") && !strstr(targets, "ally") &&
-        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return S_TargsAllowsOwner(targets, caster, target);
 }
 
 static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *target, bool stored) {
@@ -525,13 +589,7 @@ static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
 
-    if (strstr(targets, "player") && target->s.player == caster->s.player) return true;
-    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) return true;
-    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
-    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
-    return !strstr(targets, "player") && !strstr(targets, "friend") &&
-        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return S_TargsAllowsOwner(targets, caster, target);
 }
 
 bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t *caster, edict_t *target) {
@@ -570,9 +628,9 @@ void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
     if (!corpse) return;
     corpse->aiflags &= ~AI_CORPSE_RESERVED;
     if (!code) return;
-    FOR_LOOP(i, corpse->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t *status = corpse->unit_state->statuses + i;
-        if (status->level && status->code == code) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(corpse)) {
+        heroabilitystatus_t *status = corpse->abilstatus + i;
+        if (status->level && G_UnitStatusClassCode(status) == code) {
             unit_removestatus(corpse, status, STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(corpse);
             return;
@@ -605,7 +663,7 @@ void S_SpellCursorSplat(edict_t *clent, float radius) {
 }
 
 bool S_SpellIsChanneling(edict_t *caster) {
-    channel_t *cast = G_GetChannel(caster);
+    channel_t *cast = caster ? caster->channel : NULL;
     return caster && cast && cast->code != 0;
 }
 
@@ -626,11 +684,12 @@ bool S_SummonIsDispelImmune(edict_t const *unit) {
 }
 
 void S_SpellCancelChannel(edict_t *caster) {
-    channel_t *cast = G_GetChannel(caster);
     uint32_t code;
-    if (!caster || !cast || !cast->code) return;
-    code = cast->code;
-    cast->code = 0;
+    S_CancelSpellCast(caster);
+    if (!caster || !caster->channel || !caster->channel->code) return;
+    code = caster->channel->code;
+    caster->channel->code = 0;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
     /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
     {
         abilityitem_t item = S_AbilityItem(code);
@@ -645,21 +704,21 @@ void S_SpellCancelChannel(edict_t *caster) {
 edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) {
     edict_t *ent = G_Spawn();
     if (!ent) return NULL;
-    ent->owner = owner; ent->class_id = code; ent->goalentity = target;
-    channel_t *cast = G_AddChannel(ent);
-    cast->owner_spawn_time = owner ? owner->spawn_time : 0;
-    cast->target_spawn_time = target ? target->spawn_time : 0;
+    ent->owner = owner; ent->class_id = code; S_SetMoveGoal(ent, &ent->goalentity, target);
+    ent->channel = G_AllocChannel();
+    assert(ent->channel);
+    ent->channel->owner_spawn_time = owner ? owner->spawn_time : 0;
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
-    channel_t *cast = G_GetChannel(caster);
     edict_t *ent;
-    assert(caster && cast);
+    assert(caster && caster->channel);
     ent = S_SpellIdentityThinker(caster, code, NULL);
     if (!ent) return NULL;
-    G_GetChannel(ent)->serial = cast->serial;
+    ent->channel->serial = caster->channel->serial;
     return ent;
 }
 
@@ -668,8 +727,8 @@ edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
 edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target) {
     edict_t *ent = S_SpellChannelThinker(caster, code);
     if (!ent) return NULL;
-    ent->goalentity = target;
-    G_GetChannel(ent)->target_spawn_time = target ? target->spawn_time : 0;
+    S_SetMoveGoal(ent, &ent->goalentity, target);
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
 }
 
@@ -678,7 +737,7 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
  * liveness, timing and cancellation policy remain with the owning lifecycle. */
 edict_t *S_SpellChannelOwner(edict_t const *ent) {
     edict_t *owner;
-    channel_t const *cast = G_GetChannel(ent);
+    channel_t const *cast = ent ? ent->channel : NULL;
     if (!cast || !(owner = ent->owner) || !owner->inuse) return NULL;
     return owner->spawn_time == cast->owner_spawn_time ? owner : NULL;
 }
@@ -687,7 +746,7 @@ edict_t *S_SpellChannelOwner(edict_t const *ent) {
  * range, relation and completion policy remain with the owning ability. */
 edict_t *S_SpellChannelTarget(edict_t const *ent) {
     edict_t *target;
-    channel_t const *cast = G_GetChannel(ent);
+    channel_t const *cast = ent ? ent->channel : NULL;
     if (!cast || !(target = ent->goalentity) || !target->inuse) return NULL;
     return target->spawn_time == cast->target_spawn_time ? target : NULL;
 }
@@ -695,19 +754,18 @@ edict_t *S_SpellChannelTarget(edict_t const *ent) {
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
     edict_t *caster = S_SpellChannelOwner(ent);
-    channel_t *cast = G_GetChannel(caster);
     if (!caster) return false;
     spell_run_frame(caster);
-    return !M_IsDead(caster) && cast && cast->code == ent->class_id &&
-        cast->serial == G_GetChannel(ent)->serial;
+    return !M_IsDead(caster) && caster->channel && caster->channel->code == ent->class_id &&
+        caster->channel->serial == ent->channel->serial;
 }
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
 void S_SpellEndChannel(edict_t *ent) {
     edict_t *caster = S_SpellChannelOwner(ent);
-    channel_t *cast = G_GetChannel(caster);
+    channel_t *cast = caster ? caster->channel : NULL;
     if (caster && cast && cast->code == ent->class_id &&
-        cast->serial == G_GetChannel(ent)->serial)
+        cast->serial == ent->channel->serial)
         S_SpellCancelChannel(caster);
     G_FreeEdict(ent);
 }
@@ -717,7 +775,7 @@ void S_SpellEndChannel(edict_t *ent) {
 /* Per-frame channel enforcement: if the caster has moved from cast_origin,
  * cancel the channel.  Called from G_RunEntity. */
 void spell_run_frame(edict_t *ent) {
-    channel_t *cast = G_GetChannel(ent);
+    channel_t *cast = ent ? ent->channel : NULL;
     if (!cast || !cast->code)
         return;
 
@@ -728,7 +786,7 @@ void spell_run_frame(edict_t *ent) {
     }
 
     /* Movement cancel: caster moved from the position where channel began. */
-    unsummon_t const *approach = G_GetUnsummon(ent);
+    unsummon_t const *approach = ent->unsummon;
     if (!(approach && approach->approaching) &&
         (fabsf(ent->s.origin.x - cast->origin.x) > 0.5f ||
         fabsf(ent->s.origin.y - cast->origin.y) > 0.5f)) {
@@ -751,7 +809,9 @@ static bool spell_activation_check(edict_t *clent, edict_t *caster, uint32_t cod
         if (clent) G_ShowCommandErrorKey(clent, "Cooldown", NULL);
         return false;
     }
-    if (!S_SpellCanPay(caster, code, level)) {
+    float cost=S_SpellNumber(code,ABILITY_NUMBER_COST,level);
+    if (!(cost<=0 || caster->mana.value>=cost ||
+          wc3_add(caster->mana.value,S_PreparatoryManaPotential(caster))>=cost)) {
         if (clent) G_ShowCommandErrorKey(clent, "Nomana", NULL);
         return false;
     }
@@ -774,27 +834,65 @@ static bool spell_validate_point(spellPointValidateParams_t const *params) {
     return !(params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range);
 }
 
+/* Preparation can publish a new Move while an older spell factory is on the
+ * stack. Its logical head survives; the spell temporarily owns physical work. */
+static void spell_retain_prepared_move(edict_t *caster,uint32_t revision) {
+    moveContinuation_t resume={0};
+    if(G_UnitMoveRevision(caster)==revision || !S_CaptureMoveContinuation(caster,&resume))return;
+    if(!caster->channel)caster->channel=G_AllocChannel();
+    caster->channel->resume_move=resume;
+}
+static moveContinuation_t spell_take_prepared_move(edict_t *caster,edict_t *approach) {
+    channel_t *channel=approach ? approach->channel : caster->channel;
+    moveContinuation_t resume=channel ? channel->resume_move : (moveContinuation_t){0};
+    if(channel)channel->resume_move=(moveContinuation_t){0};
+    return resume;
+}
+
+/* Construction snapshots the preparation bypass before any resource callback.
+ * A dispatched preparatory order requests a current-mana recheck. With no
+ * dispatch, native construction continues and CHANNEL owns later cost failure. */
+static bool spell_prepare_constructor(edict_t *caster, uint32_t code, uint32_t level,
+                                      edict_t *target, edict_t *source_item,
+                                      uint32_t source_item_spawn, bool *bypass) {
+    uint32_t spawn=caster->spawn_time, target_spawn=target ? target->spawn_time : 0;
+    *bypass=S_SpellPreparationBypassesTarget(caster);
+    uint32_t preparation_revision=G_UnitMoveRevision(caster);
+    uint64_t preparation_epoch=S_SpellPreparationEpoch();
+    bool prepared=S_PrepareSpellMana(caster,code,level);
+    if(S_SpellPreparationEpoch()!=preparation_epoch)return false;
+    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) || M_IsDead(caster))return false;
+    if(target && (!target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target)))return false;
+    if(source_item && (!source_item->inuse || source_item->spawn_time!=source_item_spawn ||
+                       G_IsDeferredFree(source_item)))return false;
+    if((prepared && !S_SpellCanPay(caster,code,level)) ||
+       !spell_activation_check(NULL,caster,code,level,false))return false;
+    if(prepared)spell_retain_prepared_move(caster,preparation_revision);
+    return true;
+}
+
 static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(edict_t *caster, uint32_t code) {
-    channel_t *cast;
     if (caster->stand) caster->stand(caster);
-    cast = G_AddChannel(caster);
-    cast->serial++;
-    cast->code = code;
-    cast->origin = caster->s.origin2;
+    if (!caster->channel) caster->channel = G_AllocChannel();
+    assert(caster->channel);
+    caster->channel->serial++;
+    caster->channel->code = code;
+    caster->channel->origin = caster->s.origin2;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+static void spell_commit_resources(edict_t *caster,uint32_t code,uint32_t level,bool legacy_reveal) {
     abilityitem_t committed = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
 
-    spell_cancel_target_approaches(caster, active_approach);
-    S_SpellCancelChannel(caster);
-    S_HumanBreakInvisibility(caster);
-    S_PermanentInvisibilityReveal(caster);
+    if(legacy_reveal) {
+        S_HumanBreakInvisibility(caster);
+        S_PermanentInvisibilityReveal(caster);
+    }
     S_UnitStatusAbilityEvent(caster, A_SPELL_COMMIT, &call);
     if (code != MAKEFOURCC('A', 's', 'h', 'm') && code != MAKEFOURCC('A', 'h', 'i', 'd'))
         S_ShadowMeldBreak(caster);
@@ -805,19 +903,50 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
     S_ManaFlareOnCast(caster, code, level);
 }
 
-/* Warcraft exposes spell response data only while dispatching the spell event.
- * Publish SPELL_EFFECT at the irreversible cast point: resources have been
- * committed, but the gameplay callback has not run yet. */
-static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
-    edict_t *source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
-    vec2_t const *point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
-    gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
-                                         .source = source, .value = (int32_t)code, .point = point);
+static void spell_commit(edict_t *caster,uint32_t code,uint32_t rank,edict_t *approach,bool legacy_reveal) {
+    spell_cancel_target_approaches(caster,approach);
+    S_SpellCancelChannel(caster);
+    spell_commit_resources(caster,code,rank,legacy_reveal);
+}
 
-    params.type = EVENT_PLAYER_UNIT_SPELL_EFFECT;
-    G_PublishEventWithPoint(&params);
-    params.type = EVENT_UNIT_SPELL_EFFECT;
-    G_PublishEventWithPoint(&params);
+/* Original40b380 delivers the frozen EFFECT families before3f7b00.
+ * A callback may replace the order, remove the caster or spend its remaining
+ * mana. Retain the packet, then check ownership rather than affordability. */
+bool S_DispatchSpellPhase(spellPhaseParams_t const *params) {
+    edict_t *caster=params->caster;
+    uint32_t code=params->code;
+    spellTarget_t const *target=&params->target;
+    EVENTTYPE player_event=params->player_event,unit_event=params->unit_event;
+    uint32_t const spawn=caster->spawn_time, revision=G_UnitMoveRevision(caster);
+    uint32_t const order=caster->current_order_id,group=caster->movement.group_id;
+    umove_t *move=caster->currentmove;
+    edict_t *goal=caster->goalentity;
+    edict_t *source=target->type==SPELL_TARGET_UNIT ? target->entity : NULL;
+    vec2_t const *point=target->type==SPELL_TARGET_POINT ? &target->point :
+        source ? &source->s.origin2 : NULL;
+    if(params->override_point)point=&params->point;
+
+    /*3fbc37/3fb677 notify attached virtual12c before their public families.
+     * Preserve the old packet through notifications, then guard its lifetime. */
+    if(player_event==EVENT_PLAYER_UNIT_SPELL_CHANNEL || player_event==EVENT_PLAYER_UNIT_SPELL_CAST) {
+        uint64_t const epoch=S_SpellPreparationEpoch();
+        S_UnitAbilityEvent(caster,A_UNIT_ACTION);
+        if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=spawn)return false;
+    }
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
+        .type=player_event,.source=source,.value=code,.point=point},unit_event,true);
+    return caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
+        !M_IsDead(caster) && caster->current_order_id==order && caster->currentmove==move &&
+        caster->goalentity==goal && caster->movement.group_id==group &&
+        G_UnitMoveRevision(caster)==revision;
+}
+
+static bool spell_dispatch_phase(edict_t *caster,uint32_t code,spellTarget_t const *target,EVENTTYPE player_event,EVENTTYPE unit_event) {
+    return S_DispatchSpellPhase(&(spellPhaseParams_t){.caster=caster,.code=code,.target=*target,.player_event=player_event,.unit_event=unit_event});
+}
+
+static bool spell_dispatch_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
+    return spell_dispatch_phase(caster,code,&target,EVENT_PLAYER_UNIT_SPELL_EFFECT,EVENT_UNIT_SPELL_EFFECT);
 }
 
 /* ---- Per-target-type unified callbacks ---- */
@@ -840,17 +969,44 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     bool stop_move = false;
 
     if (!caster || !caster->inuse) return;
+    edict_t *receiver=S_UnitTargetApproachReceiver(caster);
+    if(receiver) {
+        if(receiver!=except && receiver->owner==caster)S_CancelUnitTargetApproach(caster);
+        return;
+    }
+    /* Ground and air unit/structure/point casts are scheduler-owned.
+     * A failed physical admission can leave a fallback polling thinker. */
+    if(!move_is_active_order_walk(caster) || !caster->goalentity ||
+       (caster->goalentity->think!=S_SpellTargetApproachThink &&
+        !(caster->aiflags&AI_FLYING) && !G_UnitIsStructure(caster->goalentity)))return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
         if (S_SpellChannelOwner(thinker) == caster && move_is_active_order_walk(caster) &&
             caster->goalentity == spell_approach_move_goal(thinker)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             stop_move = true;
         }
         G_FreeEdict(thinker);
     }
     if (stop_move) unit_stand(caster);
 }
+
+/* Arrival delivers CHANNEL while the old spell still owns its public head.
+ * The event families retain one packet across reentrant replacement/removal. */
+static bool spell_begin_approach_cast(edict_t *caster, edict_t *target, uint32_t code,
+                                      vec2_t const *point) {
+    uint32_t const target_spawn=target ? target->spawn_time : 0;
+    spellTarget_t packet=target ? (spellTarget_t){.type=SPELL_TARGET_UNIT,.entity=target} :
+        (spellTarget_t){.type=SPELL_TARGET_POINT,.point=*point};
+    if(!spell_dispatch_phase(caster,code,&packet,EVENT_PLAYER_UNIT_SPELL_CHANNEL,EVENT_UNIT_SPELL_CHANNEL))
+        return false;
+    return !target || (target->inuse && target->spawn_time==target_spawn &&
+        !G_IsDeferredFree(target) && !M_IsDead(target));
+}
+
+static abilityOrderResult_t spell_start_ordered_cast(edict_t *,uint32_t,spellTarget_t const *,edict_t *,uint32_t,edict_t *);
+static abilityOrderResult_t spell_start_forced_channel(edict_t *,uint32_t,spellTarget_t const *);
+static abilityOrderResult_t spell_start_forced_channel_source(edict_t *,uint32_t,spellTarget_t const *,edict_t *,uint32_t);
 
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
 static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edict_t *active_approach) {
@@ -860,12 +1016,22 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
-    spell_commit(params->caster, params->code, params->level, active_approach);
-    bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
-        S_TryBlockSpellShield(params->caster, params->code, params->target);
+    /* Some non-spell command owners share the physical approach constructor,
+     * but retain their own terminal wait/retirement instead of spell commit. */
+    if((params->spell->flags & AB_TARGET_APPROACH) &&
+       S_AbilityMessage(params->caster,A_SPELL_TARGET_COMPLETE,&call))return true;
+
+    abilityOrderResult_t ordered=spell_start_ordered_cast(params->caster,params->code,&st,params->source_item,
+        params->source_item_spawn_time,active_approach);
+    if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
+    if(active_approach && !spell_begin_approach_cast(params->caster,params->target,params->code,NULL))
+        return false;
+    if(!spell_dispatch_effect(params->caster,params->code,st))return false;
+    if(active_approach)unit_stand_no_queue(params->caster);
+    spell_commit(params->caster, params->code, params->level, active_approach,true);
+    bool const blocked = S_PrepareUnitSpellEffect(params->caster, params->code, params->target);
     if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
-    if (!blocked) spell_publish_effect(params->caster, params->code, st);
     bool const executed = blocked || S_AbilityMessage(params->caster, A_EXECUTE, &call);
     if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
     /* Existing unit spells historically accepted the order once validation and
@@ -886,10 +1052,17 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
                               .source_item = source_item,
                               .source_item_spawn_time = source_item_spawn_time);
 
-    spell_commit(caster, code, level, active_approach);
+    abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&st,source_item,source_item_spawn_time,active_approach);
+    if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
+    if(active_approach && !spell_begin_approach_cast(caster,NULL,code,&st.point))return false;
+    if(!spell_dispatch_effect(caster,code,st))return false;
+    if(active_approach) {
+        if(caster->goalentity==active_approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
+        unit_stand(caster);
+    }
+    spell_commit(caster, code, level, active_approach,true);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, st);
     bool const executed = S_AbilityMessage(caster, A_EXECUTE, &call);
     if (executed && source_item) {
         G_CompleteItemUse(caster, source_item);
@@ -902,34 +1075,599 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
     return source_item ? executed : true;
 }
 
-/* Ranged unit and point spells are accepted before the caster is in range.
- * Warsmash's CBehaviorTargetSpellBase owns that approach phase and only performs
- * the spell effect once canReach(target, castRange) becomes true. The selected
- * unit or point remains authoritative while this thinker watches the ordinary
- * Move order; replacing that order cancels the pending cast. */
-void S_SpellTargetApproachThink(edict_t *thinker) {
-    channel_t *thinker_cast = G_GetChannel(thinker);
+/* Ordered casts own only active records. A binary heap indexes exact primary
+ * deadlines; idle units require neither state nor periodic discovery. */
+typedef enum { CAST_CHANNEL, CAST_CAST, CAST_EFFECT, CAST_FINISH, CAST_FAILED_FINISH } spellCastPhase_t;
+typedef struct spellCast_s {
+    struct spellCast_s *next, **previous;
+    edict_t *caster, *source_item;
+    spellTarget_t target;
+    spellCastProfile_t profile;
+    moveContinuation_t resume_move;
+    wc3Clock_t deadline;
+    uint32_t caster_spawn,target_spawn,item_spawn,code,rank,sequence,heap_position,depth;
+    uint32_t attachment_slot,attachment_generation;
+    uint64_t order_revision,move_revision;
+    spellCastPhase_t phase, dispatch_phase;
+    bool active,retired,dispatching,executing,committed;
+} spellCast_t;
+typedef struct spellCastBlock_s {struct spellCastBlock_s *next;spellCast_t records[64];} spellCastBlock_t;
+static spellCast_t *spell_cast_heads[MAX_ENTITIES],*spell_cast_active[MAX_ENTITIES],*spell_cast_free;
+static spellCastBlock_t *spell_cast_blocks;
+static spellCast_t **spell_cast_heap;
+static uint32_t spell_cast_count,spell_cast_capacity;
+typedef struct spellCastEvent_s {
+    struct spellCastEvent_s *previous;
+    spellCast_t *cast;
+    edict_t const *caster;
+    uint32_t caster_spawn,code,owner_serial;
+    spellTarget_t target;
+} spellCastEvent_t;
+static spellCastEvent_t *spell_cast_events;
+static umove_t ordered_spell_move={.animation="spell",.proc=CAbilitySpellCast};
+
+/* Original3fbbd0 sets head40 before CHANNEL;40b3fa clears it after EFFECT
+ * and the concrete effect body. These phases already survive save/load. */
+bool S_PlayerOrderCastProtected(edict_t const *unit) {
+    if(!unit || !unit->inuse)return false;
+    spellCast_t const *cast=spell_cast_active[unit-g_edicts];
+    return cast && cast->active && (!cast->committed ||
+        (cast->executing && cast->phase==CAST_EFFECT));
+}
+
+/* Work comes from the executing owner, independently of movement suppression. */
+bool S_PlayerOrderWorking(edict_t const *unit) {
+    if(!unit || !unit->inuse)return false;
+    if(S_RepairSuppressesSeparation(unit) || S_SpellIsChanneling((edict_t *)unit))return true;
+    spellCast_t const *cast=spell_cast_active[unit-g_edicts];
+    if(!cast || !cast->active)return false;
+    abilityitem_t item=S_AbilityItem(cast->code);
+    abilityCall_t call={.item=&item,.ordered_cast=true};
+    return item.ability && item.ability->proc((edict_t *)unit,A_PLAYER_ORDER_WORK,&call);
+}
+
+/* Native action3 is installed by the spell task constructors. A pending
+ * public command alone is not an executing spell; inspect its live owner. */
+bool S_UnitHasSpellTask(edict_t const *unit) {
+    if(!unit || !unit->inuse || unit->paused || unit->stunned || S_UnitIsCycloned(unit))return false;
+    if(unit->currentmove==&ordered_spell_move && spell_cast_active[unit-g_edicts])return true;
+    edict_t *receiver=S_UnitTargetApproachReceiver(unit);
+    if(receiver && S_SpellChannelOwner(receiver)==unit) {
+        ability_t const *spell=S_SpellAbilityForCode(receiver->class_id);
+        if(spell && (spell->flags&AB_SPELL))return true;
+    }
+    return S_SpellIsChanneling((edict_t *)unit);
+}
+
+static bool spell_command_profile(edict_t *caster,uint32_t code,spellCommandProfile_t *profile) {
+    abilityitem_t item=S_AbilityItem(code);
+    abilityCall_t call={.item=&item,.spell_command=profile};
+    return caster && item.ability && S_AbilityMessage(caster,A_SPELL_COMMAND_PROFILE,&call);
+}
+uint32_t S_SpellOrderId(edict_t *caster,uint32_t code) {
+    spellCommandProfile_t profile;
+    return spell_command_profile(caster,code,&profile) ? profile.order_id : G_AbilityOrderId(S_SpellAbilityForCode(code));
+}
+spellTargetType_t S_SpellTargetType(edict_t *caster,uint32_t code) {
+    spellCommandProfile_t profile;
+    if(spell_command_profile(caster,code,&profile))return profile.target_type;
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    return spell ? spell->target_type : SPELL_TARGET_NONE;
+}
+
+void S_DefaultSpellCastProfile(edict_t const *caster,uint32_t code,spellCastProfile_t *out) {
+    UnitWeapons_t const *weapons=caster->data.UnitWeapons;
+    UnitData_t const *data=caster->data.UnitData;
+    *out=(spellCastProfile_t){.channel_delay=S_SpellNumber(code,ABILITY_NUMBER_CAST,S_SpellLevel((edict_t *)caster,code)),
+        .cast_point=weapons && weapons->castPoint ? weapons->castPoint : data ? data->castPoint : 0,
+        .backswing=weapons && weapons->castBackSwing ? weapons->castBackSwing : data ? data->castBackSwing : 0};
+}
+static bool SpellCastLess(spellCast_t const *a,spellCast_t const *b) {
+    return a->deadline.time==b->deadline.time ? a->sequence<b->sequence : a->deadline.time<b->deadline.time;
+}
+static void SpellCastPut(uint32_t position,spellCast_t *cast) {
+    spell_cast_heap[position]=cast;cast->heap_position=position+1;
+}
+static void SpellCastRemoveRequest(spellCast_t *cast) {
+    if(!cast->heap_position)return;
+    uint32_t position=cast->heap_position-1;cast->heap_position=0;
+    spellCast_t *last=spell_cast_heap[--spell_cast_count];
+    if(position==spell_cast_count)return;
+    while(position && SpellCastLess(last,spell_cast_heap[(position-1)/2])) {
+        SpellCastPut(position,spell_cast_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<spell_cast_count) {
+        uint32_t child=position*2+1;
+        if(child+1<spell_cast_count && SpellCastLess(spell_cast_heap[child+1],spell_cast_heap[child]))child++;
+        if(!SpellCastLess(spell_cast_heap[child],last))break;
+        SpellCastPut(position,spell_cast_heap[child]);position=child;
+    }
+    SpellCastPut(position,last);
+}
+static void SpellCastInsertRequest(spellCast_t *cast) {
+    if(spell_cast_count==spell_cast_capacity) {
+        uint32_t capacity=spell_cast_capacity ? spell_cast_capacity*2 : 64;
+        spellCast_t **heap=gi.MemAlloc(capacity*sizeof(*heap));
+        if(spell_cast_count)memcpy(heap,spell_cast_heap,spell_cast_count*sizeof(*heap));
+        gi.MemFree(spell_cast_heap);spell_cast_heap=heap;spell_cast_capacity=capacity;
+    }
+    uint32_t position=spell_cast_count++;
+    while(position && SpellCastLess(cast,spell_cast_heap[(position-1)/2])) {
+        SpellCastPut(position,spell_cast_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    SpellCastPut(position,cast);
+}
+static spellCast_t *SpellCastAlloc(edict_t *caster) {
+    if(!spell_cast_free) {
+        spellCastBlock_t *block=gi.MemAlloc(sizeof(*block));block->next=spell_cast_blocks;spell_cast_blocks=block;
+        FOR_LOOP(i,64){block->records[i].next=spell_cast_free;spell_cast_free=block->records+i;}
+    }
+    spellCast_t *cast=spell_cast_free;spell_cast_free=cast->next;memset(cast,0,sizeof(*cast));
+    cast->caster=caster;cast->caster_spawn=caster->spawn_time;
+    cast->previous=spell_cast_heads+(caster-g_edicts);cast->next=*cast->previous;
+    if(cast->next)cast->next->previous=&cast->next;
+    *cast->previous=cast;
+    return cast;
+}
+static void SpellCastDrop(spellCast_t *cast) {
+    assert(cast->depth);cast->depth--;
+    if(cast->retired && !cast->depth){cast->next=spell_cast_free;spell_cast_free=cast;}
+}
+static void SpellCastRetire(spellCast_t *cast) {
+    if(cast->retired)return;
+    SpellCastRemoveRequest(cast);
+    if(spell_cast_active[cast->caster-g_edicts]==cast)spell_cast_active[cast->caster-g_edicts]=NULL;
+    if(cast->previous) {
+        *cast->previous=cast->next;if(cast->next)cast->next->previous=cast->previous;
+        cast->previous=NULL;
+    }
+    cast->active=false;cast->retired=true;
+}
+bool S_QuerySpellEventTarget(edict_t const *caster,uint32_t code,spellTarget_t *target) {
+    for(spellCastEvent_t const *event=spell_cast_events;event;event=event->previous) {
+        if(event->cast) {
+            if(event->cast->caster==caster && event->cast->code==code) {*target=event->cast->target;return true;}
+        } else if(event->caster==caster && caster && event->caster_spawn==caster->spawn_time && event->code==code) {
+            *target=event->target;return true;
+        }
+    }
+    return false;
+}
+
+bool S_DispatchOwnedSpellPhase(spellPhaseParams_t const *params,uint32_t owner_serial) {
+    spellCastEvent_t event={.previous=spell_cast_events,.caster=params->caster,
+        .caster_spawn=params->caster->spawn_time,.code=params->code,
+        .owner_serial=owner_serial,.target=params->target};
+    spell_cast_events=&event;
+    bool result=S_DispatchSpellPhase(params);
+    spell_cast_events=event.previous;
+    return result;
+}
+
+void S_ClearOwnedSpellEventTarget(edict_t const *caster,uint32_t code,uint32_t owner_serial) {
+    for(spellCastEvent_t *event=spell_cast_events;event;event=event->previous)
+        if(!event->cast && event->caster==caster && caster && event->caster_spawn==caster->spawn_time &&
+           event->code==code && event->owner_serial==owner_serial)
+            event->target=(spellTarget_t){0};
+}
+static bool SpellCastCasterLive(spellCast_t const *cast) {
+    return cast->caster->inuse && cast->caster->spawn_time==cast->caster_spawn &&
+        !G_IsDeferredFree(cast->caster) && !M_IsDead(cast->caster);
+}
+static void SpellCastEmit(spellCast_t *cast,EVENTTYPE player_event,EVENTTYPE unit_event) {
+    spellCastEvent_t event={.previous=spell_cast_events,.cast=cast};spell_cast_events=&event;
+    uint32_t code=cast->code;
+    if(cast->attachment_slot && !S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+            cast->item_spawn,code,cast->attachment_slot,cast->attachment_generation))code=0;
+    spell_dispatch_phase(cast->caster,code,&cast->target,player_event,unit_event);
+    spell_cast_events=event.previous;
+}
+static void SpellCastOwnerMessage(spellCast_t *cast,abilityMsg_t message) {
+    abilityitem_t item=S_AbilityItem(cast->code);
+    abilityCall_t call={.item=&item,.target=&cast->target,.ordered_cast=true,
+        .source_item=cast->source_item,.source_item_spawn_time=cast->item_spawn};
+    S_AbilityMessage(cast->caster,message,&call);
+}
+static void SpellCastCancel(spellCast_t *cast,bool release) {
+    cast->depth++;
+    cast->resume_move=(moveContinuation_t){0};
+    SpellCastRemoveRequest(cast);
+    if(cast->active) {
+        cast->active=false;
+        if(spell_cast_active[cast->caster-g_edicts]==cast)spell_cast_active[cast->caster-g_edicts]=NULL;
+        SpellCastOwnerMessage(cast,A_CAST_END);
+        SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_ENDCAST,EVENT_UNIT_SPELL_ENDCAST);
+        cast->target=(spellTarget_t){.type=SPELL_TARGET_NONE};
+    }
+    /*3fb5d0 resumes after CAST regardless of a nested Stop. Its newly armed
+     * effect request later fails validation and calls v39c(0), still emitting
+     * FINISH. Ordinary windup cancellation removes the pending request. */
+    if(cast->dispatching && (cast->dispatch_phase==CAST_CHANNEL || (cast->attachment_slot && !release))) {
+        /*3fbb80 still validates/completes after RemoveUnit returns. Detach
+         * from the removal roster but retain the stack-owned continuation. */
+        if(release && cast->previous) {
+            *cast->previous=cast->next;if(cast->next)cast->next->previous=cast->previous;
+            cast->previous=NULL;
+        }
+    } else if(release || !cast->dispatching || cast->dispatch_phase!=CAST_CAST)SpellCastRetire(cast);
+    SpellCastDrop(cast);
+}
+void S_CancelSpellCast(edict_t *caster) {
+    if(!caster || !g_edicts)return;
+    if(caster->channel)caster->channel->resume_move=(moveContinuation_t){0};
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(cast && !cast->executing)SpellCastCancel(cast,false);
+}
+/* Availability refresh belongs to one attached owner. A sibling Channel can
+ * be executing during this owner's reentrant begin/disable walk. */
+void S_CancelSpellOwner(edict_t *caster,uint32_t code) {
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(!cast || cast->code!=code)return;
+    uint32_t revision=G_UnitMoveRevision(caster),spawn=caster->spawn_time;
+    S_CancelSpellCast(caster);
+    if(caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
+       !M_IsDead(caster) && !spell_cast_active[caster-g_edicts] &&
+       caster->currentmove==&ordered_spell_move && G_UnitMoveRevision(caster)==revision)
+        unit_stand(caster);
+}
+/* Detach cancels completion before invalidating public attachment identity.
+ * The executing factory retains its ability independently of this weak token. */
+void S_CancelItemAbilityAttachment(edict_t *caster,edict_t *item,uint32_t spawn,uint32_t slot,uint32_t generation) {
+    if(!caster || !g_edicts)return;
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(!cast || cast->source_item!=item || cast->item_spawn!=spawn ||
+       cast->attachment_slot!=slot || cast->attachment_generation!=generation)return;
+    if(cast->dispatching)SpellCastCancel(cast,false);
+    else S_CancelSpellOwner(caster,cast->code);
+}
+/* Removing a sibling item with the same rawcode cannot cancel this cast. */
+void S_CancelItemSpell(edict_t *caster,edict_t *item,uint32_t spawn) {
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(cast && cast->source_item==item && cast->item_spawn==spawn)
+        S_CancelSpellOwner(caster,cast->code);
+}
+static bool SpellCastValid(spellCast_t const *cast) {
+    if((!cast->active && !cast->attachment_slot) || !SpellCastCasterLive(cast) || cast->caster->stunned ||
+       S_UnitIsCycloned(cast->caster) || S_UnitPolymorphed(cast->caster) || S_UnitIsSilenced(cast->caster) ||
+       (!cast->attachment_slot && !spell_item_source_valid(cast->caster,cast->source_item,cast->item_spawn)))return false;
+    if(cast->target.type==SPELL_TARGET_POINT &&
+       S_SpellTargetType(cast->caster,cast->code)==SPELL_TARGET_UNIT)return false;
+    if(cast->target.type==SPELL_TARGET_UNIT) {
+        edict_t *target=cast->target.entity;
+        if(!target || !target->inuse || target->spawn_time!=cast->target_spawn || G_IsDeferredFree(target) ||
+           !S_SpellAllowsTarget(cast->code,cast->caster,target))return false;
+    }
+    abilityitem_t item=S_AbilityItem(cast->code);
+    return S_SpellCanPay(cast->caster,cast->code,cast->rank) &&
+        spell_message(cast->caster,A_VALIDATE,&item,&cast->target);
+}
+static bool SpellCastExecute(spellCast_t *cast) {
+    abilityitem_t item=S_AbilityItem(cast->code);
+    abilityCall_t call={.item=&item,.target=&cast->target,.ordered_cast=true,
+        .source_item=cast->source_item,.source_item_spawn_time=cast->item_spawn};
+    cast->executing=true;
+    bool blocked=cast->target.type==SPELL_TARGET_UNIT && S_PrepareUnitSpellEffect(cast->caster,cast->code,cast->target.entity);
+    bool executed=blocked || S_AbilityMessage(cast->caster,A_EXECUTE,&call);
+    cast->executing=false;
+    if(executed && cast->source_item && !cast->attachment_slot)G_CompleteItemUse(cast->caster,cast->source_item);
+    return executed;
+}
+/* Only the retired factory's own user packet may advance here. Source
+ * detach retains that packet until its stack continuation has returned. */
+static void SpellCastRetireItem(spellCast_t *cast) {
+    SpellCastRetire(cast);
+    if(SpellCastCasterLive(cast) && cast->caster->active_order_revision==cast->order_revision &&
+       G_UnitMoveRevision(cast->caster)==cast->move_revision &&
+       cast->caster->currentmove==&ordered_spell_move && !spell_cast_active[cast->caster-g_edicts])
+        unit_stand(cast->caster);
+}
+static void SpellCastFinish(spellCast_t *cast,bool success) {
+    if(cast->attachment_slot && !cast->active) {SpellCastRetireItem(cast);return;}
+    uint32_t revision=G_UnitMoveRevision(cast->caster);
+    if(success && cast->active && cast->committed && cast->profile.effect_at_finish)SpellCastExecute(cast);
+    cast->target=(spellTarget_t){.type=SPELL_TARGET_NONE};
+    SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_FINISH,EVENT_UNIT_SPELL_FINISH);
+    bool owned=cast->active;
+    if(owned) {
+        cast->active=false;spell_cast_active[cast->caster-g_edicts]=NULL;
+        SpellCastOwnerMessage(cast,A_CAST_END);
+        SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_ENDCAST,EVENT_UNIT_SPELL_ENDCAST);
+    }
+    if(cast->attachment_slot) {
+        if(owned && cast->committed && S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+                cast->item_spawn,cast->code,cast->attachment_slot,cast->attachment_generation))
+            G_CompletePreparatoryItemUse(cast->caster,cast->source_item);
+        SpellCastRetireItem(cast);return;
+    }
+    edict_t *caster=cast->caster;
+    SpellCastRetire(cast);
+    /* A completion callback's replacement owns its move and FIFO. */
+    if(owned && SpellCastCasterLive(cast) && caster->currentmove==&ordered_spell_move &&
+       !spell_cast_active[caster-g_edicts] && G_UnitMoveRevision(caster)==revision) {
+        S_SetMoveGoal(caster,&caster->goalentity,NULL);
+        if(!S_ResumeMoveContinuation(caster,&cast->resume_move) && SpellCastCasterLive(cast) &&
+           caster->currentmove==&ordered_spell_move && G_UnitMoveRevision(caster)==revision)
+            unit_stand(caster);
+    }
+}
+static void SpellCastPhase(spellCast_t *,spellCastPhase_t,bool);
+static void SpellCastSchedule(spellCast_t *cast,spellCastPhase_t phase,float delay) {
+    if(cast->retired)return;
+    cast->phase=phase;
+    if(!(delay>0)){SpellCastPhase(cast,phase,false);return;}
+    cast->deadline=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    cast->deadline.time=wc3_add(cast->deadline.time,MAX(delay,G_ClockMinimumDelay()));
+    cast->sequence=++level.timer_sequence;SpellCastInsertRequest(cast);
+}
+static void SpellCastPhase(spellCast_t *cast,spellCastPhase_t phase,bool validate) {
+    if(cast->retired)return;
+    cast->depth++;
+    if(phase==CAST_FAILED_FINISH || (validate && phase!=CAST_FINISH && !SpellCastValid(cast))) {
+        SpellCastFinish(cast,false);SpellCastDrop(cast);return;
+    }
+    if(phase==CAST_FINISH)SpellCastFinish(cast,true);
+    else {
+        cast->dispatching=true;cast->dispatch_phase=phase;
+        if(phase==CAST_CHANNEL) {
+            SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_CHANNEL,EVENT_UNIT_SPELL_CHANNEL);
+            if(!cast->retired)SpellCastOwnerMessage(cast,A_CAST_BEGIN);
+        }
+        else if(phase==CAST_CAST)SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_CAST,EVENT_UNIT_SPELL_CAST);
+        else SpellCastEmit(cast,EVENT_PLAYER_UNIT_SPELL_EFFECT,EVENT_UNIT_SPELL_EFFECT);
+        cast->dispatching=false;
+        if(!cast->retired) {
+            if(phase==CAST_CHANNEL) {
+                if(SpellCastValid(cast))SpellCastSchedule(cast,CAST_CAST,cast->profile.channel_delay);
+                else SpellCastFinish(cast,false);
+            } else if(phase==CAST_CAST)SpellCastSchedule(cast,CAST_EFFECT,cast->profile.cast_point);
+            else if(cast->active || cast->attachment_slot) {
+                /*3fa400 admits retained item effects with ANY resolving user
+                 * head; completion ownership and source attachment are separate. */
+                if(cast->attachment_slot && (!SpellCastCasterLive(cast) || !cast->caster->active_order)) {
+                    SpellCastRetireItem(cast);SpellCastDrop(cast);return;
+                }
+                /* EFFECT callbacks may drain mana without cancelling ownership. */
+                cast->executing=true;
+                if(cast->attachment_slot)spell_commit_resources(cast->caster,cast->code,cast->rank,false);
+                else spell_commit(cast->caster,cast->code,cast->rank,NULL,false);
+                cast->executing=false;
+                cast->committed=true;
+                if(!cast->profile.effect_at_finish)SpellCastExecute(cast);
+                if(cast->active)SpellCastSchedule(cast,CAST_FINISH,cast->profile.backswing);
+                else if(cast->attachment_slot)SpellCastRetireItem(cast);
+            } else SpellCastRetire(cast);
+        }
+    }
+    SpellCastDrop(cast);
+}
+/* Channel v22c (437310) consumes its own order while its active spell has
+ * not entered channel work. This includes reentry from the CHANNEL event. */
+bool S_InterceptSpellOrder(edict_t *caster,uint32_t code) {
+    spellCast_t *cast=spell_cast_active[caster-g_edicts];
+    if(!cast || !cast->active || cast->code!=code ||
+       !cast->profile.intercept_before_work || S_SpellIsChanneling(caster))return false;
+    G_ClearUnitOrderQueue(caster);
+    return true;
+}
+static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t code,spellTarget_t const *target,
+                                     edict_t *source_item,uint32_t item_spawn,edict_t *approach,
+                                     spellCastProfile_t profile) {
+    if(!isfinite(profile.channel_delay) || !isfinite(profile.cast_point) || !isfinite(profile.backswing))return ABILITY_ORDER_REJECTED;
+    if(S_InterceptSpellOrder(caster,code))return ABILITY_ORDER_ACCEPTED;
+    uint32_t attachment_slot=0,attachment_generation=0;
+    abilityitem_t item=S_AbilityItem(code);
+    if(source_item && item.ability && (item.ability->flags&AB_ITEM) &&
+       !S_CaptureItemAbilityAttachment(caster,source_item,item_spawn,code,&attachment_slot,&attachment_generation))
+        return ABILITY_ORDER_REJECTED;
+    moveContinuation_t resume=spell_take_prepared_move(caster,approach);
+    S_CancelSpellCast(caster);
+    spell_cancel_target_approaches(caster,approach);
+    spellTarget_t packet=*target;
+    if(approach && caster->goalentity==approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
+    unit_setmove(caster,&ordered_spell_move);
+    caster->current_order_id=resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
+    if(source_item && !resume.order_id)FOR_LOOP(slot,MAX_INVENTORY)
+        if(caster->inventory[slot]==source_item) {caster->current_order_id=852008+slot;break;}
+    spellCast_t *cast=SpellCastAlloc(caster);cast->target=packet;cast->code=code;
+    cast->target_spawn=packet.type==SPELL_TARGET_UNIT ? packet.entity->spawn_time : 0;
+    cast->source_item=source_item;cast->item_spawn=item_spawn;cast->rank=S_SpellLevel(caster,code);
+    cast->resume_move=resume;
+    cast->profile=profile;cast->active=true;spell_cast_active[caster-g_edicts]=cast;
+    cast->attachment_slot=attachment_slot;cast->attachment_generation=attachment_generation;
+    if(attachment_slot) {
+        cast->order_revision=caster->active_order_revision;cast->move_revision=G_UnitMoveRevision(caster);
+    }
+    SpellCastPhase(cast,CAST_CHANNEL,false);
+    return ABILITY_ORDER_ACCEPTED;
+}
+/* Ordinary item activation uses the same cast owner as unit spells. It does
+ * not enter the preparatory forced-dispatch scope or preserve the old Move. */
+bool S_BeginItemCast(edict_t *caster,edict_t *item,uint32_t birth,uint32_t code) {
+    abilityitem_t ability=S_AbilityItem(code);spellCastProfile_t profile;
+    abilityCall_t query={.item=&ability,.cast_profile=&profile};
+    if(!ability.ability || !(ability.ability->flags&AB_ITEM) ||
+       !spell_item_source_valid(caster,item,birth) || !S_SpellCooldownReady(caster,code) ||
+       !S_AbilityMessage(caster,A_CAST_PROFILE,&query))return false;
+    spellTarget_t target={.type=SPELL_TARGET_NONE};
+    return spell_start_cast_profile(caster,code,&target,item,birth,NULL,profile)==ABILITY_ORDER_ACCEPTED;
+}
+static abilityOrderResult_t spell_start_ordered_cast(edict_t *caster,uint32_t code,spellTarget_t const *target,
+                                     edict_t *source_item,uint32_t item_spawn,edict_t *approach) {
+    spellCastProfile_t profile;abilityitem_t item=S_AbilityItem(code);
+    abilityCall_t query={.item=&item,.cast_profile=&profile};
+    if(!S_AbilityMessage(caster,A_CAST_PROFILE,&query)) {
+        bool retained=(approach && approach->channel && approach->channel->resume_move.order_id) ||
+            (!approach && caster->channel && caster->channel->resume_move.order_id);
+        if(!retained && S_SpellCanPay(caster,code,S_SpellLevel(caster,code)))return ABILITY_ORDER_UNHANDLED;
+        /* A potential-only admission with no dispatched preparation still
+         * constructs CHANNEL, whose actual-cost guard owns failed finish. */
+        S_DefaultSpellCastProfile(caster,code,&profile);
+    }
+    return spell_start_cast_profile(caster,code,target,source_item,item_spawn,approach,profile);
+}
+static abilityOrderResult_t spell_start_forced_channel_source(edict_t *caster,uint32_t code,
+        spellTarget_t const *point,edict_t *source_item,uint32_t item_spawn) {
+    spellCastProfile_t profile;abilityitem_t item=S_AbilityItem(code);
+    abilityCall_t query={.item=&item,.cast_profile=&profile};
+    if(!S_AbilityMessage(caster,A_CAST_PROFILE,&query))S_DefaultSpellCastProfile(caster,code,&profile);
+    return spell_start_cast_profile(caster,code,point,source_item,item_spawn,NULL,profile);
+}
+static abilityOrderResult_t spell_start_forced_channel(edict_t *caster,uint32_t code,spellTarget_t const *point) {
+    return spell_start_forced_channel_source(caster,code,point,NULL,0);
+}
+void S_ClearSpellCasts(void) {
+    S_ResetSpellPreparation();
+    while(spell_cast_blocks) {
+        spellCastBlock_t *next=spell_cast_blocks->next;gi.MemFree(spell_cast_blocks);spell_cast_blocks=next;
+    }
+    memset(spell_cast_heads,0,sizeof(spell_cast_heads));memset(spell_cast_active,0,sizeof(spell_cast_active));
+    gi.MemFree(spell_cast_heap);spell_cast_heap=NULL;spell_cast_free=NULL;spell_cast_events=NULL;
+    spell_cast_count=spell_cast_capacity=0;
+}
+/* Save logical identities and deadlines, never heap positions or pool pointers.
+ * Orphan requests from nested CAST Stop remain ordered across a cold load. */
+typedef struct {
+    wc3Clock_t deadline;
+    spellCastProfile_t profile;
+    moveContinuation_t resume_move;
+    vec2_t point;
+    uint32_t code,rank,caster_spawn,target,target_spawn,item,item_spawn,sequence,phase,target_type,active,committed;
+    uint32_t attachment_slot,attachment_generation;
+    uint64_t order_revision,move_revision;
+} spellCastSave_t;
+bool S_WriteSpellCasts(FILE *file) {
+    uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts)for(spellCast_t *cast=spell_cast_heads[i];cast;cast=cast->next) {
+        if(cast->depth || !cast->heap_position)return false;
+        count++;
+    }
+    if(fwrite(&count,sizeof(count),1,file)!=1)return false;
+    FOR_LOOP(i,globals.num_edicts)for(spellCast_t *cast=spell_cast_heads[i];cast;cast=cast->next) {
+        spellCastSave_t saved={.deadline=cast->deadline,.profile=cast->profile,.resume_move=cast->resume_move,
+            .point=cast->target.type==SPELL_TARGET_POINT ? cast->target.point : (vec2_t){0},
+            .code=cast->code,.rank=cast->rank,.caster_spawn=cast->caster_spawn,
+            .target=cast->target.type==SPELL_TARGET_UNIT ? (uint32_t)(cast->target.entity-g_edicts)+1 : 0,
+            .target_spawn=cast->target_spawn,.item=cast->source_item ? (uint32_t)(cast->source_item-g_edicts)+1 : 0,
+            .item_spawn=cast->item_spawn,.sequence=cast->sequence,.phase=cast->phase,.target_type=cast->target.type,
+            .active=cast->active,.committed=cast->committed,
+            .attachment_slot=cast->attachment_slot,.attachment_generation=cast->attachment_generation,
+            .order_revision=cast->order_revision,.move_revision=cast->move_revision};
+        if(fwrite(&i,sizeof(i),1,file)!=1 || fwrite(&saved,sizeof(saved),1,file)!=1)return false;
+    }
+    return true;
+}
+bool S_ReadSpellCasts(FILE *file) {
+    uint32_t count;
+    if(fread(&count,sizeof(count),1,file)!=1)return false;
+    FOR_LOOP(i,count) {
+        uint32_t owner;spellCastSave_t saved;
+        if(fread(&owner,sizeof(owner),1,file)!=1 || owner>=globals.num_edicts ||
+           fread(&saved,sizeof(saved),1,file)!=1 || !g_edicts[owner].inuse || saved.caster_spawn!=g_edicts[owner].spawn_time ||
+           saved.phase<CAST_CAST || saved.phase>CAST_FAILED_FINISH || saved.target_type>SPELL_TARGET_UNIT_OR_POINT ||
+           saved.target>globals.num_edicts || saved.item>globals.num_edicts || saved.active>1 || saved.committed>1 ||
+           !S_ValidMoveContinuation(&saved.resume_move) ||
+           (saved.resume_move.order_id && (!saved.active ||
+                g_edicts[owner].currentmove!=&ordered_spell_move ||
+                g_edicts[owner].current_order_id!=saved.resume_move.order_id)) ||
+           !saved.sequence || saved.sequence>level.timer_sequence || !isfinite(saved.deadline.time) ||
+           !isfinite(saved.deadline.span) || saved.deadline.span<=0 || !isfinite(saved.profile.channel_delay) ||
+           !isfinite(saved.profile.cast_point) || !isfinite(saved.profile.backswing) ||
+           !isfinite(saved.point.x) || !isfinite(saved.point.y) || !S_SpellAbilityForCode(saved.code) ||
+           (saved.active && spell_cast_active[owner]) ||
+           (saved.target_type==SPELL_TARGET_UNIT && (!saved.target ||
+                (saved.phase!=CAST_FAILED_FINISH && (!g_edicts[saved.target-1].inuse ||
+                 saved.target_spawn!=g_edicts[saved.target-1].spawn_time)))))return false;
+        spellCast_t *cast=SpellCastAlloc(g_edicts+owner);
+        cast->resume_move=saved.resume_move;
+        cast->deadline=saved.deadline;cast->profile=saved.profile;cast->target=(spellTarget_t){.type=saved.target_type,.point=saved.point};
+        if(saved.target_type==SPELL_TARGET_UNIT)cast->target.entity=g_edicts+saved.target-1;
+        cast->target_spawn=saved.target_spawn;cast->source_item=saved.item ? g_edicts+saved.item-1 : NULL;
+        cast->item_spawn=saved.item_spawn;cast->code=saved.code;cast->rank=saved.rank;cast->sequence=saved.sequence;
+        cast->phase=saved.phase;cast->active=saved.active;cast->committed=saved.committed;
+        cast->attachment_slot=saved.attachment_slot;cast->attachment_generation=saved.attachment_generation;
+        cast->order_revision=saved.order_revision;cast->move_revision=saved.move_revision;
+        if(!!cast->attachment_slot!=!!cast->attachment_generation ||
+           (cast->attachment_slot && cast->active && !S_ItemAbilityAttachmentLive(cast->caster,cast->source_item,
+               cast->item_spawn,cast->code,cast->attachment_slot,cast->attachment_generation)))return false;
+        if(cast->active)spell_cast_active[owner]=cast;
+    }
+    return true;
+}
+BZ_ABILITY_PROC(CAbilitySpellCast) {
+    switch(msg) {
+    case A_TARGET_REMOVED: {
+        spellCast_t *cast=ent ? spell_cast_active[ent-g_edicts] : NULL;
+        if(!cast || !cast->profile.finish_on_target_loss || cast->phase==CAST_FAILED_FINISH ||
+           cast->target.type!=SPELL_TARGET_UNIT || cast->target.entity!=call->removed_target)return false;
+        /* AItp4374f0 ->406bf0 queues d01bd with Chaos_CommitDelay. The
+         * original successful deadline is replaced; FINISH/ENDCAST remain
+         * ordered and survive a cold load after the target has retired. */
+        SpellCastRemoveRequest(cast);
+        cast->phase=CAST_FAILED_FINISH;cast->deadline=level.pathing_clock;
+        FOR_LOOP(i,2)wc3_clock_advance(&cast->deadline,wc3_float(0x3ba3d70a),0);
+        cast->sequence=++level.timer_sequence;SpellCastInsertRequest(cast);
+        return true;
+    }
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE,A_DEATH,A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_MOVE_LEAVE:
+        if(ent && (!call || call->next_move_proc!=CAbilitySpellCast))S_CancelSpellCast(ent);
+        return false;
+    case A_DEATH:case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+        if(ent)while(spell_cast_heads[ent-g_edicts])SpellCastCancel(spell_cast_heads[ent-g_edicts],true);
+        return false;
+    case A_TIMERS_RESET:
+        spell_cast_count=0;
+        FOR_LOOP(i,globals.num_edicts)for(spellCast_t *cast=spell_cast_heads[i];cast;cast=cast->next)cast->heap_position=0;
+        return true;
+    case A_TIMERS_REBUILD:
+        spell_cast_count=0;
+        FOR_LOOP(i,globals.num_edicts)for(spellCast_t *cast=spell_cast_heads[i];cast;cast=cast->next) {
+            cast->heap_position=0;SpellCastInsertRequest(cast);
+        }
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!spell_cast_count)return false;
+        call->primary_timer->deadline=spell_cast_heap[0]->deadline;
+        call->primary_timer->sequence=spell_cast_heap[0]->sequence;return true;
+    case A_PRIMARY_TIMER_FIRE: {
+        if(!spell_cast_count)return false;
+        spellCast_t *cast=spell_cast_heap[0];cast->depth++;SpellCastRemoveRequest(cast);
+        SpellCastPhase(cast,cast->phase,true);SpellCastDrop(cast);return true;
+    }
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,spell_cast_count) {
+            spell_cast_heap[i]->deadline.time=wc3_sub(spell_cast_heap[i]->deadline.time,call->clock_span);
+            spell_cast_heap[i]->deadline.epoch++;
+        }
+        return true;
+    default:return false;
+    }
+}
+
+/* Move owns unit/structure/point range and arrival for ground and air casters.
+ * Retain the fallback only when physical admission fails. */
+static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
-    ability_t const *spell = S_SpellAbilityForCode(code);
+    ability_t const *spell = spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    edict_t *source_item = thinker && thinker_cast ? thinker_cast->source_item : NULL;
+    edict_t *source_item = thinker ? thinker->spell_item : NULL;
     bool const point_target = spell && target == thinker &&
-        (spell->target_type == SPELL_TARGET_POINT || spell->target_type == SPELL_TARGET_UNIT_OR_POINT);
+        (S_SpellTargetType(caster,code) == SPELL_TARGET_POINT || S_SpellTargetType(caster,code) == SPELL_TARGET_UNIT_OR_POINT);
     /* Ability-owned entity cursors retain the entity and incarnation while
      * approaching, rather than freezing a point at the original click. */
-    bool const entity_point_target = spell && target != thinker && spell->target_type == SPELL_TARGET_POINT;
+    bool const entity_point_target = spell && target != thinker && S_SpellTargetType(caster,code) == SPELL_TARGET_POINT;
     uint32_t level;
     float range;
     spellTarget_t st;
 
     if (!caster || M_IsDead(caster) || !target || !spell ||
-        !spell_item_source_valid(caster, source_item, thinker_cast->source_item_spawn_time) ||
-        (!point_target && !entity_point_target && spell->target_type != SPELL_TARGET_UNIT &&
-         spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
+        !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
+        (!point_target && !entity_point_target && S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
+         S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT)) {
         if (caster && caster->goalentity == thinker) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -937,7 +1675,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     if (!point_target && S_SpellChannelTarget(thinker) != target) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -945,14 +1683,12 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     /* A replacement order is authoritative. If the same spell-owned Move is
      * still active but its target died/disappeared, terminate that approach too. */
-    if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+    if (caster->goalentity != target || (!arrived && !move_is_active_order_walk(caster))) {
         G_FreeEdict(thinker);
         return;
     }
     level = S_SpellLevel(caster, code);
-    /* Force of Nature has no custom approach-range override. */
-    range = code == MAKEFOURCC('A','E','f','n') ? S_SpellRange(code, level) :
-            spell_approach_range(code, level, spell);
+    range = spell_approach_range(caster, code, level, spell);
     if (point_target || entity_point_target) {
         edict_t *clent = G_GetPlayerEntityByNumber(caster->s.player);
         spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
@@ -964,17 +1700,15 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         st = entity_point_target ? MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target) :
                                    MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = target->s.origin2);
         if (!spell_validate_point(&val) || !spell_message(caster, A_VALIDATE, &item, &st)) {
-            if (caster->goalentity == target) caster->goalentity = NULL;
+            if (caster->goalentity == target) S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
             G_FreeEdict(thinker);
             return;
         }
-        if (range > 0.0f && Vector2_distance(&caster->s.origin2, &target->s.origin2) > range)
+        if (!arrived && range > 0.0f && !S_UnitPointInMoveRange(caster, &target->s.origin2, range))
             return;
-        if (caster->goalentity == target) caster->goalentity = NULL;
-        unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &target->s.origin2,
-                                   source_item, thinker_cast->source_item_spawn_time, thinker);
+                                   source_item, thinker->spell_item_spawn_time, thinker);
         G_FreeEdict(thinker);
         return;
     }
@@ -985,12 +1719,12 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!S_SpellTargetInRange(caster, target, range))
+    if (!arrived && !S_SpellTargetInRange(caster, target, range))
         return;
 
     /* Mana/cooldown can change while walking. Do not spend or fire the ability
      * unless it is still legal at the actual cast point. */
-    if (!spell_validate(NULL, caster, code, level, target, range)) {
+    if (!spell_validate(NULL, caster, code, level, target, arrived ? 0 : range)) {
         unit_stand(caster);
         G_FreeEdict(thinker);
         return;
@@ -998,11 +1732,57 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
-        .source_item = source_item, .source_item_spawn_time = thinker_cast->source_item_spawn_time
+        .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
-    unit_stand(caster);
     spell_execute_unit_target(&params, thinker);
     G_FreeEdict(thinker);
+}
+
+/* A point approach owns its goal thinker. Native146690 destroys owned
+ * children before returning the parent to its pool; polling is too late for
+ * an immediate save or slot reuse. Borrowed unit goals remain independent. */
+void S_SpellReleasePointApproach(edict_t *caster) {
+    edict_t *child=caster ? caster->goalentity : NULL;
+    if(!child || child==caster || !child->inuse || child->goalentity!=child ||
+       child->think!=S_SpellTargetApproachThink || S_SpellChannelOwner(child)!=caster)return;
+    S_SetMoveGoal(caster,&caster->goalentity,NULL);
+    G_FreeEdict(child);
+}
+
+void S_SpellTargetApproachThink(edict_t *thinker) {
+    spell_finish_target_approach(thinker,false);
+}
+
+void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arrived) {
+    if(S_SpellChannelOwner(receiver)!=caster) {G_FreeEdict(receiver);return;}
+    if(!arrived) {
+        /* Terminal cant-path has already detached Move. Cancellation while
+         * replacing an order still owns its old group and must not dispatch a
+         * queued successor here. Never execute an unreachable cast. */
+        bool terminal=!caster->movement.group_id && caster->goalentity==receiver->goalentity &&
+            move_is_active_order_walk(caster);
+        uint32_t spawn=caster->spawn_time,revision=G_UnitMoveRevision(caster);
+        G_FreeEdict(receiver);
+        if(terminal && caster->inuse && caster->spawn_time==spawn &&
+           !G_IsDeferredFree(caster) && !M_IsDead(caster) && G_UnitMoveRevision(caster)==revision) {
+            /* Native251 publishes the reciprocal inverse while the failed
+             * producer still owns its public head. Stand retires that head
+             * only after the authored inverse and its callbacks complete. */
+            S_UnitAbilityEvent(caster,A_COMMAND_OWNER_LEAVE);
+            if(caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
+               !M_IsDead(caster) && G_UnitMoveRevision(caster)==revision)unit_stand(caster);
+        }
+        return;
+    }
+    spell_finish_target_approach(receiver,true);
+}
+
+/*40a7a0 tests facing after range. A nearby target still creates d0174 with
+ * FLT_MAX when the source must turn; Move owns that completion before CHANNEL. */
+static bool spell_unit_target_ready(edict_t *caster,edict_t *target,float range) {
+    return S_SpellTargetInRange(caster,target,range) &&
+        (caster==target || !S_UnitCanTranslate(caster) ||
+         S_UnitTargetInFacingWindow(caster,target,wc3_float(0x3e4ccccd)));
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
@@ -1017,26 +1797,42 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
 
     thinker = G_Spawn();
     if (!thinker) return false;
+    moveContinuation_t resume=spell_take_prepared_move(caster,NULL);
     goal = point ? thinker : target;
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
-    thinker->goalentity = goal;
-    channel_t *cast = G_AddChannel(thinker);
-    cast->owner_spawn_time = caster->spawn_time;
-    cast->target_spawn_time = target ? target->spawn_time : 0;
+    S_SetMoveGoal(thinker, &thinker->goalentity, goal);
+    if (!thinker->channel) thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->resume_move=resume;
+    thinker->channel->owner_spawn_time = caster->spawn_time;
+    thinker->channel->target_spawn_time = target ? target->spawn_time : 0;
     thinker->class_id = code;
-    cast->source_item = source_item;
-    cast->source_item_spawn_time = source_item_spawn_time;
+    thinker->spell_item = source_item;
+    thinker->spell_item_spawn_time = source_item_spawn_time;
     thinker->think = S_SpellTargetApproachThink;
     thinker->freetime = G_Time();
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
-    order_move(caster, goal);
-    if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
-        G_FreeEdict(thinker);
-        return false;
+    float range=spell_approach_range(caster,code,S_SpellLevel(caster,code),spell_target_approach_ability(code));
+    bool const entity_point=target && S_SpellTargetType(caster,code)==SPELL_TARGET_POINT;
+    if(target && (entity_point ? S_UnitPointInMoveRange(caster,&target->s.origin2,range) :
+                   S_SpellTargetInRange(caster,target,range)))range=FLT_MAX;
+    if((point && S_BeginUnitPointTargetApproach(caster,goal,range,thinker,S_SpellTargetApproachComplete)) ||
+       (target && (entity_point ? S_BeginUnitEntityPointApproach : S_BeginUnitTargetApproach)(
+           caster,target,range,thinker,S_SpellTargetApproachComplete))) {
+        thinker->think=NULL;
+    } else {
+        order_move(caster, goal);
+        if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
+            G_FreeEdict(thinker);
+            return false;
+        }
     }
+    /* Retail40a7a0 constructs internal approach tasks under the spell's user
+     * head. Every accepted shape publishes the same owning-command contract. */
+    caster->current_order_id=resume.order_id ? resume.order_id : S_SpellOrderId(caster,code);
     return true;
 }
 
@@ -1052,7 +1848,7 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
     ability_t const *spell = S_SpellAbilityForCode(code);
-    float range = spell_approach_range(code, level, spell);
+    float range = spell_approach_range(caster, code, level, spell);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1073,7 +1869,20 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
-    if (!S_SpellTargetInRange(caster, target, range)) {
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,target,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !S_SpellAllowsTarget(code,caster,target) || !spell_message(caster,A_VALIDATE,&item,&st))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=target->s.origin2};
+        bool accepted=(spell->flags&AB_TARGET_APPROACH) ?
+            spell_message(caster,A_SPELL_TARGET_COMPLETE,&item,&cached_point)!=0 :
+            spell_start_forced_channel_source(caster,code,&cached_point,source_item,source_item_spawn_time)==ABILITY_ORDER_ACCEPTED;
+        if(accepted)spell_order_accepted(caster,spell);
+        return accepted;
+    }
+
+    if (!spell_unit_target_ready(caster, target, range)) {
         if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
         return true;
@@ -1132,28 +1941,15 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
     }
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
-    uint32_t level;
-    ability_t const *spell;
-    float range;
-    abilityitem_t item;
-    edict_t *source_item;
-    uint32_t source_item_spawn_time;
-    spellPointValidateParams_t val;
-    if (!caster) {
-        return false;
-    }
-    level = S_SpellLevel(caster, code);
-    spell = S_SpellAbilityForCode(code);
-    /* Force of Nature has no custom approach-range override. Avoid invoking
-     * its ability callback with a NULL caster from this entity-click path. */
-    range = code == MAKEFOURCC('A','E','f','n') ? S_SpellRange(code, level) :
-            spell_approach_range(code, level, spell);
-    item = MAKE(abilityitem_t, .code = code, .ability = spell);
-    source_item = clent->client->menu.ability_item;
-    source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
-    val = MAKE(spellPointValidateParams_t,
-               .clent = clent, .caster = caster, .code = code, .level = level,
-               .point = point, .range = 0.0f);
+    uint32_t level = S_SpellLevel(caster, code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
+    float range = spell_approach_range(caster, code, level, spell);
+    abilityitem_t item = { .code = code, .ability = spell };
+    edict_t *source_item = clent->client->menu.ability_item;
+    uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
+    spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
+                                          .clent = clent, .caster = caster, .code = code, .level = level,
+                                          .point = point, .range = 0.0f);
 
     if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) {
         return false;
@@ -1167,7 +1963,23 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
         return false;
     }
 
-    if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range) {
+    vec2_t destination=*point;
+    point=&destination;
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,target,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !spell_message(caster,A_VALIDATE,&item,&st))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=destination};
+        if(spell_start_forced_channel_source(caster,code,&cached_point,source_item,source_item_spawn_time)!=ABILITY_ORDER_ACCEPTED)return false;
+        spell_order_accepted(caster,spell);
+        if(spell_is_tiny_structure(spell))spell_tiny_cursor_clear(clent);
+        else S_SpellCursorSplat(clent,0.0f);
+        G_SendPointConfirmation(clent,point,false);
+        return true;
+    }
+
+    if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range)) {
         if (!spell_begin_target_approach(caster, code, target, target ? NULL : point,
                                          source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
@@ -1229,7 +2041,7 @@ bool S_SpellEntityTarget(edict_t *clent, edict_t *target) {
 
 static void spell_target_mode_exit(edict_t *clent) {
     abilityitem_t item = S_AbilityItem(S_SpellCurrentCode(clent, 0));
-    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .entity = clent);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
     if (item.ability) S_AbilityMessage(G_GetMainSelectedUnit(clent->client), A_TARGET_MODE_EXIT, &call);
 }
 
@@ -1252,7 +2064,7 @@ static void spell_no_target_execute(edict_t *clent) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    ability_t const *spell = S_SpellAbilityForCode(code);
+    ability_t const *spell = spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1262,11 +2074,32 @@ static void spell_no_target_execute(edict_t *clent) {
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
-    spell_commit(caster, code, level, NULL);
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,source_item,source_item_spawn_time,&bypass) ||
+       !spell_item_source_valid(caster,source_item,source_item_spawn_time) ||
+       !spell_message(caster,A_VALIDATE,&item,&st))return;
+    if(bypass) {
+        spell_start_forced_channel_source(caster,code,&st,source_item,source_item_spawn_time);
+        return;
+    }
+
+    abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&st,source_item,source_item_spawn_time,NULL);
+    if(ordered!=ABILITY_ORDER_UNHANDLED)return;
+    if(!spell_dispatch_effect(caster,code,st))return;
+    spell_commit(caster, code, level, NULL,true);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, st);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
         G_CompleteItemUse(caster, source_item);
+}
+
+bool S_ValidateNoTargetSpell(edict_t *caster,uint32_t code) {
+    if(!caster || !code || !G_UnitAbilityClassLevel(caster,code) || S_UnitPolymorphed(caster))return false;
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    if(!spell || S_SpellTargetType(caster,code)!=SPELL_TARGET_NONE || !S_AbilityHasCommand(spell))return false;
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_NONE};
+    return spell_validate(NULL,caster,code,S_SpellLevel(caster,code),NULL,0) &&
+        spell_message(caster,A_VALIDATE,&item,&target);
 }
 
 bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
@@ -1274,20 +2107,20 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
-    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) {
+    if (!caster || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) {
         if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
             fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=missing_caster_ability_or_polymorph caster=%u level=%u polymorphed=%u\n",
                     caster ? (unsigned)caster->s.number : 0u,
-                    caster ? G_UnitAbilityLevel(caster, code) : 0u,
+                    caster ? G_UnitAbilityClassLevel(caster, code) : 0u,
                     caster ? (unsigned)S_UnitPolymorphed(caster) : 0u);
         return false;
     }
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || spell->target_type != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
+    if (!spell || S_SpellTargetType(caster,code) != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
         if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
             fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_shape spell=%p target_type=%u command=%u\n",
-                    (void *)spell, spell ? (unsigned)spell->target_type : 0u,
+                    (void *)spell, spell ? (unsigned)S_SpellTargetType(caster,code) : 0u,
                     (unsigned)(spell && S_AbilityHasCommand(spell)));
         return false;
     }
@@ -1314,11 +2147,15 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
                 (unsigned)caster->s.number, level, caster->mana.value,
                 S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
-    spell_commit(caster, code, level, NULL);
-    if (spell->flags & AB_CHANNEL) {
-        spell_begin_channel(caster, code);
-    }
-    spell_publish_effect(caster, code, target);
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !S_ValidateNoTargetSpell(caster,code))return false;
+    if(bypass)return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
+    abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&target,NULL,0,NULL);
+    if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
+    if(!spell_dispatch_effect(caster,code,target))return false;
+    spell_commit(caster, code, level, NULL,true);
+    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }
@@ -1329,11 +2166,13 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     ability_t const *spell;
     spellTarget_t target;
 
-    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster || !point || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    vec2_t destination=*point;
+    point=&destination;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+    if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_POINT &&
+                   S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
@@ -1344,9 +2183,18 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level, NULL);
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !spell_message(caster,A_VALIDATE,&item,&target))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=*point};
+        return spell_start_forced_channel(caster,code,&cached_point)==ABILITY_ORDER_ACCEPTED;
+    }
+    if(!S_SpellCanPay(caster,code,level))
+        return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
+    if(!spell_dispatch_effect(caster,code,target))return false;
+    spell_commit(caster, code, level, NULL,true);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }
@@ -1358,22 +2206,31 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
     if (!caster || !unit || !code) return false;
-    if (!G_UnitAbilityLevel(caster, code)) return false;
+    if (!G_UnitAbilityClassLevel(caster, code)) return false;
     if (S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell) return false;
-    if (spell->target_type != SPELL_TARGET_UNIT) return false;
+    if (S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT) return false;
     if (!S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
     if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) return false;
     if (!S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level, NULL);
-    if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,unit,NULL,0,&bypass) ||
+       !spell_message(caster,A_VALIDATE,&item,&target))return false;
+    if(bypass) {
+        spellTarget_t cached_point={.type=SPELL_TARGET_POINT,.point=unit->s.origin2};
+        return spell_start_forced_channel(caster,code,&cached_point)==ABILITY_ORDER_ACCEPTED;
+    }
+    if(!S_SpellCanPay(caster,code,level))
+        return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
+    if(!spell_dispatch_effect(caster,code,target))return false;
+    spell_commit(caster, code, level, NULL,true);
+    if (S_PrepareUnitSpellEffect(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }
@@ -1434,19 +2291,24 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     if (!missile) return NULL;
     art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     missile->class_id = code;
-    missile->s.origin = caster->s.origin;
+    mat4_t matrix;M_GetEntityMatrix(&caster->s,&matrix);
+    vec3_t launch={G_UnitAttack1LaunchX(caster->class_id),G_UnitAttack1LaunchY(caster->class_id),G_UnitAttack1LaunchZ(caster->class_id)};
+    missile->s.origin = Matrix4_multiply_vector3(&matrix,&launch);
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->s.player = caster->s.player;
     G_InheritUnitTeamColor(missile, caster);
-    missile->goalentity = target;
-    channel_t *cast = G_AddChannel(missile);
-    cast->owner_spawn_time = caster->spawn_time;
-    cast->target_spawn_time = target->spawn_time;
+    S_SetMoveGoal(missile, &missile->goalentity, target);
+    if (!missile->channel) missile->channel = G_AllocChannel();
+    assert(missile->channel);
+    missile->channel->owner_spawn_time = caster->spawn_time;
+    missile->channel->target_spawn_time = target->spawn_time;
     missile->owner = caster;
     missile->velocity = MAX(0.0f, speed) / 1000.0f;
     missile->movetype = MOVETYPE_FLYMISSILE;
-    missile->currentmove = move;
+    /* Homing spell missiles use the Move projectile producer, not a ground route. */
+    S_InitMoveProjectile(missile);
+    M_SetMove(missile, move);
     G_StartProjectilePresentation(missile);
     return missile;
 }
@@ -1484,7 +2346,7 @@ void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
  * attributed an older projectile impact. */
 edict_t *S_SpellProjectileOwner(edict_t *missile) {
     edict_t *owner;
-    channel_t const *cast = G_GetChannel(missile);
+    channel_t const *cast = missile ? missile->channel : NULL;
     if (!cast || !(owner = missile->owner) || !owner->inuse) return NULL;
     return owner->spawn_time == cast->owner_spawn_time ? owner : NULL;
 }
@@ -1494,7 +2356,7 @@ edict_t *S_SpellProjectileOwner(edict_t *missile) {
  * conditions invalidate their ability-specific effect. */
 edict_t *S_SpellProjectileTarget(edict_t *missile) {
     edict_t *target;
-    channel_t const *cast = G_GetChannel(missile);
+    channel_t const *cast = missile ? missile->channel : NULL;
     if (!cast || !(target = missile->goalentity) || !target->inuse) return NULL;
     return target->spawn_time == cast->target_spawn_time ? target : NULL;
 }
@@ -1618,7 +2480,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     if (!slot || !slot->level) return;
     rank = slot->rank ? slot->rank : slot->level;
     /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
-    switch (slot->code) {
+    switch (G_UnitStatusClassCode(slot)) {
     case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
     case MAKEFOURCC('B','s','l','o'):
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
@@ -1629,7 +2491,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     default: return;
     }
     /* Unknown/custom statuses own their descriptors: never erase them. */
-    switch (slot->code) {
+    switch (G_UnitStatusClassCode(slot)) {
     case MAKEFOURCC('B','c','r','i'):
         if (!ability) ability = MAKEFOURCC('A','c','r','i');
         status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
@@ -1749,9 +2611,9 @@ void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float r
  * keep their own wrapper so animation and expiry policy remain ability-owned. */
 void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     if (!unit || !code) return;
-    FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t *status = unit->unit_state->statuses + i;
-        if (status->level && status->code == code) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *status = unit->abilstatus + i;
+        if (status->level && G_UnitStatusClassCode(status) == code) {
             unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
             return;
         }
@@ -1759,25 +2621,52 @@ void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     unit_addstatus(unit, GetClassName(code), level);
 }
 
-bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
-    uint32_t level;
-    float range;
-    ability_t const *spell;
+bool S_ValidateUnitTargetSpell(edict_t *caster,uint32_t code,edict_t *unit) {
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
-
-    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellAbilityForCode(code);
+    if (!caster || !unit || !code || !G_UnitAbilityClassLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    ability_t const *spell=spell_target_approach_ability(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || (spell->target_type != SPELL_TARGET_UNIT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+    if (!spell || (S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
+                   S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
-    level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
-    if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
+    if (!spell_validate(NULL, caster, code, S_SpellLevel(caster,code), unit, 0.0f) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
-    if (!S_SpellTargetInRange(caster, unit, range))
-        return spell_begin_target_approach(caster, code, unit, NULL, NULL, 0);
+    return spell_message(caster,A_VALIDATE,&item,&target)!=0;
+}
+
+bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
+    bool bypass=S_SpellPreparationBypassesTarget(caster);
+    if(!S_ValidateUnitTargetSpell(caster,code,unit))return false;
+    uint32_t spawn=caster->spawn_time,target_spawn=unit->spawn_time;
+    uint32_t level=S_SpellLevel(caster,code);
+    float range=S_SpellRange(code,level);
+    ability_t const *spell=spell_target_approach_ability(code);
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};
+    /* 40a7a0 snapshots the scoped bypass before running its own preparation.
+     * Resource callbacks can replace either actor; spending still uses current
+     * mana, never the potential used by public admission. */
+    uint32_t preparation_revision=G_UnitMoveRevision(caster);
+    uint64_t preparation_epoch=S_SpellPreparationEpoch();
+    bool prepared=S_PrepareSpellMana(caster,code,level);
+    if(S_SpellPreparationEpoch()!=preparation_epoch)return false;
+    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) || M_IsDead(caster) ||
+       !unit->inuse || unit->spawn_time!=target_spawn || G_IsDeferredFree(unit) || M_IsDead(unit))return false;
+    if(prepared && (!S_SpellCanPay(caster,code,level) || !S_ValidateUnitTargetSpell(caster,code,unit)))return false;
+    if(prepared)spell_retain_prepared_move(caster,preparation_revision);
+    if(bypass) {
+        /* The retained identity and cached coordinates exist, but the direct
+         * CHANNEL branch precedes target-mode publication (10000). */
+        spellTarget_t point={.type=SPELL_TARGET_POINT,.point=unit->s.origin2};
+        if(spell->flags&AB_TARGET_APPROACH)
+            return spell_message(caster,A_SPELL_TARGET_COMPLETE,&item,&point)!=0;
+        return spell_start_forced_channel(caster,code,&point)==ABILITY_ORDER_ACCEPTED;
+    }
+    if (!spell_unit_target_ready(caster, unit, range)) {
+        if(!spell_begin_target_approach(caster,code,unit,NULL,NULL,0))return false;
+        return !(spell->flags&AB_TARGET_APPROACH) || spell_message(caster,A_SPELL_TARGET_ACQUIRED,&item,&target);
+    }
+    if((spell->flags&AB_TARGET_APPROACH) && !spell_message(caster,A_SPELL_TARGET_ACQUIRED,&item,&target))return false;
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = unit
@@ -1786,34 +2675,33 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     return true;
 }
 
+bool S_ValidatePointTargetSpell(edict_t *caster,uint32_t code,vec2_t const *point) {
+    if(!caster || !point || !code || !G_UnitAbilityClassLevel(caster,code) || S_UnitPolymorphed(caster))return false;
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    if(!spell || (S_SpellTargetType(caster,code)!=SPELL_TARGET_POINT &&
+                  S_SpellTargetType(caster,code)!=SPELL_TARGET_UNIT_OR_POINT) ||
+       !S_AbilityHasCommand(spell) || (spell->flags&AB_TOGGLE))return false;
+    abilityitem_t item={.code=code,.ability=spell};
+    spellTarget_t target={.type=SPELL_TARGET_POINT,.point=*point};
+    spellPointValidateParams_t val={.caster=caster,.code=code,.level=S_SpellLevel(caster,code),.point=point,.range=0};
+    return spell_validate_point(&val) && spell_message(caster,A_VALIDATE,&item,&target);
+}
+
 bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point) {
-    uint32_t level;
-    float range;
-    ability_t const *spell;
-    abilityitem_t item;
-    spellTarget_t target;
-    spellPointValidateParams_t val;
-
-    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster))
-        return false;
-    spell = S_SpellAbilityForCode(code);
-    item = MAKE(abilityitem_t, .code = code, .ability = spell);
-    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
-        !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
-    level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
-    val = MAKE(spellPointValidateParams_t, .caster = caster, .code = code,
-               .level = level, .point = point, .range = 0.0f);
-    if (!spell_validate_point(&val)) return false;
-    target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
-
-    if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range)
-        return spell_begin_target_approach(caster, code, NULL, point, NULL, 0);
-
-    spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, 0, NULL);
-    return true;
+    if(!S_ValidatePointTargetSpell(caster,code,point))return false;
+    /* Copy the public point before preparation can retire its source object. */
+    vec2_t destination=*point;
+    uint32_t level=S_SpellLevel(caster,code);
+    ability_t const *spell=S_SpellAbilityForCode(code);
+    float range=S_SpellRange(code,level);
+    bool bypass;
+    if(!spell_prepare_constructor(caster,code,level,NULL,NULL,0,&bypass) ||
+       !S_ValidatePointTargetSpell(caster,code,&destination))return false;
+    spellTarget_t target={.type=SPELL_TARGET_POINT,.point=destination};
+    if(bypass)return spell_start_forced_channel(caster,code,&target)==ABILITY_ORDER_ACCEPTED;
+    if(range>0 && !S_UnitPointInMoveRange(caster,&destination,range))
+        return spell_begin_target_approach(caster,code,NULL,&destination,NULL,0);
+    return spell_execute_point_target(NULL,caster,code,level,spell,&destination,NULL,0,NULL);
 }
 
 /* Shared command entry point for all spell abilities.  Sets up the appropriate
@@ -1849,7 +2737,7 @@ void spell_cmd(edict_t *clent) {
     }
 
 
-    switch (spell->target_type) {
+    switch (S_SpellTargetType(caster,code)) {
     case SPELL_TARGET_NONE:
         spell_no_target_execute(clent);
         break;

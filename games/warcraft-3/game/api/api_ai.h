@@ -70,10 +70,10 @@ static int32_t BotUnitCount(player_t *player, uint32_t unitid, bool done) {
     if (!player || !unitid) return 0;
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == unitid &&
                          ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER)) {
-        if (!done || (!G_GetConstruction(ent) && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING))) count++;
+        if (!done || (!ent->construction && !(ent && ent->training))) count++;
     }
     if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
-                                      (builder->orders ? builder->orders->build_project : 0) == unitid) count++;
+                                      builder->build_project == unitid) count++;
     return count;
 }
 
@@ -110,8 +110,8 @@ static void BotTraceAssaultSupply(jass_t *j, player_t *player, uint32_t unitid,
     bot = &level.bots[playernum];
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == playernum && ent->class_id == unitid) {
         owned++;
-        if (G_GetConstruction(ent)) constructing++;
-        else if (G_UnitHasFlag(ent, UNIT_FLAG_TRAINING)) training++;
+        if (ent->construction) constructing++;
+        else if ((ent && ent->training)) training++;
         else {
             complete++;
             bool in_captain = false;
@@ -124,15 +124,15 @@ static void BotTraceAssaultSupply(jass_t *j, player_t *player, uint32_t unitid,
         }
     }
     FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == playernum &&
-                          (builder->orders ? builder->orders->build_project : 0) == unitid) producing++;
+                          builder->build_project == unitid) producing++;
     if (state->seen && state->unitid == unitid && state->owned == owned &&
-        state->complete == complete && G_UnitHasFlag(state, UNIT_FLAG_TRAINING) == training &&
+        state->complete == complete && (state && state->training) == training &&
         state->constructing == constructing && state->producing == producing &&
         state->assigned == assigned) return;
     state->unitid = unitid;
     state->owned = owned;
     state->complete = complete;
-    G_SetUnitFlag(state, UNIT_FLAG_TRAINING, training);
+    state->training = training;
     state->constructing = constructing;
     state->producing = producing;
     state->assigned = assigned;
@@ -456,6 +456,7 @@ uint32_t AddAssault(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool ready = G_BotAddAssault(player, qty, class_id);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_form_progress",
                "qty=%d unit=%.4s ready=%d group_size=%u desired=%u", qty,
                (cstring_t)&class_id, (int)ready, G_BotCaptainGroupSize(player),
@@ -550,15 +551,19 @@ uint32_t SetCaptainHome(jass_t *j) {
     G_BotSetCaptainHome(player, which, x, y);
     return 0;
 }
+uint32_t CaptainGoHome(jass_t *j) {
+    G_BotCaptainGoHome(jass_getcontext(j)->playerState);
+    return 0;
+}
+uint32_t CaptainAttack(jass_t *j) {
+    vec2_t point={jass_checknumber(j,1),jass_checknumber(j,2)};
+    G_BotCaptainAttack(jass_getcontext(j)->playerState,&point);
+    return 0;
+}
 uint32_t TeleportCaptain(jass_t *j) {
     G_BotTeleportCaptain(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
     return 0;
 }
-uint32_t CaptainAttack(jass_t *j) {
-    G_BotCaptainAttack(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
-    return 0;
-}
-uint32_t CaptainGoHome(jass_t *j) { G_BotCaptainGoHome(jass_getcontext(j)->playerState); return 0; }
 uint32_t CaptainVsPlayer(jass_t *j) {
     G_BotCaptainVsPlayer(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "player"));
     return 0;
@@ -584,7 +589,7 @@ uint32_t SuicideUnit(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, -1);
-    (void)accepted; // Retained for WC3_TRACE_AI diagnostics when tracing is enabled.
+    (void)accepted; /* Retained for optional WC3_TRACE_AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnit qty=%d unit=%.4s target=any_hostile accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, (int)accepted, G_BotCaptainGroupSize(player));
@@ -597,7 +602,7 @@ uint32_t SuicideUnitEx(jass_t *j) {
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     int32_t target = jass_checkinteger(j, 3);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, target);
-    (void)accepted; // Retained for WC3_TRACE_AI diagnostics when tracing is enabled.
+    (void)accepted; /* Retained for optional WC3_TRACE_AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnitEx qty=%d unit=%.4s target_player=%d accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, target, (int)accepted, G_BotCaptainGroupSize(player));
@@ -611,6 +616,7 @@ uint32_t SuicidePlayer(jass_t *j) {
     player_t *target = jass_checkhandle(j, 1, "player");
     bool check_full = jass_checkboolean(j, 2);
     bool accepted = G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u shortfall=%u",
                target ? PLAYER_NUM(target) : 0, (int)check_full, (int)accepted,

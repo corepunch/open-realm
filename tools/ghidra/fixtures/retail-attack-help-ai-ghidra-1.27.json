@@ -1,0 +1,824 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "rows": [
+    [
+      "6f1e9a40",
+      "Game_CreateConfiguredTownAIs",
+      "ECX Game; plain RET. Iterate players0..11: controller player268==1 and slot state270==1 create retained Town AI at current difficulty26c; always create player12 with difficulty1. Membership availability precedes StartCampaignAI, verified public configured computer0 and neutral12/15 controls; other controller mutations remain unverified."
+    ],
+    [
+      "6f26b0d0",
+      "Player_CreateTownAI",
+      "ECX Player, stack4 difficulty; RET4. Town factory9c54e0 receives player30 and difficulty. Resolve canonical class2b61676c, retain Town identity in player2d4/2d8 or ffffffff on unresolved result. Decompiled fastcall signature omits the actual stack argument; ABI confirmed from assembly."
+    ],
+    [
+      "6f67dff0",
+      "Unit_SetAbilityAIMode",
+      "ECX Unit, stack4 Boolean; RET4. Walk live ability identities1dc/1e0 and next24/28. For ability3c<=0 set/clear ability20 bit2, then invoke c8/c4 respectively. Enrollment and owner transfer controls observe this boundary; complete per-ability side effects remain GROUP03.2."
+    ],
+    [
+      "6f687020",
+      "Unit_GetAIRecord",
+      "ECX Unit; plain RET/tail resolve. Return NULL for identity304/308 all-ones, otherwise resolve payload. Help recipient66e9e0 tests this pointer to distinguish ordinary victim-self from an AI recipient; AI flag5c.4 is a distinct field, not this identity. Wider record lifecycle remains open."
+    ],
+    [
+      "6f686b10",
+      "Unit_GetTargetedAsFlags",
+      "ECX Unit; plain RET. Return unit24c, CUnit vtable114 getter. AI membership9b9230 excludes targeted-as ward bit10, independently of dead unit5c.100. This is not the collision/category query mask."
+    ],
+    [
+      "6f9b9230",
+      "Unit_RefreshAIOwnedPoolMembership",
+      "Public configured computer0 is enrolled before AI script startup and on fresh creation afterward; owner12 is enrolled without a script and owner15 is not. Dead/ward gate precedes retained player Town resolution and prepend. Set unit5c.4 only upon valid Town membership. Engine Save129 retains per-map availability and per-instance enrollment; ability AI hooks and broader record producers remain open."
+    ],
+    [
+      "6f698ce0",
+      "Unit_SetPlayerOwner",
+      "Genuine owner transfer publishes owner event first, then disables ability AI mode67dff0(0), clears unit5c.4 through6991b0 and reenrolls9b9230. Same-owner returns without these transitions. Complete repeated public 0->2,2->2,2->0 controls preserve an already armed help suppression deadline across transfer."
+    ],
+    [
+      "6f69b380",
+      "Unit_ApplyDamageAndNotifyAbilities",
+      "AI unit5c.4 with source and packet bit4 clear calls695030(victim self,source) before ordinary fc damage notifications, independently of help suppression. Repeated AH153 tick11 retains the self alert while no new radius query runs. Ordinary help follows; engine self cap notification and saved AI help policy integrated, wider damage/engagement guards remain open."
+    ],
+    [
+      "6f66e700",
+      "Unit_CallForHelp",
+      "AH153 public repeats: configured computer0 radius900/delay0.5 before/after StartCampaignAI; real transfer2 radius173/delay3, return0 restores900/0.5. Owners12/15 both use authored creep229, but only enrolled12 uses0.5; passive15 uses3. Query includes victim self only with AI record, while direct damage self alert is separate. AI propagation90/94 and Town/captain event behavior remain open."
+    ]
+  ],
+  "readback": [
+    {
+      "address": "6f1e9a40",
+      "name": "Game_CreateConfiguredTownAIs",
+      "comments": {
+        "address": "6f1e9a40",
+        "plate": "Payoff153: ECX Game; plain RET. Iterate players0..11: controller player268==1 and slot state270==1 create retained Town AI at current difficulty26c; always create player12 with difficulty1. Membership availability precedes StartCampaignAI, verified public configured computer0 and neutral12/15 controls; other controller mutations remain unverified.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff153: ECX Game; plain RET. Iterate players0..11: controller player268==1 and slot state270==1 create retained Town AI at current difficulty26c; always create player12 with difficulty1. Membership availability precedes StartCampaignAI, verified public configured computer0 and neutral12/15 controls; other controller mutations remain unverified.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f26b0d0",
+      "name": "Player_CreateTownAI",
+      "comments": {
+        "address": "6f26b0d0",
+        "plate": "Payoff153: ECX Player, stack4 difficulty; RET4. Town factory9c54e0 receives player30 and difficulty. Resolve canonical class2b61676c, retain Town identity in player2d4/2d8 or ffffffff on unresolved result. Decompiled fastcall signature omits the actual stack argument; ABI confirmed from assembly.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff153: ECX Player, stack4 difficulty; RET4. Town factory9c54e0 receives player30 and difficulty. Resolve canonical class2b61676c, retain Town identity in player2d4/2d8 or ffffffff on unresolved result. Decompiled fastcall signature omits the actual stack argument; ABI confirmed from assembly.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f67dff0",
+      "name": "Unit_SetAbilityAIMode",
+      "comments": {
+        "address": "6f67dff0",
+        "plate": "Payoff153: ECX Unit, stack4 Boolean; RET4. Walk live ability identities1dc/1e0 and next24/28. For ability3c<=0 set/clear ability20 bit2, then invoke c8/c4 respectively. Enrollment and owner transfer controls observe this boundary; complete per-ability side effects remain GROUP03.2.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff153: ECX Unit, stack4 Boolean; RET4. Walk live ability identities1dc/1e0 and next24/28. For ability3c<=0 set/clear ability20 bit2, then invoke c8/c4 respectively. Enrollment and owner transfer controls observe this boundary; complete per-ability side effects remain GROUP03.2.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f687020",
+      "name": "Unit_GetAIRecord",
+      "comments": {
+        "address": "6f687020",
+        "plate": "Payoff153: ECX Unit; plain RET/tail resolve. Return NULL for identity304/308 all-ones, otherwise resolve payload. Help recipient66e9e0 tests this pointer to distinguish ordinary victim-self from an AI recipient; AI flag5c.4 is a distinct field, not this identity. Wider record lifecycle remains open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff153: ECX Unit; plain RET/tail resolve. Return NULL for identity304/308 all-ones, otherwise resolve payload. Help recipient66e9e0 tests this pointer to distinguish ordinary victim-self from an AI recipient; AI flag5c.4 is a distinct field, not this identity. Wider record lifecycle remains open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f686b10",
+      "name": "Unit_GetTargetedAsFlags",
+      "comments": {
+        "address": "6f686b10",
+        "plate": "Payoff153: ECX Unit; plain RET. Return unit24c, CUnit vtable114 getter. AI membership9b9230 excludes targeted-as ward bit10, independently of dead unit5c.100. This is not the collision/category query mask.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff153: ECX Unit; plain RET. Return unit24c, CUnit vtable114 getter. AI membership9b9230 excludes targeted-as ward bit10, independently of dead unit5c.100. This is not the collision/category query mask.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f9b9230",
+      "name": "Unit_RefreshAIOwnedPoolMembership",
+      "comments": {
+        "address": "6f9b9230",
+        "plate": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: Public configured computer0 is enrolled before AI script startup and on fresh creation afterward; owner12 is enrolled without a script and owner15 is not. Dead/ward gate precedes retained player Town resolution and prepend. Set unit5c.4 only upon valid Town membership. Engine Save129 retains per-map availability and per-instance enrollment; ability AI hooks and broader record producers remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is a no-op. Broader neutral/town lifecycle remains outside this control.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains GROUP03.2.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: Public configured computer0 is enrolled before AI script startup and on fresh creation afterward; owner12 is enrolled without a script and owner15 is not. Dead/ward gate precedes retained player Town resolution and prepend. Set unit5c.4 only upon valid Town membership. Engine Save129 retains per-map availability and per-instance enrollment; ability AI hooks and broader record producers remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f698ce0",
+      "name": "Unit_SetPlayerOwner",
+      "comments": {
+        "address": "6f698ce0",
+        "plate": "Full owner transition; different owner only. Native215500 ->21552f reaches synchronous order cancellation698d92 BEFORE assigning Unit+58 player and mover bridge05c800 class publication. Ordinary Move scene tick15 cancels order851986, preserves committed fineXY, zeros native velocity/requested words. Other ownership lifecycle graph remains outside bounded ordinary movement parity.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: Genuine owner transfer publishes owner event first, then disables ability AI mode67dff0(0), clears unit5c.4 through6991b0 and reenrolls9b9230. Same-owner returns without these transitions. Complete repeated public 0->2,2->2,2->0 controls preserve an already armed help suppression deadline across transfer.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Full owner transition; different owner only. Native215500 ->21552f reaches synchronous order cancellation698d92 BEFORE assigning Unit+58 player and mover bridge05c800 class publication. Ordinary Move scene tick15 cancels order851986, preserves committed fineXY, zeros native velocity/requested words. Other ownership lifecycle graph remains outside bounded ordinary movement parity.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: Genuine owner transfer publishes owner event first, then disables ability AI mode67dff0(0), clears unit5c.4 through6991b0 and reenrolls9b9230. Same-owner returns without these transitions. Complete repeated public 0->2,2->2,2->0 controls preserve an already armed help suppression deadline across transfer.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f69b380",
+      "name": "Unit_ApplyDamageAndNotifyAbilities",
+      "comments": {
+        "address": "6f69b380",
+        "plate": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.\nPayoff152: All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: AI unit5c.4 with source and packet bit4 clear calls695030(victim self,source) before ordinary fc damage notifications, independently of help suppression. Repeated AH153 tick11 retains the self alert while no new radius query runs. Ordinary help follows; engine self cap notification and saved AI help policy integrated, wider damage/engagement guards remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "\nPayoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice.\nPayoff152: All ability virtualfc notifications precede help and damage amount rejection. Packet flags4,2,40 skip help. Other packets call66e700 even for zero amount, before damage scaling/health. AI propagation mode additionally depends on source enemy relation and packet200. Engine ordinary T_Damage broadcasts immediately after target notification.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: AI unit5c.4 with source and packet bit4 clear calls695030(victim self,source) before ordinary fc damage notifications, independently of help suppression. Repeated AH153 tick11 retains the self alert while no new radius query runs. Ordinary help follows; engine self cap notification and saved AI help policy integrated, wider damage/engagement guards remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    },
+    {
+      "address": "6f66e700",
+      "name": "Unit_CallForHelp",
+      "comments": {
+        "address": "6f66e700",
+        "plate": "Payoff152: ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: AH153 public repeats: configured computer0 radius900/delay0.5 before/after StartCampaignAI; real transfer2 radius173/delay3, return0 restores900/0.5. Owners12/15 both use authored creep229, but only enrolled12 uses0.5; passive15 uses3. Query includes victim self only with AI record, while direct damage self alert is separate. AI propagation90/94 and Town/captain event behavior remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "pre": null,
+        "eol": null,
+        "post": null,
+        "repeatable": null,
+        "comment": "Payoff152: ECX victim, stack4 attacker/8 AI propagation mode. Null source, unit5c bit40 (suppression), unit20 bit1 deny. Read committed world position,688060 radius,67e790 query tokens b/17/16/1f. Recipients execute synchronously before69c810, bit40 and d01b3 request on unit7c. Normal delay3; AI/Town-owned5c bit4 delay0.5. Fresh zero-damage live hits10/11/39/40/41: normal admissions10/41. Engine normal source request shares indexed Attack timer storage and Save128.\n   [payoff152] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff153: AH153 public repeats: configured computer0 radius900/delay0.5 before/after StartCampaignAI; real transfer2 radius173/delay3, return0 restores900/0.5. Owners12/15 both use authored creep229, but only enrolled12 uses0.5; passive15 uses3. Query includes victim self only with AI record, while direct damage self alert is separate. AI propagation90/94 and Town/captain event behavior remain open.\n   [payoff153] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "has_comment": true
+      }
+    }
+  ],
+  "static": {
+    "core": {
+      "0x6f1e9a40": "\nvoid FUN_6f1e9a40(void)\n\n{\n  int iVar1;\n  uint uVar2;\n  undefined4 uVar3;\n  \n  uVar2 = 0;\n  do {\n    iVar1 = FUN_6f1e0ea0(uVar2);\n    if ((*(int *)(iVar1 + 0x268) == 1) && (*(int *)(iVar1 + 0x270) == 1)) {\n      FUN_6f26b0d0(*(undefined4 *)(iVar1 + 0x26c));\n    }\n    uVar2 = uVar2 + 1;\n  } while (uVar2 < 0xc);\n  uVar3 = 1;\n  FUN_6f1e0ea0(0xc);\n  FUN_6f26b0d0(uVar3);\n  return;\n}\n\n",
+      "0x6f26b0d0": "\nvoid __fastcall FUN_6f26b0d0(int param_1)\n\n{\n  int iVar1;\n  WC3CanonicalPrefix *pWVar2;\n  WC3CanonicalPrefix *pWVar3;\n  \n  iVar1 = FUN_6f9c54e0();\n  if (iVar1 != 0) {\n    pWVar2 = PathRegistry_ResolveCanonical(*(int *)(iVar1 + 0xc),*(uint *)(iVar1 + 0x10));\n    if (pWVar2 != (WC3CanonicalPrefix *)0x0) {\n      pWVar3 = (WC3CanonicalPrefix *)0x0;\n      if (*(int *)&pWVar2->field_0xc == 0x2b61676c) {\n        pWVar3 = pWVar2;\n      }\n      if (pWVar3 != (WC3CanonicalPrefix *)0x0) {\n        *(int *)(param_1 + 0x2d4) = (pWVar3->identity).slot;\n        *(uint *)(param_1 + 0x2d8) = (pWVar3->identity).generation;\n        return;\n      }\n    }\n  }\n  *(undefined4 *)(param_1 + 0x2d8) = 0xffffffff;\n  *(undefined4 *)(param_1 + 0x2d4) = 0xffffffff;\n  return;\n}\n\n",
+      "0x6f9b9230": "\n/* Payoff59 owner transition698ce0 calls this after assigning Unit58 and publishing owner\n   eventd01a2. Resolve current player AI via player2d4/2d8, then9c3660 inserts the eligible unit\n   into its owned pool. Public owner round-trip recruits the older primary; same-owner transition is\n   a no-op. Broader neutral/town lifecycle remains outside this control.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff152: Resolves player AI2d4/2d8, prepends Town AI owned unit, then sets unit5c bit4 if clear\n   and calls67dff0(1). This is the producer of AI call-for-help radius/cooldown policy; neutral\n   aggressive hfoo already carries bit4 without StartAI. Full engine enrollment lifecycle remains\n   GROUP03.2.\n      [payoff152] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid __fastcall Unit_RefreshAIOwnedPoolMembership(WC3UnitOrdersPrefix *unit)\n\n{\n  uint uVar1;\n  int iVar2;\n  undefined4 uVar3;\n  int iVar4;\n  WC3TownOwnedHeadPrefix *town;\n  void *pvVar5;\n  undefined4 uVar6;\n  undefined4 uVar7;\n  undefined4 uVar8;\n  undefined4 uVar9;\n  \n  if (((unit != (WC3UnitOrdersPrefix *)0x0) && ((unit->order_admission_flags & 0x100) == 0)) &&\n     (uVar1 = (**(code **)((int)unit->vtable + 0x114))(), (uVar1 & 0x10) == 0)) {\n    iVar2 = (**(code **)((int)unit->vtable + 0xec))();\n    if ((iVar2 == 0xc) && ((unit->field_0x248 & 4) == 0)) {\n      FUN_6f9b7b30();\n    }\n    uVar9 = 1;\n    uVar8 = 1;\n    uVar7 = 0;\n    uVar6 = 1;\n    uVar3 = FUN_6f5e3780(1,0,1,1);\n    iVar2 = Unit_FindAbilityByClass(uVar3,uVar6,uVar7,uVar8,uVar9);\n    if (iVar2 != 0) {\n      FUN_6f9b7c10();\n    }\n    uVar3 = (**(code **)((int)unit->vtable + 0xec))();\n    iVar4 = FUN_6f1e0ea0(uVar3);\n    if (((*(uint *)(iVar4 + 0x2d8) & ((WC3PathIdentity *)(iVar4 + 0x2d4))->slot) == 0xffffffff) ||\n       (town = AgentIdentity_ResolvePayload((WC3PathIdentity *)(iVar4 + 0x2d4)),\n       town == (WC3TownOwnedHeadPrefix *)0x0)) {\n      if (iVar2 != 0) {\n        iVar2 = 0;\n        do {\n          iVar4 = FUN_6f1e0ea0(iVar2);\n          if (((*(uint *)(iVar4 + 0x2d8) & ((WC3PathIdentity *)(iVar4 + 0x2d4))->slot) != 0xffffffff\n              ) && (pvVar5 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(iVar4 + 0x2d4)),\n                   pvVar5 != (void *)0x0)) {\n            FUN_6f652cb0(pvVar5,1);\n          }\n          iVar2 = iVar2 + 1;\n        } while (iVar2 < 0xc);\n      }\n    }\n    else {\n      TownAI_PrependOwnedUnit(town,unit);\n      if ((unit->order_admission_flags & 4) == 0) {\n        unit->order_admission_flags = unit->order_admission_flags | 4;\n        FUN_6f67dff0(1);\n        return;\n      }\n    }\n  }\n  return;\n}\n\n",
+      "0x6f67dff0": "\nvoid __thiscall FUN_6f67dff0(int param_1,int param_2)\n\n{\n  uint uVar1;\n  int *piVar2;\n  WC3PathIdentity *identity;\n  \n  identity = (WC3PathIdentity *)(param_1 + 0x1dc);\n  uVar1 = *(uint *)(param_1 + 0x1e0) & identity->slot;\n  if (param_2 == 0) {\n    if (uVar1 != 0xffffffff) {\n      for (piVar2 = AgentIdentity_ResolvePayload(identity); piVar2 != (int *)0x0;\n          piVar2 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(piVar2 + 9))) {\n        if (piVar2[0xf] < 1) {\n          piVar2[8] = piVar2[8] & 0xfffffffd;\n          (**(code **)(*piVar2 + 0xc4))();\n        }\n        if ((piVar2[10] & ((WC3PathIdentity *)(piVar2 + 9))->slot) == 0xffffffff) {\n          return;\n        }\n      }\n    }\n  }\n  else if ((uVar1 != 0xffffffff) &&\n          (piVar2 = AgentIdentity_ResolvePayload(identity), piVar2 != (int *)0x0)) {\n    while( true ) {\n      if (piVar2[0xf] < 1) {\n        piVar2[8] = piVar2[8] | 2;\n        (**(code **)(*piVar2 + 200))();\n      }\n      if ((piVar2[10] & ((WC3PathIdentity *)(piVar2 + 9))->slot) == 0xffffffff) break;\n      piVar2 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(piVar2 + 9));\n      if (piVar2 == (int *)0x0) {\n        return;\n      }\n    }\n  }\n  return;\n}\n\n",
+      "0x6f687020": "\nvoid * __fastcall FUN_6f687020(int param_1)\n\n{\n  void *pvVar1;\n  \n  if ((*(uint *)(param_1 + 0x308) & ((WC3PathIdentity *)(param_1 + 0x304))->slot) == 0xffffffff) {\n    return (void *)0x0;\n  }\n  pvVar1 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(param_1 + 0x304));\n  return pvVar1;\n}\n\n"
+    },
+    "factory_assembly": {
+      "instructions": [
+        {
+          "address": "6f26b0d0",
+          "instruction": "PUSH EBP"
+        },
+        {
+          "address": "6f26b0d1",
+          "instruction": "MOV EBP,ESP"
+        },
+        {
+          "address": "6f26b0d3",
+          "instruction": "MOV EDX,dword ptr [EBP + 0x8]"
+        },
+        {
+          "address": "6f26b0d6",
+          "instruction": "PUSH ESI"
+        },
+        {
+          "address": "6f26b0d7",
+          "instruction": "MOV ESI,ECX"
+        },
+        {
+          "address": "6f26b0d9",
+          "instruction": "MOVZX ECX,byte ptr [ESI + 0x30]"
+        },
+        {
+          "address": "6f26b0dd",
+          "instruction": "CALL 0x6f9c54e0"
+        },
+        {
+          "address": "6f26b0e2",
+          "instruction": "TEST EAX,EAX"
+        },
+        {
+          "address": "6f26b0e4",
+          "instruction": "JZ 0x6f26b11c"
+        },
+        {
+          "address": "6f26b0e6",
+          "instruction": "MOV EDX,dword ptr [EAX + 0x10]"
+        },
+        {
+          "address": "6f26b0e9",
+          "instruction": "MOV ECX,dword ptr [EAX + 0xc]"
+        },
+        {
+          "address": "6f26b0ec",
+          "instruction": "CALL 0x6f054530"
+        },
+        {
+          "address": "6f26b0f1",
+          "instruction": "TEST EAX,EAX"
+        },
+        {
+          "address": "6f26b0f3",
+          "instruction": "JZ 0x6f26b11c"
+        },
+        {
+          "address": "6f26b0f5",
+          "instruction": "XOR ECX,ECX"
+        },
+        {
+          "address": "6f26b0f7",
+          "instruction": "CMP dword ptr [EAX + 0xc],0x2b61676c"
+        },
+        {
+          "address": "6f26b0fe",
+          "instruction": "CMOVZ ECX,EAX"
+        },
+        {
+          "address": "6f26b101",
+          "instruction": "TEST ECX,ECX"
+        },
+        {
+          "address": "6f26b103",
+          "instruction": "JZ 0x6f26b11c"
+        },
+        {
+          "address": "6f26b105",
+          "instruction": "MOV EAX,dword ptr [ECX + 0x14]"
+        },
+        {
+          "address": "6f26b108",
+          "instruction": "MOV dword ptr [ESI + 0x2d4],EAX"
+        },
+        {
+          "address": "6f26b10e",
+          "instruction": "MOV EAX,dword ptr [ECX + 0x18]"
+        },
+        {
+          "address": "6f26b111",
+          "instruction": "MOV dword ptr [ESI + 0x2d8],EAX"
+        },
+        {
+          "address": "6f26b117",
+          "instruction": "POP ESI"
+        },
+        {
+          "address": "6f26b118",
+          "instruction": "POP EBP"
+        },
+        {
+          "address": "6f26b119",
+          "instruction": "RET 0x4"
+        },
+        {
+          "address": "6f26b11c",
+          "instruction": "MOV dword ptr [ESI + 0x2d8],0xffffffff"
+        },
+        {
+          "address": "6f26b126",
+          "instruction": "MOV dword ptr [ESI + 0x2d4],0xffffffff"
+        },
+        {
+          "address": "6f26b130",
+          "instruction": "POP ESI"
+        },
+        {
+          "address": "6f26b131",
+          "instruction": "POP EBP"
+        },
+        {
+          "address": "6f26b132",
+          "instruction": "RET 0x4"
+        }
+      ],
+      "count": 31
+    },
+    "other_assembly": [
+      {
+        "instructions": [
+          {
+            "address": "6f1e9a40",
+            "instruction": "PUSH ESI"
+          },
+          {
+            "address": "6f1e9a41",
+            "instruction": "PUSH EDI"
+          },
+          {
+            "address": "6f1e9a42",
+            "instruction": "MOV EDI,ECX"
+          },
+          {
+            "address": "6f1e9a44",
+            "instruction": "XOR ESI,ESI"
+          },
+          {
+            "address": "6f1e9a46",
+            "instruction": "PUSH ESI"
+          },
+          {
+            "address": "6f1e9a47",
+            "instruction": "MOV ECX,EDI"
+          },
+          {
+            "address": "6f1e9a49",
+            "instruction": "CALL 0x6f1e0ea0"
+          },
+          {
+            "address": "6f1e9a4e",
+            "instruction": "CMP dword ptr [EAX + 0x268],0x1"
+          },
+          {
+            "address": "6f1e9a55",
+            "instruction": "JNZ 0x6f1e9a6d"
+          },
+          {
+            "address": "6f1e9a57",
+            "instruction": "CMP dword ptr [EAX + 0x270],0x1"
+          },
+          {
+            "address": "6f1e9a5e",
+            "instruction": "JNZ 0x6f1e9a6d"
+          },
+          {
+            "address": "6f1e9a60",
+            "instruction": "PUSH dword ptr [EAX + 0x26c]"
+          },
+          {
+            "address": "6f1e9a66",
+            "instruction": "MOV ECX,EAX"
+          },
+          {
+            "address": "6f1e9a68",
+            "instruction": "CALL 0x6f26b0d0"
+          },
+          {
+            "address": "6f1e9a6d",
+            "instruction": "INC ESI"
+          },
+          {
+            "address": "6f1e9a6e",
+            "instruction": "CMP ESI,0xc"
+          },
+          {
+            "address": "6f1e9a71",
+            "instruction": "JC 0x6f1e9a46"
+          },
+          {
+            "address": "6f1e9a73",
+            "instruction": "PUSH 0x1"
+          },
+          {
+            "address": "6f1e9a75",
+            "instruction": "PUSH 0xc"
+          },
+          {
+            "address": "6f1e9a77",
+            "instruction": "MOV ECX,EDI"
+          },
+          {
+            "address": "6f1e9a79",
+            "instruction": "CALL 0x6f1e0ea0"
+          },
+          {
+            "address": "6f1e9a7e",
+            "instruction": "MOV ECX,EAX"
+          },
+          {
+            "address": "6f1e9a80",
+            "instruction": "CALL 0x6f26b0d0"
+          },
+          {
+            "address": "6f1e9a85",
+            "instruction": "POP EDI"
+          },
+          {
+            "address": "6f1e9a86",
+            "instruction": "POP ESI"
+          },
+          {
+            "address": "6f1e9a87",
+            "instruction": "RET"
+          }
+        ],
+        "count": 26
+      },
+      {
+        "instructions": [
+          {
+            "address": "6f67dff0",
+            "instruction": "PUSH EBP"
+          },
+          {
+            "address": "6f67dff1",
+            "instruction": "MOV EBP,ESP"
+          },
+          {
+            "address": "6f67dff3",
+            "instruction": "MOV EAX,dword ptr [ECX + 0x1e0]"
+          },
+          {
+            "address": "6f67dff9",
+            "instruction": "ADD ECX,0x1dc"
+          },
+          {
+            "address": "6f67dfff",
+            "instruction": "PUSH ESI"
+          },
+          {
+            "address": "6f67e000",
+            "instruction": "AND EAX,dword ptr [ECX]"
+          },
+          {
+            "address": "6f67e002",
+            "instruction": "CMP dword ptr [EBP + 0x8],0x0"
+          },
+          {
+            "address": "6f67e006",
+            "instruction": "JZ 0x6f67e049"
+          },
+          {
+            "address": "6f67e008",
+            "instruction": "CMP EAX,-0x1"
+          },
+          {
+            "address": "6f67e00b",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e00d",
+            "instruction": "CALL 0x6f061320"
+          },
+          {
+            "address": "6f67e012",
+            "instruction": "MOV ESI,EAX"
+          },
+          {
+            "address": "6f67e014",
+            "instruction": "TEST ESI,ESI"
+          },
+          {
+            "address": "6f67e016",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e018",
+            "instruction": "CMP dword ptr [ESI + 0x3c],0x0"
+          },
+          {
+            "address": "6f67e01c",
+            "instruction": "JG 0x6f67e02c"
+          },
+          {
+            "address": "6f67e01e",
+            "instruction": "OR dword ptr [ESI + 0x20],0x2"
+          },
+          {
+            "address": "6f67e022",
+            "instruction": "MOV ECX,ESI"
+          },
+          {
+            "address": "6f67e024",
+            "instruction": "MOV EAX,dword ptr [ESI]"
+          },
+          {
+            "address": "6f67e026",
+            "instruction": "CALL dword ptr [EAX + 0xc8]"
+          },
+          {
+            "address": "6f67e02c",
+            "instruction": "MOV EAX,dword ptr [ESI + 0x28]"
+          },
+          {
+            "address": "6f67e02f",
+            "instruction": "LEA ECX,[ESI + 0x24]"
+          },
+          {
+            "address": "6f67e032",
+            "instruction": "AND EAX,dword ptr [ECX]"
+          },
+          {
+            "address": "6f67e034",
+            "instruction": "CMP EAX,-0x1"
+          },
+          {
+            "address": "6f67e037",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e039",
+            "instruction": "CALL 0x6f061320"
+          },
+          {
+            "address": "6f67e03e",
+            "instruction": "MOV ESI,EAX"
+          },
+          {
+            "address": "6f67e040",
+            "instruction": "TEST ESI,ESI"
+          },
+          {
+            "address": "6f67e042",
+            "instruction": "JNZ 0x6f67e018"
+          },
+          {
+            "address": "6f67e044",
+            "instruction": "POP ESI"
+          },
+          {
+            "address": "6f67e045",
+            "instruction": "POP EBP"
+          },
+          {
+            "address": "6f67e046",
+            "instruction": "RET 0x4"
+          },
+          {
+            "address": "6f67e049",
+            "instruction": "CMP EAX,-0x1"
+          },
+          {
+            "address": "6f67e04c",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e04e",
+            "instruction": "CALL 0x6f061320"
+          },
+          {
+            "address": "6f67e053",
+            "instruction": "MOV ESI,EAX"
+          },
+          {
+            "address": "6f67e055",
+            "instruction": "TEST ESI,ESI"
+          },
+          {
+            "address": "6f67e057",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e059",
+            "instruction": "LEA ESP,[ESP]"
+          },
+          {
+            "address": "6f67e060",
+            "instruction": "CMP dword ptr [ESI + 0x3c],0x0"
+          },
+          {
+            "address": "6f67e064",
+            "instruction": "JG 0x6f67e074"
+          },
+          {
+            "address": "6f67e066",
+            "instruction": "AND dword ptr [ESI + 0x20],0xfffffffd"
+          },
+          {
+            "address": "6f67e06a",
+            "instruction": "MOV ECX,ESI"
+          },
+          {
+            "address": "6f67e06c",
+            "instruction": "MOV EAX,dword ptr [ESI]"
+          },
+          {
+            "address": "6f67e06e",
+            "instruction": "CALL dword ptr [EAX + 0xc4]"
+          },
+          {
+            "address": "6f67e074",
+            "instruction": "MOV EAX,dword ptr [ESI + 0x28]"
+          },
+          {
+            "address": "6f67e077",
+            "instruction": "LEA ECX,[ESI + 0x24]"
+          },
+          {
+            "address": "6f67e07a",
+            "instruction": "AND EAX,dword ptr [ECX]"
+          },
+          {
+            "address": "6f67e07c",
+            "instruction": "CMP EAX,-0x1"
+          },
+          {
+            "address": "6f67e07f",
+            "instruction": "JZ 0x6f67e08c"
+          },
+          {
+            "address": "6f67e081",
+            "instruction": "CALL 0x6f061320"
+          },
+          {
+            "address": "6f67e086",
+            "instruction": "MOV ESI,EAX"
+          },
+          {
+            "address": "6f67e088",
+            "instruction": "TEST ESI,ESI"
+          },
+          {
+            "address": "6f67e08a",
+            "instruction": "JNZ 0x6f67e060"
+          },
+          {
+            "address": "6f67e08c",
+            "instruction": "POP ESI"
+          },
+          {
+            "address": "6f67e08d",
+            "instruction": "POP EBP"
+          },
+          {
+            "address": "6f67e08e",
+            "instruction": "RET 0x4"
+          }
+        ],
+        "count": 57
+      },
+      {
+        "instructions": [
+          {
+            "address": "6f687020",
+            "instruction": "MOV EAX,dword ptr [ECX + 0x308]"
+          },
+          {
+            "address": "6f687026",
+            "instruction": "ADD ECX,0x304"
+          },
+          {
+            "address": "6f68702c",
+            "instruction": "AND EAX,dword ptr [ECX]"
+          },
+          {
+            "address": "6f68702e",
+            "instruction": "CMP EAX,-0x1"
+          },
+          {
+            "address": "6f687031",
+            "instruction": "JNZ 0x6f687036"
+          },
+          {
+            "address": "6f687033",
+            "instruction": "XOR EAX,EAX"
+          },
+          {
+            "address": "6f687035",
+            "instruction": "RET"
+          },
+          {
+            "address": "6f687036",
+            "instruction": "JMP 0x6f061320"
+          }
+        ],
+        "count": 8
+      },
+      {
+        "instructions": [
+          {
+            "address": "6f686b10",
+            "instruction": "MOV EAX,dword ptr [ECX + 0x24c]"
+          },
+          {
+            "address": "6f686b16",
+            "instruction": "RET"
+          }
+        ],
+        "count": 2
+      }
+    ],
+    "fields": [
+      {
+        "layout": "WC3UnitOrdersPrefix",
+        "length": 780,
+        "offset": 92,
+        "field": "order_admission_flags",
+        "type": "/uint",
+        "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head.\n206610 bit21 reports scripted pause;697770/6977c0 set/clear200000\nGROUP-03.4.6.2.1.2: bit40000000 is the illusion flag (IsUnitIllusion 206310 returns5c>>30&1; Unit_CreateIllusionCopy creation flag10000 -> 677ac7 OR). Live Wand illusions read40001005.\nPayoff153: bit4 records successful Town AI enrollment9b9230, cleared on genuine owner change6991b0. It selects help radius900 for non-neutral owners and suppression0.5; separate from AI record304/308."
+      },
+      {
+        "layout": "WC3UnitOrdersPrefix",
+        "length": 780,
+        "offset": 772,
+        "field": "ai_record",
+        "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+        "evidence": "Payoff153:687020 returns NULL for304/308 all-ones, otherwise resolves canonical payload;66e9e0 uses this pointer for victim-self handling. Live153 observer reads both identity words."
+      },
+      {
+        "layout": "WC3PlayerRacePrefix",
+        "length": 732,
+        "offset": 616,
+        "field": "controller",
+        "type": "/uint",
+        "evidence": "Payoff153:1e9a4e checks1 (computer) before configured Town creation."
+      },
+      {
+        "layout": "WC3PlayerRacePrefix",
+        "length": 732,
+        "offset": 620,
+        "field": "difficulty",
+        "type": "/uint",
+        "evidence": "Payoff153:1e9a60 passes configured difficulty to26b0d0 stack4."
+      },
+      {
+        "layout": "WC3PlayerRacePrefix",
+        "length": 732,
+        "offset": 624,
+        "field": "slot_state",
+        "type": "/uint",
+        "evidence": "Payoff153:1e9a57 checks1 (playing); controller and slot state are independent gates."
+      },
+      {
+        "layout": "WC3PlayerRacePrefix",
+        "length": 732,
+        "offset": 724,
+        "field": "town_ai",
+        "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+        "evidence": "Payoff153:26b0d0 retains resolved Town identity or all-ones;9b9230 resolves it for unit membership independent of script startup."
+      }
+    ]
+  },
+  "map": {
+    "task": "GROUP-03.2",
+    "base_sha256": "199683be6cd1a888ade00f3dce1e3e93f16e92e05724717048b033108b5a2104",
+    "scenario": "formation_policy",
+    "stage_map_sha256": "aae5ae09dd5a7c8175aaa86559f09419e7bebfcebc510fc88cfed694482f3969",
+    "map_sha256": "89592c312840eebd68ded27bc44a693cddc6016e6ebdd8dffa70ac00384f27e0",
+    "members": [
+      "war3map.doo",
+      "war3map.j",
+      "war3map.mmp",
+      "war3map.shd",
+      "war3map.w3a",
+      "war3map.w3c",
+      "war3map.w3e",
+      "war3map.w3i",
+      "war3map.w3r",
+      "war3map.w3s",
+      "war3map.w3u",
+      "war3map.wct",
+      "war3map.wpm",
+      "war3map.wtg",
+      "war3map.wts",
+      "war3mapMap.blp",
+      "war3mapUnits.doo",
+      "war3mapMisc.txt",
+      "Scripts\\attack_help153_probe.ai"
+    ],
+    "changed_members": {
+      "war3map.j": "6722d4c54807a89d9cbe89c3179a17955a97d0857c7063f0f1c21222d1cb82c2",
+      "war3map.wpm": "166ff49c3509548c9fceaa834b390c0017e88712ab8b47a58760e8ec916203f6",
+      "war3mapMisc.txt": "565dff57662eebb7864d2ea1a3489f0ae0d7fb835f7e89c9b03bb9871c3ef4de",
+      "Scripts\\attack_help153_probe.ai": "77cd4a8bd23163272e33dd3d6a55f620c8437c3130bae1de2b088f8f101cba9d"
+    },
+    "wpm_blocked": null,
+    "preload_output": "rs-ah153-v2.txt",
+    "builder_sha256": "b9929d2734c3e0360ff658c8910c76a5c2978face730b944a93a7268b8023670",
+    "shared_builder_sha256": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+    "probe": "attack_help153_probe.j",
+    "replacements": [],
+    "computer_players": [
+      0
+    ],
+    "probe_sha256": "a74373913b4b6767eadda0fb87b9513bbbedc12376f339ec4e3c5a61e3f6af3e",
+    "fine_origin": [
+      0.0,
+      0.0
+    ],
+    "fine_cell_world": 32.0,
+    "container": "rebuilt MPQ with original HM3W header; signature not retained"
+  },
+  "producer_sha256": {
+    "tools/frida/research/attack_help152_make_map.py": "b9929d2734c3e0360ff658c8910c76a5c2978face730b944a93a7268b8023670",
+    "tools/frida/research/attack_help153_probe.j": "a74373913b4b6767eadda0fb87b9513bbbedc12376f339ec4e3c5a61e3f6af3e",
+    "tools/frida/research/attack_help153_probe.ai": "77cd4a8bd23163272e33dd3d6a55f620c8437c3130bae1de2b088f8f101cba9d",
+    "tools/frida/research/attack_help153_observer.js": "289cea6bfd8da96b0cd1d24ef227a8272cb562392ee24e8b3b496061f597272e",
+    "tools/frida/research/group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf"
+  },
+  "limitations": [
+    "Native player270 playing-state gate is recovered statically; public captures cover configured computer0 and neutral2/12/15, not all lobby/controller mutations.",
+    "AI record304/308 and unit5c.4 are distinct. Full ability AI hooks, special reenrollment producers, propagated90/94 counters and Town/captain reactions remain GROUP03.2.",
+    "The capture wrapper records the unused group032 builder. Actual153 map producer and assets are independently pinned here."
+  ]
+}

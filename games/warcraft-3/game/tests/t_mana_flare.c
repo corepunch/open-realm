@@ -65,17 +65,17 @@ static void mfl_setup(mflFix_t *fix, cstring_t slk) {
 	fix->flare->targtype = fix->enemy->targtype = fix->ally->targtype = TARG_GROUND;
 	fix->far_enemy->targtype = fix->far_bait->targtype = fix->splash->targtype = TARG_GROUND;
 	fix->enemy->data.UnitBalance = &fix->enemy_bal;
-	fix->flare->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AMFL, .level = 1);
-	fix->enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
-	fix->ally->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
-	fix->far_enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
+	fix->flare->heroabilities[0] = MAKE(heroability_t, .code = BZ_AMFL, .level = 1);
+	fix->enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
+	fix->ally->heroabilities[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
+	fix->far_enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
 	fix->flare->mana.value = fix->flare->mana.max_value = 200;
 	fix->enemy->mana.value = fix->enemy->mana.max_value = 100;
 	fix->ally->mana.value = fix->ally->mana.max_value = 100;
 	fix->far_enemy->mana.value = fix->far_enemy->mana.max_value = 100;
 	fix->splash->mana.value = fix->splash->mana.max_value = 100;
 	fix->flare->health.value = fix->flare->health.max_value = 450;
-	fix->flare->unit_state->armor_value = 0;
+	fix->flare->armor_value = 0;
 	fix->enemy->health.value = fix->enemy->health.max_value = 500;
 	fix->ally->health.value = fix->ally->health.max_value = 500;
 	fix->far_enemy->health.value = fix->far_enemy->health.max_value = 500;
@@ -104,7 +104,7 @@ TEST(wc3_spell, mana_flare_activates_buff_channel_and_armor) {
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_FEQ(fix.flare->mana.value, 175, 0.001f);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
-	T_EQ(G_GetChannel(fix.flare)->code, BZ_AMFL);
+	T_EQ(fix.flare->channel->code, BZ_AMFL);
 	T_FEQ(G_UnitArmorValue(fix.flare), 9, 0.001f);
 	mfl_done(&fix);
 }
@@ -161,7 +161,7 @@ TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
 	level.time += 30000; unit_updatestatuses(fix.flare);
 	S_RunAbilityUpdates(fix.flare);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
-	T_ASSERT(!G_GetChannel(fix.flare) || G_GetChannel(fix.flare)->code == 0);
+	T_ASSERT(!fix.flare->channel || fix.flare->channel->code == 0);
 	T_FEQ(G_UnitArmorValue(fix.flare), 0, 0.001f);
 	mfl_done(&fix);
 }

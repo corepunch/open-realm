@@ -1,0 +1,21 @@
+{
+  "scope": "Read-only audit of the shared source and isolated checked point proposal. No shared source or index changes.",
+  "production_target_dispatch_callers": [
+    "m_unit.c:unit_issuetargetorder_now Smart branch"
+  ],
+  "producer_routes": [
+    "G_IssueUnitTargetOrder and unit_issuetargetorder_now, including ordinary saved target queue activation",
+    "CAbilityMove A_QUEUE_ORDER_START for typed group target continuations",
+    "S_UnitTargetAbilityOrder exported target-owned dispatcher -> CAbilityWarp A_TARGET_ORDER"
+  ],
+  "missing_symbol": "No S_WaygateOrderSmart symbol exists in this tree.",
+  "legacy_chain": [
+    "CAbilityWarp A_TARGET_ORDER",
+    "waygate_order_use",
+    "waygate_move_walk / ai_waygate_walk",
+    "waygate_complete -> S_SpellRelocateUnit"
+  ],
+  "proposed_retirement": "Delegate target-owned Smart to S_IssueWaygateMoveOrder. Remove only the otherwise unreachable legacy private walker and direct relocation helpers. Retain serialized legacy movement fields and their reference validation; the new point task layout explicitly rejects Save214. No saved field removal is proposed.",
+  "persistence": "F_MMOVE uses a module-relative static move pointer and animation hash. Removing the legacy move changes static layout, covered by the explicit new save version; no named callback roster slot is removed.",
+  "test_sha256": "35803020e046a421a3e18287b53d5fe6617c5e0caae5fd0b8a5714c117a3c322"
+}

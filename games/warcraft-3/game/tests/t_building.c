@@ -1,6 +1,25 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+
+TEST(wc3_building, repeated_tech_queries_use_index_and_keep_first_free_slots) {
+    gameClient_t *client = game.clients;
+    FOR_LOOP(i, 200) G_SetPlayerTechMaxAllowed(client, 0x62000000u + i, i + 1);
+    T_EQ(client->tech[0].id, 0x62000000u);
+    T_EQ(client->tech[199].id, 0x62000000u + 199);
+    tech_lookup_work = 0;
+    FOR_LOOP(i, 1024) {
+        T_EQ(G_GetPlayerTechMaxAllowed(client, 0x62000000u + 199), 200);
+        T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    }
+    T_ASSERT(tech_lookup_work < 1024 * 8);
+    G_SetPlayerTechResearched(client, 0x65000000u, 3);
+    T_EQ(client->tech[200].id, 0x65000000u);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 3);
+    G_AddPlayerTechResearched(client, 0x65000000u, -3);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    T_EQ(client->tech[200].id, 0x65000000u);
+}
 #include "../hud/hud_local.h"
 #include "../skills/s_skills.h"
 #include "jass/jass.h"
@@ -611,8 +630,9 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->build = building;
-    G_AddConstruction(building);
-    building->currentmove = &birth;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
+    M_SetMove(building,&birth);
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
     gi.ImageIndex = building_test_image_index;
@@ -629,11 +649,12 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
-    G_AddResearch(building);
-    G_GetResearch(building)->upgrade = building->class_id;
-    G_GetResearch(building)->duration = 100.0f;
-    G_GetResearch(building)->progress = 50.0f;
+    M_SetMove(building,NULL);
+    if (!building->research) building->research = G_AllocResearch();
+    assert(building->research);
+    building->research->upgrade = building->class_id;
+    building->research->duration = 100.0f;
+    building->research->progress = 50.0f;
 
     /* In-place upgrades use the same transport even though their waiting
      * queue backdrop is hidden. */
@@ -675,11 +696,12 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     /* This is the cache state of an ordinary selected-unit panel immediately
      * before the selected building enters construction. */
     client->infopanel.entity = building->s.number;
-    client->infopanel.count = (int32_t)building->health.value;
+    client->infopanel.hp = (int32_t)building->health.value;
     client->infopanel.xp = 0;
     building->build = building;
-    G_AddConstruction(building);
-    building->currentmove = &birth;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
+    M_SetMove(building,&birth);
     G_InvalidateUnitInfoPanel(building);
     T_ASSERT(G_GetMainSelectedUnit(client) == building);
     T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
@@ -693,11 +715,12 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
-    G_AddResearch(building);
-    G_GetResearch(building)->upgrade = building->class_id;
-    G_GetResearch(building)->duration = 100.0f;
-    G_GetResearch(building)->progress = 50.0f;
+    M_SetMove(building,NULL);
+    if (!building->research) building->research = G_AllocResearch();
+    assert(building->research);
+    building->research->upgrade = building->class_id;
+    building->research->duration = 100.0f;
+    building->research->progress = 50.0f;
     G_InvalidateUnitInfoPanel(building);
 
     building_queue_frame_count = 0;
@@ -731,16 +754,17 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     building->data.UnitBalance = &balance;
     building->s.player = trainee->s.player = client->ps.number;
     building->build = trainee;
-    G_SetUnitFlag(trainee, UNIT_FLAG_TRAINING, true);
-    G_AddFood(trainee);
-    G_GetFood(trainee)->used = 1;
+    trainee->training = true;
+    (trainee->food ? trainee->food : (trainee->food=G_AllocFood()));
+    trainee->food->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
-    building->unit_state->statuses[0] = (heroabilitystatus_t){
+    G_EnsureUnitStatusSlots(building);
+    building->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','u','n','s'), .level = 1 };
     G_SelectEntity(client, building);
     client->infopanel.entity = 0;
-    client->infopanel.count = -1;
+    client->infopanel.hp = -1;
 
     building_queue_frame_count = 0;
     gi.Write = building_queue_capture_write;
@@ -813,11 +837,11 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     T_ASSERT(G_BuildingUpgradeActive(building));
     T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
     T_EQ(building->class_id, source_id);
-    T_EQ(G_GetResearch(building)->upgrade, target_id);
-    T_FEQ(G_GetResearch(building)->duration, 140.0f, 0.001f);
+    T_EQ(building->research->upgrade, target_id);
+    T_FEQ(building->research->duration, 140.0f, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 280);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 340);
-    T_EQ(G_GetFood(building)->used, 3);
+    T_EQ(building->food->used, 3);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 1);
     T_ASSERT(building->aiflags & AI_HOLD_FRAME);
     T_EQ(level.events.write, 2);
@@ -830,7 +854,7 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     T_EQ(building->class_id, source_id);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
-    T_EQ(G_GetFood(building)->used, 2);
+    T_EQ(building->food->used, 2);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_EQ(level.events.write, 4);
@@ -861,7 +885,7 @@ TEST(wc3_building, instant_build_cheat_completes_building_upgrade_on_next_frame)
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
     T_ASSERT(G_BuildingUpgradeActive(building));
-    T_FEQ(G_GetResearch(building)->progress, 0.0f, 0.001f);
+    T_FEQ(building->research->progress, 0.0f, 0.001f);
 
     G_RunBuildingUpgradeFrame(building);
 
@@ -898,8 +922,8 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     level.events.read = level.events.write = 0;
 
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
-    G_AddResearch(building);
-    G_GetResearch(building)->progress = G_GetResearch(building)->duration;
+    (building->research ? building->research : (building->research=G_AllocResearch()));
+    building->research->progress = building->research->duration;
     G_RunBuildingUpgradeFrame(building);
 
     T_ASSERT(building == identity);
@@ -907,8 +931,8 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     T_EQ(building->class_id, target_id);
     T_FEQ(building->health.max_value, 1500.0f, 0.001f);
     T_FEQ(building->health.value, 750.0f, 0.001f);
-    T_EQ(G_GetFood(building)->used, 3);
-    T_EQ(G_GetFood(building)->made, 14);
+    T_EQ(building->food->used, 3);
+    T_EQ(building->food->made, 14);
     T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
     T_EQ(G_GetPlayerTechCountValue(client, target_id), 1);
     T_EQ(level.events.write, 4);
@@ -1016,9 +1040,9 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
 
     T_ASSERT(G_QueueResearch(producer, upgrade));
     T_NOT_NULL(producer->build);
-    T_ASSERT(G_GetResearch(producer->build)->upgrade != 0);
-    T_EQ(G_GetResearch(producer->build)->upgrade, upgrade);
-    T_EQ(G_GetResearch(producer->build)->level, 1);
+    T_ASSERT(producer->build->research->upgrade != 0);
+    T_EQ(producer->build->research->upgrade, upgrade);
+    T_EQ(producer->build->research->level, 1);
     T_EQ(G_GetPlayerTechInProgress(client, upgrade), 1);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 400);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 450);
@@ -1069,7 +1093,7 @@ TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
 
     T_ASSERT(G_QueueResearch(producer, upgrade));
     T_NOT_NULL(producer->build);
-    T_ASSERT(G_GetResearch(producer->build)->duration > 0.0f);
+    T_ASSERT(producer->build->research->duration > 0.0f);
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
 
@@ -1183,8 +1207,8 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_NOT_NULL(producer->build);
-    G_AddResearch(producer->build);
-    G_GetResearch(producer->build)->duration = 0.0f;
+    (producer->build->research ? producer->build->research : (producer->build->research=G_AllocResearch()));
+    producer->build->research->duration = 0.0f;
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
     producer->currentmove->think(producer);
@@ -1218,27 +1242,27 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->unit_state->attack1.numberOfDice = 2;
-    unit->unit_state->armor_value = 3.0f;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 2;
+    unit->armor_value = 3.0f;
 
     G_SetPlayerTechResearched(client, weapon, 1);
-    T_EQ(unit->unit_state->attack1.numberOfDice, 3);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 3);
     G_SetPlayerTechResearched(client, weapon, 2);
-    T_EQ(unit->unit_state->attack1.numberOfDice, 4);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 4);
 
     G_SetPlayerTechResearched(client, armor, 1);
-    T_FEQ(unit->unit_state->armor_value, 5.0f, 0.001f);
+    T_FEQ(unit->armor_value, 5.0f, 0.001f);
     G_SetPlayerTechResearched(client, armor, 2);
-    T_FEQ(unit->unit_state->armor_value, 7.0f, 0.001f);
+    T_FEQ(unit->armor_value, 7.0f, 0.001f);
 
     future = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->unit_state->attack1.numberOfDice = 2;
-    future->unit_state->armor_value = 3.0f;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 2;
+    future->armor_value = 3.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_EQ(future->unit_state->attack1.numberOfDice, 4);
-    T_FEQ(future->unit_state->armor_value, 7.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future, 0)->numberOfDice, 4);
+    T_FEQ(future->armor_value, 7.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, weapon, 0);
     G_SetPlayerTechResearched(client, armor, 0);
@@ -1256,28 +1280,28 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->unit_state->attack1.numberOfDice = 1;
-    unit->unit_state->attack1.damageBase = 10;
-    unit->unit_state->attack2.numberOfDice = 1;
-    unit->unit_state->attack2.damageBase = 20;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->damageBase = 10;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->damageBase = 20;
 
     G_SetPlayerTechResearched(client, attack_damage, 1);
-    T_EQ(unit->unit_state->attack1.damageBase, 12);
-    T_EQ(unit->unit_state->attack2.damageBase, 22);
-    T_FEQ(unit->unit_state->attack1.permanentDamageBonus, 2.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.permanentDamageBonus, 2.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 12);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 22);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 2.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 2.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 3);
-    T_EQ(unit->unit_state->attack1.damageBase, 14);
-    T_EQ(unit->unit_state->attack2.damageBase, 24);
-    T_FEQ(unit->unit_state->attack1.permanentDamageBonus, 4.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.permanentDamageBonus, 4.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 14);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 24);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 4.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 4.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 0);
-    T_EQ(unit->unit_state->attack1.damageBase, 10);
-    T_EQ(unit->unit_state->attack2.damageBase, 20);
-    T_FEQ(unit->unit_state->attack1.permanentDamageBonus, 0.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.permanentDamageBonus, 0.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 10);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 20);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 0.0f, 0.001f);
 
     building_restore_upgrade_data(old, rows);
 }
@@ -1294,30 +1318,30 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->unit_state->attack1.numberOfDice = 1;
-    unit->unit_state->attack1.range = 400.0f;
-    unit->unit_state->attack2.numberOfDice = 1;
-    unit->unit_state->attack2.range = 250.0f;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->range = 400.0f;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->range = 250.0f;
 
     G_SetPlayerTechResearched(client, long_rifles, 1);
-    T_FEQ(unit->unit_state->attack1.range, 537.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.range, 387.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 537.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 387.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 3);
-    T_FEQ(unit->unit_state->attack1.range, 559.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.range, 409.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 409.0f, 0.001f);
 
     future = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->unit_state->attack1.numberOfDice = 1;
-    future->unit_state->attack1.range = 400.0f;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future, 0)->range = 400.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_FEQ(future->unit_state->attack1.range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future, 0)->range, 559.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 0);
-    T_FEQ(unit->unit_state->attack1.range, 400.0f, 0.001f);
-    T_FEQ(unit->unit_state->attack2.range, 250.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 400.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 250.0f, 0.001f);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -1340,65 +1364,65 @@ TEST(wc3_building, nightelf_improved_bows_and_marksmanship_affect_only_opted_in_
     archer->data.UnitBalance = rider->data.UnitBalance = &ranged_balance;
     huntress->data.UnitBalance = &huntress_balance;
     archer->runtime.acquisition_range = 800.0f;
-    archer->unit_state->attack1.numberOfDice = 1;
-    archer->unit_state->attack1.range = 500.0f;
-    archer->unit_state->attack1.damageBase = 16;
+    S_AttackProfileWrite(archer, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 0)->range = 500.0f;
+    S_AttackProfileWrite(archer, 0)->damageBase = 16;
     /* The generic effect must also update an authored second attack. */
-    archer->unit_state->attack2.numberOfDice = 1;
-    archer->unit_state->attack2.range = 450.0f;
-    archer->unit_state->attack2.damageBase = 19;
-    rider->unit_state->attack1.numberOfDice = 1;
-    rider->unit_state->attack1.range = 400.0f;
-    rider->unit_state->attack1.damageBase = 18;
-    huntress->unit_state->attack1.numberOfDice = 1;
-    huntress->unit_state->attack1.range = 225.0f;
-    huntress->unit_state->attack1.damageBase = 15;
+    S_AttackProfileWrite(archer, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 1)->range = 450.0f;
+    S_AttackProfileWrite(archer, 1)->damageBase = 19;
+    S_AttackProfileWrite(rider, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(rider, 0)->range = 400.0f;
+    S_AttackProfileWrite(rider, 0)->damageBase = 18;
+    S_AttackProfileWrite(huntress, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(huntress, 0)->range = 225.0f;
+    S_AttackProfileWrite(huntress, 0)->damageBase = 15;
 
     T_EQ(G_UpgradeData(bows)->effect[0], MAKEFOURCC('r','a','t','r'));
     T_EQ(G_UpgradeData(marksmanship)->effect[0], MAKEFOURCC('r','a','t','x'));
     G_SetPlayerTechResearched(owner, bows, 1);
     G_SetPlayerTechResearched(owner, marksmanship, 1);
-    T_FEQ(archer->unit_state->attack1.range, 700.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 700.0f, 0.001f);
     T_FEQ(archer->runtime.acquisition_range, 800.0f, 0.001f);
-    T_FEQ(archer->unit_state->attack2.range, 650.0f, 0.001f);
-    T_EQ(archer->unit_state->attack1.damageBase, 20);
-    T_EQ(archer->unit_state->attack2.damageBase, 23);
-    T_FEQ(rider->unit_state->attack1.range, 600.0f, 0.001f);
-    T_EQ(rider->unit_state->attack1.damageBase, 22);
-    T_FEQ(huntress->unit_state->attack1.range, 225.0f, 0.001f);
-    T_EQ(huntress->unit_state->attack1.damageBase, 15);
+    T_FEQ(S_AttackProfileRead(archer, 1)->range, 650.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
+    T_EQ(S_AttackProfileRead(archer, 1)->damageBase, 23);
+    T_FEQ(S_AttackProfileRead(rider, 0)->range, 600.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(rider, 0)->damageBase, 22);
+    T_FEQ(S_AttackProfileRead(huntress, 0)->range, 225.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(huntress, 0)->damageBase, 15);
 
     future = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 384, 0);
     future->s.player = owner->ps.number;
     future->data.UnitBalance = &ranged_balance;
-    future->unit_state->attack1.numberOfDice = 1;
-    future->unit_state->attack1.range = 500.0f;
-    future->unit_state->attack1.damageBase = 16;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future, 0)->range = 500.0f;
+    S_AttackProfileWrite(future, 0)->damageBase = 16;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_FEQ(future->unit_state->attack1.range, 700.0f, 0.001f);
-    T_EQ(future->unit_state->attack1.damageBase, 20);
-    T_FEQ(future->unit_state->attack1.permanentDamageBonus, 4.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future, 0)->range, 700.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future, 0)->damageBase, 20);
+    T_FEQ(S_AttackProfileRead(future, 0)->permanentDamageBonus, 4.0f, 0.001f);
     future_rider = alloc_test_unit(MAKEFOURCC('e','h','p','r'), 448, 0);
     future_rider->s.player = owner->ps.number;
     future_rider->data.UnitBalance = &ranged_balance;
-    future_rider->unit_state->attack1.numberOfDice = 1;
-    future_rider->unit_state->attack1.range = 400.0f;
-    future_rider->unit_state->attack1.damageBase = 18;
+    S_AttackProfileWrite(future_rider, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future_rider, 0)->range = 400.0f;
+    S_AttackProfileWrite(future_rider, 0)->damageBase = 18;
     G_ApplyPlayerUpgradesToUnit(future_rider);
-    T_FEQ(future_rider->unit_state->attack1.range, 600.0f, 0.001f);
-    T_EQ(future_rider->unit_state->attack1.damageBase, 22);
+    T_FEQ(S_AttackProfileRead(future_rider, 0)->range, 600.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future_rider, 0)->damageBase, 22);
 
     /* JASS may revoke either upgrade independently; the other survives. */
     G_SetPlayerTechResearched(owner, bows, 0);
-    T_FEQ(archer->unit_state->attack1.range, 500.0f, 0.001f);
-    T_FEQ(rider->unit_state->attack1.range, 400.0f, 0.001f);
-    T_EQ(archer->unit_state->attack1.damageBase, 20);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 500.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(rider, 0)->range, 400.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
     G_SetPlayerTechResearched(owner, marksmanship, 0);
-    T_EQ(archer->unit_state->attack1.damageBase, 16);
-    T_EQ(rider->unit_state->attack1.damageBase, 18);
-    T_FEQ(future->unit_state->attack1.permanentDamageBonus, 0.0f, 0.001f);
-    T_FEQ(future_rider->unit_state->attack1.range, 400.0f, 0.001f);
-    T_EQ(future_rider->unit_state->attack1.damageBase, 18);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 16);
+    T_EQ(S_AttackProfileRead(rider, 0)->damageBase, 18);
+    T_FEQ(S_AttackProfileRead(future, 0)->permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future_rider, 0)->range, 400.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(future_rider, 0)->damageBase, 18);
     G_SetSLKRows("UpgradeData", old);
     free_slk_rows(rows);
 }
@@ -1426,9 +1450,9 @@ TEST(wc3_building, nightelf_ranged_research_queue_completes_both_upgrade_effects
     archer = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 64, 0);
     archer->s.player = owner->ps.number;
     archer->data.UnitBalance = &balance;
-    archer->unit_state->attack1.numberOfDice = 1;
-    archer->unit_state->attack1.range = 500.0f;
-    archer->unit_state->attack1.damageBase = 16;
+    S_AttackProfileWrite(archer, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(archer, 0)->range = 500.0f;
+    S_AttackProfileWrite(archer, 0)->damageBase = 16;
     owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
     owner->connected = false;
@@ -1439,20 +1463,20 @@ TEST(wc3_building, nightelf_ranged_research_queue_completes_both_upgrade_effects
     T_EQ(G_GetResearchCommandState(owner, producer, marksmanship, &next_level, reason, sizeof(reason)),
          BUILD_COMMAND_AVAILABLE);
     T_ASSERT(G_QueueResearch(producer, bows));
-    T_FEQ(archer->unit_state->attack1.range, 500.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 500.0f, 0.001f);
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
     producer->currentmove->think(producer);
     T_EQ(G_GetPlayerTechResearchedLevel(owner, bows), 1);
-    T_FEQ(archer->unit_state->attack1.range, 700.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(archer, 0)->range, 700.0f, 0.001f);
 
     T_ASSERT(G_QueueResearch(producer, marksmanship));
-    T_EQ(archer->unit_state->attack1.damageBase, 16);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 16);
     T_NOT_NULL(producer->currentmove);
     T_NOT_NULL(producer->currentmove->think);
     producer->currentmove->think(producer);
     T_EQ(G_GetPlayerTechResearchedLevel(owner, marksmanship), 1);
-    T_EQ(archer->unit_state->attack1.damageBase, 20);
+    T_EQ(S_AttackProfileRead(archer, 0)->damageBase, 20);
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 850);
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 725);
 
@@ -1481,12 +1505,12 @@ TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
     G_SetPlayerTechResearched(client, animal_war_training, 1);
     T_FEQ(unit->health.max_value, 173.0f, 0.001f);
     T_FEQ(unit->health.value, 86.5f, 0.001f);
-    T_FEQ(unit->unit_state->permanent_health_bonus, 73.0f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 73.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, animal_war_training, 2);
     T_FEQ(unit->health.max_value, 190.0f, 0.001f);
     T_FEQ(unit->health.value, 95.0f, 0.001f);
-    T_FEQ(unit->unit_state->permanent_health_bonus, 90.0f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 90.0f, 0.001f);
 
     future = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
     future->s.player = client->ps.number;
@@ -1496,12 +1520,12 @@ TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
     G_ApplyPlayerUpgradesToUnit(future);
     T_FEQ(future->health.max_value, 290.0f, 0.001f);
     T_FEQ(future->health.value, 145.0f, 0.001f);
-    T_FEQ(future->unit_state->permanent_health_bonus, 90.0f, 0.001f);
+    T_FEQ(future->permanent_health_bonus, 90.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, animal_war_training, 0);
     T_FEQ(unit->health.max_value, 100.0f, 0.001f);
     T_FEQ(unit->health.value, 50.0f, 0.001f);
-    T_FEQ(unit->unit_state->permanent_health_bonus, 0.0f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 0.0f, 0.001f);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -2294,7 +2318,7 @@ TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
     tree->data.UnitAbilities = &tree_abilities;
     tree->s.flags |= EF_BUILDING;
     tree->aiflags |= AI_IMMOBILE;
-    town_hall->currentmove = tree->currentmove = &birth;
+    M_SetMove(town_hall,&birth); M_SetMove(tree,&birth);
 
     T_ASSERT(G_ProducerCanTrain(town_hall, peasant_id));
     T_ASSERT(G_ProducerCanUpgrade(town_hall, keep_id));
@@ -2343,8 +2367,8 @@ static void building_assert_tree_attachment_art(edict_t *tree, cstring_t animati
     T_ASSERT(expected[0] && expected[1] && expected[2]);
     FILTER_EDICTS(effect, effect->status_effect_code == atol && effect->goalentity == tree) {
         bool matched = false;
-        T_STREQ(effect->animation_props, animation_props);
-        T_STREQ(effect->animation_request, "birth");
+        T_STREQ(G_UnitAnimationProperties(effect), animation_props);
+        T_STREQ(G_UnitAnimationRequest(effect), "birth");
         FOR_LOOP(i, 3) if (effect->s.model == expected[i]) { found[i]++; matched = true; }
         T_ASSERT(matched);
     }
@@ -2464,12 +2488,12 @@ TEST(wc3_building, researched_caster_mana_effects_update_existing_units) {
     G_SetPlayerTechResearched(client, training, 1);
     T_FEQ(unit->mana.max_value, 300.0f, 0.001f);
     T_FEQ(unit->mana.value, 100.0f, 0.001f);
-    T_FEQ(unit->unit_state->mana_regen_bonus, 0.325f, 0.001f);
+    T_FEQ(unit->mana_regen_bonus, 0.325f, 0.001f);
 
     G_SetPlayerTechResearched(client, training, 2);
     T_FEQ(unit->mana.max_value, 400.0f, 0.001f);
     T_FEQ(unit->mana.value, 200.0f, 0.001f);
-    T_FEQ(unit->unit_state->mana_regen_bonus, 0.65f, 0.001f);
+    T_FEQ(unit->mana_regen_bonus, 0.65f, 0.001f);
 
     G_SetPlayerTechResearched(client, training, 0);
     building_restore_upgrade_data(old, rows);
@@ -2491,7 +2515,7 @@ TEST(wc3_building, researched_mana_survives_hero_recompute_with_item_bonus) {
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->unit_state->hero.intel = balance.intelligence;
+    unit->hero.intel = balance.intelligence;
     unit->mana.max_value = 200.0f;
     unit->mana.value = 0.0f;
 
@@ -2503,13 +2527,13 @@ TEST(wc3_building, researched_mana_survives_hero_recompute_with_item_bonus) {
     future = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->unit_state->hero.intel = balance.intelligence;
+    future->hero.intel = balance.intelligence;
     future->mana.max_value = 200.0f;
     G_RecomputeHeroStats(future);
     G_ApplyPlayerUpgradesToUnit(future);
     T_FEQ(future->mana.max_value, 300.0f, 0.001f);
 
-    unit->unit_state->hero.intel++;
+    unit->hero.intel++;
     G_RecomputeHeroStats(unit);
     T_FEQ(unit->mana.max_value, 365.0f, 0.001f);
 
@@ -2895,7 +2919,7 @@ TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
     producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
     queued->s.player = client->ps.number;
-    G_SetUnitFlag(queued, UNIT_FLAG_TRAINING, true);
+    queued->training = true;
     G_SetPlayerTechMaxAllowed(client, trainee, 1);
 
     T_EQ(G_GetPlayerTechCountValue(client, trainee), 1);
@@ -2911,7 +2935,7 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     owner->connected = viewer->connected = true;
     producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     producer->s.player = owner->ps.number;
-    producer->selected |= 1 << viewer->ps.number;
+    G_SetEntitySelectionMask(producer, producer->selected | (1 << viewer->ps.number));
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_CONTROL, true);
     owner->commands_dirty = viewer->commands_dirty = false;
@@ -2919,6 +2943,60 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     G_InvalidateCommands(owner);
     T_ASSERT(owner->commands_dirty);
     T_ASSERT(viewer->commands_dirty);
+
+    /* A batch repeats invalidation without repeating the selection scan. An
+     * independent viewer rebuild must still see the next owner change. */
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateCommands(owner);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateCommands(owner);
+    T_ASSERT(viewer->commands_dirty);
+    T_ASSERT(G_GetTestSelectionChecks() > 0);
+
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateUnitCommands(producer);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 1);
+
+    G_SetEntitySelectionMask(producer, 0);
+    owner->commands_dirty = viewer->commands_dirty = false;
+    G_ResetTestSelectionChecks();
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(!owner->commands_dirty && !viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+}
+
+TEST(wc3_building, rally_invalidation_visits_only_producers_and_checks_identity) {
+    reset_entities(); setup_test_world();
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    edict_t *other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 128);
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    UnitProfile_t profile = {.trains = "hfoo"};
+    producer->data.UnitProfile = &profile;
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    G_InvalidateRallyTarget(other); /* build derived membership once */
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 1024);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time++;
+    G_InvalidateRallyTarget(target);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time--;
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 0);
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    S_InvalidateRallyProducers(); /* map/save replacement rebuild */
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_building, advanced_control_grant_and_revoke_dirty_viewer_card) {
@@ -3515,9 +3593,9 @@ TEST(wc3_building, placement_flags_decode_warsmash_pathing_predicates) {
 }
 
 TEST(wc3_building, placement_unamph_is_compound_walk_and_swim_blocker) {
-    uint8_t const land = CM_PATHING_UNSWIMMABLE;
+    uint8_t const land = CM_PATHING_UNFLOATABLE;
     uint8_t const water = CM_PATHING_UNWALKABLE;
-    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
+    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNFLOATABLE;
 
     T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH, false));
     T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH, false));
@@ -3596,7 +3674,7 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         T_EQ(required, 0);
 
         building_set_test_water_surface(false);
-        memset(pathmap, CM_PATHING_UNSWIMMABLE, sizeof(pathmap));
+        memset(pathmap, CM_PATHING_UNFLOATABLE, sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
@@ -3607,7 +3685,7 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
-        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNSWIMMABLE,
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLOATABLE,
                sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
@@ -3696,9 +3774,9 @@ TEST(wc3_building, melee_race_buildings_reject_naga_shallow_water_cells) {
 }
 
 TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {
-    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT, false));
+    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT, false));
     T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT, false));
-    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT));
     T_ASSERT(!G_PlacementPathingRequired(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
 }
 
@@ -3777,7 +3855,7 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
-    T_EQ(builder->orders->build_project, barracks); T_NOT_NULL(builder->goalentity);
+    T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
     T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
 }
 
@@ -3797,12 +3875,12 @@ TEST(wc3_building, build_order_clears_stop_guard) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
     order_stop(builder);
-    T_ASSERT(builder->orders->guard_state == GUARD_IDLE);
+    T_ASSERT(builder->movement.guard_state == GUARD_IDLE);
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
 
-    T_EQ(builder->orders->build_project, barracks);
-    T_ASSERT(builder->orders->guard_state == GUARD_NONE);
+    T_EQ(builder->build_project, barracks);
+    T_ASSERT(builder->movement.guard_state == GUARD_NONE);
 }
 
 /* Human04's opening sends these three preplaced Peasants to the centres of
@@ -3815,7 +3893,9 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     static uint8_t pathmap[CELLS * CELLS];
     static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
     static UnitAbilities_t const abilities = { .abilList = "Arep" };
-    static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
+    static UnitData_t const worker_data = {
+        .moveTypeName = "foot", .race = STR_HUMAN, .turnRate = 0.6f, .propWin = 60
+    };
     edict_t *farm, *barracks, *townhall;
     vec2_t const farm_point = { -1360.0f, -4608.0f };
     vec2_t const barracks_point = { -1744.0f, -3536.0f };
@@ -3878,7 +3958,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     level.started = true;
     level.scriptsStarted = true;
     FOR_LOOP(frame, 240) {
-        globals.RunFrame();
+        level.time += FRAMETIME; globals.RunFrame();
         FOR_LOOP(i, 3) {
             if (issued[i] || workers[i]->s.origin2.x < region_min[i].x ||
                 workers[i]->s.origin2.x > region_max[i].x ||
@@ -3894,24 +3974,24 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 workers[1]->s.origin2 = points[i];
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
-                T_NOT_NULL(workers[i]->orders->build_preview);
-                T_ASSERT(workers[i]->orders->build_preview->svflags & SVF_OWNER_ONLY);
-                T_EQ(workers[i]->orders->build_preview->s.player, workers[i]->s.player);
+                T_NOT_NULL(workers[i]->build_preview);
+                T_ASSERT(workers[i]->build_preview->svflags & SVF_OWNER_ONLY);
+                T_EQ(workers[i]->build_preview->s.player, workers[i]->s.player);
                 T_ASSERT(Vector2_distance(&workers[1]->s.origin2, &before_preview) > 1.0f);
                 T_ASSERT(workers[1]->goalentity == barracks_goal);
                 T_ASSERT(move_is_active_order_walk(workers[1]));
-                T_ASSERT(workers[i]->orders->build_preview->aiflags & AI_HOLD_FRAME);
-                T_STREQ(workers[i]->orders->build_preview->animation_request, "stand");
-                if (workers[i]->orders->build_preview->animation) {
-                    T_ASSERT(G_AnimationHasPrimary(workers[i]->orders->build_preview->animation, "stand"));
-                    T_EQ(workers[i]->orders->build_preview->s.frame,
-                         workers[i]->orders->build_preview->animation->interval[0]);
+                T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
+                T_STREQ(G_UnitAnimationRequest(workers[i]->build_preview), "stand");
+                if (workers[i]->build_preview->animation) {
+                    T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
+                    T_EQ(workers[i]->build_preview->s.frame,
+                         workers[i]->build_preview->animation->interval[0]);
                 }
-                T_ASSERT(G_UnitHasFlag(workers[i]->orders->build_preview, UNIT_FLAG_VERTEX_COLOR_SET));
-                T_EQ(workers[i]->orders->build_preview->vertex_color.r, 255);
-                T_EQ(workers[i]->orders->build_preview->vertex_color.g, 255);
-                T_EQ(workers[i]->orders->build_preview->vertex_color.b, 255);
-                T_EQ(workers[i]->orders->build_preview->vertex_color.a, 128);
+                T_ASSERT((workers[i]->build_preview && workers[i]->build_preview->vertex_color_set));
+                T_EQ(workers[i]->build_preview->vertex_color.r, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.g, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.b, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.a, 128);
             } else {
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
             }
@@ -3919,9 +3999,9 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     }
 
     FOR_LOOP(i, 3) T_ASSERT(issued[i]);
-    T_ASSERT(!farm->orders->build_project);
-    T_ASSERT(!barracks->orders->build_project);
-    T_ASSERT(!townhall->orders->build_project);
+    T_ASSERT(!farm->build_project);
+    T_ASSERT(!barracks->build_project);
+    T_ASSERT(!townhall->build_project);
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == buildings[1])
             barracks_spawned = true;
@@ -3957,11 +4037,130 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
 
     building->s.flags &= ~EF_NOT_SELECTABLE;
-    G_AddConstruction(building);
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
     gi.MemFree(pathtex);
+}
+
+/* An idle footprint occupant must execute the accepted escape, not merely
+ * retain a displacement flag while its stand thinker runs forever. */
+TEST(wc3_building, construction_displacement_starts_idle_move_and_arrives) {
+    enum { CELLS = 128, FOOTPRINT = 9 };
+    static uint8_t pathmap[CELLS * CELLS];
+    size_t const bytes = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    edict_t *builder, *worker, *building, *other;
+    pathTex_t *pathtex;
+    vec2_t start, target;
+
+    FOR_LOOP(inside, 2) {
+        reset_entities();
+        setup_test_world();
+        memset(pathmap, 0, sizeof(pathmap));
+        pathmap[96 * CELLS + 96] = CM_PATHING_UNWALKABLE;
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048, -2048 }, .max = { 2048, 2048 }));
+        builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512, -512);
+        worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, inside ? -64 : -192);
+        building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+        builder->s.player = worker->s.player = building->s.player = game.clients[0].ps.number;
+        builder->svflags |= SVF_MONSTER;
+        worker->svflags |= SVF_MONSTER;
+        building->svflags |= SVF_MONSTER;
+        builder->stand = worker->stand = building->stand = unit_stand;
+        worker->movetype = MOVETYPE_STEP;
+        worker->think = monster_think;
+        worker->collision = 16;
+        unit_stand(worker);
+        building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
+        pathtex = gi.MemAlloc(bytes);
+        memset(pathtex, 0, bytes);
+        pathtex->width = pathtex->height = FOOTPRINT;
+        FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+        building->pathtex = pathtex;
+        other = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -1024, 1024);
+        other->s.flags |= EF_BUILDING;
+        other->pathtex = pathtex;
+        gi.LinkEntity(other);
+        gi.LinkEntity(builder);
+        gi.LinkEntity(worker);
+        gi.LinkEntity(building);
+        CM_BakeStaticObstacles();
+        start = worker->s.origin2;
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        target = worker->movement.displacement_target;
+        T_ASSERT(move_displacement_active(worker));
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(move_is_active_order_walk(worker));
+        T_EQ(worker->current_order_id, G_OrderId("move"));
+        building->s.flags &= ~EF_NOT_SELECTABLE;
+        T_ASSERT(G_StartHumanConstruction(builder, building));
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 120) {
+            bool escaping = move_displacement_active(worker);
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (escaping && !move_displacement_active(worker) && !inside)
+                T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+            /* Escape ownership can retire before the retained point order.
+             * Exercise both transitions instead of ending the simulation early. */
+            if (!move_displacement_active(worker) && !worker->current_order_id) break;
+        }
+        if (inside) {
+            /* Original stock-mask solid-widget witness cannot leave its retained
+             * footprint, but finishes its recovery chain instead of walking forever. */
+            T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &target) > worker->collision);
+        } else {
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &start) > 1);
+            T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+        }
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(!move_is_active_order_walk(worker));
+        T_EQ(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision), !inside);
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        /* A replacement public Move cancels the temporary escape and owns its
+         * new destination; the construction footprint remains blocked. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        vec2_t const later = { 0, -512 };
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &later, false, worker->s.player, 0));
+        T_ASSERT(!move_displacement_active(worker));
+        FOR_LOOP(frame, 120) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (!worker->current_order_id) break;
+        }
+        T_ASSERT(Vector2_distance(&worker->s.origin2, &later) <= .49f * CM_PathCellWorldSize() + .001f);
+        T_EQ(worker->current_order_id, 0);
+        /* Stop owns the interruption, including removal of the temporary target.
+         * Normal frames must keep the worker stationary after the command. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        start = worker->s.origin2;
+        FOR_LOOP(frame, 8) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(!CM_PointIsPathableForRadius(&MAKE(vec2_t, .x = 1040, .y = 1040), 0));
+        T_ASSERT(!CM_PointIsPathableForRadius(&other->s.origin2, 0));
+        other->pathtex = NULL;
+        building->pathtex = NULL;
+        gi.MemFree(pathtex);
+    }
 }
 
 /* A construction can invalidate the old straight route while a second worker
@@ -4009,7 +4208,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_FEQ(worker->s.origin2.x, before_displace.x, 0.001f);
     T_FEQ(worker->s.origin2.y, before_displace.y, 0.001f);
     T_ASSERT(move_displacement_active(worker));
-    T_STREQ(worker->animation_request, "walk");
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
     T_ASSERT(worker->goalentity == waypoint);
     T_ASSERT(move_is_active_order_walk(worker));
 
@@ -4021,16 +4220,25 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = true;
     level.scriptsStarted = true;
-    globals.RunFrame();
+    level.time += FRAMETIME; globals.RunFrame();
     after_first_step = worker->s.origin2;
-    T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
+    /* Stock propagation gating can hold movement while turning. The first
+     * snapshot may contain only the remaining part of its movement interval. */
+    FOR_LOOP(frame, 8) {
+        if (Vector2_distance(&after_first_step, &before_displace) > 0.001f) break;
+        T_ASSERT(worker->movement.turn_blocked);
+        level.time += FRAMETIME; globals.RunFrame();
+        after_first_step = worker->s.origin2;
+    }
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) > 0);
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) <= normal_step + 0.001f);
+    T_ASSERT(move_displacement_active(worker));
     /* Sample mid-displacement. The route-heading stepper covers the 192-unit exit in about eight 27-unit
      * steps, so the old eight-frame sample sat on the arrival threshold and flipped with libm rounding. */
-    FOR_LOOP(frame, 3) globals.RunFrame();
+    FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
-    T_ASSERT(move_displacement_active(worker));
-    T_STREQ(worker->animation_request, "walk");
-    FOR_LOOP(frame, 240) globals.RunFrame();
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
+    FOR_LOOP(frame, 240) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
     T_ASSERT(!move_displacement_active(worker));
     T_ASSERT(worker->goalentity == waypoint);
@@ -4041,7 +4249,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     gi.MemFree(pathtex);
 }
 
-TEST(wc3_building, construction_start_and_completion_clear_occupants) {
+TEST(wc3_building, construction_displacement_reserves_distinct_exits_before_start) {
     enum { CELLS = 128, FOOTPRINT = 9 };
     static uint8_t pathmap[CELLS * CELLS];
     size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
@@ -4055,8 +4263,8 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
                                   .max = { 2048.0f, 2048.0f }));
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
-    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
-    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
+    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -64.0f, -192.0f);
+    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, -192.0f);
     building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), center.x, center.y);
     occupant->svflags |= SVF_MONSTER;
     occupant->s.model = 1;
@@ -4066,6 +4274,10 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     occupant2->s.model = 1;
     occupant2->movetype = MOVETYPE_STEP;
     occupant2->collision = 16.0f;
+    occupant->stand = occupant2->stand = unit_stand;
+    occupant->think = occupant2->think = monster_think;
+    occupant->unitinfo.MoveSpeed = occupant2->unitinfo.MoveSpeed = 320.0f;
+    unit_stand(occupant); unit_stand(occupant2);
     building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
     building->stand = unit_stand;
     pathtex = gi.MemAlloc(pathtex_size);
@@ -4076,23 +4288,39 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     gi.LinkEntity(builder); gi.LinkEntity(occupant); gi.LinkEntity(occupant2); gi.LinkEntity(building);
     CM_BakeStaticObstacles();
 
+    /* Both workers occupy the approach margin used by the real Build path.
+     * Their existing routes are cut by construction. Planning must reserve
+     * distinct exits before committing either Move order. */
+    vec2_t const first_start = occupant->s.origin2, second_start = occupant2->s.origin2;
+    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+    building->s.flags &= ~EF_NOT_SELECTABLE;
     T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_start), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_start), 0, 0);
+    T_ASSERT(move_displacement_active(occupant));
+    T_ASSERT(move_displacement_active(occupant2));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_ASSERT(Vector2_distance(&occupant->movement.displacement_target,
+        &occupant2->movement.displacement_target) >= occupant->collision + occupant2->collision);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsStarted = true;
+    FOR_LOOP(frame, 60) { level.time += FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(!move_displacement_active(occupant));
+    T_ASSERT(!move_displacement_active(occupant2));
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &first_start) > occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &second_start) > occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
     T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
              occupant->collision + occupant2->collision);
 
-    /* Walk-through construction allows a unit to enter again. Completion
-     * must clear it after the finished footprint has been baked. */
-    occupant->s.origin2 = center;
-    occupant->s.origin.x = center.x;
-    occupant->s.origin.y = center.y;
-    gi.LinkEntity(occupant);
-    occupant2->s.origin2 = center;
-    occupant2->s.origin.x = center.x;
-    occupant2->s.origin.y = center.y;
-    gi.LinkEntity(occupant2);
+    /* The real unfinished footprint already blocks routes. Completion keeps
+     * it solid and does not teleport the units that have already escaped. */
+    vec2_t const first_exit = occupant->s.origin2, second_exit = occupant2->s.origin2;
     G_CompleteConstruction(building);
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_exit), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_exit), 0, 0);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
     T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
@@ -4138,17 +4366,17 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
     builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
-    G_AddGoldMine(builder);
-    G_GetGoldMine(builder)->mine = mine; G_GetGoldMine(builder)->mine_spawn_time = mine->spawn_time;
-    G_SetUnitFlag(builder, UNIT_FLAG_INVULNERABLE, true); builder->s.renderfx |= RF_HIDDEN; G_AddGoldMine(mine); G_GetGoldMine(mine)->occupants = 1;
+    (builder->goldmine ? builder->goldmine : (builder->goldmine=G_AllocGoldMine()));
+    builder->goldmine->mine = mine; builder->goldmine->mine_spawn_time = mine->spawn_time;
+    builder->invulnerable = true; builder->s.renderfx |= RF_HIDDEN; (mine->goldmine ? mine->goldmine : (mine->goldmine=G_AllocGoldMine())); mine->peonsinside = 1;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
-    T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 0);
-    T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!G_UnitHasFlag(builder, UNIT_FLAG_INVULNERABLE));
-    T_EQ(builder->orders->build_project, barracks); T_NOT_NULL(builder->goalentity);
+    T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ(mine->peonsinside, 0);
+    T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!(builder && builder->invulnerable));
+    T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
 }
 
 TEST(wc3_building, building_snap_without_authored_pathing_uses_32_unit_grid) {
@@ -4169,17 +4397,251 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
 
     T_ASSERT(!G_StartHumanConstruction(builder, builder));
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_ASSERT(G_GetConstruction(building));
-    T_ASSERT(G_GetConstruction(building)->paused);
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_HUMAN);
-    T_ASSERT(G_GetConstruction(building)->primary_builder == builder);
-    T_FEQ(G_GetConstruction(building)->progress, 0.0f, 0.001f);
-    T_ASSERT(!G_GetConstruction(building) || !G_GetConstruction(building)->paid);
-    T_ASSERT(!G_GetConstruction(building) || G_GetConstruction(building)->payer == 0);
-    T_ASSERT(!G_GetConstruction(building) || G_GetConstruction(building)->gold == 0);
-    T_ASSERT(!G_GetConstruction(building) || G_GetConstruction(building)->lumber == 0);
+    T_ASSERT(building->construction);
+    T_ASSERT(building->construction->paused);
+    T_EQ(building->construction->type, CONSTRUCTION_HUMAN);
+    T_ASSERT(building->construction->primary_builder == builder);
+    T_FEQ(building->construction->progress, 0.0f, 0.001f);
+    T_ASSERT(!building->construction || !building->construction->paid);
+    T_ASSERT(!building->construction || building->construction->payer == 0);
+    T_ASSERT(!building->construction || building->construction->gold == 0);
+    T_ASSERT(!building->construction || building->construction->lumber == 0);
     T_ASSERT(building->aiflags & AI_HOLD_FRAME);
     T_FEQ(building->health.value, 100.0f, 0.001f);
+}
+
+static void building_work_policy_stage(unsigned profile, cstring_t stage, edict_t const *worker) {
+    fprintf(stderr,"W226 engine profile=%u stage=%s enable=%u policy=%08x\n", profile, stage,
+        worker->movement.repulse.active, worker->movement.repulse.active ? worker->movement.repulse.state.packed : 0);
+}
+
+/* Native409630 sets Unit20.40000000 only for the primary Human construction
+ * branch. Ordinary Repair remains eligible; Pause's inverse cannot recreate a
+ * construction worker's repulsor before Repair_StopWorkOwner clears work. */
+TEST(wc3_building, repair_work_separation_follows_primary_owner_and_saved_inverse) {
+    FOR_LOOP(profile,3) {
+        reset_entities(); setup_test_world();
+        slkTestData_t *rows, *old=building_install_repair_data(&rows);
+        mapInfo_t const *saved=level.mapinfo; mapInfo_t info=*saved;
+        int enabled=profile==2?0:2,policy=17;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&policy}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','p','e','a'),.newUnitID=MAKEFOURCC('h','W','2','6'),
+            .numbeOfModifications=4,.modifications=mods};
+        int build_time=100;
+        unitModification_t build_mod={.modID=MAKEFOURCC('u','b','l','d'),.type=mod_int,.data=&build_time};
+        unitData_t custom_types[]={custom,{.originalUnitID=MAKEFOURCC('h','b','a','r'),.newUnitID=MAKEFOURCC('h','B','2','6'),
+            .numbeOfModifications=1,.modifications=&build_mod}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=custom_types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit worker\nunit target\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hW26',304,304,0)\n"
+            "set target=CreateUnit(Player(0),'hB26',400,304,0)\n"
+            "call SetUnitState(target,ConvertUnitState(0),100)\nendfunction\n"
+            "function repair takes nothing returns nothing\ncall IssueTargetOrder(worker,\"repair\",target)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(worker,\"stop\")\nendfunction\n"
+            "function move takes nothing returns nothing\ncall IssuePointOrder(worker,\"move\",128,304)\nendfunction\n"
+            "function removeTarget takes nothing returns nothing\ncall RemoveUnit(target)\nendfunction\n"
+            "function replaceTarget takes nothing returns nothing\n"
+            "set target=CreateUnit(Player(0),'hB26',400,304,0)\n"
+            "call SetUnitState(target,ConvertUnitState(0),100)\nendfunction\n"
+            "function removeWorker takes nothing returns nothing\ncall RemoveUnit(worker)\nendfunction\n"));
+        edict_t *worker=NULL,*target=NULL;
+        FILTER_EDICTS(ent,ent->inuse) {
+            if(ent->class_id==custom.newUnitID)worker=ent;
+            if(ent->class_id==MAKEFOURCC('h','B','2','6'))target=ent;
+        }
+        T_NOT_NULL(worker);T_NOT_NULL(target);
+        if(worker && target) {
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"created",worker);
+            if(profile)T_ASSERT(G_StartHumanConstruction(worker,target));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NOT_NULL(worker->buildwork);T_EQ(worker->build,target);
+            if(!worker->buildwork)goto repair_work_done;
+            T_EQ(worker->buildwork->primary,profile!=0);
+            T_STREQ(worker->currentmove->animation,"stand work");
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"work",worker);
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!worker->movement.repulse.active);
+            building_work_policy_stage(profile,"paused",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            /* Pause releases work synchronously, but69c580 releases physical
+             * suspension later. Resume that owner before direct work/Stop. */
+            T_ASSERT(!worker->movement.repulse.active);
+            FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+            S_RunMoveTimers();
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            worker->currentmove->think(worker);
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"resumed_work",worker);
+            unsigned worker_slot=worker->s.number,target_slot=target->s.number;
+            cstring_t file=Test_TempPath("wc3-repair-work-separation.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            worker=g_edicts+worker_slot;target=g_edicts+target_slot;
+            T_EQ(worker->build,target);T_EQ(worker->movement.repulse.active,profile==0);
+            /* Load preserves the work owner; a later pause refresh must also
+             * consult that owner instead of only the channel code. */
+            jass_callbyname(level.vm,"freeze",false);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            /* Pause releases work synchronously, but69c580 releases physical
+             * suspension later. Resume that owner before direct work/Stop. */
+            T_ASSERT(!worker->movement.repulse.active);
+            FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+            S_RunMoveTimers();
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            worker->currentmove->think(worker);
+            T_EQ(worker->movement.repulse.active,profile==0);
+            jass_callbyname(level.vm,"stop",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NULL(worker->build);T_EQ(worker->buildwork->ability,0);
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            if(enabled)T_EQ(worker->movement.repulse.state.packed,0x10110000u);
+            building_work_policy_stage(profile,"stopped",worker);
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"restarted",worker);
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NULL(worker->build);T_EQ(worker->movement.repulse.active,enabled!=0);
+            T_EQ(worker->current_order_id,G_OrderId("move"));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,profile==0);
+            jass_callbyname(level.vm,"removeTarget",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            if(worker->currentmove && worker->currentmove->think)worker->currentmove->think(worker);
+            T_NULL(worker->build);T_EQ(worker->buildwork->ability,0);
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"target_removed",worker);
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"move",worker);
+            /* Removing the work owner must release it before Move destroys
+             * membership. The inverse itself refreshes separation, so running
+             * it after Move's remove notification leaves a freed list head. */
+            jass_callbyname(level.vm,"replaceTarget",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            target=NULL;
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==MAKEFOURCC('h','B','2','6'))target=ent;
+            T_NOT_NULL(target);
+            if(profile)T_ASSERT(G_StartHumanConstruction(worker,target));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(worker->buildwork->working);
+            jass_callbyname(level.vm,"removeWorker",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(G_IsDeferredFree(worker));T_ASSERT(!worker->movement.repulse.active);
+            wc3Clock_t due;uint32_t sequence;
+            T_ASSERT(G_NextUnitRelease(&due,&sequence));
+            level.pathing_clock=due;G_RunDeferredFrees();
+            T_ASSERT(!worker->inuse);T_NULL(level.repulse_head);
+            T_ASSERT(S_RestoreMoveRepulsors());
+        }
+repair_work_done:
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+        building_restore_repair_data(old,rows);
+    }
+    setup_test_world();
+}
+
+static void building_inside_policy_stage(unsigned profile, cstring_t stage, edict_t const *worker) {
+    fprintf(stderr,"W227 engine profile=%u stage=%s enable=%u policy=%08x paused=%u hidden=%u depth=%d\n",
+        profile,stage,worker->movement.repulse.active,
+        worker->movement.repulse.active?worker->movement.repulse.state.packed:0,
+        worker->paused,!!(worker->s.renderfx&RF_HIDDEN),worker->movement.repulse.disable_depth);
+}
+
+TEST(wc3_building, inside_construction_owns_counted_suppression_independently_of_pause) {
+    FOR_LOOP(profile,8) {
+        reset_entities();setup_test_world();
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        int enabled=(profile==1||profile==3)?0:2,policy=17,build_time=(profile==4||profile==5)?2:100;
+        unitModification_t worker_mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&policy}};
+        unitModification_t building_mod={.modID=MAKEFOURCC('u','b','l','d'),.type=mod_int,.data=&build_time};
+        unitData_t types[]={
+            {.originalUnitID=MAKEFOURCC('h','p','e','a'),.newUnitID=MAKEFOURCC('h','W','2','7'),
+                .numbeOfModifications=4,.modifications=worker_mods},
+            {.originalUnitID=MAKEFOURCC('h','b','a','r'),.newUnitID=MAKEFOURCC('h','B','2','7'),
+                .numbeOfModifications=1,.modifications=&building_mod}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit worker\nunit target\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hW27',304,304,0)\n"
+            "set target=CreateUnit(Player(0),'hB27',400,304,0)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+            "function killTarget takes nothing returns nothing\ncall KillUnit(target)\nendfunction\n"
+            "function removeTarget takes nothing returns nothing\ncall RemoveUnit(target)\nset target=null\nendfunction\n"
+            "function transfer takes nothing returns nothing\ncall SetUnitOwner(worker,Player(1),true)\nendfunction\n"
+            "function move takes nothing returns nothing\nif IssuePointOrder(worker,\"move\",1280,304) then\ncall SetUnitUserData(worker,1)\nelse\ncall SetUnitUserData(worker,-1)\nendif\nendfunction\n"
+            "function removeWorker takes nothing returns nothing\ncall RemoveUnit(worker)\nendfunction\n"));
+        edict_t *worker=NULL,*target=NULL;
+        FILTER_EDICTS(ent,ent->inuse) {
+            if(ent->class_id==types[0].newUnitID)worker=ent;
+            if(ent->class_id==types[1].newUnitID)target=ent;
+        }
+        T_NOT_NULL(worker);T_NOT_NULL(target);
+        if(worker&&target) {
+            building_inside_policy_stage(profile,"created",worker);
+            bool naga=profile==2||profile==3||profile==5||profile==7;
+            T_ASSERT(naga?G_StartNagaConstruction(worker,target):G_StartOrcConstruction(worker,target));
+            T_ASSERT(!worker->paused);T_ASSERT(worker->construction_held);
+            T_ASSERT(!G_UnitIsWorldActive(worker));T_ASSERT(!worker->movement.repulse.active);
+            T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"inside",worker);
+            unsigned worker_slot=worker->s.number,target_slot=target->s.number;
+            cstring_t file=Test_TempPath("wc3-construction-suppression227.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            worker=g_edicts+worker_slot;target=g_edicts+target_slot;
+            T_ASSERT(worker->construction_held);T_EQ(worker->movement.repulse.disable_depth,2);
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(worker->paused);T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"paused",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!worker->paused);T_ASSERT(!worker->movement.repulse.active);
+            T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"resumed",worker);
+            bool completion=profile==4||profile==5,removed=profile>=6;
+            if(!completion)jass_callbyname(level.vm,"freeze",false);
+            building_inside_policy_stage(profile,"paused_again",worker);
+            if(completion) {
+                FOR_LOOP(tick,100) {if(!target->construction)break;G_RunConstructionFrame(target);}
+                T_NULL(target->construction);
+            } else if(removed) {
+                jass_callbyname(level.vm,"removeTarget",false);
+                wc3Clock_t due;uint32_t sequence;T_ASSERT(G_NextUnitRelease(&due,&sequence));
+                level.pathing_clock=due;G_RunDeferredFrees();T_ASSERT(!target->inuse);
+            } else {
+                jass_callbyname(level.vm,"killTarget",false);T_ASSERT(M_IsDead(target));
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->construction_held,removed);T_EQ(!!(worker->s.renderfx&RF_HIDDEN),removed);
+            T_EQ(worker->paused,!completion);T_EQ(worker->movement.repulse.disable_depth,removed?2:completion?0:1);
+            building_inside_policy_stage(profile,"target_exit",worker);
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);worker=g_edicts+worker_slot;
+            T_EQ(worker->construction_held,removed);T_EQ(worker->paused,!completion);
+            jass_callbyname(level.vm,"transfer",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            building_inside_policy_stage(profile,"owner_changed",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.disable_depth,removed?2:0);
+            T_EQ(worker->movement.repulse.active,!removed&&enabled);
+            building_inside_policy_stage(profile,"unpaused",worker);
+            vec2_t before=worker->s.origin2;
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->user_data,1);
+            if(removed) {G_RunEntity(worker);T_EQ(worker->s.origin2.x,before.x);T_EQ(worker->s.origin2.y,before.y);}
+            building_inside_policy_stage(profile,"move",worker);
+            jass_callbyname(level.vm,"removeWorker",false);
+            wc3Clock_t due;uint32_t sequence;T_ASSERT(G_NextUnitRelease(&due,&sequence));
+            level.pathing_clock=due;G_RunDeferredFrees();T_ASSERT(!worker->inuse);T_ASSERT(S_RestoreMoveRepulsors());
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+    }
+    setup_test_world();
 }
 
 TEST(wc3_building, human_birth_emission_tracks_active_repair_not_assigned_workers) {
@@ -4216,11 +4678,11 @@ TEST(wc3_building, human_birth_emission_tracks_active_repair_not_assigned_worker
     T_ASSERT(!(building->s.flags & EF_MDX_EMISSION_PAUSED));
     T_ASSERT(!(building->s.flags & EF_MDX_ANIMATION_PAUSED));
 
-    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, true);
+    worker->paused = true;
     G_RunConstructionFrame(building);
     T_ASSERT(building->s.flags & EF_MDX_EMISSION_PAUSED);
     T_ASSERT(building->s.flags & EF_MDX_ANIMATION_PAUSED);
-    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, false);
+    worker->paused = false;
     G_RunConstructionFrame(building);
     T_ASSERT(!(building->s.flags & EF_MDX_EMISSION_PAUSED));
     T_ASSERT(!(building->s.flags & EF_MDX_ANIMATION_PAUSED));
@@ -4276,19 +4738,19 @@ TEST(wc3_building, moving_repair_worker_suspends_human_construction) {
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','p')));
     T_ASSERT(S_RepairWorkerAdvancingHumanConstruction(worker, building));
     worker->currentmove->think(worker);
-    T_ASSERT(G_GetConstruction(building)->progress > 0.0f);
-    progress = G_GetConstruction(building)->progress;
+    T_ASSERT(building->construction->progress > 0.0f);
+    progress = building->construction->progress;
     health = building->health.value;
 
     /* Exercise the player-facing Move order path. It must retire the Repair
      * work move before the worker can tick construction again. */
     T_ASSERT(G_IssueUnitPointOrder(worker, "move", &move_target, false, 0, 0.0f));
     T_ASSERT(!S_RepairWorkerAdvancingHumanConstruction(worker, building));
-    T_ASSERT(!G_GetBuildwork(worker) || !G_GetBuildwork(worker)->ability);
+    T_ASSERT(!worker->buildwork || !worker->buildwork->ability);
     worker->currentmove->think(worker);
     G_RunConstructionFrame(building);
 
-    T_FEQ(G_GetConstruction(building)->progress, progress, 0.001f);
+    T_FEQ(building->construction->progress, progress, 0.001f);
     T_FEQ(building->health.value, health, 0.001f);
     T_ASSERT(building->s.flags & EF_MDX_EMISSION_PAUSED);
     T_EQ(G_GetBuildQueue(building, queue, 1), 1);
@@ -4345,16 +4807,16 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     T_FEQ(G_SoundIndexVolume(91), 96.0f / 127.0f, 0.001f);
 
     G_StopConstruction(building);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_EQ(building->s.sound, 0);
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_NOT_NULL(G_GetConstruction(building));
-    T_FEQ(G_GetConstruction(building)->progress, 0.0f, 0.001f);
-    T_ASSERT(!G_GetConstruction(building)->paid);
+    T_NOT_NULL(building->construction);
+    T_FEQ(building->construction->progress, 0.0f, 0.001f);
+    T_ASSERT(!building->construction->paid);
     T_EQ(building->s.sound, 91);
     G_StopConstruction(building);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
 
     gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
@@ -4378,12 +4840,12 @@ TEST(wc3_building, instant_build_cheat_completes_started_human_construction_on_n
     client->cheat_instant_build = true;
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    T_ASSERT(G_GetConstruction(building));
-    T_ASSERT(G_GetConstruction(building)->paused);
+    T_ASSERT(building->construction);
+    T_ASSERT(building->construction->paused);
 
     G_RunConstructionFrame(building);
 
-    T_ASSERT(!G_GetConstruction(building));
+    T_ASSERT(!building->construction);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
 
     client->cheat_instant_build = false;
@@ -4407,11 +4869,11 @@ TEST(wc3_building, instant_build_cheat_completes_autonomous_construction_on_next
     client->cheat_instant_build = true;
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
-    T_ASSERT(G_GetConstruction(building));
+    T_ASSERT(building->construction);
 
     G_RunConstructionFrame(building);
 
-    T_ASSERT(!G_GetConstruction(building));
+    T_ASSERT(!building->construction);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_NULL(worker->build);
 
@@ -4430,16 +4892,16 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
     T_ASSERT(G_StartHumanConstruction(builder, building));
     /* Keep this lifecycle test independent of the optional Repair SLK fixture. */
     builder->build = building;
-    buildwork_t *work = G_AddBuildwork(builder);
+    buildwork_t *work = (builder->buildwork ? builder->buildwork : (builder->buildwork=G_AllocBuildwork()));
     work->ability = MAKEFOURCC('A','r','e','p');
     work->primary = true;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->primary_builder = builder;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->primary_builder = builder;
     T_ASSERT(builder->build == building);
 
     G_FreeEdict(building);
     T_NULL(builder->build);
-    T_ASSERT(!G_GetBuildwork(builder) || G_GetBuildwork(builder)->ability == 0);
+    T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
 }
 
 TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
@@ -4458,20 +4920,21 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
     building->health.value = 1000.0f;
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_ORC);
-    T_ASSERT(G_GetConstruction(building));
-    T_ASSERT(!G_GetConstruction(building) || !G_GetConstruction(building)->paused);
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
-    T_ASSERT(G_GetConstruction(building)->worker_inside);
+    T_EQ(building->construction->type, CONSTRUCTION_ORC);
+    T_ASSERT(building->construction);
+    T_ASSERT(!building->construction || !building->construction->paused);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!worker->paused);
+    T_ASSERT(worker->construction_held);
+    T_ASSERT(worker->invulnerable);
     T_ASSERT(worker->build == building);
     T_FEQ(building->health.value, 100.0f, 0.001f);
 
     hp_before = building->health.value;
     G_RunConstructionFrame(building);
-    T_FEQ(G_GetConstruction(building)->progress, (float)FRAMETIME, 0.001f);
+    T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
     T_ASSERT(building->health.value > hp_before);
     T_ASSERT(building->health.value < building->health.max_value);
 }
@@ -4492,19 +4955,20 @@ TEST(wc3_building, naga_construction_hides_worker_and_progresses_autonomously) {
     building->health.value = 1000.0f;
 
     T_ASSERT(G_StartNagaConstruction(worker, building));
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_NAGA);
-    T_ASSERT(!G_GetConstruction(building)->paused);
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
-    T_ASSERT(G_GetConstruction(building)->worker_inside);
-    T_ASSERT(!G_GetConstruction(building)->consumes_worker);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(!building->construction->paused);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
+    T_ASSERT(!building->construction->consumes_worker);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!worker->paused);
+    T_ASSERT(worker->construction_held);
+    T_ASSERT(worker->invulnerable);
     T_FEQ(building->health.value, 100.0f, 0.001f);
 
     hp_before = building->health.value;
     G_RunConstructionFrame(building);
-    T_FEQ(G_GetConstruction(building)->progress, (float)FRAMETIME, 0.001f);
+    T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
     T_ASSERT(building->health.value > hp_before);
 }
 
@@ -4532,9 +4996,9 @@ TEST(wc3_building, naga_build_dispatch_uses_worker_inside_construction) {
     build_build(worker);
     FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
     T_NOT_NULL(building);
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_NAGA);
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
-    T_ASSERT(G_GetConstruction(building)->worker_inside);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
 }
 
 TEST(wc3_building, naga_build_custom_alias_resolves_to_agbu_semantics) {
@@ -4584,7 +5048,7 @@ TEST(wc3_building, naga_build_ability_overrides_non_naga_race_dispatch) {
     build_build(worker);
     FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
     T_NOT_NULL(building);
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_NAGA);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
 }
 
 TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
@@ -4613,8 +5077,8 @@ TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
     build_build(worker);
     FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
     T_NOT_NULL(building);
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_ORC);
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
+    T_EQ(building->construction->type, CONSTRUCTION_ORC);
+    T_ASSERT(building->construction->worker == worker);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 }
 
@@ -4677,8 +5141,8 @@ TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
     T_ASSERT(!building->inuse);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!(worker && worker->paused));
+    T_ASSERT(!(worker && worker->invulnerable));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4690,26 +5154,43 @@ TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
-    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, true);
-    G_SetUnitFlag(worker, UNIT_FLAG_INVULNERABLE, true);
+    worker->paused = true;
+    worker->invulnerable = true;
     worker->s.renderfx |= RF_HIDDEN;
 
     T_ASSERT(G_StartOrcConstruction(worker, building));
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT((worker && worker->paused));
+    T_ASSERT((worker && worker->invulnerable));
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
     G_StopConstruction(building);
 
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT((worker && worker->paused));
+    T_ASSERT((worker && worker->invulnerable));
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+}
+
+TEST(wc3_building, undead_parent_teardown_preserves_script_pause_suppression) {
+    setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,0);
+    T_ASSERT(G_StartUndeadConstruction(worker,building));
+    S_SetUnitPaused(worker,true);
+    T_EQ(worker->movement.repulse.disable_depth,1);
+    G_StopConstruction(building);
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->movement.repulse.pause_suppression);
+    T_EQ(worker->movement.repulse.disable_depth,1);
+    S_SetUnitPaused(worker,false);
+    level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
+    T_ASSERT(!worker->paused);
+    T_EQ(worker->movement.repulse.disable_depth,0);
 }
 
 TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) {
     edict_t *worker;
     edict_t *building;
     UnitBalance_t balance;
-    uint32_t release_time;
+    wc3Clock_t release_time;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -4720,22 +5201,23 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
     level.time = 1000;
 
     T_ASSERT(G_StartUndeadConstruction(worker, building));
-    release_time = G_GetConstruction(building)->worker_release_time;
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_UNDEAD);
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
-    T_ASSERT(!G_GetConstruction(building) || !G_GetConstruction(building)->worker_inside);
+    release_time = worker->build_summon_wait.deadline;
+    T_EQ(building->construction->type, CONSTRUCTION_UNDEAD);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(!building->construction || !building->construction->worker_inside);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_INVULNERABLE));
-    T_ASSERT(release_time > level.time);
+    T_ASSERT(!worker->paused);
+    T_ASSERT(!worker->invulnerable);
+    T_ASSERT(release_time.time > level.pathing_clock.time);
 
-    level.time = release_time;
+    level.pathing_clock = release_time;
+    S_RunAbilityTimers();
     G_RunConstructionFrame(building);
-    T_ASSERT(G_GetConstruction(building));
-    T_NULL(G_GetConstruction(building)->worker);
+    T_ASSERT(building->construction);
+    T_NULL(building->construction->worker);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
-    T_FEQ(G_GetConstruction(building)->progress, (float)FRAMETIME, 0.001f);
+    T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
 }
 
 TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
@@ -4801,7 +5283,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
             ziggurat_balance = *ent->data.UnitBalance;
             ziggurat_balance.buildTime = 1;
             ent->data.UnitBalance = &ziggurat_balance;
-            G_InitUnitOrders(ent);
+
             ent->svflags |= SVF_MONSTER;
             ent->health.max_value = 1000.0f;
             ent->health.value = ent->health.max_value;
@@ -4820,15 +5302,15 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
         level.time += FRAMETIME;
         G_RunEntities();
         CM_ProcessPathJobs(65536);
-        if (!G_GetConstruction(ziggurat)) break;
+        if (!ziggurat->construction) break;
     }
-    T_ASSERT(!G_GetConstruction(ziggurat));
+    T_ASSERT(!ziggurat->construction);
     T_ASSERT(acolyte->inuse);
     T_NULL(acolyte->build);
     T_ASSERT(acolyte->goalentity && acolyte->goalentity->s.origin2.x == build_point.x);
     T_ASSERT(!(acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(acolyte, UNIT_FLAG_PAUSED));
-    T_ASSERT(!G_UnitHasFlag(acolyte, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!(acolyte && acolyte->paused));
+    T_ASSERT(!(acolyte && acolyte->invulnerable));
 
     order_move(acolyte, Waypoint_add(&move_point));
     FOR_LOOP(i, 20) {
@@ -4840,10 +5322,10 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     T_ASSERT(acolyte->s.origin2.x < -64.0f);
     T_ASSERT(acolyte->goalentity == NULL || acolyte->goalentity->s.origin2.x < -64.0f);
 
-    acolyte->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','u','n','s'), .level = 1);
+    acolyte->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','u','n','s'), .level = 1);
     acolyte->mana.value = acolyte->mana.max_value = 100.0f;
     ziggurat->s.player = client->ps.number;
-    G_InitUnitOrders(ziggurat);
+
     ziggurat->svflags |= SVF_MONSTER;
     ziggurat->s.flags |= EF_BUILDING;
     ziggurat->targtype = TARG_STRUCTURE;
@@ -4877,10 +5359,10 @@ TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
     T_ASSERT(G_StartUndeadConstruction(worker, building));
-    T_ASSERT(G_GetConstruction(building)->worker == worker);
+    T_ASSERT(building->construction->worker == worker);
 
     G_StopConstruction(building);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4904,17 +5386,17 @@ TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
     G_SetUnitFoodUsed(worker, worker_balance.foodUsed);
 
     T_ASSERT(G_StartNightElfConstruction(worker, building));
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_NIGHTELF);
-    T_ASSERT(G_GetConstruction(building)->consumes_worker);
-    T_ASSERT(!G_GetFood(worker) || G_GetFood(worker)->used == 0);
+    T_EQ(building->construction->type, CONSTRUCTION_NIGHTELF);
+    T_ASSERT(building->construction->consumes_worker);
+    T_ASSERT(!worker->food || worker->food->used == 0);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 
     G_StopConstruction(building);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
-    T_EQ(G_GetFood(worker)->used, worker_balance.foodUsed);
-    T_NULL(G_GetConstruction(building));
+    T_ASSERT(!(worker && worker->paused));
+    T_EQ(worker->food->used, worker_balance.foodUsed);
+    T_NULL(building->construction);
 }
 
 TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
@@ -4933,14 +5415,14 @@ TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
     building_stand_calls = 0;
 
     T_ASSERT(G_StartNightElfConstruction(worker, building));
-    T_ASSERT(G_GetConstruction(building)->consumes_worker);
+    T_ASSERT(building->construction->consumes_worker);
     saved_client = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
     g_edicts[0].client = saved_client;
 
     T_ASSERT(!worker->inuse);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_EQ(building_stand_calls, 1);
 }
 
@@ -4953,13 +5435,13 @@ TEST(wc3_building, night_elf_non_ancient_completion_releases_wisp) {
     building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
     building->stand = building_test_stand;
     T_ASSERT(G_StartNightElfConstruction(worker, building));
-    T_ASSERT(!G_GetConstruction(building) || !G_GetConstruction(building)->consumes_worker);
+    T_ASSERT(!building->construction || !building->construction->consumes_worker);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 
     G_CompleteConstruction(building);
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(worker && worker->paused));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -4976,7 +5458,7 @@ TEST(wc3_building, cancelling_night_elf_non_ancient_construction_releases_wisp) 
 
     T_ASSERT(worker->inuse);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(worker && worker->paused));
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 }
@@ -5001,9 +5483,9 @@ TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
-    T_EQ(builder->orders->build_project, barracks);
+    T_EQ(builder->build_project, barracks);
     unit_stand(builder);
-    T_EQ(builder->orders->build_project, 0);
+    T_EQ(builder->build_project, 0);
 }
 
 TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
@@ -5035,11 +5517,11 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     building->health.value = 1000.0f;
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
-    G_AddConstruction(building);
-    G_GetConstruction(building)->paid = true;
-    G_GetConstruction(building)->payer = client->ps.number;
-    G_GetConstruction(building)->gold = balance.goldCost;
-    G_GetConstruction(building)->lumber = balance.lumberCost;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->paid = true;
+    building->construction->payer = client->ps.number;
+    building->construction->gold = balance.goldCost;
+    building->construction->lumber = balance.lumberCost;
     building->build = building;
     G_SetUnitFoodUsed(building, balance.foodUsed);
     repair_build_primary(builder, building);
@@ -5050,22 +5532,37 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     level.events.read = level.events.write = 0;
 
+    T_ASSERT(run_test_jass("globals\ninteger deathFamilies=0\nendglobals\n"
+        "function unitDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==1,\"unit death follows player death\")\n"
+        "set deathFamilies=deathFamilies+1\nendfunction\n"
+        "function playerDeath takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call BJassAssert(deathFamilies==0,\"player death delivered once\")\n"
+        "set deathFamilies=deathFamilies+1\n"
+        "call TriggerRegisterUnitEvent(t,GetDyingUnit(),EVENT_UNIT_DEATH)\n"
+        "call TriggerAddAction(t,function unitDeath)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_DEATH,null)\n"
+        "call TriggerAddAction(t,function playerDeath)\nendfunction\n"
+        "function checkDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==2,\"cancel delivered both death families synchronously\")\nendfunction\n"));
+
     T_ASSERT(G_CancelStructureConstruction(building));
 
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
     T_ASSERT(building->svflags & SVF_DEADMONSTER);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_NULL(building->build);
     T_NULL(builder->build);
-    T_ASSERT(!G_GetBuildwork(builder) || G_GetBuildwork(builder)->ability == 0);
-    T_ASSERT(!G_GetFood(building) || G_GetFood(building)->used == 0);
+    T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
+    T_ASSERT(!building->food || building->food->used == 0);
     T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
-    T_EQ(level.events.write, 4);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_CANCEL);
-    T_EQ(level.events.queue[2].type, EVENT_UNIT_DEATH);
-    T_EQ(level.events.queue[3].type, EVENT_PLAYER_UNIT_DEATH);
+    jass_callbyname(level.vm,"checkDeath",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(level.events.queue[0].edict == building);
     T_ASSERT(!G_CancelStructureConstruction(building));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
@@ -5112,11 +5609,11 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
     building->s.player = client->ps.number;
     building->svflags |= SVF_MONSTER;
     building->stand = unit_stand;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->paid = true;
-    G_GetConstruction(building)->payer = client->ps.number;
-    G_GetConstruction(building)->gold = 100;
-    G_GetConstruction(building)->lumber = 80;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->paid = true;
+    building->construction->payer = client->ps.number;
+    building->construction->gold = 100;
+    building->construction->lumber = 80;
     building->build = building;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
@@ -5201,7 +5698,7 @@ TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_g
     T_NULL(building->build);
     T_EQ(building_stand_calls, 1);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
-    T_EQ(G_GetFood(building)->made, 10);
+    T_EQ(building->food->made, 10);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 10);
     T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
@@ -5221,15 +5718,15 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->s.player = client->ps.number;
     building->health.max_value = 1000.0f;
     building->health.value = 400.0f;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->paused = true;
-    G_GetConstruction(building)->type = CONSTRUCTION_HUMAN;
-    G_GetConstruction(building)->primary_builder = builder;
-    G_GetConstruction(building)->progress = 500.0f;
-    G_GetConstruction(building)->paid = true;
-    G_GetConstruction(building)->payer = client->ps.number;
-    G_GetConstruction(building)->gold = 100;
-    G_GetConstruction(building)->lumber = 50;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->paused = true;
+    building->construction->type = CONSTRUCTION_HUMAN;
+    building->construction->primary_builder = builder;
+    building->construction->progress = 500.0f;
+    building->construction->paid = true;
+    building->construction->payer = client->ps.number;
+    building->construction->gold = 100;
+    building->construction->lumber = 50;
     building->aiflags |= AI_HOLD_FRAME;
     building->s.sound = 91;
     building->stand = building_test_stand;
@@ -5248,15 +5745,15 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
         g_edicts[0].client = saved_client;
     }
 
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_EQ(building->s.sound, 0);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
-    T_EQ(G_GetFood(building)->made, 6);
+    T_EQ(building->food->made, 6);
     T_EQ(building_stand_calls, 1);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
-    T_ASSERT(building->sound->owner_pending != 0);
+    T_ASSERT(building->sound.owner_pending != 0);
     T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     T_ASSERT(level.events.queue[0].edict == building);
@@ -5456,7 +5953,7 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
     T_FEQ(G_AbilityData(MAKEFOURCC('A','h','r','p'))->level[0].data[1].number, 1.5f, 0.001f);
 #if BZ_COMPAT_WORKAROUNDS
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
-    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','h','r','p'));
+    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','h','r','p'));
     T_NOT_NULL(worker->currentmove);
     if (worker->currentmove) T_STREQ(worker->currentmove->animation, "stand work");
 
@@ -5468,7 +5965,7 @@ TEST(wc3_building, roc_peasant_aliased_repair_order_repairs_damaged_structure) {
 #else
     /* Without the RoC exception, the authored mask excludes structures. */
     T_ASSERT(!S_OrderRepair(worker, building, MAKEFOURCC('A','h','r','p')));
-    T_NULL(G_GetBuildwork(worker));
+    T_NULL(worker->buildwork);
     T_FEQ(building->health.value, 500.0f, 0.001f);
 #endif
 
@@ -5631,9 +6128,9 @@ TEST(wc3_building, allied_repair_does_not_take_over_active_human_construction) {
     ally->s.player = 1;
 
     T_ASSERT(G_StartHumanConstruction(primary, building));
-    T_ASSERT(G_GetConstruction(building)->primary_builder == primary);
+    T_ASSERT(building->construction->primary_builder == primary);
     T_ASSERT(!S_OrderRepair(ally, building, MAKEFOURCC('A','r','e','p')));
-    T_ASSERT(G_GetConstruction(building)->primary_builder == primary);
+    T_ASSERT(building->construction->primary_builder == primary);
 
     building_restore_repair_data(old_abilities, rows);
 }
@@ -5765,7 +6262,7 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     T_STREQ(worker->currentmove->animation, "walk");
 
     unit_stand(worker);
-    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
+    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 
@@ -5807,7 +6304,7 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     G_ClientCommand(clent, 2, select_target);
 
     T_ASSERT(worker->build == building);
-    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','p'));
+    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','p'));
     T_NOT_NULL(worker->currentmove);
 
     building_restore_repair_data(old_abilities, rows);
@@ -5829,7 +6326,7 @@ TEST(wc3_building, spawn_initializes_authored_default_repair_autocast) {
 
     SP_SpawnUnit(worker);
 
-    T_EQ(worker->unit_state->autocast, MAKEFOURCC('A','r','e','n'));
+    T_EQ(worker->autocast_code, MAKEFOURCC('A','r','e','n'));
     T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
     T_ASSERT(G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
@@ -5859,7 +6356,7 @@ TEST(wc3_building, spawn_without_default_active_repair_stays_disabled) {
     gi.LinkEntity(worker);
     gi.LinkEntity(building);
 
-    T_EQ(worker->unit_state->autocast, 0);
+    T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
     T_ASSERT(!G_UnitAutocastIsOn(worker, MAKEFOURCC('A','r','e','n')));
@@ -5901,25 +6398,25 @@ TEST(wc3_building, default_self_rally_does_not_autorepair_producer) {
     worker->data.UnitBalance = &worker_balance;
     worker->collision = 16.0f;
     worker->stand = unit_stand;
-    G_SetUnitFlag(worker, UNIT_FLAG_TRAINING, true);
+    worker->training = true;
     worker->s.renderfx |= RF_HIDDEN;
     producer->build = worker;
 
     /* The unit starts production with Auto Repair off. Completion must not
      * Smart-interact with the damaged producer as though it were a rally order. */
     SP_SpawnUnit(worker);
-    T_EQ(worker->unit_state->autocast, 0);
+    T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
     ai_train_build(producer);
-    T_ASSERT(!G_UnitHasFlag(worker, UNIT_FLAG_TRAINING));
+    T_ASSERT(!(worker && worker->training));
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
-    T_EQ(worker->unit_state->autocast, 0);
+    T_EQ(worker->autocast_code, 0);
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
     T_FEQ(producer->health.value, 500.0f, 0.01f);
-    T_NULL(worker->orders->follow_target);
+    T_NULL(worker->movement.follow_target);
     T_ASSERT(worker->build != producer);
     T_ASSERT(worker->goalentity != producer);
-    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
+    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
 
     game.clients[0].cheat_instant_build = old_instant_build;
     building_restore_repair_data(old_abilities, rows);
@@ -5967,7 +6464,7 @@ TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
 
@@ -5999,7 +6496,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
     T_ASSERT(G_SetUnitAutocast(first, code, true));
@@ -6022,7 +6519,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
 
 TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
     edict_t *worker;
-    UnitAbilities_t abilities = { .abilList = "Aren" };
+    UnitAbilities_t abilities = { .abilList = "Arep" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
 
@@ -6030,7 +6527,7 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     worker->data.UnitAbilities = &abilities;
-    repair = FindAbilityForCommand("Aren");
+    repair = FindAbilityForCommand("Arep");
 
     T_NOT_NULL(repair);
     T_EQ(G_OrderId("repair"), 852024);
@@ -6250,7 +6747,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
     T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
     T_ASSERT(worker->build == building);
-    T_NE(G_GetBuildwork(worker)->ability, 0);
+    T_NE(worker->buildwork->ability, 0);
 
     waypoint = Waypoint_add(&destination);
     T_NOT_NULL(waypoint);
@@ -6258,7 +6755,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
 
     T_ASSERT(worker->goalentity == waypoint);
     T_NULL(worker->build);
-    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
+    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
 
@@ -6284,8 +6781,8 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
     worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->unit_state->attack1.cooldown = 1.0f;
-    worker->unit_state->attack1.damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
     building->s.player = worker->s.player;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
@@ -6312,30 +6809,52 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
 TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     edict_t *worker;
     edict_t *enemy;
-    uint32_t stagger;
 
-    setup_test_world();
+    reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->unit_state->attack1.type = ATK_NORMAL;
-    worker->unit_state->attack1.cooldown = 1.0f;
-    worker->unit_state->attack1.damageBase = 1;
-    worker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(worker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->s.player = 1;
     enemy->svflags |= SVF_MONSTER;
     enemy->targtype = TARG_GROUND;
+    /* Allocator-only units need real spatial and idle owner publication.
+     * This is deliberately a no-autocast worker, not a repair-order fixture. */
+    worker->collision=enemy->collision=16;
+    /* A real archive fixture supplies non-hollow spatial membership. */
+    worker->s.model=enemy->s.model=G_RegisterModel("TestUI\\Models\\quad_sprite.mdx");
+    T_ASSERT(worker->s.model!=0);
+    worker->movetype=enemy->movetype=MOVETYPE_STEP;
+    worker->stand=unit_stand;
     gi.LinkEntity(worker);
     gi.LinkEntity(enemy);
+    G_PublishMoveSpatialObject(worker);G_PublishMoveSpatialObject(enemy);
 
-    stagger = (uint32_t)(worker - g_edicts) % 300;
-    level.time = (300 - stagger) % 300;
-    ai_stand(worker);
-
+    S_UnitAbilityEvent(worker,A_UNIT_INIT);
+    unit_stand(worker);
+    T_ASSERT(worker->attack_scan.active);
+    T_ASSERT(worker->currentmove && worker->currentmove->think==ai_stand);
+    /* Ordinary acquisition belongs to Attack's primary timer, independently
+     * of the legacy ai_stand autocast stagger. Do not directly fire its hook. */
+    bool scheduled=level.scheduled_frame;
+    FOR_LOOP(i,200) {
+        if(worker->attack_target==enemy)break;
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        level.time+=5;level.pathing_msec+=5;level.scheduled_frame=true;
+        G_RunTimers();
+    }
+    level.scheduled_frame=scheduled;
+    T_ASSERT(worker->attack_target==enemy);
     T_ASSERT(worker->goalentity == enemy);
+    T_NULL(worker->build);
 }
 
 TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
@@ -6372,7 +6891,7 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
     building_restore_repair_data(old_abilities, rows);
 }
 
-TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
+TEST(wc3_building, normal_target_order_routes_renew_through_repair_behavior) {
     edict_t *worker;
     edict_t *building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
@@ -6387,9 +6906,9 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
 
-    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", building, false, worker->s.player));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "renew", building, false, worker->s.player));
     T_ASSERT(worker->build == building);
-    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','n'));
+    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
 
     building_restore_repair_data(old_abilities, rows);
 }
@@ -6413,7 +6932,7 @@ TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
     building->health.value = 500.0f;
 
     T_ASSERT(unit_issuetargetorder(worker, "smart", building));
-    T_NE(G_GetBuildwork(worker)->ability, 0);
+    T_NE(worker->buildwork->ability, 0);
     T_ASSERT(worker->build == building);
     T_STREQ(worker->currentmove->animation, "stand work");
 
@@ -6443,7 +6962,7 @@ TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
     building->health.value = 0.0f;
     worker->currentmove->think(worker);
 
-    T_ASSERT(!G_GetBuildwork(worker) || G_GetBuildwork(worker)->ability == 0);
+    T_ASSERT(!worker->buildwork || worker->buildwork->ability == 0);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
 
@@ -6471,14 +6990,14 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building->health.max_value = 1000.0f;
     building->health.value = 100.0f;
     building->svflags |= SVF_MONSTER;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->paused = true;
-    G_GetConstruction(building)->type = CONSTRUCTION_ORC;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->paused = true;
+    building->construction->type = CONSTRUCTION_ORC;
 
     T_ASSERT(!S_OrderRepair(standard, building, MAKEFOURCC('A','r','e','n')));
     T_ASSERT(!S_OrderRepair(human, building, MAKEFOURCC('A','r','e','p')));
-    G_GetConstruction(building)->type = CONSTRUCTION_HUMAN;
-    G_GetConstruction(building)->paused = false;
+    building->construction->type = CONSTRUCTION_HUMAN;
+    building->construction->paused = false;
     T_ASSERT(!S_OrderRepair(human, building, MAKEFOURCC('A','r','e','p')));
 
     building_restore_repair_data(old_abilities, rows);
@@ -6528,9 +7047,9 @@ static edict_t *building_queued_build_preview(edict_t *worker, uint32_t queue_of
     unitOrder_t const *queued;
     uint32_t slot;
 
-    if (!worker || queue_offset >= worker->orders->queue.count) return NULL;
-    slot = (worker->orders->queue.head + queue_offset) % MAX_UNIT_ORDER_QUEUE;
-    queued = &worker->orders->queue.entries[slot];
+    if (!worker || queue_offset >= worker->order_queue.count) return NULL;
+    slot = (worker->order_queue.head + queue_offset) % worker->order_queue.capacity;
+    queued = &worker->order_queue.entries[slot];
     if (queued->target_type != UNIT_ORDER_TARGET_BUILD || !queued->target_number ||
         queued->target_number >= globals.num_edicts) {
         return NULL;
@@ -6591,10 +7110,10 @@ TEST(wc3_building, normal_build_click_clears_placement_overlay) {
     G_ClientCommand(clent, 3, command);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
-    T_EQ(worker->orders->build_project, MAKEFOURCC('h','b','a','r'));
+    T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
 }
 
 TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
@@ -6610,35 +7129,35 @@ TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
     gi.Write = building_capture_write;
     G_ClientCommand(clent, 4, first);
 
-    T_EQ(clent->client->menu.build_project, barracks);
+    T_EQ(clent->build_project, barracks);
     T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
     T_ASSERT(clent->client->menu.order_queue_chained);
     T_ASSERT(!building_cursor_clear_seen);
-    T_EQ(worker->orders->build_project, barracks);
+    T_EQ(worker->build_project, barracks);
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
 
     G_ClientCommand(clent, 4, second);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, barracks);
+    T_EQ(clent->build_project, barracks);
     T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
     T_ASSERT(!building_cursor_clear_seen);
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].order_id, barracks);
-    T_FEQ(worker->orders->queue.entries[worker->orders->queue.head].point.x, 512.0f, 0.01f);
-    T_FEQ(worker->orders->queue.entries[worker->orders->queue.head].point.y, 64.0f, 0.01f);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].order_id, barracks);
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.x, 512.0f, 0.01f);
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.y, 64.0f, 0.01f);
     {
         edict_t *preview = building_queued_build_preview(worker, 0);
         T_NOT_NULL(preview);
-        T_ASSERT(preview != worker->orders->build_preview);
+        T_ASSERT(preview != worker->build_preview);
         T_EQ(preview->class_id, barracks);
         T_EQ(preview->s.player, worker->s.player);
         T_ASSERT(preview->svflags & SVF_OWNER_ONLY);
         T_ASSERT(preview->s.flags & EF_NOT_SELECTABLE);
         T_FEQ(preview->s.origin2.x, 512.0f, 0.01f);
         T_FEQ(preview->s.origin2.y, 64.0f, 0.01f);
-        T_ASSERT(G_UnitHasFlag(preview, UNIT_FLAG_VERTEX_COLOR_SET));
+        T_ASSERT((preview && preview->vertex_color_set));
         T_EQ(preview->vertex_color.a, 128);
     }
 }
@@ -6654,7 +7173,7 @@ TEST(wc3_building, clearing_build_queue_removes_only_queued_placeholders) {
 
     G_ClientCommand(clent, 4, first);
     G_ClientCommand(clent, 4, second);
-    active_preview = worker->orders->build_preview;
+    active_preview = worker->build_preview;
     queued_preview = building_queued_build_preview(worker, 0);
     T_NOT_NULL(active_preview);
     T_NOT_NULL(queued_preview);
@@ -6664,7 +7183,7 @@ TEST(wc3_building, clearing_build_queue_removes_only_queued_placeholders) {
 
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
     T_ASSERT(active_preview->inuse);
-    T_ASSERT(worker->orders->build_preview == active_preview);
+    T_ASSERT(worker->build_preview == active_preview);
     T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
 }
 
@@ -6685,15 +7204,15 @@ TEST(wc3_building, starting_queued_build_replaces_queued_placeholder_with_active
     /* Simulate completion/cancellation of the current pre-spawn leg; the
      * normal stand edge then starts the next queued construction order. */
     G_ClearBuildPreview(worker);
-    worker->orders->build_project = 0;
+    worker->build_project = 0;
     T_ASSERT(G_UnitStartNextQueuedOrder(worker));
 
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
     T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
-    T_NOT_NULL(worker->orders->build_preview);
-    T_ASSERT(worker->orders->build_preview != queued_preview);
-    T_FEQ(worker->orders->build_preview->s.origin2.x, 512.0f, 0.01f);
-    T_FEQ(worker->orders->build_preview->s.origin2.y, 64.0f, 0.01f);
+    T_NOT_NULL(worker->build_preview);
+    T_ASSERT(worker->build_preview != queued_preview);
+    T_FEQ(worker->build_preview->s.origin2.x, 512.0f, 0.01f);
+    T_FEQ(worker->build_preview->s.origin2.y, 64.0f, 0.01f);
 }
 
 TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
@@ -6721,20 +7240,22 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
     T_ASSERT(G_UnitHasActiveOrder(worker));
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
-    T_EQ(worker->orders->build_project, barracks);
-    T_NOT_NULL(worker->orders->build_preview);
-    if (!worker->orders->build_preview) return;
-    T_ASSERT(worker->orders->build_preview != queued_preview);
-    T_FEQ(worker->orders->build_preview->s.origin2.x, 512.0f, 0.01f);
-    T_FEQ(worker->orders->build_preview->s.origin2.y, 64.0f, 0.01f);
+    T_EQ(worker->build_project, barracks);
+    T_NOT_NULL(worker->build_preview);
+    if (!worker->build_preview) return;
+    T_ASSERT(worker->build_preview != queued_preview);
+    T_FEQ(worker->build_preview->s.origin2.x, 512.0f, 0.01f);
+    T_FEQ(worker->build_preview->s.origin2.y, 64.0f, 0.01f);
     T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
 }
 
@@ -6764,16 +7285,18 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
-    T_EQ(worker->orders->build_project, 0);
-    T_NULL(worker->orders->build_preview);
+    T_EQ(worker->build_project, 0);
+    T_NULL(worker->build_preview);
     T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
 }
 
@@ -6795,16 +7318,16 @@ TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     strlcpy(level.map_path, "Maps\\Campaign\\QueuedBuildSaveTest.w3m", sizeof(level.map_path));
     T_ASSERT(WriteGame(filename));
 
-    memset(&worker->orders->queue, 0, sizeof(worker->orders->queue));
+    G_ClearUnitOrderQueue(worker);
     preview->inuse = false;
     T_ASSERT(ReadGame(filename));
     worker = g_edicts + worker_number;
     preview = g_edicts + preview_number;
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].order_id, barracks);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].target_number, preview_number);
-    T_EQ(worker->orders->queue.entries[worker->orders->queue.head].target_spawn_time, preview_spawn_time);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].order_id, barracks);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_number, preview_number);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_spawn_time, preview_spawn_time);
     T_ASSERT(preview->inuse);
     G_ClearUnitOrderQueue(worker);
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
@@ -6817,17 +7340,17 @@ TEST(wc3_building, removing_active_preview_detaches_worker_before_slot_reuse) {
     edict_t *worker = building_begin_barracks_placement(&clent);
     cstring_t point[] = { "point", "64", "64" };
     G_ClientCommand(clent, 3, point);
-    edict_t *preview = worker->orders->build_preview;
+    edict_t *preview = worker->build_preview;
     T_NOT_NULL(preview);
     if (!preview) return;
     G_FreeEdict(preview);
-    T_NULL(worker->orders->build_preview);
+    T_NULL(worker->build_preview);
     level.time += 1001;
     edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 400);
     T_ASSERT(replacement == preview);
     G_FreeEdict(worker);
     T_ASSERT(replacement->inuse);
-    T_NOT_NULL(replacement->unit_state);
+    T_ASSERT(replacement->inuse);
 }
 
 TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) {
@@ -6841,7 +7364,7 @@ TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) 
 
     G_ClientCommand(clent, 4, first);
     G_ClientCommand(clent, 4, second);
-    active_preview = worker->orders->build_preview;
+    active_preview = worker->build_preview;
     queued_preview = building_queued_build_preview(worker, 0);
     T_NOT_NULL(active_preview);
     T_NOT_NULL(queued_preview);
@@ -6867,7 +7390,7 @@ TEST(wc3_building, shift_release_before_success_does_not_cancel_build_overlay) {
     G_ClientCommand(clent, 1, release);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, barracks);
+    T_EQ(clent->build_project, barracks);
     T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
     T_ASSERT(!building_cursor_clear_seen);
 }
@@ -6894,10 +7417,10 @@ TEST(wc3_building, final_shift_release_clears_overlay_without_discarding_build_o
     G_ClientCommand(clent, 1, release);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
-    T_EQ(worker->orders->build_project, barracks);
+    T_EQ(worker->build_project, barracks);
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
     T_ASSERT(queued_preview->inuse);
     T_EQ(queued_preview->spawn_time, queued_preview_spawn_time);
@@ -6916,11 +7439,11 @@ TEST(wc3_building, invalid_nonshift_build_click_keeps_overlay_armed) {
     G_ClientCommand(clent, 3, command);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, barracks);
+    T_EQ(clent->build_project, barracks);
     T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
     T_ASSERT(!clent->client->menu.order_queue_chained);
     T_ASSERT(!building_cursor_clear_seen);
-    T_EQ(worker->orders->build_project, 0);
+    T_EQ(worker->build_project, 0);
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
 }
 
@@ -6937,11 +7460,11 @@ TEST(wc3_building, invalid_shift_build_click_keeps_overlay_armed) {
     G_ClientCommand(clent, 4, command);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, barracks);
+    T_EQ(clent->build_project, barracks);
     T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
     T_ASSERT(!clent->client->menu.order_queue_chained);
     T_ASSERT(!building_cursor_clear_seen);
-    T_EQ(worker->orders->build_project, 0);
+    T_EQ(worker->build_project, 0);
     T_EQ(G_UnitQueuedOrderCount(worker), 0);
 }
 
@@ -6962,7 +7485,7 @@ TEST(wc3_building, selection_replacement_cancels_build_overlay) {
     G_ClientCommand(clent, 2, command);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
     T_ASSERT(!G_IsEntitySelected(clent->client, worker));
@@ -6980,7 +7503,7 @@ TEST(wc3_building, command_card_refresh_cancels_build_overlay) {
     Get_Commands_f(clent);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
 }
@@ -6996,7 +7519,7 @@ TEST(wc3_building, selected_worker_death_cancels_build_overlay) {
     unit_die(worker, NULL);
     gi.Write = old_write;
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(clent->client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
     T_ASSERT(!G_IsEntitySelected(clent->client, worker));
@@ -7008,14 +7531,14 @@ TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
     gameClient_t *client = clent->client;
 
     client->menu.on_location_selected = build_menu_send_builder;
-    clent->client->menu.build_project = MAKEFOURCC('h','b','a','r');
+    clent->build_project = MAKEFOURCC('h','b','a','r');
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;
 
     CMD_CancelCommand(clent);
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(client->menu.on_location_selected);
     T_ASSERT(building_cursor_clear_seen);
 
@@ -7031,15 +7554,15 @@ TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_wo
 
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
-    clent->client->menu.build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    clent->build_project = MAKEFOURCC('h','b','a','r');
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;
 
     G_ClientCommand(clent, 3, command);
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(client->menu.on_location_selected);
     T_NULL(worker->goalentity);
     T_ASSERT(building_cursor_clear_seen);
@@ -7059,15 +7582,15 @@ TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
     snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
-    clent->client->menu.build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    clent->build_project = MAKEFOURCC('h','b','a','r');
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;
 
     G_ClientCommand(clent, 2, command);
 
-    T_EQ(clent->client->menu.build_project, 0);
+    T_EQ(clent->build_project, 0);
     T_NULL(client->menu.on_location_selected);
     T_NULL(worker->goalentity);
     T_ASSERT(building_cursor_clear_seen);
@@ -7100,7 +7623,7 @@ TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
     unit_stand(worker);
     T_NOT_NULL(worker->currentmove);
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
-    T_EQ(G_GetBuildwork(worker)->ability, MAKEFOURCC('A','r','e','n'));
+    T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
     T_ASSERT(worker->build == building);
     T_ASSERT(worker->goalentity == building);
     T_STREQ(worker->currentmove->animation, "walk");
@@ -7189,15 +7712,15 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     balance.buildTime = 10;
     building->data.UnitBalance = &balance;
     building->animation = &birth;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->paused = true;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->paused = true;
     building->aiflags |= AI_HOLD_FRAME;
 
-    G_GetConstruction(building)->progress = 2500.0f;
+    building->construction->progress = 2500.0f;
     M_MoveFrame(building);
     T_EQ(building->s.frame, 1500);
 
-    G_GetConstruction(building)->progress = 7500.0f;
+    building->construction->progress = 7500.0f;
     M_MoveFrame(building);
     T_EQ(building->s.frame, 2500);
 
@@ -7239,12 +7762,12 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
 
     T_ASSERT(G_StartHumanConstruction(primary, building));
     T_ASSERT(S_OrderRepair(primary, building, MAKEFOURCC('A','r','e','p')));
-    T_ASSERT(G_GetBuildwork(primary)->primary);
+    T_ASSERT(primary->buildwork->primary);
     T_ASSERT(primary->build == building);
-    T_ASSERT(G_GetConstruction(building)->primary_builder == primary);
+    T_ASSERT(building->construction->primary_builder == primary);
 
     T_ASSERT(!S_OrderRepair(extra, building, MAKEFOURCC('A','r','e','p')));
-    T_ASSERT(!G_GetBuildwork(extra) || G_GetBuildwork(extra)->ability == 0);
+    T_ASSERT(!extra->buildwork || extra->buildwork->ability == 0);
     T_NULL(extra->build);
 
     building_restore_repair_data(old_abilities, rows);
@@ -7296,9 +7819,9 @@ static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
     item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
     f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
     f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
-    G_AddItem(f.item);
-    G_GetItem(f.item)->carrier = NULL; G_GetItem(f.item)->inventory_slot = -1; G_GetItem(f.item)->in_world = true;
-    f.item->data.ItemData = &item_data; G_GetItem(f.item)->charges = 2; f.item->spawn_time = 1234;
+    (f.item->item ? f.item->item : (f.item->item=G_AllocItem()));
+    f.item->item->carrier = NULL; f.item->item->inventory_slot = -1; f.item->item->in_world = true;
+    f.item->data.ItemData = &item_data; f.item->item->charges = 2; f.item->spawn_time = 1234;
     gi.LinkEntity(f.item);
     T_ASSERT(G_AddItemToSlot(f.hero, f.item, 0));
     G_SelectEntity(f.player->client, f.hero);
@@ -7336,10 +7859,10 @@ TEST(wc3_building, tiny_structure_item_spawns_tiny_construction_and_completes_on
     T_NOT_NULL(building);
     if (!building) { building_tiny_restore(&f); return; }
     T_EQ(building->s.player, 0);
-    T_NOT_NULL(G_GetConstruction(building));
-    if (!G_GetConstruction(building)) { building_tiny_restore(&f); return; }
-    T_EQ(G_GetConstruction(building)->type, CONSTRUCTION_TINY);
-    T_FEQ(G_GetConstruction(building)->duration_ms, 3000.0f, 0.001f);
+    T_NOT_NULL(building->construction);
+    if (!building->construction) { building_tiny_restore(&f); return; }
+    T_EQ(building->construction->type, CONSTRUCTION_TINY);
+    T_FEQ(building->construction->duration_ms, 3000.0f, 0.001f);
     T_ASSERT(building->build == building);
     T_ASSERT(building->health.value < building->health.max_value);
     /* Only a successful A_EXECUTE consumes the item; the targeting state is released with it. */
@@ -7355,11 +7878,11 @@ TEST(wc3_building, tiny_structure_item_spawns_tiny_construction_and_completes_on
     level.started = true;
     level.scriptsStarted = true;
     FOR_LOOP(frame, 15) globals.RunFrame();
-    T_NOT_NULL(G_GetConstruction(building));
-    if (G_GetConstruction(building)) T_FEQ(G_GetConstruction(building)->progress, 15.0f * FRAMETIME, 0.001f);
+    T_NOT_NULL(building->construction);
+    if (building->construction) T_FEQ(building->construction->progress, 15.0f * FRAMETIME, 0.001f);
     FOR_LOOP(frame, 15) globals.RunFrame();
     T_ASSERT(building->inuse);
-    T_NULL(G_GetConstruction(building));
+    T_NULL(building->construction);
     T_NULL(building->build);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     building->data.UnitBalance = NULL;
@@ -7395,7 +7918,7 @@ TEST(wc3_building, tiny_structure_zero_duration_completes_immediately) {
     building = building_find_tiny_structure();
     T_NOT_NULL(building);
     if (building) {
-        T_NULL(G_GetConstruction(building));
+        T_NULL(building->construction);
         T_NULL(building->build);
         T_FEQ(building->health.value, building->health.max_value, 0.001f);
     }
@@ -7438,9 +7961,9 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->build = building;
-    G_AddConstruction(building);
-    G_GetConstruction(building)->type = CONSTRUCTION_TINY;
-    G_GetConstruction(building)->duration_ms = 9000.0f;
+    (building->construction ? building->construction : (building->construction=G_AllocConstruction()));
+    building->construction->type = CONSTRUCTION_TINY;
+    building->construction->duration_ms = 9000.0f;
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
     gi.ImageIndex = building_test_image_index;
@@ -7458,6 +7981,614 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     gi.ImageIndex = old_image_index;
 }
 
+
+/* Original public Build owns the structure command until Human work replaces it with Repair. */
+TEST(wc3_building, build293_public_head_follows_approach_and_race_work) {
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    cstring_t races[]={STR_HUMAN,STR_ORC,STR_UNDEAD,STR_NIGHTELF,STR_NAGA};
+    constructionType_t kinds[]={CONSTRUCTION_HUMAN,CONSTRUCTION_ORC,CONSTRUCTION_UNDEAD,CONSTRUCTION_NIGHTELF,CONSTRUCTION_NAGA};
+    FOR_LOOP(kind,5) {
+        reset_entities();setup_test_world();
+        T_ASSERT(run_test_jass("globals\nunit worker=null\nendglobals\n"
+            "function issue takes nothing returns nothing\n"
+            "call BJassAssert(IssueBuildOrderById(worker,'hbar',64,64),\"legal Build\")\n"
+            "call SetUnitUserData(worker,GetUnitCurrentOrder(worker))\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));
+        T_NOT_NULL(worker);if(!worker)continue;
+        UnitData_t data=*worker->data.UnitData;data.race=races[kind];worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList=kind==4?"AGbu":"Arep"};worker->data.UnitAbilities=&abilities;
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        vec2_t prior={-256,-128};T_ASSERT(G_IssueUnitPointOrder(worker,"move",&prior,false,0,0));
+        jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->user_data,MAKEFOURCC('h','b','a','r'));
+        edict_t *goal=worker->goalentity;T_NOT_NULL(goal);
+        T_ASSERT(!G_IssueBuildOrder(worker,MAKEFOURCC('h','f','o','o'),&(vec2_t){96,96}));
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));T_EQ(worker->goalentity,goal);
+        if(!goal)continue;
+        worker->s.origin2=goal->s.origin2;build_build(worker);
+        edict_t *target=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r')&&ent->construction)target=ent;
+        T_NOT_NULL(target);if(!target)continue;
+        T_EQ(target->construction->type,kinds[kind]);
+        T_EQ(worker->current_order_id,kind?MAKEFOURCC('h','b','a','r'):G_OrderId("repair"));
+        unsigned slot=worker->s.number,parent=target->s.number;
+        cstring_t file=Test_TempPath("build293-owner.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        worker=g_edicts+slot;target=g_edicts+parent;
+        T_EQ(worker->current_order_id,kind?MAKEFOURCC('h','b','a','r'):G_OrderId("repair"));
+        T_EQ(target->construction->type,kinds[kind]);
+        G_StopConstruction(target);
+        /* Original296 parent destruction leaves Undead work until its own
+         * d019d deadline. Retain the original terminal-order assertion. */
+        if(kinds[kind]==CONSTRUCTION_UNDEAD) {
+            T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+            level.pathing_clock=worker->build_summon_wait.deadline;S_RunAbilityTimers();
+        }
+        T_EQ(worker->current_order_id,0);T_ASSERT(!worker->construction_held);
+    }
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Rejected replacements cannot discard pending commands; accepted native Build cancels old successors. */
+TEST(wc3_building, build293_rejection_retains_queue_and_native_replacement_cancels_it) {
+    reset_entities();setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);worker->stand=unit_stand;
+    UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+    gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,-128},false,0,0));
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},true,0,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);
+    T_ASSERT(!G_IssueUnitBuildOrder(worker,MAKEFOURCC('h','f','o','o'),&(vec2_t){64,64},false,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);T_EQ(worker->current_order_id,G_OrderId("move"));
+    G_ClearUnitOrderQueue(worker);
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},true,0,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);
+    T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+    T_EQ(G_UnitQueuedOrderCount(worker),0);T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+    order_stop(worker);T_EQ(worker->current_order_id,0);T_EQ(worker->build_project,0);T_NULL(worker->build_preview);
+    reset_entities();setup_test_world();
+}
+
+
+/* The accepted outer Build event may synchronously be replaced; its return must retain the nested owner. */
+TEST(wc3_building, build293_issued_callback_replaces_accepted_head) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit worker=null\ninteger before=0\ninteger after=0\nendglobals\n"
+        "function ordered takes nothing returns nothing\nif GetIssuedOrderId()=='hbar' then\n"
+        "set before=GetUnitCurrentOrder(worker)\ncall IssuePointOrder(worker,\"move\",-256,128)\n"
+        "set after=GetUnitCurrentOrder(worker)\nendif\nendfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "call BJassAssert(IssueBuildOrderById(worker,'hbar',64,64),\"accepted outer Build\")\n"
+        "call BJassAssert(before=='hbar',\"accepted Build head visible in callback\")\n"
+        "call BJassAssert(after==OrderId(\"move\"),\"nested Move owns return\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function ordered)\nendfunction\n"));
+    edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);
+    UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+    gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+    jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(worker->current_order_id,G_OrderId("move"));T_EQ(worker->build_project,0);T_NULL(worker->build_preview);
+    T_NOT_NULL(worker->goalentity);if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);
+    reset_entities();setup_test_world();
+}
+
+/* Build is a point packet: busy append retains it, and activation alone notifies. */
+static slkTestData_t *build294_profiles(UnitProfile_t rows[2]) {
+    rows[0] = *G_UnitProfile(MAKEFOURCC('h','p','e','a'));
+    rows[1] = *G_UnitProfile(MAKEFOURCC('h','b','a','r'));
+    rows[0].id = MAKEFOURCC('h','p','e','a');
+    rows[1].id = MAKEFOURCC('h','b','a','r');
+    rows[0].builds = "hbar";
+    slkTestData_t table = {.rows = rows, .count = 2};
+    return G_SetProfileRows(&table);
+}
+static edict_t *build294_setup(void) {
+    reset_entities();setup_test_world();
+    edict_t *worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    worker->stand = unit_stand;
+    gameClient_t *client = G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    return worker;
+}
+static unsigned build294_points;
+static uint32_t build294_head;
+static unsigned build294_action;
+static void build294_point_event(edict_t *worker) {
+    build294_points++;
+    build294_head = worker->current_order_id;
+    if (build294_head != MAKEFOURCC('h','b','a','r')) return;
+    T_EQ(worker->build_project, 0);
+    switch (build294_action) {
+    case 1: G_IssueUnitPointOrder(worker, "move", &(vec2_t){-256,128}, false, 0, 0); break;
+    case 2: order_stop(worker); break;
+    case 3: G_DeferFreeEdict(worker); break;
+    }
+}
+
+TEST(wc3_building, build294_queued_notification_waits_for_activation_and_cold_save) {
+    UnitProfile_t profiles[2];slkTestData_t *old = build294_profiles(profiles);
+    FOR_LOOP(saved,2) {
+        edict_t *worker = build294_setup();
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){-128,-256}, false, 0, 0));
+        build294_points = build294_head = build294_action = 0;
+        G_TestIssuedPointObserver(build294_point_event);
+        T_ASSERT(G_IssueUnitBuildOrder(worker, MAKEFOURCC('h','b','a','r'), &(vec2_t){64,64}, true, 0));
+        T_EQ(build294_points, 0);
+        T_EQ(worker->current_order_id, G_OrderId("move"));
+        T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        edict_t *preview = building_queued_build_preview(worker, 0);
+        T_NOT_NULL(preview);uint32_t const generation = preview ? preview->spawn_time : 0;
+        if (saved) {
+            cstring_t file = Test_TempPath("build294-queued.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        }
+        build294_points = 0;
+        unit_stand(worker);
+        T_EQ(build294_points, 1);T_EQ(build294_head, MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->current_order_id, MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
+        T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!preview || !preview->inuse || preview->spawn_time != generation);
+        T_NOT_NULL(worker->build_preview);
+        G_TestIssuedPointObserver(NULL);
+    }
+    reset_entities();setup_test_world();
+    free(G_SetProfileRows(old));free(old);
+}
+
+TEST(wc3_building, build294_activation_callback_keeps_nested_owner_and_releases_indicator) {
+    UnitProfile_t profiles[2];slkTestData_t *old = build294_profiles(profiles);
+    FOR_LOOP(mode,3) {
+        edict_t *worker = build294_setup();
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){-128,-256}, false, 0, 0));
+        T_ASSERT(G_IssueUnitBuildOrder(worker, MAKEFOURCC('h','b','a','r'), &(vec2_t){64,64}, true, 0));
+        edict_t *preview = building_queued_build_preview(worker, 0);
+        T_NOT_NULL(preview);uint32_t const generation = preview ? preview->spawn_time : 0;
+        build294_points = build294_head = 0;build294_action = mode + 1;
+        G_TestIssuedPointObserver(build294_point_event);
+        unit_stand(worker);
+        T_EQ(build294_points, mode ? 1 : 2);
+        T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!preview || !preview->inuse || preview->spawn_time != generation);
+        if (!mode) {
+            T_EQ(worker->current_order_id, G_OrderId("move"));
+            T_EQ(worker->build_project, 0);T_NULL(worker->build_preview);
+            T_NOT_NULL(worker->goalentity);
+            if (worker->goalentity) T_EQ(worker->goalentity->s.origin2.x, -256.0f);
+        } else if (mode == 1) {
+            /* Instant Stop leaves no task, so original outer dispatch resumes. */
+            T_EQ(worker->current_order_id, 0);
+            T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
+            T_NOT_NULL(worker->build_preview);
+        } else {
+            T_ASSERT(G_IsDeferredFree(worker));
+            T_EQ(worker->build_project, 0);T_NULL(worker->build_preview);
+        }
+        G_TestIssuedPointObserver(NULL);
+    }
+    reset_entities();setup_test_world();
+    free(G_SetProfileRows(old));free(old);
+}
+
+/* Live original25 scenes: full-health start precedes Human Repair/work acquisition. */
+TEST(wc3_building, build295_start_callback_precedes_work_and_preserves_nested_orders) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ntrigger started=null\ninteger calls=0\nendglobals\n"
+        "function onStart takes nothing returns nothing\nlocal integer action=GetUnitUserData(worker)/5\n"
+        "set structure=GetConstructingStructure()\nset calls=calls+1\n"
+        "call BJassAssert(GetTriggerUnit()==structure,\"construct context\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(worker)=='hbar',\"Build head before work\")\n"
+        "call BJassAssert(GetWidgetLife(structure)==GetUnitState(structure,ConvertUnitState(1)),\"start precedes construction health\")\n"
+        "call BJassAssert(IsUnitHidden(worker)==((GetUnitUserData(worker)-action*5)==1 or (GetUnitUserData(worker)-action*5)==3 or (GetUnitUserData(worker)-action*5)==4),\"inside presence before start\")\n"
+        "if action==1 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"nested Move\")\n"
+        "elseif action==2 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"nested Stop\")\n"
+        "elseif action==3 then\ncall RemoveUnit(structure)\n"
+        "elseif action==4 then\ncall RemoveUnit(worker)\nelseif action==5 then\ncall KillUnit(structure)\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset calls=0\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function verify takes nothing returns nothing\ncall BJassAssert(calls==1,\"start is synchronous and once\")\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(started)\nendfunction\n"
+        "function main takes nothing returns nothing\nset started=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(started,Player(0),ConvertPlayerUnitEvent(26),null)\n"
+        "call TriggerAddAction(started,function onStart)\nendfunction\n"));
+    cstring_t races[]={STR_HUMAN,STR_ORC,STR_UNDEAD,STR_NIGHTELF,STR_NAGA};
+    FOR_LOOP(scene,30) {
+        unsigned kind=scene%5,action=scene/5;
+        jass_callbyname(level.vm,"create",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);
+        if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=races[kind];worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList=kind==4?"AGbu":"Arep"};worker->data.UnitAbilities=&abilities;
+        worker->user_data=kind+action*5;
+        if(action==5) S_AcquireUnitSeparationSuppression(worker);
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        jass_callbyname(level.vm,"verify",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);
+        if(building) {
+            if(action!=3 && action!=5) {
+                T_NOT_NULL(building->construction);
+                T_FEQ(building->health.value,building->health.max_value*0.1f,0.001f);
+            }
+            if(kind==0 && action<3) {
+                T_EQ(worker->current_order_id,action==1?G_OrderId("move"):G_OrderId("repair"));
+                T_ASSERT(building->construction->paused);
+                if(action!=1) T_NOT_NULL(worker->buildwork);
+                else {
+                    float health=building->health.value;
+                    FOR_LOOP(tick,10) G_RunConstructionFrame(building);
+                    T_EQ(building->health.value,health);
+                }
+                if(action==1) {T_NULL(worker->buildwork);T_NOT_NULL(worker->goalentity);
+                    T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+            }
+            if(kind && action<3) {
+                bool inside=kind==1 || kind==3 || kind==4;
+                T_EQ(worker->current_order_id,inside || !action?MAKEFOURCC('h','b','a','r'):action==1?G_OrderId("move"):0);
+                T_EQ(worker->construction_held,inside);
+                if(inside) T_EQ(G_UnitQueuedOrderCount(worker),action?1:0);
+            }
+            if(action==5) {
+                T_NULL(building->construction);
+                T_ASSERT(!worker->construction_held);
+                T_EQ(worker->movement.repulse.disable_depth,1);
+                S_ReleaseUnitSeparationSuppression(worker);
+            }
+            if(action==3) {T_ASSERT(G_IsDeferredFree(building));T_NULL(worker->buildwork);}
+            if(action==4) {T_ASSERT(G_IsDeferredFree(worker));T_NULL(worker->buildwork);}
+            G_FreeEdict(building);
+        }
+        G_FreeEdict(worker);
+        CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Original544350 ->69c620: unit's one-second work wait, not the structure clock. */
+TEST(wc3_building, build296_summon_wait_is_independent_and_replacement_safe) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ntrigger started=null\nendglobals\n"
+        "function onStart takes nothing returns nothing\nset structure=GetConstructingStructure()\nendfunction\n"
+        "function create takes nothing returns nothing\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function action takes nothing returns nothing\nlocal integer kind=GetUnitUserData(worker)\n"
+        "if kind==2 then\ncall PauseUnit(worker,true)\n"
+        "elseif kind==3 then\ncall PauseUnit(structure,true)\n"
+        "elseif kind==4 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"replace summon with Move\")\n"
+        "elseif kind==5 then\ncall RemoveUnit(structure)\n"
+        "elseif kind==6 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"stop summon\")\n"
+        "elseif kind==7 then\ncall KillUnit(structure)\n"
+        "elseif kind==8 then\ncall BJassAssert(IssueBuildOrderById(worker,'hbar',-256,128),\"replace summon with Build\")\nendif\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(started)\nendfunction\n"
+        "function main takes nothing returns nothing\nset started=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(started,Player(0),ConvertPlayerUnitEvent(26),null)\n"
+        "call TriggerAddAction(started,function onStart)\nendfunction\n"));
+    FOR_LOOP(kind,9) {
+        jass_callbyname(level.vm,"create",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=STR_UNDEAD;worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        worker->user_data=kind;
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        level.time=360;level.pathing_clock=(wc3Clock_t){.time=wc3_float(0x3eb851e1),.span=300};
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);if(!building)break;
+        UnitBalance_t balance=*building->data.UnitBalance;balance.buildTime=kind==1?12:3;building->data.UnitBalance=&balance;
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        level.time=560;level.pathing_clock.time=wc3_add(wc3_float(0x3eb851e1),.2f);
+        jass_callbyname(level.vm,"action",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        if(kind==5) {G_FreeEdict(building);building=NULL;}
+        /* Engine-only same-owner replacement invariant: accepting a new Build
+         * must cancel work immediately, even though both moves use Build. */
+        if(kind==8) {T_ASSERT(!worker->build_summon_wait.active);T_NULL(building->construction->worker);}
+        if(kind==5 || kind==7)T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        float due=wc3_add(wc3_float(0x3eb851e1),1);
+        level.time=1359;level.pathing_clock.time=nextafterf(due,-INFINITY);S_RunAbilityTimers();
+        if(kind<2 || kind==3 || kind==5 || kind==7)T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        level.time=1360;level.pathing_clock.time=due;S_RunAbilityTimers();
+        if(kind==2) {T_ASSERT(worker->paused);T_EQ(worker->current_order_id,MOVE_ORDER_SUSPENDED);}
+        else T_EQ(worker->current_order_id,kind==4?G_OrderId("move"):kind==8?MAKEFOURCC('h','b','a','r'):0);
+        if(kind==3) {T_ASSERT(building->paused);T_NULL(building->construction->worker);}
+        if(kind==4) {T_NOT_NULL(worker->goalentity);T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+        if(kind==2) {
+            level.pathing_clock.time=wc3_add(wc3_float(0x3eb851e1),1.4f);level.time=1760;
+            jass_callbyname(level.vm,"resume",false);
+            level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
+            if(worker->currentmove && worker->currentmove->think)worker->currentmove->think(worker);
+            T_EQ(worker->current_order_id,0);T_ASSERT(!worker->paused);
+        }
+        level.time=3000;level.pathing_clock.time=3;S_RunAbilityTimers();
+        if(building && building->construction)G_RunConstructionFrame(building);
+        T_EQ(worker->current_order_id,kind==4?G_OrderId("move"):kind==8?MAKEFOURCC('h','b','a','r'):0);
+        if(building)G_FreeEdict(building);
+        G_FreeEdict(worker);CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Query the Build owner for its scalar heap fixture; independent Attack
+ * acquisition timers may precede it in the production primary merger. */
+static bool build296_next_wait(abilityTimerRequest_t *next) {
+    abilityCall_t call={.primary_timer=next};
+    next->proc=CAbilityBuild;
+    return CAbilityBuild(NULL,A_PRIMARY_TIMER_NEXT,&call);
+}
+
+/* Persistence and epoch drain exercise the same production primary queue. */
+TEST(wc3_building, build296_summon_primary_request_survives_save_rebase_and_reuse) {
+    reset_entities();setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,0);
+    worker->stand=unit_stand;
+    worker->current_order_id=MAKEFOURCC('h','b','a','r');
+    level.pathing_clock=(wc3Clock_t){.time=299.75f,.span=300};
+    T_ASSERT(G_StartUndeadConstruction(worker,building));
+    abilityTimerRequest_t request;
+    T_ASSERT(build296_next_wait(&request));
+    T_ASSERT(request.proc==CAbilityBuild);T_EQ(request.deadline.time,300.75f);
+    uint32_t serial=request.sequence;
+    cstring_t save=Test_TempPath("summon296.bin");
+    T_ASSERT(WriteGame(save));
+    worker->build_summon_wait.active=false;S_ResetAbilityTimers();
+    T_ASSERT(ReadGame(save));
+    T_ASSERT(worker->currentmove==&build_move_summon);
+    T_ASSERT(build296_next_wait(&request));T_EQ(request.sequence,serial);
+    T_EQ(request.deadline.time,300.75f);T_EQ(request.deadline.span,300.0f);
+    S_RebaseAbilityPrimaryTimers(300);
+    level.pathing_clock=(wc3Clock_t){.time=.75f,.epoch=1,.span=300};
+    T_ASSERT(build296_next_wait(&request));
+    T_EQ(request.deadline.epoch,1);T_EQ(request.deadline.time,.75f);
+    level.scheduled_frame=true;
+    request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);
+    level.scheduled_frame=false;
+    T_EQ(worker->current_order_id,0);T_NULL(worker->build);T_NULL(building->construction->worker);
+    T_ASSERT(!worker->build_summon_wait.active);
+    G_FreeEdict(worker);G_FreeEdict(building);remove(save);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_building, build296_summon_heap_orders_and_cancels_only_owned_waits) {
+    reset_entities();setup_test_world();
+    edict_t *workers[33],*buildings[33];
+    FOR_LOOP(i,33) {
+        workers[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),i*64,0);
+        buildings[i]=alloc_test_unit(MAKEFOURCC('h','b','a','r'),i*64,128);
+        level.pathing_clock=(wc3Clock_t){.time=i%5==0?.25f:(float)((i*13)%33)/64,.span=300};
+        workers[i]->stand=unit_stand;
+        workers[i]->current_order_id=MAKEFOURCC('h','b','a','r');
+        T_ASSERT(G_StartUndeadConstruction(workers[i],buildings[i]));
+    }
+    FOR_LOOP(i,33)if(i%3==1) {
+        S_IssueMoveOrder(workers[i],Waypoint_add(&(vec2_t){-256,128}),G_OrderId("move"));
+        T_ASSERT(!workers[i]->build_summon_wait.active);
+    }
+    /* Physical removal before expiry must not deliver to a reused slot. */
+    uint32_t retired=workers[0]-g_edicts;
+    G_FreeEdict(workers[0]);workers[0]=NULL;level.time+=1001;
+    edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);
+    T_EQ(replacement-g_edicts,retired);
+    replacement->current_order_id=G_OrderId("holdposition");
+    float previous=0;unsigned fired=0;uint32_t previous_serial=0;
+    abilityTimerRequest_t request;
+    while(build296_next_wait(&request)) {
+        T_ASSERT(request.deadline.time>=previous);
+        if(request.deadline.time==previous)T_ASSERT(request.sequence>previous_serial);
+        previous=request.deadline.time;previous_serial=request.sequence;
+        level.pathing_clock=request.deadline;
+        level.scheduled_frame=true;request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);level.scheduled_frame=false;fired++;
+    }
+    T_EQ(fired,21);T_EQ(replacement->current_order_id,G_OrderId("holdposition"));
+    FOR_LOOP(i,33) {
+        if(workers[i]) {
+            T_EQ(workers[i]->current_order_id,i%3==1?G_OrderId("move"):0);
+            T_ASSERT(!workers[i]->build_summon_wait.active);G_FreeEdict(workers[i]);
+        }
+        G_FreeEdict(buildings[i]);
+    }
+    G_FreeEdict(replacement);reset_entities();setup_test_world();
+}
+
+/* Original297: structure finish callbacks precede the retained Harvest handoff. */
+TEST(wc3_building, build297_haunted_mine_completion_respects_worker_ownership) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\ninteger finishes=0\ninteger harvests=0\ntrigger done=null\ntrigger ordered=null\nendglobals\n"
+        "function completed takes nothing returns nothing\nset finishes=finishes+1\n"
+        "if GetUnitUserData(worker)==11 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"finish callback Move\")\nendif\nendfunction\n"
+        "function targetOrder takes nothing returns nothing\nif GetIssuedOrderId()==OrderId(\"harvest\") then\n"
+        "call BJassAssert(finishes==1,\"finish callback before Harvest\")\ncall BJassAssert(GetUnitCurrentOrder(worker)==OrderId(\"harvest\"),\"Harvest visible during issued event\")\nset harvests=harvests+1\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset finishes=0\nset harvests=0\nset worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function pause takes nothing returns nothing\ncall PauseUnit(worker,true)\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function check takes nothing returns nothing\ncall BJassAssert(finishes==1,\"synchronous construction finish\")\n"
+        "if GetUnitUserData(worker)==0 or GetUnitUserData(worker)==3 then\ncall BJassAssert(harvests==1,\"exactly one completion Harvest\")\n"
+        "else\ncall BJassAssert(harvests==0,\"no stale completion Harvest\")\nendif\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(done)\ncall DestroyTrigger(ordered)\nendfunction\n"
+        "function main takes nothing returns nothing\nset done=CreateTrigger()\nset ordered=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(done,Player(0),ConvertPlayerUnitEvent(28),null)\ncall TriggerAddAction(done,function completed)\n"
+        "call TriggerRegisterPlayerUnitEvent(ordered,Player(0),ConvertPlayerUnitEvent(40),null)\ncall TriggerAddAction(ordered,function targetOrder)\nendfunction\n"));
+    UnitAbilities_t worker_abilities={.abilList="Aaha,AUbu"},mine_abilities={.abilList="Abgm"},parent_abilities={.abilList="Agld"};
+    unsigned const cases[]={0,1,2,3,4,7,8,9,11};
+    FOR_LOOP(i,sizeof(cases)/sizeof(*cases)) {
+        unsigned kind=cases[i];jass_callbyname(level.vm,"create",false);
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        worker->user_data=kind;worker->data.UnitAbilities=&worker_abilities;
+        edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);
+        edict_t *parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);
+        building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+        T_ASSERT(S_MineOverlayBind(building,parent));
+        level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+        T_ASSERT(G_StartUndeadConstruction(worker,building));
+        if(kind==1)T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},false,0,0));
+        if(kind==3)T_ASSERT(unit_issueimmediateorder(worker,"stop"));
+        if(kind==4)jass_callbyname(level.vm,"pause",false);
+        level.pathing_clock.time=1.36f;level.time=1360;S_RunAbilityTimers();
+        if(kind==2)T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},false,0,0));
+        if(kind==7)worker->aiflags|=AI_TOWN_OWNED; /* Static original5c.4 branch, not a live AI witness. */
+        if(kind==8) {UnitProfile_t const profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+            gameClient_t *c=G_GetPlayerClientByNumber(0);c->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=10000;c->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=10000;
+            T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){-256,128}));worker->data.UnitProfile=NULL;}
+        if(kind==9)T_ASSERT(G_ActorRemoveSkill(building,MAKEFOURCC('A','b','g','m')));
+        G_CompleteConstruction(building);
+        if(kind==0 || kind==3) {T_EQ(worker->current_order_id,G_OrderId("harvest"));T_ASSERT(worker->goalentity==building);}
+        if(kind==1 || kind==2 || kind==11) {T_EQ(worker->current_order_id,G_OrderId("move"));T_NOT_NULL(worker->goalentity);if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+        jass_callbyname(level.vm,"check",false);T_ASSERT(!jass_rterror_pending(level.vm));jass_rterror_clear(level.vm);
+        G_CompleteConstruction(building); /* A second completion cannot reissue. */
+        G_FreeEdict(worker);G_FreeEdict(building);G_FreeEdict(parent);G_RunEvents();CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);reset_entities();setup_test_world();
+}
+
+TEST(wc3_building, build297_completion_reference_survives_save_and_rejects_reuse) {
+    reset_entities();setup_test_world();
+    UnitAbilities_t worker_abilities={.abilList="Aaha,AUbu"},mine_abilities={.abilList="Abgm"},parent_abilities={.abilList="Agld"};
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);
+    edict_t *parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);
+    worker->stand=unit_stand;worker->data.UnitAbilities=&worker_abilities;
+    building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+    T_ASSERT(S_MineOverlayBind(building,parent));
+    level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+    T_ASSERT(G_StartUndeadConstruction(worker,building));T_ASSERT(worker->build_mine==building);
+    level.pathing_clock.time=1.36f;level.time=1360;S_RunAbilityTimers();
+    T_ASSERT(!worker->build_summon_wait.active);T_ASSERT(worker->build_mine==building);
+    uint32_t spawn=building->spawn_time;building->spawn_time++;
+    T_ASSERT(!WriteGame(Test_TempPath("stale-build297.bin")));building->spawn_time=spawn;
+    cstring_t save=Test_TempPath("build297.bin");T_ASSERT(WriteGame(save));
+    build_mine_set(worker,NULL);T_NULL(worker->build_mine);
+    T_ASSERT(ReadGame(save));T_ASSERT(worker->build_mine==building);T_EQ(worker->build_mine_spawn_time,spawn);
+    T_ASSERT(S_ValidateBuildMines());T_ASSERT(build_mine_worker(building)==worker);
+    worker->data.UnitAbilities=&worker_abilities;building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;
+    G_CompleteConstruction(building);T_EQ(worker->current_order_id,G_OrderId("harvest"));T_ASSERT(worker->goalentity==building);
+    T_NULL(worker->build_mine);T_ASSERT(S_ValidateBuildMines());
+    G_FreeEdict(worker);G_FreeEdict(building);G_FreeEdict(parent);remove(save);
+    reset_entities();setup_test_world();
+    /* A dead or removed structure cannot hand its identity to a reused slot;
+     * its retirement still leaves the separate worker work timer alive. */
+    FOR_LOOP(kind,2) {
+        worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);worker->stand=unit_stand;worker->data.UnitAbilities=&worker_abilities;
+        building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);building->data.UnitAbilities=&mine_abilities;
+        parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+        T_ASSERT(S_MineOverlayBind(building,parent));level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+        T_ASSERT(G_StartUndeadConstruction(worker,building));T_ASSERT(worker->build_mine==building);
+        if(kind)unit_die(building,NULL);else G_FreeEdict(building);
+        T_NULL(worker->build_mine);T_ASSERT(worker->build_summon_wait.active);
+        if(kind)G_FreeEdict(building);
+        level.time=2000;edict_t *replacement=G_Spawn();T_ASSERT(replacement==building);
+        replacement->class_id=MAKEFOURCC('h','b','a','r');G_BindEntityData(replacement);
+        T_NULL(build_mine_worker(replacement));
+        level.pathing_clock.time=1.36f;S_RunAbilityTimers();T_EQ(worker->current_order_id,0);
+        G_FreeEdict(worker);G_FreeEdict(replacement);G_FreeEdict(parent);CM_BakeStaticObstacles();
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Human Build retires its head before the real Repair target notification.
+ * Reentrant commands at that notification can cancel work before it starts. */
+TEST(wc3_building, build298_repair_notification_precedes_work_and_respects_reentry) {
+    reset_entities();setup_test_world();
+    /* Register against a live player slot, including across save restoration. */
+    g_edicts[0].client=game.clients;g_edicts[0].inuse=true;
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ninteger repairs=0\ntrigger issued=null\nendglobals\n"
+        "function repairIssued takes nothing returns nothing\n"
+        "if GetIssuedOrderId()!=OrderId(\"repair\") then\nreturn\nendif\n"
+        "set repairs=repairs+1\nset structure=GetOrderTargetUnit()\n"
+        "call BJassAssert(GetTriggerUnit()==worker,\"Repair issuer\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(worker)==OrderId(\"repair\"),\"Repair owns notified head\")\n"
+        "call BJassAssert(GetWidgetLife(structure)>=GetUnitState(structure,ConvertUnitState(1))*0.0999 and GetWidgetLife(structure)<=GetUnitState(structure,ConvertUnitState(1))*0.1001,\"Repair notification precedes progress\")\n"
+        "if GetUnitUserData(worker)==1 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"nested Move\")\n"
+        "elseif GetUnitUserData(worker)==2 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"nested Stop\")\n"
+        "elseif GetUnitUserData(worker)==3 then\ncall RemoveUnit(structure)\n"
+        "elseif GetUnitUserData(worker)==4 then\ncall RemoveUnit(worker)\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset repairs=0\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function check takes nothing returns nothing\n"
+        "if GetUnitUserData(worker)==5 then\ncall BJassAssert(repairs==2,\"Repair notifies again on resume\")\n"
+        "else\ncall BJassAssert(repairs==1,\"one synchronous Repair notification\")\nendif\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(issued)\nendfunction\n"
+        "function main takes nothing returns nothing\nset issued=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(issued,Player(0),ConvertPlayerUnitEvent(40),null)\n"
+        "call TriggerAddAction(issued,function repairIssued)\nendfunction\n"));
+    FOR_LOOP(kind,6) {
+        jass_callbyname(level.vm,"create",false);
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=STR_HUMAN;worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList="Arep"};worker->data.UnitAbilities=&abilities;worker->user_data=kind;
+        gameClient_t *client=G_GetPlayerClientByNumber(0);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        if(kind==5) {
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->current_order_id,MOVE_ORDER_SUSPENDED);
+            PATHSTR save;strlcpy(save,Test_TempPath("build298-paused.bin"),sizeof(save));
+            T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+            worker->data.UnitData=&data;worker->data.UnitProfile=&profile;worker->data.UnitAbilities=&abilities;
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
+            T_EQ(worker->current_order_id,G_OrderId("repair"));
+            T_ASSERT(worker->currentmove && worker->currentmove->proc==CAbilityRepair);
+        }
+        jass_callbyname(level.vm,"check",false);T_ASSERT(!jass_rterror_pending(level.vm));jass_rterror_clear(level.vm);
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);
+        if(kind==0 || kind==5) {T_EQ(worker->current_order_id,G_OrderId("repair"));T_NOT_NULL(worker->buildwork);}
+        else {
+            T_NULL(worker->buildwork);
+            if(kind==1) {T_EQ(worker->current_order_id,G_OrderId("move"));T_NOT_NULL(worker->goalentity);
+                if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+            if(kind==2 || kind==3)T_EQ(worker->current_order_id,0);
+            if(kind==3 && building)T_ASSERT(G_IsDeferredFree(building));
+            if(kind==4)T_ASSERT(G_IsDeferredFree(worker));
+        }
+        if(building && building->inuse && !G_IsDeferredFree(building)) {
+            T_NOT_NULL(building->construction);
+            if(kind && kind!=5) {T_NULL(building->construction->primary_builder);
+                float health=building->health.value;FOR_LOOP(i,10)G_RunConstructionFrame(building);T_EQ(building->health.value,health);}
+        }
+        if(building && building->inuse)G_FreeEdict(building);
+        if(worker->inuse)G_FreeEdict(worker);
+        level.time+=2000;level.pathing_clock.time+=2;S_RunAbilityTimers();G_RunEvents();CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
 
 /* Rosp is a player technology; a unit's authored Upgrades Used controls
  * whether stock barricades activate, and a directly granted Aspi with no

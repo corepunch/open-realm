@@ -47,7 +47,7 @@ TEST(wc3_ability_dispatch, autocast_keeps_authored_alias) {
     T_FEQ(target->health.value, 226, 0.001f);
     T_FEQ(caster->mana.value, 164, 0.001f);
     T_ASSERT(G_ActorRemoveSkill(caster, FS_SLKKey("A002")));
-    T_EQ(caster->unit_state->autocast, 0);
+    T_EQ(caster->autocast_code, 0);
     T_ASSERT(!G_TryUnitAutocast(caster));
     T_ASSERT(!G_SetUnitAutocast(caster, FS_SLKKey("A002"), true));
     T_ASSERT(G_ActorAddSkill(caster, FS_SLKKey("A002")));
@@ -90,7 +90,7 @@ TEST(wc3_ability_dispatch, autocast_boolean_messages_switch_and_remove) {
     T_ASSERT(G_ActorRemoveSkill(caster, codes[5]));
     T_ASSERT(!(caster->aiflags & AI_AUTOCAST_ACTIVE));
     T_ASSERT(!(caster->aiflags & AI_AUTOCAST_REPAIR));
-    T_EQ(caster->unit_state->autocast, 0);
+    T_EQ(caster->autocast_code, 0);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

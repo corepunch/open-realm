@@ -4,22 +4,22 @@
 
 static void unsummon_remove_status(edict_t *building) {
     if (!building) return;
-    FOR_LOOP(i, building->unit_state ? MAX_UNIT_STATUSES : 0) {
-        if (building->unit_state->statuses[i].level && building->unit_state->statuses[i].code == ID_UNSUMMON_BUFF)
-            unit_removestatus(building, building->unit_state->statuses + i, STATUS_REMOVE_SCRIPT);
+    FOR_LOOP(i, G_UnitStatusSlotCount(building)) {
+        if (building->abilstatus[i].level && G_UnitStatusClassCode(building->abilstatus+i) == ID_UNSUMMON_BUFF)
+            unit_removestatus(building, building->abilstatus + i, STATUS_REMOVE_SCRIPT);
     }
     G_InvalidateUnitInfoPanel(building);
 }
 
 static void unsummon_add_status(edict_t *building) {
-    if (!building || G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return;
+    if (!building || G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return;
     unit_addstatus(building, "Buns", 1);
 }
 
 static void unsummon_end_effect(edict_t *thinker) {
     if (!thinker) return;
-    edict_t *target = G_GetUnsummon(thinker)->target;
-    FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker && effect->goalentity == target &&
+    FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker &&
+                  effect->goalentity == thinker->unsummon->target &&
                   (effect->s.flags & EF_NOT_SELECTABLE)) {
         effect->owner = NULL;
         G_DestroyEffect(effect);
@@ -46,7 +46,7 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindApproachPointToFootprintForRadius(
             building, &worker->s.origin2, route_band, worker->collision, &approach) &&
         CM_DistanceToPathingFootprint(building, &approach) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
@@ -58,12 +58,12 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindInnerApproachPointToFootprintForRadius(
             building, &worker->s.origin2, worker->collision, 0.0f, &approach) &&
         (footprint = CM_DistanceToPathingFootprint(building, &approach)) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
     if (!building->pathtex) {
-        worker->goalentity = building;
+        S_SetMoveGoal(worker, &worker->goalentity, building);
         move_reset_progress(worker);
         return true;
     }
@@ -72,7 +72,7 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
 
 static bool unsummon_target_valid(edict_t *worker, edict_t *building) {
     return worker && building && building->inuse &&
-        building->spawn_time == G_GetUnsummon(worker)->target_spawn_time &&
+        building->spawn_time == worker->unsummon->target_spawn_time &&
         S_SpellIsAliveTarget(building) && building->s.player == worker->s.player &&
         G_UnitIsStructure(building);
 }
@@ -84,18 +84,17 @@ static bool unsummon_thinker_target_valid(edict_t *thinker, edict_t *building) {
 }
 
 static void unsummon_cancel_approach(edict_t *worker) {
-    unsummon_t *job = G_GetUnsummon(worker);
-    if (!job) return;
-    job->target = NULL;
-    job->target_spawn_time = 0;
-    job->ability = job->level = 0;
-    job->approaching = job->starting = false;
-    if (worker->goalentity) worker->goalentity = NULL;
+    if (!worker || !worker->unsummon) return;
+    worker->unsummon->target = NULL;
+    worker->unsummon->target_spawn_time = 0;
+    worker->unsummon->ability = worker->unsummon->level = 0;
+    worker->unsummon->approaching = worker->unsummon->starting = false;
+    if (worker->goalentity) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
 }
 
 static void ai_unsummon_walk(edict_t *worker);
-static umove_t unsummon_move_walk = { "walk", ai_unsummon_walk, NULL, CAbilityUnsummon, .travel = true };
+static umove_t unsummon_move_walk = { "walk", ai_unsummon_walk, NULL, CAbilityUnsummon };
 static umove_t unsummon_move_channel = { "stand channel", ai_idle, NULL, CAbilityUnsummon };
 
 /* Owned living structure only; S_SpellAllowsTarget ignores structure/player tokens. */
@@ -104,10 +103,10 @@ static bool unsummon_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
         building->s.player != caster->s.player || !G_UnitIsStructure(building) ||
-        G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
+        G_UnitStatusClassLevel(building, ID_UNSUMMON_BUFF)) return false;
     /* Retail rejects incomplete structures before mana spend; the old path
      * treated every allied building as a valid Unsummon target. */
-    if (G_GetConstruction(building)) {
+    if (building->construction) {
         G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
                               "UnderConstruction", "That building is currently under construction.");
         return false;
@@ -120,9 +119,8 @@ static void unsummon_credit(edict_t *thinker, edict_t *building, float removed_h
     gameClient_t *client;
     float rate, fraction;
     int32_t gold_total, lumber_total, gold, lumber;
-    unsummon_t *job = G_GetUnsummon(thinker);
 
-    if (!job || !building || removed_health <= 0.0f || building->health.max_value <= 0.0f) return;
+    if (!thinker || !building || removed_health <= 0.0f || building->health.max_value <= 0.0f) return;
     bal = building->data.UnitBalance;
     if (!bal) bal = G_UnitBalance(building->class_id);
     if (!bal) return;
@@ -130,15 +128,15 @@ static void unsummon_credit(edict_t *thinker, edict_t *building, float removed_h
     /* Track demolition attributable to Unsummon rather than the building's
      * current HP.  Enemy damage therefore reduces the eventual refund, while
      * cumulative totals avoid losing the last resource to per-tick float *rounding. */
-    job->removed_health += removed_health;
+    thinker->unsummon->removed_health += removed_health;
     rate = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 1));
-    fraction = MIN(1.0f, job->removed_health / building->health.max_value);
+    fraction = MIN(1.0f, thinker->unsummon->removed_health / building->health.max_value);
     gold_total = (int32_t)floorf(MAX(0, bal->goldCost) * rate * fraction + 0.0001f);
     lumber_total = (int32_t)floorf(MAX(0, bal->lumberCost) * rate * fraction + 0.0001f);
-    gold = MAX(0, gold_total - job->gold_paid);
-    lumber = MAX(0, lumber_total - job->lumber_paid);
-    job->gold_paid = gold_total;
-    job->lumber_paid = lumber_total;
+    gold = MAX(0, gold_total - thinker->unsummon->gold_paid);
+    lumber = MAX(0, lumber_total - thinker->unsummon->lumber_paid);
+    thinker->unsummon->gold_paid = gold_total;
+    thinker->unsummon->lumber_paid = lumber_total;
     if (gold <= 0 && lumber <= 0) return;
 
     client = G_GetPlayerClientByNumber(building->s.player);
@@ -154,13 +152,11 @@ static void unsummon_credit(edict_t *thinker, edict_t *building, float removed_h
 
 void unsummon_think(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
-    unsummon_t const *job = G_GetUnsummon(thinker);
-    edict_t *building = job ? job->target : NULL;
+    edict_t *building = thinker ? thinker->unsummon->target : NULL;
     float damage, removed;
 
     if (!thinker) return;
-    assert(job); /* The channel thinker is created with its demolition record. */
-    if (job->approaching) return;
+    if (thinker->unsummon->approaching) return;
     if (!unsummon_thinker_target_valid(thinker, building) || M_IsDead(building)) {
         if (S_SpellChannelTarget(thinker) == building) unsummon_remove_status(building);
         unsummon_end_effect(thinker);
@@ -187,20 +183,19 @@ void unsummon_think(edict_t *thinker) {
 }
 
 static void unsummon_start(edict_t *worker, edict_t *thinker) {
-    unsummon_t *job = G_GetUnsummon(worker);
-    edict_t *building = job ? job->target : NULL;
+    edict_t *building = worker ? worker->unsummon->target : NULL;
 
     if (!worker || !thinker || !unsummon_target_valid(worker, building)) {
         if (worker) S_SpellCancelChannel(worker);
         return;
     }
-    job->starting = true;
-    job->approaching = false;
-    G_GetUnsummon(thinker)->approaching = false;
-    G_GetChannel(worker)->origin = worker->s.origin2;
-    worker->goalentity = NULL;
+    worker->unsummon->starting = true;
+    worker->unsummon->approaching = false;
+    thinker->unsummon->approaching = false;
+    worker->channel->origin = worker->s.origin2;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     unit_setmove(worker, &unsummon_move_channel);
-    job->starting = false;
+    worker->unsummon->starting = false;
     unsummon_add_status(building);
     {
         G_SpawnOwnedAbilityEffectTarget(thinker, ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL);
@@ -208,15 +203,13 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
 }
 
 static void ai_unsummon_walk(edict_t *worker) {
-    channel_t *cast = G_GetChannel(worker);
-    unsummon_t const *job = G_GetUnsummon(worker);
-    edict_t *building = job ? job->target : NULL;
+    edict_t *building = worker ? worker->unsummon->target : NULL;
     float distance, footprint, step;
     bool in_range, ready, blocked;
     edict_t *thinker = NULL;
 
-    if (!job || !job->approaching || !unsummon_target_valid(worker, building)) {
-        if (worker && cast && cast->code) S_SpellCancelChannel(worker);
+    if (!worker || !worker->unsummon->approaching || !unsummon_target_valid(worker, building)) {
+        if (worker && worker->channel && worker->channel->code) S_SpellCancelChannel(worker);
         return;
     }
     in_range = unsummon_in_range(worker, building);
@@ -229,9 +222,9 @@ static void ai_unsummon_walk(edict_t *worker) {
         /* An older persistent demolition may still belong to this worker; only
          * the thinker created by this approach order may start here. */
         FILTER_EDICTS(ent, ent->inuse && ent->think == unsummon_think &&
-            ent->owner == worker && ent->class_id == job->ability &&
-            G_GetChannel(ent)->serial == cast->serial &&
-            G_GetUnsummon(ent)->target == building &&
+            ent->owner == worker && ent->class_id == worker->unsummon->ability &&
+            ent->channel->serial == worker->channel->serial &&
+            ent->unsummon->target == building &&
             S_SpellChannelTarget(ent) == building) {
             thinker = ent;
             break;
@@ -244,8 +237,8 @@ static void ai_unsummon_walk(edict_t *worker) {
         return;
     }
     blocked = move_is_blocked(worker, distance, step);
-    if (blocked || worker->movement->flow_unreachable ||
-        (worker->movement->flow_goal_reached && !unsummon_in_range(worker, building))) {
+    if (blocked || worker->movement.flow_unreachable ||
+        (worker->movement.flow_goal_reached && !unsummon_in_range(worker, building))) {
         S_SpellCancelChannel(worker);
         return;
     }
@@ -267,52 +260,56 @@ static void unsummon_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
     thinker->s.player = st.entity->s.player;
     thinker->resources = level;
     thinker->think = unsummon_think;
-    /* The thinker owns the demolition ledger; the caster mirrors the approach so Move cannot cancel it. */
-    unsummon_t *job = G_AddUnsummon(thinker), *approach = G_AddUnsummon(caster);
-    job->target = approach->target = st.entity;
-    job->target_spawn_time = approach->target_spawn_time = st.entity->spawn_time;
-    job->ability = approach->ability = spell->code;
-    job->level = approach->level = level;
-    job->approaching = approach->approaching = true;
+    if (!thinker->unsummon) thinker->unsummon = G_AllocUnsummon();
+    assert(thinker->unsummon);
+    thinker->unsummon->target = st.entity;
+    thinker->unsummon->target_spawn_time = st.entity->spawn_time;
+    thinker->unsummon->ability = spell->code;
+    thinker->unsummon->level = level;
+    thinker->unsummon->approaching = true;
+    if (!caster->unsummon) caster->unsummon = G_AllocUnsummon();
+    assert(caster->unsummon);
+    caster->unsummon->target = st.entity;
+    caster->unsummon->target_spawn_time = st.entity->spawn_time;
+    caster->unsummon->ability = spell->code;
+    caster->unsummon->level = level;
+    caster->unsummon->approaching = true;
     if (unsummon_in_range(caster, st.entity)) {
         unsummon_start(caster, thinker);
     } else if (unsummon_prepare_approach(caster, st.entity)) {
-        approach->starting = true;
+        caster->unsummon->starting = true;
         unit_setmove(caster, &unsummon_move_walk);
-        approach->starting = false;
+        caster->unsummon->starting = false;
     } else {
         S_SpellCancelChannel(caster);
     }
 }
 
 static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
-    channel_t *caster_cast = G_GetChannel(caster);
     if (!caster || !code) return;
     for (uint32_t i = 1; i < globals.num_edicts; i++) {
         edict_t *thinker = g_edicts + i;
-        channel_t *thinker_cast = G_GetChannel(thinker);
-        unsummon_t *job = G_GetUnsummon(thinker);
         if (!thinker->inuse || thinker->think != unsummon_think ||
-            thinker->class_id != code || !job || !job->approaching || S_SpellChannelOwner(thinker) != caster)
+            thinker->class_id != code || !thinker->unsummon ||
+            !thinker->unsummon->approaching || S_SpellChannelOwner(thinker) != caster)
             continue;
         /* S_SpellCancelChannel clears code before A_CANCEL, but preserves serial.
          * A retired approach thinker must not cancel a later cast of this code.
          * Started demolition is intentionally independent of later cancellation. */
-        if (!caster_cast || !thinker_cast ||
-            thinker_cast->serial != caster_cast->serial) continue;
+        if (!caster->channel || !thinker->channel ||
+            thinker->channel->serial != caster->channel->serial) continue;
         {
             edict_t *target = S_SpellChannelTarget(thinker);
             if (target) unsummon_remove_status(target);
         }
-        job->target = NULL;
-        job->approaching = false;
-        thinker->goalentity = NULL;
-        unsummon_cancel_approach(caster);
+        thinker->unsummon->target = NULL;
+        thinker->unsummon->approaching = false;
+        S_SetMoveGoal(thinker, &thinker->goalentity, NULL);
+        if (thinker->owner == caster) unsummon_cancel_approach(caster);
     }
 }
 
 BZ_ABILITY_PROC(CAbilityUnsummon) {
-    channel_t *cast = G_GetChannel(ent);
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
@@ -324,12 +321,10 @@ BZ_ABILITY_PROC(CAbilityUnsummon) {
     case A_CANCEL:
         unsummon_cancel_owned(ent, call && call->item ? call->item->code : MAKEFOURCC('A','u','n','s'));
         return true;
-    case A_MOVE_LEAVE: {
-        unsummon_t const *job = G_GetUnsummon(ent);
-        if (job && job->starting) return true;
-        if (ent && cast && cast->code) S_SpellCancelChannel(ent);
+    case A_MOVE_LEAVE:
+        if (ent && ent->unsummon && ent->unsummon->starting) return true;
+        if (ent && ent->channel && ent->channel->code) S_SpellCancelChannel(ent);
         return true;
-    }
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }

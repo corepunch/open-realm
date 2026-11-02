@@ -192,7 +192,16 @@ class EndpointTests(unittest.TestCase):
         game_info = ws.request(9, request_id=52)
         self.assertIn(5, fields(game_info[9][0]))
         data = ws.request(13, integer(1, 1) + integer(2, 1) + integer(3, 1) + integer(4, 1), 53)
-        self.assertIn(2, fields(data[13][0]))
+        catalog = fields(data[13][0])
+        self.assertIn(2, catalog)
+        ability_ids = {fields(row)[1][0] for row in catalog[1]}
+        self.assertIn(851986, ability_ids, "Move must remain in the order catalog")
+        self.assertIn(int.from_bytes(b"AInv", "little"), ability_ids,
+                      "Inventory must retain its command metadata")
+        # These registered fixture abilities have no order list. RequestData
+        # must survive them while exporting the command-bearing abilities.
+        for passive in (b"AIt9", b"Amic", b"Asou", b"Agho"):
+            self.assertNotIn(int.from_bytes(passive, "little"), ability_ids)
         before = fields(fields(ws.request(10)[10][0])[3][0])[9][0]
         after = fields(ws.request(12, integer(1, 513), 54)[12][0])[1][0]
         self.assertEqual(after - before, 513)

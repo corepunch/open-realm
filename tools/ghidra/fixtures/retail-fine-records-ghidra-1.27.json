@@ -1,0 +1,377 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f148d00",
+      "name": "PathFine_ReadBlockedPerimeter",
+      "comment": "Top row left-to-right, right column down, bottom row reversed, left column up; one blocked bit per boundary cell.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: production neighbor expansion samples the entire clockwise perimeter once (8/12/16/20 cells), including cells after a rejection. Replaces eight short-circuited entering-strip calls; stamps and target observations occur in native order."
+    },
+    {
+      "address": "6f14b890",
+      "name": "PathFine_NeighboursClass0",
+      "comment": "3x3 perimeter, origin offset -1; eight direction masks, diagonal corner checks. Exhaustive mask oracle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: class0 bit masks83,02,0e,80,08,e0,20,38 applied to the single8-cell clockwise perimeter; production uses the same masks and whole observation sequence."
+    },
+    {
+      "address": "6f14b9b0",
+      "name": "PathFine_NeighboursClass1",
+      "comment": "4x4 perimeter, origin offset -2; cardinal two-cell strips, diagonal five-cell masks. Exhaustive mask oracle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: class1 masks c07,006,03e,c00,030,f80,180,1f0 applied to the single12-cell clockwise perimeter; exact production query order regression."
+    },
+    {
+      "address": "6f14bae0",
+      "name": "PathFine_NeighboursClass2",
+      "comment": "5x5 perimeter, origin offset -2; cardinal three-cell strips, diagonal seven-cell masks. Exhaustive mask oracle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: class2 masks e00f,000e,00fe,e000,00e0,fe00,0e00,0fe0 applied to the single16-cell clockwise perimeter."
+    },
+    {
+      "address": "6f14bc10",
+      "name": "PathFine_NeighboursClass3",
+      "comment": "6x6 perimeter, origin offset -3; cardinal four-cell strips, diagonal nine-cell masks. Exhaustive mask oracle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: class3 masks f001f,0001e,003fe,f0000,003c0,ff800,07800,07fc0 applied to the single20-cell clockwise perimeter."
+    },
+    {
+      "address": "6f1489a0",
+      "name": "PathFine_TestOccupiedCell",
+      "comment": "Terrain mask wins before cell links. Kind1 live active01000000 record sets fine+a8 identity hit at fine+cc BEFORE suppression8fffffff, moving60000000 and low-mask overlap checks. Earlier blocking foreign link hides later target; target preceding blocker remains seen even when cell returns0.2304 original core/full requests cover both overlapping chain orders, unlinked/inactive/moving/off-lane targets, all4 classes/masks/budgets0/5/700. Engine separate ground targets now stop at original node centre; Payoff81 ports overlapping ordinary fine-cell history, matches81920 original producer active orders and501 complete public commits plus1999 saved suffix commits. Native retired-link/stamp storage remains MAP05/06. Engine payoff28 retains the d0 observed-obstruction latch through request completion. A blocked cell anywhere on an expanded perimeter matters, not only the reconstructed route. The union of every class neighbor mask covers the full perimeter; missing edges latch the C search flag.480 full original/C requests match.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: ordinary engine fine predicates now read raw retained chains, advance the independent map stamp for each nonempty cell, skip metadata and stamp removals before older insertion. Identity is observed before suppression/eligibility and the first foreign blocker returns immediately. Verdict caching cannot erase these stamps. Static region producers/49-record hierarchy cap remain FOOT03."
+    },
+    {
+      "address": "6f148ad0",
+      "name": "PathFine_CollectCellBlockers",
+      "comment": "Bounds/terrain append null; lazy-chain per-cell stamps, mask/flags eligibility; payload to1480d0. Ignores fine+d4. 3072 original calls.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: engine step blockers traverse retained chain order directly, without reconstructing ranks or sorting candidates. The32-token cap limits append only; traversal/stamps continue after the vector is full. Existing composed strip and save/load-order regressions pass."
+    },
+    {
+      "address": "6f14d890",
+      "name": "PathFine_AddCellSearchLink",
+      "comment": "Prepends/reuses type-2 map link, retains terrain bits/old head, sets bitmap +98 and increments metadata count +b0.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: actual engine fine node creation publishes type2 metadata into the raw map, retaining high cell bits and dirtying only prepended metadata. Raw-head summary counts metadata/dead records too, so static caching cannot bypass their stamps."
+    },
+    {
+      "address": "6f147af0",
+      "name": "PathFine_FindOrCreateNode",
+      "comment": "Per-cell type-2 metadata: ushort search stamp and node index; reuse matching stamp, create up to 0x8000 nodes. Static-grid/repeat oracle. Payoff77 complete148100 retains metadata across original setup stamp FFFF/0/1/2; all1656 final semantic nodes and every route/work word equal fresh metadata and C. Payoff90 verifies natural32768-node saturation: new identity returnsFFFFFFFF while cached identity remains valid; next complete requests and compacted metadata free-list reuse succeed. Historical65536-request chain remains excluded.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: actual engine requests overwrite a metadata head or prepend over ordinary/removal heads. Source node index0 and retained metadata across FFFF/0/1/2 are checked through G_BuildUnitMoveLocalRoute. Scratch lookup preserves node identity within the request; historical65536-request metadata alias remains excluded."
+    },
+    {
+      "address": "6f14e770",
+      "name": "SpatialObject_UpdateRectangle",
+      "comment": "Old/new rectangle differences; preserves overlap cells, emits lazy removal/insertion records elsewhere then saves bounds. 1280 full updates composed with1280 separation queries. Payoff81 C active-chain ranks match81920 native cell orders, including overlapping retained cells and leave/reentry. Public paused target/blocker scene repeats all501 commits: blocker-first fine exhausts701 pops; target reinserted first terminates39 pops despite a foreign rejection. Engine pose commits publish history and Save91 retains it. Native lazy allocator and global stamp storage remain MAP05/06.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: production raw record map now emits the same reversed1d4ae0 strip order, retains intersections and copies un-clipped final bounds; exact original/C indices and stamps checked after each mutation. Fine-grid producers still use active storage pending SEP03 completion.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: actual engine fine owners now use the pooled raw map, with highX/lowX/highY/lowY delta strips and untouched retained intersections. A one-cell4x4 move emits four removals/four insertions; a fresh identity cannot alias retained records from a reused edict."
+    },
+    {
+      "address": "6f14df20",
+      "name": "SpatialMap_CompactDirtyCells",
+      "comment": "Visit dirty bitmap words/cells ascending and clear processed words; reset high-bit stamp before traversal. 96 full original cleanup cases.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: engine proximity maintenance is one recurring software1/10 scalar request merged with JASS timers and owner serial ordering. No record-count threshold. High-bit repair retains original object-stamp aliases; tests explicitly label interventions.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: fine and proximity maps each own a scalar1/10 repeating request, ordered by deadline/registration serial, proximity first on ties. No record-count threshold. Engine2100-record witness leaves36 live at the fine deadline; labelled high-bit repair retains native unlink alias."
+    },
+    {
+      "address": "6f14dfc0",
+      "name": "SpatialMap_CompactAllCells",
+      "comment": "Visit all +38 cells; reset high-bit stamp; leaves dirty bitmap unchanged. 64 full original sweeps with exact pre/post separation-order checks.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: full proximity compaction at save; Save120 retains map/object stamps and rebuilds links in save order. Generic map core also covers flagged dead records that dirty-only maintenance cannot reclaim. Fine full-sweep integration remains open.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136 Save121: full fine and proximity compaction occurs before saving logical rectangles/object stamps and independent map stamps. Free-list/process identities reconstruct in save order. Static region-cell serialization remains FOOT03."
+    },
+    {
+      "address": "6f14cf20",
+      "name": "SpatialMap_CreateObject",
+      "comment": "ThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c -\u003e1c53f0. Writes +2c map, +30 payload, +1c..+28\u003d-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c -\u003e1c53f0. Writes +2c map, +30 payload, +1c..+28\u003d-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: common production pooled identities are independent of owner edict slots; initial rectangle(-1,-1,-1,-1), objects allocated in64-entry blocks, LIFO reuse only after zero references. No process pointers serialized.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: actual fine publication uses stable64-object pooled identities. Engine65-object allocation retains prior addresses; reclaimed identities reuse last-in-first-out only after the last dead reference. No per-owner144-byte rank array or256KiB-equivalent intrusive reconstruction remains."
+    },
+    {
+      "address": "6f14dde0",
+      "name": "SpatialLinks_AppendRecords",
+      "comment": "Thiscall ECX link table (map+6c), stack4 source records (8-byte), stack8 count; RET8, EAX 1 ok / 0 refused. Count 0 returns 1. If count+n \u003e capacity(+18): growth increment(+14)\u003d\u003d0 -\u003e return 0 without storing; else reserve capacity+max(inc, needed) via 6f1c5130 (never returns 0; Storm terminates on OOM) and copy with 6f14e9b0. Spatial ctor 6f14c090 sets increment 0x20000, capacity 0. Callers 6f14d9e0/6f14d890/6f14d2e0 ignore the result.\n   [SEP-03.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: common production record vector grows in20000-slot steps without shrink during map lifetime. Boundary crossed mid36-cell update; every insertion/reclamation/reuse index compared against original. Allocation failure terminates rather than returning partial membership.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136: actual fine publication crosses131072 links partway through a16-cell insertion with every membership retained. Original36-cell growth/pregrow and fatal-allocation census are separately re-run; invalid zero-growth and NULL-return substitutions remain labelled interventions."
+    },
+    {
+      "address": "6f14d620",
+      "name": "SpatialMap_Save",
+      "comment": "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only.\nPayoff135 Save120: after full proximity compaction, map stamp and logical owner rectangles/stamps are written; no heap/process pointer. Generic region collectors and fine map save stamps remain separate open work.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff136 Save121: full fine compaction then fine32-bit map stamp,16-bit request generation stored as validated u32, logical ordinary owner rectangle/stamp. Proximity stamp payload follows separately. No retained raw slot identity/process pointer is serialized."
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3PathMapHeader",
+      "length": 108,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "datatype": "uint"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "datatype": "WC3PathIdentity"
+        },
+        {
+          "offset": 40,
+          "name": "cells",
+          "datatype": "void *32"
+        },
+        {
+          "offset": 60,
+          "name": "width",
+          "datatype": "uint"
+        },
+        {
+          "offset": 64,
+          "name": "height",
+          "datatype": "uint"
+        },
+        {
+          "offset": 68,
+          "name": "active_y0",
+          "datatype": "uint"
+        },
+        {
+          "offset": 72,
+          "name": "active_x0",
+          "datatype": "uint"
+        },
+        {
+          "offset": 76,
+          "name": "active_y1",
+          "datatype": "uint"
+        },
+        {
+          "offset": 80,
+          "name": "active_x1",
+          "datatype": "uint"
+        },
+        {
+          "offset": 84,
+          "name": "bounds_y0",
+          "datatype": "uint"
+        },
+        {
+          "offset": 88,
+          "name": "bounds_x0",
+          "datatype": "uint"
+        },
+        {
+          "offset": 92,
+          "name": "bounds_y1",
+          "datatype": "uint"
+        },
+        {
+          "offset": 96,
+          "name": "bounds_x1",
+          "datatype": "uint"
+        },
+        {
+          "offset": 100,
+          "name": "scale",
+          "datatype": "WC3PathScalar"
+        },
+        {
+          "offset": 104,
+          "name": "inverse_scale",
+          "datatype": "WC3PathScalar"
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialMapPrefix",
+      "length": 188,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "base",
+          "datatype": "WC3PathMapHeader"
+        },
+        {
+          "offset": 108,
+          "name": "link_table",
+          "datatype": "WC3DynamicTablePrefix"
+        },
+        {
+          "offset": 152,
+          "name": "dirty_bitmap",
+          "datatype": "void *32"
+        },
+        {
+          "offset": 168,
+          "name": "dirty_word_count",
+          "datatype": "uint"
+        },
+        {
+          "offset": 172,
+          "name": "free_link_head",
+          "datatype": "uint"
+        },
+        {
+          "offset": 176,
+          "name": "outstanding_records",
+          "datatype": "uint"
+        },
+        {
+          "offset": 180,
+          "name": "cell_visit_stamp",
+          "datatype": "uint"
+        },
+        {
+          "offset": 184,
+          "name": "maintenance_request",
+          "datatype": "void *32"
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialRecord",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "kind_and_next",
+          "datatype": "uint"
+        },
+        {
+          "offset": 4,
+          "name": "payload",
+          "datatype": "uint"
+        }
+      ]
+    },
+    {
+      "name": "WC3FineSearchPrefix",
+      "length": 216,
+      "fields": [
+        {
+          "offset": 28,
+          "name": "map",
+          "datatype": "WC3SpatialMapPrefix *32"
+        },
+        {
+          "offset": 32,
+          "name": "search_stamp",
+          "datatype": "ushort"
+        },
+        {
+          "offset": 40,
+          "name": "node_allocation",
+          "datatype": "void *32"
+        },
+        {
+          "offset": 44,
+          "name": "node_allocated_bytes",
+          "datatype": "uint"
+        },
+        {
+          "offset": 48,
+          "name": "nodes",
+          "datatype": "WC3FineNodePrefix *32"
+        },
+        {
+          "offset": 52,
+          "name": "node_requested_bytes",
+          "datatype": "uint"
+        },
+        {
+          "offset": 56,
+          "name": "node_growth",
+          "datatype": "uint"
+        },
+        {
+          "offset": 60,
+          "name": "node_capacity",
+          "datatype": "uint"
+        },
+        {
+          "offset": 64,
+          "name": "node_count",
+          "datatype": "uint"
+        },
+        {
+          "offset": 72,
+          "name": "heap_allocation",
+          "datatype": "void *32"
+        },
+        {
+          "offset": 76,
+          "name": "heap_allocated_bytes",
+          "datatype": "uint"
+        },
+        {
+          "offset": 80,
+          "name": "heap_entries",
+          "datatype": "WC3OpenEntry *32"
+        },
+        {
+          "offset": 84,
+          "name": "heap_requested_bytes",
+          "datatype": "uint"
+        },
+        {
+          "offset": 88,
+          "name": "heap_growth",
+          "datatype": "uint"
+        },
+        {
+          "offset": 92,
+          "name": "heap_capacity",
+          "datatype": "uint"
+        },
+        {
+          "offset": 96,
+          "name": "heap_slots",
+          "datatype": "uint"
+        },
+        {
+          "offset": 100,
+          "name": "closed_head",
+          "datatype": "int"
+        },
+        {
+          "offset": 104,
+          "name": "work_limit",
+          "datatype": "uint"
+        },
+        {
+          "offset": 108,
+          "name": "charged_work",
+          "datatype": "uint"
+        },
+        {
+          "offset": 144,
+          "name": "source_node",
+          "datatype": "int"
+        },
+        {
+          "offset": 148,
+          "name": "goal_node",
+          "datatype": "int"
+        },
+        {
+          "offset": 152,
+          "name": "nearest_distance",
+          "datatype": "uint"
+        },
+        {
+          "offset": 156,
+          "name": "nearest_node",
+          "datatype": "int"
+        },
+        {
+          "offset": 160,
+          "name": "size_class",
+          "datatype": "ushort"
+        },
+        {
+          "offset": 164,
+          "name": "query_mask",
+          "datatype": "uint"
+        },
+        {
+          "offset": 168,
+          "name": "target",
+          "datatype": "WC3SpatialPrefix *32"
+        },
+        {
+          "offset": 204,
+          "name": "target_seen",
+          "datatype": "uint"
+        },
+        {
+          "offset": 208,
+          "name": "observed_obstruction",
+          "datatype": "uint"
+        },
+        {
+          "offset": 212,
+          "name": "endpoint_mode",
+          "datatype": "uint"
+        }
+      ]
+    }
+  ]
+}

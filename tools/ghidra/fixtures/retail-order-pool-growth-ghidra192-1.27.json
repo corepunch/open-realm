@@ -1,0 +1,41 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "functions": [
+    {
+      "address": "6f015630",
+      "name": "OrderPoint_InitFactoryPool",
+      "evidence": "Payoff192 ORDER-04.4: shipped static initializer invokes06a270(globald70e18, element58, block1), writes factoryd70e14 vtableb7885c, then registers CRT destructor through78e94f. Original prefix executes through01564d, before atexit, in cold Storm-backed oracle. COrderPoint allocates one raw element per block; do not assume generic64-element task behavior."
+    },
+    {
+      "address": "6f0158a0",
+      "name": "TaskPoint_InitFactoryPool",
+      "evidence": "Payoff192 ORDER-04.4: shipped static initializer invokes06a270(globald70f20, element50, block64), writes factoryd70f1c vtableb78eb0, then CRT atexit. Original prefix executes through0158bd. Nine actual5124-byte raw allocations admit513 simultaneous payloads from empty; no raw allocation is needed after deferred final release/reuse."
+    },
+    {
+      "address": "6f057470",
+      "name": "AgentWrapper_AcquirePool",
+      "evidence": "Payoff192 ORDER-04.4: lazily allocates20-byte pool in globald3c82c+34, initializes06a270(stridebc, block200), clears constructed free14/live18/total1c. Empty cold pool grows through513 original057350 wrappers in two96260-byte raw blocks. Raw allocation count+8 stays513 after release; constructed live+18 returns0 and LIFO free+14 retains reusable wrappers."
+    },
+    {
+      "address": "6f057350",
+      "name": "AgentWrapper_AllocatePooled",
+      "evidence": "Payoff192 ORDER-04.4: thiscall ECX pool, stack two list links, RET8. Prefer constructed free_header+14; otherwise06a320 raw allocation then056f20(wrapper=raw+4), vtablea8099c. Increment constructed live+18 and cumulative1c; write tag0c/10. Two cold blocks512 and513 unique wrapper constructions, original ownership057c30, deferred0557b0/052380 release and exact LIFO reuse verified without replacement gameplay callbacks."
+    },
+    {
+      "address": "6f6807a0",
+      "name": "OrderPoint_FactoryConstruct",
+      "evidence": "Payoff192 ORDER-04.4: cold original static initializer confirms size58/block1.513 simultaneous constructs cross513 Storm92-byte raw blocks; due clock destroys final-ref payloads and wrappers, both live counts0. All513 reclaimed payload/wrapper pairs reuse exact reverse actual clock-release order without another import allocation. Supplied class/registry bindings; registration and nonempty relationships are separate contracts."
+    },
+    {
+      "address": "6f680db0",
+      "name": "TaskPoint_FactoryConstruct",
+      "evidence": "Payoff192 ORDER-04.4: cold original static initializer confirms size50/block64.513 constructs require9 Storm5124-byte blocks, wrapper pool independently crosses512 at513. Real clock final-ref release and exact LIFO reuse produce no new allocation. Two read-only public129-unit point bursts execute258 actual CTaskPoint constructs/binds/zero-ref reclaims/wrapper returns per capture, identical ordered streams and270 public markers to observer-free control; COrderPoint cold oracle is separate from this JASS task producer."
+    },
+    {
+      "address": "6f0576b0",
+      "name": "AgentWrapper_ReturnToPool",
+      "evidence": "Payoff192 ORDER-04.4: original cold-growth oracle follows2052 due final wrapper returns across two point classes and two513-object lifetimes each; constructed live18 ends0, rawallocated8 remains513. Return pushes wrapper-4 atfree14, retains raw blocks. Reallocation consumes exact reverse observed release order. Public repeated burst confirms258 TaskPoint wrapper returns with invalid identities and cleared payload54 each run."
+    }
+  ]
+}

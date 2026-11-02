@@ -60,6 +60,8 @@ static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
 static float test_walkable_hit_z;
+static unsigned ground_trace_count;
+static bool test_walkable_origin;
 static bool test_walkable_hit_from_origin;
 static bool test_walkable_accept_hits = true;
 static uint32_t test_walkable_trace_calls;
@@ -377,11 +379,13 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
 }
 
 bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
-    (void)line;
+    ground_trace_count++;
     test_walkable_trace_calls++;
-    if (!test_walkable_accept_hits || !surface || !(surface->flags & RF_GROUND_SURFACE) || !hit)
-        return false;
-    hit->z = test_walkable_hit_from_origin ? surface->origin.z : test_walkable_hit_z;
+    if (!test_walkable_accept_hits || !surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
+    if (test_walkable_origin) {
+        if (line->a.x != surface->origin.x) return false;
+        *hit = surface->origin;
+    } else hit->z = test_walkable_hit_from_origin ? surface->origin.z : test_walkable_hit_z;
     return true;
 }
 
@@ -567,6 +571,7 @@ TEST(renderer_game, ground_surface_index_picks_highest_hit_and_preserves_altitud
         { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
           .ground_snapshot_valid = true, .ground_snapshot_z = 132, .origin = { 0, 0, 25 } },
         { .model = &model, .flags = RF_GROUND_CONFORM, .ground_offset = 7,
+          .ground_snapshot_valid = true, .ground_snapshot_z = 155,
           .origin = { 0, 0, 155 } },
     };
     viewDef_t view = { .entities = entities, .num_entities = 6 };
@@ -611,7 +616,9 @@ TEST(renderer_game, ground_surface_index_bounds_classification_in_sparse_view) {
     }
 }
 
-TEST(renderer_game, ground_surface_index_overflow_still_traces_all_surfaces) {
+TEST(renderer_game, ground_surface_dynamic_index_still_traces_all_surfaces) {
+    refImport_t saved = ri;
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
     static renderEntity_t entities[131];
     model_t model = { 0 };
     viewDef_t view = { .entities = entities, .num_entities = 131 };
@@ -630,7 +637,7 @@ TEST(renderer_game, ground_surface_index_overflow_still_traces_all_surfaces) {
     test_walkable_trace_calls = 0;
     w3_ground_surface_visits = w3_ground_surface_traces = 0;
     R_ConformGroundSurfaces(&view);
-    T_EQ(w3_ground_surface_visits, 391u); /* scan through 129th + 2 * 131 */
+    T_EQ(w3_ground_surface_visits, 389u); /* 131 classifications + 2 * 129 providers */
     T_EQ(w3_ground_surface_traces, 258u);
     T_EQ(test_walkable_trace_calls, 258u);
     FOR_LOOP(i, 2) {
@@ -638,7 +645,9 @@ TEST(renderer_game, ground_surface_index_overflow_still_traces_all_surfaces) {
         T_FEQ(entities[129 + i].origin.z, 129.0f, 0.001f);
     }
     test_walkable_hit_from_origin = false;
+    ri = saved;
 }
+
 
 TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
     mdxModel_t mdx = { 0 };
@@ -1319,6 +1328,41 @@ TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
     FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
 }
 
+/* Geometry is stubbed here so this test isolates snapshot filtering, provider
+ * order and height aggregation; actual MDX tracing remains unchanged. */
+TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit) {
+    test_walkable_origin = true;
+    model_t model = {0};
+    renderEntity_t entities[260] = {0};
+    viewDef_t view = { .entities = entities, .num_entities = 260 };
+    FOR_LOOP(i, 260) {
+        entities[i].model = &model;
+        entities[i].flags = RF_GROUND_CONFORM;
+        entities[i].origin = (vec3_t){0, 0, 17};
+        entities[i].ground_offset = 3;
+    }
+    ground_trace_count = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 0);
+    T_EQ(entities[0].origin.z, 17);
+    entities[257].flags = RF_GROUND_SURFACE;
+    entities[257].origin.z = -10;
+    entities[258].flags = RF_GROUND_SURFACE;
+    entities[258].origin.z = -5;
+    entities[259].flags = RF_GROUND_SURFACE | RF_HIDDEN;
+    entities[259].origin.z = 100;
+    entities[1].origin.x = 1;
+    entities[2].flags |= RF_HIDDEN;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 256 * 2);
+    T_EQ(entities[0].origin.z, -2);
+    T_EQ(entities[1].origin.z, 17);
+    T_EQ(entities[2].origin.z, 17);
+    T_EQ(entities[257].origin.z, -10);
+    T_EQ(entities[258].origin.z, -5);
+    test_walkable_origin = false;
+}
+
 TEST(renderer_game, wc3_alpha_model_filter_preserves_attachments_ribbons_and_transparency) {
     mdxMaterialLayer_t layer = { .blendMode = BLEND_MODE_NONE };
     mdxMaterial_t material = { .num_layers = 1, .layers = &layer };
@@ -1503,6 +1547,11 @@ TEST(renderer_game, wc3_view_matrices_reuse_cull_solid_alpha_and_invalidate_muta
     R_W3ViewMatricesBegin();
     R_W3GetViewEntityMatrix(&scene[0], &cached);
     T_EQ(R_W3ViewMatricesBuildCount(), 9);
+    scene[0].pose_offset = (orientation_t){.yaw=0.02f,.pitch=0.05f,.roll=-0.08f};
+    R_W3GetViewEntityMatrix(&scene[0], &cached);
+    T_EQ(R_W3ViewMatricesBuildCount(), 10);
+    R_GetEntityMatrix(&scene[0], &expected);
+    T_ASSERT(!memcmp(&cached, &expected, sizeof(expected)));
     R_W3ViewMatricesEnd();
     tr.viewDef.entities = saved_scene; tr.viewDef.num_entities = saved_count;
     tr.render_phase = saved_phase;

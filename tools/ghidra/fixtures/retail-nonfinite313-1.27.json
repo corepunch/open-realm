@@ -1,0 +1,2655 @@
+{
+  "version": 1,
+  "task": "NUM-03.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.nonfinite313*",
+    "wc3_movement.numeric312*",
+    "wc3_movement.place309*",
+    "wc3_movement.bridge311*",
+    "wc3_movement.goal310*",
+    "wc3_spawn.*",
+    "wc3_fine_spatial.*",
+    "wc3_movement.public_axis_position_retains_original_write_and_next_step_words"
+  ],
+  "instructions": {
+    "6f6945a0": "55",
+    "6f6945a1": "8bec",
+    "6f6945a3": "51",
+    "6f6945a4": "56",
+    "6f6945a5": "57",
+    "6f6945a6": "8bf9",
+    "6f6945a8": "8d4dfc",
+    "6f6945ab": "51",
+    "6f6945ac": "8bcf",
+    "6f6945ae": "8b07",
+    "6f6945b0": "ff9068010000",
+    "6f6945b6": "f30f1045fc",
+    "6f6945bb": "8d45fc",
+    "6f6945be": "0f2f0548c7d36f",
+    "6f6945c5": "b948c7d36f",
+    "6f6945ca": "0f46c1",
+    "6f6945cd": "8d8f64010000",
+    "6f6945d3": "8b00",
+    "6f6945d5": "8945fc",
+    "6f6945d8": "8d45fc",
+    "6f6945db": "50",
+    "6f6945dc": "e8ff7c9cff",
+    "6f6945e1": "8b07",
+    "6f6945e3": "8bcf",
+    "6f6945e5": "ff9064010000",
+    "6f6945eb": "50",
+    "6f6945ec": "8b07",
+    "6f6945ee": "8bcf",
+    "6f6945f0": "ff9060010000",
+    "6f6945f6": "50",
+    "6f6945f7": "8d8f64010000",
+    "6f6945fd": "e8de819cff",
+    "6f694602": "8bcf",
+    "6f694604": "e807fdfdff",
+    "6f694609": "5f",
+    "6f69460a": "5e",
+    "6f69460b": "8be5",
+    "6f69460d": "5d",
+    "6f69460e": "c3",
+    "6f05c2e0": "55",
+    "6f05c2e1": "8bec",
+    "6f05c2e3": "8b4508",
+    "6f05c2e6": "8b00",
+    "6f05c2e8": "8d90000000fd",
+    "6f05c2ee": "33d0",
+    "6f05c2f0": "05000080fd",
+    "6f05c2f5": "c1fa1f",
+    "6f05c2f8": "f7d2",
+    "6f05c2fa": "23d0",
+    "6f05c2fc": "8d4508",
+    "6f05c2ff": "895508",
+    "6f05c302": "8b510c",
+    "6f05c305": "8b4908",
+    "6f05c308": "50",
+    "6f05c309": "e82282ffff",
+    "6f05c30e": "8bc8",
+    "6f05c310": "e8db3b1000",
+    "6f05c315": "5d",
+    "6f05c316": "c20400",
+    "6f15fef0": "55",
+    "6f15fef1": "8bec",
+    "6f15fef3": "83ec08",
+    "6f15fef6": "8b4508",
+    "6f15fef9": "8b00",
+    "6f15fefb": "898190000000",
+    "6f15ff01": "a144c7d36f",
+    "6f15ff06": "8945f8",
+    "6f15ff09": "8945fc",
+    "6f15ff0c": "8d45f8",
+    "6f15ff0f": "50",
+    "6f15ff10": "e8bb040000",
+    "6f15ff15": "8be5",
+    "6f15ff17": "5d",
+    "6f15ff18": "c20400",
+    "6f6742f0": "55",
+    "6f6742f1": "8bec",
+    "6f6742f3": "8b5130",
+    "6f6742f6": "8b4d08",
+    "6f6742f9": "e882ffffff",
+    "6f6742fe": "8b4508",
+    "6f674301": "5d",
+    "6f674302": "c20400",
+    "6f203a60": "55",
+    "6f203a61": "8bec",
+    "6f203a63": "51",
+    "6f203a64": "8b4d08",
+    "6f203a67": "e824b5feff",
+    "6f203a6c": "85c0",
+    "6f203a6e": "7509",
+    "6f203a70": "a144c7d36f",
+    "6f203a75": "8be5",
+    "6f203a77": "5d",
+    "6f203a78": "c3",
+    "6f203a79": "8b5030",
+    "6f203a7c": "8d4dfc",
+    "6f203a7f": "e8fc4f4700",
+    "6f203a84": "8b45fc",
+    "6f203a87": "8be5",
+    "6f203a89": "5d",
+    "6f203a8a": "c3",
+    "6f04c330": "55",
+    "6f04c331": "8bec",
+    "6f04c333": "83ec08",
+    "6f04c336": "a1a8c7d36f",
+    "6f04c33b": "56",
+    "6f04c33c": "8b352cc8d36f",
+    "6f04c342": "57",
+    "6f04c343": "8945fc",
+    "6f04c346": "8bf9",
+    "6f04c348": "8d45fc",
+    "6f04c34b": "50",
+    "6f04c34c": "8d5674",
+    "6f04c34f": "8d4df8",
+    "6f04c352": "e839370200",
+    "6f04c357": "f30f100f",
+    "6f04c35b": "8bc8",
+    "6f04c35d": "f30f10466c",
+    "6f04c362": "8d466c",
+    "6f04c365": "0f2fc1",
+    "6f04c368": "7708",
+    "6f04c36a": "0f2f09",
+    "6f04c36d": "8bc7",
+    "6f04c36f": "0f47c1",
+    "6f04c372": "8b00",
+    "6f04c374": "8d5678",
+    "6f04c377": "8907",
+    "6f04c379": "8d4df8",
+    "6f04c37c": "8d45fc",
+    "6f04c37f": "50",
+    "6f04c380": "e80b370200",
+    "6f04c385": "f30f104f04",
+    "6f04c38a": "8bd0",
+    "6f04c38c": "f30f104670",
+    "6f04c391": "0f2fc1",
+    "6f04c394": "760c",
+    "6f04c396": "8b4670",
+    "6f04c399": "894704",
+    "6f04c39c": "5f",
+    "6f04c39d": "5e",
+    "6f04c39e": "8be5",
+    "6f04c3a0": "5d",
+    "6f04c3a1": "c3",
+    "6f04c3a2": "0f2f0a",
+    "6f04c3a5": "8d4704",
+    "6f04c3a8": "0f47c2",
+    "6f04c3ab": "8b00",
+    "6f04c3ad": "894704",
+    "6f04c3b0": "5f",
+    "6f04c3b1": "5e",
+    "6f04c3b2": "8be5",
+    "6f04c3b4": "5d",
+    "6f04c3b5": "c3",
+    "6f058cd0": "55",
+    "6f058cd1": "8bec",
+    "6f058cd3": "83ec50",
+    "6f058cd6": "53",
+    "6f058cd7": "8b1d2cc8d36f",
+    "6f058cdd": "8bc2",
+    "6f058cdf": "56",
+    "6f058ce0": "57",
+    "6f058ce1": "8bf1",
+    "6f058ce3": "8945d8",
+    "6f058ce6": "8d7b6c",
+    "6f058ce9": "57",
+    "6f058cea": "8d4df8",
+    "6f058ced": "e89e6d0100",
+    "6f058cf2": "8b45f8",
+    "6f058cf5": "8b5508",
+    "6f058cf8": "8d88000000fd",
+    "6f058cfe": "33c8",
+    "6f058d00": "05000080fd",
+    "6f058d05": "c1f91f",
+    "6f058d08": "f7d1",
+    "6f058d0a": "23c8",
+    "6f058d0c": "a12cc8d36f",
+    "6f058d11": "83c070",
+    "6f058d14": "894df8",
+    "6f058d17": "50",
+    "6f058d18": "8d4de8",
+    "6f058d1b": "e8706d0100",
+    "6f058d20": "8b45e8",
+    "6f058d23": "baa8c7d36f",
+    "6f058d28": "686c54cd6f",
+    "6f058d2d": "8d88000000fd",
+    "6f058d33": "33c8",
+    "6f058d35": "05000080fd",
+    "6f058d3a": "c1f91f",
+    "6f058d3d": "f7d1",
+    "6f058d3f": "23c8",
+    "6f058d41": "8b45f8",
+    "6f058d44": "894de8",
+    "6f058d47": "894dd4",
+    "6f058d4a": "8d4dfc",
+    "6f058d4d": "8945d0",
+    "6f058d50": "e85b6e0100",
+    "6f058d55": "8b06",
+    "6f058d57": "8d5374",
+    "6f058d5a": "8945c0",
+    "6f058d5d": "8d4de4",
+    "6f058d60": "8b4604",
+    "6f058d63": "8945c4",
+    "6f058d66": "8b4608",
+    "6f058d69": "8945c8",
+    "6f058d6c": "8b460c",
+    "6f058d6f": "8945cc",
+    "6f058d72": "8d45fc",
+    "6f058d75": "50",
+    "6f058d76": "e8156d0100",
+    "6f058d7b": "f30f1007",
+    "6f058d7f": "8bc8",
+    "6f058d81": "f30f104dc4",
+    "6f058d86": "0f2fc1",
+    "6f058d89": "7604",
+    "6f058d8b": "8bc7",
+    "6f058d8d": "eb09",
+    "6f058d8f": "0f2f09",
+    "6f058d92": "8d45c4",
+    "6f058d95": "0f47c1",
+    "6f058d98": "8b00",
+    "6f058d9a": "8d5374",
+    "6f058d9d": "8945c4",
+    "6f058da0": "8d4de4",
+    "6f058da3": "8d45fc",
+    "6f058da6": "50",
+    "6f058da7": "e8e46c0100",
+    "6f058dac": "f30f1007",
+    "6f058db0": "f30f104dcc",
+    "6f058db5": "0f2fc1",
+    "6f058db8": "7709",
+    "6f058dba": "0f2f08",
+    "6f058dbd": "8d7dcc",
+    "6f058dc0": "0f47f8",
+    "6f058dc3": "8b07",
+    "6f058dc5": "8d5378",
+    "6f058dc8": "8945cc",
+    "6f058dcb": "8d4de4",
+    "6f058dce": "8d45fc",
+    "6f058dd1": "50",
+    "6f058dd2": "e8b96c0100",
+    "6f058dd7": "f30f104370",
+    "6f058ddc": "8d7370",
+    "6f058ddf": "f30f104dc0",
+    "6f058de4": "8bc8",
+    "6f058de6": "0f2fc1",
+    "6f058de9": "7604",
+    "6f058deb": "8bc6",
+    "6f058ded": "eb09",
+    "6f058def": "0f2f09",
+    "6f058df2": "8d45c0",
+    "6f058df5": "0f47c1",
+    "6f058df8": "8b00",
+    "6f058dfa": "8d5378",
+    "6f058dfd": "8945c0",
+    "6f058e00": "8d4de4",
+    "6f058e03": "8d45fc",
+    "6f058e06": "50",
+    "6f058e07": "e8846c0100",
+    "6f058e0c": "f30f1006",
+    "6f058e10": "f30f104dc8",
+    "6f058e15": "0f2fc1",
+    "6f058e18": "7709",
+    "6f058e1a": "0f2f08",
+    "6f058e1d": "8d75c8",
+    "6f058e20": "0f47f0",
+    "6f058e23": "8b06",
+    "6f058e25": "8d55cc",
+    "6f058e28": "8945c8",
+    "6f058e2b": "8d4dec",
+    "6f058e2e": "a12cc8d36f",
+    "6f058e33": "83c06c",
+    "6f058e36": "50",
+    "6f058e37": "e8546c0100",
+    "6f058e3c": "8b45ec",
+    "6f058e3f": "8d55c8",
+    "6f058e42": "8d88000000fd",
+    "6f058e48": "33c8",
+    "6f058e4a": "05000080fd",
+    "6f058e4f": "c1f91f",
+    "6f058e52": "f7d1",
+    "6f058e54": "23c8",
+    "6f058e56": "a12cc8d36f",
+    "6f058e5b": "83c070",
+    "6f058e5e": "894dec",
+    "6f058e61": "50",
+    "6f058e62": "8d4df0",
+    "6f058e65": "e8266c0100",
+    "6f058e6a": "8b45f0",
+    "6f058e6d": "8d55c4",
+    "6f058e70": "8d88000000fd",
+    "6f058e76": "33c8",
+    "6f058e78": "05000080fd",
+    "6f058e7d": "c1f91f",
+    "6f058e80": "f7d1",
+    "6f058e82": "23c8",
+    "6f058e84": "a12cc8d36f",
+    "6f058e89": "83c06c",
+    "6f058e8c": "894df0",
+    "6f058e8f": "50",
+    "6f058e90": "8d4df4",
+    "6f058e93": "e8f86b0100",
+    "6f058e98": "8b45f4",
+    "6f058e9b": "8d55c0",
+    "6f058e9e": "8d88000000fd",
+    "6f058ea4": "33c8",
+    "6f058ea6": "05000080fd",
+    "6f058eab": "c1f91f",
+    "6f058eae": "f7d1",
+    "6f058eb0": "23c8",
+    "6f058eb2": "a12cc8d36f",
+    "6f058eb7": "83c070",
+    "6f058eba": "894df4",
+    "6f058ebd": "50",
+    "6f058ebe": "8d4de4",
+    "6f058ec1": "e8ca6b0100",
+    "6f058ec6": "8b45e4",
+    "6f058ec9": "8d88000000fd",
+    "6f058ecf": "33c8",
+    "6f058ed1": "05000080fd",
+    "6f058ed6": "c1f91f",
+    "6f058ed9": "f7d1",
+    "6f058edb": "23c8",
+    "6f058edd": "8b45f4",
+    "6f058ee0": "8945b4",
+    "6f058ee3": "8b45f0",
+    "6f058ee6": "8945b8",
+    "6f058ee9": "8b45ec",
+    "6f058eec": "8945bc",
+    "6f058eef": "8b450c",
+    "6f058ef2": "894db0",
+    "6f058ef5": "8b00",
+    "6f058ef7": "8d88000000fd",
+    "6f058efd": "33c8",
+    "6f058eff": "05000080fd",
+    "6f058f04": "c1f91f",
+    "6f058f07": "f7d1",
+    "6f058f09": "23c8",
+    "6f058f0b": "8b4510",
+    "6f058f0e": "894ddc",
+    "6f058f11": "8bc8",
+    "6f058f13": "c1e018",
+    "6f058f16": "81e1ffffff00",
+    "6f058f1c": "0bc8",
+    "6f058f1e": "33c0",
+    "6f058f20": "394518",
+    "6f058f23": "894de0",
+    "6f058f26": "0f94c0",
+    "6f058f29": "8d55b0",
+    "6f058f2c": "50",
+    "6f058f2d": "ff7514",
+    "6f058f30": "8b4530",
+    "6f058f33": "b920000000",
+    "6f058f38": "ff7520",
+    "6f058f3b": "83f8ff",
+    "6f058f3e": "ff751c",
+    "6f058f41": "0f44c1",
+    "6f058f44": "8d4dd0",
+    "6f058f47": "50",
+    "6f058f48": "ff7528",
+    "6f058f4b": "8d45e0",
+    "6f058f4e": "ff7524",
+    "6f058f51": "ff752c",
+    "6f058f54": "50",
+    "6f058f55": "8d45dc",
+    "6f058f58": "50",
+    "6f058f59": "e8625d1100",
+    "6f058f5e": "5f",
+    "6f058f5f": "5e",
+    "6f058f60": "5b",
+    "6f058f61": "85c0",
+    "6f058f63": "7475",
+    "6f058f65": "8b4dd0",
+    "6f058f68": "8d550c",
+    "6f058f6b": "a12cc8d36f",
+    "6f058f70": "81e10000807f",
+    "6f058f76": "f7d9",
+    "6f058f78": "1bc9",
+    "6f058f7a": "83c06c",
+    "6f058f7d": "81e100008002",
+    "6f058f83": "034dd0",
+    "6f058f86": "894d0c",
+    "6f058f89": "8d4d10",
+    "6f058f8c": "50",
+    "6f058f8d": "e81e6c0100",
+    "6f058f92": "8b4dd8",
+    "6f058f95": "8d550c",
+    "6f058f98": "8b4510",
+    "6f058f9b": "8901",
+    "6f058f9d": "8b4dd4",
+    "6f058fa0": "a12cc8d36f",
+    "6f058fa5": "81e10000807f",
+    "6f058fab": "f7d9",
+    "6f058fad": "1bc9",
+    "6f058faf": "83c070",
+    "6f058fb2": "81e100008002",
+    "6f058fb8": "034dd4",
+    "6f058fbb": "894d0c",
+    "6f058fbe": "8d4d10",
+    "6f058fc1": "50",
+    "6f058fc2": "e8e96b0100",
+    "6f058fc7": "8b4d08",
+    "6f058fca": "8b4510",
+    "6f058fcd": "8901",
+    "6f058fcf": "b801000000",
+    "6f058fd4": "8be5",
+    "6f058fd6": "5d",
+    "6f058fd7": "c22c00",
+    "6f058fda": "33c0",
+    "6f058fdc": "8be5",
+    "6f058fde": "5d",
+    "6f058fdf": "c22c00",
+    "6f1dda80": "55",
+    "6f1dda81": "8bec",
+    "6f1dda83": "83ec0c",
+    "6f1dda86": "8b450c",
+    "6f1dda89": "33d2",
+    "6f1dda8b": "53",
+    "6f1dda8c": "8b5d14",
+    "6f1dda8f": "56",
+    "6f1dda90": "668910",
+    "6f1dda93": "8b4510",
+    "6f1dda96": "894dfc",
+    "6f1dda99": "57",
+    "6f1dda9a": "bf01000000",
+    "6f1dda9f": "668910",
+    "6f1ddaa2": "8b7134",
+    "6f1ddaa5": "8b4508",
+    "6f1ddaa8": "c745080c000000",
+    "6f1ddaaf": "8b4e68",
+    "6f1ddab2": "8b5004",
+    "6f1ddab5": "d3e2",
+    "6f1ddab7": "b900f00000",
+    "6f1ddabc": "0310",
+    "6f1ddabe": "8b4630",
+    "6f1ddac1": "660b0c50",
+    "6f1ddac5": "0fb7c1",
+    "6f1ddac8": "b9ff0f0000",
+    "6f1ddacd": "8945f4",
+    "6f1ddad0": "8b462c",
+    "6f1ddad3": "668b0450",
+    "6f1ddad7": "6623c1",
+    "6f1ddada": "83c304",
+    "6f1ddadd": "0fb7c0",
+    "6f1ddae0": "8945f8",
+    "6f1ddae3": "0fb713",
+    "6f1ddae6": "6685d2",
+    "6f1ddae9": "7448",
+    "6f1ddaeb": "8b450c",
+    "6f1ddaee": "0fb730",
+    "6f1ddaf1": "8bce",
+    "6f1ddaf3": "23ca",
+    "6f1ddaf5": "7534",
+    "6f1ddaf7": "8b45fc",
+    "6f1ddafa": "52",
+    "6f1ddafb": "ff75f8",
+    "6f1ddafe": "ff75f4",
+    "6f1ddb01": "8b4834",
+    "6f1ddb04": "e877300000",
+    "6f1ddb09": "8bc8",
+    "6f1ddb0b": "c1e902",
+    "6f1ddb0e": "83e101",
+    "6f1ddb11": "7518",
+    "6f1ddb13": "8b4dfc",
+    "6f1ddb16": "83b9c003000000",
+    "6f1ddb1d": "7504",
+    "6f1ddb1f": "a802",
+    "6f1ddb21": "7410",
+    "6f1ddb23": "8b4510",
+    "6f1ddb26": "660938",
+    "6f1ddb29": "eb08",
+    "6f1ddb2b": "8b450c",
+    "6f1ddb2e": "0bf7",
+    "6f1ddb30": "668930",
+    "6f1ddb33": "83c302",
+    "6f1ddb36": "03ff",
+    "6f1ddb38": "ff4d08",
+    "6f1ddb3b": "75a6",
+    "6f1ddb3d": "5f",
+    "6f1ddb3e": "5e",
+    "6f1ddb3f": "5b",
+    "6f1ddb40": "8be5",
+    "6f1ddb42": "5d",
+    "6f1ddb43": "c21000"
+  },
+  "instruction_count": 482,
+  "cases": {
+    "radius": {
+      "states": [
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 1023410176,
+            "authored": 2143289345,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 1023410176,
+            "authored": 2141192193,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              0,
+              0
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              2147483648,
+              2147483648
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4290772993,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 2097152000,
+            "authored": 2139095040,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              0,
+              0
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              2147483648,
+              2147483648
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578688,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              1075838976,
+              1075838976
+            ],
+            "world": [
+              1117782016,
+              1117782016
+            ],
+            "physical": 2097151999,
+            "authored": 2139095039,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              0,
+              0
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              2147483648,
+              2147483648
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 4286578687,
+            "returned": true
+          }
+        ],
+        [
+          {
+            "label": "created",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "axis-x",
+            "fine": [
+              0,
+              1098907648
+            ],
+            "world": [
+              0,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "restore-x",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "axis-y",
+            "fine": [
+              1103101952,
+              0
+            ],
+            "world": [
+              1145044992,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "restore-y",
+            "fine": [
+              1103101952,
+              1098907648
+            ],
+            "world": [
+              1145044992,
+              1140850688
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "placed",
+            "fine": [
+              0,
+              0
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          },
+          {
+            "label": "queryzero",
+            "fine": [
+              2147483648,
+              2147483648
+            ],
+            "world": [
+              0,
+              0
+            ],
+            "physical": 1023410176,
+            "authored": 0,
+            "returned": true
+          }
+        ]
+      ],
+      "map_sha256": "67017949c5ee19ce14ec50e3fb907efdaa9e331109d4cc4e55ac2bc4442793f3",
+      "public": [
+        "N313 tick=20 scene=0 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=placed order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=queryzero order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=20 scene=0 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=placed order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=queryzero order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=21 scene=1 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=placed order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=queryzero order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=22 scene=2 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=placed order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=queryzero order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=23 scene=3 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=placed order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=queryzero order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=24 scene=4 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=placed order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=queryzero order=0 x=80.0000 y=80.0000 source=0.0000",
+        "N313 tick=25 scene=5 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=placed order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=queryzero order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=26 scene=6 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=placed order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=queryzero order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=27 scene=7 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=28 scene=7 label=complete order=0 x=0.0000 y=0.0000 source=0.0000"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-8": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            2101346305,
+            1098907648
+          ],
+          "world": [
+            2143289345,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            2101346305
+          ],
+          "world": [
+            0,
+            2143289345
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            2101346305,
+            2101346305
+          ],
+          "world": [
+            2143289345,
+            2143289345
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            2101346305,
+            2101346305
+          ],
+          "world": [
+            2143289345,
+            2143289345
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "550c3560a6f99cb2b50afd931fc70b6540031b3c8373e5f08e391ad9b196576d",
+      "public": [
+        "N313 tick=20 scene=8 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=8 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=8 label=source order=0 x=768.0000 y=512.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=axis-x order=0 x=510424288000000000000000000000000000000.0000 y=512.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=restore-x order=0 x=0.0000 y=512.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=axis-y order=0 x=0.0000 y=510424288000000000000000000000000000000.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=restore-y order=0 x=768.0000 y=0.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=placed order=0 x=510424288000000000000000000000000000000.0000 y=510424288000000000000000000000000000000.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=queryzero order=0 x=510424288000000000000000000000000000000.0000 y=510424288000000000000000000000000000000.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=end-cleanup order=0 x=0.0000 y=0.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=21 scene=8 label=complete order=0 x=0.0000 y=0.0000 source=510424288000000000000000000000000000000.0000"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-9": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            2099249153,
+            1098907648
+          ],
+          "world": [
+            2141192193,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            2099249153
+          ],
+          "world": [
+            0,
+            2141192193
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            2099249153,
+            2099249153
+          ],
+          "world": [
+            0,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": false
+        }
+      ],
+      "map_sha256": "07a93554fe4fcfbae3facb7fe91d6015abf79e04628a7bae540a1c2f98406d75",
+      "public": [
+        "N313 tick=20 scene=9 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=9 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=9 label=source order=0 x=768.0000 y=512.0000 source=425353600000000000000000000000000000000.0000",
+        "N313 tick=20 scene=9 label=axis-x order=0 x=425353600000000000000000000000000000000.0000 y=512.0000 source=425353600000000000000000000000000000000.0000",
+        "N313 tick=20 scene=9 label=restore-x order=0 x=0.0000 y=512.0000 source=425353600000000000000000000000000000000.0000",
+        "N313 tick=20 scene=9 label=axis-y order=0 x=0.0000 y=425353600000000000000000000000000000000.0000 source=425353600000000000000000000000000000000.0000",
+        "N313 tick=20 scene=9 label=restore-y order=0 x=768.0000 y=0.0000 source=425353600000000000000000000000000000000.0000"
+      ],
+      "complete": false,
+      "fault_rva": "0x1ddac1"
+    },
+    "all-10": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            4248829953,
+            1098907648
+          ],
+          "world": [
+            4290772993,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            4248829953
+          ],
+          "world": [
+            0,
+            4290772993
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            4248829953,
+            4248829953
+          ],
+          "world": [
+            0,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": false
+        }
+      ],
+      "map_sha256": "12b8a97f24ab507f4aeb3ddee1cb1f8a2dd6bc48a81054f63953c8986d430993",
+      "public": [
+        "N313 tick=20 scene=10 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=10 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=10 label=source order=0 x=768.0000 y=512.0000 source=-510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=10 label=axis-x order=0 x=-510424288000000000000000000000000000000.0000 y=512.0000 source=-510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=10 label=restore-x order=0 x=0.0000 y=512.0000 source=-510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=10 label=axis-y order=0 x=0.0000 y=-510424288000000000000000000000000000000.0000 source=-510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=10 label=restore-y order=0 x=768.0000 y=0.0000 source=-510424288000000000000000000000000000000.0000"
+      ],
+      "complete": false,
+      "fault_rva": "0x1ddac1"
+    },
+    "all-11": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            2097152000,
+            1098907648
+          ],
+          "world": [
+            2139095040,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            2097152000
+          ],
+          "world": [
+            0,
+            2139095040
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "4572ce3b734530fcf1705078a77b2110dbac0c869d57bb43bd05b719d2abb8b1",
+      "public": [
+        "N313 tick=20 scene=11 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=11 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=11 label=source order=0 x=768.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=11 label=axis-x order=0 x=high y=512.0000 source=high",
+        "N313 tick=20 scene=11 label=restore-x order=0 x=0.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=11 label=axis-y order=0 x=0.0000 y=high source=high",
+        "N313 tick=20 scene=11 label=restore-y order=0 x=768.0000 y=0.0000 source=high",
+        "N313 tick=20 scene=11 label=placed order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=11 label=queryzero order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=11 label=end-cleanup order=0 x=0.0000 y=0.0000 source=high",
+        "N313 tick=21 scene=11 label=complete order=0 x=0.0000 y=0.0000 source=high"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-12": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            4244635648,
+            1098907648
+          ],
+          "world": [
+            4286578688,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            4244635648
+          ],
+          "world": [
+            0,
+            4286578688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "b7796946676d9a373ea991e006e1c84bcfbcda1a2ae37f73be7fff1ff9b817b3",
+      "public": [
+        "N313 tick=20 scene=12 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=12 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=12 label=source order=0 x=768.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=12 label=axis-x order=0 x=low y=512.0000 source=low",
+        "N313 tick=20 scene=12 label=restore-x order=0 x=0.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=12 label=axis-y order=0 x=0.0000 y=low source=low",
+        "N313 tick=20 scene=12 label=restore-y order=0 x=768.0000 y=0.0000 source=low",
+        "N313 tick=20 scene=12 label=placed order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=12 label=queryzero order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=12 label=end-cleanup order=0 x=0.0000 y=0.0000 source=low",
+        "N313 tick=21 scene=12 label=complete order=0 x=0.0000 y=0.0000 source=low"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-13": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            2097151999,
+            1098907648
+          ],
+          "world": [
+            2139095039,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            2097151999
+          ],
+          "world": [
+            0,
+            2139095039
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "4734f4a130a0b265e5770df83665860dd83f70c3d0cf6e01aa8181d2ae8a9a11",
+      "public": [
+        "N313 tick=20 scene=13 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=13 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=13 label=source order=0 x=768.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=13 label=axis-x order=0 x=high y=512.0000 source=high",
+        "N313 tick=20 scene=13 label=restore-x order=0 x=0.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=13 label=axis-y order=0 x=0.0000 y=high source=high",
+        "N313 tick=20 scene=13 label=restore-y order=0 x=768.0000 y=0.0000 source=high",
+        "N313 tick=20 scene=13 label=placed order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=13 label=queryzero order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=13 label=end-cleanup order=0 x=0.0000 y=0.0000 source=high",
+        "N313 tick=21 scene=13 label=complete order=0 x=0.0000 y=0.0000 source=high"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-14": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            4244635647,
+            1098907648
+          ],
+          "world": [
+            4286578687,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            2147483648,
+            4244635647
+          ],
+          "world": [
+            0,
+            4286578687
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "85a7702354740d6a40ad278829d68c66f1884b68c1771de32be354eb92f5ff02",
+      "public": [
+        "N313 tick=20 scene=14 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=14 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=14 label=source order=0 x=768.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=14 label=axis-x order=0 x=low y=512.0000 source=low",
+        "N313 tick=20 scene=14 label=restore-x order=0 x=0.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=14 label=axis-y order=0 x=0.0000 y=low source=low",
+        "N313 tick=20 scene=14 label=restore-y order=0 x=768.0000 y=0.0000 source=low",
+        "N313 tick=20 scene=14 label=placed order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=14 label=queryzero order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=14 label=end-cleanup order=0 x=0.0000 y=0.0000 source=low",
+        "N313 tick=21 scene=14 label=complete order=0 x=0.0000 y=0.0000 source=low"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "all-15": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-x",
+          "fine": [
+            0,
+            1098907648
+          ],
+          "world": [
+            0,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-x",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "axis-y",
+          "fine": [
+            1103101952,
+            0
+          ],
+          "world": [
+            1145044992,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "restore-y",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "placed",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "queryzero",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "4546b43f9ba4019a7d46f5b84d3344f2465f43c662b48d535db2a5c909e98e1e",
+      "public": [
+        "N313 tick=20 scene=15 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=axis-x order=0 x=0.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=restore-x order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=axis-y order=0 x=768.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=restore-y order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=placed order=0 x=48.0000 y=48.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=queryzero order=0 x=48.0000 y=48.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=21 scene=15 label=complete order=0 x=0.0000 y=0.0000 source=0.0000"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-8": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            2101346305,
+            2101346305
+          ],
+          "world": [
+            2143289345,
+            2143289345
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "2e283db509331185182beb67610ba16a88621e27388f2f99fd8b017a64c9cffa",
+      "public": [
+        "N313 tick=20 scene=8 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=8 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=8 label=source order=0 x=768.0000 y=512.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=created-source order=0 x=510424288000000000000000000000000000000.0000 y=510424288000000000000000000000000000000.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=20 scene=8 label=end-cleanup order=0 x=0.0000 y=0.0000 source=510424288000000000000000000000000000000.0000",
+        "N313 tick=21 scene=8 label=complete order=0 x=0.0000 y=0.0000 source=510424288000000000000000000000000000000.0000"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-9": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            2099249153,
+            2099249153
+          ],
+          "world": [
+            0,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": false
+        }
+      ],
+      "map_sha256": "b1ecb66fd413325b37331a22e715fde994f7319545585e69b8bdabd80be7ebb4",
+      "public": [
+        "N313 tick=20 scene=9 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=9 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=9 label=source order=0 x=768.0000 y=512.0000 source=425353600000000000000000000000000000000.0000"
+      ],
+      "complete": false,
+      "fault_rva": "0x1ddac1"
+    },
+    "create-10": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            4248829953,
+            4248829953
+          ],
+          "world": [
+            0,
+            0
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": false
+        }
+      ],
+      "map_sha256": "f54e813f443b76abbf4ec8b329b82a5ac0094be50606f158172bf414a4c81056",
+      "public": [
+        "N313 tick=20 scene=10 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=10 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=10 label=source order=0 x=768.0000 y=512.0000 source=-510424288000000000000000000000000000000.0000"
+      ],
+      "complete": false,
+      "fault_rva": "0x1ddac1"
+    },
+    "create-11": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "9fa97416c323fecd01c748d8bc5a76e068998322cde54ef31d7b3eadab1007c6",
+      "public": [
+        "N313 tick=20 scene=11 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=11 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=11 label=source order=0 x=768.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=11 label=created-source order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=11 label=end-cleanup order=0 x=0.0000 y=0.0000 source=high",
+        "N313 tick=21 scene=11 label=complete order=0 x=0.0000 y=0.0000 source=high"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-12": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "289296644107f970c01926b08351fea2bcda6f44e7b472d4fbcab3a8eb61d59d",
+      "public": [
+        "N313 tick=20 scene=12 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=12 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=12 label=source order=0 x=768.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=12 label=created-source order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=12 label=end-cleanup order=0 x=0.0000 y=0.0000 source=low",
+        "N313 tick=21 scene=12 label=complete order=0 x=0.0000 y=0.0000 source=low"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-13": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            1115422720,
+            1115422720
+          ],
+          "world": [
+            1157365760,
+            1157365760
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "53cafdd51103b3d13c995c37e9131c5fa002ad06f644d3b018ffeaef9e383174",
+      "public": [
+        "N313 tick=20 scene=13 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=13 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=13 label=source order=0 x=768.0000 y=512.0000 source=high",
+        "N313 tick=20 scene=13 label=created-source order=0 x=2016.0000 y=2016.0000 source=high",
+        "N313 tick=20 scene=13 label=end-cleanup order=0 x=0.0000 y=0.0000 source=high",
+        "N313 tick=21 scene=13 label=complete order=0 x=0.0000 y=0.0000 source=high"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-14": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "548910251eb2c1cd54200384e314e4c3b7de73c0f1734023b7270f1807db5361",
+      "public": [
+        "N313 tick=20 scene=14 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=14 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=14 label=source order=0 x=768.0000 y=512.0000 source=low",
+        "N313 tick=20 scene=14 label=created-source order=0 x=48.0000 y=48.0000 source=low",
+        "N313 tick=20 scene=14 label=end-cleanup order=0 x=0.0000 y=0.0000 source=low",
+        "N313 tick=21 scene=14 label=complete order=0 x=0.0000 y=0.0000 source=low"
+      ],
+      "complete": true,
+      "fault_rva": null
+    },
+    "create-15": {
+      "states": [
+        {
+          "label": "created",
+          "fine": [
+            1103101952,
+            1098907648
+          ],
+          "world": [
+            1145044992,
+            1140850688
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        },
+        {
+          "label": "created-source",
+          "fine": [
+            1069547520,
+            1069547520
+          ],
+          "world": [
+            1111490560,
+            1111490560
+          ],
+          "physical": 1064828928,
+          "authored": 1106771968,
+          "returned": true
+        }
+      ],
+      "map_sha256": "fbaf319ec2ede88927d9ab32830d7b83e7fec03f81262751e4cc2253befb31f8",
+      "public": [
+        "N313 tick=20 scene=15 label=begin-setup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=created order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=source order=0 x=768.0000 y=512.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=created-source order=0 x=48.0000 y=48.0000 source=0.0000",
+        "N313 tick=20 scene=15 label=end-cleanup order=0 x=0.0000 y=0.0000 source=0.0000",
+        "N313 tick=21 scene=15 label=complete order=0 x=0.0000 y=0.0000 source=0.0000"
+      ],
+      "complete": true,
+      "fault_rva": null
+    }
+  },
+  "bundle_sha256": "4df4f5054af9e7f995d9a2195a5f9cb5ed3080e398f9aa13c4abbb097892c7f5",
+  "pins": {
+    "tools/frida/research/nonfinite313_capture.py": "2b45f89d25e4bcb213ffb959b3cd90cf7a75cdca35fca44632db03b229455fbf",
+    "tools/frida/research/nonfinite313_observer.js": "94cafa84713cc5e645c94a8b98a0e5f438b60e89fd558697f0cf08bd528724f0",
+    "tools/frida/research/nonfinite313_make_map.py": "32feafe47ccc50b3e2ceca97b20a649fba6013807fdc4e0f6a93e78e15eaf048",
+    "tools/frida/research/nonfinite313_probe.j": "ead4b5494e9716e29d5d6f0e1cf95a0189103ec1b39447ca1e0862f78fb3410b",
+    "tools/frida/research/smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+    "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "tools/frida/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "tools/ghidra/research/Nonfinite313Evidence.java": "9321c8c162580bee406e3806a76aac8bbe2814af6316ff4184539b43d03e23b0",
+    "games/warcraft-3/game/tests/fixtures/retail_nonfinite313.h": "458dc033b738eb23cb33e37f6023e122fadba4e8eb2f7cb4a76d7a0bd93189e6"
+  },
+  "limits": [
+    "Ground foot movement, eight literal exceptional/finite-control scalar words.",
+    "Terminal states compare committed fine pose only; retail visibility access violations are not reproduced in engine. NUM-03.2 remains open.",
+    "No claim of general NaN payload, other movement families, subsequent moving orders or nonreturning lifecycle parity."
+  ]
+}

@@ -74,6 +74,8 @@ static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
 
 /* DataA is lifetime, DataB is DPS. Re-entry refreshes duration without adding an extra damage pulse. */
 BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, ID_DISEASE_CLOUD) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
     abilityAliasRef_t ability;
     abilityLevel_t const *row;
     cstring_t buff;
@@ -95,7 +97,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
                   disease_cloud_allows_target(ability.alias, ent, target)) {
         /* Each infector owns its own infection: another source's Bapl must
          * neither suppress this application nor have its pulse phase reset. */
-        heroabilitystatus_t *slot = unit_findstatussource(target, FS_SLKKey(buff), ent);
+        heroabilitystatus_t *slot = unit_findstatussourceclass(target, FS_SLKKey(buff), ent);
         if (slot && slot->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
             slot->source_ability == ability.alias) {
             /* Same-source exposure refreshes lifetime, not the tick deadline.
@@ -103,7 +105,6 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
             uint32_t duration_ms = (uint32_t)(row->data[0].number * 1000.0f);
             slot->timestamp = G_Time() + duration_ms;
             slot->duration_ms = duration_ms;
-            unit_status_invalidate_update_mask(target);
         } else {
             status_application_t app = {
                 .buff = buff, .level = ability.level, .duration = row->data[0].number,

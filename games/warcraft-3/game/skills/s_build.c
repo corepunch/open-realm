@@ -16,14 +16,14 @@ static bool build_actor_has_base_ability(edict_t *ent, uint32_t base_code) {
             uint32_t code = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&code, token, 4);
-            if (G_AbilityCode(code) == base_code) return true;
+            if (code == base_code || G_AbilityCode(code) == base_code) return true;
         }
     }
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
-        uint32_t const code = ent->unit_state->overrides.added[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(alias, &code, 4);
-        if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return true;
+        if (G_ActorHasSkill(ent, alias) && (code == base_code || G_AbilityCode(code) == base_code)) return true;
     }
     return false;
 }
@@ -53,7 +53,7 @@ static void G_ClearBuildPlacementCursor(edict_t *clent) {
     entityState_t empty = { 0 };
 
     if (!clent || !clent->client) return;
-    clent->client->menu.build_project = 0;
+    clent->build_project = 0;
     gi.Write(PF_BYTE, &(int32_t){svc_cursor});
     gi.Write(PF_ENTITY, &empty);
     gi.unicast(clent);
@@ -65,12 +65,12 @@ static void ai_build_walk(edict_t *ent) {
     vec2_t approach = { 0, 0 };
     bool direct_approach;
 
-    if (!ent || !ent->orders || !goal || !ent->orders->build_project) {
+    if (!ent || !goal || !ent->build_project) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD walk-stop worker=%ld reason=missing-state goal=%ld project=%.4s\n",
                 ent ? (long)(ent - g_edicts) : -1L,
                 goal && g_edicts ? (long)(goal - g_edicts) : -1L,
-                ent && ent->orders && ent->orders->build_project ? (cstring_t)&ent->orders->build_project : "----");
+                ent && ent->build_project ? (cstring_t)&ent->build_project : "----");
 #endif
         if (ent && ent->stand) ent->stand(ent);
         return;
@@ -83,12 +83,12 @@ static void ai_build_walk(edict_t *ent) {
         unit_moveindirection(ent);
         return;
     }
-    approach_range = G_BuildApproachDistance(ent->orders->build_project) + ent->collision;
+    approach_range = G_BuildApproachDistance(ent->build_project) + ent->collision;
     reach = approach_range + step;
     if (distance <= reach) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD walk-arrive worker=%ld id=%.4s distance=%.1f reach=%.1f origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
-                (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project, distance, reach,
+                (long)(ent - g_edicts), (cstring_t)&ent->build_project, distance, reach,
                 ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
 #endif
         build_build(ent);
@@ -98,8 +98,8 @@ static void ai_build_walk(edict_t *ent) {
     if (move_is_blocked(ent, distance, step)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD walk-retry worker=%ld id=%.4s reason=blocked distance=%.1f step=%.1f flow=(%d,%d) origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
-                (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project, distance, step,
-                ent->movement->flow_goal_reached, ent->movement->flow_unreachable,
+                (long)(ent - g_edicts), (cstring_t)&ent->build_project, distance, step,
+                ent->movement.flow_goal_reached, ent->movement.flow_unreachable,
                 ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
 #endif
         /* A construction footprint makes the raw build center blocked, but
@@ -116,7 +116,7 @@ static void ai_build_walk(edict_t *ent) {
     else
         unit_changeangle_for_radius(ent, ent->collision);
 
-    if (ent->movement->flow_unreachable) {
+    if (ent->movement.flow_unreachable) {
         /* A real construction footprint is now static pathing, so its center
          * is intentionally unreachable. Build must continue to the closest
          * legal approach cell instead of treating the worker's point order as
@@ -126,19 +126,19 @@ static void ai_build_walk(edict_t *ent) {
                                                    ent->collision, M_UnitStaticPathingFlags(ent), &approach)) {
 #ifdef WC3_DEBUG_BUILD
             fprintf(stderr, "WC3_BUILD walk-approach worker=%ld id=%.4s origin=(%.1f,%.1f) approach=(%.1f,%.1f) target=(%.1f,%.1f)\n",
-                    (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project,
+                    (long)(ent - g_edicts), (cstring_t)&ent->build_project,
                     ent->s.origin2.x, ent->s.origin2.y, approach.x, approach.y,
                     goal->s.origin2.x, goal->s.origin2.y);
 #endif
             unit_changeangle_towards_point(ent, &approach);
-            if (!ent->movement->flow_unreachable) {
+            if (!ent->movement.flow_unreachable) {
                 unit_moveindirection(ent);
                 return;
             }
         }
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD walk-stop worker=%ld id=%.4s reason=unreachable distance=%.1f origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
-                (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project, distance,
+                (long)(ent - g_edicts), (cstring_t)&ent->build_project, distance,
                 ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
 #endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
@@ -148,11 +148,130 @@ static void ai_build_walk(edict_t *ent) {
     unit_moveindirection(ent);
 }
 
-static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild, .travel = true };
-/* Undead builders remain visible for the short summon animation while the
- * structure has already begun autonomous construction. The building-owned
- * construction timer releases this worker after the Warsmash 2.267 s window. */
-static umove_t build_move_summon = { "stand work", NULL, NULL, CAbilityBuild };
+static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
+/* Each constructed overlay has one creator. Persist the worker's canonical
+ * relationship; this reverse index is derived and never scans the world at
+ * completion/retirement. Bind, unbind and target delivery are O(1). */
+static uint32_t build_mine_workers[MAX_ENTITIES];
+static uint32_t build_mine_id(edict_t const *unit) {
+    uintptr_t offset=(uintptr_t)unit-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*unit)*globals.num_edicts && !(offset%sizeof(*unit)) ?
+        offset/sizeof(*unit)+1 : 0;
+}
+static void build_mine_set(edict_t *worker,edict_t *mine) {
+    uint32_t old=build_mine_id(worker->build_mine),id=build_mine_id(worker);
+    if(old && build_mine_workers[old-1]==id)build_mine_workers[old-1]=0;
+    worker->build_mine=mine;worker->build_mine_spawn_time=mine ? mine->spawn_time : 0;
+    if(mine)build_mine_workers[mine-g_edicts]=id;
+}
+static edict_t *build_mine_worker(edict_t *mine) {
+    uint32_t id=build_mine_workers[mine-g_edicts];
+    if(!id)return NULL;
+    edict_t *worker=g_edicts+id-1;
+    return worker->inuse && !G_IsDeferredFree(worker) && worker->build_mine==mine &&
+        worker->build_mine_spawn_time==mine->spawn_time ? worker : NULL;
+}
+bool S_ValidateBuildMines(void) {
+    uint8_t seen[MAX_ENTITIES]={0};
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *worker=g_edicts+i,*mine=worker->build_mine;
+        if(!worker->inuse)continue;
+        if(!mine) {if(worker->build_mine_spawn_time)return false;continue;}
+        uint32_t id=build_mine_id(mine);
+        if(!id || !mine->inuse || worker==mine || worker->build_mine_spawn_time!=mine->spawn_time || seen[id-1])return false;
+        seen[id-1]=1;
+    }
+    return true;
+}
+static void build_mine_retire(edict_t *unit) {
+    edict_t *worker=build_mine_worker(unit);
+    if(worker)build_mine_set(worker,NULL);
+    build_mine_set(unit,NULL);
+}
+static void build_mine_complete(edict_t *mine) {
+    edict_t *worker=build_mine_worker(mine);
+    /*543f00 uses ability identity, not a raw unit type or an idle-unit test.
+     * Stop retains this continuation. New work and scripted Pause cancel it. */
+    if(worker && !(worker->aiflags&AI_TOWN_OWNED) &&
+       build_actor_has_base_ability(mine,MAKEFOURCC('A','b','g','m')))
+        G_IssueUnitTargetOrder(worker,"harvest",mine,false,worker->s.player);
+}
+
+/*544350 ->69c620: the unit owns a one-second d019d request. Only live
+ * waits enter this derived heap: O(log n) arm/cancel, O(1) earliest request. */
+static uint32_t build_wait_heap[MAX_ENTITIES], build_wait_positions[MAX_ENTITIES], build_wait_count;
+static bool build_wait_less(uint32_t a, uint32_t b) {
+    abilityPrimaryTimer_t const *left=&g_edicts[a].build_summon_wait,*right=&g_edicts[b].build_summon_wait;
+    return left->deadline.time==right->deadline.time ? left->sequence<right->sequence :
+        left->deadline.time<right->deadline.time;
+}
+static void build_wait_put(uint32_t position,uint32_t slot) {
+    build_wait_heap[position]=slot;build_wait_positions[slot]=position+1;
+}
+static void build_wait_remove(edict_t *worker) {
+    uint32_t slot=worker-g_edicts,position=build_wait_positions[slot];
+    if(!position)return;
+    build_wait_positions[slot]=0;position--;
+    uint32_t last=build_wait_heap[--build_wait_count];
+    if(position==build_wait_count)return;
+    while(position && build_wait_less(last,build_wait_heap[(position-1)/2])) {
+        build_wait_put(position,build_wait_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<build_wait_count) {
+        uint32_t child=position*2+1;
+        if(child+1<build_wait_count && build_wait_less(build_wait_heap[child+1],build_wait_heap[child]))child++;
+        if(!build_wait_less(build_wait_heap[child],last))break;
+        build_wait_put(position,build_wait_heap[child]);position=child;
+    }
+    build_wait_put(position,last);
+}
+static void build_wait_insert(edict_t *worker) {
+    uint32_t slot=worker-g_edicts,position=build_wait_count++;
+    while(position && build_wait_less(slot,build_wait_heap[(position-1)/2])) {
+        build_wait_put(position,build_wait_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    build_wait_put(position,slot);
+}
+static void build_wait_detach(edict_t *worker) {
+    edict_t *building=worker->build;
+    if(!building || building==worker)return;
+    if(building->construction && building->construction->type==CONSTRUCTION_UNDEAD &&
+       building->construction->worker==worker && building->construction->worker_spawn_time==worker->spawn_time) {
+        building->construction->worker=NULL;building->construction->worker_spawn_time=0;
+    }
+    worker->build=NULL;
+    if(worker->goalentity==building)S_SetMoveGoal(worker,&worker->goalentity,NULL);
+}
+static void build_wait_cancel(edict_t *worker) {
+    if(!worker || !worker->build_summon_wait.active)return;
+    build_wait_remove(worker);worker->build_summon_wait.active=false;
+    build_wait_detach(worker);
+}
+static void ai_build_summon(edict_t *worker) {
+    /* Pause cancels work; the suspension owns execution until its .01 request
+     * releases it. Retire the completed work move at that observation point. */
+    if(!worker->build_summon_wait.active && !S_UnitExecutionPaused(worker))SAFE_CALL(worker->stand,worker);
+}
+static umove_t build_move_summon = { "stand work", ai_build_summon, NULL, CAbilityBuild };
+void S_BeginUndeadConstructionWork(edict_t *worker) {
+    build_wait_remove(worker);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    worker->build_summon_wait=(abilityPrimaryTimer_t){.active=true,.deadline=now,.sequence=++level.timer_sequence};
+    worker->build_summon_wait.deadline.time=wc3_add(now.time,1.0f); /* Math_RuntimeOne,544453. */
+    build_wait_insert(worker);
+    unit_setmove(worker,&build_move_summon);
+    edict_t *mine=worker->build;
+    if(mine && mine->mineoverlay && mine->mineoverlay->parent &&
+       build_actor_has_base_ability(mine,MAKEFOURCC('A','b','g','m')))
+        build_mine_set(worker,mine);
+}
+static void build_wait_fire(void) {
+    edict_t *worker=g_edicts+build_wait_heap[0];
+    build_wait_remove(worker);worker->build_summon_wait.active=false;
+    build_wait_detach(worker);
+    if(worker->inuse && !G_IsDeferredFree(worker) && !M_IsDead(worker) && worker->currentmove==&build_move_summon)
+        SAFE_CALL(worker->stand,worker);
+}
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
 bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location) {
@@ -217,21 +336,25 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
 #endif
     /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
     S_GoldMineReleaseWorker(builder);
-    G_InitUnitOrders(builder);
-    builder->orders->build_preview = G_CreateBuildPreview(builder, building_id, &snapped);
+    builder->build_preview = G_CreateBuildPreview(builder, building_id, &snapped);
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD issue preview worker=%ld id=%.4s preview=%ld\n",
             (long)(builder - g_edicts), (cstring_t)&building_id,
-            builder->orders->build_preview ? (long)(builder->orders->build_preview - g_edicts) : -1L);
+            builder->build_preview ? (long)(builder->build_preview - g_edicts) : -1L);
 #endif
-    if (!builder->orders->build_preview) {
+    if (!builder->build_preview) {
         G_FreeEdict(waypoint);
         return false;
     }
-    builder->goalentity = waypoint;
-    builder->orders->build_project = building_id;
+    /* Accepted replacement Build has the same procedure as summon work, so
+     * the cross-owner Move-leave notification cannot retire its old wait. */
+    build_wait_cancel(builder);
+    build_mine_set(builder,NULL);
+    S_SetMoveGoal(builder, &builder->goalentity, waypoint);
+    builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
+    builder->current_order_id = building_id;
     /* Every build entry (player, JASS, queued) retires a previous Stop guard point. */
     S_UnitAbilityOrderAccepted(builder, "build");
 #ifdef WC3_SC2API
@@ -246,6 +369,7 @@ bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *loc
 
     if (!S_AncientCanReceiveOrder(builder)) return false;
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
+    G_ClearUnitOrderQueue(builder);
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);
     /* Warcraft reports an accepted construction placement as a point order.
@@ -274,11 +398,10 @@ bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const 
             G_FreeEdict(preview);
             return false;
         }
-        G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
         return true;
     }
-    if (!queue) G_ClearUnitOrderQueue(builder);
     if (!G_ExecuteBuildOrder(builder, building_id, &snapped)) return false;
+    if (!queue) G_ClearUnitOrderQueue(builder);
     G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
     return true;
 }
@@ -367,24 +490,25 @@ void build_build(edict_t *ent) {
     char reason[128];
     bool construction_started = false;
     unitRace_t race;
+    constructionType_t type = CONSTRUCTION_NONE;
 
-    if (!ent || !ent->orders || !ent->goalentity || !ent->orders->build_project) {
+    if (!ent || !ent->goalentity || !ent->build_project) {
         if (ent) ent->stand(ent);
         return;
     }
-    building_id = ent->orders->build_project;
+    building_id = ent->build_project;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD arrival worker=%ld id=%.4s origin=(%.1f,%.1f) goal=%ld preview=%ld\n",
             (long)(ent - g_edicts), (cstring_t)&building_id, ent->s.origin2.x, ent->s.origin2.y,
             ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L,
-            ent->orders->build_preview ? (long)(ent->orders->build_preview - g_edicts) : -1L);
+            ent->build_preview ? (long)(ent->build_preview - g_edicts) : -1L);
 #endif
     /* The Birth placeholder is non-blocking and exists only until this
      * worker wins the arrival-time placement check. */
     G_ClearBuildPreview(ent);
     client = G_GetPlayerClientByNumber(ent->s.player);
-    placement = G_EvaluateBuildPlacement(ent, ent->orders->build_project, &ent->goalentity->s.origin2, &snapped);
-    state = G_GetBuildCommandState(client, ent, ent->orders->build_project, reason, sizeof(reason));
+    placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
+    state = G_GetBuildCommandState(client, ent, ent->build_project, reason, sizeof(reason));
     if (placement != PLACE_OK) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=placement result=%d point=(%.1f,%.1f)\n",
@@ -393,10 +517,10 @@ void build_build(edict_t *ent) {
 #endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s placement=%d\n",
-            (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project, placement);
+            (long)(ent - g_edicts), (cstring_t)&ent->build_project, placement);
 #endif
         G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player), placement);
-        ent->orders->build_project = 0;
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
@@ -407,39 +531,39 @@ void build_build(edict_t *ent) {
 #endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s state=%d\n",
-            (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project, state);
+            (long)(ent - g_edicts), (cstring_t)&ent->build_project, state);
 #endif
         if (reason[0])
             G_ShowBuildCommandError(G_GetPlayerEntityByNumber(ent->s.player), state, reason);
         else
             G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
-        ent->orders->build_project = 0;
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
-    if (!G_ChargeBuilding(client, ent->orders->build_project)) {
+    if (!G_ChargeBuilding(client, ent->build_project)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=payment\n",
                 (long)(ent - g_edicts), (cstring_t)&building_id);
 #endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s payment\n",
-            (long)(ent - g_edicts), (cstring_t)&ent->orders->build_project);
+            (long)(ent - g_edicts), (cstring_t)&ent->build_project);
 #endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Not enough resources.");
-        ent->orders->build_project = 0;
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
 
-    building = SP_SpawnAtLocation(ent->orders->build_project, ent->s.player, &snapped);
+    building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
     if (!building) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=spawn\n",
                 (long)(ent - g_edicts), (cstring_t)&building_id);
 #endif
         G_RefundBuilding(client, building_id);
-        ent->orders->build_project = 0;
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
@@ -449,7 +573,7 @@ void build_build(edict_t *ent) {
                (cstring_t)&building_id, snapped.x, snapped.y);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI build started worker=%ld building=%ld id=%.4s\n",
-        (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&ent->orders->build_project);
+        (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&ent->build_project);
 #endif
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD spawned worker=%ld building=%ld id=%.4s point=(%.1f,%.1f)\n",
@@ -461,15 +585,15 @@ void build_build(edict_t *ent) {
      * exactly the same contribution. The build-all override intentionally keeps
      * its historical no-resource-cost behavior. */
     if (!G_BuildAllEnabled()) G_SetUnitFoodUsed(building, building->data.UnitBalance->foodUsed);
-    ent->orders->build_project = 0;
+    ent->build_project = 0;
 
     /* Build-on-mine structures retain the original Agld entity as the shared
      * finite resource reservoir. Placement already proved the parent exists;
      * bind before baking pathing so the hidden parent drops out as the overlay
      * footprint becomes authoritative. */
     if (!G_FindBuildOnTarget(building_id, &snapped, &build_on) ||
-        (build_on && (G_ActorHasSkill(building, "Agl2") || G_ActorHasSkill(building, "Abgm") ||
-                      G_ActorHasSkill(building, "Aegm")) &&
+        (build_on && (G_ActorHasAbilityCode(building, MAKEFOURCC('A','g','l','2')) || G_ActorHasAbilityCode(building, MAKEFOURCC('A','b','g','m')) ||
+                      G_ActorHasAbilityCode(building, MAKEFOURCC('A','e','g','m'))) &&
          !S_MineOverlayBind(building, build_on))) {
         G_FreeEdict(building);
         G_RefundBuilding(client, building_id);
@@ -477,9 +601,9 @@ void build_build(edict_t *ent) {
         return;
     }
 
-    /* Retail's Birth construction site reserves placement but remains
-     * walk-through.  Displacement uses the authored footprint directly; the
-     * static obstacle is baked only after Birth completes. */
+    /* The preview is walk-through; the real footprint blocks routes from
+     * construction start. Schedule occupant escape without replacing orders
+     * before the construction initializer rebakes that footprint. */
     if (!G_DisplaceBuildOccupants(ent, building)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD spawned-displace-incomplete worker=%ld building=%ld id=%.4s\n",
@@ -491,40 +615,52 @@ void build_build(edict_t *ent) {
      * aliases that resolve to AGbu) before race fallback so custom-map workers
      * keep the worker-inside Naga lifecycle without requiring race=naga. */
     if (build_actor_has_base_ability(ent, BZ_NAGA_BUILD)) {
-        construction_started = G_StartNagaConstruction(ent, building);
+        type = CONSTRUCTION_NAGA;
     } else if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
         /* Repair is shared by worker data, but only Human construction uses the
          * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
-        construction_started = G_StartHumanConstruction(ent, building);
+        type = CONSTRUCTION_HUMAN;
     } else {
         switch (race) {
-        case RACE_ORC: construction_started = G_StartOrcConstruction(ent, building); break;
-        case RACE_UNDEAD: construction_started = G_StartUndeadConstruction(ent, building); break;
-        case RACE_NIGHTELF: construction_started = G_StartNightElfConstruction(ent, building); break;
-        case RACE_NAGA: construction_started = G_StartNagaConstruction(ent, building); break;
+        case RACE_ORC: type = CONSTRUCTION_ORC; break;
+        case RACE_UNDEAD: type = CONSTRUCTION_UNDEAD; break;
+        case RACE_NIGHTELF: type = CONSTRUCTION_NIGHTELF; break;
+        case RACE_NAGA: type = CONSTRUCTION_NAGA; break;
         default: break;
         }
     }
+    uint32_t worker_spawn = ent->spawn_time, building_spawn = building->spawn_time;
+    uint32_t worker_revision = G_UnitMoveRevision(ent);
+    if (type != CONSTRUCTION_NONE) construction_started = G_StartWorkerConstruction(ent, building, type);
+    if (!building->inuse || building->spawn_time != building_spawn ||
+        !ent->inuse || ent->spawn_time != worker_spawn) return;
+    if (construction_started && !building->construction) return;
     if (construction_started) {
-        construction_t *building_site = G_GetConstruction(building); /* The strategy attached the record. */
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD construction-start worker=%ld building=%ld id=%.4s type=%d health=%.1f/%.1f\n",
                 (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&building_id,
-                building_site->type, building->health.value, building->health.max_value);
+                building->construction->type, building->health.value, building->health.max_value);
 #endif
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */
-        building_site->payer = client->ps.number;
+        building->construction->payer = client->ps.number;
         if (!G_BuildAllEnabled()) {
-            building_site->paid = true;
-            building_site->gold = MAX(0, building->data.UnitBalance->goldCost);
-            building_site->lumber = MAX(0, building->data.UnitBalance->lumberCost);
+            building->construction->paid = true;
+            building->construction->gold = MAX(0, building->data.UnitBalance->goldCost);
+            building->construction->lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
-        if (building_site->type == CONSTRUCTION_HUMAN)
-            repair_build_primary(ent, building);
-        else if (building_site->type == CONSTRUCTION_UNDEAD)
-            unit_setmove(ent, &build_move_summon);
+        /* A live callback replacement retains execution. Instant Stop leaves
+         * no task, so the construction continuation may begin after it. */
+        bool continue_work = !G_IsDeferredFree(ent) && !G_IsDeferredFree(building) &&
+            (G_UnitMoveRevision(ent) == worker_revision || !G_UnitHasActiveOrder(ent));
+        if (building->construction->type == CONSTRUCTION_HUMAN) {
+            if (continue_work) repair_build_primary(ent, building);
+            else building->construction->primary_builder = NULL;
+            /* Repair's own issued callback is a second mutation boundary. */
+            if(!building->inuse || building->spawn_time!=building_spawn || G_IsDeferredFree(building) ||
+               !ent->inuse || ent->spawn_time!=worker_spawn || G_IsDeferredFree(ent))return;
+        }
     } else {
         /* Preserve the old generic fallback for custom/unknown workers. */
         repair_build_legacy(ent, building);
@@ -542,8 +678,10 @@ void build_build(edict_t *ent) {
                 ent->build ? (long)(ent->build - globals.edicts) : -1L,
                 building->build ? (long)(building->build - globals.edicts) : -1L);
     }
-    G_CreepGuardConstructionStarted(building);
-    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (!construction_started) {
+        G_CreepGuardConstructionStarted(building);
+        G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    }
     G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }
@@ -556,7 +694,7 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
     buildCommandState_t state;
     char reason[128];
 
-    if (!clent || !clent->client || !location || !clent->client->menu.build_project) {
+    if (!clent || !clent->client || !location || !clent->build_project) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=invalid-placement-state client=%ld\n",
                 clent ? (long)(clent - globals.edicts) : -1L);
@@ -570,16 +708,16 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=invalid-owner client=%ld builder=%ld building=%.4s\n",
                 (long)(clent - globals.edicts), builder ? (long)(builder - globals.edicts) : -1L,
-                (cstring_t)&clent->client->menu.build_project);
+                (cstring_t)&clent->build_project);
 #endif
         return false;
     }
 
-    state = G_GetBuildCommandState(owner, builder, clent->client->menu.build_project, reason, sizeof(reason));
+    state = G_GetBuildCommandState(owner, builder, clent->build_project, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=command-state client=%ld builder=%ld building=%.4s state=%d text=%s\n",
-                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->client->menu.build_project,
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->build_project,
                 state, reason[0] ? reason : "(none)");
 #endif
         if (reason[0])
@@ -588,23 +726,23 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
             G_BuildError(clent, "Unable to build that structure.");
         return false;
     }
-    placement = G_EvaluateBuildPlacement(builder, clent->client->menu.build_project, location, &snapped);
+    placement = G_EvaluateBuildPlacement(builder, clent->build_project, location, &snapped);
     if (placement != PLACE_OK) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=placement client=%ld builder=%ld building=%.4s result=%d point=(%.1f,%.1f)\n",
-                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->client->menu.build_project,
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->build_project,
                 placement, location->x, location->y);
 #endif
         G_BuildPlacementError(clent, placement);
         return false;
     }
 
-    if (!G_IssueUnitBuildOrder(builder, clent->client->menu.build_project, &snapped,
+    if (!G_IssueUnitBuildOrder(builder, clent->build_project, &snapped,
                                clent->client->menu.order_queued,
                                clent->client->ps.number)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=issue-order client=%ld builder=%ld building=%.4s\n",
-                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->client->menu.build_project);
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->build_project);
 #endif
         return false;
     }
@@ -676,7 +814,7 @@ void build_menu_selectlocation(edict_t *ent, uint32_t building_id) {
     ent->client->menu.on_location_selected = build_menu_send_builder;
     ent->client->menu.supports_order_queue = true;
     ent->client->menu.order_queue_chained = false;
-    ent->client->menu.build_project = building_id;
+    ent->build_project = building_id;
 }
 
 void ui_builds(gameClient_t *client) {
@@ -715,8 +853,61 @@ static void AbilityBuild_Command(edict_t *clent);
 BZ_ABILITY_PROC(CAbilityBuild) {
     unitOrder_t const *queued = call ? call->queued_order : NULL;
 
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE,A_UNIT_SUSPEND,A_DEATH,A_UNIT_RETIRE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_CONSTRUCTION_FINISH);
+    case A_CONSTRUCTION_FINISH:
+        build_mine_complete(ent);return false;
+    case A_MOVE_LEAVE:
+        if(call && call->next_move_proc)build_mine_set(ent,NULL);
+        if(call && call->next_move_proc!=CAbilityBuild)build_wait_cancel(ent);
+        return false;
+    case A_UNIT_SUSPEND:
+        build_mine_set(ent,NULL);
+        if(ent && ent->build_summon_wait.active) {
+            build_wait_cancel(ent);ent->movement.pause_order_id=0;
+        }
+        return false;
+    case A_DEATH:
+    case A_UNIT_RETIRE:
+    case A_UNIT_REMOVING:
+    case A_UNIT_REMOVE:
+        build_wait_cancel(ent);build_mine_retire(ent);return false;
+    case A_TIMERS_RESET:
+        memset(build_mine_workers,0,sizeof(build_mine_workers));
+        build_wait_count=0;memset(build_wait_positions,0,sizeof(build_wait_positions));return true;
+    case A_TIMERS_REBUILD:
+        memset(build_mine_workers,0,sizeof(build_mine_workers));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].build_mine)
+            build_mine_workers[g_edicts[i].build_mine-g_edicts]=i+1;
+        build_wait_count=0;memset(build_wait_positions,0,sizeof(build_wait_positions));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].build_summon_wait.active)
+            build_wait_insert(g_edicts+i);
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!build_wait_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){g_edicts[build_wait_heap[0]].build_summon_wait.deadline,
+            g_edicts[build_wait_heap[0]].build_summon_wait.sequence,CAbilityBuild};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(build_wait_count)build_wait_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,build_wait_count) {
+            abilityPrimaryTimer_t *timer=&g_edicts[build_wait_heap[i]].build_summon_wait;
+            timer->deadline.time=wc3_sub(timer->deadline.time,call->clock_span);timer->deadline.epoch++;
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while(build_wait_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(g_edicts[build_wait_heap[0]].build_summon_wait.deadline.time>now.time)break;
+            build_wait_fire();
+        }
+        return true;
+    default:break;
+    }
     if (msg == A_COMMAND) {
-        AbilityBuild_Command(call && call->entity ? call->entity : ent);
+        AbilityBuild_Command(call && call->client ? call->client : ent);
         return true;
     }
     if ((msg == A_QUEUE_ORDER_START || msg == A_QUEUE_ORDER_CANCEL) && queued &&

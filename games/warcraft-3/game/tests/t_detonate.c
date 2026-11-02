@@ -103,8 +103,8 @@ TEST(wc3_spell, detonate_affects_mana_and_hostile_summons_only) {
 TEST(wc3_spell, detonate_invulnerability_dispels_but_spares_mana) {
     detonateFixture_t f = detonate_setup(DETONATE);
     vec2_t point = { 0.0f, 0.0f };
-    G_SetUnitFlag(f.enemy, UNIT_FLAG_INVULNERABLE, true);
-    G_SetUnitFlag(f.summon, UNIT_FLAG_INVULNERABLE, true);
+    f.enemy->invulnerable = true;
+    f.summon->invulnerable = true;
     unit_addtimedstatus(f.enemy, "Bslo", 1, 30.0f);
     T_ASSERT(S_CastPointTargetSpell(f.wisp, DETONATE, &point));
     T_FEQ(f.enemy->mana.value, 200.0f, 0.001f);
@@ -116,8 +116,8 @@ TEST(wc3_spell, detonate_invulnerability_dispels_but_spares_mana) {
 TEST(wc3_spell, detonate_preserves_immune_and_resistant_summons) {
     detonateFixture_t f = detonate_setup(DETONATE);
     vec2_t point = { 0.0f, 0.0f };
-    f.summon->unit_state->overrides.added[0] = RESISTANT_SKIN;
-    f.summon->unit_state->overrides.added_count = 1;
+    f.summon->abilities.added[0] = RESISTANT_SKIN;
+    f.summon->abilities.added_count = 1;
     T_NOT_NULL(unit_applystatus(f.enemy, &(status_application_t){
         .buff = BUFF_MAGIC_IMMUNE, .level = 1, .duration = 10.0f,
         .state_mask = WC3_STATUS_STATE_MAGIC_IMMUNE
@@ -183,7 +183,7 @@ TEST(wc3_spell, detonate_blight_dispel_protects_live_growth) {
     blightGrowth_t *growth;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
-    growth = G_AddBlightGrowth(f.wisp);
+    growth = (f.wisp->blight_growth ? f.wisp->blight_growth : (f.wisp->blight_growth=G_AllocBlightGrowth()));
     T_NOT_NULL(growth);
     growth->ability = DETONATE;
     growth->radius = 150.0f;

@@ -1,0 +1,17 @@
+{
+  "dll_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "selector": "5fda10 d0171 ->5ff8b0(packet,1,0,0);d0174 ->(packet,1,0,1). Last argument retained target subscription/validation; bothnonpersistent arg0c0. No evidenced arrivalrange difference.",
+  "native_scene0": {
+    "archer_radius_world": 32,
+    "hippo_radius_world": 8,
+    "archer_max_velocity_world": 270,
+    "hippo_max_velocity_world": 400,
+    "both_arrival_fine": 1.25,
+    "ready_clocks": [
+      1142,
+      1148
+    ]
+  },
+  "fixture_difference": "Private fixture had radius16/16 and Hippo speed350. Correct geometry/speed before inferring scheduler mismatch.",
+  "merge": "4c2f20 local_8 remains incomingcallbackability;v310 choosesposition/facing source (Archer returns0=>partner,Hippo1=>self);CAbilityChaosBase_GetReplacementUnitID(local_8,local_8[0x14]) useslast-ready ability/rank, notnecessarilyHippo ability."
+}

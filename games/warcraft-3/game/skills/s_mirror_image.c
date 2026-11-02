@@ -20,9 +20,9 @@ static void mirror_image_spawn(edict_t *caster, uint32_t index, uint32_t count, 
      * later damage/parity work without changing the network contract. */
     image->owner = caster;
     image->aiflags |= AI_ILLUSION;
-    image->unit_state->hero = caster->unit_state->hero;
-    image->unit_state->hero.suspend_xp = true;
-    memcpy(image->unit_state->ranks, caster->unit_state->ranks, sizeof(image->unit_state->ranks));
+    image->hero = caster->hero;
+    image->hero.suspend_xp = true;
+    memcpy(image->heroabilities, caster->heroabilities, sizeof(image->heroabilities));
     image->health = caster->health;
     image->mana = caster->mana;
     image->unit_color = caster->unit_color;

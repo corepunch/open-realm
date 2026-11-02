@@ -1,0 +1,119 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "program": "game.dll",
+  "saved": true,
+  "rows": [
+    [
+      "6f49bc40",
+      "Attack_BeginSpeedCapExemption",
+      "Payoff151: Original control virtual18 is060ad0 (remaining), NOT elapsed. Active request rearms iff Math_Subtract(3,remaining)>=0.5: at least half a second elapsed.84 original states, adjacent2.5 boundaries and cancelled requests; read-only arm-entry stop. Fresh public zero-damage repeats confirm8 notifications,3 arms (2 rearms),5 retained deadlines and1 expiry. Idle sets bridge exemption before arm; active rearm preserves bit. Ordered absolute primary deadline/unsigned serial, fire before rebase."
+    ],
+    [
+      "6f4935e0",
+      "Attack_OnDamageNotification",
+      "Payoff151: pre-retaliation guards ability3c>0, unit20 bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late."
+    ],
+    [
+      "6f493ff0",
+      "Attack_OnAcquireScanTimer",
+      "Payoff151: successful493d20 acquisition invokes49bc40 before internal attack dispatch. Engine A_AUTO_COMBAT_START notifies Attack; AttackMove acquisition now emits it, preserving the public head."
+    ],
+    [
+      "6f060ad0",
+      "EventClock_GetRemaining",
+      "Payoff151: Attack49bc40 binds this exact virtual18; return is remaining deadline minus owning clock, not elapsed.3-remaining is elapsed.84 original clock/control states and fresh8-notification repeats; values use software scalar subtract."
+    ],
+    [
+      "6f169b50",
+      "PathGroup_CanShareSpeedCap",
+      "Payoff151: Attack-owned moverD8.01000000 denies shared cap for EVERY physical member. Actual engine regression: moving150/350 cohort keeps Move head on hit and fast member commits own350 with exact native velocity words. Original1296 combined consumer states."
+    ],
+    [
+      "6f169b00",
+      "PathGroup_CanClassifyProjectedMembers",
+      "Payoff151: Attack exemption independently denies classification;66 cooldown seeds at the next group decision and ends the visit65. Original1296 combined constructed consumer states; actual engine hit regression checks the65 snapshot."
+    ],
+    [
+      "6f16b120",
+      "PathGroup_CountRegroupStatus",
+      "Payoff151: exemption scan includes arrived members. No arrived returns count regardless of exemption; with any arrival exemption returns0.72 original-derived production regroup regressions cover exempt first/second, cooldown, near and group4/100."
+    ],
+    [
+      "6f69b380",
+      "Unit_ApplyDamageAndNotifyAbilities",
+      "Payoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice."
+    ],
+    [
+      "6f49bb50",
+      "Attack_OnAllyCombatAlert",
+      "Payoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test."
+    ],
+    [
+      "6f0040f0",
+      "Path_InitRegroupOrdinaryThreshold",
+      "Payoff151: original initializer ECX=d541a4,EDX=a91e84; tail Math_RuntimeParseScalar070de0, publishes256. Execute native initializer before16b120; leaving BSS zero incorrectly removes all near members."
+    ],
+    [
+      "6f004100",
+      "Path_InitRegroupTightThreshold",
+      "Payoff151: original initializer ECX=d541a8,EDX=a91e8c; tail Math_RuntimeParseScalar070de0, publishes16 for group80 bit100. Native startup entry, not a host literal in the oracle."
+    ]
+  ],
+  "readback": [
+    {
+      "address": "6f49bc40",
+      "name": "Attack_BeginSpeedCapExemption",
+      "plate": "Fastcall ECX CAbilityAttack. If its exemption clock (ability+3d8, active request +3e4) is idle: 05c350(1) on the owner's bridge, then arm event d01bd after d6bf54 (int3 = 3.0 s). If active: rearm only when 3.0 minus clock vfunc+18 is not below d6bf58 (50/100 = 0.5; 06fcd0 EDX numerator, stack denominator). Callers: 4935e0 (CAbilityAttack vtable+fc notification, after its disable/suspension/null-target early returns and before any response decision), 493ff0 (d01c1 acquisition timer when a target is found), 49e130 (d01a5), 49d130 when its second argument is nonzero. Live GROUP-03.2 repeated: moving group members, hostile Rifleman and acquiring Footmen.\n   [GROUP-03.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n[GROUP-03.2] Fastcall ECX CAbilityAttack. If its exemption clock (ability+3d8, active request +3e4) is idle: 05c350(1) on the owner's bridge, then arm event d01bd after d6bf54 (int3 = 3.0 s). If active: rearm only when 3.0 minus clock vfunc+18 is not below d6bf58 (50/100 = 0.5; 06fcd0 EDX numerator, stack denominator). Callers: 4935e0 (CAbilityAttack vtable+fc notification, after its disable/suspension/null-target early returns and before any response decision), 493ff0 (d01c1 acquisition timer when a target is found), 49e130 (d01a5), 49d130 when its second argument is nonzero. Live GROUP-03.2 repeated: moving group members, hostile Rifleman and acquiring Footmen.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: Original control virtual18 is060ad0 (remaining), NOT elapsed. Active request rearms iff Math_Subtract(3,remaining)>=0.5: at least half a second elapsed.84 original states, adjacent2.5 boundaries and cancelled requests; read-only arm-entry stop. Fresh public zero-damage repeats confirm8 notifications,3 arms (2 rearms),5 retained deadlines and1 expiry. Idle sets bridge exemption before arm; active rearm preserves bit. Ordered absolute primary deadline/unsigned serial, fire before rebase."
+    },
+    {
+      "address": "6f4935e0",
+      "name": "Attack_OnDamageNotification",
+      "plate": "Payoff151: pre-retaliation guards ability3c>0, unit20 bits100000/200000, unit54 suspension>0, null packet0 source, packet+c bit2.72 original prefix states. Accepted calls49bc40 BEFORE retaliation/refusal and damage outcomes. Public UnitDamageTarget amount0 reaches this with packetflags100; therefore post-positive A_DAMAGED is too late."
+    },
+    {
+      "address": "6f493ff0",
+      "name": "Attack_OnAcquireScanTimer",
+      "plate": "d01c1 periodic event (every 5 probe ticks). Rearms 0608d0, requires Unit20 bit200 and ability220<1, searches 493d20; ORDER-01.10 live acquisition prepends action1,d0168,d0163,d016f,d016a,d0148,action7 ahead of the retained chain without changing the user head.\n   [ORDER-01.10] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n[ORDER-01.10] d01c1 periodic event (every 5 probe ticks). Rearms 0608d0, requires Unit20 bit200 and ability220<1, searches 493d20; ORDER-01.10 live acquisition prepends action1,d0168,d0163,d016f,d016a,d0148,action7 ahead of the retained chain without changing the user head.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: successful493d20 acquisition invokes49bc40 before internal attack dispatch. Engine A_AUTO_COMBAT_START notifies Attack; AttackMove acquisition now emits it, preserving the public head."
+    },
+    {
+      "address": "6f060ad0",
+      "name": "EventClock_GetRemaining",
+      "plate": "ECX control,stack4 output,RET4/EAX output. No request gives zero; segment_count14 invokes full-span/residual composition with remaining_segments16; otherwise060a90. Live huge timeout49742404 returns49742403 initially. Payoff117 original registered span120; exact huge timeout getters/remaining count through350 seconds and engine saves.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: Attack49bc40 binds this exact virtual18; return is remaining deadline minus owning clock, not elapsed.3-remaining is elapsed.84 original clock/control states and fresh8-notification repeats; values use software scalar subtract."
+    },
+    {
+      "address": "6f169b50",
+      "name": "PathGroup_CanShareSpeedCap",
+      "plate": "Reject group80 bit8, any member28 bits210000 or moverD8 bit01000000; composed two-member commit corpus.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nGROUP-03.2 producers: group80 bit8 only from 89caf0 (UI Alt packet10 -> canonical 2/4/8); member28 10000 arrival and 200000 held from the decision pass; mover d8 01000000 only from 05c350 (CAbilityAttack 49bc40 3 s exemption). Public Move group past a hostile: result 1 (cap 4.6875 for 150/350/350) flips to 0 on the tick all members receive the exemption.\n   [GROUP-03.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nReject group80 bit8, any member28 bits210000 or moverD8 bit01000000; composed two-member commit corpus. [GROUP-03.2] GROUP-03.2 producers: group80 bit8 only from 89caf0 (UI Alt packet10 -> canonical 2/4/8); member28 10000 arrival and 200000 held from the decision pass; mover d8 01000000 only from 05c350 (CAbilityAttack 49bc40 3 s exemption). Public Move group past a hostile: result 1 (cap 4.6875 for 150/350/350) flips to 0 on the tick all members receive the exemption.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: Attack-owned moverD8.01000000 denies shared cap for EVERY physical member. Actual engine regression: moving150/350 cohort keeps Move head on hit and fast member commits own350 with exact native velocity words. Original1296 combined consumer states."
+    },
+    {
+      "address": "6f169b00",
+      "name": "PathGroup_CanClassifyProjectedMembers",
+      "plate": "Return0 when member flags e0000, resolved moverD8.01000000 or path88.30000000; otherwise1.16c250 denial seeds group68 cooldown66, and16b120 permits regroup once a member arrives during that cooldown. Payoff63 captain shared groups retain cooldown in Save86; wider mover-special/projected-priority producer parity remains GROUP-03.2. Payoff110 blocked slot40000 is produced after first classification, so denial begins on the following retained-route visit;16c250 sets66 and16c150 decrements after commit. Engine early adjustment incorrectly seeded this cooldown one owner visit early.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nFORM-04.2: live warp-marker denial: while any member carries 80000 (mirrored from path88.01000000 by 16a790) the group cooldown is reseeded to 66 every 66 owner visits (snapshot 65 at visits 3, 69, 135 of a six-member Way Gate Move, repeated x3) and classification never runs; after the last marker member is removed (visit 188) no further seeds and rank holds (200000/300000) reappear. Adjusted slots 40000 at an unreachable ring point reseed at 166, 232, 298, 364, 430.\n   [FORM-04.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nReturn0 when member flags e0000, resolved moverD8.01000000 or path88.30000000; otherwise1.16c250 denial seeds group68 cooldown66, and16b120 permits regroup once a member arrives during that cooldown. Payoff63 captain shared groups retain cooldown in Save86; wider mover-special/projected-priority producer parity remains GROUP-03.2. Payoff110 blocked slot40000 is produced after first classification, so denial begins on the following retained-route visit;16c250 sets66 and16c150 decrements after commit. Engine early adjustment incorrectly seeded this cooldown one owner visit early. [FORM-04.2] FORM-04.2: live warp-marker denial: while any member carries 80000 (mirrored from path88.01000000 by 16a790) the group cooldown is reseeded to 66 every 66 owner visits (snapshot 65 at visits 3, 69, 135 of a six-member Way Gate Move, repeated x3) and classification never runs; after the last marker member is removed (visit 188) no further seeds and rank holds (200000/300000) reappear. Adjusted slots 40000 at an unreachable ring point reseed at 166, 232, 298, 364, 430.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: Attack exemption independently denies classification;66 cooldown seeds at the next group decision and ends the visit65. Original1296 combined constructed consumer states; actual engine hit regression checks the65 snapshot."
+    },
+    {
+      "address": "6f16b120",
+      "name": "PathGroup_CountRegroupStatus",
+      "plate": "Outputs arrived10000 and nonarrived predicted-distance near (<256 or<16 group100).No arrived returns count; otherwise cooldown/mover01000000/group4 returns0 else distant count.1792 full calls.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nFORM-05.2: 2491 live public calls (UI selection through gap, singleton independent orders, Way Gate/ring lanes; 21 group lifetimes) satisfy result = out1 ? count-out1-out2 : count, and 1697a0 from 16c565 (resetMembers 1 -> 16d6a0 -> 16d990 -> 16a5b0) runs on the same owner visit iff result==0 (no completion>99 timeout reached); 16a5b0 never runs on other visits except route admission (visit 1, 16cef4).\n   [FORM-05.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nOutputs arrived10000 and nonarrived predicted-distance near (<256 or<16 group100).No arrived returns count; otherwise cooldown/mover01000000/group4 returns0 else distant count.1792 full calls. [FORM-05.2] FORM-05.2: 2491 live public calls (UI selection through gap, singleton independent orders, Way Gate/ring lanes; 21 group lifetimes) satisfy result = out1 ? count-out1-out2 : count, and 1697a0 from 16c565 (resetMembers 1 -> 16d6a0 -> 16d990 -> 16a5b0) runs on the same owner visit iff result==0 (no completion>99 timeout reached); 16a5b0 never runs on other visits except route admission (visit 1, 16cef4).\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff151: exemption scan includes arrived members. No arrived returns count regardless of exemption; with any arrival exemption returns0.72 original-derived production regroup regressions cover exempt first/second, cooldown, near and group4/100."
+    },
+    {
+      "address": "6f69b380",
+      "name": "Unit_ApplyDamageAndNotifyAbilities",
+      "plate": "Payoff151: ability virtualf8 gate, thenfc packet notifications precede later zero-amount rejection, scaling and health write. Fresh public zero-damage probe triggers8 Attack notifications without replacing Move. Engine uses typed pre-transform combat alert; does not infer immunity or ally alert equivalence from this slice."
+    },
+    {
+      "address": "6f49bb50",
+      "name": "Attack_OnAllyCombatAlert",
+      "plate": "Payoff151 read-only assembly: ECX Attack, stack4 attacker,stack8 victim,RET8. Gate ability220; victim695200(helper owner),helper695600(victim owner), helper68bd60(attacker); create zero packet(type10,flags4) then virtualfc. This producer remains to integrate; do not replace it with an unconditional radius/owner test."
+    },
+    {
+      "address": "6f0040f0",
+      "name": "Path_InitRegroupOrdinaryThreshold",
+      "plate": "Payoff151: original initializer ECX=d541a4,EDX=a91e84; tail Math_RuntimeParseScalar070de0, publishes256. Execute native initializer before16b120; leaving BSS zero incorrectly removes all near members."
+    },
+    {
+      "address": "6f004100",
+      "name": "Path_InitRegroupTightThreshold",
+      "plate": "Payoff151: original initializer ECX=d541a8,EDX=a91e8c; tail Math_RuntimeParseScalar070de0, publishes16 for group80 bit100. Native startup entry, not a host literal in the oracle."
+    }
+  ]
+}

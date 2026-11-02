@@ -33,9 +33,11 @@ static char const exh_slk[] =
 	"C;Y5;X9;K\"10\"\nC;Y5;X11;K\"800\"\nE\n";
 
 static char const exh_unit_slk[] =
-	"ID;PWXL;N;EBB;Y2;X3\n"
+	"ID;PWXL;N;EBB;Y3;X5\n"
 	"C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"deathType\"\nC;Y1;X3;K\"targType\"\n"
-	"C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nC;Y2;X3;K\"ground\"\nE\n";
+	"C;Y1;X4;K\"turnRate\"\nC;Y1;X5;K\"propWin\"\n"
+	"C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nC;Y2;X3;K\"ground\"\n"
+	"C;Y3;X1;K\"ugho\"\nC;Y3;X4;K0.5\nC;Y3;X5;K60\nE\n";
 
 /* Fill in place: fixture must not return-by-value when pointing at local SLK state. */
 static void exh_setup(exhFix_t *fix) {
@@ -46,9 +48,9 @@ static void exh_setup(exhFix_t *fix) {
 	fix->wagon = alloc_test_unit(MAKEFOURCC('u', 'm', 't', 'w'), 100, 100);
 	fix->wagon->s.player = 0; fix->wagon->svflags |= SVF_MONSTER; fix->wagon->targtype = TARG_GROUND;
 	fix->wagon->health.value = fix->wagon->health.max_value = 500;
-	fix->wagon->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AEXH, .level = 1);
-	fix->wagon->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_EXH_AMEL, .level = 1);
-	fix->wagon->unit_state->ranks[2] = MAKE(heroability_t, .code = BZ_SCH2, .level = 1);
+	fix->wagon->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEXH, .level = 1);
+	fix->wagon->heroabilities[1] = MAKE(heroability_t, .code = BZ_EXH_AMEL, .level = 1);
+	fix->wagon->heroabilities[2] = MAKE(heroability_t, .code = BZ_SCH2, .level = 1);
 	G_ActorAddSkill(fix->wagon, BZ_EXH_AMEL);
 	G_ActorAddSkill(fix->wagon, BZ_SCH2);
 	fix->wagon->think = monster_think;
@@ -63,8 +65,8 @@ static void exh_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
 static uint32_t exh_corpse_count(edict_t *wagon) {
 	uint32_t n = 0;
-	if (!G_GetCargo(wagon)) return 0;
-	FOR_LOOP(i, G_GetCargo(wagon)->count) {
+	if (!wagon->cargo) return 0;
+	FOR_LOOP(i, wagon->cargo->count) {
 		edict_t *ent = S_CargoUnitAt(wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent)) n++;
 	}
@@ -100,16 +102,16 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_tick(1999); T_EQ(exh_corpse_count(fix.wagon), 0);
 	exh_tick(1); T_EQ(exh_corpse_count(fix.wagon), 1);
 	corpse = NULL;
-	FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
+	FOR_LOOP(i, fix.wagon->cargo->count) {
 		edict_t *ent = S_CargoUnitAt(fix.wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent) && !corpse) corpse = ent;
 	}
 	T_NOT_NULL(corpse);
 	T_FEQ(corpse->s.origin2.x, fix.wagon->s.origin2.x, 0.001f);
 	T_FEQ(corpse->s.origin2.y, fix.wagon->s.origin2.y, 0.001f);
-	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT(G_UnitHasFlag(corpse, UNIT_FLAG_PAUSED));
+	T_ASSERT(S_CorpseCargoIsStored(corpse)); T_ASSERT((corpse && corpse->paused));
 	T_EQ((int)S_CargoCapacity(fix.wagon), 8);
-	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!G_GetCargo(fix.wagon) || G_GetCargo(fix.wagon)->count == 0);
+	T_ASSERT(S_CargoUnloadAt(fix.wagon, 0)); T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
 	exh_done(&fix);
 }
 
@@ -118,7 +120,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 TEST(wc3_spell, exhume_update_dispatch_recognizes_runtime_added_ability) {
 	exhFix_t fix;
 	exh_setup(&fix);
-	memset(fix.wagon->unit_state->ranks, 0, sizeof(fix.wagon->unit_state->ranks));
+	memset(fix.wagon->heroabilities, 0, sizeof(fix.wagon->heroabilities));
 	T_ASSERT(G_ActorAddSkill(fix.wagon, BZ_AEXH));
 	T_EQ(G_UnitAbilityLevel(fix.wagon, BZ_AEXH), 1u);
 	S_RunAbilityUpdates(fix.wagon);
@@ -140,9 +142,9 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
 
     T_ASSERT(!S_CargoTryLoad(fix.wagon, living));
     T_ASSERT(!S_CargoOrderBoard(living, fix.wagon));
-    T_ASSERT(!G_GetCargo(fix.wagon) || G_GetCargo(fix.wagon)->count == 0);
+    T_ASSERT(!fix.wagon->cargo || fix.wagon->cargo->count == 0);
     T_ASSERT(!(living->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(living, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(living && living->paused));
     T_NULL(S_CargoTransportForUnit(living));
     exh_done(&fix);
 }
@@ -152,7 +154,7 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -184,7 +186,7 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     clent->client->menu.ability_code = BZ_EXH_AMEL;
     G_SelectEntity(clent->client, fix.wagon);
     item = S_AbilityItem(BZ_EXH_AMEL);
-    call = MAKE(abilityCall_t, .item = &item, .entity = clent);
+    call = MAKE(abilityCall_t, .item = &item, .client = clent);
 
     T_ASSERT(S_AbilityMessage(fix.wagon, A_COMMAND, &call));
     T_ASSERT(fix.wagon->goalentity == corpse);
@@ -193,7 +195,7 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     T_NOT_NULL(thinker);
     fix.wagon->s.origin2.x = 220.0f; fix.wagon->s.origin.x = 220.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(G_GetCargo(fix.wagon)->count, 1);
+    T_EQ(fix.wagon->cargo->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     T_ASSERT(!thinker->inuse);
@@ -226,7 +228,7 @@ TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
 
     fix.wagon->s.origin2.x = 260.0f; fix.wagon->s.origin.x = 260.0f;
     if (thinker) thinker->think(thinker);
-    T_EQ(G_GetCargo(fix.wagon)->count, 1);
+    T_EQ(fix.wagon->cargo->count, 1);
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     exh_done(&fix);
@@ -242,7 +244,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -262,14 +264,14 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     caster->collision = 16.0f;
     fix.wagon->collision = 32.0f;
     caster->data.UnitAbilities = &abilities;
-    caster->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
     caster->think = monster_think;
     unit_stand(caster);
     gi.LinkEntity(caster);
 
     clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
     item = S_AbilityItem(MAKEFOURCC('A','c','a','n'));
-    call = MAKE(abilityCall_t, .item = &item, .entity = clent);
+    call = MAKE(abilityCall_t, .item = &item, .client = clent);
     T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
     T_ASSERT(caster->goalentity == fix.wagon);
     T_STREQ(caster->currentmove->animation, "walk");
@@ -282,7 +284,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
         level.time += FRAMETIME;
         G_RunEntities();
     }
-    T_EQ(G_GetChannel(caster)->code, MAKEFOURCC('A', 'c', 'a', 'n'));
+    T_EQ(caster->channel->code, MAKEFOURCC('A', 'c', 'a', 'n'));
     T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
     exh_done(&fix);
 }
@@ -297,7 +299,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
-    FOR_LOOP(i, G_GetCargo(fix.wagon)->count) {
+    FOR_LOOP(i, fix.wagon->cargo->count) {
         edict_t *ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
@@ -307,11 +309,11 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     caster->s.player = 0; caster->svflags |= SVF_MONSTER; caster->targtype = TARG_GROUND;
     caster->health.max_value = 1000.0f; caster->health.value = 500.0f;
     caster->unitinfo.MoveSpeed = 270.0f; caster->data.UnitAbilities = &abilities;
-    caster->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
     caster->think = monster_think; unit_stand(caster); gi.LinkEntity(caster);
     clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
     item = S_AbilityItem(MAKEFOURCC('A','c','a','n'));
-    call = MAKE(abilityCall_t, .item = &item, .entity = clent);
+    call = MAKE(abilityCall_t, .item = &item, .client = clent);
     T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->goalentity == corpse && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
@@ -410,8 +412,8 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
-    graveyard->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
-    G_AddConstruction(graveyard);
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    (graveyard->construction ? graveyard->construction : (graveyard->construction=G_AllocConstruction()));
 
     S_RunAbilityUpdates(graveyard);
     T_NULL(graveyard_test_thinker(graveyard));
@@ -430,7 +432,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
 
     /* A restored/stale producer must also stop if its owner becomes incomplete,
      * so it cannot continue producing from a pre-construction timer. */
-    G_AddConstruction(graveyard);
+    (graveyard->construction ? graveyard->construction : (graveyard->construction=G_AllocConstruction()));
     graveyard_think(thinker);
     T_ASSERT(!thinker->inuse);
 
@@ -446,7 +448,7 @@ TEST(wc3_spell, graveyard_recycled_building_slot_cancels_producer) {
     graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
-    graveyard->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
     S_RunAbilityUpdates(graveyard);
     thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
     graveyard->spawn_time++;
@@ -465,7 +467,7 @@ TEST(wc3_spell, graveyard_waits_for_legacy_self_link_construction) {
     graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
-    graveyard->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
     graveyard->build = graveyard; /* Legacy construction marker; health may already be positive. */
 
     S_RunAbilityUpdates(graveyard);
@@ -497,7 +499,7 @@ TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
     graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
     graveyard->health.value = graveyard->health.max_value = 900;
-    graveyard->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
 
     T_NOT_NULL(item.ability); T_EQ(item.ability->proc, CAbilityGraveyard);
     T_ASSERT(item.ability->flags & AB_PASSIVE); T_ASSERT(item.ability->flags & AB_UPDATE);

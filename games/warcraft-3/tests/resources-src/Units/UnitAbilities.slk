@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X3;Y11;D0
+B;X3;Y12;D0
 C;X1;Y1;K"unitAbilID"
 C;X2;K"abilList"
 C;X3;K"heroAbilList"
@@ -24,4 +24,6 @@ C;X1;Y10;K"hTST"
 C;X2;K"Argl"
 C;X1;Y11;K"eTST"
 C;X2;K"Aent"
+C;X1;Y12;K"opeo"
+C;X2;K"Ahar"
 E

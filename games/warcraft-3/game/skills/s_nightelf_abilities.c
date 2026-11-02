@@ -32,7 +32,7 @@ BZ_ABILITY_PROC(CAbilityDetonate) {
                       S_SpellAllowsAreaTarget(code, ent, target)) {
             bool affected = S_DispelUnitMagic(target) != 0;
             /* Invulnerable units still lose magical buffs, but not mana or HP. */
-            if (!G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) {
+            if (!(target && target->invulnerable)) {
                 if (mana_loss > 0.0f && target->mana.value > 0.0f) {
                     target->mana.value = MAX(0.0f, target->mana.value - mana_loss);
                     G_InvalidateUnitInfoPanel(target);
@@ -71,7 +71,10 @@ cstring_t const barkskin_orders[] = { "barkskinon", "barkskinoff", NULL };
 
 /* ---- Moon Glaive (Amgl / Amgr): passive attack bounce -------------------- */
 
-BZ_ABILITY_PROC(CAbilityMoonGlaive) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityMoonGlaive) {
+    if (msg == A_UNIT_TYPE_INIT) return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    return CAbilityPassive(ent, msg, call);
+}
 
 /* The stock Huntress weapon is mbounce with two total targets before
  * research (the primary plus one bounce). Remg grants one additional target;
@@ -83,19 +86,19 @@ BZ_ABILITY_PROC(CAbilityMoonGlaive) { return CAbilityPassive(ent, msg, call); }
  * Damage has already been mitigated for the primary; like the other secondary
  * attack effects, do not run G_AttackDamage again and double-apply armor.
  * Secondary hits use T_Damage rather than retriggering primary attack procs. */
-void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
+void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, float damage) {
     uint32_t level, code, total;
     float range, loss, bounce_damage;
     edict_t *visited[8], *current;
     uint32_t nvisited = 1;
     unitAttack_t const *profile;
 
-    if (!attacker || !attacker->inuse || !attacker->unit_state || !primary || damage <= 0) return;
+    if (!attacker || !attacker->inuse || !primary || damage <= 0) return;
     code = ID_MOON_GLAIVE;
     level = G_UnitAbilityLevel(attacker, code);
     if (!level) { code = ID_MOON_GLAIVER; level = G_UnitAbilityLevel(attacker, code); }
     if (!level) return;
-    profile = &attacker->unit_state->attack1;
+    profile = S_AttackProfileRead(attacker, 0);
     /* DataA is only a fallback for custom ability/weapon combinations. The
      * weapon's authored utc1 takes precedence when it is populated. */
     total = profile->maxTargets;
@@ -111,7 +114,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
     if (range <= 0.0f) range = 400.0f; /* Warcraft stock Moon Glaive bounce radius */
     loss = profile->damageLoss > 0.0f ? profile->damageLoss : 0.5f;
     loss = MAX(0.0f, MIN(loss, 1.0f));
-    bounce_damage = (float)damage;
+    bounce_damage = damage;
     visited[0] = current = primary;
 
     for (uint32_t i = 1; i < total; i++) {
@@ -137,14 +140,17 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
         }
         if (!next) break;
         visited[nvisited++] = next;
-        T_Damage(next, attacker, (int)bounce_damage);
+        T_Damage(next, attacker, bounce_damage);
         current = next;
     }
 }
 
 /* ---- Slow Poison (Aspo): passive poison on hit --------------------------- */
 
-BZ_ABILITY_PROC(CAbilitySlowPoison) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilitySlowPoison) {
+    if (msg == A_UNIT_TYPE_INIT) return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    return CAbilityPassive(ent, msg, call);
+}
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy.  Applies the
  * Bspo buff which the movement and attack-speed hooks read each frame. */
@@ -160,13 +166,13 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target) {
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
 float S_SlowPoisonMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
+    uint32_t level = G_QueryUnitStatusClassLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
     return S_SpellData(ID_SLOW_POISON, level, 2);
 }
 
 float S_SlowPoisonAttackReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
+    uint32_t level = G_UnitStatusClassLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
     return S_SpellData(ID_SLOW_POISON, level, 3);
 }
@@ -198,7 +204,7 @@ static bool barkskin_acquire(edict_t *caster, uint32_t code) {
     float range = S_SpellRange(code, S_SpellLevel(caster, code)), dist = FLT_MAX;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target)) {
         float cur;
-        if (G_UnitStatusLevel(target, BUFF_BARKSKIN) || !S_SpellAllowsTarget(code, caster, target)) continue;
+        if (G_UnitStatusClassLevel(target, BUFF_BARKSKIN) || !S_SpellAllowsTarget(code, caster, target)) continue;
         cur = Vector2_distance(&target->s.origin2, &caster->s.origin2);
         if ((range <= 0.0f || cur <= range) && cur < dist) { best = target; dist = cur; }
     }
@@ -223,6 +229,6 @@ BZ_ABILITY_PROC(CAbilityBarkskin) {
 
 /* Bbar reads Abar DataA so expiry removes the armor without mutating base unit state. */
 float S_BarkskinArmorBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BUFF_BARKSKIN);
+    uint32_t level = G_UnitStatusClassLevel(unit, BUFF_BARKSKIN);
     return level ? S_SpellData(ID_BARKSKIN, level, 1) : 0.0f;
 }

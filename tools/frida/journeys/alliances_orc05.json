@@ -1,0 +1,8 @@
+{
+ "name": "alliances_orc05",
+ "probe": "alliances",
+ "base": {
+  "mpq": "war3.mpq",
+  "member": "Maps\\Campaign\\Orc05.w3m"
+ }
+}

@@ -1,0 +1,148 @@
+{
+  "scope": "Compared prefix: first four actor lifetimes, before case4 at 32000ms. Movement inputs only; native hfoo and engine hRTE profiles share the listed values. No full unit, route, RNG or render parity claim.",
+  "world": {
+    "bounds": [
+      0,
+      0,
+      2048,
+      2048
+    ],
+    "fine_cell_size": 32,
+    "grid": [
+      64,
+      64
+    ],
+    "height": 0,
+    "ground_blocked_columns": [
+      24,
+      25
+    ],
+    "ground_blocked_rows": [
+      0,
+      47
+    ],
+    "native_wpm_byte": 198,
+    "engine_ground_bit": 2
+  },
+  "profiles": [
+    {
+      "life": 0,
+      "rawcode": "hF91",
+      "collision_radius_word": 1090519040,
+      "base_speed_word": 1132920832,
+      "requested_speed_word": 1125515264
+    },
+    {
+      "life": 1,
+      "rawcode": "hF92",
+      "collision_radius_word": 1103101952,
+      "base_speed_word": 1132920832,
+      "requested_speed_word": 1125515264
+    },
+    {
+      "life": 2,
+      "rawcode": "hF93",
+      "collision_radius_word": 1109393408,
+      "base_speed_word": 1132920832,
+      "requested_speed_word": 1125515264
+    },
+    {
+      "life": 3,
+      "rawcode": "hF94",
+      "collision_radius_word": 1113587712,
+      "base_speed_word": 1132920832,
+      "requested_speed_word": 1125515264
+    }
+  ],
+  "producer": {
+    "timer_ms": 100,
+    "primary_step_ms": 5,
+    "owner_interval_ms": 30,
+    "lifetime_ticks": 80,
+    "birth_world": [
+      272,
+      304
+    ],
+    "birth_facing_degrees": 90,
+    "order_tick": 10,
+    "set_world": [
+      257,
+      289
+    ],
+    "point_move_world": [
+      287,
+      319
+    ],
+    "terminal_ms": 32000,
+    "order": 851986
+  },
+  "journal_begin": {
+    "bounds": [
+      0,
+      0,
+      2048,
+      2048
+    ],
+    "grid": [
+      64,
+      64
+    ],
+    "clock": [
+      0,
+      0,
+      1133903872
+    ],
+    "radii": [
+      8,
+      24,
+      40,
+      56
+    ],
+    "base_speed": 1132920832,
+    "min_speed": 1125515264,
+    "max_speed": 1137180672
+  },
+  "units": "Positions and velocities use native fine units; heading is binary32 radians; clock is binary32 time, uint32 epoch, binary32 span. Identity is [producer lifetime, actor ordinal]. Every observed velocity commit is retained, including stopped commits.",
+  "journal_profiles": [
+    {
+      "event": "profile",
+      "actor": [
+        0,
+        0
+      ],
+      "radius": 1048576000,
+      "turn": 1058642330,
+      "window": 1065749137
+    },
+    {
+      "event": "profile",
+      "actor": [
+        1,
+        0
+      ],
+      "radius": 1061158912,
+      "turn": 1058642330,
+      "window": 1065749137
+    },
+    {
+      "event": "profile",
+      "actor": [
+        2,
+        0
+      ],
+      "radius": 1067450368,
+      "turn": 1058642330,
+      "window": 1065749137
+    },
+    {
+      "event": "profile",
+      "actor": [
+        3,
+        0
+      ],
+      "radius": 1071644672,
+      "turn": 1058642330,
+      "window": 1065749137
+    }
+  ]
+}

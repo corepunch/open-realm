@@ -1,0 +1,7943 @@
+{
+ "task": "GROUP-03.4.7.3",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "source_reports": {
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.7.3/captures/interrupt-c-observe-2-envB-report.json": "3693f2dadeaf62347a3e3a6ddf22fbf30dc8e6d53c9c222c444ada0321b90b9d",
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.7.3/captures/interrupt-c-observe-1-envC-report.json": "3ed86cfb8c7052b8e479ef42ab2df0828181a54696049c119682fc6326bc4b0f"
+ },
+ "captures": {
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.7.3/captures/interrupt-c-observe-2-envB.jsonl": "91b3211b8e44f1a91edc927acc9cc67d4da3fffcca01bca16cc925cf95a91016",
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.7.3/captures/interrupt-c-observe-1-envC.jsonl": "e3f2844c3de5500eed3377306f7a6a2aabdfa54d83a61ab0f1a9b8f797494dd4"
+ },
+ "repeats_identical": true,
+ "decisions": [
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=start_group0473 variant=interrupt"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=0"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=1"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=2"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=3"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=4"
+  },
+  {
+   "tick": 0,
+   "counter": 1024,
+   "kind": "marker",
+   "value": "RSH tick=0 label=birth u=5"
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "marker",
+   "value": "RSH tick=9 label=start-ai"
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "actor-place",
+   "captain": "C0",
+   "x": 1150812160,
+   "y": 3308257280,
+   "caller": 10302354,
+   "x_f": 1216.0,
+   "y_f": -2816.0
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "actor-place",
+   "captain": "C1",
+   "x": 1150812160,
+   "y": 3308257280,
+   "caller": 10302354,
+   "x_f": 1216.0,
+   "y_f": -2816.0
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "engagement-test",
+   "captain": "C0",
+   "result": 1
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "actor-place",
+   "captain": "C0",
+   "x": 3304194048,
+   "y": 3272605696,
+   "caller": 10299074,
+   "x_f": -1936.0,
+   "y_f": -144.0
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "point-request",
+   "caller": "0x9d26f3",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0012",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     1216.0,
+     -2816.0
+    ],
+    "request": [
+     1216.0,
+     -2816.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0012",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0,
+   "range": 500.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "go-home",
+   "caller": "0x9d09b8",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0014",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     1216.0,
+     -2816.0
+    ],
+    "request": [
+     1216.0,
+     -2816.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0012",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "home-reevaluate",
+   "caller": "0x9d5ca3",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0014",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     1216.0,
+     -2816.0
+    ],
+    "request": [
+     1216.0,
+     -2816.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0012",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "set-home",
+   "caller": "0x9cadce",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0014",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     1216.0,
+     -2816.0
+    ],
+    "request": [
+     1216.0,
+     -2816.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     1216.0,
+     -2816.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x0",
+    "order": "0xd0012",
+    "counts": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U0",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U0",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U1",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    1,
+    1,
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U1",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U2",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    2,
+    2,
+    2,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U2",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U3",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    3,
+    3,
+    3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U3",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U4",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    4,
+    4,
+    4,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U4",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "roster-attach",
+   "unit": "U5",
+   "caller": "0x9c348e",
+   "captain": "C0",
+   "counts": [
+    5,
+    5,
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "tick": 9,
+   "counter": 1054,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U5",
+   "order": 851986,
+   "target": "C0",
+   "point": [
+    0,
+    0
+   ],
+   "caller": 10324690
+  },
+  {
+   "tick": 9,
+   "counter": 1055,
+   "kind": "go-home",
+   "caller": "0x9cff7d",
+   "result": 3,
+   "before": {
+    "state": 2,
+    "flags": "0x1",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 15,
+   "counter": 1087,
+   "kind": "point-request",
+   "caller": "0x9d4638",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0,
+   "range": 200.0,
+   "retain": 0,
+   "prepare": 1
+  },
+  {
+   "tick": 15,
+   "counter": 1088,
+   "kind": "go-home",
+   "caller": "0x9cff7d",
+   "result": 3,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 110,
+   "counter": 1390,
+   "kind": "marker",
+   "value": "RSH tick=110 label=command phase=5"
+  },
+  {
+   "tick": 150,
+   "counter": 1524,
+   "kind": "marker",
+   "value": "RSH tick=150 label=command phase=6"
+  },
+  {
+   "tick": 150,
+   "counter": 1524,
+   "kind": "point-request",
+   "caller": "0x9d16b2",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -1424.0,
+   "range": 200.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 150,
+   "counter": 1524,
+   "kind": "captain-attack",
+   "caller": "0x9b8923",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -1424.0
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "marker",
+   "value": "RSH tick=165 label=removed first=0 last=3"
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "roster-detach",
+   "unit": "U5",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    6,
+    6,
+    6,
+    6,
+    0
+   ]
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     5,
+     5,
+     5,
+     5,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     5,
+     5,
+     5,
+     5,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     6,
+     6,
+     6,
+     6,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     5,
+     5,
+     5,
+     5,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U5"
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "roster-detach",
+   "unit": "U4",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    5,
+    5,
+    5,
+    5,
+    0
+   ]
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     4,
+     4,
+     4,
+     4,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     4,
+     4,
+     4,
+     4,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     5,
+     5,
+     5,
+     5,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     4,
+     4,
+     4,
+     4,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U4"
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "roster-detach",
+   "unit": "U3",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    4,
+    4,
+    4,
+    4,
+    0
+   ]
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     3,
+     3,
+     3,
+     3,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     3,
+     3,
+     3,
+     3,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     4,
+     4,
+     4,
+     4,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     3,
+     3,
+     3,
+     3,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U3"
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "roster-detach",
+   "unit": "U2",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    3,
+    3,
+    3,
+    3,
+    0
+   ]
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     3,
+     3,
+     3,
+     3,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U2"
+  },
+  {
+   "tick": 190,
+   "counter": 1664,
+   "kind": "point-request",
+   "caller": "0x9d26f3",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0,
+   "range": 500.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 190,
+   "counter": 1664,
+   "kind": "go-home",
+   "caller": "0x9cff7d",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 215,
+   "counter": 1747,
+   "kind": "go-home",
+   "caller": "0x9cff7d",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 300,
+   "counter": 2024,
+   "kind": "marker",
+   "value": "RSH tick=300 label=command phase=6"
+  },
+  {
+   "tick": 300,
+   "counter": 2024,
+   "kind": "point-request",
+   "caller": "0x9d16b2",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -1424.0,
+   "range": 200.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 300,
+   "counter": 2024,
+   "kind": "captain-attack",
+   "caller": "0x9b8923",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -1424.0
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "marker",
+   "value": "RSH tick=315 label=removed first=4 last=5"
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "roster-detach",
+   "unit": "U1",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    2,
+    2,
+    2,
+    2,
+    0
+   ]
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "engagement-test",
+   "captain": "C0",
+   "result": 1
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "reissue",
+   "captain": "C0",
+   "unit": "U0",
+   "order": 851986,
+   "target": "0x0",
+   "point": [
+    3304194048,
+    3272605696
+   ],
+   "caller": 10295309
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "point-request",
+   "caller": "0x9d26f3",
+   "result": 4294967295,
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0,
+   "range": 500.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "go-home",
+   "caller": "0x9d09b8",
+   "result": 4294967295,
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0014",
+    "counts": [
+     6,
+     2,
+     2,
+     2,
+     2,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -1424.0
+    ],
+    "request": [
+     -1936.0,
+     -1424.0
+    ],
+    "request_range": 200.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U1"
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "roster-detach",
+   "unit": "U0",
+   "caller": "0x9d7906",
+   "captain": "C0",
+   "counts": [
+    6,
+    1,
+    1,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "engagement-test",
+   "captain": "C0",
+   "result": 1
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "actor-place",
+   "captain": "C0",
+   "x": 3304194048,
+   "y": 3272605696,
+   "caller": 10299074,
+   "x_f": -1936.0,
+   "y_f": -144.0
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "point-request",
+   "caller": "0x9d26f3",
+   "result": "ptr",
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "x": -1936.0,
+   "y": -144.0,
+   "range": 500.0,
+   "retain": 1,
+   "prepare": 1
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "go-home",
+   "caller": "0x9d09b8",
+   "result": "ptr",
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "home-reevaluate",
+   "caller": "0x9d790d",
+   "result": 1,
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "kind": "member-removed",
+   "caller": "0x9d7732",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     1,
+     1,
+     1,
+     1,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "unit": "U0"
+  },
+  {
+   "tick": 315,
+   "counter": 2079,
+   "kind": "go-home",
+   "caller": "0x9cff7d",
+   "result": 0,
+   "before": {
+    "state": 2,
+    "flags": "0x1003",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   },
+   "after": {
+    "state": 2,
+    "flags": "0x1001",
+    "order": "0xd0012",
+    "counts": [
+     6,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "current": [
+     -1936.0,
+     -144.0
+    ],
+    "request": [
+     -1936.0,
+     -144.0
+    ],
+    "request_range": 500.0,
+    "home": [
+     -1936.0,
+     -144.0
+    ],
+    "targets": [
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "tick": 420,
+   "counter": 2424,
+   "kind": "marker",
+   "value": "RSH tick=420 label=complete"
+  }
+ ],
+ "timeline": [
+  {
+   "tick": 5,
+   "counter": 1040,
+   "reason": "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+   "captains": {},
+   "members": []
+  },
+  {
+   "tick": 10,
+   "counter": 1057,
+   "reason": "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      0,
+      0,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.08,
+      63.2401
+     ]
+    ],
+    [
+     "U1",
+     [
+      163.5,
+      63.2531
+     ]
+    ],
+    [
+     "U2",
+     [
+      170.7736,
+      65.9528
+     ]
+    ],
+    [
+     "U3",
+     [
+      168.5,
+      66.0062
+     ]
+    ],
+    [
+     "U4",
+     [
+      166.2264,
+      65.9528
+     ]
+    ],
+    [
+     "U5",
+     [
+      163.5,
+      66.0062
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 15,
+   "counter": 1074,
+   "reason": "RSH tick=15 label=sample u=0 x=-1936.000 y=-822.103 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      0,
+      0,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.236,
+      66.4727
+     ]
+    ],
+    [
+     "U1",
+     [
+      163.5,
+      66.5437
+     ]
+    ],
+    [
+     "U2",
+     [
+      170.252,
+      67.642
+     ]
+    ],
+    [
+     "U3",
+     [
+      168.2654,
+      70.3025
+     ]
+    ],
+    [
+     "U4",
+     [
+      166.034,
+      70.2175
+     ]
+    ],
+    [
+     "U5",
+     [
+      163.5,
+      70.3093
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 20,
+   "counter": 1090,
+   "reason": "RSH tick=20 label=sample u=0 x=-1937.425 y=-692.697 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.9282,
+      70.341
+     ]
+    ],
+    [
+     "U1",
+     [
+      163.456,
+      70.421
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.5743,
+      70.1677
+     ]
+    ],
+    [
+     "U3",
+     [
+      168.3032,
+      74.121
+     ]
+    ],
+    [
+     "U4",
+     [
+      165.6319,
+      74.067
+     ]
+    ],
+    [
+     "U5",
+     [
+      163.5,
+      74.1905
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 25,
+   "counter": 1107,
+   "reason": "RSH tick=25 label=sample u=0 x=-1973.054 y=-562.488 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.3809,
+      74.6089
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.7078,
+      74.6584
+     ]
+    ],
+    [
+     "U2",
+     [
+      168.7474,
+      73.0903
+     ]
+    ],
+    [
+     "U3",
+     [
+      167.8346,
+      77.329
+     ]
+    ],
+    [
+     "U4",
+     [
+      165.6026,
+      78.3698
+     ]
+    ],
+    [
+     "U5",
+     [
+      162.3643,
+      78.3409
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 30,
+   "counter": 1124,
+   "reason": "RSH tick=30 label=sample u=0 x=-2010.207 y=-432.730 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      164.8337,
+      78.8769
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.9597,
+      78.8959
+     ]
+    ],
+    [
+     "U2",
+     [
+      167.6638,
+      76.5652
+     ]
+    ],
+    [
+     "U3",
+     [
+      167.7252,
+      81.6305
+     ]
+    ],
+    [
+     "U4",
+     [
+      165.5733,
+      82.6726
+     ]
+    ],
+    [
+     "U5",
+     [
+      161.181,
+      82.4772
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 35,
+   "counter": 1140,
+   "reason": "RSH tick=35 label=sample u=0 x=-2050.921 y=-304.023 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      164.3187,
+      82.8939
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.7921,
+      82.7342
+     ]
+    ],
+    [
+     "U2",
+     [
+      167.603,
+      80.6145
+     ]
+    ],
+    [
+     "U3",
+     [
+      167.6224,
+      85.6789
+     ]
+    ],
+    [
+     "U4",
+     [
+      165.5458,
+      86.7223
+     ]
+    ],
+    [
+     "U5",
+     [
+      159.9596,
+      86.3384
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 40,
+   "counter": 1157,
+   "reason": "RSH tick=40 label=sample u=0 x=-2091.636 y=-175.317 o=851986",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.7717,
+      87.1619
+     ]
+    ],
+    [
+     "U1",
+     [
+      158.9182,
+      86.6077
+     ]
+    ],
+    [
+     "U2",
+     [
+      167.5386,
+      84.9169
+     ]
+    ],
+    [
+     "U3",
+     [
+      167.5132,
+      89.9804
+     ]
+    ],
+    [
+     "U4",
+     [
+      165.5167,
+      91.0251
+     ]
+    ],
+    [
+     "U5",
+     [
+      158.6618,
+      90.4409
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 45,
+   "counter": 1174,
+   "reason": "RSH tick=45 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      168.8457,
+      88.7076
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 50,
+   "counter": 1190,
+   "reason": "RSH tick=50 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 55,
+   "counter": 1207,
+   "reason": "RSH tick=55 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 60,
+   "counter": 1224,
+   "reason": "RSH tick=60 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 65,
+   "counter": 1240,
+   "reason": "RSH tick=65 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 70,
+   "counter": 1257,
+   "reason": "RSH tick=70 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 75,
+   "counter": 1274,
+   "reason": "RSH tick=75 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 80,
+   "counter": 1290,
+   "reason": "RSH tick=80 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 85,
+   "counter": 1307,
+   "reason": "RSH tick=85 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 90,
+   "counter": 1324,
+   "reason": "RSH tick=90 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 95,
+   "counter": 1340,
+   "reason": "RSH tick=95 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 100,
+   "counter": 1357,
+   "reason": "RSH tick=100 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 105,
+   "counter": 1374,
+   "reason": "RSH tick=105 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 110,
+   "counter": 1390,
+   "reason": "RSH tick=110 label=command phase=5",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 115,
+   "counter": 1407,
+   "reason": "RSH tick=115 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 120,
+   "counter": 1424,
+   "reason": "RSH tick=120 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 125,
+   "counter": 1440,
+   "reason": "RSH tick=125 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 130,
+   "counter": 1457,
+   "reason": "RSH tick=130 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 135,
+   "counter": 1474,
+   "reason": "RSH tick=135 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 140,
+   "counter": 1490,
+   "reason": "RSH tick=140 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 145,
+   "counter": 1507,
+   "reason": "RSH tick=145 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 150,
+   "counter": 1524,
+   "reason": "RSH tick=150 label=command phase=6",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5464,
+      88.9192
+     ]
+    ],
+    [
+     "U1",
+     [
+      157.8161,
+      88.8861
+     ]
+    ],
+    [
+     "U2",
+     [
+      169.189,
+      89.0797
+     ]
+    ],
+    [
+     "U3",
+     [
+      169.1807,
+      93.3564
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.8234,
+      93.6128
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.7458,
+      93.3367
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 155,
+   "counter": 1540,
+   "reason": "RSH tick=155 label=sample u=0 x=-2127.916 y=-186.784 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      88.7161
+     ],
+     "actor_words": [
+      1126400000,
+      1118924452
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5384,
+      86.1354
+     ]
+    ],
+    [
+     "U1",
+     [
+      158.6565,
+      86.189
+     ]
+    ],
+    [
+     "U2",
+     [
+      168.1993,
+      86.0733
+     ]
+    ],
+    [
+     "U3",
+     [
+      168.9118,
+      90.3908
+     ]
+    ],
+    [
+     "U4",
+     [
+      162.8061,
+      91.0071
+     ]
+    ],
+    [
+     "U5",
+     [
+      157.5033,
+      90.3317
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 160,
+   "counter": 1557,
+   "reason": "RSH tick=160 label=sample u=0 x=-2073.301 y=-307.954 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      84.4137
+     ],
+     "actor_words": [
+      1126400000,
+      1118360528
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5309,
+      81.833
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.8873,
+      82.5102
+     ]
+    ],
+    [
+     "U2",
+     [
+      167.7191,
+      82.4517
+     ]
+    ],
+    [
+     "U3",
+     [
+      168.154,
+      86.1556
+     ]
+    ],
+    [
+     "U4",
+     [
+      162.9246,
+      86.7064
+     ]
+    ],
+    [
+     "U5",
+     [
+      159.1787,
+      86.455
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 165,
+   "counter": 1574,
+   "reason": "RSH tick=165 label=removed first=0 last=3",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      80.1113
+     ],
+     "actor_words": [
+      1126400000,
+      1117796604
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5234,
+      77.5306
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.706,
+      78.3435
+     ]
+    ],
+    [
+     "U2",
+     [
+      167.6514,
+      78.1498
+     ]
+    ],
+    [
+     "U3",
+     [
+      167.7058,
+      82.5461
+     ]
+    ],
+    [
+     "U4",
+     [
+      163.0083,
+      83.6706
+     ]
+    ],
+    [
+     "U5",
+     [
+      160.7412,
+      82.4464
+     ]
+    ]
+   ]
+  },
+  {
+   "tick": 170,
+   "counter": 1590,
+   "reason": "RSH tick=170 label=sample u=4 x=-1986.930 y=-618.609 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.3151
+     ],
+     "actor_words": [
+      1126400000,
+      1117299024
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5166,
+      73.4812
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.8882,
+      76.836
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 175,
+   "counter": 1607,
+   "reason": "RSH tick=175 label=sample u=4 x=-1970.735 y=-752.610 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      72.0127
+     ],
+     "actor_words": [
+      1126400000,
+      1116735100
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.5093,
+      69.1788
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.4044,
+      72.5647
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 180,
+   "counter": 1624,
+   "reason": "RSH tick=180 label=sample u=4 x=-1955.512 y=-878.570 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      67.7103
+     ],
+     "actor_words": [
+      1126400000,
+      1116171176
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.502,
+      64.8764
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.8902,
+      68.5447
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 185,
+   "counter": 1640,
+   "reason": "RSH tick=185 label=sample u=4 x=-1942.917 y=-938.161 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      63.6609
+     ],
+     "actor_words": [
+      1126400000,
+      1115595984
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      163.6381,
+      61.1005
+     ]
+    ],
+    [
+     "U1",
+     [
+      163.2963,
+      66.8507
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 190,
+   "counter": 1657,
+   "reason": "RSH tick=190 label=sample u=4 x=-1958.589 y=-1072.223 o=8519",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      59.3586
+     ],
+     "actor_words": [
+      1126400000,
+      1114468136
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      164.8424,
+      56.9701
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.804,
+      62.5768
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 195,
+   "counter": 1674,
+   "reason": "RSH tick=195 label=sample u=4 x=-1967.721 y=-1085.475 o=8519",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      57.8401
+     ],
+     "actor_words": [
+      1126400000,
+      1114070071
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.4928,
+      56.7608
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.5087,
+      62.0789
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 200,
+   "counter": 1690,
+   "reason": "RSH tick=200 label=sample u=4 x=-1974.728 y=-950.684 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      61.8893
+     ],
+     "actor_words": [
+      1126400000,
+      1115131559
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.6415,
+      60.8072
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.2985,
+      66.1226
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 205,
+   "counter": 1707,
+   "reason": "RSH tick=205 label=sample u=4 x=-1981.730 y=-815.894 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      65.9385
+     ],
+     "actor_words": [
+      1126400000,
+      1115938952
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.8072,
+      65.1063
+     ]
+    ],
+    [
+     "U1",
+     [
+      162.0753,
+      70.4191
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 210,
+   "counter": 1724,
+   "reason": "RSH tick=210 label=sample u=4 x=-1988.729 y=-681.104 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      70.2408
+     ],
+     "actor_words": [
+      1126400000,
+      1116502859
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.973,
+      69.4053
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.8522,
+      74.7155
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 215,
+   "counter": 1740,
+   "reason": "RSH tick=215 label=sample u=4 x=-1995.728 y=-546.314 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      74.29
+     ],
+     "actor_words": [
+      1126400000,
+      1117033595
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.129,
+      73.4515
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.6423,
+      78.7592
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 220,
+   "counter": 1757,
+   "reason": "RSH tick=220 label=sample u=4 x=-2020.028 y=-463.028 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.2948,
+      77.7505
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.9158,
+      81.457
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 225,
+   "counter": 1774,
+   "reason": "RSH tick=225 label=sample u=4 x=-2028.816 y=-329.688 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.3394,
+      82.0525
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5995,
+      85.6973
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 230,
+   "counter": 1790,
+   "reason": "RSH tick=230 label=sample u=4 x=-2029.679 y=-194.719 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.3814,
+      86.1014
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5736,
+      89.7463
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 235,
+   "counter": 1807,
+   "reason": "RSH tick=235 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.426,
+      90.4035
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 240,
+   "counter": 1824,
+   "reason": "RSH tick=240 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 245,
+   "counter": 1840,
+   "reason": "RSH tick=245 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 250,
+   "counter": 1857,
+   "reason": "RSH tick=250 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 255,
+   "counter": 1874,
+   "reason": "RSH tick=255 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 260,
+   "counter": 1890,
+   "reason": "RSH tick=260 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 265,
+   "counter": 1907,
+   "reason": "RSH tick=265 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 270,
+   "counter": 1924,
+   "reason": "RSH tick=270 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 275,
+   "counter": 1940,
+   "reason": "RSH tick=275 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 280,
+   "counter": 1957,
+   "reason": "RSH tick=280 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 285,
+   "counter": 1974,
+   "reason": "RSH tick=285 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 290,
+   "counter": 1990,
+   "reason": "RSH tick=290 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 295,
+   "counter": 2007,
+   "reason": "RSH tick=295 label=sample u=4 x=-2029.901 y=-159.627 o=0",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 300,
+   "counter": 2024,
+   "reason": "RSH tick=300 label=command phase=6",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      76.0615
+     ],
+     "actor_words": [
+      1126400000,
+      1117265792
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.434,
+      91.1626
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.5656,
+      91.0117
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 305,
+   "counter": 2040,
+   "reason": "RSH tick=305 label=sample u=4 x=-2026.421 y=-253.915 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      74.2899
+     ],
+     "actor_words": [
+      1126400000,
+      1117033588
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      166.2792,
+      88.3878
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.6654,
+      88.2337
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 310,
+   "counter": 2057,
+   "reason": "RSH tick=310 label=sample u=4 x=-2019.276 y=-388.700 o=85198",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      69.9875
+     ],
+     "actor_words": [
+      1126400000,
+      1116469664
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.9601,
+      84.0973
+     ]
+    ],
+    [
+     "U1",
+     [
+      160.8932,
+      83.9374
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 315,
+   "counter": 2074,
+   "reason": "RSH tick=315 label=removed first=4 last=5",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0014",
+     "counts": [
+      6,
+      2,
+      2,
+      2,
+      2,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -1424.0
+     ],
+     "request": [
+      -1936.0,
+      -1424.0
+     ],
+     "request_range": 200.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      65.6852
+     ],
+     "actor_words": [
+      1126400000,
+      1115905740
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     [
+      165.6411,
+      79.8067
+     ]
+    ],
+    [
+     "U1",
+     [
+      161.121,
+      79.6411
+     ]
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  },
+  {
+   "tick": 420,
+   "counter": 2424,
+   "reason": "RSH tick=420 label=complete",
+   "captains": {
+    "C0": {
+     "state": 2,
+     "flags": "0x1001",
+     "order": "0xd0012",
+     "counts": [
+      6,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "current": [
+      -1936.0,
+      -144.0
+     ],
+     "request": [
+      -1936.0,
+      -144.0
+     ],
+     "request_range": 500.0,
+     "home": [
+      -1936.0,
+      -144.0
+     ],
+     "targets": [
+      false,
+      false,
+      false
+     ],
+     "actor_fine": [
+      163.5,
+      91.5
+     ],
+     "actor_words": [
+      1126400000,
+      1119289344
+     ]
+    }
+   },
+   "members": [
+    [
+     "U0",
+     null
+    ],
+    [
+     "U1",
+     null
+    ],
+    [
+     "U2",
+     null
+    ],
+    [
+     "U3",
+     null
+    ],
+    [
+     "U4",
+     null
+    ],
+    [
+     "U5",
+     null
+    ]
+   ]
+  }
+ ],
+ "complete": true,
+ "markers": 266
+}

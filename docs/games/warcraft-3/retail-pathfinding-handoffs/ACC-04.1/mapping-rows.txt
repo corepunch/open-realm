@@ -1,0 +1,2 @@
+        {"6f1d58e0", "PathAcc_IntegerSquareRoot", "<append> ECX n, EAX result, plain RET. Equals floor(sqrt(n)) for all 135981 inputs (24a)^2+(24b)^2, 0<=b<=a<=520 (ACC-04.1 original oracle and Newton transcription)."},
+        {"6f164020", "PathAcc_RelaxNode", "<append> Nearest node is updated only on first discovery (state -1) with unscaled squared representative distance, strict <, so ties keep the earlier discovery; equal candidate g never replaces a parent. 188/188 producer-built goal routes equal the Dijkstra optimum over the search's own relaxations (ACC-04.1)."},

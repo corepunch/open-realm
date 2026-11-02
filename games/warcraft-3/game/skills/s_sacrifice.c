@@ -27,8 +27,8 @@ static bool sacrifice_pair(edict_t *caster, edict_t *target, uint32_t ability,
         G_UnitIsHero(*worker) || ((*worker)->s.renderfx & RF_HIDDEN)) return false;
     /* Counterpart abilities identify the two stock endpoints without coupling
      * the behavior to uaco/usap unit rawcodes. */
-    if (!G_UnitAbilityLevel(*pit, ID_SACRIFICE_PIT) ||
-        !G_UnitAbilityLevel(*worker, ID_SACRIFICE_ACOLYTE)) return false;
+    if (!G_UnitAbilityClassLevel(*pit, ID_SACRIFICE_PIT) ||
+        !G_UnitAbilityClassLevel(*worker, ID_SACRIFICE_ACOLYTE)) return false;
     return true;
 }
 
@@ -38,7 +38,7 @@ static bool sacrifice_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         !sacrifice_pair(caster, st.entity, spell->code, &pit, &worker)) return false;
     /* Warsmash's Sacrifice is a producer queue item and a pit can own only one
      * sacrifice worker.  Do not displace ordinary training/research state. */
-    if (pit->build || G_GetConstruction(pit) || G_BuildingUpgradeActive(pit)) return false;
+    if (pit->build || pit->construction || G_BuildingUpgradeActive(pit)) return false;
     return G_UnitBalance(ID_SHADE) != NULL;
 }
 
@@ -54,26 +54,26 @@ uint32_t S_SacrificeAbilityCode(void) { return ID_SACRIFICE_PIT; }
 
 /* The Shade result inherits the consumed worker's food slot, so Train must
  * not reserve additional food while the worker still exists. */
-bool S_SacrificeSkipsFoodReservation(edict_t const *item) { return G_GetSacrifice(item) != NULL; }
+bool S_SacrificeSkipsFoodReservation(edict_t const *item) {
+    return item && item->sacrifice;
+}
 
 /* The queued worker must be the same live edict owned by the same player.
  * Spawn-time comparison rejects edict slots reused after the worker died. */
 static bool sacrifice_worker_valid(edict_t const *item) {
     edict_t const *worker;
-    sacrifice_t const *queued = G_GetSacrifice(item);
-    if (!queued || !(worker = queued->worker)) return false;
-    return worker->inuse && worker->spawn_time == queued->worker_spawn_time &&
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return false;
+    return worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time &&
         !M_IsDead(worker) && worker->s.player == item->s.player;
 }
 
 /* Inverse of the queue-time hide/pause: restore exactly the stashed state. */
 static void sacrifice_release_worker(edict_t *item) {
     edict_t *worker;
-    sacrifice_t const *queued = G_GetSacrifice(item);
-    if (!queued || !(worker = queued->worker)) return;
-    if (worker->inuse && worker->spawn_time == queued->worker_spawn_time) {
-        if (!queued->restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
-        G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, queued->restore_paused);
+    if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return;
+    if (worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time) {
+        if (!item->sacrifice->restore_hidden) G_SetEntityHidden(worker,false);
+        S_SetUnitPauseFlag(worker,item->sacrifice->restore_paused);
         G_InvalidateUnitShortcutsForUnit(worker);
     }
 }
@@ -87,9 +87,8 @@ static bool sacrifice_queue_validate(edict_t *producer, edict_t *item) {
 /* A_QUEUE_COMPLETE: placement already succeeded. Remove the worker first so
  * its food releases, then activate the result without a transient +1. */
 static void sacrifice_queue_complete(edict_t *producer, edict_t *item) {
-    sacrifice_t const *queued = G_GetSacrifice(item);
-    edict_t *worker = queued->worker;
-    uint32_t const worker_spawn_time = queued->worker_spawn_time;
+    edict_t *worker = item->sacrifice->worker;
+    uint32_t const worker_spawn_time = item->sacrifice->worker_spawn_time;
     (void)producer;
     G_FreeSacrifice(item);
     if (worker && worker->inuse && worker->spawn_time == worker_spawn_time)
@@ -122,18 +121,19 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
         return false;
     }
 
-    G_SetUnitFlag(result, UNIT_FLAG_TRAINING, true);
-    G_SetUnitFlag(result, UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED, false);
+    result->training = true;
+    result->training_food_wait_notified = false;
     G_SetHealth(result, 0);
-    result->s.renderfx |= RF_HIDDEN;
-    sacrifice_t *queued = G_AddSacrifice(result);
-    queued->worker = worker;
-    queued->worker_spawn_time = worker->spawn_time;
-    queued->restore_paused = G_UnitHasFlag(worker, UNIT_FLAG_PAUSED);
+    G_SetEntityHidden(result,true);
+    if (!result->sacrifice) result->sacrifice = G_AllocSacrifice();
+    assert(result->sacrifice);
+    result->sacrifice->worker = worker;
+    result->sacrifice->worker_spawn_time = worker->spawn_time;
+    result->sacrifice->restore_paused = worker->paused;
     restore_hidden = (worker->s.renderfx & RF_HIDDEN) != 0;
-    queued->restore_hidden = restore_hidden;
-    worker->s.renderfx |= RF_HIDDEN;
-    G_SetUnitFlag(worker, UNIT_FLAG_PAUSED, true);
+    result->sacrifice->restore_hidden = restore_hidden;
+    G_SetEntityHidden(worker,true);
+    S_SetUnitPauseFlag(worker,true);
     G_InvalidateUnitShortcutsForUnit(worker);
 
     unit_add_build_queue(producer, result);
@@ -152,8 +152,8 @@ BZ_ABILITY_PROC(CAbilitySacrifice) {
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     if (msg == A_QUEUE_VALIDATE || msg == A_QUEUE_COMPLETE || msg == A_QUEUE_CANCEL) {
         if (!call) return false;
-        producer = call->entity; item = call->queue_item;
-        if (!G_GetSacrifice(item)) return false;
+        producer = call->queue.producer; item = call->queue.item;
+        if (!item || !item->sacrifice) return false;
         if (msg == A_QUEUE_VALIDATE) return sacrifice_queue_validate(producer, item);
         if (msg == A_QUEUE_COMPLETE) { sacrifice_queue_complete(producer, item); return true; }
         sacrifice_queue_cancel(producer, item); return true;

@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "task": "E2E-04.1",
+  "parent": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "pins": {
+    "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619",
+    "tools/ghidra/fixtures/retail-gate-lifetime-same-live-1.27.json": "67e51459de2ea0610939fd229378ee9c2a6597a6794454104af92e3acdd8c08a",
+    "tools/ghidra/fixtures/retail-gate-lifetime-reuse-live-1.27.json": "f3c0d3ce46247c72af68b5fe3918b89bb2c65042e6d43f09f64e2fcb1edc8ab9",
+    "games/warcraft-3/game/tests/retail_gate_lifetime.h": "3883ffac7aaba71d7d8c8afe54300753250a5ad0910b5624420ea1ba1c2d518f",
+    "tools/ghidra/fixtures/retail-fine-stamp-wrap-1.27.json": "967fcf1f2f00ae132ceb005704a9852eccd17c5e2aaadc425d9b638ba22d021f",
+    "games/warcraft-3/game/tests/retail_fine_queue.h": "dd34c20a0de033282e5f48f3e3a86d724d30745126c42bad125f755f88cdfcaf",
+    "tools/ghidra/fixtures/retail-adaptive-stamp-wrap-1.27.json": "f55dca3fbbf33a36ab1fb0193a4d550afc484c74c8660c5b4d84a73c508f7dc4",
+    "games/warcraft-3/game/tests/retail_adaptive_wrap.h": "e12eecdf4a90cf07cf29dab605c054a50c0a3f1bb59a170fc69f452bfb2a963e",
+    "tools/ghidra/fixtures/retail-spatial-storage-inputs-1.27.json.gz": "1231e4531133a151d846c44b0ab18f82d461e3275ec579bb45dd9a63d8f174f7",
+    "tools/ghidra/fixtures/retail-spatial-storage-ghidra-1.27.json": "7259753bc00419a424caf12c8feb4ae47f8eb7bffb1a3d6d175b5e26f9b9ce11",
+    "tools/ghidra/fixtures/retail-fine-records-ghidra-1.27.json": "51675bc7c647ba01c34501f8aa8d8634cb1ad9eb0a10dc82717778d25c17ed00",
+    "games/warcraft-3/game/tests/retail_scheduler_work.h": "15bba9331d268ea9a8fa75917923661b01084ca7a9eaa915df2f6d0ee3130be0",
+    "tools/ghidra/fixtures/retail-waygate-pool-1.27.json": "ec3bbc17d8731f5dfd311d0a79828dd8f068130f7fb918bcf0af465de29e9571",
+    "tools/ghidra/fixtures/retail-waygate-pool-live-1.27.json": "78d3b69d47efef3adbf42293ed47bb2adc4789e013ce1d9f6b1be0d6c4f6e86b"
+  },
+  "engine_repeats": 2,
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "boundaries": {
+    "injection_msec": 1000,
+    "owner_counter": 4294967294,
+    "fine_search_stamp": 65535,
+    "proximity_query": 2147483648,
+    "fine_query": 2147483648,
+    "group_allocator": 4294967295,
+    "injected_passes_per_repeat": 6,
+    "gate_same_native_commits": 514,
+    "gate_same_saved_suffix_commits": 2692,
+    "gate_reuse_native_commits": 299,
+    "gate_reuse_saved_suffix_commits": 757
+  },
+  "evidence_by_id": {
+    "live-gate-lifetime-same-captures-261004": "L",
+    "live-gate-lifetime-reuse-captures-261004": "L",
+    "oracle-grid-stamp-wrap-engine": "O",
+    "oracle-adaptive-stamp-wrap-engine": "O",
+    "oracle-spatial-storage": "L",
+    "oracle-scheduler": "O",
+    "oracle-pending-request-clocks": "O",
+    "live-pending-request-clocks": "L",
+    "oracle-waygate-pool-engine": "O",
+    "live-waygate-pool-captures-261004": "L"
+  },
+  "categories": [
+    {
+      "id": "active-gates",
+      "test": "wc3_e2e212.active_gate_routes_cross_stamps_and_counter_then_reuse_saved_owners",
+      "entries": [
+        "live-gate-lifetime-same-captures-261004",
+        "live-gate-lifetime-reuse-captures-261004"
+      ],
+      "entry_sha256": {
+        "live-gate-lifetime-same-captures-261004": "b794009b9fec5ace409cede2ef32b1bba6250dd1b3da861f7b8de0b55d9ba8da",
+        "live-gate-lifetime-reuse-captures-261004": "ca90b9ad5570e9df1bcf4bf3e30618e6a85be04bdc8d0f42a81a3e0bb6dd2e9f"
+      },
+      "scope": "Forced counter/stamp jumps during unchanged complete Gate96 immediate/delayed destruction/reuse movement, with ten cold snapshots per journey.",
+      "completion": "Each repeat crosses all four injected boundaries on six passes, compares all514/299 native commits and2692/757 cold-suffix commits, and retires every public head."
+    },
+    {
+      "id": "storage",
+      "test": "wc3_e2e212.retained_search_storage_crosses_native_stamps_without_stale_nodes",
+      "entries": [
+        "oracle-grid-stamp-wrap-engine",
+        "oracle-adaptive-stamp-wrap-engine",
+        "oracle-spatial-storage"
+      ],
+      "entry_sha256": {
+        "oracle-grid-stamp-wrap-engine": "9a56c8cbee25e88eed7c3a333085b75994d4e1136269c0755a7041f0c8b6cb88",
+        "oracle-adaptive-stamp-wrap-engine": "898b9512d5973431c0caf11cbe909434e5a73cf5852cb1feaa9e8888835dcc0b",
+        "oracle-spatial-storage": "9676de6e47eb4b14ac40850289289227d54a7caea43034ceba80b4316d2f5800"
+      },
+      "scope": "Retained fine hash and native16-bit metadata stamps, adaptive lanes/sizes, raw record stamp repair and deliberately retained native aliases.",
+      "completion": "Exact original nodes/routes and all live storage/reclamation contracts stay unchanged; native alias removal is asserted rather than silently repaired."
+    },
+    {
+      "id": "requests",
+      "test": "wc3_e2e212.wrapped_requests_and_reused_members_keep_live_successors",
+      "entries": [
+        "oracle-scheduler",
+        "oracle-pending-request-clocks",
+        "live-pending-request-clocks"
+      ],
+      "entry_sha256": {
+        "oracle-scheduler": "70e18f7b3fdc59a9e028a27bf5fd933daa916a45b9ab0fde9992957e687dee80",
+        "oracle-pending-request-clocks": "196d0390756220c9cc7f31abbece290092bafaf9e15a69b937a496d4c3867b45",
+        "live-pending-request-clocks": "b4e6acad9f8f0cae4558afbbc60f789b2626644b383de9f9caa10211324dbf3f"
+      },
+      "scope": "Unsigned scheduler work and request sequence boundaries, clock rebasing, group IDs reserved by live/queued owners, removed and recycled edict slots.",
+      "completion": "Repeated public movement reaches its successor goal; stale releases cannot destroy the replacement, group speeds retain surviving owners, and saved identities remain reserved."
+    },
+    {
+      "id": "gate-pool",
+      "test": "wc3_e2e212.exhausted_gate_ids_reuse_only_after_release_and_survive_cold_load",
+      "entries": [
+        "oracle-waygate-pool-engine",
+        "live-waygate-pool-captures-261004"
+      ],
+      "entry_sha256": {
+        "oracle-waygate-pool-engine": "ba977bfd80cb5a28b0bb0787847bc0ba9913356a4dc4ffc364619377b8821ee2",
+        "live-waygate-pool-captures-261004": "2d5457374ec43a6c03b9200e2cb4be3bdc3428e1c67fcf082949bb29a0cc74c5"
+      },
+      "scope": "Full255-ID gate allocation/exhaustion, delayed release, ability recreation, reserved-zero behavior, duplicate ownership rejection and cold restoration.",
+      "completion": "Freed17/255 IDs reuse in order, exhausted gates stay unallocated until recreation, and complete original259-allocation traces agree with production."
+    }
+  ],
+  "exclusions": [
+    "Forced state jumps remain labelled; no natural seven-hour capture, public scheduler-work overflow or new original combined-wrap live launch is claimed.",
+    "Original child contracts, literal fixtures and their exclusions are unchanged; engine composed movement uses the existing complete Gate96 motion words.",
+    "Retained object-stamp aliases are original behavior. This closes acceptance of verified boundaries, not a new claim that every historical alias is absent.",
+    "Edict/group generations are engine ownership identities. Raw retail process-pointer identity equality and whole-world determinism are not claimed.",
+    "Cold engine suffixes compare with uninterrupted original expectations; no new retail UI save/load capture is claimed."
+  ]
+}

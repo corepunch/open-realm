@@ -1,0 +1,549 @@
+{
+ "allocation_census": [
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 0,
+   "op": "alloc",
+   "size": 256
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 1,
+   "op": "alloc",
+   "size": 256
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 2,
+   "op": "alloc",
+   "size": 256
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 3,
+   "op": "alloc",
+   "size": 256
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 4,
+   "op": "alloc",
+   "size": 256
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 5,
+   "op": "alloc",
+   "size": 528
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 6,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 7,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 8,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 9,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 10,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 11,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 12,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 13,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 14,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 15,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 16,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 17,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 18,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 19,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f157f83",
+   "flags": 8,
+   "n": 20,
+   "op": "alloc",
+   "size": 32
+  },
+  {
+   "caller": "6f1c4f6f",
+   "flags": 8,
+   "n": 21,
+   "op": "alloc",
+   "size": 512
+  },
+  {
+   "caller": "6f1c517a",
+   "flags": 8,
+   "n": 22,
+   "op": "alloc",
+   "size": 16384
+  },
+  {
+   "caller": "6f1c517a",
+   "flags": 8,
+   "n": 23,
+   "op": "alloc",
+   "size": 1024
+  },
+  {
+   "caller": "6f1c517a",
+   "flags": 8,
+   "n": 24,
+   "op": "alloc",
+   "size": 36
+  },
+  {
+   "caller": "6f06a366",
+   "flags": 0,
+   "n": 25,
+   "op": "alloc",
+   "size": 2308
+  },
+  {
+   "caller": "6f06a366",
+   "flags": 0,
+   "n": 26,
+   "op": "alloc",
+   "size": 4612
+  },
+  {
+   "caller": "6f1c517a",
+   "flags": 8,
+   "n": 27,
+   "op": "alloc",
+   "size": 1048576
+  }
+ ],
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "labelled_null_sweep": [
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 0,
+    "op": "alloc",
+    "size": 256
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 1,
+    "op": "alloc",
+    "size": 256
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 2,
+    "op": "alloc",
+    "size": 256
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 3,
+    "op": "alloc",
+    "size": 256
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f04fad8",
+   "message": "original 0x6f14c990 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 4,
+    "op": "alloc",
+    "size": 256
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 5,
+    "op": "alloc",
+    "size": 528
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 6,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 7,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 8,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 9,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 10,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 11,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 12,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 13,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 14,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 15,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 16,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 17,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 18,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 19,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f157f83",
+    "flags": 8,
+    "n": 20,
+    "op": "alloc",
+    "size": 32
+   }
+  },
+  {
+   "outcome": "completed without fault",
+   "site": {
+    "caller": "6f1c4f6f",
+    "flags": 8,
+    "n": 21,
+    "op": "alloc",
+    "size": 512
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f15cb7b",
+   "message": "original 0x6f14c990 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f1c517a",
+    "flags": 8,
+    "n": 22,
+    "op": "alloc",
+    "size": 16384
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f14ddb6",
+   "message": "original 0x6f14c990 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f1c517a",
+    "flags": 8,
+    "n": 23,
+    "op": "alloc",
+    "size": 1024
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f14dc76",
+   "message": "original 0x6f14c990 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f1c517a",
+    "flags": 8,
+    "n": 24,
+    "op": "alloc",
+    "size": 36
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f06a37b",
+   "message": "original 0x6f14c990 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f06a366",
+    "flags": 0,
+    "n": 25,
+    "op": "alloc",
+    "size": 2308
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f06a37b",
+   "message": "original 0x6f14cf20 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f06a366",
+    "flags": 0,
+    "n": 26,
+    "op": "alloc",
+    "size": 4612
+   }
+  },
+  {
+   "address": "00000004",
+   "eip": "6f14e9db",
+   "message": "original 0x6f14e770 faulted: NULL-page access",
+   "null_page": true,
+   "outcome": "fault",
+   "site": {
+    "caller": "6f1c517a",
+    "flags": 8,
+    "n": 27,
+    "op": "alloc",
+    "size": 1048576
+   }
+  }
+ ],
+ "labelled_sentinel_overflow": {
+  "cell_heads": [
+   "fffffe",
+   "ffffff",
+   "000000"
+  ],
+  "intervention": "labelled: link high-water placed at 0xfffffe",
+  "link_count": "01000001",
+  "object_refs": 3,
+  "query": {
+   "fault_address": "00000038",
+   "fault_eip": "6f170b92",
+   "reason": "aliased index-0 slot holds no valid payload (zero-filled backing)"
+  },
+  "records": 4,
+  "second_cell_reads_as_empty": true,
+  "third_cell_aliases_index_0": true
+ },
+ "maintenance_reclaims_metadata": {
+  "after": {
+   "dirty": 0,
+   "free_list": 2064,
+   "high_water": 2100,
+   "records": 36
+  },
+  "before": {
+   "dirty": 1024,
+   "high_water": 2100,
+   "records": 2100
+  },
+  "callbacks": 1,
+  "dead_or_removal_records_left": 0,
+  "free_plus_records_equals_high_water": true,
+  "live_records_equal_memberships": true,
+  "metadata_records_left": 0,
+  "retired_object_recycled": true
+ },
+ "scope": "MAP-05.3: map/spatial allocation failure and metadata/dead-record cleanup thresholds.\n\nreachable  - (R1) every Storm allocation reached while constructing the registry, owner,\n             spatial map, objects and links, with its caller VA; (R2) many fine-search\n             metadata links (original 6f14d890) plus dead/removal records are reclaimed by\n             the original repeating maintenance request (6f0523d0 -> 6f0543c0 -> 6f14df20)\n             without any count threshold; no partial link survives.\nlabelled   - INTERVENTIONS, never retail behaviour: (L1) each Storm allocation in turn\n             returns NULL (retail Storm calls SErrDisplayError(8,...) + ExitProcess(1)\n             instead) to record whether any original caller checks the result; (L2) the\n             24-bit link index reaches the 0xffffff empty-chain sentinel (requires 16,777,215\n             links high-water; reached here by placing the link data pointer so that only the\n             top indices are backed by memory)."
+}

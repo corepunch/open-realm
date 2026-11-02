@@ -1,0 +1,727 @@
+{
+  "schema": 1,
+  "scope": "Guard316 bounded original-image static proof; not full guard/Asla equivalence or a new capture",
+  "binary": {
+    "path": "/run/media/lofcz/ssd_external/Games/w3/game.dll",
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "0x6f000000",
+    "mapping": "PE section RVA to SizeOfRawData/PointerToRawData; original on-disk bytes, no process memory"
+  },
+  "sources": [
+    {
+      "path": "/tmp/attack-owner314/scene3/auto-acquire.json",
+      "sha256": "f1c08f871b757cbc7694f15deb7f5a9b6751e92f8ee6f09056d1ac86a871a0cc"
+    },
+    {
+      "path": "/tmp/attack-owner314/scene3/auto-acquire-asm.json",
+      "sha256": "05c175af9648001dad41c8ef6792bed8f3955155d45266260a07795962104aab"
+    },
+    {
+      "path": "/tmp/attack-owner314/scene3/guard-policy.json",
+      "sha256": "79b7ee9b86249625a941aceeb208d541d6776e56188f1eae27deeb5fa9da11e5"
+    },
+    {
+      "path": "/tmp/attack-owner314/scene3/guard-return.json",
+      "sha256": "d36d45d10bb561d74e1773cde3694f46170562462e58ff9974d8b89c5c1eedb5"
+    },
+    {
+      "path": "/tmp/attack-owner314/scene3/cleanup.json",
+      "sha256": "89d4863e59c453d21e8dc01704f5127829d4b0bd24206c54721da9b3ba9e313c"
+    },
+    {
+      "path": "/tmp/guard316-move-original.c",
+      "sha256": "2f17a3b6fae957e4edab59251409e5b5edbc1dc68b30e1ee7fd67009532f0083"
+    },
+    {
+      "path": "/tmp/attack-owner314/scene3/return1012.json",
+      "sha256": "bca8c618265727b1e3ebb2040f96508a734d6469bc3a0ac3b2118251c0c0f379"
+    },
+    {
+      "path": "/tmp/guard316-patrol-original.c",
+      "sha256": "8704fa666b26533ae0744225063aad1fb45875b750f9b25f4d5ae0d6ec71a0ea"
+    }
+  ],
+  "functions": [
+    {
+      "function_rva": "0x4943f0",
+      "size": 699,
+      "bytes": "558bec83ec20538bd956578b7b3085ff7507e8b918bcff8bf88b4b70234b6c83f9ff750433c0eb088d4b6ce800cfbcff816320fffffbff85c00f84c60000008b75083bc60f84680200008bcbe8df3900008bcbe8482d000085c00f8452020000568d45fc8bcb50e8c4400000f30f100564bfd66f8d4dfc0f2f45fcb864bfd66f0f46c18bcb8b008945fce8e13f00008bf08b45088bc88b10ff92b80000006a01508d45fc8bce50e8e470bcff8b750885c07513568bcbe8a54300008bc8e89e7d1f0085c07408a18054cd6f8945fc6a008d45fc8bcf5056686f010d00e8dfe11f006a006844c7d36f566868010d008bcfe8cbe11f008bcfe8149a1e005f5e5b8be55dc204008b4320a9000800007414ff75088d4b78e806fed8ff5f5e5b8be55dc20400a9000000027410a90004000075096a008bcbe8f68c00008bb7940100008975fc83fe017408568bcfe860e21f0085f67556684b010d008bcfe8d0d91f008d45e08bcf508b07ff90b80000008bc8e89b43bcff8b45e08bcf8945ec8b45e48945f08b45e8568945f48d45f06868bfd66f508d45ec50686c010d00e88fdb1f006a078bcfe806e21f00ff75088d45f88bcb50e8783f0000f30f100564bfd66f8d4df80f2f45f8b864bfd66f0f46c18bcb8b008945f8e8953e00008bf08b45088bc88b10ff92b80000006a01508d45f88bce50e8986fbcff8b750885c07513568bcbe8594200008bc8e8527c1f0085c07408a18054cd6f8945f86848010d008bcfe80ad91f00686a010d008bcfe8fed81f006a008d45f88bcf5056686f010d00e87be01f00837dfc018bcf74296863010d00e8d9d81f006a006844c7d36f566868010d008bcfe855e01f006a018bcfe83ce11f00eb126a006844c7d36f566868010d00e838e01f008b87a00100008d8f9c010000230183f8ff7409e890ccbcff85c075078bcbe89512f6ff8bcfe85e981e005f5e5b8be55dc20400",
+      "sha256": "9e3b15ad62d09a692e8a0d1dcb49d09d68f465fe5f37e6d28dc56347c5025747",
+      "decompiled_code": "\nvoid __thiscall FUN_6f4943f0(WC3AttackRangePrefix *param_1,WC3UnitOrdersPrefix *param_2)\n\n{\n  float arg_04;\n  uchar uVar1;\n  WC3UnitOrdersPrefix *self;\n  WC3UnitOrdersPrefix *pWVar2;\n  undefined3 extraout_var;\n  WC3UnitMoverBridge *pWVar3;\n  WC3UnitMoverBridge *pWVar4;\n  uint uVar5;\n  int iVar6;\n  float *pfVar7;\n  void *pvVar8;\n  WC3PathScalar *output_xyz;\n  WC3PathScalar local_24;\n  uint local_20;\n  undefined4 local_1c;\n  WC3PathScalar local_18;\n  uint local_14;\n  undefined4 local_10;\n  float local_c;\n  float local_8;\n  \n  self = param_1->unit;\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if (((param_1->task_target).generation & (param_1->task_target).slot) == 0xffffffff) {\n    pWVar2 = (WC3UnitOrdersPrefix *)0x0;\n  }\n  else {\n    pWVar2 = AgentIdentity_ResolvePayload(&param_1->task_target);\n  }\n  param_1->flags = param_1->flags & 0xfffbffff;\n  if (pWVar2 != (WC3UnitOrdersPrefix *)0x0) {\n    if (pWVar2 == param_2) {\n      return;\n    }\n    Attack_ReleaseTargetAndWindup(param_1);\n    uVar1 = Attack_PopRecoveryTaskChain(param_1);\n    if (CONCAT31(extraout_var,uVar1) == 0) {\n      return;\n    }\n    Attack_GetCandidateEffectiveRange(param_1,(WC3PathScalar *)&local_8,param_2);\n    pfVar7 = &DAT_6fd6bf64;\n    if (DAT_6fd6bf64 <= local_8) {\n      pfVar7 = &local_8;\n    }\n    local_8 = *pfVar7;\n    pWVar3 = (WC3UnitMoverBridge *)FUN_6f498460();\n    pWVar4 = (WC3UnitMoverBridge *)(**(code **)((int)param_2->vtable + 0xb8))();\n    uVar5 = MoveBridge_IsTargetInConfiguredRange(pWVar3,(WC3PathScalar *)&local_8,pWVar4,1);\n    if (uVar5 == 0) {\n      pWVar2 = param_2;\n      FUN_6f498850(param_2);\n      iVar6 = Unit_IsOnTargetPerimeter(pWVar2);\n      if (iVar6 == 0) goto LAB_6f4944be;\n    }\n    local_8 = DAT_6fcd5480;\nLAB_6f4944be:\n    Unit_CreateTargetTask(self,0xd016f,param_2,(uint *)&local_8,(void *)0x0);\n    Unit_CreateTargetTask(self,0xd0168,param_2,&Math_RuntimeZero,(void *)0x0);\n    Unit_DispatchInternalTaskQueue(self);\n    return;\n  }\n  uVar5 = param_1->flags;\n  if ((uVar5 & 0x800) != 0) {\n    FUN_6f224310(param_2);\n    return;\n  }\n  if (((uVar5 & 0x2000000) != 0) && ((uVar5 & 0x400) == 0)) {\n    Attack_StartGuardEvaluation(0);\n  }\n  arg_04 = *(float *)&self->field_0x194;\n  local_8 = arg_04;\n  if (arg_04 != 1.4013e-45) {\n    Unit_CreateActionTask(self,(uint)arg_04);\n  }\n  if (arg_04 == 0.0) {\n    Unit_CreateEventTask(self,0xd014b);\n    output_xyz = &local_24;\n    pWVar3 = (WC3UnitMoverBridge *)(**(code **)((int)self->vtable + 0xb8))();\n    UnitMover_QueryWorldPosition(pWVar3,output_xyz);\n    local_18 = local_24;\n    local_14 = local_20;\n    local_10 = local_1c;\n    Unit_CreatePointTask(self,0xd016c,&local_18,&local_14,(uint *)&DAT_6fd6bf68,(void *)0x0);\n    Unit_CreateActionTask(self,7);\n  }\n  Attack_GetCandidateEffectiveRange(param_1,(WC3PathScalar *)&local_c,param_2);\n  pfVar7 = &DAT_6fd6bf64;\n  if (DAT_6fd6bf64 <= local_c) {\n    pfVar7 = &local_c;\n  }\n  local_c = *pfVar7;\n  pWVar3 = (WC3UnitMoverBridge *)FUN_6f498460();\n  pWVar4 = (WC3UnitMoverBridge *)(**(code **)((int)param_2->vtable + 0xb8))();\n  uVar5 = MoveBridge_IsTargetInConfiguredRange(pWVar3,(WC3PathScalar *)&local_c,pWVar4,1);\n  if (uVar5 == 0) {\n    pWVar2 = param_2;\n    FUN_6f498850(param_2);\n    iVar6 = Unit_IsOnTargetPerimeter(pWVar2);\n    if (iVar6 == 0) goto LAB_6f49460a;\n  }\n  local_c = DAT_6fcd5480;\nLAB_6f49460a:\n  Unit_CreateEventTask(self,0xd0148);\n  Unit_CreateEventTask(self,0xd016a);\n  Unit_CreateTargetTask(self,0xd016f,param_2,(uint *)&local_c,(void *)0x0);\n  if (local_8 == 1.4013e-45) {\n    Unit_CreateTargetTask(self,0xd0168,param_2,&Math_RuntimeZero,(void *)0x0);\n  }\n  else {\n    Unit_CreateEventTask(self,0xd0163);\n    Unit_CreateTargetTask(self,0xd0168,param_2,&Math_RuntimeZero,(void *)0x0);\n    Unit_CreateActionTask(self,1);\n  }\n  if ((((self->user_head).generation & (self->user_head).slot) == 0xffffffff) ||\n     (pvVar8 = AgentIdentity_ResolvePayload(&self->user_head), pvVar8 == (void *)0x0)) {\n    Ability_SetActiveOwnership();\n  }\n  Unit_DispatchInternalTaskQueue(self);\n  return;\n}\n\n",
+      "disassembly": "004943f0 <.data>:\n  4943f0:\t55                   \tpush   ebp\n  4943f1:\t8b ec                \tmov    ebp,esp\n  4943f3:\t83 ec 20             \tsub    esp,0x20\n  4943f6:\t53                   \tpush   ebx\n  4943f7:\t8b d9                \tmov    ebx,ecx\n  4943f9:\t56                   \tpush   esi\n  4943fa:\t57                   \tpush   edi\n  4943fb:\t8b 7b 30             \tmov    edi,DWORD PTR [ebx+0x30]\n  4943fe:\t85 ff                \ttest   edi,edi\n  494400:\t75 07                \tjne    0x494409\n  494402:\te8 b9 18 bc ff       \tcall   0x55cc0\n  494407:\t8b f8                \tmov    edi,eax\n  494409:\t8b 4b 70             \tmov    ecx,DWORD PTR [ebx+0x70]\n  49440c:\t23 4b 6c             \tand    ecx,DWORD PTR [ebx+0x6c]\n  49440f:\t83 f9 ff             \tcmp    ecx,0xffffffff\n  494412:\t75 04                \tjne    0x494418\n  494414:\t33 c0                \txor    eax,eax\n  494416:\teb 08                \tjmp    0x494420\n  494418:\t8d 4b 6c             \tlea    ecx,[ebx+0x6c]\n  49441b:\te8 00 cf bc ff       \tcall   0x61320\n  494420:\t81 63 20 ff ff fb ff \tand    DWORD PTR [ebx+0x20],0xfffbffff\n  494427:\t85 c0                \ttest   eax,eax\n  494429:\t0f 84 c6 00 00 00    \tje     0x4944f5\n  49442f:\t8b 75 08             \tmov    esi,DWORD PTR [ebp+0x8]\n  494432:\t3b c6                \tcmp    eax,esi\n  494434:\t0f 84 68 02 00 00    \tje     0x4946a2\n  49443a:\t8b cb                \tmov    ecx,ebx\n  49443c:\te8 df 39 00 00       \tcall   0x497e20\n  494441:\t8b cb                \tmov    ecx,ebx\n  494443:\te8 48 2d 00 00       \tcall   0x497190\n  494448:\t85 c0                \ttest   eax,eax\n  49444a:\t0f 84 52 02 00 00    \tje     0x4946a2\n  494450:\t56                   \tpush   esi\n  494451:\t8d 45 fc             \tlea    eax,[ebp-0x4]\n  494454:\t8b cb                \tmov    ecx,ebx\n  494456:\t50                   \tpush   eax\n  494457:\te8 c4 40 00 00       \tcall   0x498520\n  49445c:\tf3 0f 10 05 64 bf d6 \tmovss  xmm0,DWORD PTR ds:0x6fd6bf64\n  494463:\t6f \n  494464:\t8d 4d fc             \tlea    ecx,[ebp-0x4]\n  494467:\t0f 2f 45 fc          \tcomiss xmm0,DWORD PTR [ebp-0x4]\n  49446b:\tb8 64 bf d6 6f       \tmov    eax,0x6fd6bf64\n  494470:\t0f 46 c1             \tcmovbe eax,ecx\n  494473:\t8b cb                \tmov    ecx,ebx\n  494475:\t8b 00                \tmov    eax,DWORD PTR [eax]\n  494477:\t89 45 fc             \tmov    DWORD PTR [ebp-0x4],eax\n  49447a:\te8 e1 3f 00 00       \tcall   0x498460\n  49447f:\t8b f0                \tmov    esi,eax\n  494481:\t8b 45 08             \tmov    eax,DWORD PTR [ebp+0x8]\n  494484:\t8b c8                \tmov    ecx,eax\n  494486:\t8b 10                \tmov    edx,DWORD PTR [eax]\n  494488:\tff 92 b8 00 00 00    \tcall   DWORD PTR [edx+0xb8]\n  49448e:\t6a 01                \tpush   0x1\n  494490:\t50                   \tpush   eax\n  494491:\t8d 45 fc             \tlea    eax,[ebp-0x4]\n  494494:\t8b ce                \tmov    ecx,esi\n  494496:\t50                   \tpush   eax\n  494497:\te8 e4 70 bc ff       \tcall   0x5b580\n  49449c:\t8b 75 08             \tmov    esi,DWORD PTR [ebp+0x8]\n  49449f:\t85 c0                \ttest   eax,eax\n  4944a1:\t75 13                \tjne    0x4944b6\n  4944a3:\t56                   \tpush   esi\n  4944a4:\t8b cb                \tmov    ecx,ebx\n  4944a6:\te8 a5 43 00 00       \tcall   0x498850\n  4944ab:\t8b c8                \tmov    ecx,eax\n  4944ad:\te8 9e 7d 1f 00       \tcall   0x68c250\n  4944b2:\t85 c0                \ttest   eax,eax\n  4944b4:\t74 08                \tje     0x4944be\n  4944b6:\ta1 80 54 cd 6f       \tmov    eax,ds:0x6fcd5480\n  4944bb:\t89 45 fc             \tmov    DWORD PTR [ebp-0x4],eax\n  4944be:\t6a 00                \tpush   0x0\n  4944c0:\t8d 45 fc             \tlea    eax,[ebp-0x4]\n  4944c3:\t8b cf                \tmov    ecx,edi\n  4944c5:\t50                   \tpush   eax\n  4944c6:\t56                   \tpush   esi\n  4944c7:\t68 6f 01 0d 00       \tpush   0xd016f\n  4944cc:\te8 df e1 1f 00       \tcall   0x6926b0\n  4944d1:\t6a 00                \tpush   0x0\n  4944d3:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  4944d8:\t56                   \tpush   esi\n  4944d9:\t68 68 01 0d 00       \tpush   0xd0168\n  4944de:\t8b cf                \tmov    ecx,edi\n  4944e0:\te8 cb e1 1f 00       \tcall   0x6926b0\n  4944e5:\t8b cf                \tmov    ecx,edi\n  4944e7:\te8 14 9a 1e 00       \tcall   0x67df00\n  4944ec:\t5f                   \tpop    edi\n  4944ed:\t5e                   \tpop    esi\n  4944ee:\t5b                   \tpop    ebx\n  4944ef:\t8b e5                \tmov    esp,ebp\n  4944f1:\t5d                   \tpop    ebp\n  4944f2:\tc2 04 00             \tret    0x4\n  4944f5:\t8b 43 20             \tmov    eax,DWORD PTR [ebx+0x20]\n  4944f8:\ta9 00 08 00 00       \ttest   eax,0x800\n  4944fd:\t74 14                \tje     0x494513\n  4944ff:\tff 75 08             \tpush   DWORD PTR [ebp+0x8]\n  494502:\t8d 4b 78             \tlea    ecx,[ebx+0x78]\n  494505:\te8 06 fe d8 ff       \tcall   0x224310\n  49450a:\t5f                   \tpop    edi\n  49450b:\t5e                   \tpop    esi\n  49450c:\t5b                   \tpop    ebx\n  49450d:\t8b e5                \tmov    esp,ebp\n  49450f:\t5d                   \tpop    ebp\n  494510:\tc2 04 00             \tret    0x4\n  494513:\ta9 00 00 00 02       \ttest   eax,0x2000000\n  494518:\t74 10                \tje     0x49452a\n  49451a:\ta9 00 04 00 00       \ttest   eax,0x400\n  49451f:\t75 09                \tjne    0x49452a\n  494521:\t6a 00                \tpush   0x0\n  494523:\t8b cb                \tmov    ecx,ebx\n  494525:\te8 f6 8c 00 00       \tcall   0x49d220\n  49452a:\t8b b7 94 01 00 00    \tmov    esi,DWORD PTR [edi+0x194]\n  494530:\t89 75 fc             \tmov    DWORD PTR [ebp-0x4],esi\n  494533:\t83 fe 01             \tcmp    esi,0x1\n  494536:\t74 08                \tje     0x494540\n  494538:\t56                   \tpush   esi\n  494539:\t8b cf                \tmov    ecx,edi\n  49453b:\te8 60 e2 1f 00       \tcall   0x6927a0\n  494540:\t85 f6                \ttest   esi,esi\n  494542:\t75 56                \tjne    0x49459a\n  494544:\t68 4b 01 0d 00       \tpush   0xd014b\n  494549:\t8b cf                \tmov    ecx,edi\n  49454b:\te8 d0 d9 1f 00       \tcall   0x691f20\n  494550:\t8d 45 e0             \tlea    eax,[ebp-0x20]\n  494553:\t8b cf                \tmov    ecx,edi\n  494555:\t50                   \tpush   eax\n  494556:\t8b 07                \tmov    eax,DWORD PTR [edi]\n  494558:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  49455e:\t8b c8                \tmov    ecx,eax\n  494560:\te8 9b 43 bc ff       \tcall   0x58900\n  494565:\t8b 45 e0             \tmov    eax,DWORD PTR [ebp-0x20]\n  494568:\t8b cf                \tmov    ecx,edi\n  49456a:\t89 45 ec             \tmov    DWORD PTR [ebp-0x14],eax\n  49456d:\t8b 45 e4             \tmov    eax,DWORD PTR [ebp-0x1c]\n  494570:\t89 45 f0             \tmov    DWORD PTR [ebp-0x10],eax\n  494573:\t8b 45 e8             \tmov    eax,DWORD PTR [ebp-0x18]\n  494576:\t56                   \tpush   esi\n  494577:\t89 45 f4             \tmov    DWORD PTR [ebp-0xc],eax\n  49457a:\t8d 45 f0             \tlea    eax,[ebp-0x10]\n  49457d:\t68 68 bf d6 6f       \tpush   0x6fd6bf68\n  494582:\t50                   \tpush   eax\n  494583:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  494586:\t50                   \tpush   eax\n  494587:\t68 6c 01 0d 00       \tpush   0xd016c\n  49458c:\te8 8f db 1f 00       \tcall   0x692120\n  494591:\t6a 07                \tpush   0x7\n  494593:\t8b cf                \tmov    ecx,edi\n  494595:\te8 06 e2 1f 00       \tcall   0x6927a0\n  49459a:\tff 75 08             \tpush   DWORD PTR [ebp+0x8]\n  49459d:\t8d 45 f8             \tlea    eax,[ebp-0x8]\n  4945a0:\t8b cb                \tmov    ecx,ebx\n  4945a2:\t50                   \tpush   eax\n  4945a3:\te8 78 3f 00 00       \tcall   0x498520\n  4945a8:\tf3 0f 10 05 64 bf d6 \tmovss  xmm0,DWORD PTR ds:0x6fd6bf64\n  4945af:\t6f \n  4945b0:\t8d 4d f8             \tlea    ecx,[ebp-0x8]\n  4945b3:\t0f 2f 45 f8          \tcomiss xmm0,DWORD PTR [ebp-0x8]\n  4945b7:\tb8 64 bf d6 6f       \tmov    eax,0x6fd6bf64\n  4945bc:\t0f 46 c1             \tcmovbe eax,ecx\n  4945bf:\t8b cb                \tmov    ecx,ebx\n  4945c1:\t8b 00                \tmov    eax,DWORD PTR [eax]\n  4945c3:\t89 45 f8             \tmov    DWORD PTR [ebp-0x8],eax\n  4945c6:\te8 95 3e 00 00       \tcall   0x498460\n  4945cb:\t8b f0                \tmov    esi,eax\n  4945cd:\t8b 45 08             \tmov    eax,DWORD PTR [ebp+0x8]\n  4945d0:\t8b c8                \tmov    ecx,eax\n  4945d2:\t8b 10                \tmov    edx,DWORD PTR [eax]\n  4945d4:\tff 92 b8 00 00 00    \tcall   DWORD PTR [edx+0xb8]\n  4945da:\t6a 01                \tpush   0x1\n  4945dc:\t50                   \tpush   eax\n  4945dd:\t8d 45 f8             \tlea    eax,[ebp-0x8]\n  4945e0:\t8b ce                \tmov    ecx,esi\n  4945e2:\t50                   \tpush   eax\n  4945e3:\te8 98 6f bc ff       \tcall   0x5b580\n  4945e8:\t8b 75 08             \tmov    esi,DWORD PTR [ebp+0x8]\n  4945eb:\t85 c0                \ttest   eax,eax\n  4945ed:\t75 13                \tjne    0x494602\n  4945ef:\t56                   \tpush   esi\n  4945f0:\t8b cb                \tmov    ecx,ebx\n  4945f2:\te8 59 42 00 00       \tcall   0x498850\n  4945f7:\t8b c8                \tmov    ecx,eax\n  4945f9:\te8 52 7c 1f 00       \tcall   0x68c250\n  4945fe:\t85 c0                \ttest   eax,eax\n  494600:\t74 08                \tje     0x49460a\n  494602:\ta1 80 54 cd 6f       \tmov    eax,ds:0x6fcd5480\n  494607:\t89 45 f8             \tmov    DWORD PTR [ebp-0x8],eax\n  49460a:\t68 48 01 0d 00       \tpush   0xd0148\n  49460f:\t8b cf                \tmov    ecx,edi\n  494611:\te8 0a d9 1f 00       \tcall   0x691f20\n  494616:\t68 6a 01 0d 00       \tpush   0xd016a\n  49461b:\t8b cf                \tmov    ecx,edi\n  49461d:\te8 fe d8 1f 00       \tcall   0x691f20\n  494622:\t6a 00                \tpush   0x0\n  494624:\t8d 45 f8             \tlea    eax,[ebp-0x8]\n  494627:\t8b cf                \tmov    ecx,edi\n  494629:\t50                   \tpush   eax\n  49462a:\t56                   \tpush   esi\n  49462b:\t68 6f 01 0d 00       \tpush   0xd016f\n  494630:\te8 7b e0 1f 00       \tcall   0x6926b0\n  494635:\t83 7d fc 01          \tcmp    DWORD PTR [ebp-0x4],0x1\n  494639:\t8b cf                \tmov    ecx,edi\n  49463b:\t74 29                \tje     0x494666\n  49463d:\t68 63 01 0d 00       \tpush   0xd0163\n  494642:\te8 d9 d8 1f 00       \tcall   0x691f20\n  494647:\t6a 00                \tpush   0x0\n  494649:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  49464e:\t56                   \tpush   esi\n  49464f:\t68 68 01 0d 00       \tpush   0xd0168\n  494654:\t8b cf                \tmov    ecx,edi\n  494656:\te8 55 e0 1f 00       \tcall   0x6926b0\n  49465b:\t6a 01                \tpush   0x1\n  49465d:\t8b cf                \tmov    ecx,edi\n  49465f:\te8 3c e1 1f 00       \tcall   0x6927a0\n  494664:\teb 12                \tjmp    0x494678\n  494666:\t6a 00                \tpush   0x0\n  494668:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  49466d:\t56                   \tpush   esi\n  49466e:\t68 68 01 0d 00       \tpush   0xd0168\n  494673:\te8 38 e0 1f 00       \tcall   0x6926b0\n  494678:\t8b 87 a0 01 00 00    \tmov    eax,DWORD PTR [edi+0x1a0]\n  49467e:\t8d 8f 9c 01 00 00    \tlea    ecx,[edi+0x19c]\n  494684:\t23 01                \tand    eax,DWORD PTR [ecx]\n  494686:\t83 f8 ff             \tcmp    eax,0xffffffff\n  494689:\t74 09                \tje     0x494694\n  49468b:\te8 90 cc bc ff       \tcall   0x61320\n  494690:\t85 c0                \ttest   eax,eax\n  494692:\t75 07                \tjne    0x49469b\n  494694:\t8b cb                \tmov    ecx,ebx\n  494696:\te8 95 12 f6 ff       \tcall   0x3f5930\n  49469b:\t8b cf                \tmov    ecx,edi\n  49469d:\te8 5e 98 1e 00       \tcall   0x67df00\n  4946a2:\t5f                   \tpop    edi\n  4946a3:\t5e                   \tpop    esi\n  4946a4:\t5b                   \tpop    ebx\n  4946a5:\t8b e5                \tmov    esp,ebp\n  4946a7:\t5d                   \tpop    ebp\n  4946a8:\tc2 04 00             \tret    0x4",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x494402",
+          "bytes": "e8b918bcff",
+          "callee_rva": "0x55cc0"
+        },
+        {
+          "instruction_rva": "0x49441b",
+          "bytes": "e800cfbcff",
+          "callee_rva": "0x61320"
+        },
+        {
+          "instruction_rva": "0x49443c",
+          "bytes": "e8df390000",
+          "callee_rva": "0x497e20"
+        },
+        {
+          "instruction_rva": "0x494443",
+          "bytes": "e8482d0000",
+          "callee_rva": "0x497190"
+        },
+        {
+          "instruction_rva": "0x494457",
+          "bytes": "e8c4400000",
+          "callee_rva": "0x498520"
+        },
+        {
+          "instruction_rva": "0x49447a",
+          "bytes": "e8e13f0000",
+          "callee_rva": "0x498460"
+        },
+        {
+          "instruction_rva": "0x494497",
+          "bytes": "e8e470bcff",
+          "callee_rva": "0x5b580"
+        },
+        {
+          "instruction_rva": "0x4944a6",
+          "bytes": "e8a5430000",
+          "callee_rva": "0x498850"
+        },
+        {
+          "instruction_rva": "0x4944ad",
+          "bytes": "e89e7d1f00",
+          "callee_rva": "0x68c250"
+        },
+        {
+          "instruction_rva": "0x4944cc",
+          "bytes": "e8dfe11f00",
+          "callee_rva": "0x6926b0"
+        },
+        {
+          "instruction_rva": "0x4944e0",
+          "bytes": "e8cbe11f00",
+          "callee_rva": "0x6926b0"
+        },
+        {
+          "instruction_rva": "0x4944e7",
+          "bytes": "e8149a1e00",
+          "callee_rva": "0x67df00"
+        },
+        {
+          "instruction_rva": "0x494505",
+          "bytes": "e806fed8ff",
+          "callee_rva": "0x224310"
+        },
+        {
+          "instruction_rva": "0x494525",
+          "bytes": "e8f68c0000",
+          "callee_rva": "0x49d220"
+        },
+        {
+          "instruction_rva": "0x49453b",
+          "bytes": "e860e21f00",
+          "callee_rva": "0x6927a0"
+        },
+        {
+          "instruction_rva": "0x49454b",
+          "bytes": "e8d0d91f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x494560",
+          "bytes": "e89b43bcff",
+          "callee_rva": "0x58900"
+        },
+        {
+          "instruction_rva": "0x49458c",
+          "bytes": "e88fdb1f00",
+          "callee_rva": "0x692120"
+        },
+        {
+          "instruction_rva": "0x494595",
+          "bytes": "e806e21f00",
+          "callee_rva": "0x6927a0"
+        },
+        {
+          "instruction_rva": "0x4945a3",
+          "bytes": "e8783f0000",
+          "callee_rva": "0x498520"
+        },
+        {
+          "instruction_rva": "0x4945c6",
+          "bytes": "e8953e0000",
+          "callee_rva": "0x498460"
+        },
+        {
+          "instruction_rva": "0x4945e3",
+          "bytes": "e8986fbcff",
+          "callee_rva": "0x5b580"
+        },
+        {
+          "instruction_rva": "0x4945f2",
+          "bytes": "e859420000",
+          "callee_rva": "0x498850"
+        },
+        {
+          "instruction_rva": "0x4945f9",
+          "bytes": "e8527c1f00",
+          "callee_rva": "0x68c250"
+        },
+        {
+          "instruction_rva": "0x494611",
+          "bytes": "e80ad91f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x49461d",
+          "bytes": "e8fed81f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x494630",
+          "bytes": "e87be01f00",
+          "callee_rva": "0x6926b0"
+        },
+        {
+          "instruction_rva": "0x494642",
+          "bytes": "e8d9d81f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x494656",
+          "bytes": "e855e01f00",
+          "callee_rva": "0x6926b0"
+        },
+        {
+          "instruction_rva": "0x49465f",
+          "bytes": "e83ce11f00",
+          "callee_rva": "0x6927a0"
+        },
+        {
+          "instruction_rva": "0x494673",
+          "bytes": "e838e01f00",
+          "callee_rva": "0x6926b0"
+        },
+        {
+          "instruction_rva": "0x49468b",
+          "bytes": "e890ccbcff",
+          "callee_rva": "0x61320"
+        },
+        {
+          "instruction_rva": "0x494696",
+          "bytes": "e89512f6ff",
+          "callee_rva": "0x3f5930"
+        },
+        {
+          "instruction_rva": "0x49469d",
+          "bytes": "e85e981e00",
+          "callee_rva": "0x67df00"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49e880",
+      "size": 180,
+      "bytes": "558bec83ec18568bf1578b7e3085ff7507e82a74bbff8bf88b178bcfff92ec00000083f80c7d70f6476004756a8d45e88bcf508b07ff90b80000008bc8e83ea0bbff8b45e88d8ea80200008945f48d55f48b45ec8945f88b45f08945fc8b016a0152ff108b86b00200008d8eb00200006a018d55f852ff10814e20000000028d8e80020000816620fffbffffe8af1dbcff5f5e8be55dc3814e20000000028bce816620fffbffff6a00e8f2e8ffff5f5e8be55dc3",
+      "sha256": "e2d9409633ad1a3dcdbd09d7da215ae4a6ad9601847f40df89ff3958103a8798",
+      "decompiled_code": "\n// \n// Payoff254: d014a sets2000000 and clears400. Player<12 non-structure captures predicted current\n// guard anchor and cancels control280; neutral/structure keeps anchor and calls49d220(0). Point\n// task precedes this task: arrival re-evaluates guard while the next point command leaves its timer\n// live. Proven by read-only handler/arm/call-chain rows, including first arrival1316 and\n// expiry1482.\n\nvoid __fastcall Attack_HandleGuardTask(int param_1)\n\n{\n  int *piVar1;\n  int iVar2;\n  WC3UnitMoverBridge *bridge;\n  WC3PathScalar *output_xyz;\n  WC3PathScalar local_1c;\n  undefined4 local_18;\n  undefined4 local_14;\n  WC3PathScalar local_10;\n  undefined4 local_c;\n  undefined4 local_8;\n  \n  piVar1 = *(int **)(param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  iVar2 = (**(code **)(*piVar1 + 0xec))();\n  if ((iVar2 < 0xc) && ((*(byte *)(piVar1 + 0x18) & 4) == 0)) {\n    output_xyz = &local_1c;\n    bridge = (WC3UnitMoverBridge *)(**(code **)(*piVar1 + 0xb8))();\n    UnitMover_QueryWorldPosition(bridge,output_xyz);\n    local_10 = local_1c;\n    local_c = local_18;\n    local_8 = local_14;\n    (*(code *)**(undefined4 **)(param_1 + 0x2a8))(&local_10,1);\n    (*(code *)**(undefined4 **)(param_1 + 0x2b0))(&local_c,1);\n    *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) | 0x2000000;\n    *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xfffffbff;\n    EventClock_CancelRequest((WC3EventClockControlPrefix *)(param_1 + 0x280));\n    return;\n  }\n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) | 0x2000000;\n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xfffffbff;\n  Attack_StartGuardEvaluation(0);\n  return;\n}\n\n",
+      "disassembly": "0049e880 <.data>:\n  49e880:\t55                   \tpush   ebp\n  49e881:\t8b ec                \tmov    ebp,esp\n  49e883:\t83 ec 18             \tsub    esp,0x18\n  49e886:\t56                   \tpush   esi\n  49e887:\t8b f1                \tmov    esi,ecx\n  49e889:\t57                   \tpush   edi\n  49e88a:\t8b 7e 30             \tmov    edi,DWORD PTR [esi+0x30]\n  49e88d:\t85 ff                \ttest   edi,edi\n  49e88f:\t75 07                \tjne    0x49e898\n  49e891:\te8 2a 74 bb ff       \tcall   0x55cc0\n  49e896:\t8b f8                \tmov    edi,eax\n  49e898:\t8b 17                \tmov    edx,DWORD PTR [edi]\n  49e89a:\t8b cf                \tmov    ecx,edi\n  49e89c:\tff 92 ec 00 00 00    \tcall   DWORD PTR [edx+0xec]\n  49e8a2:\t83 f8 0c             \tcmp    eax,0xc\n  49e8a5:\t7d 70                \tjge    0x49e917\n  49e8a7:\tf6 47 60 04          \ttest   BYTE PTR [edi+0x60],0x4\n  49e8ab:\t75 6a                \tjne    0x49e917\n  49e8ad:\t8d 45 e8             \tlea    eax,[ebp-0x18]\n  49e8b0:\t8b cf                \tmov    ecx,edi\n  49e8b2:\t50                   \tpush   eax\n  49e8b3:\t8b 07                \tmov    eax,DWORD PTR [edi]\n  49e8b5:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  49e8bb:\t8b c8                \tmov    ecx,eax\n  49e8bd:\te8 3e a0 bb ff       \tcall   0x58900\n  49e8c2:\t8b 45 e8             \tmov    eax,DWORD PTR [ebp-0x18]\n  49e8c5:\t8d 8e a8 02 00 00    \tlea    ecx,[esi+0x2a8]\n  49e8cb:\t89 45 f4             \tmov    DWORD PTR [ebp-0xc],eax\n  49e8ce:\t8d 55 f4             \tlea    edx,[ebp-0xc]\n  49e8d1:\t8b 45 ec             \tmov    eax,DWORD PTR [ebp-0x14]\n  49e8d4:\t89 45 f8             \tmov    DWORD PTR [ebp-0x8],eax\n  49e8d7:\t8b 45 f0             \tmov    eax,DWORD PTR [ebp-0x10]\n  49e8da:\t89 45 fc             \tmov    DWORD PTR [ebp-0x4],eax\n  49e8dd:\t8b 01                \tmov    eax,DWORD PTR [ecx]\n  49e8df:\t6a 01                \tpush   0x1\n  49e8e1:\t52                   \tpush   edx\n  49e8e2:\tff 10                \tcall   DWORD PTR [eax]\n  49e8e4:\t8b 86 b0 02 00 00    \tmov    eax,DWORD PTR [esi+0x2b0]\n  49e8ea:\t8d 8e b0 02 00 00    \tlea    ecx,[esi+0x2b0]\n  49e8f0:\t6a 01                \tpush   0x1\n  49e8f2:\t8d 55 f8             \tlea    edx,[ebp-0x8]\n  49e8f5:\t52                   \tpush   edx\n  49e8f6:\tff 10                \tcall   DWORD PTR [eax]\n  49e8f8:\t81 4e 20 00 00 00 02 \tor     DWORD PTR [esi+0x20],0x2000000\n  49e8ff:\t8d 8e 80 02 00 00    \tlea    ecx,[esi+0x280]\n  49e905:\t81 66 20 ff fb ff ff \tand    DWORD PTR [esi+0x20],0xfffffbff\n  49e90c:\te8 af 1d bc ff       \tcall   0x606c0\n  49e911:\t5f                   \tpop    edi\n  49e912:\t5e                   \tpop    esi\n  49e913:\t8b e5                \tmov    esp,ebp\n  49e915:\t5d                   \tpop    ebp\n  49e916:\tc3                   \tret\n  49e917:\t81 4e 20 00 00 00 02 \tor     DWORD PTR [esi+0x20],0x2000000\n  49e91e:\t8b ce                \tmov    ecx,esi\n  49e920:\t81 66 20 ff fb ff ff \tand    DWORD PTR [esi+0x20],0xfffffbff\n  49e927:\t6a 00                \tpush   0x0\n  49e929:\te8 f2 e8 ff ff       \tcall   0x49d220\n  49e92e:\t5f                   \tpop    edi\n  49e92f:\t5e                   \tpop    esi\n  49e930:\t8b e5                \tmov    esp,ebp\n  49e932:\t5d                   \tpop    ebp\n  49e933:\tc3                   \tret",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x49e891",
+          "bytes": "e82a74bbff",
+          "callee_rva": "0x55cc0"
+        },
+        {
+          "instruction_rva": "0x49e8bd",
+          "bytes": "e83ea0bbff",
+          "callee_rva": "0x58900"
+        },
+        {
+          "instruction_rva": "0x49e90c",
+          "bytes": "e8af1dbcff",
+          "callee_rva": "0x606c0"
+        },
+        {
+          "instruction_rva": "0x49e929",
+          "bytes": "e8f2e8ffff",
+          "callee_rva": "0x49d220"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49d220",
+      "size": 63,
+      "bytes": "558bec837d0800568bf17527e8df83ffff85c0751e506a015668ad010d006860bfd66f8d8e80020000e88236bcff5e5dc204008bcee8d6a0ffff5e5dc20400",
+      "sha256": "ee1ac018b78cdf3728bfade6fd76e6200e705aff4dd80af9aa74e70b400e4e0a",
+      "decompiled_code": "\n// \n// Payoff254: unless forced, test495610; within guard range arms periodic2s d01ad using\n// startup00b570/d6bf60. Outside arms497330. Distinct guard polling and return phases share\n// control280; no path-owner counter heuristic.\n// Payoff255: periodic d01ad initial arm allocates a request, but each subsequent inside poll\n// retains that request serial via event timer dispatcher0542d0 and rearm053630. Explicit guard-task\n// reevaluation may cancel and allocate anew. Distinguish these producers.\n\nvoid __thiscall Attack_StartGuardEvaluation(undefined4 param_1,int param_2)\n\n{\n  int iVar1;\n  \n  if (param_2 == 0) {\n    iVar1 = Attack_IsOutsideGuardRange();\n    if (iVar1 == 0) {\n      FUN_6f0608d0(&DAT_6fd6bf60,0xd01ad,param_1,1,0);\n      return;\n    }\n  }\n  Attack_ArmGuardReturn();\n  return;\n}\n\n",
+      "disassembly": "0049d220 <.data>:\n  49d220:\t55                   \tpush   ebp\n  49d221:\t8b ec                \tmov    ebp,esp\n  49d223:\t83 7d 08 00          \tcmp    DWORD PTR [ebp+0x8],0x0\n  49d227:\t56                   \tpush   esi\n  49d228:\t8b f1                \tmov    esi,ecx\n  49d22a:\t75 27                \tjne    0x49d253\n  49d22c:\te8 df 83 ff ff       \tcall   0x495610\n  49d231:\t85 c0                \ttest   eax,eax\n  49d233:\t75 1e                \tjne    0x49d253\n  49d235:\t50                   \tpush   eax\n  49d236:\t6a 01                \tpush   0x1\n  49d238:\t56                   \tpush   esi\n  49d239:\t68 ad 01 0d 00       \tpush   0xd01ad\n  49d23e:\t68 60 bf d6 6f       \tpush   0x6fd6bf60\n  49d243:\t8d 8e 80 02 00 00    \tlea    ecx,[esi+0x280]\n  49d249:\te8 82 36 bc ff       \tcall   0x608d0\n  49d24e:\t5e                   \tpop    esi\n  49d24f:\t5d                   \tpop    ebp\n  49d250:\tc2 04 00             \tret    0x4\n  49d253:\t8b ce                \tmov    ecx,esi\n  49d255:\te8 d6 a0 ff ff       \tcall   0x497330\n  49d25a:\t5e                   \tpop    esi\n  49d25b:\t5d                   \tpop    ebp\n  49d25c:\tc2 04 00             \tret    0x4",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x49d22c",
+          "bytes": "e8df83ffff",
+          "callee_rva": "0x495610"
+        },
+        {
+          "instruction_rva": "0x49d249",
+          "bytes": "e88236bcff",
+          "callee_rva": "0x608d0"
+        },
+        {
+          "instruction_rva": "0x49d255",
+          "bytes": "e8d6a0ffff",
+          "callee_rva": "0x497330"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x497330",
+      "size": 77,
+      "bytes": "558bec5156578bf9814f20000400008d8f80020000e87693bcff6a0068e4b8ad6fba80fca76f8d4dfce8e204bbff6a006a005768ae010d008d45fc508d8f80020000e85995bcff5f5e8be55dc3",
+      "sha256": "fdeab0c44bfa011d237af1172e587c17fb465e16c01358e7094de7659c07fe1b",
+      "decompiled_code": "\n// \n// Payoff254: OR Attack20.400; cancel control280; read authored Misc.GuardReturnTime and arm\n// nonperiodic d01ae on the same primary control. Live neutral Footman first arrival1316 rearms5s;\n// subsequent public Move1324 does not cancel it; expiry1482 reissues the retained guard point. Four\n// read-only runs preserve all618 follower and624 target raw rows from Payoff252 unchanged.\n\nvoid __fastcall Attack_ArmGuardReturn(int param_1)\n\n{\n  int local_8;\n  \n  *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) | 0x400;\n  local_8 = param_1;\n  EventClock_CancelRequest((WC3EventClockControlPrefix *)(param_1 + 0x280));\n  FUN_6f047840(\"GuardReturnTime\",0);\n  FUN_6f0608d0(&local_8,0xd01ae,param_1,0,0);\n  return;\n}\n\n",
+      "disassembly": "00497330 <.data>:\n  497330:\t55                   \tpush   ebp\n  497331:\t8b ec                \tmov    ebp,esp\n  497333:\t51                   \tpush   ecx\n  497334:\t56                   \tpush   esi\n  497335:\t57                   \tpush   edi\n  497336:\t8b f9                \tmov    edi,ecx\n  497338:\t81 4f 20 00 04 00 00 \tor     DWORD PTR [edi+0x20],0x400\n  49733f:\t8d 8f 80 02 00 00    \tlea    ecx,[edi+0x280]\n  497345:\te8 76 93 bc ff       \tcall   0x606c0\n  49734a:\t6a 00                \tpush   0x0\n  49734c:\t68 e4 b8 ad 6f       \tpush   0x6fadb8e4\n  497351:\tba 80 fc a7 6f       \tmov    edx,0x6fa7fc80\n  497356:\t8d 4d fc             \tlea    ecx,[ebp-0x4]\n  497359:\te8 e2 04 bb ff       \tcall   0x47840\n  49735e:\t6a 00                \tpush   0x0\n  497360:\t6a 00                \tpush   0x0\n  497362:\t57                   \tpush   edi\n  497363:\t68 ae 01 0d 00       \tpush   0xd01ae\n  497368:\t8d 45 fc             \tlea    eax,[ebp-0x4]\n  49736b:\t50                   \tpush   eax\n  49736c:\t8d 8f 80 02 00 00    \tlea    ecx,[edi+0x280]\n  497372:\te8 59 95 bc ff       \tcall   0x608d0\n  497377:\t5f                   \tpop    edi\n  497378:\t5e                   \tpop    esi\n  497379:\t8b e5                \tmov    esp,ebp\n  49737b:\t5d                   \tpop    ebp\n  49737c:\tc3                   \tret",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x497345",
+          "bytes": "e87693bcff",
+          "callee_rva": "0x606c0"
+        },
+        {
+          "instruction_rva": "0x497359",
+          "bytes": "e8e204bbff",
+          "callee_rva": "0x47840"
+        },
+        {
+          "instruction_rva": "0x497372",
+          "bytes": "e85995bcff",
+          "callee_rva": "0x608d0"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x497fc0",
+      "size": 296,
+      "bytes": "558bec83ec1056578bf98b773085f67507e8eadcbbff8bf0833df052cd6f00752c33c9e8583e2f0085c0752133c9e80d3b2f003d7017000073138b068bceff90ec00000083f80f0f84d5000000538b9eec0100008bce6a00e873411f0085c0744d85db7449837b7c007e436a018bcee8bc831e006a008bcee863a71f006848010d008bcee8d79e1f00684a010d008bcee8cb9e1f008d4dfce8434ef9ff508bcee81b9d1f008bcee8945e1e00eb4c8b87ac0200008bce6a018945f08b87b40200006a018945f4a144c7d36f6a008945f88d45f46a00508d45f0508b066a006a00ff90ec0000008bd0b912000d00e8ce3c2000508bcee866821e008b068bce6a00ff90ec0000008bd0b913000d00e85e881f00508bcee8b6b31f008bcfe85f6800005b5f5e8be55dc3",
+      "sha256": "3ee9a631c5f196e0327fb841215bd8bc7d5a66b76e97a78aa154d6672d409396",
+      "decompiled_code": "\n// \n// Payoff254: d01ae creates Move d0012 at retained2ac/2b4, replacement admission680320\n// mode1/dispatch1; then appends immediate d0013, whose498ff0 consumer requests SleepAlways when\n// attached. Stop/invalidate commits pending physical pose and zeros velocity between owners.\n// Original target first changes1483; do not normalize the duplicate old-owner visit or overwrite\n// the retained trajectory fixture. Early neutral-passive global gates and structure-disabled branch\n// remain separate.\n// Payoff254: d01ae creates Move d0012 at retained2ac/2b4, replacement admission680320\n// mode1/dispatch1; then appends immediate d0013, whose498ff0 consumer requests SleepAlways when\n// attached. Stop/invalidate commits pending physical pose and zeros velocity between owners. Timer\n// rearm uses the request deadline, while predicted-pose/range and Stop use the current primary\n// source-clock quantum; conflating these clocks overshoots the retained position words. Original\n// target first changes1483; do not normalize the duplicate old-owner visit or overwrite the\n// retained trajectory fixture. Early neutral-passive global gates and structure-disabled branch\n// remain separate.\n\nvoid __fastcall Attack_OnGuardReturn(int param_1)\n\n{\n  WC3MoveSpeedPrefix *pWVar1;\n  WC3UnitOrdersPrefix *self;\n  int iVar2;\n  uint uVar3;\n  WC3OrderPrefix *order;\n  void *target;\n  uint *x;\n  uint *y;\n  void *association;\n  void *retained;\n  uint arg_08;\n  uint arg_0c;\n  void *pvVar4;\n  uint local_14;\n  uint local_10;\n  WC3PathScalar local_c;\n  \n  self = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if ((((DAT_6fcd52f0 == 0) && (iVar2 = FUN_6f78be40(), iVar2 == 0)) &&\n      (uVar3 = FUN_6f78bb00(), uVar3 < 6000)) &&\n     (iVar2 = (**(code **)((int)self->vtable + 0xec))(), iVar2 == 0xf)) {\n    return;\n  }\n  pWVar1 = self->move_ability;\n  iVar2 = Unit_IsStructureForSupportRecovery(0);\n  if (((iVar2 == 0) || (pWVar1 == (WC3MoveSpeedPrefix *)0x0)) || ((int)pWVar1->disabled_count < 1))\n  {\n    local_14 = *(uint *)(param_1 + 0x2ac);\n    arg_0c = 1;\n    local_10 = *(uint *)(param_1 + 0x2b4);\n    arg_08 = 1;\n    retained = (void *)0x0;\n    local_c = Math_RuntimeZero;\n    y = &local_10;\n    association = (void *)0x0;\n    x = &local_14;\n    target = (void *)0x0;\n    pvVar4 = (void *)0x0;\n    uVar3 = (**(code **)((int)self->vtable + 0xec))();\n    pvVar4 = OrderTarget_CreateArguments(0xd0012,uVar3,pvVar4,target,x,y,association,retained);\n    Unit_AdmitOrder(self,(uint)pvVar4,arg_08,arg_0c);\n  }\n  else {\n    Unit_ReplaceOrdersForStop(self,1);\n    Unit_CreateActionTask(self,0);\n    Unit_CreateEventTask(self,0xd0148);\n    Unit_CreateEventTask(self,0xd014a);\n    uVar3 = FUN_6f42cea0();\n    Unit_PrependFacingTask((uint)self,uVar3);\n    Unit_DispatchInternalTaskQueue(self);\n  }\n  pvVar4 = (void *)0x0;\n  uVar3 = (**(code **)((int)self->vtable + 0xec))();\n  order = OrderImmediate_Create(0xd0013,uVar3,pvVar4);\n  Unit_AppendUserOrder(self,order);\n  FUN_6f49e940();\n  return;\n}\n\n",
+      "disassembly": "00497fc0 <.data>:\n  497fc0:\t55                   \tpush   ebp\n  497fc1:\t8b ec                \tmov    ebp,esp\n  497fc3:\t83 ec 10             \tsub    esp,0x10\n  497fc6:\t56                   \tpush   esi\n  497fc7:\t57                   \tpush   edi\n  497fc8:\t8b f9                \tmov    edi,ecx\n  497fca:\t8b 77 30             \tmov    esi,DWORD PTR [edi+0x30]\n  497fcd:\t85 f6                \ttest   esi,esi\n  497fcf:\t75 07                \tjne    0x497fd8\n  497fd1:\te8 ea dc bb ff       \tcall   0x55cc0\n  497fd6:\t8b f0                \tmov    esi,eax\n  497fd8:\t83 3d f0 52 cd 6f 00 \tcmp    DWORD PTR ds:0x6fcd52f0,0x0\n  497fdf:\t75 2c                \tjne    0x49800d\n  497fe1:\t33 c9                \txor    ecx,ecx\n  497fe3:\te8 58 3e 2f 00       \tcall   0x78be40\n  497fe8:\t85 c0                \ttest   eax,eax\n  497fea:\t75 21                \tjne    0x49800d\n  497fec:\t33 c9                \txor    ecx,ecx\n  497fee:\te8 0d 3b 2f 00       \tcall   0x78bb00\n  497ff3:\t3d 70 17 00 00       \tcmp    eax,0x1770\n  497ff8:\t73 13                \tjae    0x49800d\n  497ffa:\t8b 06                \tmov    eax,DWORD PTR [esi]\n  497ffc:\t8b ce                \tmov    ecx,esi\n  497ffe:\tff 90 ec 00 00 00    \tcall   DWORD PTR [eax+0xec]\n  498004:\t83 f8 0f             \tcmp    eax,0xf\n  498007:\t0f 84 d5 00 00 00    \tje     0x4980e2\n  49800d:\t53                   \tpush   ebx\n  49800e:\t8b 9e ec 01 00 00    \tmov    ebx,DWORD PTR [esi+0x1ec]\n  498014:\t8b ce                \tmov    ecx,esi\n  498016:\t6a 00                \tpush   0x0\n  498018:\te8 73 41 1f 00       \tcall   0x68c190\n  49801d:\t85 c0                \ttest   eax,eax\n  49801f:\t74 4d                \tje     0x49806e\n  498021:\t85 db                \ttest   ebx,ebx\n  498023:\t74 49                \tje     0x49806e\n  498025:\t83 7b 7c 00          \tcmp    DWORD PTR [ebx+0x7c],0x0\n  498029:\t7e 43                \tjle    0x49806e\n  49802b:\t6a 01                \tpush   0x1\n  49802d:\t8b ce                \tmov    ecx,esi\n  49802f:\te8 bc 83 1e 00       \tcall   0x6803f0\n  498034:\t6a 00                \tpush   0x0\n  498036:\t8b ce                \tmov    ecx,esi\n  498038:\te8 63 a7 1f 00       \tcall   0x6927a0\n  49803d:\t68 48 01 0d 00       \tpush   0xd0148\n  498042:\t8b ce                \tmov    ecx,esi\n  498044:\te8 d7 9e 1f 00       \tcall   0x691f20\n  498049:\t68 4a 01 0d 00       \tpush   0xd014a\n  49804e:\t8b ce                \tmov    ecx,esi\n  498050:\te8 cb 9e 1f 00       \tcall   0x691f20\n  498055:\t8d 4d fc             \tlea    ecx,[ebp-0x4]\n  498058:\te8 43 4e f9 ff       \tcall   0x42cea0\n  49805d:\t50                   \tpush   eax\n  49805e:\t8b ce                \tmov    ecx,esi\n  498060:\te8 1b 9d 1f 00       \tcall   0x691d80\n  498065:\t8b ce                \tmov    ecx,esi\n  498067:\te8 94 5e 1e 00       \tcall   0x67df00\n  49806c:\teb 4c                \tjmp    0x4980ba\n  49806e:\t8b 87 ac 02 00 00    \tmov    eax,DWORD PTR [edi+0x2ac]\n  498074:\t8b ce                \tmov    ecx,esi\n  498076:\t6a 01                \tpush   0x1\n  498078:\t89 45 f0             \tmov    DWORD PTR [ebp-0x10],eax\n  49807b:\t8b 87 b4 02 00 00    \tmov    eax,DWORD PTR [edi+0x2b4]\n  498081:\t6a 01                \tpush   0x1\n  498083:\t89 45 f4             \tmov    DWORD PTR [ebp-0xc],eax\n  498086:\ta1 44 c7 d3 6f       \tmov    eax,ds:0x6fd3c744\n  49808b:\t6a 00                \tpush   0x0\n  49808d:\t89 45 f8             \tmov    DWORD PTR [ebp-0x8],eax\n  498090:\t8d 45 f4             \tlea    eax,[ebp-0xc]\n  498093:\t6a 00                \tpush   0x0\n  498095:\t50                   \tpush   eax\n  498096:\t8d 45 f0             \tlea    eax,[ebp-0x10]\n  498099:\t50                   \tpush   eax\n  49809a:\t8b 06                \tmov    eax,DWORD PTR [esi]\n  49809c:\t6a 00                \tpush   0x0\n  49809e:\t6a 00                \tpush   0x0\n  4980a0:\tff 90 ec 00 00 00    \tcall   DWORD PTR [eax+0xec]\n  4980a6:\t8b d0                \tmov    edx,eax\n  4980a8:\tb9 12 00 0d 00       \tmov    ecx,0xd0012\n  4980ad:\te8 ce 3c 20 00       \tcall   0x69bd80\n  4980b2:\t50                   \tpush   eax\n  4980b3:\t8b ce                \tmov    ecx,esi\n  4980b5:\te8 66 82 1e 00       \tcall   0x680320\n  4980ba:\t8b 06                \tmov    eax,DWORD PTR [esi]\n  4980bc:\t8b ce                \tmov    ecx,esi\n  4980be:\t6a 00                \tpush   0x0\n  4980c0:\tff 90 ec 00 00 00    \tcall   DWORD PTR [eax+0xec]\n  4980c6:\t8b d0                \tmov    edx,eax\n  4980c8:\tb9 13 00 0d 00       \tmov    ecx,0xd0013\n  4980cd:\te8 5e 88 1f 00       \tcall   0x690930\n  4980d2:\t50                   \tpush   eax\n  4980d3:\t8b ce                \tmov    ecx,esi\n  4980d5:\te8 b6 b3 1f 00       \tcall   0x693490\n  4980da:\t8b cf                \tmov    ecx,edi\n  4980dc:\te8 5f 68 00 00       \tcall   0x49e940\n  4980e1:\t5b                   \tpop    ebx\n  4980e2:\t5f                   \tpop    edi\n  4980e3:\t5e                   \tpop    esi\n  4980e4:\t8b e5                \tmov    esp,ebp\n  4980e6:\t5d                   \tpop    ebp\n  4980e7:\tc3                   \tret",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x497fd1",
+          "bytes": "e8eadcbbff",
+          "callee_rva": "0x55cc0"
+        },
+        {
+          "instruction_rva": "0x497fe3",
+          "bytes": "e8583e2f00",
+          "callee_rva": "0x78be40"
+        },
+        {
+          "instruction_rva": "0x497fee",
+          "bytes": "e80d3b2f00",
+          "callee_rva": "0x78bb00"
+        },
+        {
+          "instruction_rva": "0x498018",
+          "bytes": "e873411f00",
+          "callee_rva": "0x68c190"
+        },
+        {
+          "instruction_rva": "0x49802f",
+          "bytes": "e8bc831e00",
+          "callee_rva": "0x6803f0"
+        },
+        {
+          "instruction_rva": "0x498038",
+          "bytes": "e863a71f00",
+          "callee_rva": "0x6927a0"
+        },
+        {
+          "instruction_rva": "0x498044",
+          "bytes": "e8d79e1f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x498050",
+          "bytes": "e8cb9e1f00",
+          "callee_rva": "0x691f20"
+        },
+        {
+          "instruction_rva": "0x498058",
+          "bytes": "e8434ef9ff",
+          "callee_rva": "0x42cea0"
+        },
+        {
+          "instruction_rva": "0x498060",
+          "bytes": "e81b9d1f00",
+          "callee_rva": "0x691d80"
+        },
+        {
+          "instruction_rva": "0x498067",
+          "bytes": "e8945e1e00",
+          "callee_rva": "0x67df00"
+        },
+        {
+          "instruction_rva": "0x4980ad",
+          "bytes": "e8ce3c2000",
+          "callee_rva": "0x69bd80"
+        },
+        {
+          "instruction_rva": "0x4980b5",
+          "bytes": "e866821e00",
+          "callee_rva": "0x680320"
+        },
+        {
+          "instruction_rva": "0x4980cd",
+          "bytes": "e85e881f00",
+          "callee_rva": "0x690930"
+        },
+        {
+          "instruction_rva": "0x4980d5",
+          "bytes": "e8b6b31f00",
+          "callee_rva": "0x693490"
+        },
+        {
+          "instruction_rva": "0x4980dc",
+          "bytes": "e85f680000",
+          "callee_rva": "0x49e940"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x498ff0",
+      "size": 62,
+      "bytes": "56578bf1e817c5f6ff8b7e3085ff75098bcee8b9ccbbff8bf86a016a016a006a01e85ac20700508bcfe8623bffff5f5e85c074096a018bc8e8d3bd0800c3",
+      "sha256": "d7b71cb6d431954e42e053bae48a7ae53f945177b0bd17fec53a6141a8c9a4ba",
+      "decompiled_code": "\n// \n// Payoff254: d0013 continuation resolves optional Asla (SleepAlways) and calls524e00(1) only when\n// attached. It is not the public Stop command; do not fake a queued Stop to model guard return.\n\nvoid __fastcall Attack_HandleGuardSleepContinuation(int param_1)\n\n{\n  WC3UnitOrdersPrefix *self;\n  uint uVar1;\n  uint arg_08;\n  uint arg_0c;\n  uint arg_10;\n  uint arg_14;\n  \n  Ability_ClearActiveOwnership();\n  self = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  arg_14 = 1;\n  arg_10 = 1;\n  arg_0c = 0;\n  arg_08 = 1;\n  uVar1 = FUN_6f515270();\n  uVar1 = Unit_FindAbilityByClass(self,uVar1,arg_08,arg_0c,arg_10,arg_14);\n  if (uVar1 != 0) {\n    FUN_6f524e00(1);\n  }\n  return;\n}\n\n",
+      "disassembly": "00498ff0 <.data>:\n  498ff0:\t56                   \tpush   esi\n  498ff1:\t57                   \tpush   edi\n  498ff2:\t8b f1                \tmov    esi,ecx\n  498ff4:\te8 17 c5 f6 ff       \tcall   0x405510\n  498ff9:\t8b 7e 30             \tmov    edi,DWORD PTR [esi+0x30]\n  498ffc:\t85 ff                \ttest   edi,edi\n  498ffe:\t75 09                \tjne    0x499009\n  499000:\t8b ce                \tmov    ecx,esi\n  499002:\te8 b9 cc bb ff       \tcall   0x55cc0\n  499007:\t8b f8                \tmov    edi,eax\n  499009:\t6a 01                \tpush   0x1\n  49900b:\t6a 01                \tpush   0x1\n  49900d:\t6a 00                \tpush   0x0\n  49900f:\t6a 01                \tpush   0x1\n  499011:\te8 5a c2 07 00       \tcall   0x515270\n  499016:\t50                   \tpush   eax\n  499017:\t8b cf                \tmov    ecx,edi\n  499019:\te8 62 3b ff ff       \tcall   0x48cb80\n  49901e:\t5f                   \tpop    edi\n  49901f:\t5e                   \tpop    esi\n  499020:\t85 c0                \ttest   eax,eax\n  499022:\t74 09                \tje     0x49902d\n  499024:\t6a 01                \tpush   0x1\n  499026:\t8b c8                \tmov    ecx,eax\n  499028:\te8 d3 bd 08 00       \tcall   0x524e00\n  49902d:\tc3                   \tret",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x498ff4",
+          "bytes": "e817c5f6ff",
+          "callee_rva": "0x405510"
+        },
+        {
+          "instruction_rva": "0x499002",
+          "bytes": "e8b9ccbbff",
+          "callee_rva": "0x55cc0"
+        },
+        {
+          "instruction_rva": "0x499011",
+          "bytes": "e85ac20700",
+          "callee_rva": "0x515270"
+        },
+        {
+          "instruction_rva": "0x499019",
+          "bytes": "e8623bffff",
+          "callee_rva": "0x48cb80"
+        },
+        {
+          "instruction_rva": "0x499028",
+          "bytes": "e8d3bd0800",
+          "callee_rva": "0x524e00"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49e940",
+      "size": 51,
+      "bytes": "56578bf98b773085f67507e87073bbff8bf08b168bceff92ec00000083f80c7d0ff646600475098bcf5f5ee9c0b9ffff5f5ec3",
+      "sha256": "ec2b8a5e5c3e2a63ef8da56c3187ef06cf12a699e3a0d98aad1c64dd7d7c94d9",
+      "decompiled_code": "\nvoid __fastcall FUN_6f49e940(int param_1)\n\n{\n  int *piVar1;\n  int iVar2;\n  \n  piVar1 = *(int **)(param_1 + 0x30);\n  if (piVar1 == (int *)0x0) {\n    piVar1 = (int *)FUN_6f055cc0();\n  }\n  iVar2 = (**(code **)(*piVar1 + 0xec))();\n  if ((iVar2 < 0xc) && ((*(byte *)(piVar1 + 0x18) & 4) == 0)) {\n    Attack_CancelGuardEvaluation();\n    return;\n  }\n  return;\n}\n\n",
+      "disassembly": "0049e940 <.data>:\n  49e940:\t56                   \tpush   esi\n  49e941:\t57                   \tpush   edi\n  49e942:\t8b f9                \tmov    edi,ecx\n  49e944:\t8b 77 30             \tmov    esi,DWORD PTR [edi+0x30]\n  49e947:\t85 f6                \ttest   esi,esi\n  49e949:\t75 07                \tjne    0x49e952\n  49e94b:\te8 70 73 bb ff       \tcall   0x55cc0\n  49e950:\t8b f0                \tmov    esi,eax\n  49e952:\t8b 16                \tmov    edx,DWORD PTR [esi]\n  49e954:\t8b ce                \tmov    ecx,esi\n  49e956:\tff 92 ec 00 00 00    \tcall   DWORD PTR [edx+0xec]\n  49e95c:\t83 f8 0c             \tcmp    eax,0xc\n  49e95f:\t7d 0f                \tjge    0x49e970\n  49e961:\tf6 46 60 04          \ttest   BYTE PTR [esi+0x60],0x4\n  49e965:\t75 09                \tjne    0x49e970\n  49e967:\t8b cf                \tmov    ecx,edi\n  49e969:\t5f                   \tpop    edi\n  49e96a:\t5e                   \tpop    esi\n  49e96b:\te9 c0 b9 ff ff       \tjmp    0x49a330\n  49e970:\t5f                   \tpop    edi\n  49e971:\t5e                   \tpop    esi\n  49e972:\tc3                   \tret",
+      "verified_E8_calls": [
+        {
+          "instruction_rva": "0x49e94b",
+          "bytes": "e87073bbff",
+          "callee_rva": "0x55cc0"
+        }
+      ]
+    },
+    {
+      "function_rva": "0x49a330",
+      "scope": "entry through first RET at49a346; verified original raw bytes",
+      "bytes": "568bf18d8e80020000e88263bcff816620fffbfffd5ec3",
+      "sha256": "b4e0ffa6a4c3bf402d84995d727b2fde1cf1944fb93329388ba34c1e2091f458",
+      "disassembly": "0049a330 <.data>:\n  49a330:\t56                   \tpush   esi\n  49a331:\t8b f1                \tmov    esi,ecx\n  49a333:\t8d 8e 80 02 00 00    \tlea    ecx,[esi+0x280]\n  49a339:\te8 82 63 bc ff       \tcall   0x606c0\n  49a33e:\t81 66 20 ff fb ff fd \tand    DWORD PTR [esi+0x20],0xfdfffbff\n  49a345:\t5e                   \tpop    esi\n  49a346:\tc3                   \tret"
+    }
+  ],
+  "move_constructor_tail": {
+    "function_rva": "0x5fd270",
+    "window_start_rva": "0x5fd270",
+    "window_end_exclusive_rva": "0x5fd9de",
+    "bytes": "558bec6aff68a89ca46f64a1000000005083ec44535657a19c68ce6f33c5508d45f464a300000000894df08b450833f68975e08b580c8975fc85db7426e80e7808008b138bcb8bf8ff521c8bd78bc8e80cfba4ff85c08b45087408ff43048bf38975e0c745fc0100000085f60f84fc0600008b40088d4db08945e8e8905a0a008d45b08bce50e8c57608008945dc85c0740933ff33c08945e4eb1a8bcee8ae9808008bce8bf8e8759608008bce8945e4e82b9508008945ec8b45f08b583085db75098bc8e88789a5ff8bd885ff742b3bfb7425f7475c00010000751cf64720017516f6435c0475126a046a01578bcbe86c2a070085c0750233ff8b4df0e83ed2ffff6a008bcbe8255409006812000d006866010d008bcbe8f44f09006848010d008bcbe8884b0900684a010d008bcbe87c4b0900837d0c00744a817e2414000d00754d8d4508508d8bb8000000e87eaca5fff30f1045080f2e0544c7d36f9ff6c4447b178b4330c1e81883c0bf83f819771ef7435c000000407515c7450c00000000eb0c6865010d008bcbe8204b090085ff74166a016a016a006a0068707277418bcfe868f7e8ffeb0233c0837ddc0089450874478d45b08bcb506812000d006861010d00e8465009008b45c48bce8945088b45c0894510e8c38b0800506844c7d36f8d45088bcb508d451050686e010d00e8b94c0900e90505000085c0746a8bc8e829e4e3ff85c0745f8b4d088d45d850e8297ae1ff8bcee8828b0800506844c7d36f8d45dc8bcb508d45d850686b010d00e8784c09008b46508bce8945088b4648894510e8558b0800506844c7d36f8d45088bcb508d451050686b010d00e84b4c0900e99704000085ff0f84190300006a046a00578bcbe8e228070085c00f8405030000f787480200000004000074328b46508bce8945088b4648894510e8fb8a0800506844c7d36f8d45088bcb508d451050686b010d00e8f14b0900e93d040000f64360020f84900000008bcfe87b8a08008d8800010000e8f094a5ff85c0757a8bcee8d5940800506844c7d36f576873010d008bcbe84251090083bfec01000000754b8d45c88bcf508b07ff90b80000008bc8e874b3a5ff8b45c88bcb8945d88b45cc6a078945dce8ff5109008bcee8688a0800506844c7d36f8d45dc8bcb508d45d850686b010d00e85e4b0900c7450c00000000e9a3030000837d10000f852a020000f7475c000000080f851d02000083bfec010000000f84100200008bcfe8c78908008d8800010000e83c94a5ff85c00f85f6010000578bcbe84ce708006a018bcf8945e4e870eb0800ba80fca76f6a0085c0741268ac2ab66f8d4d10e808a2a4ff8d4510eb1068a02ab66f8d4ddce8f6a1a4ff8d45dc8b008bcf8945088945ec8b076a01c7451000000000ff90b8000000508d45088bcb508b03ff90b80000008bc8e802dfa5ff85c074438b078bcf6a01ff90b8000000508d45108bcb508b03ff90b80000008bc8e8ccd7a5ff8b00c74510010000008d88000000ff33c88d90000080ffc1f91ff7d123ca894dec837de4000f85aa000000837d0c000f85bf0000008b45e83d03000d0074123d02000d00740b3d16000d000f85a30000008b4df0e8e3ceffff6a006844c7d36f6a006893010d008bcbe89e4f09008bcee817930800508d45088bcb50576873010d00e8854f09006a078bcbe86c5009006a006844c7d36f576893010d008bcbe8684f09006848010d008bcbe8cc4709008bcee8d5920800508d45ec8bcb50576874010d00e8434f0900c7450c00000000e9f80100008b45e83d03000d0074073d0f000d00750ec7451001000000c7450c010000008bcee891920800508d45088bcb50576873010d00e8ff4e0900837d10000f84b6010000837d0c0074136848010d008bcbe853470900c7450c000000006a078bcbe8c34f09008bcee84c920800508d45ec8bcb50576874010d00e8ba4e0900e9760100008b7dec85ff741f8bcee827920800506844c7d36f576874010d008bcbe8944e0900e9500100008b4de485c90f84a40000008d45c8508b01ff90b80000008bc8e8c1b0a5ff8b45c88d4d088945d4ba80fca76f8b45cc6a008945d88b45d068c42ab66f8945dce8db9fa4ff8bcee8a4870800508d45088bcb508d45d8508d45d450686c010d00e89b480900f6435c040f84e20000006a046a008d45d88bcb508d45d450e83ecfdfff85c00f85c70000008bcee85f870800506844c7d36f8d45d88bcb508d45d450686e010d00e855480900e9a10000008bcee8398f0800508d4d08e8403fe9ff837d08008bcec645fc027446e83f9108008b7d0885c0741c8bcee831910800506844c7d36f576870010d008bcbe89e4d0900eb496a00538d45108bcf50e8cead3d0050576870010d008bcbe8804d0900eb2b8b46508945108b46488945dce8cd860800506844c7d36f8d45108bcb508d45dc50686b010d00e8c34709008b4d08c645fc0185c97409ff490475048b01ff10684e010d008bcbe8a3450900837d0c008bcb74076848010d00eb2c8b03ff90ec00000083f80c7c0c684f010d008bcbe87b450900684c010d008bcbe86f4509006865010d008bcbe8634509006878010d008bcbe8574509006844010d008bcbe84b4509006a078bcbe8c24d0900",
+    "sha256": "e8662eafe5f8b7add93438523cc4a8f9976553fab6c6dc892345950c4802ccb6",
+    "disassembly": "005fd270 <.data>:\n  5fd270:\t55                   \tpush   ebp\n  5fd271:\t8b ec                \tmov    ebp,esp\n  5fd273:\t6a ff                \tpush   0xffffffff\n  5fd275:\t68 a8 9c a4 6f       \tpush   0x6fa49ca8\n  5fd27a:\t64 a1 00 00 00 00    \tmov    eax,fs:0x0\n  5fd280:\t50                   \tpush   eax\n  5fd281:\t83 ec 44             \tsub    esp,0x44\n  5fd284:\t53                   \tpush   ebx\n  5fd285:\t56                   \tpush   esi\n  5fd286:\t57                   \tpush   edi\n  5fd287:\ta1 9c 68 ce 6f       \tmov    eax,ds:0x6fce689c\n  5fd28c:\t33 c5                \txor    eax,ebp\n  5fd28e:\t50                   \tpush   eax\n  5fd28f:\t8d 45 f4             \tlea    eax,[ebp-0xc]\n  5fd292:\t64 a3 00 00 00 00    \tmov    fs:0x0,eax\n  5fd298:\t89 4d f0             \tmov    DWORD PTR [ebp-0x10],ecx\n  5fd29b:\t8b 45 08             \tmov    eax,DWORD PTR [ebp+0x8]\n  5fd29e:\t33 f6                \txor    esi,esi\n  5fd2a0:\t89 75 e0             \tmov    DWORD PTR [ebp-0x20],esi\n  5fd2a3:\t8b 58 0c             \tmov    ebx,DWORD PTR [eax+0xc]\n  5fd2a6:\t89 75 fc             \tmov    DWORD PTR [ebp-0x4],esi\n  5fd2a9:\t85 db                \ttest   ebx,ebx\n  5fd2ab:\t74 26                \tje     0x5fd2d3\n  5fd2ad:\te8 0e 78 08 00       \tcall   0x684ac0\n  5fd2b2:\t8b 13                \tmov    edx,DWORD PTR [ebx]\n  5fd2b4:\t8b cb                \tmov    ecx,ebx\n  5fd2b6:\t8b f8                \tmov    edi,eax\n  5fd2b8:\tff 52 1c             \tcall   DWORD PTR [edx+0x1c]\n  5fd2bb:\t8b d7                \tmov    edx,edi\n  5fd2bd:\t8b c8                \tmov    ecx,eax\n  5fd2bf:\te8 0c fb a4 ff       \tcall   0x4cdd0\n  5fd2c4:\t85 c0                \ttest   eax,eax\n  5fd2c6:\t8b 45 08             \tmov    eax,DWORD PTR [ebp+0x8]\n  5fd2c9:\t74 08                \tje     0x5fd2d3\n  5fd2cb:\tff 43 04             \tinc    DWORD PTR [ebx+0x4]\n  5fd2ce:\t8b f3                \tmov    esi,ebx\n  5fd2d0:\t89 75 e0             \tmov    DWORD PTR [ebp-0x20],esi\n  5fd2d3:\tc7 45 fc 01 00 00 00 \tmov    DWORD PTR [ebp-0x4],0x1\n  5fd2da:\t85 f6                \ttest   esi,esi\n  5fd2dc:\t0f 84 fc 06 00 00    \tje     0x5fd9de\n  5fd2e2:\t8b 40 08             \tmov    eax,DWORD PTR [eax+0x8]\n  5fd2e5:\t8d 4d b0             \tlea    ecx,[ebp-0x50]\n  5fd2e8:\t89 45 e8             \tmov    DWORD PTR [ebp-0x18],eax\n  5fd2eb:\te8 90 5a 0a 00       \tcall   0x6a2d80\n  5fd2f0:\t8d 45 b0             \tlea    eax,[ebp-0x50]\n  5fd2f3:\t8b ce                \tmov    ecx,esi\n  5fd2f5:\t50                   \tpush   eax\n  5fd2f6:\te8 c5 76 08 00       \tcall   0x6849c0\n  5fd2fb:\t89 45 dc             \tmov    DWORD PTR [ebp-0x24],eax\n  5fd2fe:\t85 c0                \ttest   eax,eax\n  5fd300:\t74 09                \tje     0x5fd30b\n  5fd302:\t33 ff                \txor    edi,edi\n  5fd304:\t33 c0                \txor    eax,eax\n  5fd306:\t89 45 e4             \tmov    DWORD PTR [ebp-0x1c],eax\n  5fd309:\teb 1a                \tjmp    0x5fd325\n  5fd30b:\t8b ce                \tmov    ecx,esi\n  5fd30d:\te8 ae 98 08 00       \tcall   0x686bc0\n  5fd312:\t8b ce                \tmov    ecx,esi\n  5fd314:\t8b f8                \tmov    edi,eax\n  5fd316:\te8 75 96 08 00       \tcall   0x686990\n  5fd31b:\t8b ce                \tmov    ecx,esi\n  5fd31d:\t89 45 e4             \tmov    DWORD PTR [ebp-0x1c],eax\n  5fd320:\te8 2b 95 08 00       \tcall   0x686850\n  5fd325:\t89 45 ec             \tmov    DWORD PTR [ebp-0x14],eax\n  5fd328:\t8b 45 f0             \tmov    eax,DWORD PTR [ebp-0x10]\n  5fd32b:\t8b 58 30             \tmov    ebx,DWORD PTR [eax+0x30]\n  5fd32e:\t85 db                \ttest   ebx,ebx\n  5fd330:\t75 09                \tjne    0x5fd33b\n  5fd332:\t8b c8                \tmov    ecx,eax\n  5fd334:\te8 87 89 a5 ff       \tcall   0x55cc0\n  5fd339:\t8b d8                \tmov    ebx,eax\n  5fd33b:\t85 ff                \ttest   edi,edi\n  5fd33d:\t74 2b                \tje     0x5fd36a\n  5fd33f:\t3b fb                \tcmp    edi,ebx\n  5fd341:\t74 25                \tje     0x5fd368\n  5fd343:\tf7 47 5c 00 01 00 00 \ttest   DWORD PTR [edi+0x5c],0x100\n  5fd34a:\t75 1c                \tjne    0x5fd368\n  5fd34c:\tf6 47 20 01          \ttest   BYTE PTR [edi+0x20],0x1\n  5fd350:\t75 16                \tjne    0x5fd368\n  5fd352:\tf6 43 5c 04          \ttest   BYTE PTR [ebx+0x5c],0x4\n  5fd356:\t75 12                \tjne    0x5fd36a\n  5fd358:\t6a 04                \tpush   0x4\n  5fd35a:\t6a 01                \tpush   0x1\n  5fd35c:\t57                   \tpush   edi\n  5fd35d:\t8b cb                \tmov    ecx,ebx\n  5fd35f:\te8 6c 2a 07 00       \tcall   0x66fdd0\n  5fd364:\t85 c0                \ttest   eax,eax\n  5fd366:\t75 02                \tjne    0x5fd36a\n  5fd368:\t33 ff                \txor    edi,edi\n  5fd36a:\t8b 4d f0             \tmov    ecx,DWORD PTR [ebp-0x10]\n  5fd36d:\te8 3e d2 ff ff       \tcall   0x5fa5b0\n  5fd372:\t6a 00                \tpush   0x0\n  5fd374:\t8b cb                \tmov    ecx,ebx\n  5fd376:\te8 25 54 09 00       \tcall   0x6927a0\n  5fd37b:\t68 12 00 0d 00       \tpush   0xd0012\n  5fd380:\t68 66 01 0d 00       \tpush   0xd0166\n  5fd385:\t8b cb                \tmov    ecx,ebx\n  5fd387:\te8 f4 4f 09 00       \tcall   0x692380\n  5fd38c:\t68 48 01 0d 00       \tpush   0xd0148\n  5fd391:\t8b cb                \tmov    ecx,ebx\n  5fd393:\te8 88 4b 09 00       \tcall   0x691f20\n  5fd398:\t68 4a 01 0d 00       \tpush   0xd014a\n  5fd39d:\t8b cb                \tmov    ecx,ebx\n  5fd39f:\te8 7c 4b 09 00       \tcall   0x691f20\n  5fd3a4:\t83 7d 0c 00          \tcmp    DWORD PTR [ebp+0xc],0x0\n  5fd3a8:\t74 4a                \tje     0x5fd3f4\n  5fd3aa:\t81 7e 24 14 00 0d 00 \tcmp    DWORD PTR [esi+0x24],0xd0014\n  5fd3b1:\t75 4d                \tjne    0x5fd400\n  5fd3b3:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd3b6:\t50                   \tpush   eax\n  5fd3b7:\t8d 8b b8 00 00 00    \tlea    ecx,[ebx+0xb8]\n  5fd3bd:\te8 7e ac a5 ff       \tcall   0x58040\n  5fd3c2:\tf3 0f 10 45 08       \tmovss  xmm0,DWORD PTR [ebp+0x8]\n  5fd3c7:\t0f 2e 05 44 c7 d3 6f \tucomiss xmm0,DWORD PTR ds:0x6fd3c744\n  5fd3ce:\t9f                   \tlahf\n  5fd3cf:\tf6 c4 44             \ttest   ah,0x44\n  5fd3d2:\t7b 17                \tjnp    0x5fd3eb\n  5fd3d4:\t8b 43 30             \tmov    eax,DWORD PTR [ebx+0x30]\n  5fd3d7:\tc1 e8 18             \tshr    eax,0x18\n  5fd3da:\t83 c0 bf             \tadd    eax,0xffffffbf\n  5fd3dd:\t83 f8 19             \tcmp    eax,0x19\n  5fd3e0:\t77 1e                \tja     0x5fd400\n  5fd3e2:\tf7 43 5c 00 00 00 40 \ttest   DWORD PTR [ebx+0x5c],0x40000000\n  5fd3e9:\t75 15                \tjne    0x5fd400\n  5fd3eb:\tc7 45 0c 00 00 00 00 \tmov    DWORD PTR [ebp+0xc],0x0\n  5fd3f2:\teb 0c                \tjmp    0x5fd400\n  5fd3f4:\t68 65 01 0d 00       \tpush   0xd0165\n  5fd3f9:\t8b cb                \tmov    ecx,ebx\n  5fd3fb:\te8 20 4b 09 00       \tcall   0x691f20\n  5fd400:\t85 ff                \ttest   edi,edi\n  5fd402:\t74 16                \tje     0x5fd41a\n  5fd404:\t6a 01                \tpush   0x1\n  5fd406:\t6a 01                \tpush   0x1\n  5fd408:\t6a 00                \tpush   0x0\n  5fd40a:\t6a 00                \tpush   0x0\n  5fd40c:\t68 70 72 77 41       \tpush   0x41777270\n  5fd411:\t8b cf                \tmov    ecx,edi\n  5fd413:\te8 68 f7 e8 ff       \tcall   0x48cb80\n  5fd418:\teb 02                \tjmp    0x5fd41c\n  5fd41a:\t33 c0                \txor    eax,eax\n  5fd41c:\t83 7d dc 00          \tcmp    DWORD PTR [ebp-0x24],0x0\n  5fd420:\t89 45 08             \tmov    DWORD PTR [ebp+0x8],eax\n  5fd423:\t74 47                \tje     0x5fd46c\n  5fd425:\t8d 45 b0             \tlea    eax,[ebp-0x50]\n  5fd428:\t8b cb                \tmov    ecx,ebx\n  5fd42a:\t50                   \tpush   eax\n  5fd42b:\t68 12 00 0d 00       \tpush   0xd0012\n  5fd430:\t68 61 01 0d 00       \tpush   0xd0161\n  5fd435:\te8 46 50 09 00       \tcall   0x692480\n  5fd43a:\t8b 45 c4             \tmov    eax,DWORD PTR [ebp-0x3c]\n  5fd43d:\t8b ce                \tmov    ecx,esi\n  5fd43f:\t89 45 08             \tmov    DWORD PTR [ebp+0x8],eax\n  5fd442:\t8b 45 c0             \tmov    eax,DWORD PTR [ebp-0x40]\n  5fd445:\t89 45 10             \tmov    DWORD PTR [ebp+0x10],eax\n  5fd448:\te8 c3 8b 08 00       \tcall   0x686010\n  5fd44d:\t50                   \tpush   eax\n  5fd44e:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd453:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd456:\t8b cb                \tmov    ecx,ebx\n  5fd458:\t50                   \tpush   eax\n  5fd459:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd45c:\t50                   \tpush   eax\n  5fd45d:\t68 6e 01 0d 00       \tpush   0xd016e\n  5fd462:\te8 b9 4c 09 00       \tcall   0x692120\n  5fd467:\te9 05 05 00 00       \tjmp    0x5fd971\n  5fd46c:\t85 c0                \ttest   eax,eax\n  5fd46e:\t74 6a                \tje     0x5fd4da\n  5fd470:\t8b c8                \tmov    ecx,eax\n  5fd472:\te8 29 e4 e3 ff       \tcall   0x43b8a0\n  5fd477:\t85 c0                \ttest   eax,eax\n  5fd479:\t74 5f                \tje     0x5fd4da\n  5fd47b:\t8b 4d 08             \tmov    ecx,DWORD PTR [ebp+0x8]\n  5fd47e:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd481:\t50                   \tpush   eax\n  5fd482:\te8 29 7a e1 ff       \tcall   0x414eb0\n  5fd487:\t8b ce                \tmov    ecx,esi\n  5fd489:\te8 82 8b 08 00       \tcall   0x686010\n  5fd48e:\t50                   \tpush   eax\n  5fd48f:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd494:\t8d 45 dc             \tlea    eax,[ebp-0x24]\n  5fd497:\t8b cb                \tmov    ecx,ebx\n  5fd499:\t50                   \tpush   eax\n  5fd49a:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd49d:\t50                   \tpush   eax\n  5fd49e:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fd4a3:\te8 78 4c 09 00       \tcall   0x692120\n  5fd4a8:\t8b 46 50             \tmov    eax,DWORD PTR [esi+0x50]\n  5fd4ab:\t8b ce                \tmov    ecx,esi\n  5fd4ad:\t89 45 08             \tmov    DWORD PTR [ebp+0x8],eax\n  5fd4b0:\t8b 46 48             \tmov    eax,DWORD PTR [esi+0x48]\n  5fd4b3:\t89 45 10             \tmov    DWORD PTR [ebp+0x10],eax\n  5fd4b6:\te8 55 8b 08 00       \tcall   0x686010\n  5fd4bb:\t50                   \tpush   eax\n  5fd4bc:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd4c1:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd4c4:\t8b cb                \tmov    ecx,ebx\n  5fd4c6:\t50                   \tpush   eax\n  5fd4c7:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd4ca:\t50                   \tpush   eax\n  5fd4cb:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fd4d0:\te8 4b 4c 09 00       \tcall   0x692120\n  5fd4d5:\te9 97 04 00 00       \tjmp    0x5fd971\n  5fd4da:\t85 ff                \ttest   edi,edi\n  5fd4dc:\t0f 84 19 03 00 00    \tje     0x5fd7fb\n  5fd4e2:\t6a 04                \tpush   0x4\n  5fd4e4:\t6a 00                \tpush   0x0\n  5fd4e6:\t57                   \tpush   edi\n  5fd4e7:\t8b cb                \tmov    ecx,ebx\n  5fd4e9:\te8 e2 28 07 00       \tcall   0x66fdd0\n  5fd4ee:\t85 c0                \ttest   eax,eax\n  5fd4f0:\t0f 84 05 03 00 00    \tje     0x5fd7fb\n  5fd4f6:\tf7 87 48 02 00 00 00 \ttest   DWORD PTR [edi+0x248],0x400\n  5fd4fd:\t04 00 00 \n  5fd500:\t74 32                \tje     0x5fd534\n  5fd502:\t8b 46 50             \tmov    eax,DWORD PTR [esi+0x50]\n  5fd505:\t8b ce                \tmov    ecx,esi\n  5fd507:\t89 45 08             \tmov    DWORD PTR [ebp+0x8],eax\n  5fd50a:\t8b 46 48             \tmov    eax,DWORD PTR [esi+0x48]\n  5fd50d:\t89 45 10             \tmov    DWORD PTR [ebp+0x10],eax\n  5fd510:\te8 fb 8a 08 00       \tcall   0x686010\n  5fd515:\t50                   \tpush   eax\n  5fd516:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd51b:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd51e:\t8b cb                \tmov    ecx,ebx\n  5fd520:\t50                   \tpush   eax\n  5fd521:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd524:\t50                   \tpush   eax\n  5fd525:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fd52a:\te8 f1 4b 09 00       \tcall   0x692120\n  5fd52f:\te9 3d 04 00 00       \tjmp    0x5fd971\n  5fd534:\tf6 43 60 02          \ttest   BYTE PTR [ebx+0x60],0x2\n  5fd538:\t0f 84 90 00 00 00    \tje     0x5fd5ce\n  5fd53e:\t8b cf                \tmov    ecx,edi\n  5fd540:\te8 7b 8a 08 00       \tcall   0x685fc0\n  5fd545:\t8d 88 00 01 00 00    \tlea    ecx,[eax+0x100]\n  5fd54b:\te8 f0 94 a5 ff       \tcall   0x56a40\n  5fd550:\t85 c0                \ttest   eax,eax\n  5fd552:\t75 7a                \tjne    0x5fd5ce\n  5fd554:\t8b ce                \tmov    ecx,esi\n  5fd556:\te8 d5 94 08 00       \tcall   0x686a30\n  5fd55b:\t50                   \tpush   eax\n  5fd55c:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd561:\t57                   \tpush   edi\n  5fd562:\t68 73 01 0d 00       \tpush   0xd0173\n  5fd567:\t8b cb                \tmov    ecx,ebx\n  5fd569:\te8 42 51 09 00       \tcall   0x6926b0\n  5fd56e:\t83 bf ec 01 00 00 00 \tcmp    DWORD PTR [edi+0x1ec],0x0\n  5fd575:\t75 4b                \tjne    0x5fd5c2\n  5fd577:\t8d 45 c8             \tlea    eax,[ebp-0x38]\n  5fd57a:\t8b cf                \tmov    ecx,edi\n  5fd57c:\t50                   \tpush   eax\n  5fd57d:\t8b 07                \tmov    eax,DWORD PTR [edi]\n  5fd57f:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd585:\t8b c8                \tmov    ecx,eax\n  5fd587:\te8 74 b3 a5 ff       \tcall   0x58900\n  5fd58c:\t8b 45 c8             \tmov    eax,DWORD PTR [ebp-0x38]\n  5fd58f:\t8b cb                \tmov    ecx,ebx\n  5fd591:\t89 45 d8             \tmov    DWORD PTR [ebp-0x28],eax\n  5fd594:\t8b 45 cc             \tmov    eax,DWORD PTR [ebp-0x34]\n  5fd597:\t6a 07                \tpush   0x7\n  5fd599:\t89 45 dc             \tmov    DWORD PTR [ebp-0x24],eax\n  5fd59c:\te8 ff 51 09 00       \tcall   0x6927a0\n  5fd5a1:\t8b ce                \tmov    ecx,esi\n  5fd5a3:\te8 68 8a 08 00       \tcall   0x686010\n  5fd5a8:\t50                   \tpush   eax\n  5fd5a9:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd5ae:\t8d 45 dc             \tlea    eax,[ebp-0x24]\n  5fd5b1:\t8b cb                \tmov    ecx,ebx\n  5fd5b3:\t50                   \tpush   eax\n  5fd5b4:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd5b7:\t50                   \tpush   eax\n  5fd5b8:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fd5bd:\te8 5e 4b 09 00       \tcall   0x692120\n  5fd5c2:\tc7 45 0c 00 00 00 00 \tmov    DWORD PTR [ebp+0xc],0x0\n  5fd5c9:\te9 a3 03 00 00       \tjmp    0x5fd971\n  5fd5ce:\t83 7d 10 00          \tcmp    DWORD PTR [ebp+0x10],0x0\n  5fd5d2:\t0f 85 2a 02 00 00    \tjne    0x5fd802\n  5fd5d8:\tf7 47 5c 00 00 00 08 \ttest   DWORD PTR [edi+0x5c],0x8000000\n  5fd5df:\t0f 85 1d 02 00 00    \tjne    0x5fd802\n  5fd5e5:\t83 bf ec 01 00 00 00 \tcmp    DWORD PTR [edi+0x1ec],0x0\n  5fd5ec:\t0f 84 10 02 00 00    \tje     0x5fd802\n  5fd5f2:\t8b cf                \tmov    ecx,edi\n  5fd5f4:\te8 c7 89 08 00       \tcall   0x685fc0\n  5fd5f9:\t8d 88 00 01 00 00    \tlea    ecx,[eax+0x100]\n  5fd5ff:\te8 3c 94 a5 ff       \tcall   0x56a40\n  5fd604:\t85 c0                \ttest   eax,eax\n  5fd606:\t0f 85 f6 01 00 00    \tjne    0x5fd802\n  5fd60c:\t57                   \tpush   edi\n  5fd60d:\t8b cb                \tmov    ecx,ebx\n  5fd60f:\te8 4c e7 08 00       \tcall   0x68bd60\n  5fd614:\t6a 01                \tpush   0x1\n  5fd616:\t8b cf                \tmov    ecx,edi\n  5fd618:\t89 45 e4             \tmov    DWORD PTR [ebp-0x1c],eax\n  5fd61b:\te8 70 eb 08 00       \tcall   0x68c190\n  5fd620:\tba 80 fc a7 6f       \tmov    edx,0x6fa7fc80\n  5fd625:\t6a 00                \tpush   0x0\n  5fd627:\t85 c0                \ttest   eax,eax\n  5fd629:\t74 12                \tje     0x5fd63d\n  5fd62b:\t68 ac 2a b6 6f       \tpush   0x6fb62aac\n  5fd630:\t8d 4d 10             \tlea    ecx,[ebp+0x10]\n  5fd633:\te8 08 a2 a4 ff       \tcall   0x47840\n  5fd638:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd63b:\teb 10                \tjmp    0x5fd64d\n  5fd63d:\t68 a0 2a b6 6f       \tpush   0x6fb62aa0\n  5fd642:\t8d 4d dc             \tlea    ecx,[ebp-0x24]\n  5fd645:\te8 f6 a1 a4 ff       \tcall   0x47840\n  5fd64a:\t8d 45 dc             \tlea    eax,[ebp-0x24]\n  5fd64d:\t8b 00                \tmov    eax,DWORD PTR [eax]\n  5fd64f:\t8b cf                \tmov    ecx,edi\n  5fd651:\t89 45 08             \tmov    DWORD PTR [ebp+0x8],eax\n  5fd654:\t89 45 ec             \tmov    DWORD PTR [ebp-0x14],eax\n  5fd657:\t8b 07                \tmov    eax,DWORD PTR [edi]\n  5fd659:\t6a 01                \tpush   0x1\n  5fd65b:\tc7 45 10 00 00 00 00 \tmov    DWORD PTR [ebp+0x10],0x0\n  5fd662:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd668:\t50                   \tpush   eax\n  5fd669:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd66c:\t8b cb                \tmov    ecx,ebx\n  5fd66e:\t50                   \tpush   eax\n  5fd66f:\t8b 03                \tmov    eax,DWORD PTR [ebx]\n  5fd671:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd677:\t8b c8                \tmov    ecx,eax\n  5fd679:\te8 02 df a5 ff       \tcall   0x5b580\n  5fd67e:\t85 c0                \ttest   eax,eax\n  5fd680:\t74 43                \tje     0x5fd6c5\n  5fd682:\t8b 07                \tmov    eax,DWORD PTR [edi]\n  5fd684:\t8b cf                \tmov    ecx,edi\n  5fd686:\t6a 01                \tpush   0x1\n  5fd688:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd68e:\t50                   \tpush   eax\n  5fd68f:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd692:\t8b cb                \tmov    ecx,ebx\n  5fd694:\t50                   \tpush   eax\n  5fd695:\t8b 03                \tmov    eax,DWORD PTR [ebx]\n  5fd697:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd69d:\t8b c8                \tmov    ecx,eax\n  5fd69f:\te8 cc d7 a5 ff       \tcall   0x5ae70\n  5fd6a4:\t8b 00                \tmov    eax,DWORD PTR [eax]\n  5fd6a6:\tc7 45 10 01 00 00 00 \tmov    DWORD PTR [ebp+0x10],0x1\n  5fd6ad:\t8d 88 00 00 00 ff    \tlea    ecx,[eax-0x1000000]\n  5fd6b3:\t33 c8                \txor    ecx,eax\n  5fd6b5:\t8d 90 00 00 80 ff    \tlea    edx,[eax-0x800000]\n  5fd6bb:\tc1 f9 1f             \tsar    ecx,0x1f\n  5fd6be:\tf7 d1                \tnot    ecx\n  5fd6c0:\t23 ca                \tand    ecx,edx\n  5fd6c2:\t89 4d ec             \tmov    DWORD PTR [ebp-0x14],ecx\n  5fd6c5:\t83 7d e4 00          \tcmp    DWORD PTR [ebp-0x1c],0x0\n  5fd6c9:\t0f 85 aa 00 00 00    \tjne    0x5fd779\n  5fd6cf:\t83 7d 0c 00          \tcmp    DWORD PTR [ebp+0xc],0x0\n  5fd6d3:\t0f 85 bf 00 00 00    \tjne    0x5fd798\n  5fd6d9:\t8b 45 e8             \tmov    eax,DWORD PTR [ebp-0x18]\n  5fd6dc:\t3d 03 00 0d 00       \tcmp    eax,0xd0003\n  5fd6e1:\t74 12                \tje     0x5fd6f5\n  5fd6e3:\t3d 02 00 0d 00       \tcmp    eax,0xd0002\n  5fd6e8:\t74 0b                \tje     0x5fd6f5\n  5fd6ea:\t3d 16 00 0d 00       \tcmp    eax,0xd0016\n  5fd6ef:\t0f 85 a3 00 00 00    \tjne    0x5fd798\n  5fd6f5:\t8b 4d f0             \tmov    ecx,DWORD PTR [ebp-0x10]\n  5fd6f8:\te8 e3 ce ff ff       \tcall   0x5fa5e0\n  5fd6fd:\t6a 00                \tpush   0x0\n  5fd6ff:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd704:\t6a 00                \tpush   0x0\n  5fd706:\t68 93 01 0d 00       \tpush   0xd0193\n  5fd70b:\t8b cb                \tmov    ecx,ebx\n  5fd70d:\te8 9e 4f 09 00       \tcall   0x6926b0\n  5fd712:\t8b ce                \tmov    ecx,esi\n  5fd714:\te8 17 93 08 00       \tcall   0x686a30\n  5fd719:\t50                   \tpush   eax\n  5fd71a:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd71d:\t8b cb                \tmov    ecx,ebx\n  5fd71f:\t50                   \tpush   eax\n  5fd720:\t57                   \tpush   edi\n  5fd721:\t68 73 01 0d 00       \tpush   0xd0173\n  5fd726:\te8 85 4f 09 00       \tcall   0x6926b0\n  5fd72b:\t6a 07                \tpush   0x7\n  5fd72d:\t8b cb                \tmov    ecx,ebx\n  5fd72f:\te8 6c 50 09 00       \tcall   0x6927a0\n  5fd734:\t6a 00                \tpush   0x0\n  5fd736:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd73b:\t57                   \tpush   edi\n  5fd73c:\t68 93 01 0d 00       \tpush   0xd0193\n  5fd741:\t8b cb                \tmov    ecx,ebx\n  5fd743:\te8 68 4f 09 00       \tcall   0x6926b0\n  5fd748:\t68 48 01 0d 00       \tpush   0xd0148\n  5fd74d:\t8b cb                \tmov    ecx,ebx\n  5fd74f:\te8 cc 47 09 00       \tcall   0x691f20\n  5fd754:\t8b ce                \tmov    ecx,esi\n  5fd756:\te8 d5 92 08 00       \tcall   0x686a30\n  5fd75b:\t50                   \tpush   eax\n  5fd75c:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  5fd75f:\t8b cb                \tmov    ecx,ebx\n  5fd761:\t50                   \tpush   eax\n  5fd762:\t57                   \tpush   edi\n  5fd763:\t68 74 01 0d 00       \tpush   0xd0174\n  5fd768:\te8 43 4f 09 00       \tcall   0x6926b0\n  5fd76d:\tc7 45 0c 00 00 00 00 \tmov    DWORD PTR [ebp+0xc],0x0\n  5fd774:\te9 f8 01 00 00       \tjmp    0x5fd971\n  5fd779:\t8b 45 e8             \tmov    eax,DWORD PTR [ebp-0x18]\n  5fd77c:\t3d 03 00 0d 00       \tcmp    eax,0xd0003\n  5fd781:\t74 07                \tje     0x5fd78a\n  5fd783:\t3d 0f 00 0d 00       \tcmp    eax,0xd000f\n  5fd788:\t75 0e                \tjne    0x5fd798\n  5fd78a:\tc7 45 10 01 00 00 00 \tmov    DWORD PTR [ebp+0x10],0x1\n  5fd791:\tc7 45 0c 01 00 00 00 \tmov    DWORD PTR [ebp+0xc],0x1\n  5fd798:\t8b ce                \tmov    ecx,esi\n  5fd79a:\te8 91 92 08 00       \tcall   0x686a30\n  5fd79f:\t50                   \tpush   eax\n  5fd7a0:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd7a3:\t8b cb                \tmov    ecx,ebx\n  5fd7a5:\t50                   \tpush   eax\n  5fd7a6:\t57                   \tpush   edi\n  5fd7a7:\t68 73 01 0d 00       \tpush   0xd0173\n  5fd7ac:\te8 ff 4e 09 00       \tcall   0x6926b0\n  5fd7b1:\t83 7d 10 00          \tcmp    DWORD PTR [ebp+0x10],0x0\n  5fd7b5:\t0f 84 b6 01 00 00    \tje     0x5fd971\n  5fd7bb:\t83 7d 0c 00          \tcmp    DWORD PTR [ebp+0xc],0x0\n  5fd7bf:\t74 13                \tje     0x5fd7d4\n  5fd7c1:\t68 48 01 0d 00       \tpush   0xd0148\n  5fd7c6:\t8b cb                \tmov    ecx,ebx\n  5fd7c8:\te8 53 47 09 00       \tcall   0x691f20\n  5fd7cd:\tc7 45 0c 00 00 00 00 \tmov    DWORD PTR [ebp+0xc],0x0\n  5fd7d4:\t6a 07                \tpush   0x7\n  5fd7d6:\t8b cb                \tmov    ecx,ebx\n  5fd7d8:\te8 c3 4f 09 00       \tcall   0x6927a0\n  5fd7dd:\t8b ce                \tmov    ecx,esi\n  5fd7df:\te8 4c 92 08 00       \tcall   0x686a30\n  5fd7e4:\t50                   \tpush   eax\n  5fd7e5:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  5fd7e8:\t8b cb                \tmov    ecx,ebx\n  5fd7ea:\t50                   \tpush   eax\n  5fd7eb:\t57                   \tpush   edi\n  5fd7ec:\t68 74 01 0d 00       \tpush   0xd0174\n  5fd7f1:\te8 ba 4e 09 00       \tcall   0x6926b0\n  5fd7f6:\te9 76 01 00 00       \tjmp    0x5fd971\n  5fd7fb:\t8b 7d ec             \tmov    edi,DWORD PTR [ebp-0x14]\n  5fd7fe:\t85 ff                \ttest   edi,edi\n  5fd800:\t74 1f                \tje     0x5fd821\n  5fd802:\t8b ce                \tmov    ecx,esi\n  5fd804:\te8 27 92 08 00       \tcall   0x686a30\n  5fd809:\t50                   \tpush   eax\n  5fd80a:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd80f:\t57                   \tpush   edi\n  5fd810:\t68 74 01 0d 00       \tpush   0xd0174\n  5fd815:\t8b cb                \tmov    ecx,ebx\n  5fd817:\te8 94 4e 09 00       \tcall   0x6926b0\n  5fd81c:\te9 50 01 00 00       \tjmp    0x5fd971\n  5fd821:\t8b 4d e4             \tmov    ecx,DWORD PTR [ebp-0x1c]\n  5fd824:\t85 c9                \ttest   ecx,ecx\n  5fd826:\t0f 84 a4 00 00 00    \tje     0x5fd8d0\n  5fd82c:\t8d 45 c8             \tlea    eax,[ebp-0x38]\n  5fd82f:\t50                   \tpush   eax\n  5fd830:\t8b 01                \tmov    eax,DWORD PTR [ecx]\n  5fd832:\tff 90 b8 00 00 00    \tcall   DWORD PTR [eax+0xb8]\n  5fd838:\t8b c8                \tmov    ecx,eax\n  5fd83a:\te8 c1 b0 a5 ff       \tcall   0x58900\n  5fd83f:\t8b 45 c8             \tmov    eax,DWORD PTR [ebp-0x38]\n  5fd842:\t8d 4d 08             \tlea    ecx,[ebp+0x8]\n  5fd845:\t89 45 d4             \tmov    DWORD PTR [ebp-0x2c],eax\n  5fd848:\tba 80 fc a7 6f       \tmov    edx,0x6fa7fc80\n  5fd84d:\t8b 45 cc             \tmov    eax,DWORD PTR [ebp-0x34]\n  5fd850:\t6a 00                \tpush   0x0\n  5fd852:\t89 45 d8             \tmov    DWORD PTR [ebp-0x28],eax\n  5fd855:\t8b 45 d0             \tmov    eax,DWORD PTR [ebp-0x30]\n  5fd858:\t68 c4 2a b6 6f       \tpush   0x6fb62ac4\n  5fd85d:\t89 45 dc             \tmov    DWORD PTR [ebp-0x24],eax\n  5fd860:\te8 db 9f a4 ff       \tcall   0x47840\n  5fd865:\t8b ce                \tmov    ecx,esi\n  5fd867:\te8 a4 87 08 00       \tcall   0x686010\n  5fd86c:\t50                   \tpush   eax\n  5fd86d:\t8d 45 08             \tlea    eax,[ebp+0x8]\n  5fd870:\t8b cb                \tmov    ecx,ebx\n  5fd872:\t50                   \tpush   eax\n  5fd873:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd876:\t50                   \tpush   eax\n  5fd877:\t8d 45 d4             \tlea    eax,[ebp-0x2c]\n  5fd87a:\t50                   \tpush   eax\n  5fd87b:\t68 6c 01 0d 00       \tpush   0xd016c\n  5fd880:\te8 9b 48 09 00       \tcall   0x692120\n  5fd885:\tf6 43 5c 04          \ttest   BYTE PTR [ebx+0x5c],0x4\n  5fd889:\t0f 84 e2 00 00 00    \tje     0x5fd971\n  5fd88f:\t6a 04                \tpush   0x4\n  5fd891:\t6a 00                \tpush   0x0\n  5fd893:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd896:\t8b cb                \tmov    ecx,ebx\n  5fd898:\t50                   \tpush   eax\n  5fd899:\t8d 45 d4             \tlea    eax,[ebp-0x2c]\n  5fd89c:\t50                   \tpush   eax\n  5fd89d:\te8 3e cf df ff       \tcall   0x3fa7e0\n  5fd8a2:\t85 c0                \ttest   eax,eax\n  5fd8a4:\t0f 85 c7 00 00 00    \tjne    0x5fd971\n  5fd8aa:\t8b ce                \tmov    ecx,esi\n  5fd8ac:\te8 5f 87 08 00       \tcall   0x686010\n  5fd8b1:\t50                   \tpush   eax\n  5fd8b2:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd8b7:\t8d 45 d8             \tlea    eax,[ebp-0x28]\n  5fd8ba:\t8b cb                \tmov    ecx,ebx\n  5fd8bc:\t50                   \tpush   eax\n  5fd8bd:\t8d 45 d4             \tlea    eax,[ebp-0x2c]\n  5fd8c0:\t50                   \tpush   eax\n  5fd8c1:\t68 6e 01 0d 00       \tpush   0xd016e\n  5fd8c6:\te8 55 48 09 00       \tcall   0x692120\n  5fd8cb:\te9 a1 00 00 00       \tjmp    0x5fd971\n  5fd8d0:\t8b ce                \tmov    ecx,esi\n  5fd8d2:\te8 39 8f 08 00       \tcall   0x686810\n  5fd8d7:\t50                   \tpush   eax\n  5fd8d8:\t8d 4d 08             \tlea    ecx,[ebp+0x8]\n  5fd8db:\te8 40 3f e9 ff       \tcall   0x491820\n  5fd8e0:\t83 7d 08 00          \tcmp    DWORD PTR [ebp+0x8],0x0\n  5fd8e4:\t8b ce                \tmov    ecx,esi\n  5fd8e6:\tc6 45 fc 02          \tmov    BYTE PTR [ebp-0x4],0x2\n  5fd8ea:\t74 46                \tje     0x5fd932\n  5fd8ec:\te8 3f 91 08 00       \tcall   0x686a30\n  5fd8f1:\t8b 7d 08             \tmov    edi,DWORD PTR [ebp+0x8]\n  5fd8f4:\t85 c0                \ttest   eax,eax\n  5fd8f6:\t74 1c                \tje     0x5fd914\n  5fd8f8:\t8b ce                \tmov    ecx,esi\n  5fd8fa:\te8 31 91 08 00       \tcall   0x686a30\n  5fd8ff:\t50                   \tpush   eax\n  5fd900:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd905:\t57                   \tpush   edi\n  5fd906:\t68 70 01 0d 00       \tpush   0xd0170\n  5fd90b:\t8b cb                \tmov    ecx,ebx\n  5fd90d:\te8 9e 4d 09 00       \tcall   0x6926b0\n  5fd912:\teb 49                \tjmp    0x5fd95d\n  5fd914:\t6a 00                \tpush   0x0\n  5fd916:\t53                   \tpush   ebx\n  5fd917:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd91a:\t8b cf                \tmov    ecx,edi\n  5fd91c:\t50                   \tpush   eax\n  5fd91d:\te8 ce ad 3d 00       \tcall   0x9d86f0\n  5fd922:\t50                   \tpush   eax\n  5fd923:\t57                   \tpush   edi\n  5fd924:\t68 70 01 0d 00       \tpush   0xd0170\n  5fd929:\t8b cb                \tmov    ecx,ebx\n  5fd92b:\te8 80 4d 09 00       \tcall   0x6926b0\n  5fd930:\teb 2b                \tjmp    0x5fd95d\n  5fd932:\t8b 46 50             \tmov    eax,DWORD PTR [esi+0x50]\n  5fd935:\t89 45 10             \tmov    DWORD PTR [ebp+0x10],eax\n  5fd938:\t8b 46 48             \tmov    eax,DWORD PTR [esi+0x48]\n  5fd93b:\t89 45 dc             \tmov    DWORD PTR [ebp-0x24],eax\n  5fd93e:\te8 cd 86 08 00       \tcall   0x686010\n  5fd943:\t50                   \tpush   eax\n  5fd944:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fd949:\t8d 45 10             \tlea    eax,[ebp+0x10]\n  5fd94c:\t8b cb                \tmov    ecx,ebx\n  5fd94e:\t50                   \tpush   eax\n  5fd94f:\t8d 45 dc             \tlea    eax,[ebp-0x24]\n  5fd952:\t50                   \tpush   eax\n  5fd953:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fd958:\te8 c3 47 09 00       \tcall   0x692120\n  5fd95d:\t8b 4d 08             \tmov    ecx,DWORD PTR [ebp+0x8]\n  5fd960:\tc6 45 fc 01          \tmov    BYTE PTR [ebp-0x4],0x1\n  5fd964:\t85 c9                \ttest   ecx,ecx\n  5fd966:\t74 09                \tje     0x5fd971\n  5fd968:\tff 49 04             \tdec    DWORD PTR [ecx+0x4]\n  5fd96b:\t75 04                \tjne    0x5fd971\n  5fd96d:\t8b 01                \tmov    eax,DWORD PTR [ecx]\n  5fd96f:\tff 10                \tcall   DWORD PTR [eax]\n  5fd971:\t68 4e 01 0d 00       \tpush   0xd014e\n  5fd976:\t8b cb                \tmov    ecx,ebx\n  5fd978:\te8 a3 45 09 00       \tcall   0x691f20\n  5fd97d:\t83 7d 0c 00          \tcmp    DWORD PTR [ebp+0xc],0x0\n  5fd981:\t8b cb                \tmov    ecx,ebx\n  5fd983:\t74 07                \tje     0x5fd98c\n  5fd985:\t68 48 01 0d 00       \tpush   0xd0148\n  5fd98a:\teb 2c                \tjmp    0x5fd9b8\n  5fd98c:\t8b 03                \tmov    eax,DWORD PTR [ebx]\n  5fd98e:\tff 90 ec 00 00 00    \tcall   DWORD PTR [eax+0xec]\n  5fd994:\t83 f8 0c             \tcmp    eax,0xc\n  5fd997:\t7c 0c                \tjl     0x5fd9a5\n  5fd999:\t68 4f 01 0d 00       \tpush   0xd014f\n  5fd99e:\t8b cb                \tmov    ecx,ebx\n  5fd9a0:\te8 7b 45 09 00       \tcall   0x691f20\n  5fd9a5:\t68 4c 01 0d 00       \tpush   0xd014c\n  5fd9aa:\t8b cb                \tmov    ecx,ebx\n  5fd9ac:\te8 6f 45 09 00       \tcall   0x691f20\n  5fd9b1:\t68 65 01 0d 00       \tpush   0xd0165\n  5fd9b6:\t8b cb                \tmov    ecx,ebx\n  5fd9b8:\te8 63 45 09 00       \tcall   0x691f20\n  5fd9bd:\t68 78 01 0d 00       \tpush   0xd0178\n  5fd9c2:\t8b cb                \tmov    ecx,ebx\n  5fd9c4:\te8 57 45 09 00       \tcall   0x691f20\n  5fd9c9:\t68 44 01 0d 00       \tpush   0xd0144\n  5fd9ce:\t8b cb                \tmov    ecx,ebx\n  5fd9d0:\te8 4b 45 09 00       \tcall   0x691f20\n  5fd9d5:\t6a 07                \tpush   0x7\n  5fd9d7:\t8b cb                \tmov    ecx,ebx\n  5fd9d9:\te8 c2 4d 09 00       \tcall   0x6927a0",
+    "decompiled_code": "void __thiscall Move_CreateTasksFromOrder(uint self,uint arg_04,uint arg_08,uint arg_0c)\n\n{\n  int *piVar1;\n  WC3OrderTargetPrefix *pWVar2;\n  uint uVar3;\n  uint uVar4;\n  uint uVar5;\n  WC3UnitOrdersPrefix *observer;\n  void *pvVar6;\n  WC3UnitMoverBridge *pWVar7;\n  WC3UnitMoverBridge *bridge;\n  uint *puVar8;\n  WC3PathScalar *pWVar9;\n  int iVar10;\n  WC3OrderTargetPrefix *order;\n  WC3UnitOrdersPrefix *target;\n  undefined1 local_54 [16];\n  uint local_44;\n  uint local_40;\n  WC3PathScalar local_3c;\n  WC3PathScalar local_38;\n  WC3PathScalar local_34;\n  WC3PathScalar local_30;\n  WC3PathScalar local_2c;\n  WC3PathScalar local_28;\n  WC3OrderTargetPrefix *local_24;\n  int *local_20;\n  int local_1c;\n  WC3UnitOrdersPrefix *local_18;\n  uint local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  puStack_c = &LAB_6fa49ca8;\n  local_10 = ExceptionList;\n  uVar3 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  local_24 = (WC3OrderTargetPrefix *)0x0;\n  pWVar2 = *(WC3OrderTargetPrefix **)(arg_04 + 0xc);\n  local_8 = 0;\n  order = (WC3OrderTargetPrefix *)0x0;\n  local_14 = self;\n  if (pWVar2 != (WC3OrderTargetPrefix *)0x0) {\n    uVar4 = OrderTarget_GetClassCode();\n    uVar5 = (**(code **)((int)(pWVar2->base).vtable + 0x1c))();\n    uVar4 = AgentClass_IsDerived(uVar5,uVar4);\n    if (uVar4 != 0) {\n      puVar8 = &(pWVar2->base).references;\n      *puVar8 = *puVar8 + 1;\n      order = pWVar2;\n      local_24 = pWVar2;\n    }\n  }\n  local_8 = 1;\n  if (order == (WC3OrderTargetPrefix *)0x0) goto LAB_6f5fd9de;\n  local_1c = *(int *)(arg_04 + 8);\n  FUN_6f6a2d80(uVar3);\n  local_28 = FUN_6f6849c0(local_54);\n  if (local_28 == 0) {\n    target = (WC3UnitOrdersPrefix *)FUN_6f686bc0();\n    local_20 = (int *)FUN_6f686990();\n    local_18 = (WC3UnitOrdersPrefix *)FUN_6f686850();\n  }\n  else {\n    target = (WC3UnitOrdersPrefix *)0x0;\n    local_18 = (WC3UnitOrdersPrefix *)0x0;\n    local_20 = (int *)0x0;\n  }\n  observer = *(WC3UnitOrdersPrefix **)(local_14 + 0x30);\n  if (observer == (WC3UnitOrdersPrefix *)0x0) {\n    observer = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  if (target != (WC3UnitOrdersPrefix *)0x0) {\n    if (((target == observer) || ((target->order_admission_flags & 0x100) != 0)) ||\n       ((target->widget_state_flags & 1) != 0)) {\nLAB_6f5fd368:\n      target = (WC3UnitOrdersPrefix *)0x0;\n    }\n    else if ((observer->order_admission_flags & 4) == 0) {\n      uVar3 = CUnit_IsWidgetVisibleToOwner(observer,target,1,4);\n      if (uVar3 == 0) goto LAB_6f5fd368;\n    }\n  }\n  FUN_6f5fa5b0();\n  Unit_CreateActionTask(observer,0);\n  FUN_6f692380(0xd0166,0xd0012);\n  Unit_CreateEventTask(observer,0xd0148);\n  Unit_CreateEventTask(observer,0xd014a);\n  if (arg_08 == 0) {\n    Unit_CreateEventTask(observer,0xd0165);\n  }\n  else if ((order->base).command == 0xd0014) {\n    FUN_6f058040(&arg_04);\n    if (((float)arg_04 == (float)Math_RuntimeZero) ||\n       (((observer->rawcode >> 0x18) - 0x41 < 0x1a &&\n        ((observer->order_admission_flags & 0x40000000) == 0)))) {\n      arg_08 = 0;\n    }\n  }\n  if (target == (WC3UnitOrdersPrefix *)0x0) {\n    arg_04 = 0;\n  }\n  else {\n    arg_04 = Unit_FindAbilityByClass(target,0x41777270,0,0,1,1);\n  }\n  if (local_28 != 0) {\n    FUN_6f692480(0xd0161,0xd0012,local_54);\n    arg_04 = local_40;\n    arg_0c = local_44;\n    pvVar6 = (void *)FUN_6f686010();\n    Unit_CreatePointTask(observer,0xd016e,&arg_0c,&arg_04,&Math_RuntimeZero,pvVar6);\n    goto LAB_6f5fd971;\n  }\n  if (arg_04 != 0) {\n    iVar10 = AbilityWarp_IsActive();\n    if (iVar10 != 0) {\n      AbilityWarp_ReadCapturedDestination(&local_2c);\n      pvVar6 = (void *)FUN_6f686010();\n      Unit_CreatePointTask(observer,0xd016b,&local_2c,&local_28,&Math_RuntimeZero,pvVar6);\n      arg_04 = (order->base).point_y.value;\n      arg_0c = (order->base).point_x.value;\n      pvVar6 = (void *)FUN_6f686010();\n      Unit_CreatePointTask(observer,0xd016b,&arg_0c,&arg_04,&Math_RuntimeZero,pvVar6);\n      goto LAB_6f5fd971;\n    }\n  }\n  if (target == (WC3UnitOrdersPrefix *)0x0) {\nLAB_6f5fd7fb:\n    target = local_18;\n    if (local_18 == (WC3UnitOrdersPrefix *)0x0) {\n      if (local_20 == (int *)0x0) {\n        pvVar6 = OrderTarget_GetResolvedTarget(order);\n        FUN_6f491820(pvVar6);\n        local_8 = CONCAT31(local_8._1_3_,2);\n        if (arg_04 == 0) {\n          arg_0c = (order->base).point_y.value;\n          local_28 = (order->base).point_x.value;\n          pvVar6 = (void *)FUN_6f686010();\n          Unit_CreatePointTask(observer,0xd016b,&local_28,&arg_0c,&Math_RuntimeZero,pvVar6);\n        }\n        else {\n          iVar10 = FUN_6f686a30();\n          uVar3 = arg_04;\n          if (iVar10 == 0) {\n            pvVar6 = (void *)0x0;\n            pWVar9 = CaptainAI_GetAuthoredApproachRange\n                               ((WC3CaptainAIPrefix *)arg_04,&arg_0c,observer);\n            Unit_CreateTargetTask(observer,0xd0170,(void *)uVar3,pWVar9,pvVar6);\n          }\n          else {\n            pvVar6 = (void *)FUN_6f686a30();\n            Unit_CreateTargetTask(observer,0xd0170,(void *)uVar3,&Math_RuntimeZero,pvVar6);\n          }\n        }\n        local_8 = CONCAT31(local_8._1_3_,1);\n        if (arg_04 != 0) {\n          piVar1 = (int *)(arg_04 + 4);\n          *piVar1 = *piVar1 + -1;\n          if (*piVar1 == 0) {\n            (*(code *)**(undefined4 **)arg_04)();\n          }\n        }\n      }\n      else {\n        pWVar9 = &local_3c;\n        pWVar7 = (WC3UnitMoverBridge *)(**(code **)(*local_20 + 0xb8))();\n        UnitMover_QueryWorldPosition(pWVar7,pWVar9);\n        local_30 = local_3c;\n        local_2c = local_38;\n        local_28 = local_34;\n        FUN_6f047840(\"FollowItemRange\",0);\n        pvVar6 = (void *)FUN_6f686010();\n        Unit_CreatePointTask(observer,0xd016c,&local_30,&local_2c,&arg_04,pvVar6);\n        if ((observer->order_admission_flags & 4) != 0) {\n          iVar10 = FUN_6f3fa7e0(&local_30,&local_2c,0,4);\n          if (iVar10 == 0) {\n            pvVar6 = (void *)FUN_6f686010();\n            Unit_CreatePointTask(observer,0xd016e,&local_30,&local_2c,&Math_RuntimeZero,pvVar6);\n          }\n        }\n      }\n    }\n    else {\nLAB_6f5fd802:\n      pvVar6 = (void *)FUN_6f686a30();\n      Unit_CreateTargetTask(observer,0xd0174,target,&Math_RuntimeZero,pvVar6);\n    }\n  }\n  else {\n    uVar3 = CUnit_IsWidgetVisibleToOwner(observer,target,0,4);\n    if (uVar3 == 0) goto LAB_6f5fd7fb;\n    if ((*(uint *)&target->field_0x248 & 0x400) == 0) {\n      if ((observer->separation_category_flags & 2) != 0) {\n        FUN_6f685fc0();\n        iVar10 = FUN_6f056a40();\n        if (iVar10 == 0) {\n          pvVar6 = (void *)FUN_6f686a30();\n          Unit_CreateTargetTask(observer,0xd0173,target,&Math_RuntimeZero,pvVar6);\n          if (target->move_ability == (WC3MoveSpeedPrefix *)0x0) {\n            pWVar9 = &local_3c;\n            pWVar7 = (WC3UnitMoverBridge *)(**(code **)((int)target->vtable + 0xb8))();\n            UnitMover_QueryWorldPosition(pWVar7,pWVar9);\n            local_2c = local_3c;\n            local_28 = local_38;\n            Unit_CreateActionTask(observer,7);\n            pvVar6 = (void *)FUN_6f686010();\n            Unit_CreatePointTask(observer,0xd016b,&local_2c,&local_28,&Math_RuntimeZero,pvVar6);\n          }\n          arg_08 = 0;\n          goto LAB_6f5fd971;\n        }\n      }\n      if (((arg_0c == 0) && ((target->order_admission_flags & 0x8000000) == 0)) &&\n         (target->move_ability != (WC3MoveSpeedPrefix *)0x0)) {\n        FUN_6f685fc0();\n        iVar10 = FUN_6f056a40();\n        if (iVar10 == 0) {\n          local_20 = (int *)Unit_TreatsSourceAsEnemy((uint)observer,(uint)target);\n          iVar10 = Unit_IsStructureForSupportRecovery(1);\n          if (iVar10 == 0) {\n            FUN_6f047840(\"FollowRange\",0);\n            puVar8 = &local_28;\n          }\n          else {\n            FUN_6f047840(\"StructureFollowRange\",0);\n            puVar8 = &arg_0c;\n          }\n          arg_04 = *puVar8;\n          uVar3 = 1;\n          arg_0c = 0;\n          local_18 = (WC3UnitOrdersPrefix *)arg_04;\n          pWVar7 = (WC3UnitMoverBridge *)(**(code **)((int)target->vtable + 0xb8))();\n          puVar8 = &arg_04;\n          bridge = (WC3UnitMoverBridge *)(**(code **)((int)observer->vtable + 0xb8))();\n          uVar3 = MoveBridge_IsTargetInConfiguredRange(bridge,puVar8,pWVar7,uVar3);\n          if (uVar3 != 0) {\n            uVar5 = 1;\n            uVar3 = (**(code **)((int)target->vtable + 0xb8))();\n            puVar8 = &arg_0c;\n            uVar4 = (**(code **)((int)observer->vtable + 0xb8))();\n            puVar8 = (uint *)MoveBridge_GetPredictedEdgeDistance(uVar4,(uint)puVar8,uVar3,uVar5);\n            uVar3 = *puVar8;\n            arg_0c = 1;\n            local_18 = (WC3UnitOrdersPrefix *)\n                       (~((int)(uVar3 - 0x1000000 ^ uVar3) >> 0x1f) & uVar3 - 0x800000);\n          }\n          if (local_20 == (int *)0x0) {\n            if ((arg_08 == 0) &&\n               (((local_1c == 0xd0003 || (local_1c == 0xd0002)) || (local_1c == 0xd0016)))) {\n              FUN_6f5fa5e0();\n              Unit_CreateTargetTask(observer,0xd0193,(void *)0x0,&Math_RuntimeZero,(void *)0x0);\n              pvVar6 = (void *)FUN_6f686a30();\n              Unit_CreateTargetTask(observer,0xd0173,target,&arg_04,pvVar6);\n              Unit_CreateActionTask(observer,7);\n              Unit_CreateTargetTask(observer,0xd0193,target,&Math_RuntimeZero,(void *)0x0);\n              Unit_CreateEventTask(observer,0xd0148);\n              pvVar6 = (void *)FUN_6f686a30();\n              Unit_CreateTargetTask(observer,0xd0174,target,(uint *)&local_18,pvVar6);\n              arg_08 = 0;\n              goto LAB_6f5fd971;\n            }\n          }\n          else if ((local_1c == 0xd0003) || (local_1c == 0xd000f)) {\n            arg_0c = 1;\n            arg_08 = 1;\n          }\n          pvVar6 = (void *)FUN_6f686a30();\n          Unit_CreateTargetTask(observer,0xd0173,target,&arg_04,pvVar6);\n          if (arg_0c != 0) {\n            if (arg_08 != 0) {\n              Unit_CreateEventTask(observer,0xd0148);\n              arg_08 = 0;\n            }\n            Unit_CreateActionTask(observer,7);\n            pvVar6 = (void *)FUN_6f686a30();\n            Unit_CreateTargetTask(observer,0xd0174,target,(uint *)&local_18,pvVar6);\n          }\n          goto LAB_6f5fd971;\n        }\n      }\n      goto LAB_6f5fd802;\n    }\n    arg_04 = (order->base).point_y.value;\n    arg_0c = (order->base).point_x.value;\n    pvVar6 = (void *)FUN_6f686010();\n    Unit_CreatePointTask(observer,0xd016b,&arg_0c,&arg_04,&Math_RuntimeZero,pvVar6);\n  }\nLAB_6f5fd971:\n  Unit_CreateEventTask(observer,0xd014e);\n  if (arg_08 == 0) {\n    iVar10 = (**(code **)((int)observer->vtable + 0xec))();\n    if (0xb < iVar10) {\n      Unit_CreateEventTask(observer,0xd014f);\n    }\n    Unit_CreateEventTask(observer,0xd014c);\n    uVar3 = 0xd0165;\n  }\n  else {\n    uVar3 = 0xd0148;\n  }\n  Unit_CreateEventTask(observer,uVar3);\n  Unit_CreateEventTask(observer,0xd0178);\n  Unit_CreateEventTask(observer,0xd0144);\n  Unit_CreateActionTask(observer,7);\nLAB_6f5fd9de:\n  local_8 = 0xffffffff;\n  if (order != (WC3OrderTargetPrefix *)0x0) {\n    puVar8 = &(order->base).references;\n    *puVar8 = *puVar8 - 1;\n    if (*puVar8 == 0) {\n      (**(code **)(order->base).vtable)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+    "verified_key_E8_calls": [
+      {
+        "instruction_rva": "0x5fd958",
+        "bytes": "e8c3470900",
+        "callee_rva": "0x692120"
+      },
+      {
+        "instruction_rva": "0x5fd978",
+        "bytes": "e8a3450900",
+        "callee_rva": "0x691f20"
+      }
+    ]
+  },
+  "fresh_auto_call": {
+    "instruction_rva": "0x494525",
+    "bytes": "e8f68c0000",
+    "callee_rva": "0x49d220",
+    "conditions": "fresh-acquisition branch; Attack.flags02000000 set and0400 clear; argument0; no numeric owner gate in this branch"
+  },
+  "taxonomy": {
+    "attachment": "497c50 numeric owner>=12 or structure bit4 starts evaluation; distinct from fresh-auto policy",
+    "completion_d014a": "49e880 marks evaluated and branches by numeric owner/structure: ordinary player captures home and cancels; neutral/structure evaluates retained home",
+    "start": "49d220: initial evaluation versus return-arm branch;497330 uses authored GuardReturnTime on primary control280",
+    "expiry": "497fc0 ordinary branch submits Move d0012 at retained2ac/2b4; unconditionally appends d0013 irrespective admission result, then49e940. Structure/disabled-Move alternate remains separate.",
+    "sleep_continuation": "498ff0 resolves optional Asla; calls524e00(1) only if attached. No-Asla is not a synthetic Stop.",
+    "start_d014e": "5fd270 creates point/target task then prepends d014e before physical execution;49e940 cancels only numeric owner<12 and nonstructure via49a330. Internal physical rebuilds do not imply this constructor.",
+    "ordering_limit": "Task-prepend order establishes d014e before physical execution. This artifact does not independently establish Move tail d014a versus user-FIFO d0013 handoff order; do not infer final post-completion flags from the list alone."
+  },
+  "accepted299_selected_rows": [
+    {
+      "event": "release-target-enter",
+      "seq": 5357,
+      "tick": 1010,
+      "scene": 3,
+      "attack": {
+        "pointer": "0x86e0424",
+        "identity": [
+          882,
+          1465
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            860,
+            1452
+          ],
+          "role": 1,
+          "rawcode": 1751543663,
+          "owner": 0,
+          "widget": 5702,
+          "flags": 513,
+          "flags60": 0,
+          "head": [
+            4294967295,
+            4294967295
+          ],
+          "task": [
+            4294967295,
+            4294967295
+          ]
+        },
+        "flags": 570967056,
+        "current": [
+          4294967295,
+          4294967295
+        ],
+        "alternative": [
+          4294967295,
+          4294967295
+        ],
+        "suppression": 0
+      },
+      "caller": 4845030,
+      "clock": {
+        "counter": 4399,
+        "primary": [
+          1120570252,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    },
+    {
+      "event": "marker",
+      "seq": 5359,
+      "tick": 1012,
+      "scene": 3,
+      "value": "AR299 tick=1012 scene=3 label=issued role=1 order=851986 head=851986",
+      "clock": {
+        "counter": 4399,
+        "primary": [
+          1120570252,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    },
+    {
+      "event": "point-task",
+      "seq": 5360,
+      "tick": 1012,
+      "scene": 3,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          860,
+          1452
+        ],
+        "role": 1,
+        "rawcode": 1751543663,
+        "owner": 0,
+        "widget": 5702,
+        "flags": 513,
+        "flags60": 0,
+        "head": [
+          1071,
+          1572
+        ],
+        "task": [
+          1064,
+          1581
+        ]
+      },
+      "caller": 6281565,
+      "code": 852331,
+      "point": [
+        1151860736,
+        1133510656
+      ],
+      "range": 0,
+      "association": "0x0",
+      "clock": {
+        "counter": 4399,
+        "primary": [
+          1120570252,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    },
+    {
+      "event": "point-request",
+      "seq": 5363,
+      "tick": 1012,
+      "scene": 3,
+      "bridge": "0x8da0178",
+      "identity": [
+        938,
+        1453
+      ],
+      "point": [
+        1151860736,
+        1133510656
+      ],
+      "arrival": 852374,
+      "cantpath": 852376,
+      "receiver": "0x87e0178",
+      "speed": 1125515264,
+      "flag": 1,
+      "range": 0,
+      "clock": {
+        "counter": 4399,
+        "primary": [
+          1120570252,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    },
+    {
+      "event": "release-target-enter",
+      "seq": 5389,
+      "tick": 1012,
+      "scene": 3,
+      "attack": {
+        "pointer": "0x86e0424",
+        "identity": [
+          882,
+          1465
+        ],
+        "unit": {
+          "pointer": "0x8da0014",
+          "identity": [
+            860,
+            1452
+          ],
+          "role": 1,
+          "rawcode": 1751543663,
+          "owner": 0,
+          "widget": 5702,
+          "flags": 513,
+          "flags60": 0,
+          "head": [
+            1071,
+            1572
+          ],
+          "task": [
+            1058,
+            1579
+          ]
+        },
+        "flags": 570949776,
+        "current": [
+          4294967295,
+          4294967295
+        ],
+        "alternative": [
+          4294967295,
+          4294967295
+        ],
+        "suppression": 0
+      },
+      "caller": 4834219,
+      "clock": {
+        "counter": 4407,
+        "primary": [
+          1120597762,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    },
+    {
+      "event": "marker",
+      "seq": 5391,
+      "tick": 1014,
+      "scene": 3,
+      "value": "AR299 tick=1014 scene=3 label=issued role=1 order=851987 head=851987",
+      "clock": {
+        "counter": 4407,
+        "primary": [
+          1120597762,
+          0,
+          1133903872,
+          4096
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Existing return1012 capture has no complete guard-control state oracle.",
+    "Optional Asla policy, structure/disabled-Move alternate and broader early-neutral gates remain outside316.",
+    "Raw byte/call checks independently verify exports against original DLL; decompiler inferred types are not ABI proof."
+  ],
+  "patrol_constructor": {
+    "function_rva": "0x5fdff0",
+    "scope": "entry window through next known function5fe1a0; exact original bytes; no full-function extent claim",
+    "bytes": "558bec6aff68d89ca46f64a1000000005083ec145657a19c68ce6f33c5508d45f464a3000000008bf96a016a00e81ed0ffff85c00f845a0100008b45088d4de8ff700ce818beffff8b4de8c745fc0000000085c90f84260100008b41488b77308945ec8b41508945f08b415c8945e08b41648945e485f675098bcfe8507ca5ff8bf08bcee8f7ebffff85c074406a008bcee81a4709006a008d45e48bce508d45e0508d45f0508d45ec508b066a00ff90ec0000008bd0b917000d00e8f02e0900508bcee8d8530900e9b00000008bcfe81cc5ffff6a008bcee8d34609006812000d006866010d008bcee8a24209006848010d008bcee8363e0900684a010d008bcee82a3e09006a006844c7d36f8d45f08bce508d45ec508d45e4508d45e0506875010d00e8f73e09006a006844c7d36f8d45f08bce508d45ec50686b010d00e8ec3f09006848010d008bcee8e03d0900684e010d008bcee8d43d09006878010d008bcee8c83d09006844010d008bcee8bc3d09006a078bcee8334609008b4de8c745fcffffffff85c97409ff490475048b01ff108b4df464890d00000000595f5e8be55dc20400cccccccccccccccccc",
+    "sha256": "e77fc188df4c69c981180f52591d177129b302c19f2891957abce9468ca2d8c0",
+    "disassembly": "005fdff0 <.data>:\n  5fdff0:\t55                   \tpush   ebp\n  5fdff1:\t8b ec                \tmov    ebp,esp\n  5fdff3:\t6a ff                \tpush   0xffffffff\n  5fdff5:\t68 d8 9c a4 6f       \tpush   0x6fa49cd8\n  5fdffa:\t64 a1 00 00 00 00    \tmov    eax,fs:0x0\n  5fe000:\t50                   \tpush   eax\n  5fe001:\t83 ec 14             \tsub    esp,0x14\n  5fe004:\t56                   \tpush   esi\n  5fe005:\t57                   \tpush   edi\n  5fe006:\ta1 9c 68 ce 6f       \tmov    eax,ds:0x6fce689c\n  5fe00b:\t33 c5                \txor    eax,ebp\n  5fe00d:\t50                   \tpush   eax\n  5fe00e:\t8d 45 f4             \tlea    eax,[ebp-0xc]\n  5fe011:\t64 a3 00 00 00 00    \tmov    fs:0x0,eax\n  5fe017:\t8b f9                \tmov    edi,ecx\n  5fe019:\t6a 01                \tpush   0x1\n  5fe01b:\t6a 00                \tpush   0x0\n  5fe01d:\te8 1e d0 ff ff       \tcall   0x5fb040\n  5fe022:\t85 c0                \ttest   eax,eax\n  5fe024:\t0f 84 5a 01 00 00    \tje     0x5fe184\n  5fe02a:\t8b 45 08             \tmov    eax,DWORD PTR [ebp+0x8]\n  5fe02d:\t8d 4d e8             \tlea    ecx,[ebp-0x18]\n  5fe030:\tff 70 0c             \tpush   DWORD PTR [eax+0xc]\n  5fe033:\te8 18 be ff ff       \tcall   0x5f9e50\n  5fe038:\t8b 4d e8             \tmov    ecx,DWORD PTR [ebp-0x18]\n  5fe03b:\tc7 45 fc 00 00 00 00 \tmov    DWORD PTR [ebp-0x4],0x0\n  5fe042:\t85 c9                \ttest   ecx,ecx\n  5fe044:\t0f 84 26 01 00 00    \tje     0x5fe170\n  5fe04a:\t8b 41 48             \tmov    eax,DWORD PTR [ecx+0x48]\n  5fe04d:\t8b 77 30             \tmov    esi,DWORD PTR [edi+0x30]\n  5fe050:\t89 45 ec             \tmov    DWORD PTR [ebp-0x14],eax\n  5fe053:\t8b 41 50             \tmov    eax,DWORD PTR [ecx+0x50]\n  5fe056:\t89 45 f0             \tmov    DWORD PTR [ebp-0x10],eax\n  5fe059:\t8b 41 5c             \tmov    eax,DWORD PTR [ecx+0x5c]\n  5fe05c:\t89 45 e0             \tmov    DWORD PTR [ebp-0x20],eax\n  5fe05f:\t8b 41 64             \tmov    eax,DWORD PTR [ecx+0x64]\n  5fe062:\t89 45 e4             \tmov    DWORD PTR [ebp-0x1c],eax\n  5fe065:\t85 f6                \ttest   esi,esi\n  5fe067:\t75 09                \tjne    0x5fe072\n  5fe069:\t8b cf                \tmov    ecx,edi\n  5fe06b:\te8 50 7c a5 ff       \tcall   0x55cc0\n  5fe070:\t8b f0                \tmov    esi,eax\n  5fe072:\t8b ce                \tmov    ecx,esi\n  5fe074:\te8 f7 eb ff ff       \tcall   0x5fcc70\n  5fe079:\t85 c0                \ttest   eax,eax\n  5fe07b:\t74 40                \tje     0x5fe0bd\n  5fe07d:\t6a 00                \tpush   0x0\n  5fe07f:\t8b ce                \tmov    ecx,esi\n  5fe081:\te8 1a 47 09 00       \tcall   0x6927a0\n  5fe086:\t6a 00                \tpush   0x0\n  5fe088:\t8d 45 e4             \tlea    eax,[ebp-0x1c]\n  5fe08b:\t8b ce                \tmov    ecx,esi\n  5fe08d:\t50                   \tpush   eax\n  5fe08e:\t8d 45 e0             \tlea    eax,[ebp-0x20]\n  5fe091:\t50                   \tpush   eax\n  5fe092:\t8d 45 f0             \tlea    eax,[ebp-0x10]\n  5fe095:\t50                   \tpush   eax\n  5fe096:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  5fe099:\t50                   \tpush   eax\n  5fe09a:\t8b 06                \tmov    eax,DWORD PTR [esi]\n  5fe09c:\t6a 00                \tpush   0x0\n  5fe09e:\tff 90 ec 00 00 00    \tcall   DWORD PTR [eax+0xec]\n  5fe0a4:\t8b d0                \tmov    edx,eax\n  5fe0a6:\tb9 17 00 0d 00       \tmov    ecx,0xd0017\n  5fe0ab:\te8 f0 2e 09 00       \tcall   0x690fa0\n  5fe0b0:\t50                   \tpush   eax\n  5fe0b1:\t8b ce                \tmov    ecx,esi\n  5fe0b3:\te8 d8 53 09 00       \tcall   0x693490\n  5fe0b8:\te9 b0 00 00 00       \tjmp    0x5fe16d\n  5fe0bd:\t8b cf                \tmov    ecx,edi\n  5fe0bf:\te8 1c c5 ff ff       \tcall   0x5fa5e0\n  5fe0c4:\t6a 00                \tpush   0x0\n  5fe0c6:\t8b ce                \tmov    ecx,esi\n  5fe0c8:\te8 d3 46 09 00       \tcall   0x6927a0\n  5fe0cd:\t68 12 00 0d 00       \tpush   0xd0012\n  5fe0d2:\t68 66 01 0d 00       \tpush   0xd0166\n  5fe0d7:\t8b ce                \tmov    ecx,esi\n  5fe0d9:\te8 a2 42 09 00       \tcall   0x692380\n  5fe0de:\t68 48 01 0d 00       \tpush   0xd0148\n  5fe0e3:\t8b ce                \tmov    ecx,esi\n  5fe0e5:\te8 36 3e 09 00       \tcall   0x691f20\n  5fe0ea:\t68 4a 01 0d 00       \tpush   0xd014a\n  5fe0ef:\t8b ce                \tmov    ecx,esi\n  5fe0f1:\te8 2a 3e 09 00       \tcall   0x691f20\n  5fe0f6:\t6a 00                \tpush   0x0\n  5fe0f8:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fe0fd:\t8d 45 f0             \tlea    eax,[ebp-0x10]\n  5fe100:\t8b ce                \tmov    ecx,esi\n  5fe102:\t50                   \tpush   eax\n  5fe103:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  5fe106:\t50                   \tpush   eax\n  5fe107:\t8d 45 e4             \tlea    eax,[ebp-0x1c]\n  5fe10a:\t50                   \tpush   eax\n  5fe10b:\t8d 45 e0             \tlea    eax,[ebp-0x20]\n  5fe10e:\t50                   \tpush   eax\n  5fe10f:\t68 75 01 0d 00       \tpush   0xd0175\n  5fe114:\te8 f7 3e 09 00       \tcall   0x692010\n  5fe119:\t6a 00                \tpush   0x0\n  5fe11b:\t68 44 c7 d3 6f       \tpush   0x6fd3c744\n  5fe120:\t8d 45 f0             \tlea    eax,[ebp-0x10]\n  5fe123:\t8b ce                \tmov    ecx,esi\n  5fe125:\t50                   \tpush   eax\n  5fe126:\t8d 45 ec             \tlea    eax,[ebp-0x14]\n  5fe129:\t50                   \tpush   eax\n  5fe12a:\t68 6b 01 0d 00       \tpush   0xd016b\n  5fe12f:\te8 ec 3f 09 00       \tcall   0x692120\n  5fe134:\t68 48 01 0d 00       \tpush   0xd0148\n  5fe139:\t8b ce                \tmov    ecx,esi\n  5fe13b:\te8 e0 3d 09 00       \tcall   0x691f20\n  5fe140:\t68 4e 01 0d 00       \tpush   0xd014e\n  5fe145:\t8b ce                \tmov    ecx,esi\n  5fe147:\te8 d4 3d 09 00       \tcall   0x691f20\n  5fe14c:\t68 78 01 0d 00       \tpush   0xd0178\n  5fe151:\t8b ce                \tmov    ecx,esi\n  5fe153:\te8 c8 3d 09 00       \tcall   0x691f20\n  5fe158:\t68 44 01 0d 00       \tpush   0xd0144\n  5fe15d:\t8b ce                \tmov    ecx,esi\n  5fe15f:\te8 bc 3d 09 00       \tcall   0x691f20\n  5fe164:\t6a 07                \tpush   0x7\n  5fe166:\t8b ce                \tmov    ecx,esi\n  5fe168:\te8 33 46 09 00       \tcall   0x6927a0\n  5fe16d:\t8b 4d e8             \tmov    ecx,DWORD PTR [ebp-0x18]\n  5fe170:\tc7 45 fc ff ff ff ff \tmov    DWORD PTR [ebp-0x4],0xffffffff\n  5fe177:\t85 c9                \ttest   ecx,ecx\n  5fe179:\t74 09                \tje     0x5fe184\n  5fe17b:\tff 49 04             \tdec    DWORD PTR [ecx+0x4]\n  5fe17e:\t75 04                \tjne    0x5fe184\n  5fe180:\t8b 01                \tmov    eax,DWORD PTR [ecx]\n  5fe182:\tff 10                \tcall   DWORD PTR [eax]\n  5fe184:\t8b 4d f4             \tmov    ecx,DWORD PTR [ebp-0xc]\n  5fe187:\t64 89 0d 00 00 00 00 \tmov    DWORD PTR fs:0x0,ecx\n  5fe18e:\t59                   \tpop    ecx\n  5fe18f:\t5f                   \tpop    edi\n  5fe190:\t5e                   \tpop    esi\n  5fe191:\t8b e5                \tmov    esp,ebp\n  5fe193:\t5d                   \tpop    ebp\n  5fe194:\tc2 04 00             \tret    0x4\n  5fe197:\tcc                   \tint3\n  5fe198:\tcc                   \tint3\n  5fe199:\tcc                   \tint3\n  5fe19a:\tcc                   \tint3\n  5fe19b:\tcc                   \tint3\n  5fe19c:\tcc                   \tint3\n  5fe19d:\tcc                   \tint3\n  5fe19e:\tcc                   \tint3\n  5fe19f:\tcc                   \tint3",
+    "decompiled_code": "\n/* d0017 dispatch. Retain order, read both endpoints48/50 and5c/64; generate d0175 and ordinary\n   point chain, or alternate690fa0 order. Payoff124 two complete240-tick public captures\n   retain851991 through automatic actual combat, enemy loss and nested replacement;40 constructions\n   and33 d0175 continuations repeat. Prepending reverses task creation order: point d016b executes\n   BEFORE d0175. Complete physical engine composition remains ORDER-01.18.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff176: engine reproduces queued two-point rotation when any non-Patrol successor exists. New\n   point Patrol captures activation origin before rotating; internally appended routes retain their\n   saved other endpoint. Native/frame full-FIFO and saved alternating-route regressions, plus\n   complete ORDER-01.18 reconstruction4 captures/one control9672 records, retain public851991. Queue\n   input witnesses are distinct single runs, not claimed repeats.\n   Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Payoff276: physical engine Patrol legs now use the ordinary scheduled point task, preserving\n   endpoint retry, fine routing, arrival and d0175 FIFO continuation. Two archived300-tick10-unit\n   original captures agree on all3000 public samples; open Move/Patrol pairs agree for58 samples,\n   walled16 and enclosed33. Fresh group Patrol repeats/control agree on405 public markers; all11 leg\n   constructions in each observed run use692120(d016b,range0,NULLassociation) for three distinct\n   units. Singleton legs replace the legacy ai_patrol_walk. Head-on avoidance, facing words and full\n   wall trajectories remain explicitly uncertified. */\n\nvoid __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix *move,void *event)\n\n{\n  int *piVar1;\n  uint uVar2;\n  uint uVar3;\n  WC3UnitOrdersPrefix *unit;\n  WC3PatrolEndpointsPrefix *order;\n  void *target;\n  WC3PathScalar *x;\n  WC3PathScalar *y;\n  WC3PathScalar *continuation_x;\n  WC3PathScalar *continuation_y;\n  void *association;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  WC3PathScalar local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa49cd8;\n  local_10 = ExceptionList;\n  uVar2 = DAT_6fce689c ^ (uint)&stack0xfffffffc;\n  ExceptionList = &local_10;\n  uVar3 = Move_IsEnabledForQuery(move,0,1);\n  if (uVar3 != 0) {\n    FUN_6f5f9e50(*(undefined4 *)((int)event + 0xc));\n    local_8 = 0;\n    if (local_1c != (undefined4 *)0x0) {\n      local_18 = local_1c[0x12];\n      unit = move->unit;\n      local_14 = local_1c[0x14];\n      local_24 = local_1c[0x17];\n      local_20 = local_1c[0x19];\n      if (unit == (WC3UnitOrdersPrefix *)0x0) {\n        unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0(uVar2);\n      }\n      uVar2 = Move_HasQueuedNonPatrolOrder(unit);\n      if (uVar2 == 0) {\n        FUN_6f5fa5e0();\n        Unit_CreateActionTask(unit,0);\n        FUN_6f692380(0xd0166,0xd0012);\n        Unit_CreateEventTask(unit,0xd0148);\n        Unit_CreateEventTask(unit,0xd014a);\n        Unit_PrependTwoPointTask\n                  (unit,0xd0175,&local_24,&local_20,&local_18,&local_14,&Math_RuntimeZero,\n                   (void *)0x0);\n        Unit_CreatePointTask(unit,0xd016b,&local_18,&local_14,&Math_RuntimeZero,(void *)0x0);\n        Unit_CreateEventTask(unit,0xd0148);\n        Unit_CreateEventTask(unit,0xd014e);\n        Unit_CreateEventTask(unit,0xd0178);\n        Unit_CreateEventTask(unit,0xd0144);\n        Unit_CreateActionTask(unit,7);\n      }\n      else {\n        Unit_CreateActionTask(unit,0);\n        association = (void *)0x0;\n        continuation_y = &local_20;\n        continuation_x = &local_24;\n        y = &local_14;\n        x = &local_18;\n        target = (void *)0x0;\n        uVar2 = (**(code **)((int)unit->vtable + 0xec))();\n        order = OrderPoint_CreateWithContinuation\n                          (0xd0017,uVar2,target,x,y,continuation_x,continuation_y,association);\n        Unit_AppendUserOrder(unit,(WC3OrderPrefix *)order);\n      }\n    }\n    local_8 = 0xffffffff;\n    if (local_1c != (undefined4 *)0x0) {\n      piVar1 = local_1c + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*local_1c)();\n      }\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+    "condition": "Move enabled, resolved two-point order, no queued non-Patrol order. Alternate branch only appends d0017 without d014e.",
+    "C_seam": "s_patrol.c patrol_begin_leg after queued-nonPatrol rotation rejection, before first physical owner; not order_patrol_resume or direct in-place reversal.",
+    "verified_d014e": {
+      "push_rva": "0x5fe140",
+      "push_bytes": "684e010d00",
+      "call_rva": "0x5fe147",
+      "call_bytes": "e8d43d0900",
+      "callee_rva": "0x691f20"
+    }
+  }
+}

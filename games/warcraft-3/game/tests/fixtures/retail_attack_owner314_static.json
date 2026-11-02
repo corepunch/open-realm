@@ -1,0 +1,266 @@
+{
+  "schema": "retail-attack-owner314-static-v1",
+  "status": "Owner-transfer synchronous event families and concrete modal c4 producer; full TARGET-01.2 remains incomplete.",
+  "binary": {
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "0x6f000000"
+  },
+  "findings": [
+    "698ce0 assigns the new owner, dispatches owner events at69916b, owner-target subscribers at69919d, target availability at6991a2, ability AI-mode reset67dff0(0) at6991ab, then owner-pool enrollment at6991b6.",
+    "67b400 delivers player event2606b0 before synchronous unit event67ae10. Both precede the AI-mode-reset callback.",
+    "67dff0 reads signed ability execution depth+3c; positive depth skips notification. Nonpositive depth clears mode bit20.2 then invokes virtual+c4 without testing its prior value.",
+    "Defend+c4 is605aa0: cancel its modal timer, query the current unit owner, construct the off order and send transient688790 with suspended flag0. Inactive unresearched Adef therefore emits undefend852056 during owner transfer.",
+    "Counter suspension4076e0 performs both e0 and c4. AI-mode reset performs only c4. The 18 guarded tables represent the nine existing concrete C suspension receivers and their build/couple/invisibility subclasses; every listed c4 except Defend is the guarded RET4076b0. Reusing A_UNIT_SUSPEND would additionally execute physical or spell teardown.",
+    "This is not a complete native c4-class implementation. Other original overrides include autocast62e650 and Blizzard/RainOfFire6059d0. Their behavior and mode1/c8 are separate residual scope."
+  ],
+  "original_function_exports": [
+    {
+      "function_rva": "0x698ce0",
+      "ghidra": {
+        "name": "Unit_SetPlayerOwner",
+        "size": 1298,
+        "address": "6f698ce0",
+        "decompiled_code": "\n// Full owner transition; different owner only. Native215500 ->21552f reaches synchronous order\n// cancellation698d92 BEFORE assigning Unit+58 player and mover bridge05c800 class publication.\n// Ordinary Move scene tick15 cancels order851986, preserves committed fineXY, zeros native\n// velocity/requested words. Other ownership lifecycle graph remains outside bounded ordinary\n// movement parity.\n// Recovered descriptive name, not an original debug symbol. See\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff153: Genuine owner transfer publishes owner event first, then disables ability AI\n// mode67dff0(0), clears unit5c.4 through6991b0 and reenrolls9b9230. Same-owner returns without\n// these transitions. Complete repeated public 0->2,2->2,2->0 controls preserve an already armed\n// help suppression deadline across transfer.\n//    [payoff153] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff221: different-owner transition publishes script owner event67b400, then CEventOwnerChange\n// d01a2 through unit vt10. Move subscribers recover before this function returns;651010 is absent.\n// Same-owner early return delivers neither subscriber recovery nor task cancellation. Approach\n// continuation can preserve Smart despite transfer; established Follow ends independently of\n// ally/enemy relationship.\n// Payoff260:69919d synchronously delivers d01a2;6991a2 broadcasts d01a5;6991ab disables AI mode\n// and6991b6 reenrolls owner pool. Same-owner early return does not broadcast. Engine availability\n// publication follows retained-target owner subscribers and precedes AI reenrollment.\n\nvoid __thiscall Unit_SetPlayerOwner(WC3UnitOrdersPrefix *self,uint arg_04,uint arg_08,uint arg_0c)\n\n{\n  short sVar1;\n  undefined2 uVar2;\n  WC3OrderPrefix *arg_04_00;\n  int *piVar3;\n  int iVar4;\n  int iVar5;\n  undefined4 uVar6;\n  WC3PathScalar *pWVar7;\n  uint arg_0c_00;\n  uint uVar8;\n  uint arg_10;\n  uint uVar9;\n  uint arg_14;\n  undefined **local_4c;\n  undefined4 local_48;\n  undefined4 local_44;\n  WC3UnitOrdersPrefix *local_40;\n  uint local_3c;\n  uint local_38;\n  undefined1 local_34 [4];\n  WC3PathScalar local_30;\n  WC3PathScalar local_2c;\n  undefined4 local_28;\n  uint local_24;\n  int local_20;\n  uint local_1c;\n  int local_18;\n  uint local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  uVar9 = arg_04;\n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa58558;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  uVar8 = self->owner_index;\n  if (arg_04 != uVar8) {\n    local_20 = DAT_6fd687a8;\n    local_24 = uVar8;\n    local_28 = FUN_6f1e0d70(DAT_6fce689c ^ (uint)(local_34 + 0x30));\n    local_14 = FUN_6f1e0ea0(uVar8);\n    local_18 = FUN_6f1e0ea0(uVar9);\n    FUN_6f05c980(*(int *)(local_18 + 0x268) == 0);\n    (**(code **)((int)self->vtable + 0x98))();\n    if (((self->widget_state_flags & 1) == 0) && ((self->order_admission_flags & 0x100) == 0)) {\n      uVar9 = 1;\n      uVar8 = 1;\n      arg_04_00 = OrderImmediate_Create(0xd0004,self->owner_index,(void *)0x0);\n      Unit_AdmitOrder(self,(uint)arg_04_00,uVar8,uVar9);\n    }\n    else {\n      Unit_CancelQueuedOrderSuccessors(self);\n    }\n    uVar8 = self->rawcode;\n    local_1c = uVar8;\n    if ((*(uint *)&self->field_0x64 & 8) == 0) {\n      if ((*(uint *)&self->field_0x64 & 0x10) != 0) {\n        FUN_6f266f70(uVar8);\n      }\n    }\n    else {\n      FUN_6f25c260(uVar8,0);\n    }\n    if ((*(uint *)&self->field_0x64 & 1) == 0) {\n      if ((*(uint *)&self->field_0x64 & 2) != 0) {\n        FUN_6f25ba00(uVar8,0);\n      }\n    }\n    else {\n      FUN_6f26b140(uVar8,0);\n    }\n    arg_14 = 1;\n    arg_10 = 1;\n    arg_0c_00 = 0;\n    uVar9 = 1;\n    uVar8 = Polymorph_GetBuffClass();\n    piVar3 = (int *)Unit_FindAbilityByClass(self,uVar8,uVar9,arg_0c_00,arg_10,arg_14);\n    if ((piVar3 != (int *)0x0) && (iVar4 = (**(code **)(*piVar3 + 0x368))(), iVar4 != 0)) {\n      local_1c = piVar3[0x38];\n    }\n    if ((*(uint *)&self->field_0x64 & 0x800) != 0) {\n      iVar4 = FUN_6f680030();\n      iVar5 = FUN_6f056a40();\n      FUN_6f056ae0(iVar5 - iVar4);\n      uVar8 = *(uint *)(local_14 + 0x248);\n      uVar9 = FUN_6f056a40();\n      if (uVar8 < uVar9) {\n        *(uint *)(local_14 + 0x248) = uVar9;\n      }\n    }\n    if ((*(uint *)&self->field_0x64 & 0x200) != 0) {\n      iVar4 = FUN_6f680090();\n      FUN_6f25b6f0(-iVar4);\n    }\n    if ((*(uint *)&self->field_0x64 & 0x100) != 0) {\n      uVar6 = FUN_6f680090();\n      FUN_6f25b6f0(uVar6);\n    }\n    if ((*(uint *)&self->field_0x64 & 0x400) != 0) {\n      iVar4 = FUN_6f680030();\n      iVar5 = FUN_6f056a40();\n      FUN_6f056ae0(iVar5 + iVar4);\n      uVar8 = *(uint *)(local_18 + 0x248);\n      uVar9 = FUN_6f056a40();\n      if (uVar8 < uVar9) {\n        *(uint *)(local_18 + 0x248) = uVar9;\n      }\n    }\n    FUN_6f6cac20();\n    local_14 = (uint)*(ushort *)(local_20 + 0x28);\n    if (local_24 == local_14) {\n      if ((self->field_0x248 & 0x10) != 0) {\n        FUN_6f69d670(1);\n      }\n      if ((self->field_0x248 & 0x40) != 0) {\n        FUN_6f69dac0(1);\n      }\n    }\n    iVar4 = FUN_6f056a40();\n    if (iVar4 == 0) {\n      pWVar7 = (WC3PathScalar *)FUN_6f66ad90(local_34);\n    }\n    else {\n      pWVar7 = (WC3PathScalar *)FUN_6f66ae20(&local_28);\n    }\n    uVar8 = arg_04;\n    local_2c = *pWVar7;\n    if (arg_0c != 0) {\n      FUN_6f688da0(local_1c);\n    }\n    self->owner_index = uVar8;\n    FUN_6f05bfe0(uVar8);\n    MoverBridge_SetSchedulerClass(&self->mover_bridge,uVar8);\n    Unit_RefreshSeparationConfiguration(self);\n    FUN_6f6c8020();\n    if (iVar4 == 0) {\n      pWVar7 = (WC3PathScalar *)FUN_6f66ad90(&arg_0c);\n    }\n    else {\n      pWVar7 = (WC3PathScalar *)FUN_6f66ae20(&arg_04);\n    }\n    local_30 = *pWVar7;\n    pWVar7 = Math_Subtract(&local_1c,&local_30,&local_2c);\n    FUN_6f6708a0(pWVar7);\n    arg_04 = (uint)(uVar8 == local_14);\n    arg_0c = FUN_6f1ea970(uVar8,local_14);\n    if (((self->rawcode >> 0x18) - 0x41 < 0x1a) && ((self->order_admission_flags & 0x40000000) == 0)\n       ) {\n      FUN_6f69d1c0(0);\n    }\n    if (arg_04 == 0) {\n      FUN_6f3763b0();\n      FUN_6f376290();\n      FUN_6f3763d0(0xb6);\n    }\n    else {\n      iVar4 = FUN_6f68bd20();\n      if (iVar4 != 0) {\n        FUN_6f69d670(0);\n      }\n      if ((self->field_0x248 & 0x40) != 0) {\n        FUN_6f69dac0(0);\n      }\n    }\n    sVar1 = FUN_6f25eef0();\n    if (sVar1 != 0) {\n      uVar2 = FUN_6f25eef0();\n      FUN_6f6958d0(uVar2);\n    }\n    iVar4 = FUN_6f686570();\n    if ((iVar4 == 10) && (self->owner_index == 0xf)) {\n      self->order_admission_flags = self->order_admission_flags | 0x80000;\n    }\n    else {\n      self->order_admission_flags = self->order_admission_flags & 0xfff7ffff;\n    }\n    if ((((self->order_admission_flags & 0x1000000) != 0) ||\n        ((self->widget_state_flags & 0x4000000) != 0)) ||\n       ((self->separation_category_flags & 0x800) != 0)) {\n      FUN_6f69d240();\n    }\n    if ((self->order_admission_flags & 0x40000000) != 0) {\n      (**(code **)((int)self->vtable + 0xb4))();\n    }\n    iVar4 = Unit_IsStructureForSupportRecovery(1);\n    if (((iVar4 != 0) && ((uVar9 = self->owner_index, uVar9 == 0xf || (uVar9 == 0xc)))) &&\n       ((*(uint *)&self->field_0x248 & 0x100) != 0)) {\n      if (uVar9 == 0xf) {\n        self->order_admission_flags = self->order_admission_flags | 0x40000;\n      }\n      else {\n        self->order_admission_flags = self->order_admission_flags & 0xfffbffff;\n      }\n    }\n    if (arg_08 != 0) {\n      FUN_6f6be970(uVar8);\n    }\n    if ((arg_04 == 0) && (arg_0c == 0)) {\n      (**(code **)((int)self->vtable + 0x1cc))(0xffff,0);\n    }\n    iVar4 = FUN_6f1e0ea0(*(undefined2 *)(local_20 + 0x28));\n    if ((iVar4 != 0) && (iVar5 = FUN_6f2908b0(self), iVar5 != 0)) {\n      (**(code **)((int)self->vtable + 0x194))(1,0,1,0,*(undefined1 *)(iVar4 + 0x30));\n    }\n    uVar9 = local_24;\n    FUN_6f67b400(local_24);\n    local_48 = 0;\n    local_44 = 0xd01a2;\n    local_4c = CEventOwnerChange::vftable;\n    local_3c = uVar9;\n    local_38 = uVar8;\n    local_8 = 0;\n    local_40 = self;\n    (**(code **)((int)self->vtable + 0x10))(&local_4c);\n    Unit_BroadcastTargetAvailable();\n    Unit_SetAbilityAIMode(self,0);\n    self->order_admission_flags = self->order_admission_flags & 0xfffffffb;\n    Unit_RefreshAIOwnedPoolMembership(self);\n    FUN_6f693da0();\n    FUN_6f693d40(1);\n    FUN_6f377080();\n    FUN_6f376b70();\n    FUN_6f654bd0();\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n"
+      },
+      "original_bytes_hex": "558bec6aff685885a56f64a1000000005083ec3c535657a19c68ce6f33c5508d45f464a3000000008bd98b7b588b7508897de03bf70f84c3040000a1a887d66f8bc88945e4e84680b4ff8b4de4578945dce86a81b4ff8b4de4568945f0e85e81b4ff8bf833c9897dec398f680200000f94c1518d8b64010000e8223c9cff8b038bcbff9098000000f64320017526f7435c00010000751d8b5358b904000d006a016a016a00e8a67bffff508bcbe88e75feffeb078bcbe8e5b0fdff8b43648b73308975e8a808740d8b4df06a0056e8ad34bcffeb0da81074098b4df056e8aee1bcff8b4364a801740c6a00568bcfe86d23bdffeb0ea802740a6a00568bcfe81d2cbcff6a016a016a006a01e86007faff508bcbe8883ddfff8bf885ff74178b178bcfff926803000085c074098bb7e00000008975e8f743640008000074418bcee80b72feff8b7df08bf083ef80f7de8bcfe80adc9bff03c68bcf50e8a0dc9bff8b45f08bcf8bb048020000e8f0db9bff8b7df03bc6760b898748020000eb038b7df0f74364000200008b75e874118bcee81b72fefff7d88bcf50e87128bcfff743640001000074148bcee80172feff8b7dec8bcf50e85628bcffeb038b7decf7436400040000743c8bcee88171feff83ef808bf08bcfe885db9bff03c68bcf50e81bdc9bff8b75ec8bcf8bb648020000e86bdb9bff8bc83bce76098b45ec8988480200008bcbe8351d03008b45e40fb7482833c0394de0894df00f94c085c07424f683480200001074096a018bcbe85d470000f683480200004074096a018bcbe89b4b00008b4ddc83e980e810db9bff8bf08bcbf7de1bf6f7de740b8d45dc50e8db1efdffeb098d45d050e8401efdff837d10008b008b7d088945d8740dff75e88b4de08bd7e835fefeff578d8b64010000897b58e866309cff578d8b64010000e87a389cff8bcbe8c3adffff8bcbe88cf002008bcb85f6740b8d450850e87d1efdffeb098d451050e8e21dfdff8b008d55d48945d48d4de88d45d850e8ce6a9dff508bcbe8d678fdff8b4df033c03bf9518b4de40f94c057894508e88f19b5ff8b4b30c1e91883c1bf89451083f9197712f7435c0000004075096a008bcbe8bc410000837d08008bcb7426e80f2dffff85c074096a008bcbe852460000f683480200004074286a008bcbe8904a0000eb1de879d3cdff8bcbe852d2cdff68b6000000ba90a5b76f8bcbe881d3cdff8b75ec8bcee8975ebcff6685c074128bcee88b5ebcff0fb7c08bcb50e860c8ffff8b4b30e8f8d4feff83f80a750f837b580f7509814b5c00000800eb0781635cfffff7fff7435c000000017512f74320000000047509f743600008000074078bcbe88b410000f7435c00000040740a8b038bcbff90b40000006a018bcbe8bf30ffff85c0742e8b435883f80f740583f80c7521f7834802000000010000741583f80f7509814b5c00000400eb0781635cfffffbff837d0c007408578bcbe85f580200837d08007517837d100075118b038bcb6a0068ffff0000ff90cc0100008b4de40fb7412850e8657db4ff8bf085f674248b4e3453e86677bfff85c074170fb646308bcb8b13506a006a016a006a01ff92940100008b75e08bcb56e89022feffc745bc00000000c745c0a2010d00895dc4c745b8c892b76f8975c8897dcc8b038d4db8518bcbc745fc00000000ff50108bcbe8097ffbff6a008bcbe8404efeff83635cfb8bcbe8750032008bcbe8deabffff6a018bcbe875abffffe8b0decdff8bcbe899d9cdff8bcbe8f2b9fbff8b4df464890d00000000595f5e5b8be55dc20c00",
+      "original_bytes_sha256": "a034044394e759124a62789405401407d0c8ae7c4c028d717878c4e9e9cd159f"
+    },
+    {
+      "function_rva": "0x67dff0",
+      "ghidra": {
+        "name": "Unit_SetAbilityAIMode",
+        "size": 161,
+        "address": "6f67dff0",
+        "decompiled_code": "\n// Payoff153: ECX Unit, stack4 Boolean; RET4. Walk live ability identities1dc/1e0 and next24/28. For\n// ability3c<=0 set/clear ability20 bit2, then invoke c8/c4 respectively. Enrollment and owner\n// transfer controls observe this boundary; complete per-ability side effects remain GROUP03.2.\n//    [payoff153] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\nuint __thiscall Unit_SetAbilityAIMode(WC3UnitOrdersPrefix *self,uint arg_04)\n\n{\n  uint uVar1;\n  int *piVar2;\n  WC3PathIdentity *identity;\n  \n  identity = &self->ability_head;\n  uVar1 = (self->ability_head).generation & identity->slot;\n  if (arg_04 == 0) {\n    if (uVar1 != 0xffffffff) {\n      piVar2 = AgentIdentity_ResolvePayload(identity);\n      uVar1 = 0;\n      if (piVar2 != (int *)0x0) {\n        do {\n          if (piVar2[0xf] < 1) {\n            piVar2[8] = piVar2[8] & 0xfffffffd;\n            (**(code **)(*piVar2 + 0xc4))();\n          }\n          if ((piVar2[10] & ((WC3PathIdentity *)(piVar2 + 9))->slot) == 0xffffffff) {\n            return 0xffffffff;\n          }\n          piVar2 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(piVar2 + 9));\n          uVar1 = 0;\n        } while (piVar2 != (int *)0x0);\n      }\n    }\n  }\n  else if (uVar1 != 0xffffffff) {\n    piVar2 = AgentIdentity_ResolvePayload(identity);\n    uVar1 = 0;\n    if (piVar2 != (int *)0x0) {\n      while( true ) {\n        if (piVar2[0xf] < 1) {\n          piVar2[8] = piVar2[8] | 2;\n          (**(code **)(*piVar2 + 200))();\n        }\n        uVar1 = piVar2[10] & ((WC3PathIdentity *)(piVar2 + 9))->slot;\n        if (uVar1 == 0xffffffff) break;\n        piVar2 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(piVar2 + 9));\n        if (piVar2 == (int *)0x0) {\n          return 0;\n        }\n      }\n    }\n  }\n  return uVar1;\n}\n\n"
+      },
+      "original_bytes_hex": "558bec8b81e001000081c1dc010000562301837d0800744183f8ff747fe80e339eff8bf085f67474837e3c007f0e834e20028bce8b06ff90c80000008b46288d4e24230183f8ff7453e8e2329eff8bf085f675d45e5dc2040083f8ff743ee8cd329eff8bf085f674338da42400000000837e3c007f0e836620fd8bce8b06ff90c40000008b46288d4e24230183f8ff740be89a329eff8bf085f675d45e5dc20400",
+      "original_bytes_sha256": "8635b5e4975e842d9a807bc8edf70082ce7293788c2aa9b0fe5aecea66c33b86"
+    },
+    {
+      "function_rva": "0x605aa0",
+      "ghidra": {
+        "name": "ModalAbility_CancelAndPublishOff",
+        "size": 88,
+        "address": "6f605aa0",
+        "decompiled_code": "\n// \n// Payoff178 ORDER-03.2: MOV EDI,ECX605aa3; EventClock_CancelRequest at ability84; selector\n// virtual318, OrderImmediate_Create, Unit_DispatchTransientOrder; plainRET605af7. Fresh read-only\n// removal caller stack sees disable then detach independently invoke this function. Engine indexed\n// synchronous families copy one immutable packet per nesting level; Stop retains its transient head\n// during callbacks. Removal commits inactive state before ability retirement/detach notifications;\n// no removal death event. Full prepared Frida streams and fresh411 original nested/cross-agent\n// cases remain separately scoped.\n// Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff287: cancel request, select virtual318 off command, create immediate user order, call688790\n// with dispatch_suspended0. It notifies even for inactive Defend. Temporary pause retains this\n// packet beneath suspension; do not erase active stance early or call public native validation on\n// its eventual execution. Runtime removal separately emits an off selector; captured scenes11/12\n// retain the distinct notification counts.\n// Payoff288: retained temporary off protocol integrated through a generic engine packet owner. Four\n// frozen public scenes (inactive/active Defend, active Move, runtime-added Defend) preserve stance\n// and movement speed until packet activation, including cold saves. Selector is procedure-owned,\n// notification precedes retention, activation re-notifies before applying inverse without public\n// native revalidation. Per-ability ordered disable counters and reentrant compositions remain\n// outside this four-scene projection.\n// Payoff288: retained temporary off protocol integrated through a generic engine packet owner. Six\n// frozen public scenes (inactive/active Defend, active Move, runtime-added Defend, detach before\n// and during suspension) preserve stance and movement speed until packet activation, including cold\n// saves. Selector is procedure-owned, notification precedes retention, activation re-notifies\n// before applying inverse without public native revalidation. Per-ability ordered disable counters\n// and reentrant compositions remain outside this six-scene projection.\n\nvoid __thiscall ModalAbility_CancelAndPublishOff(WC3ModalAbilityPrefix *ability)\n\n{\n  WC3UnitOrdersPrefix *unit;\n  void *target;\n  uint owner;\n  uint command;\n  WC3OrderPrefix *order;\n  uint dispatch_suspended;\n  \n  EventClock_CancelRequest((WC3EventClockControlPrefix *)&ability[2].field_0x1c);\n  unit = ability->unit;\n  if (unit == (WC3UnitOrdersPrefix *)0x0) {\n    unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  dispatch_suspended = 0;\n  target = (void *)(**(code **)((int)ability->vtable + 0xa0))();\n  owner = (**(code **)((int)unit->vtable + 0xec))();\n  command = (**(code **)((int)ability->vtable + 0x318))();\n  order = OrderImmediate_Create(command,owner,target);\n  Unit_DispatchTransientOrder(unit,order,dispatch_suspended);\n  return;\n}\n\n"
+      },
+      "original_bytes_hex": "5356578bf98d8f84000000e810aca5ff8b5f3085db75098bcfe80202a5ff8bd88b178bcf6a00ff92a00000008b138bcb50ff92ec0000008b178bcf8bf0ff92180300008bd68bc8e844ae0800508bcbe89c2c08005f5e5bc3",
+      "original_bytes_sha256": "725cb776faec88f6415b7d34d29eec2b8c3a170552e2e425da31e00c8bc15e40"
+    },
+    {
+      "function_rva": "0x67b400",
+      "ghidra": {
+        "name": "FUN_6f67b400",
+        "size": 278,
+        "address": "6f67b400",
+        "decompiled_code": "\n// WARNING: Removing unreachable block (ram,0x6f67b4ed)\n// WARNING: Removing unreachable block (ram,0x6f67b4f2)\n\nvoid __thiscall FUN_6f67b400(WC3UnitOrdersPrefix *param_1,uint param_2)\n\n{\n  int *piVar1;\n  uint uVar2;\n  int iVar3;\n  uint actual;\n  int *event_data;\n  WC3UnitOrdersPrefix *pWVar4;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa55c00;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  pWVar4 = param_1;\n  uVar2 = param_2;\n  FUN_6f685fc0(param_1,param_2,DAT_6fce689c ^ (int)register0x00000010 - 4U);\n  FUN_6f2606b0(pWVar4,uVar2);\n  uVar2 = Agent_HasEventSubscriber(param_1,0x8031f);\n  if (uVar2 != 0) {\n    local_8 = 1;\n    uVar2 = FUN_6f684bd0();\n    iVar3 = FUN_6f03eaf0();\n    FUN_6f055d00(*(undefined4 *)(iVar3 + 0x70));\n    iVar3 = FUN_6f154b60(1);\n    piVar1 = *(int **)(iVar3 + 0x54);\n    event_data = (int *)0x0;\n    if (piVar1 != (int *)0x0) {\n      actual = (**(code **)(*piVar1 + 0x1c))();\n      uVar2 = AgentClass_IsDerived(actual,uVar2);\n      if (uVar2 != 0) {\n        piVar1[1] = piVar1[1] + 1;\n        event_data = piVar1;\n      }\n    }\n    FUN_6f699910(param_1);\n    event_data[0xb] = param_2 & 0xffff;\n    Unit_FireScriptEvent(param_1,0x8031f,event_data);\n    if (event_data != (int *)0x0) {\n      piVar1 = event_data + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*event_data)();\n      }\n    }\n    local_8 = 0xffffffff;\n  }\n  ExceptionList = local_10;\n  FUN_6f78e855();\n  return;\n}\n\n"
+      },
+      "original_bytes_hex": "558bec6aff68005ca56f64a1000000005083ec38a19c68ce6f33c58945f0535657508d45f464a3000000008bd9ff750853e88aab00008bc8e87352beff681f0308008bcbe8476d9fff85c00f84a700000033f68975c0c745fc01000000e86e9700008bf88bc8897dbce882369cff8bd78d4dc4ff7070e885a89dff6a018d5601c745e8ffffffff8d4dc4e8d196adff8b785485ff741d8b078bcfff501c8b55bc8bc8e829199dff85c07408ff47048bf78975c0538bcee855e401008b45088bcb560fb7c0681f03080089462ce83ff9ffff85f6740dff4e0475068b068bceff1033f6c745fcffffffff85f6740bff4e0475068b068bceff108b4df464890d00000000595f5e5b8b4df033cde8453311008be55dc20400",
+      "original_bytes_sha256": "dbe59b906c3c5cc32b9238a02b6fa1e901699a5ffddeed8bd95f581cb5700473"
+    },
+    {
+      "function_rva": "0x67ae10",
+      "ghidra": {
+        "name": "Unit_FireScriptEvent",
+        "size": 287,
+        "address": "6f67ae10",
+        "decompiled_code": "\n// Thiscall ECX unit, stack4 event, stack8 event data agent; RET8. Allocates a 0x14-byte\n// CScriptEvent packet (vt 6fa9f7f4, +4 refs held by the producer, +8 event, +C reg, +10 counted\n// event-data ref), registers a JASS handle (282e30), unit vt+10 dispatch, releases handle (283f40)\n// and the packet ref (destroyed at zero) only after every nested delivery has returned.\n//    [ORDER-03.2] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// [ORDER-03.2] Thiscall ECX unit, stack4 event, stack8 event data agent; RET8. Allocates a\n// 0x14-byte CScriptEvent packet (vt 6fa9f7f4, +4 refs held by the producer, +8 event, +C reg, +10\n// counted event-data ref), registers a JASS handle (282e30), unit vt+10 dispatch, releases handle\n// (283f40) and the packet ref (destroyed at zero) only after every nested delivery has returned.\n// Recovered descriptive name, not an original debug symbol. See\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff178 ORDER-03.2: RET8 67af2c. ORDER-03.2: instruction-verified (RET/stack use below); live\n// public order-event captures (order03/03b/03c probes) and Unicorn oracle\n// verify_ORDER-03.2_nested_lifetime.py. Engine indexed synchronous families copy one immutable\n// packet per nesting level; Stop retains its transient head during callbacks. Removal commits\n// inactive state before ability retirement/detach notifications; no removal death event. Full\n// prepared Frida streams and fresh411 original nested/cross-agent cases remain separately scoped.\n// Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\nvoid __thiscall Unit_FireScriptEvent(WC3UnitOrdersPrefix *unit,uint event,void *event_data)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  undefined4 *puVar3;\n  undefined4 uVar4;\n  uint uVar5;\n  uint actual;\n  undefined4 *puVar6;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa55aa9;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  FUN_6f1e0d70(DAT_6fce689c ^ (int)register0x00000010 - 4U);\n  puVar3 = (undefined4 *)\n           Ordinal_401(0x14,\"d:\\\\jenkins\\\\workspace\\\\warcraft3_win\\\\war3\\\\source\\\\unit\\\\CUnitUI.cpp\"\n                       ,0x54d,0);\n  if (puVar3 == (undefined4 *)0x0) {\n    puVar3 = (undefined4 *)0x0;\n  }\n  else {\n    puVar3[1] = 0;\n    puVar3[2] = event;\n    puVar3[3] = 0;\n    *puVar3 = CScriptEvent::vftable;\n    puVar3[4] = 0;\n  }\n  if (puVar3 != (undefined4 *)0x0) {\n    puVar3[1] = puVar3[1] + 1;\n  }\n  local_8 = 3;\n  uVar4 = FUN_6f282e30(event_data,1);\n  if (event_data != (void *)0x0) {\n    uVar5 = FUN_6f2798b0();\n    actual = (**(code **)(*(int *)event_data + 0x1c))();\n    uVar5 = AgentClass_IsDerived(actual,uVar5);\n    if (uVar5 != 0) {\n      puVar6 = event_data;\n      goto LAB_6f67aecf;\n    }\n  }\n  puVar6 = (undefined4 *)0x0;\nLAB_6f67aecf:\n  puVar2 = (undefined4 *)puVar3[4];\n  if (puVar2 != puVar6) {\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar1 = puVar2 + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    if ((puVar6 != (undefined4 *)0x0) && (event_data != (void *)0x0)) {\n      *(int *)((int)event_data + 4) = *(int *)((int)event_data + 4) + 1;\n    }\n    puVar3[4] = puVar6;\n  }\n  (**(code **)((int)unit->vtable + 0x10))(puVar3);\n  FUN_6f283f40(uVar4);\n  local_8 = 0xffffffff;\n  if (puVar3 != (undefined4 *)0x0) {\n    piVar1 = puVar3 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*puVar3)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n"
+      },
+      "original_bytes_hex": "558bec6aff68a95aa56f64a1000000005083ec18535657a19c68ce6f33c5508d45f464a300000000894df08b0da887d66fe82a5fb6ff6a00684d05000068f8a6b76f8bf06a148975ece87418a0ff8bf885ff74238b4508c7470400000000894708c7470c00000000c707f4f7a96fc7471000000000eb0233ff897de885ff7403ff47048b5d0c8bce6a0153c745fc03000000e8897fc0ff89450885db741fe8fde9bfff8b138bcb8bf0ff521c8bd68bc8e80b1f9dff85c074048bf3eb0233f68b4f103bce741b85c97409ff490475048b01ff1085f6740785db7403ff43048977108b4df0578b01ff5010ff75088b4dece83b90c0ffc745fcffffffff85ff740bff4f0475068b078bcfff108b4df464890d00000000595f5e5b8be55dc20800",
+      "original_bytes_sha256": "90d9d3cc4c9fab8da62c483e5fcd91d165ac4c7b8da967a83e1a01f47d75431b"
+    },
+    {
+      "function_rva": "0x2606b0",
+      "ghidra": {
+        "name": "FUN_6f2606b0",
+        "size": 253,
+        "address": "6f2606b0",
+        "decompiled_code": "\nvoid __thiscall FUN_6f2606b0(void *param_1,undefined4 param_2,uint param_3)\n\n{\n  int *piVar1;\n  uint uVar2;\n  uint uVar3;\n  int iVar4;\n  int *event_data;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6f9f4480;\n  local_10 = ExceptionList;\n  uVar2 = DAT_6fce689c ^ (int)register0x00000010 - 4U;\n  ExceptionList = &local_10;\n  uVar3 = Agent_HasEventSubscriber(param_1,0x8030e);\n  if (uVar3 != 0) {\n    local_8 = 1;\n    uVar2 = FUN_6f265a10(uVar2);\n    iVar4 = FUN_6f03eaf0();\n    FUN_6f055d00(*(undefined4 *)(iVar4 + 0x70));\n    iVar4 = FUN_6f154b60(1);\n    piVar1 = *(int **)(iVar4 + 0x54);\n    event_data = (int *)0x0;\n    if (piVar1 != (int *)0x0) {\n      uVar3 = (**(code **)(*piVar1 + 0x1c))();\n      uVar2 = AgentClass_IsDerived(uVar3,uVar2);\n      if (uVar2 != 0) {\n        piVar1[1] = piVar1[1] + 1;\n        event_data = piVar1;\n      }\n    }\n    FUN_6f26acd0(param_1);\n    FUN_6f26afe0(param_2);\n    event_data[0x11] = param_3 & 0xffff;\n    Player_FireScriptEvent(param_1,0x8030e,event_data);\n    local_8 = 0xffffffff;\n    if (event_data != (int *)0x0) {\n      piVar1 = event_data + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*event_data)();\n      }\n    }\n  }\n  ExceptionList = local_10;\n  FUN_6f78e855();\n  return;\n}\n\n"
+      },
+      "original_bytes_hex": "558bec6aff6880449f6f64a1000000005083ec38a19c68ce6f33c58945f0535657508d45f464a3000000008bd9680e030800e8a91ae1ff85c00f84a000000033f68975c0c745fc01000000e8105300008bf88bc8897dbce8e4e3ddff8bd78d4dc4ff7070e8e755dfff6a018d5601c745e8ffffffff8d4dc4e83344efff8b785485ff741d8b078bcfff501c8b55bc8bc8e88bc6deff85c07408ff47048bf78975c0538bcee877a50000ff75088bcee87da800008b450c8bcb560fb7c0680e030800894644e837250000c745fcffffffff85f6740bff4e0475068b068bceff108b4df464890d00000000595f5e5b8b4df033cde8aee052008be55dc20800",
+      "original_bytes_sha256": "decb9fc7767a5175cc6d9889b32f68f20fbf6fee9bdbcd344e254568958852f6"
+    }
+  ],
+  "callsite_byte_guards": {
+    "0x6f69919d": "ff5010",
+    "0x6f6991a2": "e8097ffbff",
+    "0x6f6991ab": "e8404efeff",
+    "0x6f6991b6": "e875003200",
+    "0x6f67e060": "837e3c00",
+    "0x6f67e064": "7f0e",
+    "0x6f67e066": "836620fd",
+    "0x6f67e06e": "ff90c4000000",
+    "0x6f69916b": "e89022feff",
+    "0x6f605aab": "e810aca5ff",
+    "0x6f605add": "ff9218030000",
+    "0x6f605ae7": "e844ae0800",
+    "0x6f605aef": "e89c2c0800"
+  },
+  "validation": {
+    "functions": 6,
+    "whole_function_byte_guards": 6,
+    "callsite_guards": 13,
+    "vtable_tables": 18,
+    "vtable_and_noop_guards": 37
+  },
+  "current_suspension_receiver_procedures": [
+    "CAbilityAttack",
+    "CAbilityMove",
+    "CAbilityBuild",
+    "CAbilityCouple",
+    "CAbilityCoupleInstant",
+    "CAbilityPermanentInvisibility",
+    "CAbilityChannel",
+    "CAbilityItemTeleport",
+    "CAbilityDefend"
+  ],
+  "original_vtable_callbacks": [
+    {
+      "name": ".?AVCAbilityAttack@@",
+      "vtable": "0xadb5a4",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f497ba0"
+    },
+    {
+      "name": ".?AVCAbilityMove@@",
+      "vtable": "0xb62794",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f5fc120"
+    },
+    {
+      "name": ".?AVCAbilityBuild@@",
+      "vtable": "0xb17924",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityNeutralBuild@@",
+      "vtable": "0xb17c88",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityHumanBuild@@",
+      "vtable": "0xb17fec",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityOrcBuild@@",
+      "vtable": "0xb18350",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityNightElfBuild@@",
+      "vtable": "0xb186b4",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityUndeadBuild@@",
+      "vtable": "0xb18a18",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c610"
+    },
+    {
+      "name": ".?AVCAbilityNagaBuild@@",
+      "vtable": "0xb18d7c",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f54c5e0"
+    },
+    {
+      "name": ".?AVCAbilityCouple@@",
+      "vtable": "0xafbf4c",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f407470"
+    },
+    {
+      "name": ".?AVCAbilityCoupleArcher@@",
+      "vtable": "0xafc27c",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f407470"
+    },
+    {
+      "name": ".?AVCAbilityCoupleHippogryph@@",
+      "vtable": "0xafc5ac",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f407470"
+    },
+    {
+      "name": ".?AVCAbilityCoupleInstant@@",
+      "vtable": "0xafc8dc",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f4c8af0"
+    },
+    {
+      "name": ".?AVCAbilityPermInvis@@",
+      "vtable": "0xb67448",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f62e600"
+    },
+    {
+      "name": ".?AVCAbilityItemPermInvis@@",
+      "vtable": "0xb681f0",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f62e600"
+    },
+    {
+      "name": ".?AVCAbilityChannel@@",
+      "vtable": "0xae4f2c",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f407600"
+    },
+    {
+      "name": ".?AVCAbilityItemTeleport@@",
+      "vtable": "0xad1418",
+      "c4": "0x6f4076b0",
+      "e0": "0x6f407600"
+    },
+    {
+      "name": ".?AVCAbilityDefend@@",
+      "vtable": "0xb47bd0",
+      "c4": "0x6f605aa0",
+      "e0": "0x6f407470"
+    }
+  ],
+  "original_vtable_byte_guards": {
+    "0x6fadb668": "b076406f",
+    "0x6fadb684": "a07b496f",
+    "0x6fb62858": "b076406f",
+    "0x6fb62874": "20c15f6f",
+    "0x6fb179e8": "b076406f",
+    "0x6fb17a04": "e0c5546f",
+    "0x6fb17d4c": "b076406f",
+    "0x6fb17d68": "e0c5546f",
+    "0x6fb180b0": "b076406f",
+    "0x6fb180cc": "e0c5546f",
+    "0x6fb18414": "b076406f",
+    "0x6fb18430": "e0c5546f",
+    "0x6fb18778": "b076406f",
+    "0x6fb18794": "e0c5546f",
+    "0x6fb18adc": "b076406f",
+    "0x6fb18af8": "10c6546f",
+    "0x6fb18e40": "b076406f",
+    "0x6fb18e5c": "e0c5546f",
+    "0x6fafc010": "b076406f",
+    "0x6fafc02c": "7074406f",
+    "0x6fafc340": "b076406f",
+    "0x6fafc35c": "7074406f",
+    "0x6fafc670": "b076406f",
+    "0x6fafc68c": "7074406f",
+    "0x6fafc9a0": "b076406f",
+    "0x6fafc9bc": "f08a4c6f",
+    "0x6fb6750c": "b076406f",
+    "0x6fb67528": "00e6626f",
+    "0x6fb682b4": "b076406f",
+    "0x6fb682d0": "00e6626f",
+    "0x6fae4ff0": "b076406f",
+    "0x6fae500c": "0076406f",
+    "0x6fad14dc": "b076406f",
+    "0x6fad14f8": "0076406f",
+    "0x6fb47c94": "a05a606f",
+    "0x6fb47cb0": "7074406f",
+    "0x6f4076b0": "c3"
+  }
+}

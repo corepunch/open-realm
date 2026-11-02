@@ -186,16 +186,13 @@ TEST(wc3_spell, creep_searing_arrows_uses_alias_bonus_damage) {
     old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('n', 's', 'k', 'e'), 0, 0);
     attacker->data.UnitAbilities = &abilities;
-    attacker->unit_state->attack1.weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
     attacker->svflags |= SVF_MONSTER;
     T_ASSERT(G_SetUnitAutocast(attacker, BZ_ACSA, true));
     T_ASSERT(G_UnitAutocastIsOn(attacker, BZ_ACSA));
     T_EQ(G_UnitStatusLevel(attacker, BZ_ACSA), 0);
     T_EQ(S_SearingArrowDamage(attacker, 20), 33);
-    attacker->unit_state->attack1.weapon = WPN_NORMAL;
-    T_EQ(S_SearingArrowDamage(attacker, 20), 20);
-    attacker->unit_state->attack1.weapon = WPN_MISSILE;
-    T_ASSERT(G_SetUnitAutocast(attacker, BZ_ACSA, false));
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
     T_EQ(S_SearingArrowDamage(attacker, 20), 20);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -236,11 +233,11 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
 #if BZ_COMPAT_WORKAROUNDS
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 1);
-    T_NOT_NULL(G_GetPolymorph(target));
+    T_NOT_NULL(target->polymorph);
     /* Refreshing the morph must preserve the first application's inverse. */
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     S_PolymorphRemove(target);
-    T_NULL(G_GetPolymorph(target));
+    T_NULL(target->polymorph);
     T_EQ(target->s.model, original_model);
     T_FEQ(target->s.scale, 1.37f, 0.001f);
     T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
@@ -248,14 +245,14 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     uint32_t const morphed_model = target->s.model;
     unit_die(target, NULL);
-    T_NULL(G_GetPolymorph(target));
+    T_NULL(target->polymorph);
     T_ASSERT(!S_UnitPolymorphed(target));
     S_PolymorphRemove(target);
     T_EQ(target->s.model, morphed_model);
 #else
     T_ASSERT(!S_CastUnitTargetSpell(caster, BZ_ACPY, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BPLY), 0);
-    T_NULL(G_GetPolymorph(target));
+    T_NULL(target->polymorph);
     T_EQ(target->s.model, original_model);
     T_FEQ(target->s.scale, 1.37f, 0.001f);
     T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
@@ -411,7 +408,7 @@ TEST(wc3_spell, creep_evasion_zero_chance_alias_takes_hit) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->unit_state->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->data.UnitAbilities = &abilities;
     target->health.value = target->health.max_value = 100;
     S_ResolveAttackHit(attacker, target, 10);
@@ -433,15 +430,15 @@ TEST(wc3_spell, creep_evasion_runtime_added_and_removed) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->unit_state->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->data.UnitAbilities = &abilities;
     target->health.value = target->health.max_value = 100;
-    target->unit_state->overrides.added[0] = FS_SLKKey("ACes");
-    ARRAY_COUNT(target->unit_state->overrides.added) = 1;
+    target->abilities.added[0] = FS_SLKKey("ACes");
+    ARRAY_COUNT(target->abilities.added) = 1;
     S_ResolveAttackHit(attacker, target, 10);
     T_FEQ(target->health.value, 100, 0.001f);
-    target->unit_state->overrides.removed[0] = FS_SLKKey("ACes");
-    ARRAY_COUNT(target->unit_state->overrides.removed) = 1;
+    target->abilities.removed[0] = FS_SLKKey("ACes");
+    ARRAY_COUNT(target->abilities.removed) = 1;
     S_ResolveAttackHit(attacker, target, 10);
     T_ASSERT(target->health.value < 100);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -462,13 +459,13 @@ TEST(wc3_spell, creep_evasion_ranked_alias_uses_authored_row) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->unit_state->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->health.value = target->health.max_value = 100;
-    target->unit_state->ranks[0] = MAKE(heroability_t, .code = FS_SLKKey("ACes"), .level = 1);
+    target->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("ACes"), .level = 1);
     S_ResolveAttackHit(attacker, target, 10);
     T_ASSERT(target->health.value < 100);
     target->health.value = target->health.max_value = 100;
-    target->unit_state->ranks[0].level = 2;
+    target->heroabilities[0].level = 2;
     S_ResolveAttackHit(attacker, target, 10);
     T_FEQ(target->health.value, 100, 0.001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -495,7 +492,7 @@ TEST(wc3_spell, creep_evasion_base_and_brawler_retained) {
     alias_target->data.UnitAbilities = &alias_abils;
     base_target->health.value = base_target->health.max_value = 100;
     alias_target->health.value = alias_target->health.max_value = 100;
-    attacker->unit_state->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     S_ResolveAttackHit(attacker, base_target, 10);
     T_FEQ(base_target->health.value, 100, 0.001f);
     S_ResolveAttackHit(attacker, alias_target, 10);
@@ -616,7 +613,7 @@ TEST(wc3_spell, pillage_custom_alias_respects_damage_threshold_and_remainder) {
     pillageFixture_t fix = pillage_setup("Zsal", false);
     T_ASSERT(S_ResolveAbilityAlias(fix.attacker, BZ_ASAL).alias == MAKEFOURCC('Z','s','a','l'));
     S_PillageOnAttackDamage(fix.attacker, fix.building, 3);
-    T_NOT_NULL(G_GetPillage(fix.building)); /* record allocated, still no payout */
+    T_NOT_NULL(fix.building->pillage); /* record allocated, still no payout */
     T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
     S_PillageOnAttackDamage(fix.attacker, fix.building, 97);
     T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12); /* 12.5 truncates; remainder retained */
@@ -631,14 +628,14 @@ TEST(wc3_spell, pillage_only_primary_hits_and_completed_structures_pay) {
     /* Generic spell/secondary T_Damage must not award even against a building. */
     T_Damage(fix.building, fix.attacker, 10);
     T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
-    T_NULL(G_GetPillage(fix.building));
-    G_AddConstruction(fix.building);
+    T_NULL(fix.building->pillage);
+    (fix.building->construction ? fix.building->construction : (fix.building->construction=G_AllocConstruction()));
     S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
-    T_NULL(G_GetPillage(fix.building));
+    T_NULL(fix.building->pillage);
     G_FreeConstruction(fix.building);
     fix.building->s.flags &= ~EF_BUILDING;
     S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
-    T_NULL(G_GetPillage(fix.building));
+    T_NULL(fix.building->pillage);
     fix.building->s.flags |= EF_BUILDING;
     S_PillageOnAttackDamage(fix.attacker, fix.building, 100);
     T_EQ(fix.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 12);

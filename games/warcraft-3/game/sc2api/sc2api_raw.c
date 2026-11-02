@@ -134,7 +134,7 @@ static uint32_t sc2api_ability_code_for_order(uint32_t order_id) {
 }
 
 static float sc2api_build_progress(edict_t const *ent) {
-    construction_t *site = G_GetConstruction(ent);
+    construction_t *site = ent ? ent->construction : NULL;
     float duration;
 
     if (!ent || !site || !ent->data.UnitBalance ||
@@ -154,10 +154,11 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
     if (!ability_id) return false;
     index = out->order_count;
     out->orders[index].ability_id = ability_id;
-    if (order->target_type == UNIT_ORDER_TARGET_POINT || order->target_type == UNIT_ORDER_TARGET_BUILD) {
+    if (order->target_type == UNIT_ORDER_TARGET_POINT || order->target_type == UNIT_ORDER_TARGET_BUILD ||
+        order->target_type == UNIT_ORDER_TARGET_POINT_ITEM) {
         out->orders[index].has_point = true;
         out->orders[index].point = WC3_SC2API_WorldToBoardPoint(&order->point);
-    } else if (order->target_type == UNIT_ORDER_TARGET_ENTITY) {
+    } else if (order->target_type == UNIT_ORDER_TARGET_ENTITY || order->target_type == UNIT_ORDER_TARGET_ENTITY_ITEM) {
         edict_t *target;
         if (order->target_number >= globals.num_edicts) return false;
         target = globals.edicts + order->target_number;
@@ -170,7 +171,7 @@ static bool sc2api_append_order(wc3Sc2RawUnit_t *out, unitOrder_t const *order) 
 }
 
 bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t *out) {
-    cargo_t *hold = G_GetCargo(ent);
+    cargo_t *hold = ent ? ent->cargo : NULL;
     entityState_t state;
     bool visible;
     uint32_t cargo_capacity;
@@ -180,7 +181,7 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
     if (!out || !ent || !WC3_SC2API_PlayerClient(player)) return false;
     visible = ent->inuse && G_FowPlayerCanHoverEntity(player, ent);
     bool const alive = ent->inuse && ((ent->svflags & SVF_MONSTER) || destructable) &&
-        !(ent->svflags & SVF_DEADMONSTER) && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) && ent->health.value > 0.0f;
+        !(ent->svflags & SVF_DEADMONSTER) && !(ent && ent->training) && ent->health.value > 0.0f;
     sc2FogMemory_t *memory = sc2api_remembered_entity(player, ent);
     if (memory && (!alive || !visible)) {
         if ((visible && ent->inuse) || G_FowPointIsVisible(player, &memory->world)) memory->tag = 0;
@@ -252,12 +253,12 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
     /*Resolve the same authored WC3 buff rawcode used by the normal status
      * panel, then expose that stable uint32 id as SC2 Raw Unit.buff_ids. Only
      * publish live visible state; snapshots return before this point. */
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0) {
-        uint32_t const buff = G_UnitStatusBuffCode(&ent->unit_state->statuses[i]);
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        uint32_t const buff = G_UnitStatusBuffCode(&ent->abilstatus[i]);
         bool duplicate = false;
 
         if (!buff ||
-            (ent->unit_state->statuses[i].timestamp && ent->unit_state->statuses[i].timestamp <= G_Time()) ||
+            (ent->abilstatus[i].timestamp && ent->abilstatus[i].timestamp <= G_Time()) ||
             out->buff_count >= MAX_UNIT_STATUSES) continue;
         FOR_LOOP(j, out->buff_count) if (out->buff_ids[j] == buff) { duplicate = true; break; }
         if (!duplicate) out->buff_ids[out->buff_count++] = buff;
@@ -274,7 +275,7 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
          * therefore cannot change the observation from a hidden entity rally
          * to a newly exposed default. Never invoke the mutating resolver for
          * an entity whose current state this player cannot observe. */
-        rally_t const *rec = G_GetRally(ent);
+        rally_t const *rec = ent ? ent->rally : NULL;
         if (rec && rec->type == RALLY_TARGET_POINT)
             rally_type = G_ResolveRallyTarget((edict_t *)ent, &rally_point, &rally_entity);
         else if (rec && rec->type == RALLY_TARGET_ENTITY) {
@@ -526,7 +527,7 @@ wc3Sc2ActionResult_t WC3_SC2API_IssueRawUnitCommand(uint32_t player,
      * name. Alias-aware unit dispatch retains the concrete Warcraft ability. */
     abilityitem_t const item = S_AbilityItem(command->ability_id);
     if (G_AbilityData(command->ability_id)->id == command->ability_id && item.ability) {
-        if (!G_UnitAbilityLevel(unit, command->ability_id) || !item.ability->orders ||
+        if (!G_UnitAbilityClassLevel(unit, command->ability_id) || !item.ability->orders ||
             !item.ability->orders[0]) return WC3_SC2_ACTION_NOT_SUPPORTED;
         order = item.ability->orders[0];
     }
@@ -578,7 +579,7 @@ wc3Sc2ActionResult_t WC3_SC2API_ToggleRawAutocast(uint32_t player, uint32_t abil
         wc3Sc2ActionResult_t result = WC3_SC2_ACTION_SUCCESS;
         if (!unit) result = WC3_SC2_ACTION_CANT_TARGET;
         else if (!G_UnitCanControl(client, unit)) result = WC3_SC2_ACTION_CANT_CONTROL_UNIT;
-        else if (!G_UnitAbilityLevel(unit, ability_code)) result = WC3_SC2_ACTION_NOT_SUPPORTED;
+        else if (!G_UnitAbilityClassLevel(unit, ability_code)) result = WC3_SC2_ACTION_NOT_SUPPORTED;
         else if (!G_SetUnitAutocast(unit, ability_code, !G_UnitAutocastIsOn(unit, ability_code)))
             result = WC3_SC2_ACTION_ERROR;
         if (aggregate == WC3_SC2_ACTION_SUCCESS && result != WC3_SC2_ACTION_SUCCESS) aggregate = result;

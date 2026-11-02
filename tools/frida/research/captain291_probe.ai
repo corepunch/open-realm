@@ -1,0 +1,48 @@
+// Public AI native producer; branch-only markers avoid AI integer/string stubs.
+function R291Query takes nothing returns nothing
+    if CaptainIsHome() then
+        call Preload("R291AI home=true")
+    else
+        call Preload("R291AI home=false")
+    endif
+    if CaptainAtGoal() then
+        call Preload("R291AI goal=true")
+    else
+        call Preload("R291AI goal=false")
+    endif
+endfunction
+function R291Phase takes integer phase returns nothing
+    if phase==1 then
+        call Preload("R291AI phase=1 before")
+        call SetCaptainHome(3,-1936.0,-144.0)
+        call CaptainAttack(-1936.0,-1424.0)
+        call Preload("R291AI phase=1 after")
+    elseif phase==2 then
+        call Preload("R291AI phase=2 before")
+        call ResetCaptainLocs()
+        call Preload("R291AI phase=2 after")
+    elseif phase==3 then
+        call Preload("R291AI phase=3 before")
+        call CreateCaptains()
+        call AddAssault(3,'hfoo')
+        call Preload("R291AI phase=3 after")
+    endif
+    call R291Query()
+endfunction
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call Preload("R291AI create-before")
+    call CreateCaptains()
+    call Preload("R291AI create-after")
+    call R291Query()
+    call InitAssault()
+    call AddAssault(3,'hfoo')
+    loop
+        loop
+            exitwhen CommandsWaiting()==0
+            call R291Phase(GetLastCommand())
+            call PopLastCommand()
+        endloop
+        call Sleep(0.1)
+    endloop
+endfunction

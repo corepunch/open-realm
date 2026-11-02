@@ -1,0 +1,722 @@
+{
+ "task": "FORM-01.3",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "inputs": {
+  "policy-witnesses.json": "49b0fc8890e599064834fff7ec694b8801260e065a68415736939c0a01b3e5fb",
+  "references-report.json": "b47d47984a7d1bcd6682aae413fa93490197ec9c539d1178bb3a0a38ccbb4d62",
+  "constants-report.json": "9d9a404084d74ff4f142926ec909e01c7ffd1d52a61170e08933a91076d51e7a",
+  "a-observe-1.jsonl": "64c42ff0a607cfda39c42a89db4a5ee8fb9144471cb13f0b1eaaf1fb4cf9f940"
+ },
+ "policy_words_live": [
+  "0",
+  "d00",
+  "1000",
+  "1010",
+  "1200",
+  "1801",
+  "1811"
+ ],
+ "witnesses": [
+  {
+   "request_flags": "0",
+   "group_flags": "0",
+   "producer": "CAbilityMove d016b point task (0,1) via 5ffb60 -> 05b970",
+   "chain_key": [
+    "5bb90",
+    "5ffdb4",
+    "5fdbc3"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    20
+   ],
+   "count": 30,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "FORM-05.1/b-observe-1.jsonl",
+    "FORM-05.1/b-observe-2.jsonl",
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "0",
+   "group_flags": "0",
+   "producer": "CAbilityMove d016c point task (0,0)",
+   "chain_key": [
+    "5bb90",
+    "5ffdb4",
+    "5fdbd6"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    520
+   ],
+   "count": 2,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "0",
+   "group_flags": "0",
+   "producer": "CaptainAI_PublishPointRequest 9d44d0 -> 05b970",
+   "chain_key": [
+    "5bb90",
+    "9d4580"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    10
+   ],
+   "count": 8,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    "GROUP-03.2/captain-gohome-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "0",
+   "group_flags": "0",
+   "producer": "shared point request 89cbf0/89cce0 (GroupPointOrder / UI selection / captain packet)",
+   "chain_key": [
+    "89cd34",
+    "89ccfc",
+    "6692a7"
+   ],
+   "setters": [
+    [
+     "16dd00",
+     "200",
+     0,
+     "89cc84"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    165
+   ],
+   "count": 6,
+   "member_counts": [
+    3
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "0",
+   "group_flags": "0",
+   "producer": "shared point request 89cbf0/89cce0 (GroupPointOrder / UI selection / captain packet)",
+   "chain_key": [
+    "89cd34",
+    "89ccfc",
+    "6692a7"
+   ],
+   "setters": [],
+   "first": [
+    "FORM-05.1/a-observe-1.jsonl",
+    40
+   ],
+   "count": 6,
+   "member_counts": [
+    6
+   ],
+   "captures": [
+    "FORM-05.1/a-observe-1.jsonl",
+    "FORM-05.1/a-observe-2.jsonl",
+    "FORM-05.1/d-observe-1.jsonl",
+    "FORM-05.1/d-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "d00",
+   "group_flags": "d00",
+   "producer": "shared point request 89cbf0/89cce0 (GroupPointOrder / UI selection / captain packet)",
+   "chain_key": [
+    "89cd34",
+    "89ccfc",
+    "6692a7"
+   ],
+   "setters": [
+    [
+     "16dd00",
+     "200",
+     0,
+     "89cc84"
+    ],
+    [
+     "16dde0",
+     "100",
+     1,
+     "89cd78"
+    ],
+    [
+     "16dc30",
+     "1",
+     0,
+     "89cb48"
+    ],
+    [
+     "16ddb0",
+     "800",
+     1,
+     "89cd58"
+    ],
+    [
+     "16dc00",
+     "400",
+     1,
+     "89ccb8"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    90
+   ],
+   "count": 8,
+   "member_counts": [
+    1,
+    12
+   ],
+   "captures": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    "GROUP-03.2/captain-gohome-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1000",
+   "group_flags": "1000",
+   "producer": "CAbilityAttack 49a240 attack chase -> 5fc640 (persistent 0, range sentinel)",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "49a2cb"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    355
+   ],
+   "count": 6,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1000",
+   "group_flags": "1000",
+   "producer": "CAbilityMove d016f target task (0,0,0) via 5ff8b0 -> 5fc640 -> 05a5c0",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb38"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    290
+   ],
+   "count": 24,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1000",
+   "group_flags": "1000",
+   "producer": "CAbilityMove d016f target task (0,0,0) via 5ff8b0 -> 5fc640 -> 05a5c0",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb38"
+   ],
+   "setters": [
+    [
+     "16dd00",
+     "200",
+     0,
+     "89cc84"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    535
+   ],
+   "count": 2,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1000",
+   "group_flags": "1000",
+   "producer": "CAbilityMove d0174 target task (1,0,1) approach",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb8c"
+   ],
+   "setters": [],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    10
+   ],
+   "count": 10,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1010",
+   "group_flags": "1010",
+   "producer": "CAbilityMove d0174 target task (1,0,1) approach",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb8c"
+   ],
+   "setters": [
+    [
+     "16dc90",
+     "10",
+     1,
+     "5a65f"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/b2-observe-1.jsonl",
+    10
+   ],
+   "count": 2,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1200",
+   "group_flags": "1200",
+   "producer": "CAbilityAttack 49a240 attack chase -> 5fc640 (persistent 0, range sentinel)",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "49a2cb"
+   ],
+   "setters": [
+    [
+     "16dd00",
+     "200",
+     1,
+     "5a67c"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    300
+   ],
+   "count": 144,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1200",
+   "group_flags": "1200",
+   "producer": "CAbilityMove d016f target task (0,0,0) via 5ff8b0 -> 5fc640 -> 05a5c0",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb38"
+   ],
+   "setters": [
+    [
+     "16dd00",
+     "200",
+     1,
+     "5a67c"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    370
+   ],
+   "count": 6,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1801",
+   "group_flags": "1801",
+   "producer": "CAbilityMove d0170 target task (1,1,0) persistent",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdb62"
+   ],
+   "setters": [
+    [
+     "16dc30",
+     "1",
+     1,
+     "5a638"
+    ],
+    [
+     "16ddb0",
+     "800",
+     1,
+     "5a641"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    10
+   ],
+   "count": 28,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/captain-gohome-observe-1.jsonl",
+    "GROUP-03.2/captain-gohome-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1801",
+   "group_flags": "1801",
+   "producer": "CAbilityMove d0173 target task (1,1,1) persistent Follow",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdba1"
+   ],
+   "setters": [
+    [
+     "16dc30",
+     "1",
+     1,
+     "5a638"
+    ],
+    [
+     "16ddb0",
+     "800",
+     1,
+     "5a641"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    10
+   ],
+   "count": 10,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/a-observe-1.jsonl",
+    "GROUP-03.2/a-observe-2.jsonl",
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  },
+  {
+   "request_flags": "1811",
+   "group_flags": "1811",
+   "producer": "CAbilityMove d0173 target task (1,1,1) persistent Follow",
+   "chain_key": [
+    "5a77b",
+    "5fc755",
+    "5ffa99",
+    "5fdba1"
+   ],
+   "setters": [
+    [
+     "16dc30",
+     "1",
+     1,
+     "5a638"
+    ],
+    [
+     "16ddb0",
+     "800",
+     1,
+     "5a641"
+    ],
+    [
+     "16dc90",
+     "10",
+     1,
+     "5a65f"
+    ]
+   ],
+   "first": [
+    "GROUP-03.2/b2-observe-1.jsonl",
+    10
+   ],
+   "count": 2,
+   "member_counts": [
+    1
+   ],
+   "captures": [
+    "GROUP-03.2/b2-observe-1.jsonl",
+    "GROUP-03.2/b2-observe-2.jsonl"
+   ]
+  }
+ ],
+ "captures": [
+  [
+   "GROUP-03.2/a-observe-1.jsonl",
+   "64c42ff0a607cfda39c42a89db4a5ee8fb9144471cb13f0b1eaaf1fb4cf9f940"
+  ],
+  [
+   "GROUP-03.2/a-observe-2.jsonl",
+   "10d6ce549e30f48d6fa7aa1346a3d587300e816880816869292d4318882d2ed9"
+  ],
+  [
+   "GROUP-03.2/b2-observe-1.jsonl",
+   "3d38f1884cae53b9528d6371a1522c44c144c59c134f646efff2c1440620bdc1"
+  ],
+  [
+   "GROUP-03.2/b2-observe-2.jsonl",
+   "529fff25d9710140af3399998234288ab687b96e557caf9d2cfb727e58bf1c7a"
+  ],
+  [
+   "GROUP-03.2/captain-gohome-observe-1.jsonl",
+   "91c1ebb54573b2df4828c2e8b11dd98582b6d360792d3d1f84d32d829d9217ac"
+  ],
+  [
+   "GROUP-03.2/captain-gohome-observe-2.jsonl",
+   "1664fb95467ea278c04ca79f935047b011648b814c64ec265cf69f692b7c7883"
+  ],
+  [
+   "FORM-05.1/a-observe-1.jsonl",
+   "c5f947d12cd18a33ede999e46a752d84af8880082ec7eee60d00d0c929ccb331"
+  ],
+  [
+   "FORM-05.1/a-observe-2.jsonl",
+   "eabe177223b93c09655aab1ff37fdd25296909edb88193b401c297d4c2b71075"
+  ],
+  [
+   "FORM-05.1/b-observe-1.jsonl",
+   "aaf0930e7bcd4c604a0ca5c4a3c050de56364dcaf677733f8e88142862553843"
+  ],
+  [
+   "FORM-05.1/b-observe-2.jsonl",
+   "c534aca1ce278142a72d9add6c1709adcf14b213321a9ee2e44f4e8cb79d066b"
+  ],
+  [
+   "FORM-05.1/d-observe-1.jsonl",
+   "361a49425f0a3cbf1d40c85f53f61158db356da2382f06f8608726b8657c34e2"
+  ],
+  [
+   "FORM-05.1/d-observe-2.jsonl",
+   "e440db5f4191af4a07d3e161f5106f16076e58bea0e0f347cb18b65c137d1309"
+  ]
+ ],
+ "bits": {
+  "1": {
+   "role": "persistent completion (16dc30)",
+   "setter": "6f16dc30",
+   "rel32_callers": [
+    "6f05a633",
+    "6f89cb43"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "1801",
+    "1811"
+   ],
+   "status": "live"
+  },
+  "2": {
+   "role": "formation toggle (16dc50)",
+   "setter": "6f16dc50",
+   "rel32_callers": [
+    "6f89cb08"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [],
+   "status": "UI Alt only (Payoff109 live e; not re-captured here)"
+  },
+  "4": {
+   "role": "formation toggle (16dcb0)",
+   "setter": "6f16dcb0",
+   "rel32_callers": [
+    "6f89cb10"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [],
+   "status": "UI Alt only (Payoff109 live e; not re-captured here)"
+  },
+  "8": {
+   "role": "formation toggle / no shared cap (16dc70)",
+   "setter": "6f16dc70",
+   "rel32_callers": [
+    "6f89cb18"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [],
+   "status": "UI Alt only (Payoff109 live e; not re-captured here)"
+  },
+  "10": {
+   "role": "disable group warp edges (16dc90)",
+   "setter": "6f16dc90",
+   "rel32_callers": [
+    "6f05a65a",
+    "6f05bb6a",
+    "6f89cd99"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "1010",
+    "1811"
+   ],
+   "status": "live"
+  },
+  "20": {
+   "role": "alternate spacing (16d7e0)",
+   "setter": "6f16d7e0",
+   "rel32_callers": [],
+   "absolute_refs": [],
+   "live_policy_words": [],
+   "status": "no producer (unreachable)"
+  },
+  "100": {
+   "role": "regroup near radius 16 / timeout policy (16dde0)",
+   "setter": "6f16dde0",
+   "rel32_callers": [
+    "6f89cd73"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "d00"
+   ],
+   "status": "live"
+  },
+  "200": {
+   "role": "formation bypass (16dd00)",
+   "setter": "6f16dd00",
+   "rel32_callers": [
+    "6f05a677",
+    "6f05bb84",
+    "6f05c1b0",
+    "6f89cb79",
+    "6f89cbc9",
+    "6f89cc7f",
+    "6f89ccd3"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "1200"
+   ],
+   "status": "live"
+  },
+  "400": {
+   "role": "extra target refresh (16dc00)",
+   "setter": "6f16dc00",
+   "rel32_callers": [
+    "6f89ccb3"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "d00"
+   ],
+   "status": "live"
+  },
+  "800": {
+   "role": "target-speed matching (16ddb0)",
+   "setter": "6f16ddb0",
+   "rel32_callers": [
+    "6f05a63c",
+    "6f89cd53"
+   ],
+   "absolute_refs": [],
+   "live_policy_words": [
+    "1801",
+    "1811",
+    "d00"
+   ],
+   "status": "live"
+  }
+ },
+ "flag20_pairs": {
+  "rank_gap": [
+   "0x40b00001",
+   "0x40b00001"
+  ],
+  "row_gap": [
+   "0x40000000",
+   "0x40000000"
+  ],
+  "depth_padding": [
+   "0x40200000",
+   "0x40200000"
+  ]
+ },
+ "flag20_equivalent": true,
+ "live_spacing_globals": {
+  "d541bc_rank_gap": "40b00001",
+  "d541c8_rank_gap_flag20": "40b00001",
+  "d541c0_row_gap": "40000000",
+  "d541cc_row_gap_flag20": "40000000",
+  "d541c4_depth_pad": "40200000"
+ }
+}

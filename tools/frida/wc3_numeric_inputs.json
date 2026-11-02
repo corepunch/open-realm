@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "s2r_0",
+      "native": "S2R",
+      "input": "1.25"
+    },
+    {
+      "id": "s2r_1",
+      "native": "S2R",
+      "input": "-1.25"
+    },
+    {
+      "id": "s2r_2",
+      "native": "S2R",
+      "input": "+1.25"
+    },
+    {
+      "id": "s2r_3",
+      "native": "S2R",
+      "input": ".125"
+    },
+    {
+      "id": "s2r_4",
+      "native": "S2R",
+      "input": "1936.25"
+    },
+    {
+      "id": "s2r_5",
+      "native": "S2R",
+      "input": "-1936.25"
+    },
+    {
+      "id": "s2r_6",
+      "native": "S2R",
+      "input": "144.125"
+    },
+    {
+      "id": "s2r_7",
+      "native": "S2R",
+      "input": "123456789.123456789"
+    },
+    {
+      "id": "s2r_8",
+      "native": "S2R",
+      "input": "0.000000123456789"
+    },
+    {
+      "id": "s2r_9",
+      "native": "S2R",
+      "input": "1234567890"
+    },
+    {
+      "id": "s2r_10",
+      "native": "S2R",
+      "input": "2147483648"
+    },
+    {
+      "id": "s2r_11",
+      "native": "S2R",
+      "input": "1.25e2"
+    },
+    {
+      "id": "s2r_12",
+      "native": "S2R",
+      "input": "1.25;more"
+    },
+    {
+      "id": "s2r_13",
+      "native": "S2R",
+      "input": "1..25"
+    },
+    {
+      "id": "s2r_14",
+      "native": "S2R",
+      "input": "1e3"
+    },
+    {
+      "id": "s2r_15",
+      "native": "S2R",
+      "input": "abc"
+    },
+    {
+      "id": "s2r_16",
+      "native": "S2R",
+      "input": "nan"
+    },
+    {
+      "id": "s2r_17",
+      "native": "S2R",
+      "input": "inf"
+    },
+    {
+      "id": "s2r_18",
+      "native": "S2R",
+      "input": " 1.25"
+    },
+    {
+      "id": "s2r_19",
+      "native": "S2R",
+      "input": ""
+    },
+    {
+      "id": "s2r_20",
+      "native": "S2R",
+      "input": "."
+    },
+    {
+      "id": "s2r_21",
+      "native": "S2R",
+      "input": "-0.0"
+    },
+    {
+      "id": "s2r_22",
+      "native": "S2R",
+      "input": "+0"
+    },
+    {
+      "id": "s2r_23",
+      "native": "S2R",
+      "input": "12345678901234567890123456789012345678901234567890"
+    },
+    {
+      "id": "i2r_0",
+      "native": "I2R",
+      "input": 0
+    },
+    {
+      "id": "i2r_1",
+      "native": "I2R",
+      "input": 1
+    },
+    {
+      "id": "i2r_2",
+      "native": "I2R",
+      "input": -1
+    },
+    {
+      "id": "i2r_3",
+      "native": "I2R",
+      "input": 16777217
+    },
+    {
+      "id": "i2r_4",
+      "native": "I2R",
+      "input": 2147483647
+    },
+    {
+      "id": "i2r_5",
+      "native": "I2R",
+      "input": -2147483647
+    },
+    {
+      "id": "r2i_0",
+      "native": "R2I",
+      "input": 0.0
+    },
+    {
+      "id": "r2i_1",
+      "native": "R2I",
+      "input": 0.5
+    },
+    {
+      "id": "r2i_2",
+      "native": "R2I",
+      "input": -0.5
+    },
+    {
+      "id": "r2i_3",
+      "native": "R2I",
+      "input": 1.75
+    },
+    {
+      "id": "r2i_4",
+      "native": "R2I",
+      "input": -1.75
+    },
+    {
+      "id": "r2i_5",
+      "native": "R2I",
+      "input": 2147483648.0
+    },
+    {
+      "id": "r2i_6",
+      "native": "R2I",
+      "input": -2147483648.0
+    },
+    {
+      "id": "r2i_7",
+      "native": "R2I",
+      "input": 10000000000.0
+    },
+    {
+      "id": "r2i_8",
+      "native": "R2I",
+      "input": -10000000000.0
+    },
+    {
+      "id": "sin_0",
+      "native": "Sin",
+      "input": 0.0
+    },
+    {
+      "id": "sin_1",
+      "native": "Sin",
+      "input": 0.6
+    },
+    {
+      "id": "sin_2",
+      "native": "Sin",
+      "input": -0.6
+    },
+    {
+      "id": "sin_3",
+      "native": "Sin",
+      "input": 3.141592653589793
+    },
+    {
+      "id": "sin_4",
+      "native": "Sin",
+      "input": 6.283185307179586
+    },
+    {
+      "id": "cos_0",
+      "native": "Cos",
+      "input": 0.0
+    },
+    {
+      "id": "cos_1",
+      "native": "Cos",
+      "input": 0.6
+    },
+    {
+      "id": "cos_2",
+      "native": "Cos",
+      "input": -0.6
+    },
+    {
+      "id": "cos_3",
+      "native": "Cos",
+      "input": 3.141592653589793
+    },
+    {
+      "id": "cos_4",
+      "native": "Cos",
+      "input": 6.283185307179586
+    },
+    {
+      "id": "acos_0",
+      "native": "Acos",
+      "input": -2.0
+    },
+    {
+      "id": "acos_1",
+      "native": "Acos",
+      "input": -1.0
+    },
+    {
+      "id": "acos_2",
+      "native": "Acos",
+      "input": -0.6
+    },
+    {
+      "id": "acos_3",
+      "native": "Acos",
+      "input": 0.0
+    },
+    {
+      "id": "acos_4",
+      "native": "Acos",
+      "input": 0.6
+    },
+    {
+      "id": "acos_5",
+      "native": "Acos",
+      "input": 1.0
+    },
+    {
+      "id": "acos_6",
+      "native": "Acos",
+      "input": 2.0
+    },
+    {
+      "id": "squareroot_0",
+      "native": "SquareRoot",
+      "input": -4.0
+    },
+    {
+      "id": "squareroot_1",
+      "native": "SquareRoot",
+      "input": -0.0005
+    },
+    {
+      "id": "squareroot_2",
+      "native": "SquareRoot",
+      "input": 0.0
+    },
+    {
+      "id": "squareroot_3",
+      "native": "SquareRoot",
+      "input": 0.0009999999
+    },
+    {
+      "id": "squareroot_4",
+      "native": "SquareRoot",
+      "input": 0.001
+    },
+    {
+      "id": "squareroot_5",
+      "native": "SquareRoot",
+      "input": 0.0010000002
+    },
+    {
+      "id": "squareroot_6",
+      "native": "SquareRoot",
+      "input": 0.5
+    },
+    {
+      "id": "squareroot_7",
+      "native": "SquareRoot",
+      "input": 2.0
+    },
+    {
+      "id": "squareroot_8",
+      "native": "SquareRoot",
+      "input": 4.0
+    }
+  ]
+}

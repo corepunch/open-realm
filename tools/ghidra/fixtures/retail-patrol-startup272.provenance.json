@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "scope": "New124c complete startup through PATHPUB tick240 complete; separate from historical124b diagnostic. No new claim of old124b unhooked control.",
+  "files": {
+    "itemdrop_probe.j": "c64b2f752affa9d1a31b68d3bd2ff04bfee60509f4f830657d78148fa8034996",
+    "itemdrop_observer.js": "d5a2bba58d3a45df6a1587be3f76286a1c1951182b1ee5999d6d0e82174c7ef7",
+    "itemdrop_capture.py": "48ec971e0c383ae1d04cba3b4a088f91467e134ec989dcd2d72d37cf62462c97",
+    "itemdrop_make_map.py": "2308905d2e2255d9453b685d11eb5848a90ff0db2f32b40040149e3f77cfc0fc",
+    "run.py": "936e2c3210ec4cf8904fd49373c9e39daff553637420748942ba700a468fc625",
+    "abi-static.json": "f8c1e1a6bab7ac55557e6d46c4759ed79f0c831ec86056213ef7fa82894d9b7b",
+    "design.json": "00c8bc194578b89a5adc2b361a9c39ed211624d1fc7cb8d9375ca440726a69e1",
+    "RS-TARGET272-patrol-lifetime124c-v1.w3m": "da2f58f886614588c844ce041e52dd6c4a53bd788d8a97831c8d629022e2f392",
+    "map-provenance.json": "99511733e94bb1655df5b956958702361c8e44e28663ed30884199b960647f14",
+    "audit.py": "2eb9c21e795a1225c41eaa2df2152abcaa6270e64450ec6e2d04d7e148a0398f",
+    "native-projection.json": "142aa07768dd100e6316ad540f800b0b3c151f805c82263d142f1e7a3bfa3a95",
+    "validated-summary.json": "1f450c7613952534e5c9c98dc21317e5b10a5b08f124d05af93d8e45236ee3da",
+    "findings.json": "7ac6d4841e2133a944326d7e7a0edddd097edf59b497a511daa63b10104fed92",
+    "observe1.jsonl": "e90db862dad1f3a448252e59d4d13af14f3c1eef05caf65fb8b8e862fb446035",
+    "observe2.jsonl": "c4691d59a3ae2cfe610b3c29859497415d0a9616f011cf04eda6e08efeaeafdd",
+    "control1.jsonl": "33cc77fe1e0ad7b3fc54c6b91559c4a57de07c9566a9cfc1961e73b9e4df77c1",
+    "control1-preload.txt": "fe78f26bfe0b17d5f5f82bac5a5a9d5940f643e09a63cd8eb4f19d9106a88aa8",
+    "frozen-sources.json": "83047ba75d78ed567b77e784125360a8b0ce6cbf4e095cd836a58f3ca34bac20",
+    "observe1-preload.txt": "8bc21684debe39274f505937e5dc7d59c4f71b978951d9daee53e34f3aa2287e",
+    "observe2-preload.txt": "10d6461359df549ae9d379970cde0d757dfa8f03e2e8cf754e02e217c759aead",
+    "runs.json": "403f661ac2a2ec6199195cb99df4ce6afc967c61dc3ed2fd50c35f75318354c3",
+    "evidence-freeze.json": "cb307b388d4d33d0ed668f6dc670a85106f80184429e725797c9061efcd94bb4"
+  },
+  "projection_sha256": "142aa07768dd100e6316ad540f800b0b3c151f805c82263d142f1e7a3bfa3a95",
+  "expected": {
+    "records": 15356,
+    "counts": {
+      "streams-reseed-enter": 1,
+      "streams-reseed-leave": 1,
+      "attack-timer-request": 429,
+      "marker": 7072,
+      "attack-attach-enter": 13,
+      "stream-real": 17,
+      "attack-attach-leave": 13,
+      "attack-scan-enter": 343,
+      "attack-scan-leave": 343,
+      "arrival": 3562,
+      "velocity": 3562
+    },
+    "public": 7072,
+    "max_public_length": 79,
+    "old124b_full7124_polls_exact": true,
+    "seed": 2002874931,
+    "stream2_initial": [
+      3292812501,
+      1419794628
+    ],
+    "attach_count": 13,
+    "negative_controls": {
+      "missing": "rejected",
+      "extra": "rejected",
+      "reorder": "rejected",
+      "seed": "rejected",
+      "draw": "rejected",
+      "scan-clock": "rejected",
+      "timer-delay": "rejected",
+      "poll-word": "rejected",
+      "public": "rejected"
+    },
+    "projection_sha256": "47c50d4ab92d98e107f0bc4cee9619ed138febb2562fd6f01a703ce5a5b06936"
+  }
+}

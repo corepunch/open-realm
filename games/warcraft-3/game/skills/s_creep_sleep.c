@@ -70,22 +70,19 @@ static bool neutral_hostile_sleep_disabled(void) {
 
 /* Report whether a unit retains the runtime permission to enter natural sleep. */
 bool G_UnitCanSleep(edict_t const *unit) {
-    sleep_t const *sleep = G_GetSleep(unit);
-    return unit_is_neutral_sleep_candidate(unit) && sleep && sleep->can_sleep;
+    return unit_is_neutral_sleep_candidate(unit) && unit->sleep && unit->sleep->can_sleep;
 }
 
 /* Distinguish the authored creep sleep move from other animation moves. */
 bool G_UnitIsSleeping(edict_t const *unit) {
-    sleep_t const *sleep = G_GetSleep(unit);
-    return sleep && sleep->sleeping && unit->currentmove == &creep_sleep_move;
+    return unit && unit->sleep && unit->sleep->sleeping && unit->currentmove == &creep_sleep_move;
 }
 
 /* Clear natural sleep and remove its persistent target presentation effect. */
 static void creep_sleep_leave(edict_t *unit) {
-    sleep_t *sleep = G_GetSleep(unit);
-    if (!sleep || !sleep->sleeping)
+    if (!unit || !unit->sleep || !unit->sleep->sleeping)
         return;
-    sleep->sleeping = false;
+    unit->sleep->sleeping = false;
     remove_creep_sleep_overlay(unit);
 }
 
@@ -107,7 +104,7 @@ static bool creep_sleep_enter(edict_t *unit, uint32_t code) {
     }
 
     unit_setmove(unit, &creep_sleep_move);
-    G_GetSleep(unit)->sleeping = true; /* G_UnitCanSleep established the record above. */
+    unit->sleep->sleeping = true;
     add_creep_sleep_overlay(unit, code);
     return true;
 }
@@ -122,6 +119,8 @@ static void creep_sleep_think(edict_t *self) {
  * (Sleep Once/Allow On Any Player Slot) remain unresolved and are not registered. */
 BZ_ABILITY_PROC(CAbilitySleepAlways) {
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE, A_UNIT_REMOVE, A_DAMAGED, A_CANCEL, A_NO_ACQUIRE);
     case A_MOVE_LEAVE:
     case A_UNIT_REMOVE: creep_sleep_leave(ent); return true;
     case A_DAMAGED:
@@ -134,23 +133,31 @@ BZ_ABILITY_PROC(CAbilitySleepAlways) {
 /* ACsp is implicit in UnitData.canSleep; it consumes lifecycle messages even when
  * the unit has no explicit ACsp command-card entry. The clock remains game-owned. */
 BZ_ABILITY_PROC(CAbilityCreepSleep) {
-    sleep_t *ent_sleep = G_GetSleep(ent);
-    sleep_t *sleep;
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call || !call->unit_data) return UNIT_INIT_UNKNOWN;
+        /* A fresh unit has no retained sleep state. Non-sleeping types return
+         * true without allocating or observing owner/world state. */
+        return call->unit_data->canSleep ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE, A_UNIT_REMOVE, A_DAMAGED, A_CANCEL,
+            A_NO_ACQUIRE, A_UNIT_INIT, A_IDLE, A_ENABLE, A_DISABLE);
     case A_UNIT_INIT:
-        if (!ent_sleep && !ent->data.UnitData->canSleep) return true;
-        sleep = G_AddSleep(ent);
-        sleep->can_sleep = ent->data.UnitData->canSleep;
-        if (!sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
+        if (!ent->sleep && !ent->data.UnitData->canSleep) return true;
+        if (!ent->sleep) ent->sleep = G_AllocSleep();
+        assert(ent->sleep);
+        ent->sleep->can_sleep = ent->data.UnitData->canSleep;
+        if (!ent->sleep->can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
         return true;
     case A_IDLE: return call && call->item && creep_sleep_enter(ent, call->item->code);
     case A_ENABLE:
     case A_DISABLE:
         if (!unit_is_neutral_sleep_candidate(ent)) return false;
-        if (!ent_sleep && msg == A_DISABLE) return true;
-        sleep = G_AddSleep(ent);
-        sleep->can_sleep = msg == A_ENABLE;
-        if (!sleep->can_sleep) creep_sleep_wake(ent);
+        if (!ent->sleep && msg == A_DISABLE) return true;
+        if (!ent->sleep) ent->sleep = G_AllocSleep();
+        assert(ent->sleep);
+        ent->sleep->can_sleep = msg == A_ENABLE;
+        if (!ent->sleep->can_sleep) creep_sleep_wake(ent);
         return true;
     default: return CAbilitySleepAlways(ent, msg, call);
     }

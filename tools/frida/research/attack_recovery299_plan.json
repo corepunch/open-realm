@@ -1,0 +1,66 @@
+{
+  "status": "Map built and parser-checked; observer ABI audited; native acceptance pending",
+  "task": "TARGET-01.2 F19/D051",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "tick_seconds": 0.1,
+  "ticks_per_scene": 300,
+  "scenes": [
+    {
+      "scene": 0,
+      "setup": "explicit Attack plus moving target",
+      "intervention": "ShowUnit(target,false)"
+    },
+    {
+      "scene": 1,
+      "setup": "identical explicit Attack",
+      "intervention": "SetUnitOwner(target,Player(0),false)"
+    },
+    {
+      "scene": 2,
+      "setup": "identical explicit Attack",
+      "intervention": "UnitRemoveAbility(source,Aatk)"
+    },
+    {
+      "scene": 3,
+      "setup": "automatic acquisition, no explicit source order",
+      "intervention": "ShowUnit(target,false)"
+    },
+    {
+      "scene": 4,
+      "setup": "explicit far chase; allied hsor spawned near source at55, Rhst2",
+      "intervention": "public invisibility at60; observe natural d01de/628a10/495740/49d280 chain"
+    },
+    {
+      "scene": 5,
+      "setup": "explicit Attack",
+      "intervention": "PauseUnit(source,true),Hide(target) at60; resume90"
+    }
+  ],
+  "acceptance": [
+    "Two observations plus fresh unhooked control with identical frozen sources/map",
+    "Concatenate start-preload and final-preload in authored order; require exact entire public stream and no OVERSIZE",
+    "Require actual active4/flags/forced/capture words at each intended recovery; inactive cleanup does not satisfy forced scene",
+    "Require scene4 actual Aivs level, successful public order and d01de chronology; no synthetic bit injection",
+    "Require scene3 actual automatic acquisition before loss, not a task named by intention",
+    "Keep every global arrival/velocity row; derive actor mapping through public pose getter role bindings and request/resolver identities",
+    "Verify footer counts, complete marker, both preload hashes, source-end unchanged and no Frida errors",
+    "No claim expected exact row count until native captures complete"
+  ],
+  "references": [
+    "target223_make_map.py",
+    "target223_capture.py",
+    "target223_probe.j",
+    "target223_observer.js",
+    "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol279-public-startup-v6/itemdrop_observer.js"
+  ],
+  "commands": {
+    "build": "python3 tools/frida/research/attack_recovery299_make_map.py --base <immutable223-base> --output <new-runtime>/AttackRecovery299.w3m",
+    "capture": "python3 tools/frida/research/attack_recovery299_capture.py --data <owned-B-or-C-install> --map <relative-map> --preload rs-ar299.txt --start-file rs-ar299-start.txt --env B --x11-display :98 --remote <owned-B-endpoint> --mode observe --input-helper <owned-helper> --output <new-runtime>/observe1.jsonl"
+  },
+  "limits": [
+    "No live proof yet; map/JASS setup must pass actual preconditions",
+    "Forced explicit capture word is not evidence of retained40000 at forced entry",
+    "No full leaf closure; preserve historical223/224 and their controls unchanged"
+  ],
+  "map_sha256": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f"
+}

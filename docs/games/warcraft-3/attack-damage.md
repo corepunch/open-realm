@@ -83,14 +83,14 @@ For each `unitAttack_t`:
 - `permanentDamageBonus`: permanent modifier ledger used to survive Hero stat recomputation (for example `ratx`).
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
 - `cooldown`, `damagePoint`, `backswingPoint`: attack-cycle timing.
-- `range`, `rangeBuffer`: true weapon range and cooldown-only movement hysteresis.
+- `range`, `rangeBuffer`: selected weapon range and authored slot range buffer; the buffer also participates in the damage-commit range check.
 - splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by fixed `WPN_ARTILLERY` and homing `WPN_MSPLASH` paths; `WPN_MBOUNCE` chains secondary hits immediately and currently lacks secondary missile presentation, while line attacks remain a gap.
 
 ### Chase range and attack timing
 
-Direct Attack continues to use the compatible runtime Attack 1/Attack 2 profile selected for the current target. The weapon cooldown starts with the swing; while it remains active, that selected profile's `RngBuff1`/`RngBuff2` runtime copy (`rangeBuffer`) extends only the range at which the attacker may remain stationary while moving or recovering. The windup still rechecks true range at damage point before it commits a hit/projectile. Cooldown state and its remaining timer survive a chase transition, including a canceled windup; the attacker can stop again inside buffered range, and when cooldown expires it rechecks unbuffered range before beginning another swing. The later attack-animation end callback preserves the swing-start deadline instead of restarting `cooldown - damagePoint`, so a long animation tail does not extend either the cooldown or its range buffer. Thus `RngBuff` cannot become extra firing range. Ensnare's forced melee-range rule remains authoritative and does not receive the normal range buffer.
+Direct Attack uses the compatible runtime Attack 1/Attack 2 profile selected for the current target. The original damage-point event `d01b1` dispatches through `49a5b0` to `4946b0`. That function arms the independent swing timer **before** deciding whether to deliver the hit or launch a projectile. Its range is `max(selected effective range, 32) + selected slot rangeBuffer`; the raw buffer is added without clamping negative values to zero. Delivery accepts either the predicted radial range check or the `68c250` target-perimeter check. An out-of-range miss skips delivery while preserving the swing timer.
 
-Before melee damage or a projectile is committed at damage point, the target is rechecked against the **true**, unbuffered weapon range and minimum range. A target that escapes during windup cancels the pending launch and returns the attacker to chase; a projectile already launched remains owned by the projectile system.
+This commit step does not add a minimum-range, facing, or fog check. Existing downstream damage eligibility still applies. Continuously cancelling a pending windup when the target leaves base range is not this native contract, and `RngBuff` is not limited to cooldown movement hysteresis. The later animation-end callback must not cancel a pending primary damage timer. The original call chain and guarded code are retained in the [initial Attack static fixture](../../../games/warcraft-3/game/tests/fixtures/retail_attack_initial309_static.json); this evidence establishes the commit branch, not full public replay parity.
 
 Runtime attacks now retain the authored `backSw1`/`backSw2` value as `backswingPoint`. Direct Attack and Attack Ground post-damage recovery wait for whichever gate is longer: remaining weapon cooldown (`cooldown - damagePoint`) or authored backswing. This prevents custom data with backswing longer than the remaining cooldown from starting the next swing early. Animation presentation is still driven by the existing model-sequence state machine; this change does not introduce a separate global surround or combat-animation scheduler. Attack profile timing/range fields and the active cooldown marker and timer are included in game saves.
 
@@ -339,3 +339,21 @@ The combat tests cover representative type multipliers, Divine, data-driven cons
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.
 
 Attack cooldown state and its save-format cleanup are described in the [game-state review](state-review.md).
+
+## Fractional physical damage
+
+Physical type/armor mitigation, attack bonuses, Defend, shields, Spirit Link,
+splash and Moon Glaive now retain real damage through health subtraction.
+Raw weapon rolls and stored raw projectile damage remain integral; mitigation
+at impact produces a real value. This change does not establish fractional
+parity for the separate integer `S_SpellDamage` API.
+
+Both unit and player-unit damage events carry the real amount. `GetEventDamage`
+reads that value, while other event kinds keep integer IDs. Save236 and JASS
+snapshot version 11 preserve the payload bits in queued events and callbacks;
+older integer-damage snapshots are rejected.
+
+The retail Attack299 first-hit marker is now 408.443 HP, matching the reference;
+it was 409.050 when damage was truncated. The complete replay still differs in
+movement near 2.28 seconds because cooldown expiry does not independently replace
+an active chase. See [the recovery checkpoint](retail-pathfinding-attack-recovery.md).

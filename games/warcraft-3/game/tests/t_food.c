@@ -97,8 +97,8 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
     G_ActivateUnitFood(unit);
     G_ActivateUnitFood(unit);
 
-    T_EQ(G_GetFood(unit)->used, 3);
-    T_EQ(G_GetFood(unit)->made, 6);
+    T_EQ(unit->food->used, 3);
+    T_EQ(unit->food->made, 6);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 6);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 3);
@@ -106,8 +106,8 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
 
     unit_die(unit, NULL);
 
-    T_ASSERT(!G_GetFood(unit) || G_GetFood(unit)->used == 0);
-    T_ASSERT(!G_GetFood(unit) || G_GetFood(unit)->made == 0);
+    T_ASSERT(!unit->food || unit->food->used == 0);
+    T_ASSERT(!unit->food || unit->food->made == 0);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 0);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 3);
@@ -215,7 +215,7 @@ TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
 
     T_ASSERT(G_PlayerHasFoodFor(client, 3));
     T_ASSERT(G_ReserveTrainingFood(unit));
-    T_EQ(G_GetFood(unit)->used, 3);
+    T_EQ(unit->food->used, 3);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 53);
     T_EQ(client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE], 70);
 
@@ -559,7 +559,7 @@ TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
     producer->s.player = first->s.player = second->s.player = client->ps.number;
     producer->build = first;
     first->build = second;
-    G_SetUnitFlag(first, UNIT_FLAG_TRAINING, true); G_SetUnitFlag(second, UNIT_FLAG_TRAINING, true);
+    first->training = true; second->training = true;
     first->data.UnitBalance = second->data.UnitBalance = &balance;
     first->health.max_value = second->health.max_value = 100.0f;
     first->health.value = second->health.value = 0.0f;
@@ -568,18 +568,18 @@ TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
     ai_train_build(producer);
 
     T_FEQ(first->health.value, 0.0f, 0.001f);
-    T_ASSERT(!G_GetFood(first) || G_GetFood(first)->used == 0);
-    T_ASSERT(!G_GetFood(second) || G_GetFood(second)->used == 0);
-    T_ASSERT(G_UnitHasFlag(first, UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED));
+    T_ASSERT(!first->food || first->food->used == 0);
+    T_ASSERT(!second->food || second->food->used == 0);
+    T_ASSERT((first && first->training_food_wait_notified));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
 
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     ai_train_build(producer);
 
     T_ASSERT(first->health.value > 0.0f);
-    T_EQ(G_GetFood(first)->used, 3);
-    T_ASSERT(!G_GetFood(second) || G_GetFood(second)->used == 0);
-    T_ASSERT(!G_UnitHasFlag(first, UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED));
+    T_EQ(first->food->used, 3);
+    T_ASSERT(!second->food || second->food->used == 0);
+    T_ASSERT(!(first && first->training_food_wait_notified));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
 }
 
@@ -597,8 +597,8 @@ TEST(wc3_food, first_queued_unit_reserves_food_immediately) {
     unit_build(producer, MAKEFOURCC('h','f','o','o'));
 
     T_NOT_NULL(producer->build);
-    T_ASSERT(G_UnitHasFlag(producer->build, UNIT_FLAG_TRAINING));
-    T_EQ(G_GetFood(producer->build)->used, MAX(0, balance->foodUsed));
+    T_ASSERT((producer->build && producer->build->training));
+    T_EQ(producer->build->food->used, MAX(0, balance->foodUsed));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], MAX(0, balance->foodUsed));
 }
 
@@ -611,7 +611,7 @@ TEST(wc3_food, food_blocked_queue_uses_paused_timer_sentinel) {
 
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
-    G_SetUnitFlag(queued, UNIT_FLAG_TRAINING, true);
+    queued->training = true;
     queued->data.UnitBalance = &balance;
     queued->health.max_value = 100.0f;
     queued->health.value = 0.0f;
@@ -632,7 +632,7 @@ TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
 
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
-    G_SetUnitFlag(queued, UNIT_FLAG_TRAINING, true);
+    queued->training = true;
     queued->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 5;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 5;
@@ -662,7 +662,7 @@ TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reserv
     producer->s.player = first->s.player = second->s.player = client->ps.number;
     producer->build = first;
     first->build = second;
-    G_SetUnitFlag(first, UNIT_FLAG_TRAINING, true); G_SetUnitFlag(second, UNIT_FLAG_TRAINING, true);
+    first->training = true; second->training = true;
     first->data.UnitBalance = second->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     T_ASSERT(G_ReserveTrainingFood(first));
@@ -674,7 +674,7 @@ TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reserv
     T_ASSERT(producer->build == first);
     T_NULL(first->build);
     T_ASSERT(!second->inuse);
-    T_EQ(G_GetFood(first)->used, 3);
+    T_EQ(first->food->used, 3);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 20);
@@ -688,7 +688,7 @@ TEST(wc3_food, producer_death_cancels_queue_refunds_costs_and_releases_food) {
 
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
-    G_SetUnitFlag(queued, UNIT_FLAG_TRAINING, true);
+    queued->training = true;
     queued->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;

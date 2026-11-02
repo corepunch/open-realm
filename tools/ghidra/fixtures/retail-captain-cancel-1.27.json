@@ -1,0 +1,794 @@
+{
+  "version": 1,
+  "complete_scene_journeys": true,
+  "whole_retail_pathfinder": false,
+  "last_reference_cancellation_remains_open": true,
+  "owner_counter": 1024,
+  "primary_sha256": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae",
+  "scope": "Complete stationary alive mixed13 largest-recruit public Stop before/after12+1 shared admission; full physical motion, authenticated retry fine-target record pointers, shared live/cached radii, surviving roster and saved engine continuation. Explicit cancellation of the final shared binding, RemoveUnit/retarget and moving captain remain separate.",
+  "variants": [
+    {
+      "name": "early",
+      "engine_commits": 5458,
+      "event_counts": {
+        "marker": 304,
+        "velocity-commit": 5461,
+        "clock-owner-end": 1000,
+        "motion-decision": 5194,
+        "arrival-evaluation": 5461,
+        "route-step": 5461,
+        "yield-decision": 4334,
+        "retry-result": 95,
+        "retry-init": 73,
+        "force-arrival": 5,
+        "task-recovery": 5,
+        "task-cant-path": 5,
+        "task-arrival": 25
+      },
+      "state": {
+        "motion_sha256": "f6856cb7b2c6dc736d6a53d4e24bd707413358861fc391281d0631a066a7633b",
+        "producer_sha256": "3da4138e64f00c76f6155724934bbd171a6b81ba26437245a72762eac398bb86",
+        "admission_sha256": "42f1d893c7981981d1a55c64b968d6bc3ee18f756a3e93df6a0c30a9f578b91c",
+        "ranges_sha256": "3c4fc52d4b6bbc8f5f7cb8ee4a0ba15872a63a003192852c0e479d86dece9d74",
+        "lifecycle_sha256": "433addd5bc086534b03ba35e1fcb8a21c641cf049af5c7f91b14cefe0b3e03ab",
+        "shared_sha256": "8e29cd71650a739eccb3209e612b80d03e0e2a4d0b7c6c9e5f25f5a301ef3023",
+        "shared_identities": [
+          [
+            1413,
+            1948
+          ],
+          [
+            1413,
+            2200
+          ]
+        ],
+        "footprint_transitions": [
+          [
+            1325,
+            0,
+            1073479680,
+            1073479680
+          ],
+          [
+            1352,
+            0,
+            1064828928,
+            1073479680
+          ],
+          [
+            1558,
+            1,
+            1073479680,
+            1073479680
+          ],
+          [
+            1561,
+            1,
+            1064828928,
+            1073479680
+          ]
+        ],
+        "shared_footprints": 353,
+        "shared_reference_counts": [
+          1,
+          2
+        ]
+      },
+      "cases": [
+        {
+          "trace_sha256": "106d9158a77254698321c6eb999418bd98df48a0820befb581e43041d92a53ab",
+          "bytes": 31030369,
+          "metadata": {
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+              "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+              "wc3_pathfinding.js": "568bbe6028178bfcdd9f94b5b887192886d39a8831006f8cba674009571e0314",
+              "wc3_pathfinding_probe.j": "0c2c32d4a05420933c865efa620288d5283f922821df85ebbd10edf4242bce1a",
+              "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+              "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+              "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+              "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+              "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+              "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+              "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+              "map": "eff887cf3892602731a6fa738c32f4dd65c624f2e81070ea0d08a5b971a28328"
+            },
+            "map": "Maps\\PathingRE-CE13V1-261003.w3m",
+            "seconds": 110.0,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "samples": 10000,
+            "watchCell": null,
+            "blockers": false,
+            "taskEvents": true,
+            "widgetEvents": false,
+            "motionEvents": true,
+            "velocityEvents": true,
+            "yieldEvents": true,
+            "clockEvents": true,
+            "headingEvents": false,
+            "captainApproachEvents": true,
+            "captainMembershipEvents": true,
+            "profileEvents": true,
+            "numericEvents": false,
+            "randomEvents": false,
+            "literalTexts": [],
+            "integerTexts": [],
+            "byteEvents": false
+          }
+        },
+        {
+          "trace_sha256": "840b102245f1c3473237195589f2d066baa5a0513d169687adcce49a3e65ca34",
+          "bytes": 30876714,
+          "metadata": {
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+              "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+              "wc3_pathfinding.js": "568bbe6028178bfcdd9f94b5b887192886d39a8831006f8cba674009571e0314",
+              "wc3_pathfinding_probe.j": "0c2c32d4a05420933c865efa620288d5283f922821df85ebbd10edf4242bce1a",
+              "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+              "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+              "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+              "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+              "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+              "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+              "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+              "map": "eff887cf3892602731a6fa738c32f4dd65c624f2e81070ea0d08a5b971a28328"
+            },
+            "map": "Maps\\PathingRE-CE13V1-261003.w3m",
+            "seconds": 100.0,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "samples": 10000,
+            "watchCell": null,
+            "blockers": false,
+            "taskEvents": true,
+            "widgetEvents": false,
+            "motionEvents": true,
+            "velocityEvents": true,
+            "yieldEvents": true,
+            "clockEvents": true,
+            "headingEvents": false,
+            "captainApproachEvents": true,
+            "captainMembershipEvents": true,
+            "profileEvents": true,
+            "numericEvents": false,
+            "randomEvents": false,
+            "literalTexts": [],
+            "integerTexts": [],
+            "byteEvents": false
+          }
+        }
+      ],
+      "engine_header_sha256": "0fdd0d322d1f09bcb7ec34953261c882e95d550464b32bd5b62f5463f132c15f"
+    },
+    {
+      "name": "late",
+      "engine_commits": 5593,
+      "event_counts": {
+        "marker": 304,
+        "velocity-commit": 5596,
+        "clock-owner-end": 1000,
+        "motion-decision": 5326,
+        "arrival-evaluation": 5596,
+        "route-step": 5596,
+        "yield-decision": 4430,
+        "retry-result": 82,
+        "retry-init": 61,
+        "force-arrival": 4,
+        "task-recovery": 4,
+        "task-cant-path": 4,
+        "task-arrival": 24
+      },
+      "state": {
+        "motion_sha256": "5c066147f56701944184ce6cdf86cffb4e902861166703cd32ce58c7a9d478b3",
+        "producer_sha256": "55472afc6fd65fe1cbf9fef1794d8a7a718a80ba355457b8ae7dc3cd36380ead",
+        "admission_sha256": "42f1d893c7981981d1a55c64b968d6bc3ee18f756a3e93df6a0c30a9f578b91c",
+        "ranges_sha256": "3c4fc52d4b6bbc8f5f7cb8ee4a0ba15872a63a003192852c0e479d86dece9d74",
+        "lifecycle_sha256": "5810fcfd122368a266b688a663c6d3f9f634d6cb4f9137eb054f1720954aa183",
+        "shared_sha256": "f03ad52e69a9bbc0ae2fb38759d62df0c343b0aafeb0a000fb4d8dc4fa583f62",
+        "shared_identities": [
+          [
+            1471,
+            1941
+          ],
+          [
+            1471,
+            2193
+          ]
+        ],
+        "footprint_transitions": [
+          [
+            1325,
+            0,
+            1073479680,
+            1073479680
+          ],
+          [
+            1331,
+            0,
+            1064828928,
+            1073479680
+          ],
+          [
+            1558,
+            1,
+            1073479680,
+            1073479680
+          ],
+          [
+            1603,
+            1,
+            1064828928,
+            1073479680
+          ]
+        ],
+        "shared_footprints": 400,
+        "shared_reference_counts": [
+          1,
+          2
+        ]
+      },
+      "cases": [
+        {
+          "trace_sha256": "aaee82e8617ec32ca4e0aa9427d91126bc32d37077a4c4d2478e202d248b4286",
+          "bytes": 31421170,
+          "metadata": {
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+              "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+              "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+              "wc3_pathfinding_probe.j": "0602d783cfd621c1a91d1a0252f7c76692d9cf3c3dc7626d6a83310d16305907",
+              "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+              "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+              "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+              "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+              "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+              "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+              "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+              "map": "a3ca7405409d3a94cf59493593fff8b0cec81c113ba73efc6ebb5f4c4bf928b5"
+            },
+            "map": "Maps\\PathingRE-CC13V1-261003.w3m",
+            "seconds": 110.0,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "samples": 10000,
+            "watchCell": null,
+            "blockers": false,
+            "taskEvents": true,
+            "widgetEvents": false,
+            "motionEvents": true,
+            "velocityEvents": true,
+            "yieldEvents": true,
+            "clockEvents": true,
+            "headingEvents": false,
+            "profileEvents": true,
+            "numericEvents": false,
+            "randomEvents": false,
+            "literalTexts": [],
+            "integerTexts": [],
+            "byteEvents": false
+          }
+        },
+        {
+          "trace_sha256": "2ce058272ac824e53c638f7bed91baac921e76f70450365dff307cc0dd1e5062",
+          "bytes": 31417487,
+          "metadata": {
+            "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+            "owned": true,
+            "source_sha256": {
+              "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+              "trace_wc3_pathfinding.py": "58f14a5d349052bf32165b096d076672ee19ab571a65ff2dd6d787e9c3786993",
+              "wc3_pathfinding.js": "47dbed0a858f6235b7c48db53bf87ea638044fdc0ad528e9b8f3f795bc669d6a",
+              "wc3_pathfinding_probe.j": "0602d783cfd621c1a91d1a0252f7c76692d9cf3c3dc7626d6a83310d16305907",
+              "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+              "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+              "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+              "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+              "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+              "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+              "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+              "map": "a3ca7405409d3a94cf59493593fff8b0cec81c113ba73efc6ebb5f4c4bf928b5"
+            },
+            "map": "Maps\\PathingRE-CC13V1-261003.w3m",
+            "seconds": 100.0,
+            "frida": "17.18.0",
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "samples": 10000,
+            "watchCell": null,
+            "blockers": false,
+            "taskEvents": true,
+            "widgetEvents": false,
+            "motionEvents": true,
+            "velocityEvents": true,
+            "yieldEvents": true,
+            "clockEvents": true,
+            "headingEvents": false,
+            "profileEvents": true,
+            "numericEvents": false,
+            "randomEvents": false,
+            "literalTexts": [],
+            "integerTexts": [],
+            "byteEvents": false
+          }
+        }
+      ],
+      "engine_header_sha256": "403d287c406fc919d3402b41602913ab3346f2c4c75d83892bee11a08fb44e5a"
+    }
+  ],
+  "fine_target_control": [
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722129,
+      "rawcode": 1749240903,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1110,
+        1110
+      ],
+      "mover": "0x12e60098",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722146,
+      "rawcode": 1749240903,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1110,
+        1110
+      ],
+      "mover": "0x12e60098",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722895,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1141,
+        1141
+      ],
+      "mover": "0x12e60178",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722896,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1141,
+        1141
+      ],
+      "mover": "0x12e60178",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722900,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1172,
+        1172
+      ],
+      "mover": "0x12e60258",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722901,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1172,
+        1172
+      ],
+      "mover": "0x12e60258",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722904,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1203,
+        1203
+      ],
+      "mover": "0x12e60338",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722905,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1203,
+        1203
+      ],
+      "mover": "0x12e60338",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722908,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1234,
+        1234
+      ],
+      "mover": "0x12e60418",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722909,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1234,
+        1234
+      ],
+      "mover": "0x12e60418",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722912,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1265,
+        1265
+      ],
+      "mover": "0x12e604f8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722913,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1265,
+        1265
+      ],
+      "mover": "0x12e604f8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722917,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1296,
+        1296
+      ],
+      "mover": "0x12e605d8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722917,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1296,
+        1296
+      ],
+      "mover": "0x12e605d8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722920,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1327,
+        1327
+      ],
+      "mover": "0x12e606b8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722921,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1327,
+        1327
+      ],
+      "mover": "0x12e606b8",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722924,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1358,
+        1358
+      ],
+      "mover": "0x12e60798",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722925,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1358,
+        1358
+      ],
+      "mover": "0x12e60798",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722928,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1389,
+        1389
+      ],
+      "mover": "0x12e60878",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722929,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1389,
+        1389
+      ],
+      "mover": "0x12e60878",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722932,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1420,
+        1420
+      ],
+      "mover": "0x12e60958",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722933,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1420,
+        1420
+      ],
+      "mover": "0x12e60958",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722936,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1451,
+        1451
+      ],
+      "mover": "0x12e60a38",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722937,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1451,
+        1451
+      ],
+      "mover": "0x12e60a38",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722940,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1482,
+        1482
+      ],
+      "mover": "0x12e60b18",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994722941,
+      "rawcode": 1751543663,
+      "category": 202,
+      "queryMask": 2,
+      "identity": [
+        1482,
+        1482
+      ],
+      "mover": "0x12e60b18",
+      "objectCategory": 16777418,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994763735,
+      "rawcode": 0,
+      "category": 2,
+      "queryMask": 2,
+      "identity": [
+        1510,
+        1657
+      ],
+      "mover": "0x12e60bf8",
+      "objectCategory": 16777218,
+      "pathMask": 33554434
+    },
+    {
+      "event": "movement-mask-publication",
+      "ms": 1790994763740,
+      "rawcode": 4147720919,
+      "category": 2,
+      "queryMask": 2,
+      "identity": [
+        1498,
+        1666
+      ],
+      "mover": "0x12e60cd8",
+      "objectCategory": 16777218,
+      "pathMask": 33554434
+    },
+    {
+      "event": "velocity-commit",
+      "ms": 1790994764036,
+      "mover": "0x12e60bf8",
+      "speed": 0,
+      "heading": 0,
+      "before": [
+        1065353200,
+        0,
+        1126400000,
+        1119289344,
+        0,
+        0,
+        1099082411,
+        0
+      ],
+      "clock": [
+        1065520980,
+        0,
+        1133903872
+      ],
+      "fineObject": "0x117d5100",
+      "fineFlagsBefore": 0,
+      "after": [
+        1065520980,
+        0,
+        1126400000,
+        1119289344,
+        0,
+        0,
+        1099082411,
+        0
+      ],
+      "requested": [
+        0,
+        0
+      ],
+      "fineFlagsAfter": 0
+    },
+    {
+      "event": "retry-result",
+      "ms": 1790994764089,
+      "nativeSource": [
+        1126662144,
+        1115029504
+      ],
+      "nativeGoal": [
+        1126662144,
+        1117978624
+      ],
+      "members": 1,
+      "group": "0x170304f8",
+      "mover": "0x12e605d8",
+      "ownerBefore": [
+        4273436052,
+        209508436
+      ],
+      "target": [
+        293425408,
+        4294967295
+      ],
+      "path": "0x12e70500",
+      "before": 0,
+      "after": 6,
+      "result": 1,
+      "ownerAfter": [
+        3022241195,
+        141606968
+      ],
+      "counter": 1059
+    }
+  ]
+}

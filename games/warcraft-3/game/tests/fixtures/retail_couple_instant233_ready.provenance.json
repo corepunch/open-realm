@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "projection_sha256": "df7de87a75985cc4ae19979112bd4c59109ccdc73774c7efba60af06a322ba8a",
+  "capture_files_sha256": {
+    "RS-TARGET233-ready-adjacent-v1.json": "0f26dfd1b8377eb7113123df94886810a58d9eca3259c743d292b9acb5e1c4e0",
+    "RS-TARGET233-ready-adjacent-v1.w3m": "d0c4878fa21cdd32ddeb24107a41e1f91a39fa21620441456fc75b1790c3678c",
+    "capture-design.json": "789ccd9862b42fdf4abe5a204044b96a051de955df4d50e1d45ccd7da1ea616e",
+    "capture-launch.py": "12552dbe8cfa775bfd5d646ec2f4aa09e02faae3bb5dbdc4ffc85eef4b01cf85",
+    "control1-preload.txt": "bde63c2d8b6dcd20d502d488b91869f3f582d238b3359543d2684603551072db",
+    "control1.jsonl": "a79ade8cb041022fb03adeb61bef09f58e3f02ada5f892fd000888d81a78b08b",
+    "findings.json": "0c2e156172b6382f92e151292b9390172a026b06e416ca683abdd29cb8991c28",
+    "frozen-sources.json": "ca567b326d38fd5990964e7dc1faa21b070dbdadfbad8340e9535fac07602371",
+    "itemdrop_capture.py": "9c1f6509f4d3c907b29d2b934bbbf20e454a6fdc0ec3b70f290c904b2dcdfc38",
+    "itemdrop_make_map.py": "63e7b4390a875c05a1a5308a0ed85d42972b7c3e17106a5307a5dab3c75e17b9",
+    "itemdrop_observer.js": "5f6d423d927a6436259e760451930c26a17757562ddb1efb448ec4f7d5171061",
+    "itemdrop_probe.j": "4e4cc2a16fd6071c63b54ac1f1eb9f31b0337fd9178976a85e31f03fd8e2e17e",
+    "map-ability-audit.json": "a71e4ac9958448b39b07b0cb808ef636a2161d18e704b44d331e59731a7532f4",
+    "observe1-preload.txt": "bde63c2d8b6dcd20d502d488b91869f3f582d238b3359543d2684603551072db",
+    "observe1.jsonl": "c821362cbcd2662f92c784bea5685ab472e8b7858d68c5b9d35a638e40de9401",
+    "observe2-preload.txt": "21a17b0e308465d0f1bb4a3c3f6e5137970f054604aefe50022e9e571e8fb79f",
+    "observe2.jsonl": "1e0ce19e69686d75f386e2abc1da072420b6759caa31fe610c684409391d2f23",
+    "prepare.py": "c8a60ee0cfb74382f2891299076e3cfd87f31f4bb9eea77caf97df60a8dc1e4e",
+    "ready-chronology.json": "a3c0cdf0cc5e3d7b1a5dac5571ba6259ad6d80ea41fcfdc0c069f6ae5aa7dc69",
+    "source-before-map.json": "7d304bbe42fab823ab202232aeb2a5eda5fb59cb921f451a9067de5c6c8e14c8",
+    "validated-summary.json": "4f67d4438e1829b926c05a55d2b9222deb15f35e6c4ecb3670397d8bfe999fd1",
+    "war3map.w3a": "d5ec6308f432172818773573aa0fe9e901ea2e4e02d88f1808499b9d02d05a5f"
+  },
+  "accepted_runs": [
+    "observe1",
+    "observe2",
+    "control1"
+  ],
+  "public_records": 2150,
+  "public_sha256": "ff494612105b9f4e12c0bf724aeb301dd5de6cf670a0d2ac336ae899c2fd3005",
+  "scene_count": 11,
+  "arrival_count": 6,
+  "velocity_count": 6,
+  "fourcc_convention": "Typed rawcode/alias/public ability integers are native big-endian ASCII FourCC words; display only, no blanket integer byte swapping. Engine host-packed values need field-specific conversion.",
+  "limits": [
+    "Original capture metadata task label remains TARGET-01.2-coupling-instant214-reservation333; actualunique233map/probe/source hashes define this witness.",
+    "Frozen builder sidecar ability_overrides lists onlyoriginal Aco2/Aco3 aran333, omitting customalias rows. Actualw3a independentlyparsed, hashespinned; no rewriting historical sidecar.",
+    "CustomXc31/Xc32/Xc33 are publicRemoveOld/AddNew Aco3 clones; not unmodifiedstockavailability.",
+    "Publicrole0 means neitherwatchedactor, not proof of NULL.",
+    "Fullpublic and normalizednative repeats exact; pointervalues/canonicalidentity numbers notportable. No timing offsets/tolerances or eventreordering.",
+    "No engine parity claimed by native evidence alone."
+  ],
+  "normalization": {
+    "pointer_fields": [
+      "pointer",
+      "argument",
+      "mover",
+      "target",
+      "source"
+    ],
+    "pointer_evidence": "Observer unit/ability/marker pointer fields and this.context pointers; instant-dispatch argument explicitly args[0].add(12).readPointer().toString(). Source/target string forms are bridge/nativeobject pointers; numeric source/destination arrays remain exact. Unexpected hexadecimal string keys reject.",
+    "canonical_identity_pair_fields": [
+      "identity",
+      "retained",
+      "head",
+      "task",
+      "group"
+    ],
+    "identity_evidence": "Native registry slot/generation pairs. unit.head and unit.task here are canonical object identities, not GetUnitCurrentOrder IDs. All public order IDs, numeric rawcodes/aliases, cache words, poses and clocks remain unchanged.",
+    "identity_mapping": "First-encounter equality-preserving tokens; no actor/order code reinterpretation or byte swapping."
+  },
+  "header_sha256": "85035c92002f63a3d896b1464bf4be9f361c858fa4f68285b92fe66c55eb2df6"
+}

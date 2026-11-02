@@ -3,6 +3,46 @@
 #include <stdlib.h>
 
 #include "g_local.h"
+#include "g_entity_set.h"
+
+/* Derived ordered membership. Eligibility remains live in G_IsEntitySelected;
+ * the index only avoids visiting unrelated edicts for every HUD/order query. */
+static entitySet_t selection_members[MAX_PLAYERS];
+
+void G_ResetSelectionIndex(void) {
+    memset(selection_members, 0, sizeof(selection_members));
+}
+
+uint32_t G_SetEntitySelectionMask(edict_t *ent, uint32_t mask) {
+    uint32_t changed = ent->selected ^ mask;
+    uintptr_t offset = (uintptr_t)ent - (uintptr_t)g_edicts;
+    ent->selected = mask;
+    if (!g_edicts || offset >= sizeof(*ent) * MAX_ENTITIES || offset % sizeof(*ent)) return mask;
+    uint32_t index = (uint32_t)(offset / sizeof(*ent));
+    while (changed) {
+        uint32_t player = __builtin_ctz(changed);
+        changed &= changed - 1;
+        if (player < MAX_PLAYERS) entity_set_put(selection_members + player, index, (mask & (1u << player)) != 0);
+    }
+    return mask;
+}
+
+void G_RebuildSelectionIndex(void) {
+    G_ResetSelectionIndex();
+    FOR_LOOP(i, globals.num_edicts) {
+        uint32_t mask = g_edicts[i].selected;
+        for (uint32_t bits = mask; bits; bits &= bits - 1) {
+            uint32_t player = __builtin_ctz(bits);
+            if (player < MAX_PLAYERS) entity_set_put(selection_members + player, i, true);
+        }
+    }
+}
+
+edict_t *G_NextSelectedEntity(gameClient_t const *client, uint32_t from) {
+    if (!client || client->ps.number >= MAX_PLAYERS) return NULL;
+    uint32_t index = entity_set_next(selection_members + client->ps.number, from);
+    return index < globals.num_edicts ? g_edicts + index : NULL;
+}
 #include "skills/s_skills.h"
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, uint32_t argc, cstring_t argv[])
@@ -148,6 +188,13 @@ static bool G_TargetModeActive(gameClient_t *client) {
 static bool G_CommandQueueRequested(uint32_t argc, cstring_t argv[], uint32_t first_optional) {
     for (uint32_t i = first_optional; i < argc; i++) {
         if (!strcmp(argv[i], "queue")) return true;
+    }
+    return false;
+}
+
+static bool G_CommandAltRequested(uint32_t argc, cstring_t argv[], uint32_t first_optional) {
+    for (uint32_t i = first_optional; i < argc; i++) {
+        if (!strcmp(argv[i], "alt")) return true;
     }
     return false;
 }
@@ -325,7 +372,7 @@ void G_SelectEntity(gameClient_t *client, edict_t *ent) {
         had_selection = true;
         if (++count >= limit) return;
     }
-    ent->selected |= 1u << client->ps.number;
+    G_SetEntitySelectionMask(ent, ent->selected | (1 << client->ps.number));
     if (!had_selection) G_FocusSelectedUnit(client, ent);
 }
 
@@ -335,17 +382,16 @@ void G_DeselectEntity(gameClient_t *client, edict_t *ent) {
     if (!client || !ent) return;
     focus = G_SelectionFocusSlot(client);
     if (focus && *focus == ent->s.number) *focus = 0;
-    ent->selected &= ~(1 << client->ps.number);
+    G_SetEntitySelectionMask(ent, ent->selected & (~(1 << client->ps.number)));
 }
 
 bool G_IsEntitySelected(gameClient_t *client, edict_t *ent) {
     TEST_SELECTION_CHECK();
-    return client && ent && ent->inuse && !M_IsDead(ent) &&
+    return client && ent && (ent->selected & (1u << client->ps.number)) && ent->inuse && !M_IsDead(ent) &&
         !(ent->s.flags & EF_NOT_SELECTABLE) &&
         (!(ent->s.renderfx & RF_HIDDEN) ||
          (S_UnitUsesInvisibilityRenderFlag(ent) &&
-          !S_UnitIsInvisibleToPlayer(ent, client->ps.number))) &&
-        (ent->selected & (1 << client->ps.number));
+          !S_UnitIsInvisibleToPlayer(ent, client->ps.number)));
 }
 
 selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent) {
@@ -447,14 +493,12 @@ void G_UpdateClientSelections(void) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         bool changed = false;
-        uint32_t bit = 1 << client->ps.number;
-
         /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
          * deliberately hides dead/unselectable entities, while this pass must
          * clear stale selection bits after visibility/selectability changes. */
         uint32_t count = 0;
         uint32_t const limit = G_SelectionLimit();
-        FILTER_EDICTS(ent, ent->selected & bit) {
+        FOR_SELECTION_MEMBERS(client, ent) {
             if (!G_UnitCanBeSelected(client, ent)) {
                 G_DeselectEntity(client, ent);
                 changed = true;
@@ -506,7 +550,7 @@ void G_ResetSelectionSoundState(void) {
         unitResponse_t *next = unit_responses->next;
         free(unit_responses); unit_responses = next;
     }
-    FOR_LOOP(i, globals.num_edicts) if (globals.edicts && globals.edicts[i].sound) globals.edicts[i].sound->pending = 0;
+    FOR_LOOP(i, globals.num_edicts) if (globals.edicts) globals.edicts[i].sound.pending = 0;
     memset(selection_sound_state, 0, sizeof(selection_sound_state));
     /* Keep serials across maps/save-load so old reliable replies cannot match. */
 }
@@ -551,8 +595,8 @@ bool G_QueueUnitResponseSound(edict_t *ent, int sound) {
     *r = (unitResponse_t){ .next = unit_responses, .request = response_serial,
         .entity = ent->s.number, .spawn_time = ent->spawn_time, .owner = ent->s.player, .sound = sound };
     unit_responses = r;
-    G_InitSounds(ent);
-    ent->sound->pending = sound;
+
+    ent->sound.pending = sound;
     return true;
 }
 
@@ -566,7 +610,7 @@ void G_UpdateUnitResponsePresentation(void) {
         for (uint32_t i = 0; !connected && i < game.max_clients; i++)
             connected = game.clients[i].connected && game.clients[i].ps.number == r->owner;
         if (ent->inuse && ent->spawn_time == r->spawn_time && ent->s.player == r->owner && connected) { link = &r->next; continue; }
-        if (!r->accepted && ent->spawn_time == r->spawn_time && ent->sound && ent->sound->pending == r->sound) ent->sound->pending = 0;
+        if (!r->accepted && ent->spawn_time == r->spawn_time && ent->sound.pending == r->sound) ent->sound.pending = 0;
         *link = r->next; free(r); G_DirtyResponsePortrait(ent);
     }
 }
@@ -579,8 +623,8 @@ static void G_ResponseEvent(edict_t *player, uint32_t user, uint32_t request, ui
         if (r->request != request || r->entity != user) continue;
         if (r->owner != player->client->ps.number || !ent->inuse ||
             ent->spawn_time != r->spawn_time || ent->s.player != r->owner) return;
-        if (!r->accepted && (event == SOUND_ACCEPTED || event == SOUND_REJECTED) && ent->sound && ent->sound->pending == r->sound)
-            ent->sound->pending = 0;
+        if (!r->accepted && (event == SOUND_ACCEPTED || event == SOUND_REJECTED) && ent->sound.pending == r->sound)
+            ent->sound.pending = 0;
         if (event == SOUND_ACCEPTED && !r->accepted) {
             r->accepted = true;
             selectionSoundState_t *state = selection_sound_state + r->owner;
@@ -643,7 +687,7 @@ void G_QueueSelectionSound(edict_t *ent, bool reset_sequence) {
     int sound = 0;
 
     if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
-    if (G_GetConstruction(ent)) {
+    if (ent->construction) {
         gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
         cstring_t alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
         int sound_index = G_UISoundIndex(alias);
@@ -662,8 +706,8 @@ void G_QueueSelectionSound(edict_t *ent, bool reset_sequence) {
             sound = G_UnitAckSoundVariantIndex(label, "Pissed", pissed_index);
         }
     }
-    if (!sound && ent->sound && ent->sound->num_select)
-        sound = G_RandomResponseSound(ent, ent->sound->select, ent->sound->num_select);
+    if (!sound && G_UnitSoundProfile(ent)->num_select)
+        sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->select, G_UnitSoundProfile(ent)->num_select);
     if (sound && G_QueueUnitResponseSound(ent, sound))
         unit_responses->generation = state->generation;
 }
@@ -682,7 +726,7 @@ void G_QueueAttackOrderSound(edict_t *ent) {
         sound = G_UnitAckSoundVariantIndex(label, "YesAttack", (uint32_t)(rand() % count));
         if (count == 1 || !G_SoundVariantIsLast(sound, ent->s.player)) break;
     }
-    if (!sound && ent->sound && ent->sound->num_yes) sound = G_RandomResponseSound(ent, ent->sound->yes, ent->sound->num_yes);
+    if (!sound && G_UnitSoundProfile(ent)->num_yes) sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->yes, G_UnitSoundProfile(ent)->num_yes);
     if (sound) G_QueueUnitResponseSound(ent, sound);
 }
 
@@ -694,8 +738,8 @@ static void G_QueueOrderSound(edict_t *ent) {
         return;
     }
     G_ResetSelectionResponseForUnit(ent);
-    if (!ent->sound || !ent->sound->num_yes) return;
-    sound = G_RandomResponseSound(ent, ent->sound->yes, ent->sound->num_yes);
+    if (!G_UnitSoundProfile(ent)->num_yes) return;
+    sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->yes, G_UnitSoundProfile(ent)->num_yes);
     G_QueueUnitResponseSound(ent, sound);
 }
 
@@ -765,7 +809,7 @@ void CMD_CancelCommand(edict_t *ent) {
             }
             return;
         }
-        if (G_GetConstruction(producer) && G_CancelStructureConstruction(producer)) {
+        if (producer->construction && G_CancelStructureConstruction(producer)) {
             if (ent->client->connected) {
                 G_RefreshResourceBar(ent);
                 Get_Portrait_f(ent);
@@ -835,7 +879,7 @@ CLIENTCOMMAND(Select) {
 #ifdef WC3_DEBUG_MINING
         if (client->menu.on_location_selected) {
             fprintf(stderr, "WC3_MINING select-while-building client=%ld building=%.4s callback=%p argc=%d",
-                    (long)(clent - globals.edicts), (cstring_t)&clent->client->menu.build_project,
+                    (long)(clent - globals.edicts), (cstring_t)&clent->build_project,
                     (void *)client->menu.on_location_selected, argc);
             if (argc >= 2) {
                 uint32_t clicked;
@@ -848,18 +892,18 @@ CLIENTCOMMAND(Select) {
             fputc('\n', stderr);
         }
 #endif
-        if (client->menu.on_location_selected == build_menu_send_builder && clent->client->menu.build_project && argc >= 2) {
+        if (client->menu.on_location_selected == build_menu_send_builder && clent->build_project && argc >= 2) {
             uint32_t number;
             if (G_ParseEntityNumber(argv[1], &number) && number < globals.num_edicts) {
                 edict_t *target = &globals.edicts[number];
-                UnitData_t const *building_data = G_UnitData(clent->client->menu.build_project);
+                UnitData_t const *building_data = G_UnitData(clent->build_project);
                 if (building_data && building_data->isBuildOn && S_GoldMineIsMine(target)) {
                     bool const queued = client->menu.supports_order_queue &&
                                         G_CommandQueueRequested(argc, argv, 2);
                     bool accepted;
 #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING select-route-to-build client=%ld building=%.4s mine=%ld mine_id=%.4s point=(%.1f,%.1f)\n",
-                            (long)(clent - globals.edicts), (cstring_t)&clent->client->menu.build_project,
+                            (long)(clent - globals.edicts), (cstring_t)&clent->build_project,
                             (long)(target - globals.edicts), (cstring_t)&target->class_id,
                             target->s.origin2.x, target->s.origin2.y);
 #endif
@@ -1049,12 +1093,14 @@ CLIENTCOMMAND(Point) {
     if (client->menu.on_location_selected) {
         bool const queued = client->menu.supports_order_queue &&
                             G_CommandQueueRequested(argc, argv, 3);
-        vec2_t loc = { atoi(argv[1]), atoi(argv[2]) };
+        vec2_t loc = { strtof(argv[1], NULL), strtof(argv[2], NULL) };
         bool accepted;
 
         client->menu.order_queued = queued;
+        client->menu.order_alt = G_CommandAltRequested(argc, argv, 3);
         accepted = client->menu.on_location_selected(clent, &loc);
         client->menu.order_queued = false;
+        client->menu.order_alt = false;
         if (accepted && !queued) Get_Commands_f(clent);
     }
 }
@@ -1096,17 +1142,26 @@ CLIENTCOMMAND(Smart) {
     target = &globals.edicts[number];
     queued = G_CommandQueueRequested(argc, argv, 2);
     if (argc >= 4 && strcmp(argv[2], "queue") && strcmp(argv[3], "queue")) {
-        click_point = (vec2_t){ atoi(argv[2]), atoi(argv[3]) };
+        click_point = (vec2_t){ strtof(argv[2], NULL), strtof(argv[3], NULL) };
         have_click_point = true;
     }
-    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
-        /* A queued Smart target is otherwise accepted into the FIFO before
-         * its destructable semantics are evaluated, preventing the clicked
-         * walkable surface from falling back to the queued ground move. */
-        if (queued && have_click_point && G_DestructableIsWalkable(target) &&
-            !G_DestructableAcceptsSmartAttack(ent, target)) continue;
-        if (G_IssueUnitTargetOrder(ent, "smart", target, queued, client->ps.number)) {
-            if (G_UnitHasRally(ent)) rallied = true;
+    uint32_t const target_spawn=target->spawn_time;
+    bool const walkable=have_click_point && G_DestructableIsWalkable(target);
+    playerOrderSelection_t selection;
+    G_SnapshotPlayerOrderSelection(client,G_OrderId("smart"),queued,&selection);
+    G_PreparePlayerTargetOrders(&selection,"smart",target);
+    /* Filter the clicked walkable surface before a recipient can mutate it. */
+    FOR_LOOP(i,selection.count) {
+        edict_t *ent=G_PlayerOrderSelectionUnit(&selection,i);
+        if(!ent)continue;
+        /* All prepared modes admit before physical dispatch. Reject this
+         * widget candidate now so a non-attackable walkable surface still
+         * selects the clicked ground point, including immediate Smart. */
+        if (walkable && !G_DestructableAcceptsSmartAttack(ent,target))selection.units[i].target_ready=false;
+    }
+    FOR_LOOP(i,selection.count) {
+        if (G_IssuePlayerTargetOrder(&selection,i)) {
+            if (selection.units[i].target_rally) rallied = true;
             issued = true;
         }
     }
@@ -1114,7 +1169,7 @@ CLIENTCOMMAND(Smart) {
      * Smart action was rejected, preserve the world point under the cursor and
      * run the normal formation-aware ground Smart path instead. Keep the
      * gameplay decision on destructable state rather than presentation flags. */
-    if (!issued && have_click_point && G_DestructableIsWalkable(target)) {
+    if (!issued && walkable) {
         bool const old_queued = client->menu.order_queued;
         client->menu.order_queued = queued;
         issued = move_selectlocation(clent, &click_point);
@@ -1124,7 +1179,10 @@ CLIENTCOMMAND(Smart) {
         /* Retail briefly flashes the clicked unit's selection ring after a
          * successful Smart target order. The relationship colour is local to
          * the issuing player and the existing indicator event owns timing. */
-        if (target->svflags & SVF_MONSTER)
+        /* The clicked incarnation owns acknowledgement; a callback can replace
+         * this slot before the final selected recipient returns. */
+        if (target->inuse && target->spawn_time==target_spawn && !G_IsDeferredFree(target) &&
+            (target->svflags & SVF_MONSTER))
             G_SendWidgetIndicator(target, G_SmartTargetIndicatorColor(client->ps.number, target), &client->ps);
         G_QueueOrderSound(G_GetMainControllableUnit(client));
         if (rallied) G_PlayUISoundForPlayer(clent, "RallyPointPlace");
@@ -1153,7 +1211,7 @@ CLIENTCOMMAND(SmartPoint) {
     if (argc < 3) {
         return;
     }
-    loc = (vec2_t){ atoi(argv[1]), atoi(argv[2]) };
+    loc = (vec2_t){ strtof(argv[1], NULL), strtof(argv[2], NULL) };
     queued = G_CommandQueueRequested(argc, argv, 3);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {
@@ -1168,9 +1226,12 @@ CLIENTCOMMAND(SmartPoint) {
      * units, so rally-capable selections do not enter this path. */
     if (non_rally) {
         bool const old_queued = client->menu.order_queued;
+        bool const old_alt = client->menu.order_alt;
         client->menu.order_queued = queued;
+        client->menu.order_alt = G_CommandAltRequested(argc, argv, 3);
         if (move_selectlocation(clent, &loc)) issued = true;
         client->menu.order_queued = old_queued;
+        client->menu.order_alt = old_alt;
     }
     if (rally || issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));
@@ -1464,7 +1525,7 @@ CLIENTCOMMAND(Give) {
             G_CheatPrintf(clent, "WC3: selected unit is not a hero");
             return;
         }
-        G_HeroSetXP(unit, unit->unit_state->hero.xp + (uint32_t)strtoul(argv[2], NULL, 10));
+        G_HeroSetXP(unit, unit->hero.xp + (uint32_t)strtoul(argv[2], NULL, 10));
         G_CheatPrintf(clent, "WC3: gave %s XP to selected hero", argv[2]);
     } else {
         G_CheatPrintf(clent, "WC3: unsupported give target '%s'", argv[1]);
@@ -1483,8 +1544,8 @@ CLIENTCOMMAND(God) {
     }
     if (!unit) { G_CheatPrintf(clent, "WC3: god requires a selected controllable unit"); return; }
     /* The former controller flag could never protect the selected actor in T_Damage. */
-    G_SetUnitFlag(unit, UNIT_FLAG_INVULNERABLE, !G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE));
-    G_CheatPrintf(clent, "WC3: god %s", G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE) ? "on" : "off");
+    unit->invulnerable = !(unit && unit->invulnerable);
+    G_CheatPrintf(clent, "WC3: god %s", (unit && unit->invulnerable) ? "on" : "off");
 }
 
 /* Suicide must execute the same death callback as combat, including food, selection and trigger cleanup. */
@@ -1497,7 +1558,7 @@ CLIENTCOMMAND(Kill) {
     if (!unit) { G_CheatPrintf(clent, "WC3: kill requires a selected controllable unit"); return; }
     if (!unit->die) { G_CheatPrintf(clent, "WC3: selected unit %u has no death callback", unit->s.number); return; }
     /* Q2 clears godmode before suicide; setting controller health alone skipped every actor death effect. */
-    G_SetUnitFlag(unit, UNIT_FLAG_INVULNERABLE, false);
+    unit->invulnerable = false;
     G_SetHealth(unit, 0);
     unit->die(unit, unit);
     G_CheatPrintf(clent, "WC3: selected unit killed");
@@ -1540,7 +1601,7 @@ CLIENTCOMMAND(Unit) {
             edict_t *unit = selected[i];
             selected_count++;
             if (!unit->die) continue;
-            G_SetUnitFlag(unit, UNIT_FLAG_INVULNERABLE, false);
+            unit->invulnerable = false;
             G_SetHealth(unit, 0);
             unit->die(unit, unit);
             killed++;
@@ -1709,14 +1770,14 @@ CLIENTCOMMAND(Hero) {
 
     max_level = G_MaxHeroLevel();
     G_HeroSetXP(hero, G_HeroXPForLevel(max_level));
-    FOR_LOOP(i, hero->unit_state ? MAX_HERO_ABILITIES : 0) spent_points += hero->unit_state->ranks[i].level;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) spent_points += hero->heroabilities[i].level;
     expected_points = max_level > spent_points ? max_level - spent_points : 0;
-    if (hero->unit_state->hero.skillpoints < expected_points) {
-        G_HeroModifySkillPoints(hero, (int32_t)(expected_points - hero->unit_state->hero.skillpoints));
+    if (hero->hero.skillpoints < expected_points) {
+        G_HeroModifySkillPoints(hero, (int32_t)(expected_points - hero->hero.skillpoints));
     }
 
     G_CheatPrintf(clent, "WC3: selected hero set to level %u with %u skill points",
-            (unsigned)hero->unit_state->hero.level, (unsigned)hero->unit_state->hero.skillpoints);
+            (unsigned)hero->hero.level, (unsigned)hero->hero.skillpoints);
     G_InvalidateCommands(client);
     G_InvalidateUnitInfoPanel(hero);
 }
@@ -1936,13 +1997,11 @@ CLIENTCOMMAND(Inventory) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
             ability_t const *ability = FindAbilityForCommand(ability_name);
             abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-            abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .entity = clent);
-            bool succeeded = false;
 
             if (!ability) continue;
             client->menu.ability_code = FS_SLKKey(ability_name);
             if (ability->flags & AB_ITEM) {
-                succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
+                G_UseImmediateItemAbility(ent,item,clent,&ability_item);
                 handled = true;
             } else if (S_AbilityHasCommand(ability)) {
                 client->menu.ability_item = item;
@@ -1955,7 +2014,6 @@ CLIENTCOMMAND(Inventory) {
                 }
             }
 
-            if (succeeded) G_CompleteItemUse(ent, item);
             if (handled) break;
         }
     }
@@ -1976,7 +2034,7 @@ CLIENTCOMMAND(CargoUnload) {
 
     if (!clent || !(client = clent->client) || argc < 2) return;
     transport = G_GetMainSelectedUnit(client);
-    cargo_t *hold = G_GetCargo(transport);
+    cargo_t *hold = transport ? transport->cargo : NULL;
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, transport) || slot < 0) return;
     if (!hold || (uint32_t)slot >= hold->count) return;
@@ -1995,7 +2053,7 @@ CLIENTCOMMAND(CancelTrain) {
     if (!end || *end || parsed > UINT_MAX) return;
     client = clent->client;
     producer = G_GetMainSelectedUnit(client);
-    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !G_UnitHasFlag(producer->build, UNIT_FLAG_TRAINING)) return;
+    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !(producer->build && producer->build->training)) return;
     index = (uint32_t)parsed;
     if (!G_CancelTrainingQueueItem(producer, index, true)) return;
     Get_Portrait_f(clent);
@@ -2008,17 +2066,10 @@ static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
     item_t const *rec = G_ItemState(item);
     edict_t *carrier = rec ? rec->carrier : NULL;
 
-    if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
-        G_InventoryCanDropItems(carrier) && G_ShopPawnItem(&(shopPawnItemParams_t){
-            .clent = clent, .shop = target, .carrier = carrier, .item = item })) {
-        G_RefreshResourceBar(clent);
-        Get_Portrait_f(clent);
-        return true;
-    }
     /* Targeted item giving uses the same order as UnitDropItemTarget. An
      * inventory-capable allied building is a valid destination too. */
     return client && G_UnitCanControl(client, carrier) &&
-           G_OrderGiveItemTarget(carrier, item, target);
+           S_OrderDropItemTarget(carrier, item, target);
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */
@@ -2034,7 +2085,7 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         !rec || rec->carrier != unit)
         return false;
-    if (!G_OrderDropItemAt(unit, item, location)) return false;
+    if (!S_OrderDropItemPoint(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
     return true;
 }

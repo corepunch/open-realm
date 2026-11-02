@@ -1,0 +1,935 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "tools/ghidra/research/build294_oracle.py": "685c5d462ca2298079c098254036aec646452692d98fa9e40d966bb8e62b66e6",
+    "tools/ghidra/research/Build294Evidence.java": "a6cd91e280d8585c8f04982dfc5a7ddb6e9ff648ae3899e319195775f8f3cc76",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+  },
+  "instructions": {
+    "6f693490": "55",
+    "6f693491": "8bec",
+    "6f693493": "6aff",
+    "6f693495": "688884a56f",
+    "6f69349a": "64a100000000",
+    "6f6934a0": "50",
+    "6f6934a1": "83ec10",
+    "6f6934a4": "53",
+    "6f6934a5": "56",
+    "6f6934a6": "57",
+    "6f6934a7": "a19c68ce6f",
+    "6f6934ac": "33c5",
+    "6f6934ae": "50",
+    "6f6934af": "8d45f4",
+    "6f6934b2": "64a300000000",
+    "6f6934b8": "8bf1",
+    "6f6934ba": "f7465c00010000",
+    "6f6934c1": "0f85da000000",
+    "6f6934c7": "81beb4010000f4010000",
+    "6f6934d1": "0f8fca000000",
+    "6f6934d7": "8b86a8010000",
+    "6f6934dd": "2386ac010000",
+    "6f6934e3": "8b7d08",
+    "6f6934e6": "83f8ff",
+    "6f6934e9": "7417",
+    "6f6934eb": "8d8ea8010000",
+    "6f6934f1": "e82ade9cff",
+    "6f6934f6": "85c0",
+    "6f6934f8": "7408",
+    "6f6934fa": "57",
+    "6f6934fb": "8bc8",
+    "6f6934fd": "e83e560000",
+    "6f693502": "57",
+    "6f693503": "8d8ea8010000",
+    "6f693509": "e8020eb9ff",
+    "6f69350e": "8b86a0010000",
+    "6f693514": "23869c010000",
+    "6f69351a": "83f8ff",
+    "6f69351d": "740f",
+    "6f69351f": "8d8e9c010000",
+    "6f693525": "e8f6dd9cff",
+    "6f69352a": "85c0",
+    "6f69352c": "750c",
+    "6f69352e": "57",
+    "6f69352f": "8d8e9c010000",
+    "6f693535": "e8d60db9ff",
+    "6f69353a": "ff86b4010000",
+    "6f693540": "8d8e74010000",
+    "6f693546": "8b4104",
+    "6f693549": "2301",
+    "6f69354b": "83f8ff",
+    "6f69354e": "7447",
+    "6f693550": "e8cbdd9cff",
+    "6f693555": "85c0",
+    "6f693557": "743e",
+    "6f693559": "c745e800000000",
+    "6f693560": "c745e49002a86f",
+    "6f693567": "c745eca5020d00",
+    "6f69356e": "8b06",
+    "6f693570": "8d4de4",
+    "6f693573": "51",
+    "6f693574": "8bce",
+    "6f693576": "c745fc00000000",
+    "6f69357d": "897df0",
+    "6f693580": "ff5010",
+    "6f693583": "8b4df4",
+    "6f693586": "64890d00000000",
+    "6f69358d": "59",
+    "6f69358e": "5f",
+    "6f69358f": "5e",
+    "6f693590": "5b",
+    "6f693591": "8be5",
+    "6f693593": "5d",
+    "6f693594": "c20400",
+    "6f693597": "6a01",
+    "6f693599": "57",
+    "6f69359a": "8bce",
+    "6f69359c": "e83f76feff",
+    "6f6935a1": "8b4df4",
+    "6f6935a4": "64890d00000000",
+    "6f6935ab": "59",
+    "6f6935ac": "5f",
+    "6f6935ad": "5e",
+    "6f6935ae": "5b",
+    "6f6935af": "8be5",
+    "6f6935b1": "5d",
+    "6f6935b2": "c20400",
+    "6f67abe0": "55",
+    "6f67abe1": "8bec",
+    "6f67abe3": "6aff",
+    "6f67abe5": "68185aa56f",
+    "6f67abea": "64a100000000",
+    "6f67abf0": "50",
+    "6f67abf1": "83ec10",
+    "6f67abf4": "53",
+    "6f67abf5": "56",
+    "6f67abf6": "57",
+    "6f67abf7": "a19c68ce6f",
+    "6f67abfc": "33c5",
+    "6f67abfe": "50",
+    "6f67abff": "8d45f4",
+    "6f67ac02": "64a300000000",
+    "6f67ac08": "8bd9",
+    "6f67ac0a": "8b7d08",
+    "6f67ac0d": "8bcf",
+    "6f67ac0f": "8167207fffffff",
+    "6f67ac16": "8b07",
+    "6f67ac18": "ff501c",
+    "6f67ac1b": "8bf0",
+    "6f67ac1d": "e84e9e0000",
+    "6f67ac22": "3bf0",
+    "6f67ac24": "750a",
+    "6f67ac26": "57",
+    "6f67ac27": "8bcb",
+    "6f67ac29": "e8e2100000",
+    "6f67ac2e": "eb41",
+    "6f67ac30": "8b07",
+    "6f67ac32": "8bcf",
+    "6f67ac34": "ff501c",
+    "6f67ac37": "8bf0",
+    "6f67ac39": "e8529e0000",
+    "6f67ac3e": "3bf0",
+    "6f67ac40": "7427",
+    "6f67ac42": "8b07",
+    "6f67ac44": "8bcf",
+    "6f67ac46": "ff501c",
+    "6f67ac49": "8bf0",
+    "6f67ac4b": "e8709e0000",
+    "6f67ac50": "3bf0",
+    "6f67ac52": "751d",
+    "6f67ac54": "8bcf",
+    "6f67ac56": "e8b5bb0000",
+    "6f67ac5b": "85c0",
+    "6f67ac5d": "740a",
+    "6f67ac5f": "57",
+    "6f67ac60": "8bcb",
+    "6f67ac62": "e849260000",
+    "6f67ac67": "eb08",
+    "6f67ac69": "57",
+    "6f67ac6a": "8bcb",
+    "6f67ac6c": "e8bf150000",
+    "6f67ac71": "8bcb",
+    "6f67ac73": "e8281a0200",
+    "6f67ac78": "85c0",
+    "6f67ac7a": "7555",
+    "6f67ac7c": "57",
+    "6f67ac7d": "8bcb",
+    "6f67ac7f": "e83cf0ffff",
+    "6f67ac84": "85c0",
+    "6f67ac86": "753c",
+    "6f67ac88": "57",
+    "6f67ac89": "8bcb",
+    "6f67ac8b": "e8e0130000",
+    "6f67ac90": "85c0",
+    "6f67ac92": "7530",
+    "6f67ac94": "8945e8",
+    "6f67ac97": "c745e49002a86f",
+    "6f67ac9e": "c745eca6020d00",
+    "6f67aca5": "8945fc",
+    "6f67aca8": "8d4de4",
+    "6f67acab": "8b03",
+    "6f67acad": "51",
+    "6f67acae": "8bcb",
+    "6f67acb0": "897df0",
+    "6f67acb3": "ff5010",
+    "6f67acb6": "c745fcffffffff",
+    "6f67acbd": "c745e47c02a86f",
+    "6f67acc4": "837d0c00",
+    "6f67acc8": "7407",
+    "6f67acca": "8bcb",
+    "6f67accc": "e82f320000",
+    "6f67acd1": "8b4df4",
+    "6f67acd4": "64890d00000000",
+    "6f67acdb": "59",
+    "6f67acdc": "5f",
+    "6f67acdd": "5e",
+    "6f67acde": "5b",
+    "6f67acdf": "8be5",
+    "6f67ace1": "5d",
+    "6f67ace2": "c20800",
+    "6f206a20": "55",
+    "6f206a21": "8bec",
+    "6f206a23": "8b4d08",
+    "6f206a26": "83ec08",
+    "6f206a29": "56",
+    "6f206a2a": "e86185feff",
+    "6f206a2f": "8bf0",
+    "6f206a31": "85f6",
+    "6f206a33": "7505",
+    "6f206a35": "5e",
+    "6f206a36": "8be5",
+    "6f206a38": "5d",
+    "6f206a39": "c3",
+    "6f206a3a": "8b06",
+    "6f206a3c": "8bce",
+    "6f206a3e": "53",
+    "6f206a3f": "57",
+    "6f206a40": "ff5064",
+    "6f206a43": "8b5d10",
+    "6f206a46": "8d55f8",
+    "6f206a49": "6a00",
+    "6f206a4b": "6a00",
+    "6f206a4d": "6a00",
+    "6f206a4f": "8b0b",
+    "6f206a51": "8bf8",
+    "6f206a53": "6a00",
+    "6f206a55": "6a00",
+    "6f206a57": "6a00",
+    "6f206a59": "6a01",
+    "6f206a5b": "6a01",
+    "6f206a5d": "6a00",
+    "6f206a5f": "57",
+    "6f206a60": "894df8",
+    "6f206a63": "8d45fc",
+    "6f206a66": "8b4d14",
+    "6f206a69": "56",
+    "6f206a6a": "6a00",
+    "6f206a6c": "6a01",
+    "6f206a6e": "8b09",
+    "6f206a70": "894dfc",
+    "6f206a73": "8b4d0c",
+    "6f206a76": "50",
+    "6f206a77": "e8d4854600",
+    "6f206a7c": "85c0",
+    "6f206a7e": "7405",
+    "6f206a80": "83f845",
+    "6f206a83": "7515",
+    "6f206a85": "ff7514",
+    "6f206a88": "8bce",
+    "6f206a8a": "53",
+    "6f206a8b": "6a00",
+    "6f206a8d": "57",
+    "6f206a8e": "ff750c",
+    "6f206a91": "e8ca724900",
+    "6f206a96": "85c0",
+    "6f206a98": "7409",
+    "6f206a9a": "5f",
+    "6f206a9b": "5b",
+    "6f206a9c": "33c0",
+    "6f206a9e": "5e",
+    "6f206a9f": "8be5",
+    "6f206aa1": "5d",
+    "6f206aa2": "c3",
+    "6f206aa3": "8b4d0c",
+    "6f206aa6": "8bd7",
+    "6f206aa8": "6a01",
+    "6f206aaa": "6a01",
+    "6f206aac": "6a00",
+    "6f206aae": "ff7514",
+    "6f206ab1": "53",
+    "6f206ab2": "6a00",
+    "6f206ab4": "e807a64800",
+    "6f206ab9": "50",
+    "6f206aba": "8bce",
+    "6f206abc": "e85f984700",
+    "6f206ac1": "5f",
+    "6f206ac2": "5b",
+    "6f206ac3": "b801000000",
+    "6f206ac8": "5e",
+    "6f206ac9": "8be5",
+    "6f206acb": "5d",
+    "6f206acc": "c3",
+    "6f684a90": "b82e64726f",
+    "6f684a95": "c3"
+  },
+  "original": [
+    {
+      "command": 1749170483,
+      "busy": false,
+      "callback": "none",
+      "append": {
+        "count": 1,
+        "head": [
+          1,
+          101
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 1749170483,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "ability-execute",
+            "command": 1749170483,
+            "head": [
+              1,
+              101
+            ]
+          },
+          {
+            "event": "dispatch-tasks"
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 1749170483,
+          "head": [
+            1,
+            101
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 1749170483,
+      "busy": false,
+      "callback": "nested",
+      "append": {
+        "count": 1,
+        "head": [
+          1,
+          101
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 1749170483,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 1749170483,
+      "busy": false,
+      "callback": "stop",
+      "append": {
+        "count": 1,
+        "head": [
+          4294967295,
+          4294967295
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 1749170483,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "ability-execute",
+            "command": 1749170483,
+            "head": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "dispatch-tasks"
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 1749170483,
+          "head": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 1749170483,
+      "busy": true,
+      "callback": "none",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 1749170483,
+          "head": [
+            1,
+            101
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 1749170483,
+      "busy": true,
+      "callback": "nested",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 1749170483,
+      "busy": true,
+      "callback": "stop",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 1749170483,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 1749170483,
+          "head": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": false,
+      "callback": "none",
+      "append": {
+        "count": 1,
+        "head": [
+          1,
+          101
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 2051160372,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "ability-execute",
+            "command": 2051160372,
+            "head": [
+              1,
+              101
+            ]
+          },
+          {
+            "event": "dispatch-tasks"
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 2051160372,
+          "head": [
+            1,
+            101
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": false,
+      "callback": "nested",
+      "append": {
+        "count": 1,
+        "head": [
+          1,
+          101
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 2051160372,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": false,
+      "callback": "stop",
+      "append": {
+        "count": 1,
+        "head": [
+          4294967295,
+          4294967295
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "point-event",
+            "command": 2051160372,
+            "flags": 4,
+            "head": [
+              1,
+              101
+            ],
+            "internal": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "ability-execute",
+            "command": 2051160372,
+            "head": [
+              4294967295,
+              4294967295
+            ]
+          },
+          {
+            "event": "dispatch-tasks"
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 2051160372,
+          "head": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": true,
+      "callback": "none",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 2051160372,
+          "head": [
+            1,
+            101
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": true,
+      "callback": "nested",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        }
+      ],
+      "flags": 4
+    },
+    {
+      "command": 2051160372,
+      "busy": true,
+      "callback": "stop",
+      "append": {
+        "count": 2,
+        "head": [
+          0,
+          100
+        ],
+        "tail": [
+          1,
+          101
+        ],
+        "trace": [
+          {
+            "event": "busy-task-notification",
+            "code": 852645
+          }
+        ]
+      },
+      "activation": [
+        {
+          "event": "point-event",
+          "command": 2051160372,
+          "flags": 4,
+          "head": [
+            1,
+            101
+          ],
+          "internal": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "ability-execute",
+          "command": 2051160372,
+          "head": [
+            4294967295,
+            4294967295
+          ]
+        },
+        {
+          "event": "dispatch-tasks"
+        }
+      ],
+      "flags": 4
+    }
+  ],
+  "prior_evidence": {
+    "build293": "143747aec4fd9d08e24946c679f5a1c445332c7ba2cff94939582fd58cebbb41",
+    "queue263": "72ad9bfe10ccdb0528afdb3918633ec7143d66b2761d9460bb5bf74bc8bc8c03"
+  },
+  "engine_tests": [
+    "wc3_building.*",
+    "wc3_order_lifecycle.*",
+    "wc3_order_subscribers.*",
+    "wc3_order_reentry.*",
+    "wc3_interrupt.*",
+    "wc3_save.*"
+  ],
+  "scope": [
+    "Twelve controlled original append/dispatch cases, repeated twice, execute unmodified canonical registry, copy, linking and shared point-subtype branches. Event receiver and ability execution are supplied boundaries, not complete construction callbacks.",
+    "Existing immutable293 Frida Build factory/current-head captures and263 genuine Shift Attack/Repair queue captures are reverified unchanged. There is no newly captured public UI Shift-Build trajectory.",
+    "Engine queued Build notifies only at activation and releases its consumed indicator on nested callback discard. Production cold-save, nested Move, instant Stop and pending removal regressions cover ownership; full construction notification ordering, transient Repair resumption, Undead clock and refund/death/reuse compositions remain open. No broad task closure or performance claim."
+  ]
+}

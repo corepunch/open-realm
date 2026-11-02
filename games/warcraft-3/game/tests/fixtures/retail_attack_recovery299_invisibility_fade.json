@@ -1,0 +1,479 @@
+{
+  "status": "Read-only handoff; no C edits, live calls, capture, or parity claim.",
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "facts": [
+    "Aivs receiver RTTI descriptor6fd2d2c4 → COL6fc3589c → vtable6fb67008; slot424 points62f050.",
+    "62f050 reads fade through414b50: cache+54 levelarray, stride68, field20.6a74b0 loads that exact field from DataA. This is ability/level authored, not global/animation cast point.",
+    "New Binv buff:62f050 virtual354→63ce40 sets buff100 pending, registersd01de, adds contribution with authored fade. Existing Binv uses virtual350→531a80 duration refresh; this path does not create/restart contribution itself.",
+    "First positive contribution6696e0 installs reciprocal fade slope on Unit118 scalar, modifier128 and listener12c; d01d4 upward threshold invokes core690490 CALL6906de→68b780.",
+    "68b780 cancels scalar ownership; nonzero contribution count sets Unit5c01000000, dispatches TargetLost, then679db0 d01de. Thus visibility publication precedes own buff completion.",
+    "An added overlapping contribution (count !=1) emitsd01de immediately from6696e0; it does not wait its own new independent fade timer. Zero fade first contribution refreshes synchronously.",
+    "642dd0 d01de→628a10, only buff100 pending. If recipient has Attack:495740 incrementsAttack220 and calls49d260; then recovery(1,!pending user successor). Clearbuff100 follows. No suppression increment before fade notification.",
+    "Buff v33c→6314d0 removes contribution with zero fade and unregistersd01de; decrements suppression495750 only if Attack exists and buff100 clear.495750 enables scans only whenAttack3c<1, Unitwidget200 set, resulting220<1.",
+    "Last-contribution removal694b20 clears invisible bit immediately, optionalTargetAvailable, zero-fade68b780 does not dispatchTargetLost when contributioncount0."
+  ],
+  "proposed_scope": [
+    "Reuse/generalize saved scalar primary-timer arithmetic in s_wards.c invisibility_value/schedule: existing raw nearzero, reciprocal slope, listener tolerance, max4 request interval, G_TimerQueryClock origin and FIFO sequence. Do not replace with G_Time()+500.",
+    "Separate shared Unit contribution/fade/publication owner from per-buff pending/suppression-held lifetime. Save contribution identities and actual pending/activated bits; validate status incarnation on restore. Existing permanent_invisibility_fade fields alone cannot distinguish temporary contributions or held suppression.",
+    "Temporary application must not call G_SetEntityHidden immediately: install status and contribution; hide/publishTargetLost at threshold, then notify pending buff(s) and apply recovery/suppression exactly once.",
+    "Do not mark permanent-invisibility runtime flag for temporary visibility or call existing Apiv enable/disable handlers unchanged. Existing handler suspend removes/reset fade; temporary pause semantics need retained original behavior, not accidental Apiv policy.",
+    "On refresh of existing same-class Binv, extend lifetime via existing status owner rather than duplicating contribution/suppression. On detach before activation cancel pending source without decrement; after activation release exactly one suppression.",
+    "Retain applying alias/level DataA at activation, source/recipient lifetimes and timer deadline/sequence for save. Add focused fresh/saved halfway fade, pending removal, activated removal and overlap owner tests before broader changes."
+  ],
+  "unknowns": [
+    "Current positive299 tick1260→1265 gives public sampled timing; exact threshold clock must come from captured observer clock rather than integer tick arithmetic.",
+    "Temporary contribution interaction with existing permanent/ShadowMeld/Burrow sources requires shared aggregate count semantics; current C predicates use different flags/statuses.",
+    "Original negative/nonfinite fade behavior and all pause/sleep compositions were not newly analyzed; do not invent clamps or inherit permanent suspend policy.",
+    "No claim that changing only source execute is sufficient: render/detection state, TargetLost-before-buff-notification and suppression inverse must be coordinated.",
+    "Public attack/action breaking pending vs active temporary invisibility must preserve actual status lifecycle; not determined solely by the phase names."
+  ],
+  "existing_engine_seams": {
+    "scalar_owner": "games/warcraft-3/game/skills/s_wards.c:475-611",
+    "saved_scalar": "games/warcraft-3/game/g_save.c:1372-1380",
+    "immediate_incorrect_path": "games/warcraft-3/game/skills/s_human_abilities.c:317-334",
+    "status_inverse": "CAbilityInvisibility A_STATUS_REMOVE and S_HumanStatusExpired",
+    "state": "g_local.h permanent_invisibility_fade origin/request/slope"
+  },
+  "exports": [
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f68b780": {
+          "name": "CUnit_RefreshInvisibility",
+          "size": 265,
+          "address": "6f68b780",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// [TARGET-03.1]\n// Recovered descriptive name, not an original debug symbol. See\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff168: ECX Unit, plain RET. Read114 contribution count after clearing modifier/listener\n// handles128/12c. Nonzero sets5c01000000 BEFORE651010(Unit,-1,-1), synchronous Follow validation.\n// Zero count does not emit TargetLost. Public Apiv delayed loss: two exact raw observed repeats,\n// scenes3/4/5, cancel undetected neutral but retain own/shared-vision Follow; existing\n// controls/provenance checked.\n//    [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Morph374 rebind scalar proof: 670950 directly invokes this function at670d54. Clear128/12c via\n// refcounted cancel helpers, then contribution114==0 selects scalar0; otherwise flag01000000 is\n// published before synchronous TargetLost and scalar1. Existing/late configured Apiv must stay\n// absent through reverse type rebind; only counted-owner inverse restarts the authored fade.\n\nvoid __fastcall CUnit_RefreshInvisibility(WC3UnitOrdersPrefix *unit)\n\n{\n  int iVar1;\n  int iVar2;\n  \n  FUN_6f1acad0(0,0,0);\n  FloatModifier_CancelAndClearHandle();\n  FloatListener_CancelAndClearHandle();\n  if (unit->nInvisibility_contribution_count == 0) {\n    FUN_6f058190(&Math_RuntimeZero);\n    FUN_6f69d240();\n    return;\n  }\n  unit->order_admission_flags = unit->order_admission_flags | 0x1000000;\n  Unit_DispatchTargetLost(unit,-1,-1);\n  FUN_6f679db0();\n  FUN_6f058190(&Math_RuntimeOne);\n  FUN_6f1a3180();\n  iVar1 = (**(code **)((int)unit->vtable + 0x100))(1,4);\n  if (iVar1 == 0) {\n    iVar1 = FUN_6f1e0ea0(*(undefined2 *)(DAT_6fd687a8 + 0x28));\n    iVar2 = FUN_6f2908b0(unit);\n    FUN_6f2928c0(unit,*(undefined1 *)(iVar1 + 0x30),0,1);\n    FUN_6f3763d0(0x116);\n    if (iVar2 != 0) {\n      FUN_6f377190();\n    }\n  }\n  FUN_6f69d240();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f68b7a0": {
+          "name": "CUnit_RefreshInvisibility",
+          "size": 265,
+          "address": "6f68b780",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// [TARGET-03.1]\n// Recovered descriptive name, not an original debug symbol. See\n// open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Payoff168: ECX Unit, plain RET. Read114 contribution count after clearing modifier/listener\n// handles128/12c. Nonzero sets5c01000000 BEFORE651010(Unit,-1,-1), synchronous Follow validation.\n// Zero count does not emit TargetLost. Public Apiv delayed loss: two exact raw observed repeats,\n// scenes3/4/5, cancel undetected neutral but retain own/shared-vision Follow; existing\n// controls/provenance checked.\n//    [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Morph374 rebind scalar proof: 670950 directly invokes this function at670d54. Clear128/12c via\n// refcounted cancel helpers, then contribution114==0 selects scalar0; otherwise flag01000000 is\n// published before synchronous TargetLost and scalar1. Existing/late configured Apiv must stay\n// absent through reverse type rebind; only counted-owner inverse restarts the authored fade.\n\nvoid __fastcall CUnit_RefreshInvisibility(WC3UnitOrdersPrefix *unit)\n\n{\n  int iVar1;\n  int iVar2;\n  \n  FUN_6f1acad0(0,0,0);\n  FloatModifier_CancelAndClearHandle();\n  FloatListener_CancelAndClearHandle();\n  if (unit->nInvisibility_contribution_count == 0) {\n    FUN_6f058190(&Math_RuntimeZero);\n    FUN_6f69d240();\n    return;\n  }\n  unit->order_admission_flags = unit->order_admission_flags | 0x1000000;\n  Unit_DispatchTargetLost(unit,-1,-1);\n  FUN_6f679db0();\n  FUN_6f058190(&Math_RuntimeOne);\n  FUN_6f1a3180();\n  iVar1 = (**(code **)((int)unit->vtable + 0x100))(1,4);\n  if (iVar1 == 0) {\n    iVar1 = FUN_6f1e0ea0(*(undefined2 *)(DAT_6fd687a8 + 0x28));\n    iVar2 = FUN_6f2908b0(unit);\n    FUN_6f2928c0(unit,*(undefined1 *)(iVar1 + 0x30),0,1);\n    FUN_6f3763d0(0x116);\n    if (iVar2 != 0) {\n      FUN_6f377190();\n    }\n  }\n  FUN_6f69d240();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f669710": {
+          "name": "Unit_AddInvisibilityContribution",
+          "size": 481,
+          "address": "6f6696e0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions;\n// only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c\n// handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener\n// d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified\n// separately; overlapping full-owner composition remains open.\n//    [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Burrow366: seven public Abur scenes witness zero-fade 0-to1 acquisition, inverse and initial\n// alternate. A concurrent Apiv contribution changes114 from1to2 then backto1 without replacing the\n// existing scalar/fade. Unit114 is distinct from Ethereal158 and suppression198.\n\nvoid __thiscall\nWC3UnitOrdersPrefix::Unit_AddInvisibilityContribution(WC3UnitOrdersPrefix *this,WC3PathScalar *fade)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  uint uVar3;\n  int iVar4;\n  float *pfVar5;\n  WC3PathScalar *pWVar6;\n  int *piVar7;\n  int *piVar8;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  int *local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  pWVar6 = fade;\n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa55230;\n  local_10 = ExceptionList;\n  uVar3 = DAT_6fce689c ^ (int)register0x00000010 - 4U;\n  ExceptionList = &local_10;\n  iVar4 = this->nInvisibility_contribution_count + 1;\n  this->nInvisibility_contribution_count = iVar4;\n  if (iVar4 != 1) {\n    FUN_6f679db0(uVar3);\n    ExceptionList = local_10;\n    return;\n  }\n  if ((float)*fade == (float)Math_RuntimeZero) {\n    CUnit_RefreshInvisibility(this);\n    ExceptionList = local_10;\n    return;\n  }\n  FUN_6f1acad0(FUN_6f68b730,this,0);\n  FloatModifier_CancelAndClearHandle();\n  local_18 = (int *)&this->field_0x12c;\n  FloatListener_CancelAndClearHandle();\n  ScalarBridge_QueryPredictedClampedValue((uint)&this->field_0x118,(uint)&fade);\n  pfVar5 = (float *)Math_Subtract(&local_20,(WC3PathScalar *)&fade,&Math_RuntimeZero);\n  fade = (WC3PathScalar *)ABS(*pfVar5);\n  if ((float)fade < (float)Math_PublicNearZeroThreshold) {\n    FUN_6f058190(&Math_PublicNearZeroThreshold);\n  }\n  Math_Reciprocal(&local_14,pWVar6);\n  pWVar6 = Math_Add(&local_20,pWVar6,&Math_RuntimeOne);\n  piVar7 = (int *)FUN_6f058120(&fade,&local_14,pWVar6);\n  local_8 = 0;\n  if (*piVar7 != 0) {\n    piVar8 = (int *)(*piVar7 + 4);\n    *piVar8 = *piVar8 + 1;\n  }\n  puVar2 = *(undefined4 **)&this->field_0x128;\n  if (puVar2 != (undefined4 *)0x0) {\n    piVar8 = puVar2 + 1;\n    *piVar8 = *piVar8 + -1;\n    if (*piVar8 == 0) {\n      (**(code **)*puVar2)();\n    }\n  }\n  *(int *)&this->field_0x128 = *piVar7;\n  local_8 = 0xffffffff;\n  if (fade != (WC3PathScalar *)0x0) {\n    pWVar6 = fade + 1;\n    *pWVar6 = *pWVar6 - 1;\n    if (*pWVar6 == 0) {\n      (**(code **)*fade)();\n    }\n  }\n  piVar8 = (int *)ScalarBridge_AddThresholdListener\n                            ((uint)&this->field_0x118,(uint)&local_1c,1,0x6fd3c748,0xd01d4,\n                             (uint)this,0);\n  piVar7 = local_18;\n  local_8 = 1;\n  if (*piVar8 != 0) {\n    piVar1 = (int *)(*piVar8 + 4);\n    *piVar1 = *piVar1 + 1;\n  }\n  puVar2 = (undefined4 *)*local_18;\n  if (puVar2 != (undefined4 *)0x0) {\n    piVar1 = puVar2 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*puVar2)();\n    }\n  }\n  *piVar7 = *piVar8;\n  local_8 = 0xffffffff;\n  if (local_1c != (undefined4 *)0x0) {\n    piVar7 = local_1c + 1;\n    *piVar7 = *piVar7 + -1;\n    if (*piVar7 == 0) {\n      (**(code **)*local_1c)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f63ce40": {
+          "name": "FUN_6f63ce40",
+          "size": 73,
+          "address": "6f63ce40",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall\nFUN_6f63ce40(int *param_1,WC3UnitOrdersPrefix *param_2,undefined4 param_3,WC3PathScalar *param_4)\n\n{\n  FUN_6f058190(param_4);\n  (**(code **)(*param_1 + 800))(param_2,param_3,1);\n  FUN_6f68ffe0(param_1,1);\n  param_1[8] = param_1[8] | 0x100;\n  WC3UnitOrdersPrefix::Unit_AddInvisibilityContribution(param_2,param_4);\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f642dd0": {
+          "name": "FUN_6f642dd0",
+          "size": 38,
+          "address": "6f642dd0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nuint __thiscall FUN_6f642dd0(uint param_1,uint param_2)\n\n{\n  uint uVar1;\n  \n  if (*(int *)(param_2 + 8) == 0xd01de) {\n    FUN_6f628a10();\n    return 1;\n  }\n  uVar1 = TimedLife_HandleExpiryEvent(param_1,param_2);\n  return uVar1;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f628a10": {
+          "name": "FUN_6f628a10",
+          "size": 92,
+          "address": "6f628a10",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f628a10(int param_1)\n\n{\n  WC3AttackRangePrefix *ability;\n  int iVar1;\n  \n  if ((*(uint *)(param_1 + 0x20) & 0x100) != 0) {\n    iVar1 = *(int *)(param_1 + 0x30);\n    if (iVar1 == 0) {\n      iVar1 = FUN_6f055cc0();\n    }\n    ability = *(WC3AttackRangePrefix **)(iVar1 + 0x1e8);\n    if (ability != (WC3AttackRangePrefix *)0x0) {\n      FUN_6f495740();\n      if (*(int *)(param_1 + 0x30) == 0) {\n        FUN_6f055cc0();\n      }\n      iVar1 = Unit_HasPendingUserSuccessor(0,0);\n      Attack_RecoverTargetTask(ability,1,(undefined *)(uint)(iVar1 == 0));\n    }\n    *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) & 0xfffffeff;\n  }\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 6,
+      "requested": 6
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f59daa0": {
+          "name": "FUN_6f59daa0",
+          "size": 254,
+          "address": "6f59daa0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall\nFUN_6f59daa0(int param_1,int param_2,undefined4 param_3,undefined4 param_4,undefined4 param_5,\n            float param_6,undefined4 param_7,int param_8,undefined4 param_9,int param_10)\n\n{\n  WC3CanonicalPrefix *pWVar1;\n  int iVar2;\n  WC3CanonicalPrefix *pWVar3;\n  \n  (*(code *)**(undefined4 **)(param_1 + 0xe4))(param_6,1);\n  (*(code *)**(undefined4 **)(param_1 + 0xf4))(param_7,1);\n  (*(code *)**(undefined4 **)(param_1 + 0xdc))(param_5,1);\n  if (param_8 != 0) {\n    pWVar1 = PathRegistry_ResolveCanonical(*(int *)(param_8 + 0xc),*(uint *)(param_8 + 0x10));\n    if (pWVar1 != (WC3CanonicalPrefix *)0x0) {\n      pWVar3 = (WC3CanonicalPrefix *)0x0;\n      if (*(int *)&pWVar1->field_0xc == 0x2b61676c) {\n        pWVar3 = pWVar1;\n      }\n      if (pWVar3 != (WC3CanonicalPrefix *)0x0) {\n        *(int *)(param_1 + 0xfc) = (pWVar3->identity).slot;\n        *(uint *)(param_1 + 0x100) = (pWVar3->identity).generation;\n        goto LAB_6f59db2d;\n      }\n    }\n  }\n  *(undefined4 *)(param_1 + 0x100) = 0xffffffff;\n  *(undefined4 *)(param_1 + 0xfc) = 0xffffffff;\nLAB_6f59db2d:\n  *(undefined4 *)(param_1 + 0x108) = param_9;\n  FUN_6f63ce40(param_2,param_3,param_4);\n  if (param_10 != 0) {\n    *(uint *)(param_1 + 0x20) = *(uint *)(param_1 + 0x20) | 0x400;\n  }\n  *(uint *)(param_2 + 0x20) = *(uint *)(param_2 + 0x20) | 0x8000000;\n  iVar2 = *(int *)(param_1 + 0x30);\n  if (iVar2 == 0) {\n    iVar2 = FUN_6f055cc0();\n  }\n  param_6 = *(float *)(param_1 + 0xe0);\n  if ((param_6 != (float)Math_RuntimeZero) && (*(int *)(iVar2 + 0x1ec) != 0)) {\n    Move_AdjustSpeedFactor(&param_6);\n  }\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f68b730": {
+          "name": "FUN_6f68b730",
+          "size": 72,
+          "address": "6f68b730",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f68b730(float param_1,int *param_2)\n\n{\n  int iVar1;\n  float local_8;\n  \n  local_8 = param_1;\n  ScalarBridge_QueryPredictedClampedValue((int)param_1 + 0x118,(uint)&local_8);\n  iVar1 = (int)(255.0 - local_8 * 128.0);\n  *param_2 = iVar1;\n  FUN_6f6994c0(iVar1);\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f495740": {
+          "name": "FUN_6f495740",
+          "size": 11,
+          "address": "6f495740",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f495740(int param_1)\n\n{\n  *(int *)(param_1 + 0x220) = *(int *)(param_1 + 0x220) + 1;\n  FUN_6f49d260();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 3,
+      "requested": 3
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f62f050": {
+          "name": "FUN_6f62f050",
+          "size": 222,
+          "address": "6f62f050",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall FUN_6f62f050(int param_1,WC3UnitOrdersPrefix *param_2)\n\n{\n  undefined4 uVar1;\n  WC3UnitOrdersPrefix *self;\n  int iVar2;\n  WC3PathScalar *pWVar3;\n  uint arg_04;\n  int *piVar4;\n  uint arg_08;\n  uint arg_0c;\n  uint arg_10;\n  uint arg_14;\n  undefined1 local_3c [32];\n  undefined1 local_1c [4];\n  undefined1 local_18 [4];\n  undefined1 local_14 [4];\n  WC3PathScalar local_10;\n  WC3PathScalar local_c;\n  WC3PathScalar local_8;\n  \n  self = param_2;\n  uVar1 = *(undefined4 *)(param_1 + 0x50);\n  iVar2 = FUN_6f601010();\n  if (iVar2 == 0) {\n    pWVar3 = (WC3PathScalar *)Ability_GetAuthoredDuration(local_1c,uVar1);\n    local_8 = *(WC3PathScalar *)(param_1 + 0x9c);\n    local_c = *pWVar3;\n    Math_Add(&local_10,&local_c,&local_8);\n    pWVar3 = &local_10;\n  }\n  else {\n    pWVar3 = (WC3PathScalar *)FUN_6f415570(local_18,uVar1);\n  }\n  param_2 = (WC3UnitOrdersPrefix *)*pWVar3;\n  FUN_6f414b50(local_14,*(undefined4 *)(param_1 + 0x50));\n  FUN_6f3eb340(param_1,0);\n  arg_14 = 1;\n  arg_10 = 1;\n  arg_0c = 0;\n  arg_08 = 0;\n  arg_04 = FUN_6f6393c0();\n  piVar4 = (int *)Unit_FindAbilityByClass(self,arg_04,arg_08,arg_0c,arg_10,arg_14);\n  if (piVar4 == (int *)0x0) {\n    piVar4 = (int *)FUN_6f611830();\n    (**(code **)(*piVar4 + 0x324))(local_3c);\n    (**(code **)(*piVar4 + 0x354))(self,&param_2,local_14);\n    FUN_6f48b7d0(piVar4);\n    return;\n  }\n  (**(code **)(*piVar4 + 0x350))(local_3c,&param_2);\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f43a7c0": {
+          "name": "FUN_6f43a7c0",
+          "size": 67,
+          "address": "6f43a7c0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nundefined4 __fastcall FUN_6f43a7c0(int *param_1)\n\n{\n  int iVar1;\n  int iVar2;\n  \n  iVar1 = (**(code **)(*param_1 + 0x348))();\n  iVar2 = (**(code **)(*param_1 + 0x318))();\n  if (iVar2 != iVar1) {\n    iVar1 = (**(code **)(*param_1 + 0x348))();\n    iVar2 = (**(code **)(*param_1 + 0x328))();\n    if (iVar2 != iVar1) {\n      return 0;\n    }\n  }\n  return 1;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 2,
+      "requested": 2
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f414b50": {
+          "name": "FUN_6f414b50",
+          "size": 89,
+          "address": "6f414b50",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall FUN_6f414b50(int param_1,WC3PathScalar *param_2,uint param_3)\n\n{\n  int iVar1;\n  undefined4 uVar2;\n  \n  if (-1 < (int)param_3) {\n    if (*(int *)(param_1 + 0x54) == 0) {\n      uVar2 = FUN_6f6ac530();\n      *(undefined4 *)(param_1 + 0x54) = uVar2;\n    }\n    iVar1 = *(int *)(param_1 + 0x54);\n    if (((iVar1 != 0) && (*(int *)(iVar1 + 0x2c) != 0)) && (param_3 < *(uint *)(iVar1 + 0x50))) {\n      *param_2 = *(WC3PathScalar *)(*(int *)(iVar1 + 0x54) + 0x20 + param_3 * 0x68);\n      return;\n    }\n  }\n  *param_2 = Math_RuntimeZero;\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f6393c0": {
+          "name": "FUN_6f6393c0",
+          "size": 6,
+          "address": "6f6393c0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nundefined4 FUN_6f6393c0(void)\n\n{\n  return 0x42696e76;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f611830": {
+          "name": "FUN_6f611830",
+          "size": 186,
+          "address": "6f611830",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid FUN_6f611830(void)\n\n{\n  int *piVar1;\n  uint uVar2;\n  int iVar3;\n  uint actual;\n  int *piVar4;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  puStack_c = &LAB_6fa4a800;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  local_8 = 1;\n  uVar2 = FUN_6f6393c0(DAT_6fce689c ^ (int)register0x00000010 - 4U);\n  iVar3 = FUN_6f03eaf0();\n  FUN_6f055d00(*(undefined4 *)(iVar3 + 0x70));\n  iVar3 = FUN_6f154b60(1);\n  piVar1 = *(int **)(iVar3 + 0x54);\n  piVar4 = (int *)0x0;\n  if (piVar1 != (int *)0x0) {\n    actual = (**(code **)(*piVar1 + 0x1c))();\n    uVar2 = AgentClass_IsDerived(actual,uVar2);\n    if (uVar2 != 0) {\n      piVar1[1] = piVar1[1] + 1;\n      piVar4 = piVar1;\n    }\n  }\n  local_8 = 0xffffffff;\n  if (piVar4 != (int *)0x0) {\n    piVar1 = piVar4 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*piVar4)();\n    }\n  }\n  ExceptionList = local_10;\n  FUN_6f78e855();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 3,
+      "requested": 3
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f52fdc0": {
+          "name": "FUN_6f52fdc0",
+          "size": 65,
+          "address": "6f52fdc0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall FUN_6f52fdc0(int *param_1,undefined4 param_2,undefined4 param_3,int param_4)\n\n{\n  FUN_6f41ad80(param_2,param_3);\n  if (param_4 != 0) {\n    (**(code **)(*param_1 + 0x300))(0,1);\n  }\n  FUN_6f652d10(param_1,1);\n  FUN_6f652da0(param_1,1);\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f52fe10": {
+          "name": "FUN_6f52fe10",
+          "size": 62,
+          "address": "6f52fe10",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall FUN_6f52fe10(int *param_1,undefined4 param_2,int param_3)\n\n{\n  FUN_6f41ad60(param_2);\n  if (param_3 != 0) {\n    (**(code **)(*param_1 + 0x300))(0,1);\n  }\n  FUN_6f652d10(param_1,1);\n  FUN_6f652da0(param_1,1);\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f531a80": {
+          "name": "FUN_6f531a80",
+          "size": 131,
+          "address": "6f531a80",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __thiscall FUN_6f531a80(int *param_1,undefined4 param_2,float *param_3)\n\n{\n  float fVar1;\n  int iVar2;\n  float *pfVar3;\n  float *pfVar4;\n  undefined4 uVar5;\n  \n  (**(code **)(*param_1 + 0x1b4))();\n  (**(code **)(*param_1 + 0x1c8))();\n  (**(code **)(*param_1 + 0x324))(param_2);\n  pfVar3 = param_3;\n  if (*param_3 <= (float)Math_RuntimeZero) {\n    EventClock_CancelRequest((WC3EventClockControlPrefix *)(param_1 + 0x21));\n    param_1[8] = param_1[8] & 0xffffff7f;\n  }\n  else {\n    param_1[8] = param_1[8] | 0x80;\n    pfVar4 = (float *)(**(code **)((int)((WC3EventClockControlPrefix *)(param_1 + 0x21))->vtable +\n                                  0x18))(&param_2);\n    fVar1 = *pfVar3;\n    if (*pfVar4 <= fVar1 && fVar1 != *pfVar4) {\n      iVar2 = *param_1;\n      uVar5 = (**(code **)(iVar2 + 0x348))();\n      (**(code **)(iVar2 + 0x34c))(pfVar3,uVar5);\n      return;\n    }\n  }\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 3,
+      "requested": 3
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f6314d0": {
+          "name": "FUN_6f6314d0",
+          "size": 83,
+          "address": "6f6314d0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f6314d0(int param_1)\n\n{\n  WC3UnitOrdersPrefix *this;\n  int iVar1;\n  \n  this = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (this == (WC3UnitOrdersPrefix *)0x0) {\n    this = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  WC3UnitOrdersPrefix::Unit_RemoveInvisibilityContribution(this,&Math_RuntimeZero);\n  FUN_6f68ffe0(param_1,0);\n  iVar1 = *(int *)(param_1 + 0x30);\n  if (iVar1 == 0) {\n    iVar1 = FUN_6f055cc0();\n  }\n  if ((*(int *)(iVar1 + 0x1e8) == 0) || ((*(uint *)(param_1 + 0x20) & 0x100) != 0)) {\n    return;\n  }\n  FUN_6f495750();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f6ac530": {
+          "name": "FUN_6f6ac530",
+          "size": 48,
+          "address": "6f6ac530",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid FUN_6f6ac530(void)\n\n{\n  undefined4 uVar1;\n  int iVar2;\n  undefined4 *puVar3;\n  undefined4 local_8;\n  \n  puVar3 = &local_8;\n  uVar1 = FUN_6f198420(puVar3);\n  iVar2 = FUN_6f6b3ca0(uVar1,puVar3);\n  if (iVar2 == 0) {\n    FUN_6f6a74b0();\n  }\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 2,
+      "requested": 2
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f6a74b0": {
+          "name": "FUN_6f6a74b0",
+          "size": 1725,
+          "address": "6f6a74b0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// \n// Mount370 Factory15 diagnostic: CacheAbilityData builds runtime record and queries version before\n// class factory. Corrected full table withAmou/AIfc loads exactly; public AddAmou\n// faults6ad9d0->199d00 on null row before any Mount initialization witness. Investigate new-row\n// registration separately with a known-class alias; crash is not an exclusion.\n// Mount370 later diagnostics supersede metadata-only inference: fixed-row17 and preserved\n// Replace18/Coded20 reach concrete Mount init after exact authored AbilityData load/cache\n// positives. Both revisits retain six markers/incomplete footers; controls match that public\n// outcome but do not observe native fault PC. Earlier15 version-lookup fault is not all-route\n// unreachability.\n\nvoid __fastcall FUN_6f6a74b0(undefined4 param_1)\n\n{\n  undefined4 uVar1;\n  undefined4 *puVar2;\n  int iVar3;\n  float *pfVar4;\n  uint uVar5;\n  uint uVar6;\n  undefined4 *puVar7;\n  bool bVar8;\n  undefined4 local_98;\n  undefined4 local_94;\n  undefined4 local_90;\n  undefined4 *local_8c;\n  undefined4 local_88;\n  undefined4 local_84;\n  undefined4 *local_80;\n  undefined4 local_7c;\n  undefined4 local_78;\n  undefined4 local_74;\n  undefined4 local_70;\n  undefined4 local_6c;\n  undefined4 local_68;\n  undefined4 local_64;\n  undefined4 local_60;\n  undefined4 local_5c;\n  uint local_58;\n  undefined4 local_54;\n  float local_50;\n  uint local_4c;\n  int local_48;\n  char *local_44;\n  char *local_40;\n  uint local_3c;\n  undefined1 local_38 [20];\n  undefined1 local_24 [8];\n  undefined1 local_1c [20];\n  undefined4 local_8;\n  \n  local_8 = DAT_6fce689c ^ (uint)(local_1c + 0x18);\n  local_54 = param_1;\n  uVar1 = FUN_6f198420();\n  puVar2 = (undefined4 *)FUN_6f6b28c0(uVar1,0,0);\n  *puVar2 = uVar1;\n  local_8c = puVar2 + 6;\n  puVar2[5] = local_54;\n  local_80 = puVar2;\n  FUN_6f6b3a70(param_1);\n  if (((puVar2[7] == 0) || (puVar2[8] == 0)) && (puVar2[9] == 0)) {\n    uVar1 = 0;\n  }\n  else {\n    uVar1 = 1;\n  }\n  puVar2[0xb] = uVar1;\n  uVar1 = FUN_6f340380();\n  puVar2[10] = uVar1;\n  if (puVar2[0xb] == 0) {\n    FUN_6f78e855();\n    return;\n  }\n  uVar1 = FUN_6f6ad9d0(PTR_s_version_6fce6130);\n  puVar2[0x7e] = uVar1;\n  uVar1 = FUN_6f6ac910();\n  puVar2[0xc] = uVar1;\n  uVar1 = FUN_6f6ac5b0();\n  puVar2[0xd] = uVar1;\n  iVar3 = FUN_6f6ad9d0(PTR_s_checkDep_6fce614c);\n  puVar2[0xe] = (uint)(iVar3 != 0);\n  uVar1 = FUN_6f6ad9d0(PTR_s_levels_6fce6150);\n  puVar2[0xf] = uVar1;\n  uVar1 = FUN_6f6ad9d0(PTR_s_reqLevel_6fce6154);\n  puVar2[0x10] = uVar1;\n  uVar1 = FUN_6f6ad9d0(PTR_s_levelSkip_6fce6158);\n  puVar2[0x11] = uVar1;\n  uVar1 = FUN_6f6ad9d0(PTR_s_priority_6fce615c);\n  puVar2[0x12] = uVar1;\n  FUN_6f6b54a0(puVar2[0xf]);\n  if (puVar2[0xf] != 0) {\n    local_48 = 0;\n    local_58 = 1;\n    do {\n      uVar5 = local_58;\n      Ordinal_578(local_38,0x14,&DAT_6fab3e00,PTR_DAT_6fce6178,local_58);\n      FUN_6f6ad560(&local_50,local_38);\n      Ordinal_578(local_38,0x14,&DAT_6fab3e00,PTR_s_UnitID_6fce6124,uVar5);\n      local_3c = FUN_6f6ae2d0(local_38);\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_BuffID_6fce6128,uVar5);\n      local_40 = (char *)FUN_6f6ae2d0(local_1c);\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_EfctID_6fce612c,uVar5);\n      local_44 = (char *)FUN_6f6ae2d0(local_1c);\n      puVar7 = (undefined4 *)(puVar2[0x15] + local_48);\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_targs_6fce6160,uVar5);\n      FUN_6f6ae2d0(local_1c);\n      uVar1 = FUN_6f6a9350();\n      *puVar7 = uVar1;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_DAT_6fce6168,uVar5);\n      FUN_6f6ad560(&local_88,local_1c);\n      puVar7[1] = local_88;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_DAT_6fce6170,uVar5);\n      FUN_6f6ad560(&local_90,local_1c);\n      puVar7[2] = local_90;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_HeroDur_6fce6174,uVar5);\n      FUN_6f6ad560(&local_98,local_1c);\n      puVar7[3] = local_98;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_DAT_6fce616c,uVar5);\n      uVar1 = FUN_6f6ad9d0(local_1c);\n      puVar7[4] = uVar1;\n      pfVar4 = (float *)&Math_RuntimeZero;\n      if ((float)Math_RuntimeZero <= local_50) {\n        pfVar4 = &local_50;\n      }\n      puVar7[5] = *pfVar4;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_DAT_6fce6164,uVar5);\n      FUN_6f6ad560(&local_64,local_1c);\n      puVar7[6] = local_64;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_DAT_6fce617c,uVar5);\n      FUN_6f6ad560(&local_5c,local_1c);\n      puVar7[7] = local_5c;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataA_6fce6180,uVar5);\n      FUN_6f6ad560(&local_6c,local_1c);\n      puVar7[8] = local_6c;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataB_6fce6184,uVar5);\n      FUN_6f6ad560(&local_84,local_1c);\n      puVar7[9] = local_84;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataC_6fce6188,uVar5);\n      FUN_6f6ad560(&local_74,local_1c);\n      puVar7[10] = local_74;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataD_6fce618c,uVar5);\n      FUN_6f6ad560(&local_94,local_1c);\n      puVar7[0xb] = local_94;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataE_6fce6190,uVar5);\n      FUN_6f6ad560(&local_7c,local_1c);\n      puVar7[0xc] = local_7c;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataF_6fce6194,uVar5);\n      FUN_6f6ad560(&local_60,local_1c);\n      puVar7[0xd] = local_60;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataG_6fce6198,uVar5);\n      FUN_6f6ad560(&local_68,local_1c);\n      puVar7[0xe] = local_68;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataH_6fce619c,uVar5);\n      FUN_6f6ad560(&local_70,local_1c);\n      puVar7[0xf] = local_70;\n      Ordinal_578(local_1c,0x14,&DAT_6fab3e00,PTR_s_DataI_6fce61a0,uVar5);\n      FUN_6f6ad560(&local_78,local_1c);\n      puVar7[0x10] = local_78;\n      if (local_3c == 0) {\n        uVar1 = 0;\n      }\n      else {\n        uVar1 = FUN_6f06c330();\n      }\n      puVar7[0x11] = uVar1;\n      if (local_40 == (char *)0x0) {\n        uVar5 = 0;\n      }\n      else {\n        uVar5 = Ordinal_506(local_40);\n        uVar5 = uVar5 >> 2;\n      }\n      if (local_44 == (char *)0x0) {\n        local_3c = 0;\n      }\n      else {\n        local_3c = Ordinal_506(local_44);\n        local_3c = local_3c >> 2;\n      }\n      uVar6 = 1;\n      if (1 < uVar5) {\n        uVar6 = uVar5;\n      }\n      if (((uint)puVar7[0x13] < uVar6) && ((uint)puVar7[0x12] < uVar6)) {\n        uVar5 = uVar6;\n        if (1 < uVar6) {\n          local_4c = FUN_6f6a7bb0(uVar6);\n          if (uVar6 % local_4c != 0) {\n            uVar5 = (local_4c - uVar6 % local_4c) + uVar6;\n          }\n        }\n        FUN_6f6b4650(uVar5);\n      }\n      puVar7[0x13] = uVar6;\n      memset((void *)puVar7[0x14],0,uVar6 << 2);\n      uVar5 = 1;\n      if (1 < local_3c) {\n        uVar5 = local_3c;\n      }\n      if (((uint)puVar7[0x17] < uVar5) && ((uint)puVar7[0x16] < uVar5)) {\n        uVar6 = uVar5;\n        if (1 < uVar5) {\n          local_3c = FUN_6f6a7bb0(uVar5);\n          if (uVar5 % local_3c != 0) {\n            uVar6 = (local_3c - uVar5 % local_3c) + uVar5;\n          }\n        }\n        FUN_6f6b4650(uVar6);\n      }\n      puVar7[0x17] = uVar5;\n      memset((void *)puVar7[0x18],0,uVar5 << 2);\n      uVar5 = 0;\n      while (((local_40 != (char *)0x0 && (*local_40 != '\\0')) && (uVar5 < (uint)puVar7[0x13]))) {\n        Ordinal_504(&local_40,local_24,5,\" ,-_\\t\",0);\n        iVar3 = FUN_6f06c330();\n        if (iVar3 != 0) {\n          *(int *)(puVar7[0x14] + uVar5 * 4) = iVar3;\n          uVar5 = uVar5 + 1;\n        }\n      }\n      uVar5 = 0;\n      puVar2 = local_80;\n      while (((local_80 = puVar2, local_44 != (char *)0x0 && (*local_44 != '\\0')) &&\n             (uVar5 < (uint)puVar7[0x17]))) {\n        Ordinal_504(&local_44,local_24,5,\" ,-_\\t\",0);\n        iVar3 = FUN_6f06c330();\n        puVar2 = local_80;\n        if (iVar3 != 0) {\n          *(int *)(puVar7[0x18] + uVar5 * 4) = iVar3;\n          uVar5 = uVar5 + 1;\n        }\n      }\n      uVar5 = local_58 + 1;\n      local_48 = local_48 + 0x68;\n      bVar8 = local_58 < (uint)puVar2[0xf];\n      local_58 = uVar5;\n    } while (bVar8);\n  }\n  FUN_6f78e855();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 1,
+      "requested": 1
+    },
+    {
+      "program": "game.dll",
+      "functions": {
+        "6f690490": {
+          "name": "Unit_DispatchCoreTask",
+          "size": 648,
+          "address": "6f690490",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// \n// Payoff284: core dispatcher d0004 invokes690b80 Stop task producer; d0162 invokes697ed0 action\n// handler. Public replacement admission673610/673fe0 executes first recovery BEFORE player/unit\n// issued Stop notifications; new Stop action0 and d0144 execute AFTER both notifications when no\n// active replacement retained the task. Rooted structure has no Move subscriber; public258\n// unchanged.\n// Payoff296: d019d calls Unit_PopInternalTaskHead then Unit_DispatchInternalTaskQueue. Generic\n// task-completion receiver also serves unpause and removal. Read-only original worker wait trace\n// ends at this virtualc receiver; one-second work pops Build, while canceled records never invoke\n// this receiver.\n// Root376 core admission review: 690490 dispatches d000e to9ce5b0 separately from d0006 AIStop.\n// 9ce5b0 resolves9ce280 with AI-record54, queries chosen target world position, admits ordinary\n// Attack point d000f=851983 with flags1,1 and null target association, then ally combat\n// alert(source,target,source); absent target selects Stop. Do not substitute selected Captain\n// destination or AddAssault enrollment. External typed-packet proposal only; expanded public\n// producer first-red and proper composed acceptance pending.\n// Captain376 proper public Suicide first red:15tests/1275assertions,30 genuine behavior failures\n// per edition. Setup/publicStop/activeowner/FIFO/pausephase/save/birth guards and original ten\n// cases pass. Earlier54failure diagnostic had24 incorrect fixture preconditions: Unpause\n// physicalhold releases after two5ms owner boundaries. Frozen old\n// module4d20be6f602b70a961ad9c5af08cd91ea4d68f0b5fa5fcdb7eb9a470fbcae6e8. Root typed d000e\n// dispatcher applied only isolatedSave216 after baseline freeze; composed proper producer and\n// acceptance pending.\n\nundefined4 __thiscall Unit_DispatchCoreTask(WC3UnitOrdersPrefix *param_1,int param_2)\n\n{\n  uint uVar1;\n  \n  uVar1 = *(uint *)(param_2 + 8);\n  if (uVar1 < 0xd0146) {\n    if (uVar1 == 0xd0145) {\n      Unit_OnSuspendBeginEvent();\n      return 1;\n    }\n    if (uVar1 < 0xd0006) {\n      if (uVar1 == 0xd0005) {\n        Unit_CreateSuspensionTasks(param_2);\n        return 1;\n      }\n      if (uVar1 == 0x80264) {\n        FUN_6f6903a0();\n        return 1;\n      }\n      if (uVar1 == 0x80265) {\n        FUN_6f690840();\n        return 1;\n      }\n      if (uVar1 == 0xd0004) {\n        Unit_CreateStopTasks();\n        return 1;\n      }\n    }\n    else {\n      if (uVar1 == 0xd0006) {\n        Unit_DispatchAIStopScope();\n        return 1;\n      }\n      if (uVar1 == 0xd000e) {\n        FUN_6f9ce5b0();\n        return 1;\n      }\n    }\n  }\n  else {\n    switch(uVar1) {\n    case 0xd0146:\n      Unit_OnSuspendEndEvent();\n      return 1;\n    case 0xd0147:\n      FUN_6f69c420(param_2);\n      return 1;\n    case 0xd0148:\n      param_1->widget_state_flags = param_1->widget_state_flags | 0x200;\n      return 1;\n    case 0xd014c:\n      param_1->widget_state_flags = param_1->widget_state_flags & 0xfffffdff;\n      return 1;\n    case 0xd0153:\n      FUN_6f69c210();\n      return 1;\n    case 0xd0154:\n      FUN_6f69c3f0();\n      return 1;\n    case 0xd0155:\n      FUN_6f69bef0();\n      return 1;\n    case 0xd0156:\n      FUN_6f69bf80();\n      return 1;\n    case 0xd0157:\n      FUN_6f69bfa0();\n      return 1;\n    case 0xd0158:\n      Unit_BeginFleshDecayTask();\n      return 1;\n    case 0xd0159:\n      Unit_BeginBoneDecayTask();\n      return 1;\n    case 0xd015a:\n      FUN_6f69c200();\n      return 1;\n    case 0xd015b:\n      FUN_6f69c2d0();\n      return 1;\n    case 0xd015c:\n      FUN_6f69c4d0();\n      return 1;\n    case 0xd015d:\n      FUN_6f69be80();\n      return 1;\n    case 0xd015e:\n      FUN_6f69bec0();\n      return 1;\n    case 0xd0162:\n      FUN_6f697ed0(param_2);\n      return 1;\n    case 0xd0164:\n      Unit_CommitRemovalInactivity();\n      return 1;\n    case 0xd019d:\n      Unit_PopInternalTaskHead();\n      Unit_DispatchInternalTaskQueue(param_1);\n      return 1;\n    case 0xd019f:\n      Unit_BeginDeathTasks();\n      return 1;\n    case 0xd01a1:\n      FUN_6f690810(param_2);\n      return 1;\n    case 0xd01a4:\n      FUN_6f69bc30(param_2);\n      return 1;\n    case 0xd01b3:\n      param_1->order_admission_flags = param_1->order_admission_flags & 0xffffffbf;\n      return 1;\n    case 0xd01d4:\n      CUnit_RefreshInvisibility(param_1);\n      return 1;\n    }\n  }\n  return 0;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f6314d0": {
+          "name": "FUN_6f6314d0",
+          "size": 83,
+          "address": "6f6314d0",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f6314d0(int param_1)\n\n{\n  WC3UnitOrdersPrefix *this;\n  int iVar1;\n  \n  this = *(WC3UnitOrdersPrefix **)(param_1 + 0x30);\n  if (this == (WC3UnitOrdersPrefix *)0x0) {\n    this = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  WC3UnitOrdersPrefix::Unit_RemoveInvisibilityContribution(this,&Math_RuntimeZero);\n  FUN_6f68ffe0(param_1,0);\n  iVar1 = *(int *)(param_1 + 0x30);\n  if (iVar1 == 0) {\n    iVar1 = FUN_6f055cc0();\n  }\n  if ((*(int *)(iVar1 + 0x1e8) == 0) || ((*(uint *)(param_1 + 0x20) & 0x100) != 0)) {\n    return;\n  }\n  FUN_6f495750();\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f495750": {
+          "name": "FUN_6f495750",
+          "size": 56,
+          "address": "6f495750",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\nvoid __fastcall FUN_6f495750(int param_1)\n\n{\n  int iVar1;\n  \n  *(int *)(param_1 + 0x220) = *(int *)(param_1 + 0x220) + -1;\n  if (*(int *)(param_1 + 0x3c) < 1) {\n    iVar1 = *(int *)(param_1 + 0x30);\n    if (iVar1 == 0) {\n      iVar1 = FUN_6f055cc0();\n    }\n    if (((*(uint *)(iVar1 + 0x20) & 0x200) != 0) && (*(int *)(param_1 + 0x220) < 1)) {\n      FUN_6f49d000(0);\n    }\n  }\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        },
+        "6f694b20": {
+          "name": "Unit_RemoveInvisibilityContribution",
+          "size": 441,
+          "address": "6f694b20",
+          "language_id": "x86:LE:32:default",
+          "variant": "default",
+          "decompiled_code": "\n// Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution\n// clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without\n// TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not\n// infer inverse TargetLost or automatic Follow resumption.\n//    [payoff168] Recovered descriptive name, not an original debug symbol. SHA256\n// d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n// Burrow366: zero-fade inverse decrements114; another live source retains the invisibility flag.\n// Last contribution clears5c01000000 and refreshes visibility. Public Stop and Pause do not cancel\n// the authored Burrow transition.\n\nvoid __thiscall\nWC3UnitOrdersPrefix::Unit_RemoveInvisibilityContribution\n          (WC3UnitOrdersPrefix *this,WC3PathScalar *fade)\n\n{\n  int *piVar1;\n  undefined4 *puVar2;\n  char cVar3;\n  uint uVar4;\n  int iVar5;\n  WC3PathScalar *pWVar6;\n  int *piVar7;\n  int *piVar8;\n  WC3PathScalar local_20;\n  undefined4 *local_1c;\n  int *local_18;\n  WC3PathScalar local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa584c0;\n  local_10 = ExceptionList;\n  uVar4 = DAT_6fce689c ^ (int)register0x00000010 - 4U;\n  ExceptionList = &local_10;\n  iVar5 = this->nInvisibility_contribution_count + -1;\n  this->nInvisibility_contribution_count = iVar5;\n  if (iVar5 < 1) {\n    this->order_admission_flags = this->order_admission_flags & 0xfeffffff;\n    cVar3 = FUN_6f666ff0(uVar4);\n    if (cVar3 != '\\0') {\n      Unit_BroadcastTargetAvailable();\n    }\n    pWVar6 = fade;\n    if ((float)*fade == (float)Math_RuntimeZero) {\n      CUnit_RefreshInvisibility(this);\n      ExceptionList = local_10;\n      return;\n    }\n    FUN_6f1a3180();\n    FUN_6f1acad0(FUN_6f68b730,this,0);\n    FloatModifier_CancelAndClearHandle();\n    local_18 = (int *)&this->field_0x12c;\n    FloatListener_CancelAndClearHandle();\n    Math_Divide(&local_14,&Math_RuntimeMinusOne,pWVar6);\n    pWVar6 = Math_Add(&local_20,pWVar6,&Math_RuntimeOne);\n    piVar7 = (int *)FUN_6f058120(&fade,&local_14,pWVar6);\n    local_8 = 0;\n    if (*piVar7 != 0) {\n      piVar8 = (int *)(*piVar7 + 4);\n      *piVar8 = *piVar8 + 1;\n    }\n    puVar2 = *(undefined4 **)&this->field_0x128;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar8 = puVar2 + 1;\n      *piVar8 = *piVar8 + -1;\n      if (*piVar8 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *(int *)&this->field_0x128 = *piVar7;\n    local_8 = 0xffffffff;\n    if (fade != (WC3PathScalar *)0x0) {\n      pWVar6 = fade + 1;\n      *pWVar6 = *pWVar6 - 1;\n      if (*pWVar6 == 0) {\n        (**(code **)*fade)();\n      }\n    }\n    piVar8 = (int *)ScalarBridge_AddThresholdListener\n                              ((uint)&this->field_0x118,(uint)&local_1c,0,0x6fd3c744,0xd01d4,\n                               (uint)this,0);\n    piVar7 = local_18;\n    local_8 = 1;\n    if (*piVar8 != 0) {\n      piVar1 = (int *)(*piVar8 + 4);\n      *piVar1 = *piVar1 + 1;\n    }\n    puVar2 = (undefined4 *)*local_18;\n    if (puVar2 != (undefined4 *)0x0) {\n      piVar1 = puVar2 + 1;\n      *piVar1 = *piVar1 + -1;\n      if (*piVar1 == 0) {\n        (**(code **)*puVar2)();\n      }\n    }\n    *piVar7 = *piVar8;\n    local_8 = 0xffffffff;\n    if (local_1c != (undefined4 *)0x0) {\n      piVar7 = local_1c + 1;\n      *piVar7 = *piVar7 + -1;\n      if (*piVar7 == 0) {\n        (**(code **)*local_1c)();\n      }\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n",
+          "revision": {
+            "token": "1793548212865:095422a7:3",
+            "epoch": "095422a7",
+            "modification_number": 3,
+            "saved_time": 1793548212865,
+            "unsaved_changes": false,
+            "decompiled": true
+          }
+        }
+      },
+      "count": 4,
+      "requested": 4
+    }
+  ]
+}

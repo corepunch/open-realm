@@ -1,0 +1,16 @@
+// NUM-04.5 — applied to Ghidra via gw.py (research/NUM-04.5/ghidra-writes.jsonl); mirror into tools/ghidra/MapPathfinding.java.
+// New rows:
+        {"6f2e2850", "LoadFile_StartPendingFile", "Consumes pending -loadfile path 6fd69b10. Maps: WorldEditPref_GetDword(0x69 Test Map - Difficulty, default1) shifts 0x1000000; WorldEditPref_GetBool(0x6a Test Map - Fixed Random Seed, default1) sets/clears 0x8000 in 6fce50b4; 2a52b0 creates the local game with flags|difficulty. NUM-04.5 live: absent value -> descriptor +34 0x02008000; HKCU Software\\Blizzard Entertainment\\WorldEdit value0 -> flag clear, tick seed."},
+        {"6f71d580", "WorldEditPref_GetBool", "ECX index into 16-byte rows 6fb810f8 (name,type,default,string), EDX nonzero forces default; Storm registry key WorldEdit value <name>, missing -> default [6fb81100+16*i]; returns 0/1. 0x6a Test Map - Fixed Random Seed default1. NUM-04.5 live result1 absent / 0 with value0."},
+        {"6f71d5d0", "WorldEditPref_GetDword", "Same table/ABI as 71d580, returns raw dword. 0x69 Test Map - Difficulty default1."},
+        {"6f2a46a0", "GameLobby_StampSeedAndBroadcast", "ECX lobby; when slots exist writes GetTickCount() to setup-record seed [ECX+24] (record +18, seed +0c) then serializes/broadcasts. Eleven slot-change callers. NUM-04.5 live: last stamp equals 29e300 lobby seed in 9/9 probed startups; unlocked runs seed owner and 45 streams with it."},
+        {"6f96c8c0", "GameSetupRecord_Deserialize", "ECX record {+4 slot count,+8 9-byte slots,+0c random seed}, EDX blob {u16 length,bytes}; returns consumed==length. Reached from 29e300 via 2a1170."},
+        {"6f2a0c80", "GameSetup_ApplyDescriptor", "ECX descriptor; creates NetState d687a8 if absent, 1e3c60 map/setup, ORs descriptor +34 into mapflags [[d687a8+30]+38], nibble 0f000000 -> difficulty byte +46. NUM-04.5 live -loadfile: +34 0x02008000, flags 0x300000 -> 0x2308000."},
+// New globals (labels):
+        {"6fce50b4", "LoadFile_GameFlags", "2e2850 writes; 0x8000 from preference 0x6a; ORed with 0x1000000<<difficulty into the local game flags."},
+        {"6fd69b10", "LoadFile_PendingPath", "Pending -loadfile path buffer; 2e2850 copies and clears it."},
+// Updated rows (append to existing comments):
+//   6f29e300 GameSetup_ConfigurePlayersAndSeed: " NUM-04.5 correction: unlocked seed = parsed setup-record seed ([ebp-3c50] = record+0c via 2a1170/96c8c0, stamped by GameLobby_StampSeedAndBroadcast 2a46a0 with GetTickCount), not a fold computed here in the -loadfile flow; the rol3 fold at 29e5c4 runs only on the 29e459 path (no usable record). The same word (0x77617233 or record seed) reseeds the 45 CRandData streams via 64f9a0. -loadfile lock producer: 2e2850 preference 0x6a."
+//   6f157610 PathOwner_Construct: " NUM-04.5: boot construction seed 0x69707365 (04eec0 -> 0509d0 ECX constant); live 1768977253/2822785048; no owner draw precedes the setup reseed."
+//   6f1e9dd0 PlayerSetup_ResolveRaces: " NUM-04.5: called from 1e5a10 during load, after the 29e300 seed and before JASS main. Live 8/4/0 draws for 8/4/0 random-preference slots; all words match the model."
+//   6f2a1170 (default name, comment only): "NUM-04.5: ECX=&setup record; GameSetupRecord_Deserialize fills slots/seed; returns 1 for a usable record so 29e300 skips the 29e459 slot fold (live -loadfile: always)."

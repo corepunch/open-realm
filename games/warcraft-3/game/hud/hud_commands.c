@@ -307,7 +307,7 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
      * refunds the owner, so CancelTrain/CancelBuild are denied server-side
      * without advanced sharing; offer no hit targets the viewer cannot use. */
     if (!unsummoning && G_UnitCanSpendResources(viewer, ent) &&
-        (constructing || upgrading || (ent->build && G_UnitHasFlag(ent->build, UNIT_FLAG_TRAINING)))) {
+        (constructing || upgrading || (ent->build && (ent->build && ent->build->training)))) {
         uint32_t const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;

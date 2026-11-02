@@ -626,8 +626,8 @@ bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, 
     saved = &entry->value.unit;
     memset(saved, 0, sizeof(*saved));
     saved->class_id = unit->class_id;
-    saved->hero = unit->unit_state->hero;
-    memcpy(saved->abilities, unit->unit_state->ranks, sizeof(saved->abilities));
+    saved->hero = unit->hero;
+    memcpy(saved->abilities, unit->heroabilities, sizeof(saved->abilities));
     saved->health = unit->health;
     saved->mana = unit->mana;
     saved->unit_color = unit->unit_color;
@@ -635,7 +635,7 @@ bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, 
         edict_t const *item = G_InventoryItem(unit, i);
         if (!item) continue;
         saved->inventory[i].item_id = item->class_id;
-        saved->inventory[i].charges = G_GetItem(item)->charges;
+        saved->inventory[i].charges = item->item->charges;
     }
     cache->dirty = true;
     return true;
@@ -682,8 +682,8 @@ edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cst
     if (saved->hero.level) {
         G_HeroApplyLevel(unit, saved->hero.level);
     }
-    unit->unit_state->hero = saved->hero;
-    memcpy(unit->unit_state->ranks, saved->abilities, sizeof(unit->unit_state->ranks));
+    unit->hero = saved->hero;
+    memcpy(unit->heroabilities, saved->abilities, sizeof(unit->heroabilities));
     G_RecomputeHeroStats(unit);
     unit->health = saved->health;
     /* RestoreUnit creates a fresh living entity; a cached dead Hero must not
@@ -718,5 +718,10 @@ edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cst
             G_RemoveItem(item);
         }
     }
+    /* The cache stores total attributes together with inventory identities.
+     * Item restoration rebuilds the reversible portion; retain the stored
+     * total rather than counting its agility bonus a second time. */
+    unit->hero.agi = saved->hero.agi;
+    G_RecomputeHeroStats(unit);
     return unit;
 }

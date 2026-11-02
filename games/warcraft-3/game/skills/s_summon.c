@@ -364,8 +364,8 @@ static uint32_t force_of_nature_unit_id(uint32_t code, uint32_t level) {
 static bool force_of_nature_tree(edict_t const *tree) {
     destructable_t const *destructable;
     if (!tree || !tree->inuse || tree->targtype != TARG_TREE || !G_IsDestructable(tree)) return false;
-    destructable = G_GetDestructable(tree);
-    return destructable && !destructable->dead && !G_UnitHasFlag(tree, UNIT_FLAG_INVULNERABLE);
+    destructable = tree->destructable;
+    return destructable && !destructable->dead && !(tree && tree->invulnerable);
 }
 
 static uint32_t force_of_nature_count_trees(vec2_t const *point, float area) {

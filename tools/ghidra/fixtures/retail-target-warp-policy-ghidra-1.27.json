@@ -1,0 +1,22 @@
+{
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f48cb80",
+      "name": "Unit_FindAbilityByClass",
+      "comment": "Payoff149 FORM-01.3: Move_BeginTargetTaskRequest calls this lookup with class Adro, derived=1, rawcode=0, ordinary=1, item=1. The general loop compares virtual+1c class identity, optionally AgentClass_IsDerived, rather than the authored alias at ability+34. Both ordinary and item attachments participate even if their commands are disabled. Engine aliases inherit a registry-owned target-no-warp trait; CargoDrop procedure reuse by Amed and Atdp does not imply Adro class ownership."
+    },
+    {
+      "address": "6f5fc640",
+      "name": "Move_BeginTargetTaskRequest",
+      "comment": "Payoff149 FORM-01.3: capture target Adro-class ownership once when constructing the request; bit10 disables new group coarse warp edges. Existing requests do not re-read target abilities. A fresh persistent task after approach completion samples ownership again. Unit_FindAbilityByClass includes item attachments and derived class identities; comparing only rawcode or shared procedure is insufficient."
+    },
+    {
+      "address": "6f16ce10",
+      "name": "PathGroup_RequestRoute",
+      "comment": "Payoff149 FORM-01.3: only a newly requested coarse route passes ~(group80>>4)&1 to167120. Cached adaptive routes bypass this call and retain their original policy. Engine passes captured group bit10 to G_UnitMoveGroupDestination; disabling warp edges does not remove or deactivate the published gate graph, and subsequent ordinary requests restore warp mode."
+    }
+  ]
+}

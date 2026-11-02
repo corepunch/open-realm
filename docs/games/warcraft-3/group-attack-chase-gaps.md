@@ -59,6 +59,16 @@ checks the target incarnation before combat callbacks, and persists the field
 through save/load. Regression coverage verifies slot reuse rejection and a live
 Attack target round trip.
 
+### Unreachable approach retains target geometry
+
+Collision-sized Attack recovery stores its reachable endpoint on the attacker.
+Only `SVF_MOVE_WAYPOINT` destinations may adopt the recovered point. The
+regression `wc3_combat.unreachable_attack_keeps_target_geometry` covers unit
+and destructable targets, including hits after approach and an unreachable
+short-range attack. This fixes gates and other scenery shifting during an
+attack chase. See [interaction-owned route endpoints](pathfinding.md#interaction-owned-route-endpoints)
+for the campaign capture and the distinction from the damage/animation path.
+
 ### Long-route moving-target refresh is bounded by relative displacement
 
 Direct steering and the final approach read the target's current coordinates.

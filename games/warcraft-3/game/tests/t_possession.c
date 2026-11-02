@@ -108,7 +108,7 @@ static void pos_setup(posFix_t *fix, cstring_t slk, uint32_t code) {
     fix->enemy->data.UnitBalance = &fix->enemy_bal;
     fix->ally->data.UnitBalance = &fix->ally_bal;
     fix->hero->data.UnitBalance = &fix->hero_bal;
-    fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
     fix->caster->mana.value = fix->caster->mana.max_value = 100;
     fix->caster->health.value = fix->caster->health.max_value = 300;
     fix->enemy->health.value = fix->enemy->health.max_value = 500;
@@ -259,11 +259,11 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
     edict_t *thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
-    T_EQ(G_GetChannel(fix.caster)->code, BZ_APS2);
+    T_EQ(fix.caster->channel->code, BZ_APS2);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 1);
     T_EQ(G_UnitStatusLevel(fix.caster, BZ_BPOC), 1);
     T_ASSERT(unit_hasstatusstate(fix.enemy, WC3_STATUS_STATE_STUNNED));
-    T_ASSERT(G_UnitHasFlag(fix.enemy, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT((fix.enemy && fix.enemy->invulnerable));
     T_EQ(fix.enemy->s.player, 1);
     T_ASSERT(!M_IsDead(fix.caster));
     thinker = pos_thinker(fix.caster);
@@ -271,9 +271,9 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     level.time = thinker->spawn_time; G_RunEntities();
     T_EQ(fix.enemy->s.player, 0);
     T_ASSERT(M_IsDead(fix.caster));
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 0);
-    T_ASSERT(!G_UnitHasFlag(fix.enemy, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!(fix.enemy && fix.enemy->invulnerable));
     pos_done(fix);
 }
 
@@ -292,7 +292,7 @@ TEST(wc3_spell, possession_aps2_rejects_full_target_or_caster_before_commit) {
     T_FEQ(fix.caster->mana.value, mana, 0.001f);
     T_NULL(pos_thinker(fix.caster));
     T_EQ(G_UnitStatusLevel(fix.caster, BZ_BPOC), 0);
-    T_ASSERT(!G_UnitHasFlag(fix.enemy, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!(fix.enemy && fix.enemy->invulnerable));
     pos_done(fix);
 
     pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
@@ -330,14 +330,14 @@ TEST(wc3_spell, possession_aps2_abort_keeps_owner) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     thinker = pos_thinker(fix.caster);
     T_NOT_NULL(thinker);
-    T_ASSERT(G_UnitHasFlag(fix.enemy, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT((fix.enemy && fix.enemy->invulnerable));
     S_SpellCancelChannel(fix.caster);
     level.time += FRAMETIME; G_RunEntities();
     T_EQ(fix.enemy->s.player, 1);
     T_ASSERT(!M_IsDead(fix.caster));
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 0);
     T_EQ(G_UnitStatusLevel(fix.caster, BZ_BPOC), 0);
-    T_ASSERT(!G_UnitHasFlag(fix.enemy, UNIT_FLAG_INVULNERABLE));
+    T_ASSERT(!(fix.enemy && fix.enemy->invulnerable));
     T_ASSERT(!thinker->inuse);
     pos_done(fix);
 }

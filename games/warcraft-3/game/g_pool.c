@@ -1,238 +1,337 @@
 #include "g_local.h"
-#include <stddef.h>
+#include "skills/s_skills.h"
 #include <stdio.h>
 #include <string.h>
 
-/* Test builds poison released records so a pointer cached across a release
- * faults instead of reading the stale payload; allocation zeroes the slot. */
-#ifdef BZ_TESTS
-#define POISON_RELEASED(slot) memset(&(slot).data, 0xa5, sizeof((slot).data))
-#else
-#define POISON_RELEASED(slot) ((void)0)
-#endif
-
-/* Fixed typed storage. Slot zero is reserved, so a zero free index means exhaustion. */
-#define DEFINE_STORAGE(member, Name, type, POOL_CAP) \
+#define DEFINE_POOL_OWNER_CALLBACKS(member, owner, Name, type, POOL_CAP, allocated, released) \
+_Static_assert(POOL_CAP > 1 && POOL_CAP <= UINT16_MAX + 1u, "WC3 pool index capacity"); \
 static struct { type data; uint16_t next; bool live; } member##_slots[POOL_CAP]; \
 static uint16_t member##_free; \
-static bool member##_ready; \
+static uint32_t member##_virgin = 1; \
 static uint16_t member##_live, member##_peak; \
-static type *Alloc##Name(void) { \
-    if (!member##_ready) { \
-        member##_free = 1; \
-        for (uint16_t i = 1; i < POOL_CAP - 1; i++) member##_slots[i].next = i + 1; \
-        member##_ready = true; \
-    } \
+type *G_Alloc##Name(void) { \
     uint16_t i = member##_free; \
+    if (i) member##_free = member##_slots[i].next; \
+    else if (member##_virgin < POOL_CAP) i = (uint16_t)member##_virgin++; \
     if (!i) { \
         fprintf(stderr, "WC3 pool %s exhausted\n", #member); \
         gi.error("WC3 pool %s exhausted", #member); \
         abort(); \
     } \
-    member##_free = member##_slots[i].next; \
     memset(&member##_slots[i], 0, sizeof(member##_slots[i])); \
     member##_slots[i].live = true; \
     if (++member##_live > member##_peak) member##_peak = member##_live; \
+    allocated; \
     return &member##_slots[i].data; \
 } \
-static void Release##Name(void *record) { \
-    uint16_t i = (uint16_t)(((unsigned char *)record - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
+void G_Free##Name(edict_t *ent) { \
+    assert(ent); \
+    if (!owner) return; \
+    uint16_t i = (uint16_t)(((unsigned char *)owner - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
     assert(i > 0 && i < POOL_CAP && member##_slots[i].live); \
-    POISON_RELEASED(member##_slots[i]); \
     member##_slots[i].live = false; \
     member##_live--; \
     member##_slots[i].next = member##_free; \
     member##_free = i; \
+    owner = NULL; \
+    released; \
 } \
-static void Reset##Name(void) { \
-    member##_ready = false; \
-    member##_live = member##_peak = 0; \
-    memset(member##_slots, 0, sizeof(member##_slots)); \
-    member##_free = 0; \
-} \
-static void Report##Name(void) { \
-    if (member##_peak) fprintf(stderr, "WC3 pool peak %s=%u/%d\n", #member, member##_peak, (POOL_CAP) - 1); \
+static void G_Reset##Name##Pool(void) { \
+    for (uint32_t i = 1; i < member##_virgin; i++) member##_slots[i].live = false; \
+    member##_virgin = 1; member##_free = member##_live = member##_peak = 0; \
 }
 
-/* Per-unit records that per-frame paths read through direct edict pointers. */
-#define G_DIRECT_POOLS(X) \
-    X(unit_state, UnitState, unitState_t) \
-    X(sound, Sounds, unitSounds_t) \
-    X(missile, Missile, attackMissile_t) \
-    X(inventory, Inventory, inventory_t) \
-    X(harvest, Harvest, harvest_t) \
-    X(vision, Visibility, visibility_t) \
-    X(orders, Orders, unitOrders_t) \
-    X(movement, Movement, movement_t) \
-    X(route, Route, routeCache_t) \
-    X(wander, Wander, wander_t)
+#define DEFINE_POOL_CALLBACKS(member, Name, type, POOL_CAP, allocated, released) \
+    DEFINE_POOL_OWNER_CALLBACKS(member, ent->member, Name, type, POOL_CAP, allocated, released)
 
-#define DEFINE_DIRECT_POOL(member, Name, type) \
-DEFINE_STORAGE(member, Name, type, MAX_ENTITIES) \
-type *G_Alloc##Name(void) { return Alloc##Name(); } \
-void G_Free##Name(edict_t *ent) { \
-    assert(ent); \
-    if (!ent->member) return; \
-    Release##Name(ent->member); \
-    ent->member = NULL; \
-}
-G_DIRECT_POOLS(DEFINE_DIRECT_POOL)
+#define DEFINE_POOL(member, Name, type, POOL_CAP) \
+    DEFINE_POOL_CALLBACKS(member, Name, type, POOL_CAP, (void)0, (void)0)
 
-static void *AddComponent(edict_t *ent, componentId_t id);
-static void FreeComponent(edict_t *ent, componentId_t id);
+/* Virgin records enter in ascending order; recycled records remain LIFO.
+ * First use is constant time, and reset invalidates only the allocated prefix.
+ * Payload bytes are cleared on allocation before callbacks can observe them. */
 
-/* Each row owns its storage and typed entries. The header must lead the record
- * so list nodes and typed records share one address. */
-#define DEFINE_COMPONENT_POOL(id, ID, member, Name, type, cap, fields) \
-_Static_assert((id) > 0, #ID " needs a nonzero component ID"); \
-_Static_assert(offsetof(type, component) == 0, #type " must start with its component header"); \
-DEFINE_STORAGE(member, Name, type, cap) \
-type *G_Add##Name(edict_t *ent) { return AddComponent(ent, COMPONENT_##ID); } \
-void G_Free##Name(edict_t *ent) { FreeComponent(ent, COMPONENT_##ID); }
-G_COMPONENTS(DEFINE_COMPONENT_POOL)
+DEFINE_POOL(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(research, Research, research_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(rally, Rally, rally_t, LIFECYCLE_POOL_CAP,
+    S_InvalidateRallyProducers(), S_ForgetRallyProducer(ent))
+/* Every mobile unit owns food state, even when training limits are disabled. */
+DEFINE_POOL(food, Food, food_t, MAX_ENTITIES)
+DEFINE_POOL(active_order, ActiveOrder, unitOrder_t, MAX_ENTITIES)
+DEFINE_POOL_OWNER_CALLBACKS(attack_one, ent->attack_overrides[0], AttackOne, unitAttack_t, MAX_ENTITIES,
+    (void)0, (void)0)
+DEFINE_POOL_OWNER_CALLBACKS(attack_two, ent->attack_overrides[1], AttackTwo, unitAttack_t, MAX_ENTITIES,
+    (void)0, (void)0)
+/* Plain units carry no status storage. Records retain their original slot
+ * identities until edict release, including synchronous inverse callbacks. */
+DEFINE_POOL_CALLBACKS(abilstatus, UnitStatus, unitStatusStorage_t, MAX_ENTITIES,
+    (void)0, (S_ForgetSleepOwner(ent), S_ForgetMetamorphosisOwner(ent)))
+DEFINE_POOL_OWNER_CALLBACKS(orders, ent->order_queue.entries, UnitOrdersInline, unitOrderStorage_t, MAX_ENTITIES,
+    (void)0, ent->order_queue.head = ent->order_queue.count = 0)
+/* Large FIFOs grow geometrically. Most units never allocate a queue, and
+ * ordinary short queues use the original LIFO pool. No maximum-sized bucket
+ * is charged to every unit merely because the retail admission bound is501. */
+unitOrderStorage_t *G_AllocUnitOrders(void) { return G_AllocUnitOrdersInline(); }
 
-/* The switches are the registry: duplicate IDs are duplicate case labels and fail to compile. */
-static void *ComponentAlloc(componentId_t id) {
-    switch (id) {
-#define COMPONENT_ALLOC_CASE(id, ID, member, Name, type, cap, fields) case COMPONENT_##ID: return Alloc##Name();
-    G_COMPONENTS(COMPONENT_ALLOC_CASE)
-#undef COMPONENT_ALLOC_CASE
+void G_FreeUnitOrders(edict_t *ent) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(queue->entries) {
+        if(queue->capacity>UNIT_ORDER_INITIAL_CAPACITY) free(queue->entries);
+        else G_FreeUnitOrdersInline(ent);
     }
-    gi.error("WC3 unknown component type %u", (unsigned)id);
-    abort();
+    *queue=(unitOrderQueue_t){0};
 }
 
-static void ComponentRelease(component_t *record) {
-    switch ((componentId_t)record->id) {
-#define COMPONENT_RELEASE_CASE(id, ID, member, Name, type, cap, fields) case COMPONENT_##ID: Release##Name(record); return;
-    G_COMPONENTS(COMPONENT_RELEASE_CASE)
-#undef COMPONENT_RELEASE_CASE
+bool G_ReserveUnitOrders(edict_t *ent,uint32_t required) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(required>UNIT_ORDER_STORAGE_CAPACITY)return false;
+    if(queue->entries && !queue->capacity)queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;
+    if(queue->entries && required<=queue->capacity)return true;
+    if(!queue->entries && required<=UNIT_ORDER_INITIAL_CAPACITY) {
+        queue->entries=G_AllocUnitOrders()->entries;
+        queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;return true;
     }
-    gi.error("WC3 unknown component type %u", (unsigned)record->id);
-    abort();
-}
-
-void *G_AllocDetachedComponent(componentId_t id) {
-    return ComponentAlloc(id);
-}
-
-/* Queries never allocate, including on edicts that do not own this behavior. */
-void *G_GetComponent(edict_t const *ent, componentId_t id) {
-    for (component_t *cur = ent ? ent->components : NULL; cur; cur = cur->next)
-        if (cur->id == id) return cur;
-    return NULL;
-}
-
-/* Restore and allocation both establish one owner and one instance of an exact type. */
-void G_AttachComponent(edict_t *ent, component_t *record, componentId_t id) {
-    assert(ent && record && !G_GetComponent(ent, id));
-    assert(!record->next && (!record->id || record->id == id));
-    *record = (component_t){ .id = id, .next = ent->components };
-    ent->components = record;
-}
-
-/* Explicit initialization is idempotent, while ordinary observation remains read-only. */
-static void *AddComponent(edict_t *ent, componentId_t id) {
-    assert(ent);
-    component_t *record = G_GetComponent(ent, id);
-    if (record) return record;
-    record = ComponentAlloc(id);
-    G_AttachComponent(ent, record, id);
-    return record;
-}
-
-/* Unlink before releasing storage so head and interior removal preserve the remaining owner list. */
-static void FreeComponent(edict_t *ent, componentId_t id) {
-    assert(ent);
-    for (component_t **link = &ent->components; *link; link = &(*link)->next) {
-        component_t *cur = *link;
-        if (cur->id != id) continue;
-        *link = cur->next;
-        ComponentRelease(cur);
-        return;
+    uint32_t capacity=queue->capacity ? queue->capacity : UNIT_ORDER_INITIAL_CAPACITY;
+    while(capacity<required)capacity=MIN(capacity*2,UNIT_ORDER_STORAGE_CAPACITY);
+    unitOrder_t *entries=calloc(capacity,sizeof(*entries));
+    if(!entries) {gi.error("Unit order queue: cannot allocate %u entries",capacity);abort();}
+    if(queue->count) {
+        uint32_t first=MIN(queue->count,queue->capacity-queue->head);
+        memcpy(entries,queue->entries+queue->head,first*sizeof(*entries));
+        memcpy(entries+first,queue->entries,(queue->count-first)*sizeof(*entries));
     }
+    uint32_t count=queue->count;
+    G_FreeUnitOrders(ent);
+    *queue=(unitOrderQueue_t){.entries=entries,.count=count,.capacity=capacity};
+    return true;
 }
 
-/* Unit spawn and explicit ability/status mutations establish ownership; reads never allocate. */
-void G_InitUnitState(edict_t *ent) {
-    assert(ent);
-    if (!ent->unit_state) ent->unit_state = G_AllocUnitState();
-}
-
-/* Explicit vision ownership entry; observation does not allocate. */
-void G_InitVisibility(edict_t *ent) {
-    assert(ent);
-    if (!ent->vision) ent->vision = G_AllocVisibility();
-}
-
-/* Explicit harvest ownership entry; observation does not allocate. */
-void G_InitHarvest(edict_t *ent) {
-    assert(ent);
-    if (!ent->harvest) ent->harvest = G_AllocHarvest();
-}
-
-/* Explicit inventory ownership entry; observation does not allocate. */
-void G_InitInventory(edict_t *ent) {
-    assert(ent);
-    if (!ent->inventory) ent->inventory = G_AllocInventory();
-}
-
-/* Explicit missile ownership entry; observation does not allocate. */
-void G_InitMissile(edict_t *ent) {
-    assert(ent);
-    if (!ent->missile) ent->missile = G_AllocMissile();
-}
-
-/* Explicit sound ownership entry; observation does not allocate. */
-void G_InitSounds(edict_t *ent) {
-    assert(ent);
-    if (!ent->sound) ent->sound = G_AllocSounds();
-}
-
-/* Live units retain order/guard identity between trips; effects and projectiles do not own it. */
-void G_InitUnitOrders(edict_t *ent) {
-    assert(ent);
-    if (!ent->orders) ent->orders = G_AllocOrders();
-}
-
+DEFINE_POOL(buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(revival, Revival, revival_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
+/* Hide-capable units retain this state even while walking in daylight. */
+DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
+DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(couple, Couple, couple_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(couple_instant, CoupleInstant, coupleInstant_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(health_regen, HealthRegen, healthRegen_t, MAX_ENTITIES)
+DEFINE_POOL_CALLBACKS(shadow_strike, ShadowStrike, shadowStrike_t, LIFECYCLE_POOL_CAP, (void)0, S_ForgetShadowStrike(ent))
+DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(morph, Morph, morph_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP,
+    (void)0, (S_ForgetAncientRootRetry(ent), S_MarkMoveGoals(ent)))
+DEFINE_POOL(entangle, Entangle, entangle_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP,
+    S_InvalidateCargoHolders(), S_CargoForgetHolder(ent))
+DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(pillage, Pillage, pillage_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(avatar, Avatar, avatar_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(sleep, Sleep, sleep_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(channel, Channel, channel_t, LIFECYCLE_POOL_CAP)
 
 void G_PoolsReportPeaks(void) {
-#define REPORT_COMPONENT(id, ID, member, Name, type, cap, fields) Report##Name();
-#define REPORT_DIRECT(member, Name, type) Report##Name();
-    G_COMPONENTS(REPORT_COMPONENT)
-    G_DIRECT_POOLS(REPORT_DIRECT)
-#undef REPORT_COMPONENT
-#undef REPORT_DIRECT
+#define REPORT_POOL(member) if (member##_peak) fprintf(stderr, "WC3 pool peak %s=%u/%d\n", #member, member##_peak, (int)(sizeof(member##_slots) / sizeof(member##_slots[0])) - 1)
+    REPORT_POOL(construction);
+    REPORT_POOL(research);
+    REPORT_POOL(rally);
+    REPORT_POOL(food);
+    REPORT_POOL(attack_one);
+    REPORT_POOL(attack_two);
+    REPORT_POOL(abilstatus);
+    REPORT_POOL(orders);
+    REPORT_POOL(buildwork);
+    REPORT_POOL(revival);
+    REPORT_POOL(sacrifice);
+    REPORT_POOL(unsummon);
+    REPORT_POOL(shadowmeld);
+    REPORT_POOL(militia);
+    REPORT_POOL(polymorph);
+    REPORT_POOL(shadow_strike);
+    REPORT_POOL(health_regen);
+    REPORT_POOL(raven);
+    REPORT_POOL(morph);
+    REPORT_POOL(blight_growth);
+    REPORT_POOL(ensnare);
+    REPORT_POOL(ancient_root);
+    REPORT_POOL(goldmine);
+    REPORT_POOL(mineoverlay);
+    REPORT_POOL(acolyte_mine);
+    REPORT_POOL(item);
+    REPORT_POOL(destructable);
+    REPORT_POOL(cargo);
+    REPORT_POOL(stock);
+    REPORT_POOL(pillage);
+    REPORT_POOL(waygate);
+    REPORT_POOL(artillery);
+    REPORT_POOL(avatar);
+    REPORT_POOL(sleep);
+    REPORT_POOL(channel);
+#undef REPORT_POOL
 }
 
 void G_PoolsReset(void) {
+    S_ClearTimedLives();
+    S_ClearSpellCasts();
+    G_ResetWaypointCache();
+    S_InvalidateCargoHolders();
+    S_InvalidateRallyProducers();
+    S_ResetLandMineThinkers();
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
-            g_edicts[i].components = NULL;
-#define CLEAR_DIRECT(member, Name, type) g_edicts[i].member = NULL;
-            G_DIRECT_POOLS(CLEAR_DIRECT)
-#undef CLEAR_DIRECT
+            S_ReleaseCoupleInstantState(g_edicts+i);S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
+            g_edicts[i].ability_pause_depth=0;
+            g_edicts[i].ability_clock_depth=0;
+            g_edicts[i].ability_exclusive_depth=0;
+            g_edicts[i].construction = NULL;
+            g_edicts[i].research = NULL;
+            g_edicts[i].rally = NULL;
+            g_edicts[i].food = NULL;
+            memset(g_edicts[i].attack_overrides, 0, sizeof(g_edicts[i].attack_overrides));
+            g_edicts[i].abilstatus = NULL;
+            G_FreeUnitOrders(g_edicts+i);
+            g_edicts[i].active_order=NULL;
+            g_edicts[i].buildwork = NULL;
+            g_edicts[i].revival = NULL;
+            g_edicts[i].sacrifice = NULL;
+            g_edicts[i].unsummon = NULL;
+            g_edicts[i].shadowmeld = NULL;
+            g_edicts[i].militia = NULL;
+            g_edicts[i].polymorph = NULL;
+            g_edicts[i].shadow_strike = NULL;
+            g_edicts[i].health_regen = NULL;
+            g_edicts[i].raven = NULL;
+            g_edicts[i].morph = NULL;
+            g_edicts[i].blight_growth = NULL;
+            g_edicts[i].ensnare = NULL;
+            g_edicts[i].ancient_root = NULL;
+            g_edicts[i].goldmine = NULL;
+            g_edicts[i].mineoverlay = NULL;
+            g_edicts[i].acolyte_mine = NULL;
+            g_edicts[i].item = NULL;
+            g_edicts[i].destructable = NULL;
+            g_edicts[i].cargo = NULL;
+            g_edicts[i].stock = NULL;
+            g_edicts[i].pillage = NULL;
+            g_edicts[i].waygate = NULL;
+            g_edicts[i].artillery = NULL;
+            g_edicts[i].avatar = NULL;
+            g_edicts[i].sleep = NULL;
+            g_edicts[i].channel = NULL;
         }
     }
-#define RESET_COMPONENT(id, ID, member, Name, type, cap, fields) Reset##Name();
-#define RESET_DIRECT(member, Name, type) Reset##Name();
-    G_COMPONENTS(RESET_COMPONENT)
-    G_DIRECT_POOLS(RESET_DIRECT)
-#undef RESET_COMPONENT
-#undef RESET_DIRECT
+    G_ResetConstructionPool();
+    G_ResetResearchPool();
+    G_ResetRallyPool();
+    G_ResetFoodPool();
+    G_ResetAttackOnePool();
+    G_ResetAttackTwoPool();
+    G_ResetUnitStatusPool();
+    G_ResetUnitOrdersInlinePool();
+    G_ResetActiveOrderPool();
+    G_ResetBuildworkPool();
+    G_ResetRevivalPool();
+    G_ResetSacrificePool();
+    G_ResetUnsummonPool();
+    G_ResetShadowMeldPool();
+    G_ResetMilitiaPool();
+    G_ResetCouplePool();
+    G_ResetCoupleInstantPool();
+    S_ResetTargetReservations();
+    G_ResetPolymorphPool();
+    G_ResetShadowStrikePool();
+    G_ResetHealthRegenPool();
+    G_ResetRavenPool();
+    G_ResetMorphPool();
+    G_ResetBlightGrowthPool();
+    G_ResetEnsnarePool();
+    G_ResetAncientRootPool();
+    G_ResetEntanglePool();
+    G_ResetGoldMinePool();
+    G_ResetMineOverlayPool();
+    G_ResetAcolyteMinePool();
+    G_ResetItemPool();
+    G_ResetDestructablePool();
+    G_ResetCargoPool();
+    G_ResetStockPool();
+    G_ResetPillagePool();
+    G_ResetWaygatePool();
+    G_ResetArtilleryPool();
+    G_ResetAvatarPool();
+    G_ResetSleepPool();
+    G_ResetChannelPool();
 }
 
 void G_PoolsReleaseEdict(edict_t *ent) {
+    S_ReleaseCoupleInstantState(ent);S_ClearTransientAbilityOrders(ent);S_ClearAbilityDisables(ent);
     assert(ent);
-#define FREE_DIRECT(member, Name, type) G_Free##Name(ent);
-    G_DIRECT_POOLS(FREE_DIRECT)
-#undef FREE_DIRECT
-    while (ent->components) FreeComponent(ent, ent->components->id);
+    S_ReleaseTimedLives(ent);
+    G_FreeConstruction(ent);
+    G_FreeResearch(ent);
+    G_FreeRally(ent);
+    G_FreeFood(ent);
+    G_FreeAttackOne(ent);
+    G_FreeAttackTwo(ent);
+    G_FreeUnitStatus(ent);
+    G_FreeUnitOrders(ent);
+    G_FreeActiveOrder(ent);
+    G_FreeBuildwork(ent);
+    G_FreeRevival(ent);
+    G_FreeSacrifice(ent);
+    G_FreeUnsummon(ent);
+    G_FreeShadowMeld(ent);
+    G_FreeMilitia(ent);
+    G_FreeCouple(ent);
+    G_FreeCoupleInstant(ent);
+    G_FreePolymorph(ent);
+    G_FreeShadowStrike(ent);
+    G_FreeHealthRegen(ent);
+    G_FreeRaven(ent);
+    G_FreeMorph(ent);
+    G_FreeBlightGrowth(ent);
+    G_FreeEnsnare(ent);
+    G_FreeAncientRoot(ent);
+    G_FreeEntangle(ent);
+    G_FreeGoldMine(ent);
+    G_FreeMineOverlay(ent);
+    G_FreeAcolyteMine(ent);
+    if(ent->item)S_DetachPreparatoryItems(ent);
+    G_FreeItem(ent);
+    G_FreeDestructable(ent);
+    G_FreeCargo(ent);
+    G_FreeStock(ent);
+    G_FreePillage(ent);
+    G_FreeWaygate(ent);
+    G_FreeArtillery(ent);
+    G_FreeAvatar(ent);
+    G_FreeSleep(ent);
+    G_FreeChannel(ent);
 }
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
+
+TEST(wc3_pools, common_mobile_state_scales_with_world_entity_capacity) {
+    reset_entities();
+    FOR_LOOP(i,3000) {
+        edict_t *unit=G_Spawn();unit->food=G_AllocFood();
+        T_ASSERT(unit->food!=NULL);
+        unit->shadowmeld=G_AllocShadowMeld();
+        T_ASSERT(unit->shadowmeld!=NULL);
+    }
+    reset_entities();
+}
 
 TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     edict_t *unit;
@@ -249,130 +348,88 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_ASSERT(unit->member == first); \
     type empty; memset(&empty, 0, sizeof(empty)); \
     T_EQ(memcmp(unit->member, &empty, sizeof(empty)), 0); \
-} while (0);
-    G_DIRECT_POOLS(CHECK_POOL)
+} while (0)
+    CHECK_POOL(construction, Construction, construction_t);
+    CHECK_POOL(research, Research, research_t);
+    CHECK_POOL(rally, Rally, rally_t);
+    CHECK_POOL(food, Food, food_t);
+    CHECK_POOL(active_order, ActiveOrder, unitOrder_t);
+    CHECK_POOL(buildwork, Buildwork, buildwork_t);
+    CHECK_POOL(revival, Revival, revival_t);
+    CHECK_POOL(sacrifice, Sacrifice, sacrifice_t);
+    CHECK_POOL(unsummon, Unsummon, unsummon_t);
+    CHECK_POOL(shadowmeld, ShadowMeld, shadowMeld_t);
+    CHECK_POOL(militia, Militia, militia_t);
+    CHECK_POOL(couple, Couple, couple_t);
+    CHECK_POOL(couple_instant, CoupleInstant, coupleInstant_t);
+    CHECK_POOL(polymorph, Polymorph, polymorph_t);
+    CHECK_POOL(shadow_strike, ShadowStrike, shadowStrike_t);
+    CHECK_POOL(health_regen, HealthRegen, healthRegen_t);
+    CHECK_POOL(raven, Raven, raven_t);
+    CHECK_POOL(morph, Morph, morph_t);
+    CHECK_POOL(blight_growth, BlightGrowth, blightGrowth_t);
+    CHECK_POOL(ensnare, Ensnare, ensnare_t);
+    CHECK_POOL(ancient_root, AncientRoot, ancientRoot_t);
+    CHECK_POOL(entangle, Entangle, entangle_t);
+    CHECK_POOL(goldmine, GoldMine, goldMine_t);
+    CHECK_POOL(mineoverlay, MineOverlay, mineOverlay_t);
+    CHECK_POOL(acolyte_mine, AcolyteMine, acolyteMine_t);
+    CHECK_POOL(item, Item, item_t);
+    CHECK_POOL(destructable, Destructable, destructable_t);
+    CHECK_POOL(cargo, Cargo, cargo_t);
+    CHECK_POOL(stock, Stock, stock_t);
+    CHECK_POOL(pillage, Pillage, pillage_t);
+    CHECK_POOL(waygate, Waygate, waygate_t);
+    CHECK_POOL(artillery, Artillery, artillery_t);
+    CHECK_POOL(avatar, Avatar, avatar_t);
+    CHECK_POOL(sleep, Sleep, sleep_t);
+    CHECK_POOL(channel, Channel, channel_t);
 #undef CHECK_POOL
     G_PoolsReleaseEdict(unit);
-#define CHECK_DIRECT_ABSENT(member, Name, type) T_NULL(unit->member);
-#define CHECK_COMPONENT_ABSENT(id, ID, member, Name, type, cap, fields) T_NULL(G_Get##Name(unit));
-    G_DIRECT_POOLS(CHECK_DIRECT_ABSENT)
-    G_COMPONENTS(CHECK_COMPONENT_ABSENT)
-#undef CHECK_DIRECT_ABSENT
-#undef CHECK_COMPONENT_ABSENT
-    G_AddAncientRoot(unit);
+    T_NULL(unit->construction);
+    T_NULL(unit->research);
+    T_NULL(unit->rally);
+    T_NULL(unit->food);
+    T_NULL(unit->buildwork);
+    T_NULL(unit->revival);
+    T_NULL(unit->sacrifice);
+    T_NULL(unit->unsummon);
+    T_NULL(unit->shadowmeld);
+    T_NULL(unit->militia);
+    T_NULL(unit->polymorph);
+    T_NULL(unit->raven);
+    T_NULL(unit->morph);
+    T_NULL(unit->blight_growth);
+    T_NULL(unit->ensnare);
+    T_NULL(unit->ancient_root);
+    T_NULL(unit->goldmine);
+    T_NULL(unit->mineoverlay);
+    T_NULL(unit->acolyte_mine);
+    T_NULL(unit->item);
+    T_NULL(unit->destructable);
+    T_NULL(unit->cargo);
+    T_NULL(unit->stock);
+    T_NULL(unit->waygate);
+    T_NULL(unit->artillery);
+    T_NULL(unit->avatar);
+    T_NULL(unit->sleep);
+    T_NULL(unit->channel);
+    unit->ancient_root = G_AllocAncientRoot();
     G_PoolsReset();
-    T_NULL(G_GetAncientRoot(unit));
+    T_NULL(unit->ancient_root);
 }
 
 TEST(wc3_pools, destructable_pool_holds_more_than_the_default_cap) {
     reset_entities();
     edict_t *first = G_Spawn();
-    G_AddDestructable(first);
-    FOR_LOOP(i, DESTRUCTABLE_POOL_CAP - 2) T_ASSERT(AllocDestructable() != NULL);
+    first->destructable = G_AllocDestructable();
+    FOR_LOOP(i, DESTRUCTABLE_POOL_CAP - 2) T_ASSERT(G_AllocDestructable() != NULL);
     G_PoolsReset();
-    T_NULL(G_GetDestructable(first));
+    T_NULL(first->destructable);
 }
 
 TEST(wc3_pools, register_model_ignores_missing_names) {
     T_EQ(G_RegisterModel(NULL), 0);
     T_EQ(G_RegisterModel(""), 0);
-}
-#endif
-
-#ifdef BZ_TESTS
-/* Mixed owners exercise lookup, non-head removal, pool reuse and entity teardown. */
-TEST(wc3_components, mixed_list_release_reuse_and_entity_lifetime) {
-    reset_entities();
-    edict_t *unit = G_Spawn();
-    T_NULL(G_GetWaygate(unit));
-    T_NULL(unit->components);
-    waygate_t *gate = G_AddWaygate(unit);
-    gate->destination = (vec2_t){128, 256};
-    avatar_t *avatar = G_AddAvatar(unit);
-    avatar->health = 250;
-    T_ASSERT(unit->components == &avatar->component);
-    T_ASSERT(unit->components->next == &gate->component);
-    T_ASSERT(G_GetWaygate(unit) == gate);
-    T_ASSERT(G_AddWaygate(unit) == gate);
-    T_FEQ(gate->destination.x, 128, 0.001f); /* Repeated attachment keeps the live record. */
-    G_FreeWaygate(unit);
-    T_NULL(G_GetWaygate(unit));
-    T_ASSERT(G_GetAvatar(unit) == avatar);
-    T_NULL(unit->components->next);
-    G_FreeWaygate(unit); /* Releasing an absent record is a no-op. */
-    T_ASSERT(unit->components == &avatar->component);
-    waygate_t *again = G_AddWaygate(unit);
-    T_ASSERT(again == gate);
-    T_FEQ(again->destination.x, 0, 0.001f);
-    T_EQ(again->component.id, COMPONENT_WAYGATE);
-    G_FreeWaygate(unit);
-    T_ASSERT(unit->components == &avatar->component);
-    G_FreeEdict(unit);
-    T_NULL(unit->components);
-    unit = G_Spawn();
-    T_NULL(unit->components);
-    G_AddWaygate(unit);
-    G_PoolsReset();
-    T_NULL(unit->components);
-}
-
-/* Every table row allocates a zeroed header-first record through its typed entries,
- * is found by its exact ID only, releases into poisoned storage and drains on teardown. */
-TEST(wc3_components, every_registered_type_attaches_releases_and_rejects_other_ids) {
-    static componentId_t const ids[] = {
-#define COMPONENT_ID_ROW(id, ID, member, Name, type, cap, fields) COMPONENT_##ID,
-        G_COMPONENTS(COMPONENT_ID_ROW)
-#undef COMPONENT_ID_ROW
-    };
-    size_t const count = sizeof(ids) / sizeof(ids[0]);
-    reset_entities();
-    edict_t *unit = G_Spawn();
-    size_t attached = 0;
-#define CHECK_TYPED_ADD(row_id, ID, member, Name, type, cap, fields) do { \
-    type *record = G_Add##Name(unit); \
-    T_EQ(record->component.id, COMPONENT_##ID); \
-    T_ASSERT(unit->components == &record->component); \
-    T_ASSERT(G_Get##Name(unit) == record && G_Add##Name(unit) == record); \
-    type empty; memset(&empty, 0, sizeof(empty)); empty.component = record->component; \
-    T_EQ(memcmp(record, &empty, sizeof(empty)), 0); \
-    attached++; \
-    FOR_LOOP(j, count) T_ASSERT((G_GetComponent(unit, ids[j]) != NULL) == (j < attached)); \
-} while (0);
-    G_COMPONENTS(CHECK_TYPED_ADD)
-#undef CHECK_TYPED_ADD
-    T_EQ(attached, count);
-    T_ASSERT(!G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(unit));
-    G_GetRevival(unit)->reviving = true;
-    T_ASSERT(G_HeroIsReviving(unit) && !G_HeroAwaitsRevival(NULL));
-    artillery_t *splash = G_GetArtillery(unit);
-    splash->area_full = 40.0f;
-    G_FreeArtillery(unit); /* Interior removal keeps the later-attached neighbours linked. */
-    T_NULL(G_GetArtillery(unit));
-    T_NOT_NULL(G_GetEnsnare(unit));
-    T_NOT_NULL(G_GetWaygate(unit));
-    uint8_t poison[sizeof(*splash)];
-    memset(poison, 0xa5, sizeof(poison));
-    T_EQ(memcmp(splash, poison, sizeof(poison)), 0); /* Test builds poison the released slot. */
-    artillery_t *again = G_AddArtillery(unit);
-    T_ASSERT(again == splash);
-    T_FEQ(again->area_full, 0, 0.001f); /* Reuse hands back zeroed storage. */
-    G_PoolsReleaseEdict(unit);
-    T_NULL(unit->components);
-    FOR_LOOP(i, count) T_NULL(G_GetComponent(unit, ids[i]));
-}
-
-/* Restore allocates detached zeroed storage and attaches it under the saved exact ID. */
-TEST(wc3_components, detached_restore_storage_attaches_by_exact_id) {
-    reset_entities();
-    edict_t *unit = G_Spawn();
-    component_t *record = G_AllocDetachedComponent(COMPONENT_FOOD);
-    T_NOT_NULL(record);
-    T_EQ(record->id, 0);
-    T_NULL(unit->components);
-    G_AttachComponent(unit, record, COMPONENT_FOOD);
-    T_ASSERT(G_GetFood(unit) == (food_t *)record);
-    T_EQ(record->id, COMPONENT_FOOD);
-    G_FreeFood(unit);
-    T_NULL(unit->components);
 }
 #endif

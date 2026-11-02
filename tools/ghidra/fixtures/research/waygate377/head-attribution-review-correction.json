@@ -1,0 +1,152 @@
+{
+  "correction": "The initial G_OrderId(command) assertion was correct. A later review incorrectly attributed Move ID851986 to all scenes. That attempted change is preserved as a diagnostic and was reversed before any production proposal was applied.",
+  "accepted_baseline": "canonical-red/baseline.json",
+  "accepted_test_sha256": "794a32f709786d9de897a2a8b606cdd67347e0d214087932d196230ea9de31be",
+  "mistaken_attempt": "mistaken-smart-head-review-diagnostic/baseline.json",
+  "sources": [
+    {
+      "file": "observe1b.jsonl",
+      "sha256": "9dd66e09e92bab4f22ba3cde4e61ea2b6e48bd8e1f70c9fe4e6c42744c24e028",
+      "cases": [
+        {
+          "scene": 0,
+          "unit_identity": [
+            822,
+            824
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 1,
+          "unit_identity": [
+            823,
+            899
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 2,
+          "unit_identity": [
+            825,
+            970
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 3,
+          "unit_identity": [
+            831,
+            1045
+          ],
+          "producer_code": 851971,
+          "public_issued_head": 851971
+        }
+      ]
+    },
+    {
+      "file": "smart-retarget/observe2.jsonl",
+      "sha256": "9a196f8ecb29ea218afd5618a2d0ac7617d174d19ed75bd679c8a2785be3085d",
+      "cases": [
+        {
+          "scene": 0,
+          "unit_identity": [
+            822,
+            824
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 1,
+          "unit_identity": [
+            823,
+            899
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 2,
+          "unit_identity": [
+            825,
+            970
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 3,
+          "unit_identity": [
+            831,
+            1045
+          ],
+          "producer_code": 851971,
+          "public_issued_head": 851971
+        },
+        {
+          "scene": 4,
+          "unit_identity": [
+            834,
+            1120
+          ],
+          "producer_code": 851971,
+          "public_issued_head": 851971
+        }
+      ]
+    },
+    {
+      "file": "smart-retarget/observe3.jsonl",
+      "sha256": "ac6a74e7d73ab738cd616b1e96c0a07a2c558d7974728ba2ef1af471d1a09043",
+      "cases": [
+        {
+          "scene": 0,
+          "unit_identity": [
+            822,
+            824
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 1,
+          "unit_identity": [
+            823,
+            899
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 2,
+          "unit_identity": [
+            825,
+            970
+          ],
+          "producer_code": 851986,
+          "public_issued_head": 851986
+        },
+        {
+          "scene": 3,
+          "unit_identity": [
+            831,
+            1045
+          ],
+          "producer_code": 851971,
+          "public_issued_head": 851971
+        },
+        {
+          "scene": 4,
+          "unit_identity": [
+            834,
+            1120
+          ],
+          "producer_code": 851971,
+          "public_issued_head": 851971
+        }
+      ]
+    }
+  ]
+}

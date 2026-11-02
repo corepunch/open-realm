@@ -1,0 +1,2872 @@
+{
+  "program": "game.dll",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "passed": true,
+  "functions": [
+    {
+      "address": "6f002170",
+      "name": "Timer_InitializeSegmentQuantum",
+      "prototype": "WC3PathScalar * __cdecl Timer_InitializeSegmentQuantum(void)",
+      "comment": "Registered startup MOV EDX120, ECX globald3c894, tail070d80. Whole original initializes poisoned word to42f00000 with callee-saved registers/canaries intact. Segment quantum120 is independent of primary300 epoch.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [],
+      "returns": [],
+      "xrefs": [
+        {
+          "from": "6fa7cef8",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f0602a0",
+      "name": "EventClock_StartCountedRequest",
+      "prototype": "void __thiscall EventClock_StartCountedRequest(WC3EventClockControlPrefix * control, void * receiver, WC3PathScalar * timeout, uint callback_data, uint periodic, uint alternate_clock)",
+      "comment": "ThiscallECX control, stack4 receiver/8 timeout pointer/c callback data/10 periodic/14 alternate clock;RET14. Wrapped signedinteger timeout divided120, low16 count14/16, originalModulo residual18. Full original native117 initial getter words match13 public inputs. Deadline rawclocktime+period, no premature epoch normalization.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "receiver",
+          "type": "/void *32",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "timeout",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "callback_data",
+          "type": "/uint",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "periodic",
+          "type": "/uint",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "alternate_clock",
+          "type": "/uint",
+          "storage": "Stack[0x14]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060422",
+          "cleanup": 20
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa80bb8",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060430",
+      "name": "EventClock_QueueResidualRequest",
+      "prototype": "WC3TimerRequestPrefix * __thiscall EventClock_QueueResidualRequest(WC3SimulationClockPrefix * clock, void * receiver, uint * callback_data, WC3PathScalar * period)",
+      "comment": "ThiscallECX selected timer clock, stack4 receiver/8 data pointer/c period pointer;RETc. Clamp residual to38d1b717, incrementclock50 serial, softwareAdd currenttime+period then060840. Final counted phase consumes a fresh serial.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "receiver",
+          "type": "/void *32",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "callback_data",
+          "type": "/uint *32",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "period",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0xc]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060484",
+          "cleanup": 12
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f060dd4",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f0606c0",
+      "name": "EventClock_CancelRequest",
+      "prototype": "void __thiscall EventClock_CancelRequest(WC3EventClockControlPrefix * control)",
+      "comment": "ThiscallECX control, plainRET. Mark currentrequest10000, clearcontrolrequestc and release receiver8, AND flags10 withfffffff9 clearing periodic2/alternate4. Script Pause first freezes remaining; Resume reads current control periodic flag.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f0606fa",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f060026",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0600a6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f364241",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f67e139",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9bed37",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0601a5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0602b4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f060cee",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f060e18",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f28baad",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f28baed",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f299b2f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5e0a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f6b5a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f931c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5eee33",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f24043e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42c274",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42c3b4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f431ce5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4350a5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f249d83",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f7a18",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f277646",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f2846ae",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f2846b9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f297466",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f2990c1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f2990ec",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f36972b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f36973a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4cd3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4ca5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4d06",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4d6f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f539b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4e5c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4e63",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4ee3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4f19",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4f8c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5013",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5039",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4fba",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f514c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5176",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f522e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5239",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5244",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5307",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5312",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f6914",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f74df",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f760f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f773f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4320da",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4321c7",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4321d2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f435bb8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f435bc3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f497e5e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f497e90",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f497e9b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f497345",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49d649",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49d654",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49d180",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436e21",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436e2c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436e37",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436e42",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3fa951",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3fade3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3fae4e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436cca",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f407319",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f407644",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f407459",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4075bf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49012d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42c009",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42c069",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f40c186",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f40c509",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f418b8f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f423c19",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5e70f6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f438f82",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d90d2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42c0c9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f436dfd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4275c4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4275cf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f427d45",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f427d50",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f427e5c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f427e67",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f428068",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f428073",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f42ca37",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f432b27",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f43653c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f43922c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f43a15a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f493540",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49354b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f493556",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f493561",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49356c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49357e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49bc1f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49a339",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f495d6d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49e90c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b823e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b830e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b838e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b8443",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52cf78",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b8971",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b8988",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b89a6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f531af1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb34d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb3af",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb4ff",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb5ff",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb7ff",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb8ef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bb9dd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4bba3d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5a6f09",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ae77d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c86a1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c86a9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c86b1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c877b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c8783",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c87ab",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c87b6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c87d6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c89bd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d816f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c8add",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4ca0bd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5b0528",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e8e6f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e8d0d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e91fd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e9199",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e925d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cc36b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cc71d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cc7ee",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cca26",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f55bd0d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f55bd18",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52d36d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52d49d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f59f0d2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60159a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e9680",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e38a5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e8e29",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e8f0d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e8d6d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5323ed",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5324cd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f531476",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e4337",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4e9035",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f532b5d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4ffffe",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51d136",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5001aa",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5001b5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50021e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540e3f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540e4a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540e55",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f551f7e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f55221c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5698ae",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f551ef5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f552247",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f500302",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50033e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f502d8a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f508afe",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5091c2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0b2b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a7cb",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a918",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a9d2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50da09",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50dc75",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50dc80",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50dc91",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50dd94",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f516b79",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f516b84",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51cfa7",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51cfb9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51e3ca",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f525adf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610b82",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f53117a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5311cc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51dd94",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f531499",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52030d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f525310",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f526993",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52cfc9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f56658d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f56660d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540b02",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f56667d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540d3c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5666d9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f542e5d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f542edd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f542f3d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f542f99",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f542ffd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f569f78",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f54f66e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f54f679",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f54f6dc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f55bdef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f55c02e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f56673d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f562be2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e319",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e361",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e36c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e3c9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e3e9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e3f4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e4a9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e4b4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e4bf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5aa4dd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e539",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e5de",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e696",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5804bd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58051d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5813ef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58140a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f589003",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58a999",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58a9b9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58aa01",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58aaad",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58d3bf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58db88",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58aff2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58cce6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58de8e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58df45",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58df50",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e1e9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e219",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e224",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e4a4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e5d9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e65c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e66d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f59b27c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f59b287",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f59b6dd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f59c683",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60603d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ad6b3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ad6d6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5fa869",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610be2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5a50a8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5a50b3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5a50be",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5aa53d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5aaa35",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d99ae",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5af167",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5afd88",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c56cc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c589e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f93c0",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c5979",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c5984",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c5a07",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c5a64",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5e6160",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f8ddd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c64a1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c7c26",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c7f7d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c7fdd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c803d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c809f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c8160",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c825f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c8320",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d01a2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d89dc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3a8e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3b94",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c09",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c4e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c59",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c64",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c6f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3d62",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3d6d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3d78",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3dbb",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3dc6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3dd1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3e0b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3f89",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3fce",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3fd9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3fe4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3fef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d414d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d4158",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d4163",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f45f9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f45a9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f45d9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f4589",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f43bd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d97ab",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d97b6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d99ef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d9ace",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d9ad9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6016f1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ef808",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5efc29",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5efc63",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5efc86",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5efd33",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f435d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f441d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f072d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5f7ed8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5fa3ce",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5fa3d9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5fc155",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f600417",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ff8e0",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5ffb90",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6002c2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f601671",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f601ff2",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605527",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605593",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6059b9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605aab",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b69",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605bbb",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f606e60",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610a11",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610a94",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60b828",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60b8c8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60b998",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60b9de",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60bf68",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60e234",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60e698",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60ec5c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610c42",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f621370",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62142e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f621439",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f63e6e3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f63e795",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f621499",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62171f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f623dff",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f623ffd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6241af",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6242bf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e27b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e29e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e2a9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e2cb",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e2d6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6459c5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f645ab3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f631499",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f64747f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f64767d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6477b9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6477f9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6316d8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f631ba7",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f64c1da",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f631cf9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f631e46",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f63b29e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f641469",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6417d1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f610af3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f643bd9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f643bb7",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f64760e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f657c7e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f65a166",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f65a19b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f674676",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f679a5a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f679a62",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6c16af",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0bd9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0c4b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0c56",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9d1693",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9bb2aa",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5cda",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5ce5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5ced",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5cf8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5d03",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5d0e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5d19",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9cab0c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9d0f30",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9d14b1",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9d14bc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9d6103",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22e29c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22e36c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f22e3da",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4ddf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f53a8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f4f25",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f501f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3f5250",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c1af5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f3fae1f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4074f0",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f43851f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4902fc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f499853",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f49d276",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b821f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b83ff",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4b833f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c878c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0c2c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c8aea",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4c8b50",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cbee9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cbf25",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4cc237",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4fff3f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4fff5f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f4fff7f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50022a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5004f4",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a754",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a77f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a7af",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a8df",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a924",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50d9ef",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f51e41f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52150f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52cefc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52dfdd",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f52e00a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60193f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f540b8f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f54c5cc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e48f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e55f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5aea43",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e67f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f57e6c9",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d80dc",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58decf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58e400",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c58ac",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c58cf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5c5b1f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c2f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3c7b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3faf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d3ffb",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d426f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d95df",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d9626",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60187f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6018df",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60191c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f60195f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605563",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6059c5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6059e5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a55",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a95",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b25",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b55",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605cbf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d25",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d55",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605db5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605df5",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6212bf",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62188f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f63145f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f63147f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f631c14",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f657c8a",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f679a6e",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0b0f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d0b5c",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d80c3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9c5d22",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a809",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f422806",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f43711d",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d06",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b86",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a16",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605976",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605966",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605996",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6059a6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605986",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6059f6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a06",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d96",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605ce6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f50a815",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d76",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b06",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f54f796",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605cd6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605cf6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605dc3",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58ab23",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58ab33",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605e06",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605dd6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605d86",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f58abe6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d9506",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d9056",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a76",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605a26",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f5d4286",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605b96",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605ba6",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f621410",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605c46",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605c76",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605c86",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f605c93",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f62e643",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f9b9823",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d4dba",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f6d4f0a",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060840",
+      "name": "SimClock_AllocateTimerRequest",
+      "prototype": "WC3TimerRequestPrefix * __thiscall SimClock_AllocateTimerRequest(WC3SimulationClockPrefix * clock, void * receiver, uint * callback_data, WC3PathScalar period, WC3PathScalar * deadline, uint serial)",
+      "comment": "ThiscallECX clock, stack4 receiver/8 callback data pointer/c scalar period by value/10 deadline pointer/14 serial;RET14 returns request pointerEAX. Pop external freelist38, count3c++; publish request+4 deadline/+8 period/+c clock/+10 queued20000/+14 serial/+18 receiver/+1c data;04f830 insert.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "receiver",
+          "type": "/void *32",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "callback_data",
+          "type": "/uint *32",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "period",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "deadline",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar *32",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "serial",
+          "type": "/uint",
+          "storage": "Stack[0x14]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f0608bc",
+          "cleanup": 20
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f060232",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f06036f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0603be",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f06047b",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0604f8",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f060e86",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f060d40",
+      "name": "EventClock_DispatchCountedRequest",
+      "prototype": "void __thiscall EventClock_DispatchCountedRequest(WC3EventClockControlPrefix * control, WC3TimerRequestPrefix * request)",
+      "comment": "ThiscallECX control, stack4 request pointer;RET4. Count down16; final nonnegative residual queues fresh request before authored callback. Periodic counted expiration resets120 request before callback; ordinary periodic keeps prior deadline until outer0542d0 rearm. One-shot cancellation precedes callback. General public mutation/catch-up remains NUM-02.10.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f060ded",
+          "cleanup": 4
+        },
+        {
+          "address": "6f060ecf",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6fa80bbc",
+          "type": "DATA"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f240420",
+      "name": "ScriptTimer_Pause",
+      "prototype": "void __fastcall ScriptTimer_Pause(WC3ScriptTimerScalarPrefix * timer)",
+      "comment": "FastcallECX script timer, plainRET. GetRemaining233190, writer4c freezes word50, cancel embeddedcontrol24. Repeated native11713 inputs include expired short/negative and live long paused states at11/290 seconds; engine exact getter/save histories.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f240447",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f20f532",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f245ac0",
+      "name": "ScriptTimer_Resume",
+      "prototype": "void __fastcall ScriptTimer_Resume(WC3ScriptTimerScalarPrefix * timer)",
+      "comment": "FastcallECX script timer, plainRET. Only missing/cancelled request30 resumes stored50 through embeddedclock24, data80272, ownerthis and currentcontrol periodic2. Authored timeout48/handler40 retained. Repeated native117 Resume22/305 seconds crosses segment and epoch domains.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "/WarcraftIII/Pathfinding127/WC3ScriptTimerScalarPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f245af7",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f210f82",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f052170",
+      "name": "SimClock_RebaseTimerDeadlines",
+      "prototype": "void __fastcall SimClock_RebaseTimerDeadlines(WC3SimulationClockPrefix * clock)",
+      "comment": "FastcallECX clock, plainRET. Every heap entry1..count20-1: originalSubtract(request4,clock48 span), then epoch44++. Whole26 original rebase words plus repeated public getter-driven Move across300 epoch; engine Save113 retains raw deadlines/clock ownership.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f0521af",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f0540d1",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f04f830",
+      "name": "TimerHeap_InsertRequest",
+      "prototype": "void __thiscall TimerHeap_InsertRequest(WC3TimerHeapPrefix * heap, WC3TimerRequestPrefix * request)",
+      "comment": "ThiscallECX heapcontainer, stack4 request,RET4. Capacity growth04fe40 then parent comparisons: scalar deadline4, equality breaks by unsigned serial14. Whole original208 inserted/popped entries include ties and full32bit serials. Indexed engine heap makes cancellation logarithmic.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerHeapPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f04f8b0",
+          "cleanup": 4
+        },
+        {
+          "address": "6f04f8be",
+          "cleanup": 4
+        },
+        {
+          "address": "6f04f8ce",
+          "cleanup": 4
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f053662",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f053692",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0608b2",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    },
+    {
+      "address": "6f04f1a0",
+      "name": "TimerHeap_PopRequest",
+      "prototype": "WC3TimerRequestPrefix * __fastcall TimerHeap_PopRequest(WC3TimerHeapPrefix * heap)",
+      "comment": "FastcallECX heapcontainer, plainRET/EAX originalroot. Compact through052cc0 then select smaller deadline/unsignedserial child.208 complete original heap insert/pop ordering checks; engine ordinary callbacks retain serial across rearm. General callback mutation pending.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerHeapPrefix *32",
+          "storage": "ECX:4"
+        }
+      ],
+      "returns": [
+        {
+          "address": "6f04f1dc",
+          "cleanup": 0
+        },
+        {
+          "address": "6f04f2a8",
+          "cleanup": 0
+        }
+      ],
+      "xrefs": [
+        {
+          "from": "6f05253f",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f052308",
+          "type": "UNCONDITIONAL_CALL"
+        },
+        {
+          "from": "6f0525c3",
+          "type": "UNCONDITIONAL_CALL"
+        }
+      ],
+      "decompiled": true
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3TimerRequestPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 4,
+          "name": "deadline",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 8,
+          "name": "period",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 12,
+          "name": "clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3SimulationClockPrefix *32",
+          "length": 4
+        },
+        {
+          "offset": 16,
+          "name": "flags",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 20,
+          "name": "serial",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 24,
+          "name": "receiver",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 28,
+          "name": "callback_data",
+          "type": "/uint",
+          "length": 4
+        }
+      ]
+    },
+    {
+      "name": "WC3EventClockControlPrefix",
+      "length": 28,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 8,
+          "name": "receiver",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 12,
+          "name": "request",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32",
+          "length": 4
+        },
+        {
+          "offset": 16,
+          "name": "flags",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 20,
+          "name": "segment_count",
+          "type": "/ushort",
+          "length": 2
+        },
+        {
+          "offset": 22,
+          "name": "remaining_segments",
+          "type": "/ushort",
+          "length": 2
+        },
+        {
+          "offset": 24,
+          "name": "residual",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerScalarPrefix",
+      "length": 84,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "event_clock",
+          "type": "/WarcraftIII/Pathfinding127/WC3EventClockControlPrefix",
+          "length": 28
+        },
+        {
+          "offset": 64,
+          "name": "callback_holder",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 68,
+          "name": "timeout_writer_vtable",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 72,
+          "name": "authored_timeout",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 76,
+          "name": "paused_writer_vtable",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 80,
+          "name": "paused_remaining",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        }
+      ]
+    },
+    {
+      "name": "WC3TimerHeapPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "requests",
+          "type": "/WarcraftIII/Pathfinding127/WC3TimerRequestPrefix *32 *32",
+          "length": 4
+        },
+        {
+          "offset": 24,
+          "name": "capacity",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 28,
+          "name": "count",
+          "type": "/uint",
+          "length": 4
+        }
+      ]
+    }
+  ],
+  "segment_quantum_xrefs": [
+    {
+      "from": "6f06033a",
+      "type": "READ"
+    },
+    {
+      "from": "6f060e4d",
+      "type": "READ"
+    },
+    {
+      "from": "6f0607fa",
+      "type": "DATA"
+    },
+    {
+      "from": "6f0605ea",
+      "type": "DATA"
+    },
+    {
+      "from": "6f0602fe",
+      "type": "DATA"
+    },
+    {
+      "from": "6f060b0d",
+      "type": "DATA"
+    },
+    {
+      "from": "6f0602e5",
+      "type": "DATA"
+    },
+    {
+      "from": "6f002175",
+      "type": "DATA"
+    }
+  ]
+}

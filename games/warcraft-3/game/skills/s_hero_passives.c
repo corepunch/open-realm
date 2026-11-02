@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "../g_entity_set.h"
 
 #define ID_BRILLIANCE MAKEFOURCC('A', 'H', 'a', 'b')
 #define ID_DEVOTION_AURA MAKEFOURCC('A', 'H', 'a', 'd')
@@ -8,7 +9,7 @@
 #define ID_SPIKED_BARRICADES MAKEFOURCC('A', 's', 'p', 'i')
 #define ID_PULVERIZE MAKEFOURCC('A', 'w', 'a', 'r')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
-#define ID_ENDURANCE_AURA MAKEFOURCC('A', 'O', 'a', 'e')
+#define ID_ENDURANCE_AURA MAKEFOURCC('A','O','a','e')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
 #define ID_THORNS_AURA MAKEFOURCC('A', 'E', 'a', 'h')
@@ -33,10 +34,9 @@ typedef struct {
 
 typedef struct {
     uint32_t code, data;
-    bool enemy;
 } aura_cache_key_t;
 
-enum { HERO_AURA_CACHE_KEYS = 14 };
+enum { HERO_AURA_CACHE_KEYS = 12 };
 
 static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
     { ID_BRILLIANCE, 1 },
@@ -47,12 +47,10 @@ static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
     { ID_ENDURANCE_AURA, 2 },
     { ID_VAMPIRIC_AURA, 1 },
     { ID_TRUESHOT_AURA, 1 },
-    { ID_THORNS_AURA, 1 },
-    { ID_COMMAND_AURA, 1 },
-    { ID_COMMAND_AURA_NEUTRAL, 1 },
-    { ID_WAR_DRUMS, 1 },
-    { ID_SLOW_AURA, 1, true },
-    { ID_SLOW_AURA, 2, true }
+    { ID_THORNS_AURA, 1 }
+    ,{ ID_COMMAND_AURA, 1 }
+    ,{ ID_COMMAND_AURA_NEUTRAL, 1 }
+    ,{ ID_WAR_DRUMS, 1 }
 };
 
 /* Distinct provider families, in lookup order.  `combat` below can reference
@@ -92,13 +90,13 @@ static uint8_t const aura_combat_owned_slots[HERO_AURA_CACHE_KEYS] = {
     AURA_OWNED_ENDURANCE, AURA_OWNED_ENDURANCE,
     AURA_OWNED_VAMPIRIC, AURA_OWNED_TRUESHOT,
     AURA_OWNED_THORNS, AURA_OWNED_COMMAND,
-    AURA_OWNED_COMMAND_NEUTRAL, AURA_OWNED_WAR_DRUMS,
-    AURA_OWNED_SLOW, AURA_OWNED_SLOW
+    AURA_OWNED_COMMAND_NEUTRAL, AURA_OWNED_WAR_DRUMS
 };
 
 typedef struct {
     edict_t *source;
-    bool active;
+    uint32_t spawn;
+    uint32_t combat_mask;
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
@@ -106,6 +104,7 @@ typedef struct {
     auraAbilityRef_t unholy;
     auraAbilityRef_t endurance;
     auraAbilityRef_t combat[HERO_AURA_CACHE_KEYS];
+    abilityLevel_t const *combat_rows[HERO_AURA_CACHE_KEYS];
 } regenAuraSource_t;
 
 typedef enum {
@@ -123,8 +122,15 @@ typedef enum {
 
 static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static uint32_t regen_source_count;
+static entitySet_t regen_members, combat_members, regen_changed, slow_members, slow_changed;
+typedef struct { edict_t *unit; uint32_t spawn; auraAbilityRef_t ability; } slowAuraSource_t;
+static slowAuraSource_t slow_sources[MAX_ENTITIES];
+static uint32_t slow_generation;
+static uint32_t overlay_cache_frame = UINT_MAX;
+static bool slow_dirty=true, slow_pending;
 static uint32_t regen_cache_frame = UINT_MAX;
 static uint32_t regen_cache_generation = UINT_MAX;
+static bool regen_sources_dirty=true;
 static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static edict_t *brilliance_overlays[MAX_ENTITIES];
 static edict_t *devotion_overlays[MAX_ENTITIES];
@@ -160,10 +166,42 @@ static uint32_t aura_cache_next_update[MAX_ENTITIES];
 static uint32_t aura_cache_generation[MAX_ENTITIES];
 static uint32_t aura_cache_last_time = UINT_MAX;
 #ifdef BZ_TESTS
-static uint32_t test_hero_aura_alias_resolves;
+static uint32_t test_hero_aura_alias_resolves,test_slow_aura_visits;
+static uint32_t test_aura_discovery_visits, test_aura_overlay_visits, test_slow_discovery_visits;
+static uint32_t test_aura_membership_resolves;
+static uint32_t test_combat_aura_visits;
+static uint32_t test_combat_aura_eligibility_checks;
+static uint32_t test_authored_aura_classifications;
+uint32_t S_TestSlowAuraVisits(bool reset) {
+    uint32_t result=test_slow_aura_visits;
+    if(reset)test_slow_aura_visits=0;
+    return result;
+}
 void S_TestResetHeroAuraAliasResolves(void) { test_hero_aura_alias_resolves = 0; }
 uint32_t S_TestHeroAuraAliasResolves(void) { return test_hero_aura_alias_resolves; }
 #endif
+
+void S_InvalidateAuraSources(void) {
+    regen_cache_frame=regen_cache_generation=overlay_cache_frame=UINT_MAX;
+    regen_sources_dirty=true;
+    slow_dirty=true;
+    S_InvalidateEnduranceSources();
+}
+/* A local ownership mutation must not rediscover every other unit. Non-world
+ * fixtures have no stable slot, so their notification uses complete invalidation. */
+void S_MarkAuraSource(edict_t const *unit) {
+    uintptr_t offset = (uintptr_t)unit - (uintptr_t)g_edicts;
+    if (!unit || !g_edicts || offset >= sizeof(*unit) * MAX_ENTITIES || offset % sizeof(*unit)) {
+        S_InvalidateAuraSources();
+        return;
+    }
+    uint32_t index = offset / sizeof(*unit);
+    entity_set_put(&regen_changed, index, true);
+    entity_set_put(&slow_changed, index, true);
+    slow_pending = true;
+    regen_cache_frame = UINT_MAX;
+    S_MarkEnduranceSource(unit);
+}
 
 static regenFamily_t regen_family(uint32_t base_code);
 
@@ -199,33 +237,34 @@ static bool aura_alias_matches_base(uint32_t alias, uint32_t base_code) {
  * across native abilList, runtime-added abilities (honoring removals) and
  * ranked hero slots, via the authored code mapping. */
 abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
+#ifdef BZ_TESTS
+    test_aura_membership_resolves++;
+#endif
     abilityAliasRef_t result = {0};
     char alias_name[5] = {0};
     if (!ent || !base_code) return result;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&alias, token, sizeof(alias));
-            if (aura_alias_matches_base(alias, base_code)) {
-                result.alias = alias;
-                result.level = 1;
-                return result;
-            }
-        }
+    uint32_t authored_count;
+    unitAbilityToken_t const *authored = G_UnitAbilityTokens(ent->data.UnitAbilities, &authored_count);
+    FOR_LOOP(i, authored_count) {
+        uint32_t alias = authored[i].code;
+        if (authored[i].length != 4 || (alias != base_code && authored[i].base != base_code)) continue;
+        if (!G_ActorHasAbilityCode(ent, alias)) continue;
+        result.alias = alias;
+        result.level = 1;
+        return result;
     }
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
-        uint32_t const alias = ent->unit_state->overrides.added[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const alias = ent->abilities.added[i];
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
-        if (G_ActorHasSkill(ent, alias_name) && aura_alias_matches_base(alias, base_code)) {
+        if ((alias == base_code || G_AbilityCode(alias) == base_code) && G_ActorHasSkill(ent, alias_name)) {
             result.alias = alias;
             result.level = 1;
             return result;
         }
     }
-    FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
-        heroability_t const *hero = ent->unit_state->ranks + i;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *hero = ent->heroabilities + i;
         if (hero->level && aura_alias_matches_base(hero->code, base_code)) {
             result.alias = hero->code;
             result.level = hero->level;
@@ -233,6 +272,77 @@ abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
         }
     }
     return result;
+}
+
+/* Binding ordinary combat units changes their abilities, but cannot alter
+ * aura-provider membership. Keep that common spawn path local to its owner. */
+static bool aura_source_base(uint32_t code, uint32_t base) {
+    static uint32_t const extra[]={ID_REGEN_LIFE_ORC,ID_REGEN_LIFE_BLIGHT,ID_REGEN_MANA,
+        ID_SLOW_AURA,MAKEFOURCC('A','O','a','e')};
+    FOR_LOOP(i,HERO_AURA_CACHE_KEYS)
+        if(code == aura_cache_keys[i].code || base == aura_cache_keys[i].code)return true;
+    FOR_LOOP(i,sizeof(extra)/sizeof(*extra))
+        if(code == extra[i] || base == extra[i])return true;
+    return false;
+}
+
+static bool aura_source_code(uint32_t code) { return aura_source_base(code,G_AbilityCode(code)); }
+
+typedef struct {
+    UnitAbilities_t const *row;
+    cstring_t list;
+    uint32_t unit_generation, ability_generation;
+    bool valid, candidate;
+} authoredAuraType_t;
+static authoredAuraType_t authored_aura_types[512];
+
+/* Cache the type predicate, never the unit's mutable ownership. Most combat
+ * types have no authored aura; additions and learned ranks remain live. */
+static bool authored_aura_candidate(UnitAbilities_t const *row) {
+    if (!row) return false;
+    uintptr_t key = (uintptr_t)row >> 4;
+    key ^= key >> 16;
+    authoredAuraType_t *entry = authored_aura_types + key % (sizeof(authored_aura_types) / sizeof(*authored_aura_types));
+    uint32_t unit_generation = G_UnitDataGeneration(), ability_generation = G_AbilityDataGeneration();
+    if (entry->valid && entry->row == row && entry->list == row->abilList &&
+        entry->unit_generation == unit_generation && entry->ability_generation == ability_generation)
+        return entry->candidate;
+    bool candidate = false;
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(row, &count);
+    FOR_LOOP(i, count) {
+#ifdef BZ_TESTS
+        test_authored_aura_classifications++;
+#endif
+        if (tokens[i].length == 4 && aura_source_base(tokens[i].code, tokens[i].base)) {
+            candidate = true; break;
+        }
+    }
+    *entry = (authoredAuraType_t){ .row = row, .list = row->abilList, .unit_generation = unit_generation,
+        .ability_generation = ability_generation, .valid = true, .candidate = candidate };
+    return candidate;
+}
+
+bool S_UnitHasAuraSource(edict_t *unit) {
+    if(!unit || (unit->svflags&SVF_STATIC_SCENERY))return false;
+    /* Membership is a union of families: inspect each owned rawcode once.
+     * Hero slots retain the resolver's independent learned-rank contract. */
+    if (authored_aura_candidate(unit->data.UnitAbilities)) {
+        uint32_t authored_count;
+        unitAbilityToken_t const *authored = G_UnitAbilityTokens(unit->data.UnitAbilities, &authored_count);
+        FOR_LOOP(i, authored_count)
+            if (authored[i].length==4 && aura_source_base(authored[i].code,authored[i].base) &&
+                G_ActorHasAbilityCode(unit,authored[i].code)) return true;
+    }
+    FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
+        uint32_t code = unit->abilities.added[i];
+        char name[5] = {0};
+        memcpy(name, &code, sizeof(code));
+        if(code && aura_source_code(code) && G_ActorHasSkill(unit, name))return true;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES)
+        if(unit->heroabilities[i].level && aura_source_code(unit->heroabilities[i].code))return true;
+    return false;
 }
 
 static auraAbilityRef_t actor_aura_ability(edict_t *ent, uint32_t base_code) {
@@ -326,8 +436,8 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
                 aura_record_owned_alias(resolved, alias, 1, mask);
         }
     }
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
-        uint32_t const alias = ent->unit_state->overrides.added[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const alias = ent->abilities.added[i];
         uint32_t mask;
         if (!alias) continue;
         mask = aura_owned_family_mask(alias);
@@ -339,8 +449,8 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
         if (G_ActorHasSkill(ent, alias_name))
             aura_record_owned_alias(resolved, alias, 1, mask);
     }
-    FOR_LOOP(i, (ent->unit_state ? MAX_HERO_ABILITIES : 0)) {
-        heroability_t const *hero = ent->unit_state->ranks + i;
+    FOR_LOOP(i, (MAX_HERO_ABILITIES)) {
+        heroability_t const *hero = ent->heroabilities + i;
         if (hero->level) {
             uint32_t const mask = aura_owned_family_mask(hero->code);
             if (mask) aura_record_owned_alias(resolved, hero->code, hero->level, mask);
@@ -370,20 +480,18 @@ static auraAbilityRef_t unit_ability_with_proc(edict_t *ent, abilityProc_t proc)
     auraAbilityRef_t result = {0};
     char alias_name[5] = {0};
     if (!ent || !proc) return result;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            abilityitem_t item;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&alias, token, sizeof(alias));
-            item = S_AbilityItem(alias);
-            if (item.ability && item.ability->proc == proc) {
-                result.alias = alias; result.level = 1; return result;
-            }
+    uint32_t count;
+    uint32_t const *codes=G_UnitAbilityCodes(ent->data.UnitAbilities,&count);
+    FOR_LOOP(i,count) {
+        uint32_t alias=codes[i];
+        if(!G_ActorHasAbilityCode(ent,alias))continue;
+        abilityitem_t item=S_AbilityItem(alias);
+        if(item.ability && item.ability->proc==proc) {
+            result.alias=alias;result.level=1;return result;
         }
     }
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
-        uint32_t const alias = ent->unit_state->overrides.added[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const alias = ent->abilities.added[i];
         abilityitem_t item;
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
@@ -392,8 +500,8 @@ static auraAbilityRef_t unit_ability_with_proc(edict_t *ent, abilityProc_t proc)
             result.alias = alias; result.level = 1; return result;
         }
     }
-    FOR_LOOP(i, ent->unit_state ? MAX_HERO_ABILITIES : 0) {
-        heroability_t const *hero = ent->unit_state->ranks + i;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *hero = ent->heroabilities + i;
         abilityitem_t item;
         if (!hero->level) continue;
         item = S_AbilityItem(hero->code);
@@ -438,28 +546,12 @@ static bool aura_target_has_token(cstring_t targets, cstring_t full, cstring_t s
 }
 
 static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targets) {
-    bool is_self, is_friend, is_enemy, is_neutral;
+    bool is_self;
     bool const wants_vulnerability = aura_target_has_token(targets, "vulnerable", "vuln") ||
         aura_target_has_token(targets, "invulnerable", "invu");
 
     if (!S_AuraUnitActive(source) || !S_AuraUnitActive(target)) return false;
-    /* `neutral` is a relation to the source, not a property of the target's
-     * slot: another owner's Neutral-typed slot can appear friendly under the
-     * default passive alliances, yet its authored relation remains neutral and
-     * requires an explicit mask token. A unit on the source's own slot is
-     * always a friend, whatever that slot's type (a creep aura buffs creeps). */
-    is_neutral = target->s.player != source->s.player &&
-        target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
     is_self = source == target;
-    is_friend = !is_neutral && S_SpellIsFriend(source, target);
-    is_enemy = !is_neutral && S_SpellIsEnemy(source, target);
-    bool const wants_relation = aura_target_has_token(targets, "friend", "frie") ||
-        aura_target_has_token(targets, "allies", "alli") ||
-        aura_target_has_token(targets, "enemy", "enem") ||
-        aura_target_has_token(targets, "enemies", NULL) ||
-        aura_target_has_token(targets, "neutral", "neut") ||
-        aura_target_has_token(targets, "self", NULL);
 
     if (!targets || !*targets) return true;
     if (aura_target_has_token(targets, "dead", NULL)) return false;
@@ -472,23 +564,20 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     /* WC3 target lists may name both vulnerability classes; that means either
      * class is accepted, not that both conditions must hold. */
     if (wants_vulnerability &&
-        !((aura_target_has_token(targets, "vulnerable", "vuln") && !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) ||
-          (aura_target_has_token(targets, "invulnerable", "invu") && G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)))) return false;
+        !((aura_target_has_token(targets, "vulnerable", "vuln") && !G_UnitIsInvulnerable(target)) ||
+          (aura_target_has_token(targets, "invulnerable", "invu") && G_UnitIsInvulnerable(target)))) return false;
     if ((aura_target_has_token(targets, "air", NULL) || aura_target_has_token(targets, "ground", "grou")) &&
         !(aura_target_has_token(targets, "air", NULL) && G_UnitTargetType(target) == TARG_AIR) &&
         !(aura_target_has_token(targets, "ground", "grou") && G_UnitTargetType(target) == TARG_GROUND)) return false;
-    if (wants_relation &&
-        !(aura_target_has_token(targets, "self", NULL) && is_self) &&
-        !((aura_target_has_token(targets, "friend", "frie") || aura_target_has_token(targets, "allies", "alli")) && is_friend) &&
-        !((aura_target_has_token(targets, "enemy", "enem") || aura_target_has_token(targets, "enemies", NULL)) && is_enemy) &&
-        !(aura_target_has_token(targets, "neutral", "neut") && is_neutral)) return false;
-    return true;
+    /* `neutral` is the source owner's diplomatic relation (PASSIVE without SHARED_SPELLS),
+     * not the target slot's W3I type; the source's own units qualify through friend/player. */
+    return (aura_target_has_token(targets, "self", NULL) && is_self) || S_TargsAllowsOwner(targets, source, target);
 }
 
 static bool aura_unit_has_melee_attack(edict_t const *unit) {
-    if (!unit || !unit->unit_state) return false;
-    return S_AttackProfileIsMelee(&unit->unit_state->attack1) ||
-           S_AttackProfileIsMelee(&unit->unit_state->attack2);
+    if (!unit) return false;
+    return S_AttackProfileIsMelee(S_AttackProfileRead(unit, 0)) ||
+           S_AttackProfileIsMelee(S_AttackProfileRead(unit, 1));
 }
 
 static bool aura_attack_is_ranged(unitAttack_t const *attack) {
@@ -500,9 +589,9 @@ static bool aura_attack_is_ranged(unitAttack_t const *attack) {
 }
 
 static bool aura_unit_has_ranged_attack(edict_t const *unit) {
-    return unit && unit->unit_state &&
-           (aura_attack_is_ranged(&unit->unit_state->attack1) ||
-            aura_attack_is_ranged(&unit->unit_state->attack2));
+    return unit &&
+           (aura_attack_is_ranged(S_AttackProfileRead(unit, 0)) ||
+            aura_attack_is_ranged(S_AttackProfileRead(unit, 1)));
 }
 
 typedef struct {
@@ -514,8 +603,12 @@ typedef struct {
 static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][REGEN_FAMILY_COUNT][REGEN_VALUE_COUNT];
 
 void G_ResetHeroPassiveCaches(void) {
+    S_InvalidateAuraSources();
+    memset(authored_aura_types, 0, sizeof(authored_aura_types));
     memset(regen_sources, 0, sizeof(regen_sources));
     regen_source_count = 0;
+    memset(&regen_members, 0, sizeof(regen_members));
+    memset(&combat_members, 0, sizeof(combat_members));
     regen_cache_frame = UINT_MAX;
     regen_cache_generation = UINT_MAX;
     memset(regen_overlays, 0, sizeof(regen_overlays));
@@ -594,42 +687,68 @@ static uint32_t aura_target_model(uint32_t code) {
     return art && *art ? (uint32_t)G_RegisterModel(art) : 0;
 }
 
-/* Discover aura providers once per simulation frame; target checks still run
- * per unit because range, alliances, and invulnerability are live. */
-static void regen_aura_cache_update(void) {
-    uint32_t const ability_generation = G_AbilityDataGeneration();
-    if (regen_cache_frame == level.framenum && regen_cache_generation == ability_generation)
-        return;
-    regen_source_count = 0;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *source = g_edicts + i;
-        regenAuraSource_t *entry = regen_sources + regen_source_count;
-        auraAbilityRef_t owned[AURA_OWNED_COUNT];
-        bool has_combat_aura = false;
-
-        /* Vacant slots cannot own or provide an aura. */
-        if (!source->inuse) continue;
-        aura_resolve_owned_abilities(source, owned);
-        entry->source = source;
-        entry->life_orc = owned[AURA_OWNED_LIFE_ORC];
-        entry->life_blight = owned[AURA_OWNED_LIFE_BLIGHT];
-        entry->mana = owned[AURA_OWNED_MANA];
-        entry->devotion = owned[AURA_OWNED_DEVOTION];
-        entry->unholy = owned[AURA_OWNED_UNHOLY];
-        entry->endurance = owned[AURA_OWNED_ENDURANCE];
+/* Records are addressed by edict identity; the membership sets retain original
+ * encounter order without shifting the provider array after each insertion. */
+static void regen_aura_discover(uint32_t index) {
+    edict_t *unit = g_edicts + index;
+    regenAuraSource_t *entry = regen_sources + index;
+    bool was = regen_members.bits[index / 64] & (UINT64_C(1) << (index % 64));
+    bool present = false;
+#ifdef BZ_TESTS
+    test_aura_discovery_visits++;
+#endif
+    if (unit->inuse && !(unit->svflags & SVF_STATIC_SCENERY)) {
+        entry->source = unit;
+        entry->spawn = unit->spawn_time;
+        entry->combat_mask = 0;
+        auraAbilityRef_t resolved[AURA_OWNED_COUNT];
+        aura_resolve_owned_abilities(unit, resolved);
+        entry->life_orc = resolved[AURA_OWNED_LIFE_ORC];
+        entry->life_blight = resolved[AURA_OWNED_LIFE_BLIGHT];
+        entry->mana = resolved[AURA_OWNED_MANA];
+        entry->devotion = resolved[AURA_OWNED_DEVOTION];
+        entry->unholy = resolved[AURA_OWNED_UNHOLY];
+        entry->endurance = resolved[AURA_OWNED_ENDURANCE];
         FOR_LOOP(j, HERO_AURA_CACHE_KEYS) {
-            auraAbilityRef_t const ability = owned[aura_combat_owned_slots[j]];
-            entry->combat[j] = ability;
-            if (ability.alias) has_combat_aura = true;
+            entry->combat[j] = resolved[aura_combat_owned_slots[j]];
+            if (entry->combat[j].alias) {
+                entry->combat_mask |= 1u << j;
+                entry->combat_rows[j] = G_AbilityLevel(entry->combat[j].alias, entry->combat[j].level);
+            }
         }
-        if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
-            entry->devotion.alias || entry->unholy.alias || entry->endurance.alias || has_combat_aura) {
-            entry->active = S_AuraUnitActive(source);
-            regen_source_count++;
+        present = entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
+            entry->devotion.alias || entry->unholy.alias || entry->combat_mask;
+    }
+    regen_source_count += (uint32_t)present - (uint32_t)was;
+    entity_set_put(&regen_members, index, present);
+    entity_set_put(&combat_members, index, present && entry->combat_mask);
+}
+
+/* Ownership discovery and overlay recovery have different invalidators. Local
+ * provider changes update only their records; overlay owners maintain pointers
+ * synchronously, with ordered recovery once per frame and after global resets. */
+static void regen_aura_cache_update(void) {
+    uint32_t const generation = G_AbilityDataGeneration();
+    if (regen_cache_frame == level.framenum && regen_cache_generation == generation) return;
+    bool full = regen_sources_dirty || regen_cache_generation != generation;
+    if (full) {
+        memset(&regen_members, 0, sizeof(regen_members));
+        memset(&combat_members, 0, sizeof(combat_members));
+        regen_source_count = 0;
+        FOR_LOOP(i, globals.num_edicts) regen_aura_discover(i);
+        memset(&regen_changed, 0, sizeof(regen_changed));
+    } else {
+        for (uint32_t i = entity_set_next(&regen_changed, 0); i < MAX_ENTITIES;
+             i = entity_set_next(&regen_changed, i + 1)) {
+            entity_set_put(&regen_changed, i, false);
+            regen_aura_discover(i);
         }
     }
+    regen_sources_dirty = false;
     regen_cache_frame = level.framenum;
-    regen_cache_generation = ability_generation;
+    regen_cache_generation = generation;
+    if (!full && overlay_cache_frame == level.framenum) return;
+    overlay_cache_frame = level.framenum;
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(brilliance_overlays, 0, sizeof(brilliance_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
@@ -640,6 +759,9 @@ static void regen_aura_cache_update(void) {
     memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     memset(endurance_source_fx, 0, sizeof(endurance_source_fx));
     FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+        test_aura_overlay_visits++;
+#endif
         edict_t *effect = g_edicts + i;
         regenFamily_t family;
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
@@ -694,6 +816,10 @@ static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, uint32_t 
     return (auraAbilityRef_t){0};
 }
 
+static bool regen_aura_source_active(regenAuraSource_t const *entry) {
+    return entry->source->spawn_time==entry->spawn && S_AuraUnitActive(entry->source);
+}
+
 static regenFamily_t regen_family(uint32_t base_code) {
     if (base_code == ID_REGEN_LIFE_ORC) return REGEN_FAMILY_LIFE_ORC;
     if (base_code == ID_REGEN_LIFE_BLIGHT) return REGEN_FAMILY_LIFE_BLIGHT;
@@ -705,13 +831,14 @@ static regenerationAuraInfo_t regen_aura_info_uncached(edict_t *unit, uint32_t b
     regenerationAuraInfo_t result = {0};
 
     regen_aura_cache_update();
-    FOR_LOOP(i, regen_source_count) {
+    for (uint32_t i = entity_set_next(&regen_members, 0); i < MAX_ENTITIES;
+         i = entity_set_next(&regen_members, i + 1)) {
         edict_t *source = regen_sources[i].source;
         auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         float amount;
 
-        if (!ability.alias || !S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source)) continue;
+        if (!ability.alias || !regen_aura_source_active(regen_sources+i) || !S_SpellIsAliveTarget(source)) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         float const distance = Vector2_distance(&source->s.origin2, &unit->s.origin2);
         if (distance > row->area) continue;
@@ -847,7 +974,7 @@ bool S_RegenerationAuraUpdateDue(edict_t *unit) {
  * state. Custom Aspi without Rosp does not receive the stock War Mill model. */
 static void spiked_barricades_set_size(edict_t *effect, int32_t research_level) {
     cstring_t size_tag = research_level >= 3 ? "large" : research_level == 2 ? "medium" : NULL;
-    cstring_t current = effect->animation_props ? effect->animation_props : "";
+    cstring_t current = G_UnitAnimationProperties(effect);
     if ((size_tag && !strcmp(current, size_tag)) || (!size_tag && !*current)) return;
     G_AddUnitAnimationProperties(effect, "medium large", false);
     if (size_tag) G_AddUnitAnimationProperties(effect, size_tag, true);
@@ -868,7 +995,7 @@ static void spiked_barricades_sync_effect(edict_t *unit) {
     research_level = G_SpikedBarricadesResearchLevel(unit);
     enabled = research_level > 0 &&
               !(unit->svflags & SVF_OWNER_ONLY) &&
-              !G_GetConstruction(unit) && !G_BuildingIsUnsummoning(unit) &&
+              !unit->construction && !G_BuildingIsUnsummoning(unit) &&
               !M_IsDead(unit);
     if (!enabled && effect) {
         spiked_barricades_fx[unit->s.number] = NULL;
@@ -926,61 +1053,37 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
     if (code == ID_BRILLIANCE && unit->mana.max_value <= 0.0f) return 0.0f;
-    /* Slow auras are position-dependent and their range applies immediately,
-     * so share the provider snapshot but evaluate current range and target
-     * eligibility instead of caching the recipient result. */
-    if (aura_cache_keys[slot].enemy) {
-        float result = 0.0f;
-        regen_aura_cache_update();
-        FOR_LOOP(i, regen_source_count) {
-            regenAuraSource_t const *source = regen_sources + i;
-            auraAbilityRef_t const ability = source->combat[slot];
-            edict_t *aura = source->source;
-            abilityLevel_t const *row;
-            if (!ability.alias || !S_AuraUnitActive(aura) || !S_SpellIsAliveTarget(aura) ||
-                !S_SpellIsEnemy(aura, unit)) continue;
-            row = G_AbilityLevel(ability.alias, ability.level);
-            if (Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area ||
-                !aura_allows_target(aura, unit, row->targs)) continue;
-            result = MAX(result, row->data[data - 1].number);
-        }
-        return result;
-    }
-    /* Hidden/dead/invisible transitions suppress auras immediately. The numeric
-     * values keep their retail refresh cadence, but an active-state transition
-     * invalidates the recipient snapshot before it can be observed again. */
-    if (!S_AuraUnitActive(unit)) {
-        aura_cache_next_update[unit->s.number] = 0;
-        return 0.0f;
-    }
     ability_generation = G_AbilityDataGeneration();
     aura_cache_update_time();
-    regen_aura_cache_update();
-    FOR_LOOP(i, regen_source_count) {
-        regenAuraSource_t *source = regen_sources + i;
-        bool const active = S_AuraUnitActive(source->source);
-        if (active != source->active) {
-            source->active = active;
-            aura_cache_next_update[unit->s.number] = 0;
-        }
-    }
     if (level.time >= aura_cache_next_update[unit->s.number] ||
         aura_cache_generation[unit->s.number] != ability_generation) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
         regen_aura_cache_update();
-        FOR_LOOP(i, regen_source_count) {
+        for (uint32_t i = entity_set_next(&combat_members, 0); i < MAX_ENTITIES;
+             i = entity_set_next(&combat_members, i + 1)) {
+#ifdef BZ_TESTS
+            test_combat_aura_visits++;
+#endif
             regenAuraSource_t const *source = regen_sources + i;
             edict_t *aura = source->source;
-            if (!S_AuraUnitActive(aura)) continue;
-            FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-                auraAbilityRef_t const ability = source->combat[j];
-                abilityLevel_t const *row;
-                if (!ability.alias) continue;
-                if (aura_cache_keys[j].code == ID_BRILLIANCE && unit->mana.max_value <= 0.0f) continue;
-                if (aura_cache_keys[j].enemy ? !S_SpellIsEnemy(aura, unit) : !S_SpellIsFriend(aura, unit)) continue;
-                row = G_AbilityLevel(ability.alias, ability.level);
-                if (Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area ||
-                    !aura_allows_target(aura, unit, row->targs)) continue;
+            /* Distance and decoded rows are shared by every family from this
+             * provider. Reject distant providers before status/ownership work.
+             * Row pointers refresh with AbilityData; their areas remain live. */
+            float distance = Vector2_distance(&aura->s.origin2, &unit->s.origin2);
+            uint32_t nearby = 0;
+            for (uint32_t slots = source->combat_mask; slots; slots &= slots - 1) {
+                uint32_t j = __builtin_ctz(slots);
+                if (!(distance > source->combat_rows[j]->area)) nearby |= 1u << j;
+            }
+            if (!nearby) continue;
+#ifdef BZ_TESTS
+            test_combat_aura_eligibility_checks++;
+#endif
+            if (!regen_aura_source_active(source) || !S_SpellIsFriend(aura, unit)) continue;
+            for (uint32_t slots = nearby; slots; slots &= slots - 1) {
+                uint32_t const j = __builtin_ctz(slots);
+                abilityLevel_t const *row = source->combat_rows[j];
+                if (!aura_allows_target(aura, unit, row->targs)) continue;
                 {
                     float amount = row->data[aura_cache_keys[j].data - 1].number;
                     /* ABILITY_BLF_PERCENT_BONUS_UAU3: when enabled, Unholy
@@ -1021,14 +1124,15 @@ static heroAuraPresentation_t hero_aura_presentation(edict_t *unit, uint32_t bas
     if (base_code == ID_VAMPIRIC_AURA && !aura_unit_has_melee_attack(unit)) return result;
     if (base_code == ID_TRUESHOT_AURA && !aura_unit_has_ranged_attack(unit)) return result;
     regen_aura_cache_update();
-    FOR_LOOP(i, regen_source_count) {
+    for (uint32_t i = entity_set_next(&regen_members, 0); i < MAX_ENTITIES;
+         i = entity_set_next(&regen_members, i + 1)) {
         edict_t *source = regen_sources[i].source;
         auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         float amount;
         cstring_t buff_id;
 
-        if (!S_AuraUnitActive(source) || !S_SpellIsFriend(source, unit)) continue;
+        if (!regen_aura_source_active(regen_sources+i) || !S_SpellIsFriend(source, unit)) continue;
         if (!ability.alias) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||
@@ -1214,12 +1318,63 @@ float S_VampiricLifeSteal(edict_t *unit) {
     return aura_unit_has_melee_attack(unit) ? hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1) : 0.0f;
 }
 
-float S_SlowAuraMoveReduction(edict_t const *unit) {
-    return MAX(0.0f, MIN(0.9f, hero_aura_bonus((edict_t *)unit, ID_SLOW_AURA, 1)));
+/* Discovery changes with authored/runtime ownership, not recipient queries or
+ * frame time. Eligibility is deliberately deferred so hiding, death, alliance
+ * and position changes do not require rebuilding the ownership registry. */
+static void slow_aura_discover(uint32_t index) {
+    edict_t *unit = g_edicts + index;
+    auraAbilityRef_t ability = {0};
+#ifdef BZ_TESTS
+    test_slow_discovery_visits++;
+#endif
+    if (unit->inuse && !(unit->svflags & SVF_STATIC_SCENERY)) ability = actor_aura_ability(unit, ID_SLOW_AURA);
+    entity_set_put(&slow_members, index, ability.alias != 0);
+    if (ability.alias) slow_sources[index] = (slowAuraSource_t){unit, unit->spawn_time, ability};
 }
-float S_SlowAuraAttackReduction(edict_t const *unit) {
-    return MAX(0.0f, MIN(0.9f, hero_aura_bonus((edict_t *)unit, ID_SLOW_AURA, 2)));
+
+static void slow_aura_prepare(void) {
+    uint32_t generation = G_AbilityDataGeneration();
+    if (!slow_dirty && !slow_pending && slow_generation == generation) return;
+    if (slow_dirty || slow_generation != generation) {
+        memset(&slow_members, 0, sizeof(slow_members));
+        FOR_LOOP(i, globals.num_edicts) slow_aura_discover(i);
+        memset(&slow_changed, 0, sizeof(slow_changed));
+    } else {
+        for (uint32_t i = entity_set_next(&slow_changed, 0); i < MAX_ENTITIES;
+             i = entity_set_next(&slow_changed, i + 1)) {
+            entity_set_put(&slow_changed, i, false);
+            slow_aura_discover(i);
+        }
+    }
+    slow_generation = generation;
+    slow_dirty = slow_pending = false;
 }
+
+/* Speed queries must follow providers, not every scenery/nonprovider actor.
+ * Ownership discovery is shared; position, alliance, visibility and lifetime
+ * remain live even when several decisions occur in one simulation frame. */
+static float slow_aura_bonus(edict_t const *unit, uint32_t data) {
+    float result=0;
+    if(!unit)return 0;
+    slow_aura_prepare();
+    for (uint32_t i = entity_set_next(&slow_members, 0); i < MAX_ENTITIES;
+         i = entity_set_next(&slow_members, i + 1)) {
+        slowAuraSource_t const *entry=slow_sources+i;
+#ifdef BZ_TESTS
+        test_slow_aura_visits++;
+#endif
+        edict_t *source=entry->unit;
+        if(source->spawn_time!=entry->spawn || !S_AuraUnitActive(source) ||
+            !S_SpellIsAliveTarget(source) || !S_SpellIsEnemy(source,(edict_t *)unit))continue;
+        abilityLevel_t const *row=G_AbilityLevel(entry->ability.alias,entry->ability.level);
+        if(Vector2_distance(&source->s.origin2,&unit->s.origin2)>row->area ||
+            !aura_allows_target(source,(edict_t *)unit,row->targs))continue;
+        result=MAX(result,row->data[data-1].number);
+    }
+    return MAX(0.0f,MIN(0.9f,result));
+}
+float S_SlowAuraMoveReduction(edict_t const *unit) { return slow_aura_bonus(unit, 1); }
+float S_SlowAuraAttackReduction(edict_t const *unit) { return slow_aura_bonus(unit, 2); }
 float S_CommandAuraAttackBonus(edict_t *unit) {
     return MAX(hero_aura_bonus(unit, ID_COMMAND_AURA, 1), hero_aura_bonus(unit, ID_COMMAND_AURA_NEUTRAL, 1));
 }
@@ -1230,12 +1385,12 @@ float S_TrueshotAttackBonus(edict_t *unit) {
         hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
 }
 
-int S_SearingArrowDamage(edict_t *attacker, int damage) {
+float S_SearingArrowDamage(edict_t *attacker, float damage) {
     uint32_t code = ID_SEARING_ARROWS, level = 0;
     heroabilitystatus_t *manual = NULL;
-    if (!attacker || !attacker->unit_state) return damage;
-    FOR_LOOP(i, attacker->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t *st = attacker->unit_state->statuses + i;
+    if (!attacker) return damage;
+    FOR_LOOP(i, G_UnitStatusSlotCount(attacker)) {
+        heroabilitystatus_t *st = attacker->abilstatus + i;
         if (!st->level || (st->timestamp && st->timestamp <= G_Time())) continue;
         if ((st->buff_flags & WC3_STATUS_BUFF_ONE_SHOT_ATTACK) &&
             G_AbilityCode(st->source_ability ? st->source_ability : st->code) == ID_SEARING_ARROWS) {
@@ -1245,14 +1400,14 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
             break;
         }
     }
-    if (!level && attacker->unit_state && attacker->unit_state->autocast &&
-        G_AbilityCode(attacker->unit_state->autocast) == ID_SEARING_ARROWS &&
-        G_UnitAutocastIsOn(attacker, attacker->unit_state->autocast)) {
-        code = attacker->unit_state->autocast;
+    if (!level && attacker->autocast_code &&
+        G_AbilityCode(attacker->autocast_code) == ID_SEARING_ARROWS &&
+        G_UnitAutocastIsOn(attacker, attacker->autocast_code)) {
+        code = attacker->autocast_code;
         level = G_UnitAbilityLevel(attacker, code);
     }
     if (!level) { level = G_UnitStatusLevel(attacker, ID_POISON_ARROWS); code = ID_POISON_ARROWS; }
-    if (!level || attacker->unit_state->attack1.weapon != WPN_MISSILE) return damage;
+    if (!level || S_AttackProfileRead(attacker, 0)->weapon != WPN_MISSILE) return damage;
     /* Autocast and a manually targeted one-shot use the same authored damage
      * and mana cost. With insufficient mana the weapon still fires normally. */
     if (G_AbilityCode(code) == ID_SEARING_ARROWS) {
@@ -1260,17 +1415,17 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
         if (manual) unit_removestatus(attacker, manual, STATUS_REMOVE_SCRIPT);
         if (!paid) return damage;
     }
-    return damage + (int)S_SpellData(code, level, 1);
+    return damage + S_SpellData(code, level, 1);
 }
 
 /* Authored AbilityFunc MissileArt normally supplies this value. Keep the
  * stock Searing Arrow missile available for data sets that omit that field. */
 cstring_t S_SearingArrowsMissileArt(edict_t *attacker) {
     uint32_t code = 0, level = 0;
-    if (!attacker || !attacker->unit_state || attacker->unit_state->attack1.weapon != WPN_MISSILE)
+    if (!attacker || S_AttackProfileRead(attacker, 0)->weapon != WPN_MISSILE)
         return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t const *status = attacker->unit_state->statuses + i;
+    FOR_LOOP(i, G_UnitStatusSlotCount(attacker)) {
+        heroabilitystatus_t const *status = attacker->abilstatus + i;
         if (!status->level || !(status->buff_flags & WC3_STATUS_BUFF_ONE_SHOT_ATTACK) ||
             (status->timestamp && status->timestamp <= G_Time())) continue;
         code = status->source_ability ? status->source_ability : status->code;
@@ -1280,10 +1435,10 @@ cstring_t S_SearingArrowsMissileArt(edict_t *attacker) {
         }
         code = 0;
     }
-    if (!code && attacker->unit_state->autocast &&
-        G_AbilityCode(attacker->unit_state->autocast) == ID_SEARING_ARROWS &&
-        G_UnitAutocastIsOn(attacker, attacker->unit_state->autocast)) {
-        code = attacker->unit_state->autocast;
+    if (!code && attacker->autocast_code &&
+        G_AbilityCode(attacker->autocast_code) == ID_SEARING_ARROWS &&
+        G_UnitAutocastIsOn(attacker, attacker->autocast_code)) {
+        code = attacker->autocast_code;
         level = G_UnitAbilityLevel(attacker, code);
     }
     if (!code || !level || attacker->mana.value < S_SpellNumber(code, ABILITY_NUMBER_COST, level))
@@ -1300,9 +1455,9 @@ static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
 }
 
 static void mana_shield_remove(edict_t *unit, uint32_t buff) {
-    FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0)
-        if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == buff)
-            unit_removestatus(unit, unit->unit_state->statuses + i, STATUS_REMOVE_SCRIPT);
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == buff)
+            unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
     G_InvalidateUnitInfoPanel(unit);
 }
 
@@ -1317,7 +1472,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
         code = ref.alias ? ref.alias : ID_MANA_SHIELD;
     }
     level = S_SpellLevel(ent, code); buff = mana_shield_buff(code, level);
-    active = buff && G_UnitStatusLevel(ent, buff);
+    active = buff && G_UnitStatusClassLevel(ent, buff);
     switch (msg) {
     case A_TOGGLE_ON: return active;
     case A_EXECUTE:
@@ -1329,7 +1484,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
         ref = mana_shield_ability(ent);
         if (!ref.alias) return false;
         code = ref.alias; level = ref.level; buff = mana_shield_buff(code, level);
-        active = buff && G_UnitStatusLevel(ent, buff);
+        active = buff && G_UnitStatusClassLevel(ent, buff);
         if (!strcmp(call->order, "manashieldon")) {
             if (!active && buff && ent->mana.value > 0.0f) unit_addstatus(ent, GetClassName(buff), level);
             return true;
@@ -1348,20 +1503,20 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
 }
 
 /* Retail DataA is damage absorbed per mana and DataB is the fraction of each hit absorbed. */
-int S_ManaShieldDamage(edict_t *target, int damage) {
+float S_ManaShieldDamage(edict_t *target, float damage) {
     auraAbilityRef_t ref = mana_shield_ability(target);
     uint32_t code = ref.alias ? ref.alias : ID_MANA_SHIELD;
-    uint32_t level = ref.level ? ref.level : G_UnitAbilityLevel(target, ID_MANA_SHIELD);
+    uint32_t level = ref.level ? ref.level : G_UnitAbilityClassLevel(target, ID_MANA_SHIELD);
     uint32_t buff = level ? mana_shield_buff(code, level) : 0;
     float ratio, fraction, absorbed;
-    if (!buff || !G_UnitStatusLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
+    if (!buff || !G_UnitStatusClassLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
     ratio = S_SpellData(code, level, 1);
     fraction = MIN(1.0f, MAX(0.0f, S_SpellData(code, level, 2)));
     if (ratio <= 0.0f || fraction <= 0.0f) return damage;
-    absorbed = MIN((float)damage * fraction, target->mana.value * ratio);
+    absorbed = MIN(damage * fraction, target->mana.value * ratio);
     target->mana.value = MAX(0.0f, target->mana.value - absorbed / ratio);
     if (target->mana.value <= 0.0f) mana_shield_remove(target, buff);
-    return damage - (int)absorbed;
+    return damage - absorbed;
 }
 
 /* Called after the attack resolver has selected the active weapon profile.
@@ -1371,8 +1526,7 @@ float S_ThornsMeleeDamageReturn(edict_t const *target, float damage) {
 }
 
 float S_ThornsDamageReturn(edict_t const *target, edict_t const *attacker, float damage) {
-    if (!target || !attacker || !attacker->unit_state ||
-        (attacker->unit_state->attack1.weapon != WPN_NORMAL && attacker->unit_state->attack1.weapon != WPN_INSTANT))
+    if (!target || !attacker || (S_AttackProfileRead(attacker, 0)->weapon != WPN_NORMAL && S_AttackProfileRead(attacker, 0)->weapon != WPN_INSTANT))
         return 0.0f;
     return S_ThornsMeleeDamageReturn(target, damage);
 }
@@ -1381,21 +1535,21 @@ bool S_EvasionRoll(edict_t *target) {
     abilityAliasRef_t ev = S_ResolveAbilityAlias(target, ID_EVASION);
     uint32_t level;
     if (ev.alias && ev.level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
-    level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
+    level = G_UnitAbilityClassLevel(target, ID_DRUNKEN_BRAWLER);
     return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }
 
-int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
+float S_CriticalStrikeDamage(edict_t *attacker, float damage) {
+    uint32_t level = G_UnitAbilityClassLevel(attacker, ID_CRITICAL_STRIKE);
     uint32_t code = ID_CRITICAL_STRIKE;
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
+    if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
+    if (!level) { level = G_UnitAbilityClassLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
     if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
-    return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
+    return damage * MAX(1.0f, S_SpellData(code, level, 2));
 }
 
 float S_SpikedArmorBonus(edict_t const *unit) {
-    uint32_t level = G_UnitAbilityLevel(unit, ID_SPIKED_CARAPACE);
+    uint32_t level = G_UnitAbilityClassLevel(unit, ID_SPIKED_CARAPACE);
     return level ? S_SpellData(ID_SPIKED_CARAPACE, level, 3) : 0.0f;
 }
 
@@ -1472,3 +1626,148 @@ void S_PulverizeAttack(edict_t *attacker, edict_t const *primary) {
         if (amount > 0.0f) S_SpellDamage(target, attacker, (int)amount);
     }
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(wc3_ability_dispatch, aura_membership_matches_alias_resolver_without_family_scans) {
+    static cstring_t const lists[] = { "Ashm,Amgr,AInv", "AHad,AInv", "Aoar,Aarm", "Aas l,", "", "AHab,AUau,AOae" };
+    static uint32_t const extra[] = { ID_REGEN_LIFE_ORC, ID_REGEN_LIFE_BLIGHT, ID_REGEN_MANA,
+        ID_SLOW_AURA, MAKEFOURCC('A','O','a','e') };
+    FOR_LOOP(i, sizeof(lists) / sizeof(*lists)) FOR_LOOP(state, 5) {
+        UnitAbilities_t row = { .abilList = lists[i] };
+        edict_t unit = { .data.UnitAbilities = &row };
+        if (state == 1) unit.abilities.added[unit.abilities.added_count++] = ID_SLOW_AURA;
+        if (state == 2) unit.abilities.removed[unit.abilities.removed_count++] = ID_DEVOTION_AURA;
+        if (state == 3) {
+            unit.heroabilities[0] = (heroability_t){ .code = ID_BRILLIANCE, .level = 2 };
+            unit.abilities.removed[unit.abilities.removed_count++] = ID_BRILLIANCE;
+        }
+        if (state == 4) unit.svflags = SVF_STATIC_SCENERY;
+        bool expected = false;
+        if (!(unit.svflags & SVF_STATIC_SCENERY)) {
+            FOR_LOOP(k, HERO_AURA_CACHE_KEYS) expected |= S_ResolveAbilityAlias(&unit, aura_cache_keys[k].code).alias != 0;
+            FOR_LOOP(k, sizeof(extra) / sizeof(*extra)) expected |= S_ResolveAbilityAlias(&unit, extra[k]).alias != 0;
+        }
+        test_aura_membership_resolves = 0;
+        T_EQ(S_UnitHasAuraSource(&unit), expected);
+        T_EQ(test_aura_membership_resolves, 0);
+    }
+}
+void reset_entities(void);
+void setup_test_world(void);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+TEST(wc3_ability_dispatch, combat_aura_queries_skip_regeneration_only_providers) {
+    reset_entities(); setup_test_world();
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    source->abilities.added[source->abilities.added_count++] = ID_REGEN_LIFE_BLIGHT;
+    S_InvalidateAuraSources();
+    test_combat_aura_visits = 0;
+    T_FEQ(S_UnholyMoveBonus(target), 0, 0);
+    T_ASSERT(regen_source_count > 0);
+    T_EQ(test_combat_aura_visits, 0);
+    source->abilities.added[source->abilities.added_count++] = ID_UNHOLY_AURA;
+    S_InvalidateAuraSources();
+    level.time += AURA_UPDATE_MS;
+    S_UnholyMoveBonus(target);
+    T_EQ(test_combat_aura_visits, 1);
+    reset_entities(); setup_test_world();
+}
+TEST(wc3_ability_dispatch, combat_aura_range_prunes_eligibility_and_keeps_live_rows) {
+    reset_entities(); setup_test_world();
+    uint32_t alias = MAKEFOURCC('X','U','a','u');
+    AbilityData_t ability = {.id = alias, .code = ID_UNHOLY_AURA};
+    ability.level[0].area = 17.5f; ability.level[0].targs = "ground,friend";
+    ability.level[0].data[0].number = .25f; ability.level[0].data[1].number = .75f;
+    slkTestData_t rows = {.rows = &ability, .count = 1};
+    slkTestData_t *old = G_SetSLKRows("AbilityData", &rows);
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    source->abilities.added[source->abilities.added_count++] = alias;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    S_InvalidateAuraSources(); test_combat_aura_eligibility_checks = 0;
+    FOR_LOOP(i, 128) {
+        level.time += AURA_UPDATE_MS;
+        T_FEQ(S_UnholyMoveBonus(target), 0, 0);
+    }
+    T_EQ(test_combat_aura_eligibility_checks, 0);
+    target->s.origin2.x = 17.5f; level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), .25f, 0);
+    T_FEQ(S_UnholyHealthRegen(target), .75f, 0);
+    source->s.renderfx |= RF_HIDDEN; level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), 0, 0);
+    source->s.renderfx &= ~RF_HIDDEN;
+    ability.level[0].area = 17.25f; level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), 0, 0);
+    AbilityData_t replacement = ability;
+    replacement.level[0].area = 32; replacement.level[0].data[0].number = .5f;
+    slkTestData_t updated = {.rows = &replacement, .count = 1};
+    slkTestData_t *previous = G_SetSLKRows("AbilityData", &updated);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), .5f, 0);
+    G_SetSLKRows("AbilityData", old); free(previous); free(old);
+    reset_entities(); setup_test_world();
+}
+TEST(wc3_ability_dispatch, aura_free_types_skip_reclassification_but_keep_runtime_ownership_live) {
+    UnitAbilities_t row = { .abilList = "Ashm,Amgr,AInv" };
+    edict_t unit = { .data.UnitAbilities = &row };
+    T_ASSERT(!S_UnitHasAuraSource(&unit));
+    test_authored_aura_classifications = 0;
+    FOR_LOOP(i, 128) T_ASSERT(!S_UnitHasAuraSource(&unit));
+    T_EQ(test_authored_aura_classifications, 0);
+    unit.abilities.added[unit.abilities.added_count++] = ID_BRILLIANCE;
+    T_ASSERT(S_UnitHasAuraSource(&unit));
+    unit.abilities.removed[unit.abilities.removed_count++] = ID_BRILLIANCE;
+    T_ASSERT(!S_UnitHasAuraSource(&unit));
+    unit.heroabilities[0] = (heroability_t){ .code = ID_BRILLIANCE, .level = 2 };
+    T_ASSERT(S_UnitHasAuraSource(&unit));
+    unit.heroabilities[0].level = 0;
+    row.abilList = "AHad,AInv";
+    T_ASSERT(S_UnitHasAuraSource(&unit));
+    unit.abilities.removed[unit.abilities.removed_count++] = ID_DEVOTION_AURA;
+    T_ASSERT(!S_UnitHasAuraSource(&unit));
+}
+/* A provider edit must perform constant discovery work even in a large world;
+ * values still use live eligibility and the ordinary recipient refresh clock. */
+TEST(wc3_ability_dispatch, aura_local_edits_do_not_replay_world_or_overlays) {
+    reset_entities(); setup_test_world();
+    uint32_t alias = MAKEFOURCC('X','U','a','u');
+    AbilityData_t ability = {.id = alias, .code = ID_UNHOLY_AURA};
+    ability.level[0].area = 500; ability.level[0].targs = "ground,friend";
+    ability.level[0].data[0].number = .375f;
+    ability.level[1] = ability.level[0]; ability.level[1].data[0].number = .625f;
+    slkTestData_t rows = {.rows = &ability, .count = 1};
+    slkTestData_t *old = G_SetSLKRows("AbilityData", &rows);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    target->s.player = 0; target->targtype = TARG_GROUND;
+    FOR_LOOP(i, 4096) alloc_test_unit(MAKEFOURCC('h','f','o','o'), 2000, 2000);
+    S_UnholyMoveBonus(target); S_SlowAuraMoveReduction(target);
+    test_aura_discovery_visits = test_slow_discovery_visits = test_aura_overlay_visits = 0;
+    edict_t *source = NULL;
+    FOR_LOOP(i, 128) {
+        source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+        source->s.player = 0; source->targtype = TARG_GROUND;
+        unit_learnability(source, alias);
+        T_EQ(G_UnitAbilityLevel(source, alias), 1);
+        level.time += AURA_UPDATE_MS;
+        T_FEQ(S_UnholyMoveBonus(target), .375f, 0);
+        T_FEQ(S_SlowAuraMoveReduction(target), 0, 0);
+    }
+    T_EQ(test_aura_discovery_visits, 128);
+    T_EQ(test_slow_discovery_visits, 128);
+    T_EQ(test_aura_overlay_visits, 0);
+    T_EQ(G_UnitSetAbilityLevel(source, alias, 2), 2);
+    level.time += AURA_UPDATE_MS;
+    float ranked = S_UnholyMoveBonus(target);
+    T_FEQ(ranked, .625f, 0);
+    S_InvalidateAuraSources(); level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), ranked, 0);
+    G_FreeEdict(source); level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), .375f, 0);
+    S_InvalidateAuraSources(); level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(target), .375f, 0);
+    G_SetSLKRows("AbilityData", old); free(old);
+    reset_entities(); setup_test_world();
+}
+#endif

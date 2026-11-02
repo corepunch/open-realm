@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "bundle_sha256": "a3798c78b8316daf3278f2de554bc3b070cb461e335ece341e02be08e31b1d52",
+  "files": {
+    "observe1.jsonl": "6cd4aad16a20f7707d62f1bf8bd54aeba9d67f6f0d19a14ebea5d86c0b2487cb",
+    "observe1-start-preload.txt": "f5d6c1561b9e05b6a14980e246f364c3af56732ac18b883572dc82173030c4c2",
+    "observe1-preload.txt": "09bfe9f6eb2926a9b0539b660e0c0a681fffb48ccb4f46c82c5d868179731608",
+    "observe2.jsonl": "64d0fefc2533444921f1598ab23e32f0a6fd6e628177f0c551e9e1267d75d17d",
+    "observe2-start-preload.txt": "6fec9d1225a9c467935e4ef117be201493bbba47105cb1d47036f99b236aa065",
+    "observe2-preload.txt": "874353379141370fd59d141f73d6009edc907361c77d34ed8f870423c64c5801",
+    "control1.jsonl": "ee8a8af1b889415025c84f2bd1fa42199d4981e89ca92cdb2c7f50050fdcdc27",
+    "control1-start-preload.txt": "a9dfdd1d9ec3e06f1d78757e8d7d7272751a28117a6334adb148f6c38880046e",
+    "control1-preload.txt": "ad8094c167f0a83b5b190ac2a9e8bb2c98e4a9b7399721d5fb94a81768022977",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "sources/attack_recovery299_observer.js": "c85d3ad866d10001d5ac869c9c2617237f0386742aa17b9c8616c09042478d0f",
+    "sources/attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "sources/attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "sources/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "sources/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "sources/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "sources/attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "sources/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149"
+  },
+  "source_sha256": {
+    "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "attack_recovery299_observer.js": "c85d3ad866d10001d5ac869c9c2617237f0386742aa17b9c8616c09042478d0f",
+    "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+    "map": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f"
+  },
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "accepted": [
+    "observe1",
+    "observe2",
+    "control1"
+  ],
+  "public_per_capture": 2066,
+  "native_sequence_per_observation": 9058,
+  "arrival_per_observation": 2671,
+  "velocity_per_observation": 2671,
+  "schema_decoding": "Frozen observer642dd0 event payload overwrites event discriminator. Only exact array schema with d01de and unit pointer equality is decoded; all four words retained. All numeric non-pointer fields remain literal.",
+  "rejected_v1": {
+    "accepted": false,
+    "reason": "Incomplete first observer attempt; excluded from accepted counts/projection. No crash cause inferred.",
+    "metadata": {
+      "event": "metadata",
+      "task": "TARGET-01.2",
+      "mode": "observe",
+      "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "pid": 592,
+      "owned": true,
+      "source_sha256": {
+        "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+        "attack_recovery299_observer.js": "13b8d96a1d8a77a961b9c9237110b1c2835d56ac2df5e965cab6adf3f9c24c2d",
+        "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+        "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+        "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+        "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+        "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+        "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+        "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+        "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+        "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+        "map": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f"
+      },
+      "map": "Maps/RS-AttackRecovery299.w3m",
+      "seconds": 300.0,
+      "continue_at": 30.0,
+      "display": ":98",
+      "remote": "127.0.0.1:27049",
+      "env": "B",
+      "input": [],
+      "input_seconds": null,
+      "frida": "17.18.0",
+      "timestamp": 1481263518,
+      "imageSize": 15130624,
+      "prefix": "AR299 "
+    },
+    "files": {
+      "observe1-start-preload.txt": "6fec9d1225a9c467935e4ef117be201493bbba47105cb1d47036f99b236aa065",
+      "observe1.jsonl": "ab54c422519f0d5ff344a6a31b6dbcda632c159fa316d7de4e5cd5ae7cf54b91"
+    },
+    "final_events": [
+      {
+        "event": "preload-file",
+        "missing": true
+      },
+      {
+        "event": "source-end",
+        "source_sha256": {
+          "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+          "attack_recovery299_observer.js": "13b8d96a1d8a77a961b9c9237110b1c2835d56ac2df5e965cab6adf3f9c24c2d",
+          "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+          "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+          "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+          "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+          "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+          "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+          "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+          "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+          "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+          "map": "9e3690734d1211998fc85cac2630219639170c94b6b6fafaf4e58ab3b3d33f1f"
+        },
+        "unchanged": true
+      }
+    ]
+  },
+  "limits": [
+    "No C or saved-replay parity claim.",
+    "Scene5 has no active recovery entry and does not establish retained-flag recovery.",
+    "Map and executable helpers are externally acquired provenance pins; literal source bytes and accepted capture/preload bytes are bundled."
+  ]
+}

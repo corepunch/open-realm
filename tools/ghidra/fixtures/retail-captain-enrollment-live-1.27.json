@@ -1,0 +1,663 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "capture_sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_enrollment157_observer.js": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c",
+    "map": "9fdc31e0554095a26475cce3e1a0e85f01eeb2fc651bc8424cf4678590cedfe4"
+  },
+  "sources": {
+    "tools/frida/research/captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "tools/frida/research/captain_enrollment157_observer.js": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c",
+    "tools/frida/research/captain_enrollment157_probe.j": "8ae2fec41438da6e8f974ab69fe31e35826cf862683b13577de0083d100d30e0",
+    "tools/frida/research/captain_enrollment157_probe.ai": "b307671b2db55113aa5d9372b44e10cb05478b2aa1c2748e9761c0d2203a3f6e",
+    "tools/frida/research/captain_enrollment157_make_map.py": "84a9235df5faddc92677ede7f6a7bdc8d7c703d7af536e3b5c9f47da9cc2ea6d"
+  },
+  "captures": {
+    "observe-11.jsonl": "3e782544cd7aff175163d7723c6d5d00568df3d836deeb36bb85ee5df5dc7c78",
+    "observe-12.jsonl": "e67b1656f043d9c5d8c9fd60a3b596b0a72ab3117c11e87552011acbad89b04d",
+    "control-4.jsonl": "3b1e85756653b64a459a50321f8aa47fc3e86a1675da661e29e951004c4fbd10"
+  },
+  "public_markers": [
+    "RSG tick=0 label=start",
+    "RSG tick=1 label=before-ai",
+    "RSG tick=1 label=after-ai",
+    "RSG tick=1 label=sample u=0 order=0 life=420.000",
+    "RSG tick=1 label=sample u=1 order=0 life=420.000",
+    "RSG tick=1 label=sample u=2 order=0 life=420.000",
+    "RSG tick=1 label=sample u=3 order=0 life=420.000",
+    "RSG tick=2 label=before u=0 order=851986 life=420.000",
+    "RSG tick=2 label=after u=0 order=851986 life=420.000",
+    "RSG tick=2 label=before u=1 order=851986 life=420.000",
+    "RSG tick=2 label=after u=1 order=851986 life=420.000",
+    "RSG tick=2 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=2 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=2 label=sample u=2 order=0 life=420.000",
+    "RSG tick=2 label=sample u=3 order=0 life=420.000",
+    "RSG tick=3 label=before u=0 order=851986 life=420.000",
+    "RSG tick=3 label=after u=0 order=851986 life=420.000",
+    "RSG tick=3 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=3 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=3 label=sample u=2 order=0 life=420.000",
+    "RSG tick=3 label=sample u=3 order=0 life=420.000",
+    "RSG tick=4 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=4 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=4 label=sample u=2 order=0 life=420.000",
+    "RSG tick=4 label=sample u=3 order=0 life=420.000",
+    "RSG tick=5 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=5 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=5 label=sample u=2 order=0 life=420.000",
+    "RSG tick=5 label=sample u=3 order=0 life=420.000",
+    "RSG tick=6 label=before u=2 order=851986 life=420.000",
+    "RSG tick=6 label=after u=2 order=851986 life=420.000",
+    "RSG tick=6 label=before u=0 order=851986 life=420.000",
+    "RSG tick=6 label=after u=0 order=851986 life=420.000",
+    "RSG tick=6 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=6 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=6 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=6 label=sample u=3 order=0 life=420.000",
+    "RSG tick=7 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=7 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=7 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=7 label=sample u=3 order=0 life=420.000",
+    "RSG tick=8 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=8 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=8 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=8 label=sample u=3 order=0 life=420.000",
+    "RSG tick=9 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=9 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=9 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=9 label=sample u=3 order=0 life=420.000",
+    "RSG tick=10 label=before u=2 order=851986 life=420.000",
+    "RSG tick=10 label=after u=2 order=851986 life=420.000",
+    "RSG tick=10 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=10 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=10 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=10 label=sample u=3 order=0 life=420.000",
+    "RSG tick=11 label=before u=0 order=851986 life=420.000",
+    "RSG tick=11 label=after u=0 order=851986 life=420.000",
+    "RSG tick=11 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=11 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=11 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=11 label=sample u=3 order=0 life=420.000",
+    "RSG tick=12 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=12 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=12 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=12 label=sample u=3 order=0 life=420.000",
+    "RSG tick=13 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=13 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=13 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=13 label=sample u=3 order=0 life=420.000",
+    "RSG tick=14 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=14 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=14 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=14 label=sample u=3 order=0 life=420.000",
+    "RSG tick=15 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=15 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=15 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=15 label=sample u=3 order=0 life=420.000",
+    "RSG tick=16 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=16 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=16 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=16 label=sample u=3 order=0 life=420.000",
+    "RSG tick=17 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=17 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=17 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=17 label=sample u=3 order=0 life=420.000",
+    "RSG tick=18 label=sample u=0 order=851986 life=420.000",
+    "RSG tick=18 label=sample u=1 order=851986 life=420.000",
+    "RSG tick=18 label=sample u=2 order=851986 life=420.000",
+    "RSG tick=18 label=sample u=3 order=0 life=420.000",
+    "RSG tick=18 label=complete"
+  ],
+  "normalized": [
+    {
+      "event": "marker",
+      "value": "RSG tick=0 label=start"
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 0,
+      "index": -1,
+      "unit": 0,
+      "flags5c": 513
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 0,
+      "index": -1,
+      "unit": 1,
+      "flags5c": 513
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 0,
+      "index": -1,
+      "unit": 2,
+      "flags5c": 513
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 0,
+      "index": -1,
+      "unit": 3,
+      "flags5c": 513
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=before-ai"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=after-ai"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=sample u=0 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=sample u=1 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=sample u=2 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=1 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=before u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 2,
+      "index": 0,
+      "unit": 0,
+      "flags5c": 513
+    },
+    {
+      "event": "attach",
+      "tick": 2,
+      "index": 0,
+      "unit": 0,
+      "flags5c": 517
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 2,
+      "index": 0,
+      "unit": 0,
+      "flags5c": 517
+    },
+    {
+      "event": "temporary",
+      "tick": 2,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "unit": 0,
+        "flags5c": 516
+      },
+      "after": {
+        "unit": 0,
+        "flags5c": 516
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=after u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=before u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 2,
+      "index": 1,
+      "unit": 1,
+      "flags5c": 4097
+    },
+    {
+      "event": "attach",
+      "tick": 2,
+      "index": 1,
+      "unit": 1,
+      "flags5c": 4101
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 2,
+      "index": 1,
+      "unit": 1,
+      "flags5c": 4101
+    },
+    {
+      "event": "temporary",
+      "tick": 2,
+      "index": 1,
+      "flags": 1573249,
+      "before": {
+        "unit": 1,
+        "flags5c": 4100
+      },
+      "after": {
+        "unit": 1,
+        "flags5c": 4100
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=after u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=sample u=2 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=2 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=before u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "temporary",
+      "tick": 3,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "unit": 0,
+        "flags5c": 516
+      },
+      "after": {
+        "unit": 0,
+        "flags5c": 516
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=after u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=sample u=2 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=3 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=4 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=4 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=4 label=sample u=2 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=4 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=5 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=5 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=5 label=sample u=2 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=5 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=before u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 6,
+      "index": 2,
+      "unit": 2,
+      "flags5c": 513
+    },
+    {
+      "event": "attach",
+      "tick": 6,
+      "index": 2,
+      "unit": 2,
+      "flags5c": 517
+    },
+    {
+      "event": "append-ai-order",
+      "tick": 6,
+      "index": 2,
+      "unit": 2,
+      "flags5c": 517
+    },
+    {
+      "event": "temporary",
+      "tick": 6,
+      "index": 2,
+      "flags": 1573249,
+      "before": {
+        "unit": 2,
+        "flags5c": 516
+      },
+      "after": {
+        "unit": 2,
+        "flags5c": 516
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=after u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=before u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "temporary",
+      "tick": 6,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "unit": 0,
+        "flags5c": 516
+      },
+      "after": {
+        "unit": 0,
+        "flags5c": 516
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=after u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=6 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=7 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=7 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=7 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=7 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=8 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=8 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=8 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=8 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=9 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=9 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=9 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=9 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=before u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "temporary",
+      "tick": 10,
+      "index": 2,
+      "flags": 1573249,
+      "before": {
+        "unit": 2,
+        "flags5c": 516
+      },
+      "after": {
+        "unit": 2,
+        "flags5c": 516
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=after u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=10 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=before u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "temporary",
+      "tick": 11,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "unit": 0,
+        "flags5c": 4100
+      },
+      "after": {
+        "unit": 0,
+        "flags5c": 4100
+      }
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=after u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=11 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=12 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=12 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=12 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=12 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=13 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=13 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=13 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=13 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=14 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=14 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=14 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=14 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=15 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=15 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=15 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=15 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=16 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=16 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=16 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=16 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=17 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=17 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=17 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=17 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=18 label=sample u=0 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=18 label=sample u=1 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=18 label=sample u=2 order=851986 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=18 label=sample u=3 order=0 life=420.000"
+    },
+    {
+      "event": "marker",
+      "value": "RSG tick=18 label=complete"
+    }
+  ]
+}

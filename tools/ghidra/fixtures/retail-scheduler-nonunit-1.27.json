@@ -1,0 +1,98 @@
+{
+  "events": 550,
+  "transactions": [
+    [
+      1082,
+      15,
+      3,
+      4,
+      700
+    ],
+    [
+      1149,
+      15,
+      3,
+      4,
+      700
+    ],
+    [
+      1215,
+      15,
+      3,
+      4,
+      700
+    ],
+    [
+      1282,
+      15,
+      3,
+      4,
+      700
+    ],
+    [
+      1349,
+      15,
+      3,
+      4,
+      700
+    ]
+  ],
+  "route": {
+    "source": [
+      1088667648,
+      1105199104
+    ],
+    "goal": [
+      1094713344,
+      1105199104
+    ],
+    "radius": 0,
+    "limit": 700,
+    "words": [
+      [
+        1093140480,
+        1105461248
+      ],
+      [
+        1092091904,
+        1105461248
+      ],
+      [
+        1091043328,
+        1105461248
+      ],
+      [
+        1088667648,
+        1105199104
+      ]
+    ],
+    "work": 4,
+    "nodes": 19
+  },
+  "counts": {
+    "scheduler-target": 65,
+    "scheduler-class": 36,
+    "scheduler-admission": 5,
+    "scheduler-unlink": 304,
+    "scheduler-update": 8,
+    "scheduler-acc-request": 0,
+    "scheduler-fine-request": 5,
+    "scheduler-nonunit-producer": 8,
+    "scheduler-class15-producer": 5,
+    "search": 5,
+    "fine-result": 5,
+    "marker": 104
+  },
+  "digest": "189a9af97691a43b8d8dceb27be524f5fa761ced5d569cc4fdb7870b268ded0e",
+  "repeat_verified": true,
+  "capture_sha256": "e8feb755584c0beffa97c733e19ca35d3852b497480bde45d132a0a141cb1025",
+  "repeat_sha256": "ee63f66e3b9e396c02c73b3636eedaac4b9e732ff88294ab374165c35bf45961",
+  "source_sha256": {
+    "wc3_pathfinding.js": "d78b04a30fc05b686781273d12b8129403b7149447dfc823b90fc9128e849c74",
+    "trace_wc3_pathfinding.py": "b6348d1953da113ec7af30212f15251fd6203bf7935d7b3a97844970d7274514",
+    "make_wc3_pathfinding_map.py": "5eeb81376d7ab415a9142b1217572cf9c0877118066de93d5ec07d7a1c2f5e81",
+    "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+    "map": "874e7c113e41c1e889ead4121b90aab91beac920776e2d5576c71bd655508291"
+  },
+  "filtered_sha256": "26a13743ca75cf9a056736a22215b61968f69c6993be3a0aec88b9b0d734a07a"
+}

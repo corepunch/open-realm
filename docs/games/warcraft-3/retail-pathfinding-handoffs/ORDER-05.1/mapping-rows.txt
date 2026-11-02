@@ -1,0 +1,7 @@
+// ORDER-05.1: proposed MapPathfinding.java rows (applied to Ghidra via _ghidra/gw.py, see ghidra-writes.jsonl). Not applied to the repository.
+        {"6f15dc30", "SimClock_ScheduleAgentRequest", "Thiscall ECX clock, stack4 receiver, stack8 &value, stackC &delay; RET0C; EAX request. delay < 6fcd539c (1e-4) -> 1e-4 (COMISS/CMOVA); serial = ++clock+50; deadline = Math_Add(clock+40, delay); queue 6f15e310. [ORDER-05.1]"},
+        {"6f15d6f0", "AgentWrapper_StartTimer", "Thiscall ECX wrapper, stack4 &period, stack8 value; RET8. Cancels previous wrapper+1C (flags|=10000, no unlink), clock by identity sign (6f15c650), clamp/serial/deadline as 6f15dc30, stores +1C, repeat bit1 when wrapper+4C&10000. [ORDER-05.1]"},
+        {"6f15d7a0", "AgentWrapper_StopTimer", "Thiscall ECX wrapper; RET. Cancels and clears wrapper+1C; cancelled requests stay queued and are freed silently at their deadline. [ORDER-05.1]"},
+        {"6f04f990", "RequestHeap_Push", "Thiscall ECX heap (clock+4), stack4 request; RET4. 1-based min-heap sift-up; key float deadline (+4) then unsigned serial (+14). [ORDER-05.1]"},
+        {"6f04f3c0", "RequestHeap_PopMin", "Thiscall ECX heap; RET; EAX old slot 1. Last slot sifted down with the (deadline, serial) order. [ORDER-05.1]"},
+        {"6f15c650", "AgentOwner_SelectRequestClock", "Thiscall ECX path owner, stack4 wrapper; RET4. wrapper+14 bit31 -> owner+68 (presentation) else owner+14 (primary). [ORDER-05.1]"},

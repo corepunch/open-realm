@@ -1,0 +1,9569 @@
+{
+ "version": 1,
+ "task": "MAP-04.2",
+ "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "kernels": [
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 0,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 0
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 1,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 536870912,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 536870912
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 1073741824,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 1073741824
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435456,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435456
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 0,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554432,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 33554434,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 67108868,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 0,
+   "stamp": 1001,
+   "object_stamp": 1001,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 0,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": false,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    272,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    260,
+    284
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    304,
+    272
+   ],
+   "result": 0,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    -0.125,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  },
+  {
+   "flags": 268435457,
+   "mask": 100663302,
+   "terrain": 2,
+   "excluded": true,
+   "point": [
+    512,
+    272
+   ],
+   "result": 1,
+   "stamp": 1000,
+   "object_stamp": 7,
+   "flags_after": 268435457
+  }
+ ],
+ "sequence": [
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140846592,
+    1140852736
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    3187671040,
+    1140850688
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 4278190080,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 33554432,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 67108864,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 134217728,
+   "excluded": false,
+   "mode": 0,
+   "result": 1,
+   "mode_after": 0,
+   "stamp_delta": 0
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 268435456,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 536870912,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 1073741824,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  },
+  {
+   "event": "point",
+   "point": [
+    1140850688,
+    1140850688
+   ],
+   "mask": 2147483648,
+   "excluded": false,
+   "mode": 0,
+   "result": 0,
+   "mode_after": 0,
+   "stamp_delta": 1
+  }
+ ],
+ "markers": [
+  "P231 tick=0 label=start",
+  "P231 tick=1 begin=unit",
+  "P231 tick=1 label=unit x=512.000 y=512.000 bits=10010000",
+  "P231 tick=1 begin=fraction",
+  "P231 tick=1 label=fraction x=511.875 y=512.125 bits=10010000",
+  "P231 tick=1 begin=outside",
+  "P231 tick=1 label=outside x=-0.125 y=512.000 bits=11111111",
+  "P231 tick=2 begin=blocked",
+  "P231 tick=2 label=blocked x=512.000 y=512.000 bits=11010000",
+  "P231 tick=3 begin=cleared",
+  "P231 tick=3 label=cleared x=512.000 y=512.000 bits=10010000",
+  "P231 tick=4 begin=removed",
+  "P231 tick=4 label=removed x=512.000 y=512.000 bits=10010000",
+  "P231 tick=5 label=complete"
+ ],
+ "map_sha256": "6470407a697bfab305b8b29940a1d37a427d5a174c86b8728a3ceecfe7917654",
+ "map_metadata": {
+  "base_sha256": "5ef45d6b906c270734b26931772194ea3306676f68714e078c12eb1841785e06",
+  "sha256": "6470407a697bfab305b8b29940a1d37a427d5a174c86b8728a3ceecfe7917654",
+  "member_sha256": {
+   "war3map.doo": "07f32e90d28009fdd7fda859f4eda0fc77bf78d9a5133f0f13b94383172aa9eb",
+   "war3map.j": "fe34edf3943840a1b041b5135ead35a2dc01999b2e58d256e30ff7b960b19176",
+   "war3map.mmp": "8491d7295d066b6d9f12e0a147be8eea0cd76f8a332a3b5f39dc52af6060e587",
+   "war3map.shd": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+   "war3map.w3c": "d1cecfaddb0de78ebd9679a353e0d8ea1a0bc54cb2e9fab3e8efdb794b0960f5",
+   "war3map.w3e": "c5d0a68d5f3a0a7e2bc9b9ad0741766dd04d6c82fc984c866ecc3277f299259c",
+   "war3map.w3i": "42e978429265dd6830f4dd035efb2c1d1010b1c82f7c6af35d1038dfeda05772",
+   "war3map.w3r": "89363fe549d58f0115c696895bce0c386577464efbb695654f0f59fcb7ddccfa",
+   "war3map.w3s": "ef8dbc05addf2517fe49e1d0883737042aeb6ea352d277e87fe7945a1f3b980b",
+   "war3map.w3u": "7d10815c6a38f0a352e272cf422aed41805c0ab71544675b862c8d46adad5f79",
+   "war3map.wct": "39f1d186c46cff098a64dadc91901e9c14f62a86402b4b68fc9adac30b51e7b5",
+   "war3map.wpm": "3e95378381ae4c8fdb4b9916be0f98a185b8508b7f64c3be358840d76fb7b7d4",
+   "war3map.wtg": "46eebcccacd2801df63122a8eb84ca54477b17852fc0f6b252244fb09b7a7680",
+   "war3map.wts": "8729a5c51a0b0d64ba7fc988a73d5f17ef98c745c77f3976f6dee9ea27e615c8",
+   "war3mapMap.blp": "54ef99ced3f5dda5553778654a4bc4cada4cc2367cf3184fb8d2e5c7591f6cda",
+   "war3mapUnits.doo": "ce9dc95470ad7718f9924ab12a1dfdb8feb60e25145c200f37072b1194bd8385"
+  },
+  "probe_sha256": "ed0515c891787f1a071e63b18b735e43360f02fc46cc3b29232e9c542807c1ac"
+ },
+ "engine_tests": [
+  "wc3_api.terrain_point_query231_preserves_live_spatial_observations",
+  "wc3_fine_spatial.point_query231_matches_original_counted_scope_and_stamps",
+  "wc3_api.terrain_pathing_query_ignores_objects_and_preserves_native_amphibious_bit",
+  "wc3_api.terrain_pathing_natives_survive_save_and_restore_blight"
+ ],
+ "pins": {
+  "tools/frida/research/work231_observer.js": "df0f791a767784ec9afbc7a96ce0711f5df96e2beae6db228621d423a7a6fdd0",
+  "tools/frida/research/work231_probe.j": "ed0515c891787f1a071e63b18b735e43360f02fc46cc3b29232e9c542807c1ac",
+  "tools/frida/research/work231_make_map.py": "01294c0e725954a3ef4ba21497452c825149841ca2f10bf80b01c6282c9c1e53",
+  "tools/frida/research/work228_capture.py": "e346cdec1928b88a3e0aa62aa7497679fa768a2ad627020ef62084c56ad24a1a",
+  "tools/ghidra/research/Work231Evidence.java": "b3b2107577eb20094e422f0d635a07809ccd9ca9bc4bca85ffc93f56ad091090",
+  "tools/ghidra/research/work231_oracle.py": "2a40b3119e49268bdae4171853c80f92f1ba56c339bd0ed3c3e47fa0559be5d2",
+  "tools/ghidra/research/foot03_rig.py": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61",
+  "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+  "tools/ghidra/verify_wc3_pathing_numeric.py": "4b662d992bfee2ac25ad46abf675acdb3582b124f14f68c93d12c66e2d171ed8",
+  "tools/ghidra/verify_wc3_pathing_target_normalize218.py": "2e89109c7cb15ec3f6c698c6d1b5defbc6cf5d0d25c19244569e8ceae4384f2d"
+ },
+ "bundle_sha256": "380cab4ff69f3af668040b848b1eaded735666b856ad8649cb4eb0f601acc1ed",
+ "instructions": {
+  "6f04df50": "55",
+  "6f04df51": "8bec",
+  "6f04df53": "6aff",
+  "6f04df55": "6808d49d6f",
+  "6f04df5a": "64a100000000",
+  "6f04df60": "50",
+  "6f04df61": "83ec18",
+  "6f04df64": "53",
+  "6f04df65": "56",
+  "6f04df66": "57",
+  "6f04df67": "a19c68ce6f",
+  "6f04df6c": "33c5",
+  "6f04df6e": "50",
+  "6f04df6f": "8d45f4",
+  "6f04df72": "64a300000000",
+  "6f04df78": "8bfa",
+  "6f04df7a": "8bd9",
+  "6f04df7c": "8b0d483ad56f",
+  "6f04df82": "e869d01000",
+  "6f04df87": "8b352cc8d36f",
+  "6f04df8d": "8d4df0",
+  "6f04df90": "83c670",
+  "6f04df93": "8945e8",
+  "6f04df96": "56",
+  "6f04df97": "8bd7",
+  "6f04df99": "e8f21a0200",
+  "6f04df9e": "8b4df0",
+  "6f04dfa1": "8d81000000fd",
+  "6f04dfa7": "33c1",
+  "6f04dfa9": "8d91000080fd",
+  "6f04dfaf": "c1f81f",
+  "6f04dfb2": "8d4dec",
+  "6f04dfb5": "f7d0",
+  "6f04dfb7": "23c2",
+  "6f04dfb9": "8bd3",
+  "6f04dfbb": "8945f0",
+  "6f04dfbe": "a12cc8d36f",
+  "6f04dfc3": "83c06c",
+  "6f04dfc6": "50",
+  "6f04dfc7": "e8c41a0200",
+  "6f04dfcc": "8b45ec",
+  "6f04dfcf": "8d90000000fd",
+  "6f04dfd5": "33d0",
+  "6f04dfd7": "8d88000080fd",
+  "6f04dfdd": "8b45f0",
+  "6f04dfe0": "c1fa1f",
+  "6f04dfe3": "f7d2",
+  "6f04dfe5": "8945e0",
+  "6f04dfe8": "8b450c",
+  "6f04dfeb": "23d1",
+  "6f04dfed": "8955ec",
+  "6f04dff0": "8955dc",
+  "6f04dff3": "85c0",
+  "6f04dff5": "7409",
+  "6f04dff7": "6a01",
+  "6f04dff9": "8bc8",
+  "6f04dffb": "e830dd0000",
+  "6f04e000": "8b5de8",
+  "6f04e003": "be01000000",
+  "6f04e008": "895de4",
+  "6f04e00b": "8bbbd4000000",
+  "6f04e011": "897de8",
+  "6f04e014": "89b3d4000000",
+  "6f04e01a": "ff7508",
+  "6f04e01d": "8d45dc",
+  "6f04e020": "c745fc00000000",
+  "6f04e027": "50",
+  "6f04e028": "8bcb",
+  "6f04e02a": "e8f1b20f00",
+  "6f04e02f": "33c9",
+  "6f04e031": "85c0",
+  "6f04e033": "0f45f1",
+  "6f04e036": "8b4d0c",
+  "6f04e039": "85c9",
+  "6f04e03b": "7407",
+  "6f04e03d": "6a00",
+  "6f04e03f": "e8ecdc0000",
+  "6f04e044": "8bc6",
+  "6f04e046": "89bbd4000000",
+  "6f04e04c": "8b4df4",
+  "6f04e04f": "64890d00000000",
+  "6f04e056": "59",
+  "6f04e057": "5f",
+  "6f04e058": "5e",
+  "6f04e059": "5b",
+  "6f04e05a": "8be5",
+  "6f04e05c": "5d",
+  "6f04e05d": "c20800",
+  "6f04e090": "55",
+  "6f04e091": "8bec",
+  "6f04e093": "8b4508",
+  "6f04e096": "ff750c",
+  "6f04e099": "0fb6c0",
+  "6f04e09c": "c1e018",
+  "6f04e09f": "894508",
+  "6f04e0a2": "8d4508",
+  "6f04e0a5": "50",
+  "6f04e0a6": "e8a5feffff",
+  "6f04e0ab": "5d",
+  "6f04e0ac": "c20800",
+  "6f04e060": "55",
+  "6f04e061": "8bec",
+  "6f04e063": "8b4508",
+  "6f04e066": "56",
+  "6f04e067": "ff750c",
+  "6f04e06a": "0fb6f0",
+  "6f04e06d": "8bc6",
+  "6f04e06f": "81e6ffffff00",
+  "6f04e075": "c1e018",
+  "6f04e078": "0bc6",
+  "6f04e07a": "894508",
+  "6f04e07d": "8d4508",
+  "6f04e080": "50",
+  "6f04e081": "e8cafeffff",
+  "6f04e086": "5e",
+  "6f04e087": "5d",
+  "6f04e088": "c20800",
+  "6f149320": "55",
+  "6f149321": "8bec",
+  "6f149323": "8b450c",
+  "6f149326": "53",
+  "6f149327": "56",
+  "6f149328": "57",
+  "6f149329": "8b7d08",
+  "6f14932c": "8bd9",
+  "6f14932e": "8b00",
+  "6f149330": "8d4d0c",
+  "6f149333": "8d5704",
+  "6f149336": "8983a4000000",
+  "6f14933c": "e83f79f2ff",
+  "6f149341": "8bc8",
+  "6f149343": "e8d86df2ff",
+  "6f149348": "8bd7",
+  "6f14934a": "8d4d08",
+  "6f14934d": "8bf0",
+  "6f14934f": "e82c79f2ff",
+  "6f149354": "8bc8",
+  "6f149356": "e8c56df2ff",
+  "6f14935b": "56",
+  "6f14935c": "50",
+  "6f14935d": "8bcb",
+  "6f14935f": "e83cf6ffff",
+  "6f149364": "5f",
+  "6f149365": "5e",
+  "6f149366": "5b",
+  "6f149367": "5d",
+  "6f149368": "c20800",
+  "6f05bd30": "55",
+  "6f05bd31": "8bec",
+  "6f05bd33": "8b510c",
+  "6f05bd36": "8b4908",
+  "6f05bd39": "e8f287ffff",
+  "6f05bd3e": "837d0800",
+  "6f05bd42": "8b8098000000",
+  "6f05bd48": "7407",
+  "6f05bd4a": "ff4040",
+  "6f05bd4d": "5d",
+  "6f05bd4e": "c20400",
+  "6f05bd51": "ff4840",
+  "6f05bd54": "5d",
+  "6f05bd55": "c20400",
+  "6f1489a0": "55",
+  "6f1489a1": "8bec",
+  "6f1489a3": "8b511c",
+  "6f1489a6": "56",
+  "6f1489a7": "57",
+  "6f1489a8": "8b7d08",
+  "6f1489ab": "8b723c",
+  "6f1489ae": "3bfe",
+  "6f1489b0": "0f8305010000",
+  "6f1489b6": "8b450c",
+  "6f1489b9": "3b4240",
+  "6f1489bc": "0f83f9000000",
+  "6f1489c2": "0faff0",
+  "6f1489c5": "8b4228",
+  "6f1489c8": "03f7",
+  "6f1489ca": "8d34b0",
+  "6f1489cd": "85f6",
+  "6f1489cf": "0f84e6000000",
+  "6f1489d5": "8b36",
+  "6f1489d7": "8bc6",
+  "6f1489d9": "2381a4000000",
+  "6f1489df": "a9000000ff",
+  "6f1489e4": "0f85d1000000",
+  "6f1489ea": "81e6ffffff00",
+  "6f1489f0": "81feffffff00",
+  "6f1489f6": "750b",
+  "6f1489f8": "5f",
+  "6f1489f9": "b801000000",
+  "6f1489fe": "5e",
+  "6f1489ff": "5d",
+  "6f148a00": "c20800",
+  "6f148a03": "ff82b4000000",
+  "6f148a09": "53",
+  "6f148a0a": "8b9ab4000000",
+  "6f148a10": "8b411c",
+  "6f148a13": "8b4078",
+  "6f148a16": "8b14f0",
+  "6f148a19": "8d04f0",
+  "6f148a1c": "8bf2",
+  "6f148a1e": "81e2000000ff",
+  "6f148a24": "81e6ffffff00",
+  "6f148a2a": "81fa00000002",
+  "6f148a30": "745e",
+  "6f148a32": "8b4004",
+  "6f148a35": "8b7838",
+  "6f148a38": "83ffff",
+  "6f148a3b": "7453",
+  "6f148a3d": "f6403701",
+  "6f148a41": "744d",
+  "6f148a43": "3bfb",
+  "6f148a45": "7449",
+  "6f148a47": "895838",
+  "6f148a4a": "81fa00000001",
+  "6f148a50": "753e",
+  "6f148a52": "3b81a8000000",
+  "6f148a58": "750a",
+  "6f148a5a": "c781cc00000001000000",
+  "6f148a64": "8b5040",
+  "6f148a67": "f7c2ffffff8f",
+  "6f148a6d": "7721",
+  "6f148a6f": "83b9d400000000",
+  "6f148a76": "7508",
+  "6f148a78": "f7c200000060",
+  "6f148a7e": "7510",
+  "6f148a80": "8b4034",
+  "6f148a83": "2381a4000000",
+  "6f148a89": "a9ffffff00",
+  "6f148a8e": "7518",
+  "6f148a90": "81feffffff00",
+  "6f148a96": "0f8574ffffff",
+  "6f148a9c": "5b",
+  "6f148a9d": "5f",
+  "6f148a9e": "b801000000",
+  "6f148aa3": "5e",
+  "6f148aa4": "5d",
+  "6f148aa5": "c20800",
+  "6f148aa8": "5b",
+  "6f148aa9": "5f",
+  "6f148aaa": "c781d000000001000000",
+  "6f148ab4": "33c0",
+  "6f148ab6": "5e",
+  "6f148ab7": "5d",
+  "6f148ab8": "c20800",
+  "6f148abb": "5f",
+  "6f148abc": "c781d000000001000000",
+  "6f148ac6": "33c0",
+  "6f148ac8": "5e",
+  "6f148ac9": "5d",
+  "6f148aca": "c20800",
+  "6f05ee40": "55",
+  "6f05ee41": "8bec",
+  "6f05ee43": "83ec10",
+  "6f05ee46": "53",
+  "6f05ee47": "8b5d0c",
+  "6f05ee4a": "8d4dfc",
+  "6f05ee4d": "56",
+  "6f05ee4e": "57",
+  "6f05ee4f": "8d530c",
+  "6f05ee52": "e8291e0100",
+  "6f05ee57": "8bc8",
+  "6f05ee59": "e8c2120100",
+  "6f05ee5e": "8d5308",
+  "6f05ee61": "89450c",
+  "6f05ee64": "8d4df8",
+  "6f05ee67": "e8141e0100",
+  "6f05ee6c": "8bc8",
+  "6f05ee6e": "e8ad120100",
+  "6f05ee73": "8d5304",
+  "6f05ee76": "8bf8",
+  "6f05ee78": "8d4df4",
+  "6f05ee7b": "e8001e0100",
+  "6f05ee80": "8bc8",
+  "6f05ee82": "e899120100",
+  "6f05ee87": "8bd3",
+  "6f05ee89": "8d4df0",
+  "6f05ee8c": "8bf0",
+  "6f05ee8e": "e8ed1d0100",
+  "6f05ee93": "8bc8",
+  "6f05ee95": "e886120100",
+  "6f05ee9a": "8b5508",
+  "6f05ee9d": "8d4f01",
+  "6f05eea0": "5f",
+  "6f05eea1": "894a08",
+  "6f05eea4": "8b4d0c",
+  "6f05eea7": "897204",
+  "6f05eeaa": "41",
+  "6f05eeab": "5e",
+  "6f05eeac": "8902",
+  "6f05eeae": "8bc2",
+  "6f05eeb0": "894a0c",
+  "6f05eeb3": "5b",
+  "6f05eeb4": "8be5",
+  "6f05eeb6": "5d",
+  "6f05eeb7": "c20800",
+  "6f6501a0": "55",
+  "6f6501a1": "8bec",
+  "6f6501a3": "6aff",
+  "6f6501a5": "68e218a56f",
+  "6f6501aa": "64a100000000",
+  "6f6501b0": "50",
+  "6f6501b1": "83ec44",
+  "6f6501b4": "a19c68ce6f",
+  "6f6501b9": "33c5",
+  "6f6501bb": "8945f0",
+  "6f6501be": "53",
+  "6f6501bf": "56",
+  "6f6501c0": "57",
+  "6f6501c1": "50",
+  "6f6501c2": "8d45f4",
+  "6f6501c5": "64a300000000",
+  "6f6501cb": "8bf9",
+  "6f6501cd": "8b4510",
+  "6f6501d0": "50",
+  "6f6501d1": "e8ea220000",
+  "6f6501d6": "8bd8",
+  "6f6501d8": "85db",
+  "6f6501da": "7512",
+  "6f6501dc": "8b17",
+  "6f6501de": "8bcf",
+  "6f6501e0": "ff923c010000",
+  "6f6501e6": "85c0",
+  "6f6501e8": "0f85a0010000",
+  "6f6501ee": "8b07",
+  "6f6501f0": "8bcf",
+  "6f6501f2": "ff90b8000000",
+  "6f6501f8": "33c9",
+  "6f6501fa": "8bf0",
+  "6f6501fc": "394d0c",
+  "6f6501ff": "0f94c1",
+  "6f650202": "51",
+  "6f650203": "8bce",
+  "6f650205": "e856c4a0ff",
+  "6f65020a": "6a00",
+  "6f65020c": "8bce",
+  "6f65020e": "e88dc2a0ff",
+  "6f650213": "33c0",
+  "6f650215": "8bce",
+  "6f650217": "394508",
+  "6f65021a": "0f94c0",
+  "6f65021d": "50",
+  "6f65021e": "e80dc4a0ff",
+  "6f650223": "85db",
+  "6f650225": "0f8453010000",
+  "6f65022b": "8d45e4",
+  "6f65022e": "8bcf",
+  "6f650230": "50",
+  "6f650231": "8b07",
+  "6f650233": "ff90b8000000",
+  "6f650239": "8bc8",
+  "6f65023b": "e8c086a0ff",
+  "6f650240": "8b45e4",
+  "6f650243": "8bcf",
+  "6f650245": "8945cc",
+  "6f650248": "8b45e8",
+  "6f65024b": "8945d0",
+  "6f65024e": "8b07",
+  "6f650250": "ff90b8000000",
+  "6f650256": "8d4dc0",
+  "6f650259": "51",
+  "6f65025a": "8bc8",
+  "6f65025c": "8b10",
+  "6f65025e": "ff521c",
+  "6f650261": "8b45c0",
+  "6f650264": "51",
+  "6f650265": "8bcc",
+  "6f650267": "8901",
+  "6f650269": "e8c228c0ff",
+  "6f65026e": "8bf0",
+  "6f650270": "8bcb",
+  "6f650272": "56",
+  "6f650273": "8d45d0",
+  "6f650276": "50",
+  "6f650277": "8d45cc",
+  "6f65027a": "50",
+  "6f65027b": "e890f1bdff",
+  "6f650280": "837f3400",
+  "6f650284": "0f85f4000000",
+  "6f65028a": "f6436401",
+  "6f65028e": "6a00",
+  "6f650290": "7454",
+  "6f650292": "68d1020000",
+  "6f650297": "68a878b76f",
+  "6f65029c": "6a18",
+  "6f65029e": "c745e0c2000000",
+  "6f6502a5": "c745e410000000",
+  "6f6502ac": "c745e808000000",
+  "6f6502b3": "c745ec04000000",
+  "6f6502ba": "e813c4a2ff",
+  "6f6502bf": "8945c8",
+  "6f6502c2": "8945c4",
+  "6f6502c5": "c745fc01000000",
+  "6f6502cc": "85c0",
+  "6f6502ce": "7463",
+  "6f6502d0": "6a00",
+  "6f6502d2": "8d4de0",
+  "6f6502d5": "51",
+  "6f6502d6": "6a04",
+  "6f6502d8": "8d4dcc",
+  "6f6502db": "51",
+  "6f6502dc": "57",
+  "6f6502dd": "8bc8",
+  "6f6502df": "e85c37a1ff",
+  "6f6502e4": "eb4f",
+  "6f6502e6": "68d6020000",
+  "6f6502eb": "68a878b76f",
+  "6f6502f0": "6a18",
+  "6f6502f2": "c745d4c2000000",
+  "6f6502f9": "c745d810000000",
+  "6f650300": "c745dc08000000",
+  "6f650307": "e8c6c3a2ff",
+  "6f65030c": "8945c4",
+  "6f65030f": "8945c8",
+  "6f650312": "c745fc02000000",
+  "6f650319": "85c0",
+  "6f65031b": "7416",
+  "6f65031d": "6a00",
+  "6f65031f": "8d4dd4",
+  "6f650322": "51",
+  "6f650323": "6a03",
+  "6f650325": "8d4dcc",
+  "6f650328": "51",
+  "6f650329": "57",
+  "6f65032a": "8bc8",
+  "6f65032c": "e80f37a1ff",
+  "6f650331": "eb02",
+  "6f650333": "33c0",
+  "6f650335": "50",
+  "6f650336": "68402b656f",
+  "6f65033b": "894734",
+  "6f65033e": "8bcb",
+  "6f650340": "56",
+  "6f650341": "8d45cc",
+  "6f650344": "c745fcffffffff",
+  "6f65034b": "50",
+  "6f65034c": "e86fe6bdff",
+  "6f650351": "56",
+  "6f650352": "8d45cc",
+  "6f650355": "8bcb",
+  "6f650357": "50",
+  "6f650358": "8d45b0",
+  "6f65035b": "50",
+  "6f65035c": "e86feebdff",
+  "6f650361": "8b4f34",
+  "6f650364": "8d45b0",
+  "6f650367": "50",
+  "6f650368": "e8833fa1ff",
+  "6f65036d": "833d105fce6f00",
+  "6f650374": "7408",
+  "6f650376": "8d4db0",
+  "6f650379": "e832dd9fff",
+  "6f65037e": "837d0800",
+  "6f650382": "740a",
+  "6f650384": "8b07",
+  "6f650386": "8bcf",
+  "6f650388": "ff906c010000",
+  "6f65038e": "8b4df4",
+  "6f650391": "64890d00000000",
+  "6f650398": "59",
+  "6f650399": "5f",
+  "6f65039a": "5e",
+  "6f65039b": "5b",
+  "6f65039c": "8b4df0",
+  "6f65039f": "33cd",
+  "6f6503a1": "e8afe41300",
+  "6f6503a6": "8be5",
+  "6f6503a8": "5d",
+  "6f6503a9": "c20c00"
+ },
+ "limits": [
+  "Advances MAP-04.2; group-publication and outer recovery scopes remain open.",
+  "Original point scopes use preallocated synthetic maps and existing Storm allocation adapters; no path-query stubs or modified retail instructions.",
+  "Live repeats certify public terrain masks, blocked results, endpoint-mode restoration and query-counter deltas. Absolute global query counters differ with intervening background ticks and remain in raw captures.",
+  "No claim of persistent fine target/completion-field parity outside the covered call, new throughput target acceptance, worker behavior or unrelated routing parity.",
+  "No prior retail expected fixture was modified. Rejected exploratory captures remain in the archive."
+ ]
+}

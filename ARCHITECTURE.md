@@ -278,16 +278,48 @@ For in-depth details on specific engine subsystems, consult the following dedica
   class hierarchy. See [WC3 ability ownership](docs/games/warcraft-3/ability-implementation.md#ability-owned-orders-and-persistent-behavior).
 - **Sparse Entity State Is Game-Owned**: `edict_t` stays a fixed, flat array entry. State that only some entities
   carry (a construction site, a gold mine, an item, a channelled spell) lives in fixed-capacity typed pools inside the
-  game module, never in `entityState_t`, `entityShared_t` or anything the server reads. WC3 attaches ability-,
-  producer-, item- and destructable-owned records to `edict_t.components`, an intrusive list keyed by exact layout IDs
-  (`COMPONENT_*`). One `G_COMPONENTS` table row per component generates its ID, typed pool, accessors and save
-  section. Each record starts with its `component_t` header (statically asserted), and typed getters
-  (`G_GetConstruction`) are NULL-safe and never allocate. Only owning transitions attach (`G_AddConstruction`) or
-  release (`G_FreeConstruction`) a record. Per-frame movement and combat records stay direct pointers until a measurement justifies list
-  lookup on those paths. Cache a record once per operation, and re-read it after any call that may release it: test
-  builds poison released slots so a stale pointer faults. Saves persist each payload with its type ID and rebuild the
-  links on load. See [pooled entity state](docs/games/warcraft-3/pooled-entity-state.md).
+  game module, never in `entityState_t`, `entityShared_t` or anything the server reads. WC3 attaches these records
+  through direct typed pointers on `edict_t`; owning transitions allocate and release them explicitly. Reads never
+  allocate. Re-read optional state after callbacks that can release it, and preserve incarnation checks across
+  reentrant operations. Movement clocks and retained order lifecycle state stay embedded through stationary phases,
+  Stop and replacement; their lifetime is not equivalent to active travel. Saves relocate owned entity references
+  and serialize typed pools after entity records. See [pooled entity state](docs/games/warcraft-3/pooled-entity-state.md).
 - **Test-First Verification**: Recreate gameplay situations through production entry points in automated tests, including
   timing and callback order. Extend fixtures and harnesses before resorting to a game launch. See
   [verification workflow](CONTRIBUTING.md#test-first-behavior-verification) for the limited visual/platform exceptions.
 - **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Confirm root causes with regression tests and authoritative data; use diagnostic logs when needed.
+
+
+## Ordered server spatial queries
+
+`server/sv_world.c` retains Quake's fixed area tree and intrusive entity lists as
+the authoritative `BoxEdicts` encounter order. A derived hierarchical hash grid
+selects candidates without scanning every object in the reached coarse lists.
+It contains one entry per exported edict; large bounds use a larger grid level,
+so insertion does not grow with covered area. Bounds remain server-owned and
+must be updated through `SV_LinkEntity`. The grid is rebuilt by `SV_ClearWorld`
+and is not serialized.
+
+Candidate enumeration must never expose hash-bucket order to a game predicate.
+Node preorder plus a monotonically increasing link serial reconstructs the old
+list order, including every same-cell relink. Bucket membership may remain in
+place for those relinks because only the canonical serial is observable.
+A stable fixed-width radix sort restores candidate order in linear work, using
+only the differing serial bytes plus node preorder. Strict tree split comparisons
+are retained for point queries on a boundary. Predicates run in canonical order before applying the result limit.
+
+Whole-world queries, small reached populations and expensive bucket chains use
+the original list traversal when it is cheaper. Nonfinite/inverted queries use
+its original comparisons; exceptional entity bounds are checked separately.
+Nested queries use the lists to avoid overwriting the outer candidate buffer.
+If a predicate relinks another object, the outer query resumes the original
+lists after its current object, so it neither repeats a predicate nor misses an
+object that just entered the query. As with the original intrusive iterator,
+predicates must not remove their currently examined link or replace the world.
+
+The `server_area.*` regression compares complete result and predicate order
+against the original recursive traversal across mixed sizes, negative and
+out-of-map coordinates, strict split boundaries, relinking, removal, limits,
+exceptional floats, nested queries and mutation of another object. It also
+checks that a selective 4096-entity fixture actually prunes candidate work.
+Performance evidence belongs in [WC3 performance](docs/games/warcraft-3/performance.md).

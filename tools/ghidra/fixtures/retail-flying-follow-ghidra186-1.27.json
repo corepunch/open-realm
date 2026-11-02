@@ -1,0 +1,24 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "records": [
+    {
+      "address": "6f5fd270",
+      "name": "Move_CreateTasksFromOrder",
+      "evidence": "Payoff186 TARGET-02.1: instruction-checked nonstructure target branch creates ordinary approach d0174 and persistent d0173 independently of either mover's flying lane. Two complete read-only TARGET-02.1 scene5 repeats contain93 active approach member states and524 persistent states (the final raw Stop-retired slot has group identity ffffffff/ffffffff and is excluded); scene7 separately supplies ground-following-air producer evidence. Engine Move now shares physical target ownership for air/ground mixtures; structure point-branch and specialized warp/target families remain open.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f166e90",
+      "name": "Path_RequestFineRoute",
+      "evidence": "Payoff186 TARGET-02.1: the captured fine_target is passed into148100 regardless of the mover flight lane. Read-only scene5 flying Gryphon to ground Footman has nonnull path+a4.1489a0 records matching target_seen before suppression/category blocking. Engine flight exclusion caused35-point versus native33-point first route and wrong initial heading; retaining this independent endpoint identity matches the frozen flying pursuit states.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16fbd0",
+      "name": "Mover_StepRoute",
+      "evidence": "Payoff186 TARGET-02.1: Mover_TestArrival writes held/in-range; when nonzero, return through UpdateSpeedAndHeading(stop1) and unlink scheduler BEFORE destination-change validation/reset. Two identical public flying Follow repeats retain fine11/coarse2 cached points at4704's refreshed near target while completing the facing gate. Engine previously cleared those caches before handling in-range; the early branch now preserves them. No flight-specific arithmetic or magic trajectory constants introduced.",
+      "readback_matches": true
+    }
+  ]
+}

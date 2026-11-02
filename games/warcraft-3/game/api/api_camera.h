@@ -54,7 +54,7 @@ static camerasetup_t G_CameraStateAtTime(gameClient_t *gc, uint32_t now) {
         current.near_z = LerpNumber(gc->camera.old_state.near_z, gc->camera.state.near_z, k);
         current.far_z = LerpNumber(gc->camera.old_state.far_z, gc->camera.state.far_z, k);
     }
-    if (gc->camera.pan.active)
+    if (gc->camera.pan_active)
         current.position = G_CameraPanPositionAtTime(gc, now, NULL);
     return current;
 }
@@ -204,14 +204,14 @@ static void G_StartCameraPan(gameClient_t *gc, vec2_t destination, vec2_t rate) 
     current = G_CameraStateAtTime(gc, now);
     destination = G_ClampCameraPosition(gc, &destination);
     G_ClearCameraTarget(gc, "G_StartCameraPan");
-    gc->camera.pan.start = current.position;
-    gc->camera.pan.destination = destination;
-    gc->camera.pan.rate = rate;
-    gc->camera.pan.time = now;
-    gc->camera.pan.active =
+    gc->camera.pan_start = current.position;
+    gc->camera.pan_destination = destination;
+    gc->camera.pan_rate = rate;
+    gc->camera.pan_start_time = now;
+    gc->camera.pan_active =
         (destination.x != current.position.x && rate.x > 0.0f) ||
         (destination.y != current.position.y && rate.y > 0.0f);
-    if (!gc->camera.pan.active) {
+    if (!gc->camera.pan_active) {
         gc->camera.old_state.position = destination;
         gc->camera.state.position = destination;
         G_ClearCameraPan(gc);

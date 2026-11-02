@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "projection_sha256": "c89372c587b09d2cea50c5ae6e92f92d87cec774b13da5ac6249aa6a60abdc30",
+  "header_sha256": "8e34da7be8681417da8cf5949b89eb640982b89fe9c04d4d3965d0613585dd55",
+  "baseline243_sha256": "7cac44149d64a15cc2db230068d82f52f80d3d1533acd67ad47d03a976ef3cf4",
+  "capture_files_sha256": {
+    "itemdrop_capture.py": "b2e25346367ec768e34c229ee4d67b0c9b108f32ceae58e7493fd15ae854bd74",
+    "itemdrop_make_map.py": "d59a99ce6a500dd76abd9644f1d759164604cb895f28e64d455c44e86c47a6be",
+    "itemdrop_observer.js": "5db03ea5da368c6435565e22f0aead365bd350c11441e1379d830c6005f50eeb",
+    "itemdrop_probe.j": "9a4cd2f10dc27fb524d28632bdfb11a348c3c5e9175f1a2061e86dc46846f6a9",
+    "probe.ai": "a6857c412666d7ebf97f5835c0f327c5b8ec1b00ad676b01270b70f6763f0975",
+    "design.json": "8a64f8e5af94e15e184a5f423f4fd93b331c34f1dffc0603ab74724368a88d8b",
+    "RS-TARGET244-preparatory-context-v1.w3m": "14d9039e6dd386dd2dccae34a1b022c4893e13ca1efb16ffb61d4bad7c45b9c0",
+    "RS-TARGET244-preparatory-context-v1.json": "6a96e874145cdc81beaa49b3bd1b4a2e9f02d2e35a90d0f7aa22d8ab48b3e071",
+    "frozen-sources.json": "fd1b5d78bdd542575e7b65d47cc81d06c6df78d1c652e04f49324087fff0a44c",
+    "observe1.jsonl": "666f137d048d9c4737c2f6e77b1f8ab505d06db1e6bbe56a5a63a76d627d7d77",
+    "observe2.jsonl": "c303d639a8bf4b3d11ce52e01d6ffa84236fde9c0bb3c4fdb6aaa70f397acf13",
+    "control1.jsonl": "1ab67371c445d5dd299b6aaa991c4bc17494853c0ee6d54ccbba859f2e787c95",
+    "observe1-preload.txt": "85a4efe2e94850865e5d90d3c8b55fcbb64ef349e118ccc9e6e3602539429e6f",
+    "observe2-preload.txt": "d2cabf90b771641df6bcd15f07c229b26033775ab766de23bce49c4be36b6feb",
+    "control1-preload.txt": "5e0f2b31d1f1c3061d6c9d8605b8adced3d06183181c07a2c29a87f97bddc880"
+  },
+  "limitations": [
+    "Role0 alone identifies neither watched actor; this probe has no explicitnull predicate.",
+    "No numeric movement poll oracle.",
+    "Same243 gameplay and all92public/131scoped baseline rows are unchanged.",
+    "Native275FINISH/276ENDCAST; FourCC and event normalization must be typed."
+  ]
+}

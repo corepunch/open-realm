@@ -1,0 +1,46 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "initial_stamp": 1000,
+  "corners": [
+    [
+      8,
+      8
+    ],
+    [
+      9,
+      8
+    ],
+    [
+      9,
+      9
+    ],
+    [
+      8,
+      9
+    ]
+  ],
+  "terrain80_cell": [
+    9,
+    8
+  ],
+  "lanes": [
+    100663302,
+    2147483776,
+    1073741888,
+    67108868
+  ],
+  "final_stamp": 1015,
+  "object_stamps": [
+    1012,
+    1013,
+    1014,
+    1015
+  ],
+  "classes": {
+    "ground": 1,
+    "amph": 1,
+    "float": 1,
+    "flight": 0
+  },
+  "fixture_supplied": "Four live active categoryca region identities and retained one-cell records; original full15d360 with fixture hierarchy backing."
+}

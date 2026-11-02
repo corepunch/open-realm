@@ -61,13 +61,13 @@ uint32_t SetDestructableInvulnerable(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     bool flag = jass_checkboolean(j, 2);
     if (d) {
-        G_SetUnitFlag(d, UNIT_FLAG_INVULNERABLE, flag);
+        d->invulnerable = flag;
     }
     return 0;
 }
 uint32_t IsDestructableInvulnerable(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushboolean(j, d && G_UnitHasFlag(d, UNIT_FLAG_INVULNERABLE));
+    return jass_pushboolean(j, d && (d && d->invulnerable));
 }
 uint32_t EnumDestructablesInRect(jass_t *j) {
     /* Visit every destructable inside the rect, exposing each as the enum
@@ -137,7 +137,7 @@ uint32_t SetDestructableOccluderHeight(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     float const height = jass_checknumber(j, 2);
     if (G_IsDestructable(d)) {
-        G_GetDestructable(d)->occluder_height = height;
+        d->destructable->occluder_height = height;
         if (height > 0.0f || d->targtype == TARG_TREE)
             d->s.flags |= EF_FOW_BLOCKER;
         else
@@ -149,7 +149,7 @@ uint32_t SetDestructableOccluderHeight(jass_t *j) {
 }
 uint32_t GetDestructableOccluderHeight(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, G_IsDestructable(d) ? G_GetDestructable(d)->occluder_height : 0.0f);
+    return jass_pushnumber(j, G_IsDestructable(d) ? d->destructable->occluder_height : 0.0f);
 }
 uint32_t DestructableRestoreLife(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
@@ -162,16 +162,16 @@ uint32_t QueueDestructableAnimation(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     cstring_t const animation = jass_checkstring(j, 2);
     if (G_IsDestructable(d) && animation)
-        d->queued_animation = G_InternAnimationName(animation);
+        strlcpy(d->queued_animation, animation, sizeof(d->queued_animation));
     return 0;
 }
 uint32_t SetDestructableAnimation(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     cstring_t animation = jass_checkstring(j, 2);
     if (G_IsDestructable(d) && animation) {
-        d->queued_animation = "";
+        d->queued_animation[0] = '\0';
         G_SetUnitAnimation(d, animation);
-        G_SetUnitFlag(d, UNIT_FLAG_ANIMATION_OVERRIDE, d->animation != NULL);
+        d->animation_override = d->animation != NULL;
         if (d->animation) d->s.frame = d->animation->interval[0];
     }
     return 0;
@@ -193,9 +193,9 @@ uint32_t ShowDestructable(jass_t *j) {
     if (d) {
         bool const was_hidden = !!(d->s.renderfx & RF_HIDDEN);
         if (show) {
-            d->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(d,false);
         } else {
-            d->s.renderfx |= RF_HIDDEN;
+            G_SetEntityHidden(d,true);
         }
         if ((d->s.flags & EF_FOW_BLOCKER) && was_hidden != !!(d->s.renderfx & RF_HIDDEN)) G_FowMarkBlockersDirty();
     }

@@ -64,7 +64,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
     bool illusion_tint = false;
 
     if (!unit || !unit->inuse || !out) return false;
-    color = G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) ? unit->vertex_color : COLOR32_WHITE;
+    color = (unit && unit->vertex_color_set) ? unit->vertex_color : COLOR32_WHITE;
     presentation_alpha = G_UnitDissipatePresentationAlpha(unit);
 
     /* Most entities have no authored tint or presentation fade. An ordinary
@@ -73,11 +73,11 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
      * Reject those before the potentially expensive FoW/detector queries.
      * This is only a candidate check: the original visibility and fade logic
      * below remains authoritative for all possible tinted entities. */
-    if (!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) && presentation_alpha >= 1.0f) {
+    if (!(unit && unit->vertex_color_set) && presentation_alpha >= 1.0f) {
         if (!client_ent || !client_ent->client) return false;
         player = client_ent->client->ps.number;
         if (unit->s.player != player && !G_FowPlayersShareVision(player, unit->s.player)) return false;
-        if (!G_GetShadowMeld(unit) && !(unit->s.renderfx & RF_HIDDEN) &&
+        if (!unit->shadowmeld && !(unit->s.renderfx & RF_HIDDEN) &&
             !(unit->runtime.flags & (UNIT_BALANCE_PERMANENT_INVISIBLE | UNIT_BALANCE_GHOST_INVISIBLE)) &&
             !(unit->aiflags & AI_ILLUSION))
             return false;
@@ -102,7 +102,7 @@ static bool G_ClientVertexColor(edict_t *client_ent, edict_t const *unit, color3
         }
     }
 
-    if (!G_UnitHasFlag(unit, UNIT_FLAG_VERTEX_COLOR_SET) && presentation_alpha >= 1.0f && !illusion_tint) return false;
+    if (!(unit && unit->vertex_color_set) && presentation_alpha >= 1.0f && !illusion_tint) return false;
     color.a = (uint8_t)MIN(255, MAX(0, (int)((float)color.a * presentation_alpha + 0.5f)));
     *out = color;
     return true;

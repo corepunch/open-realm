@@ -22,6 +22,12 @@ static void blink_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     vec2_t dest = st.point;
     CM_ClosestPathablePointForRadiusFlags(&st.point, caster->collision, M_UnitStaticPathingFlags(caster), &dest);
     S_SpellCommitRelocation(caster, &dest);
+    /* Native4c9622..9634 publishes the committed position before TargetLost.
+     * This bit bypasses world-hidden validation only, not detection or fog.
+     * An inner Blink clears the same bit; it is not a nesting counter. */
+    caster->target_loss_transient = true;
+    S_UnitTargetLost(caster);
+    caster->target_loss_transient = false;
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_AREA_EFFECT, 0, caster, NULL, true);
 }
 
@@ -52,17 +58,4 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
     FILTER_EDICTS(target, FOK_HITS(target))
         S_SpellDamage(target, caster, (uint32_t)damage);
 #undef FOK_HITS
-}
-
-/* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
-
-BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike) {
-    edict_t *target = st.entity;
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
-
-    S_SpellDamage(target, caster, damage);
-    /* TODO(1:1): Shadow Strike also applies a movement slow and a decaying
-     * poison DoT via the BEsh buff.  The status system needs a movement-speed
-     * modifier and a periodic-damage tick first. */
 }

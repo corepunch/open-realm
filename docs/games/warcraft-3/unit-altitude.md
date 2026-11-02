@@ -61,6 +61,22 @@ altitude. Each rendering pass indexes the current view's `RF_GROUND_SURFACE` ent
 before tracing exact walkable MDX deck geometry for conforming units; this
 preserves moving bridge/elevator heights without stale frame-to-frame caching. See [Warcraft III elevators](elevators.md) for the elevator state and animation contract.
 
+## Authored ground orientation
+
+`S_RefreshUnitSlope` samples the shared mode0 ground presentation grid and
+higher walkable geometry at three authored `UnitUI.elevRad` taps. It clamps
+pitch/roll to `maxPitch`/`maxRoll`, publishing generic `s.pose_offset` radians
+without changing `s.angle` or physical support Z. `S_RefreshUnitSupport` owns
+position/heading invalidation; unchanged forced height queries retain the
+completed pose. Save167 persists it. The client only interpolates the authored
+orientation and the renderer applies its existing model basis.
+
+Bridge/water crossings with stock10/10-degree, custom3/5-degree and zero limits
+are verified against repeated retail observations and unchanged native code.
+Flying bank, zero-radius triangle normals, deformed terrain and higher grid
+modes remain separate gaps. See [Payoff272](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272)
+for source selection, numeric ordering and reproducer.
+
 ## Projectile Height
 
 Basic and spell missile entities already launch from their server-side source Z. Once unit altitude is part of
@@ -99,7 +115,7 @@ These related Warsmash features need broader renderer/network/pathing work and s
 `M_CheckGround`:
 
 - `FLOAT` swimability and full `AMPH` horizontal routing;
-- terrain slope pitch/roll from `elevRad`, `maxPitch`, and `maxRoll`;
+- flying bank and zero-radius slope-normal branches;
 - `selZ`-driven authored selection-circle height; water-supported and walkable-destructable selection, hover, and
   indicator rings already use their support surface;
 - shadow bridge/water semantics;

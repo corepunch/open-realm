@@ -1,4 +1,33 @@
 #include "s_skills.h"
+#include "../g_entity_set.h"
+
+/* Derived membership follows rally storage allocation. Point/default rallies
+ * may remain members; the target and spawn identity are always checked live. */
+static entitySet_t rally_producers;
+static bool rally_producers_valid;
+#ifdef BZ_TESTS
+static uint32_t rally_invalidation_visits;
+#endif
+
+void S_InvalidateRallyProducers(void) { rally_producers_valid = false; }
+
+void S_ForgetRallyProducer(edict_t *ent) {
+    uintptr_t offset = (uintptr_t)ent - (uintptr_t)g_edicts;
+    if (offset < sizeof(*ent) * MAX_ENTITIES && offset % sizeof(*ent) == 0)
+        entity_set_put(&rally_producers, (uint32_t)(offset / sizeof(*ent)), false);
+}
+
+static void rally_prepare_producers(void) {
+    if (rally_producers_valid) return;
+    rally_producers = (entitySet_t){0};
+    FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+        rally_invalidation_visits++;
+#endif
+        if (g_edicts[i].inuse && g_edicts[i].rally) entity_set_put(&rally_producers, i, true);
+    }
+    rally_producers_valid = true;
+}
 
 static void G_ClearRallyIndicator(gameClient_t *client) {
     if (!client || !client->rally_indicator) return;
@@ -20,6 +49,10 @@ bool G_UnitHasRally(edict_t const *producer) {
 
     if (!producer || !producer->data.UnitProfile) return false;
     if (S_AncientHasRootAbility(producer) && !S_AncientIsRooted(producer)) return false;
+    uint32_t const code=MAKEFOURCC('A','R','a','l');
+    FOR_LOOP(i,ARRAY_COUNT(producer->abilities.removed))
+        if(producer->abilities.removed[i]==code) return false;
+    if (G_ActorHasAbilityCode(producer,code)) return true;
     trains = producer->data.UnitProfile->trains;
     return (trains && *trains) || G_UnitCanReviveHeroes(producer);
 }
@@ -29,10 +62,28 @@ void G_ResetRallyTarget(edict_t *producer) {
     G_FreeRally(producer);
 }
 
+/* The ordinary public order reaches mode1 admission, even for metadata.
+ * Validate before cancellation; direct metadata setters keep their own boundary. */
+bool S_IssueRallyPointOrder(edict_t *producer, vec2_t const *point, bool queue) {
+    if (!G_UnitHasRally(producer) || !point) return false;
+    if (!queue) order_stop_cleanup(producer);
+    return G_SetRallyPoint(producer,point);
+}
+
+bool S_IssueRallyTargetOrder(edict_t *producer, edict_t *target, bool queue) {
+    if (!G_UnitHasRally(producer) || !target || !target->inuse) return false;
+    if (!queue) order_stop_cleanup(producer);
+    return G_SetRallyEntity(producer,target);
+}
+
 bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {
     if (!G_UnitHasRally(producer) || !point) return false;
-    rally_t *rally = G_AddRally(producer);
-    *rally = (rally_t){ .component = rally->component, .type = RALLY_TARGET_POINT, .point = *point };
+    if (!producer->rally) producer->rally = G_AllocRally();
+    assert(producer->rally);
+    producer->rally->type = RALLY_TARGET_POINT;
+    producer->rally->point = *point;
+    producer->rally->entity = NULL;
+    producer->rally->entity_spawn_time = 0;
     G_RefreshRallyIndicatorForProducer(producer);
     return true;
 }
@@ -42,20 +93,22 @@ bool G_SetRallyEntity(edict_t *producer, edict_t *target) {
     /* Preserve an explicit click on the producer as an entity rally. The
      * zero-initialized SELF state means untouched default and must remain a
      * no-order handoff; an explicit self target is a Smart instruction. */
-    rally_t *rally = G_AddRally(producer);
-    *rally = (rally_t){ .component = rally->component, .type = RALLY_TARGET_ENTITY, .entity = target,
-                        .entity_spawn_time = target->spawn_time };
+    if (!producer->rally) producer->rally = G_AllocRally();
+    assert(producer->rally);
+    producer->rally->type = RALLY_TARGET_ENTITY;
+    producer->rally->entity = target;
+    producer->rally->entity_spawn_time = target->spawn_time;
+    producer->rally->point = (vec2_t){ 0, 0 };
     G_RefreshRallyIndicatorForProducer(producer);
     return true;
 }
 
 static bool G_RallyEntityIsValid(edict_t *producer) {
     edict_t *target;
-    rally_t const *rally = G_GetRally(producer);
 
-    if (!rally || rally->type != RALLY_TARGET_ENTITY) return false;
-    target = rally->entity;
-    if (!target || !target->inuse || target->spawn_time != rally->entity_spawn_time) {
+    if (!producer || !producer->rally || producer->rally->type != RALLY_TARGET_ENTITY) return false;
+    target = producer->rally->entity;
+    if (!target || !target->inuse || target->spawn_time != producer->rally->entity_spawn_time) {
         return false;
     }
     /* Current Warsmash explicitly drops dead unit targets. Destructable/item
@@ -72,17 +125,16 @@ rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t
     if (target) *target = NULL;
     if (!G_UnitHasRally(producer)) return RALLY_TARGET_NONE;
 
-    rally_t const *rally = G_GetRally(producer);
-    if (rally && rally->type == RALLY_TARGET_POINT) {
-        if (point) *point = rally->point;
+    if (producer->rally && producer->rally->type == RALLY_TARGET_POINT) {
+        if (point) *point = producer->rally->point;
         return RALLY_TARGET_POINT;
     }
-    if (rally && rally->type == RALLY_TARGET_ENTITY) {
+    if (producer->rally && producer->rally->type == RALLY_TARGET_ENTITY) {
         if (!G_RallyEntityIsValid(producer)) {
             G_ResetRallyTarget(producer);
         } else {
-            if (point) *point = rally->entity->s.origin2;
-            if (target) *target = rally->entity;
+            if (point) *point = producer->rally->entity->s.origin2;
+            if (target) *target = producer->rally->entity;
             return RALLY_TARGET_ENTITY;
         }
     }
@@ -126,7 +178,7 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
         origin = (vec3_t){ point.x, point.y, 0 };
     } else if ((type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY) && target) {
         origin = target->s.origin;
-        if (G_GetDestructable(target)) {
+        if (target->destructable) {
             origin.z += 192.0f;
         }
     } else {
@@ -147,9 +199,9 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
     indicator->s.renderfx = RF_NO_FOGOFWAR;
     indicator->s.flags = EF_NOT_SELECTABLE;
     indicator->svflags = SVF_OWNER_ONLY;
-    G_SetUnitFlag(indicator, UNIT_FLAG_RALLY_INDICATOR, true);
+    indicator->rally_indicator = true;
     indicator->owner = clent;
-    indicator->goalentity = type == RALLY_TARGET_POINT ? NULL : target;
+    S_SetMoveGoal(indicator, &indicator->goalentity, type == RALLY_TARGET_POINT ? NULL : target);
     indicator->movetype = indicator->goalentity ? MOVETYPE_LINK : MOVETYPE_NONE;
     if (type == RALLY_TARGET_POINT || target->targtype == TARG_ITEM) {
         M_CheckGround(indicator);
@@ -178,11 +230,16 @@ bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced) {
 
 void G_InvalidateRallyTarget(edict_t *target) {
     if (!target) return;
-    FOR_LOOP(i, globals.num_edicts) {
+    rally_prepare_producers();
+    for (uint32_t i = entity_set_next(&rally_producers, 0); i < globals.num_edicts;
+         i = entity_set_next(&rally_producers, i + 1)) {
+#ifdef BZ_TESTS
+        rally_invalidation_visits++;
+#endif
         edict_t *producer = &globals.edicts[i];
-        rally_t const *rally = G_GetRally(producer);
-        if (!producer->inuse || !rally || rally->type != RALLY_TARGET_ENTITY || rally->entity != target ||
-            rally->entity_spawn_time != target->spawn_time) {
+        if (!producer->inuse || !producer->rally || producer->rally->type != RALLY_TARGET_ENTITY ||
+            producer->rally->entity != target ||
+            producer->rally->entity_spawn_time != target->spawn_time) {
             continue;
         }
         G_ResetRallyTarget(producer);

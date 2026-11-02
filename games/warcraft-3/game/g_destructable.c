@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
 #ifdef WC3_SC2API
 #include "sc2api/sc2api_server.h"
 #endif
@@ -7,10 +8,23 @@
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
-static void G_ApplyDestructableAlivePathing(edict_t *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
-    ent->pathtex = dstr->placement_solid
-        ? dstr->alive_pathtex
+/*650c00 prepares the new texture's raster point;0642f0 consumes that captured
+ *point unchanged. Keep admission out of the generic region publisher. */
+static void G_CaptureDestructableFootprintOrigin(edict_t *ent) {
+    ent->destructable->footprint_origin_valid=ent->pathtex!=NULL;
+    if(!ent->pathtex)return;
+    pathTexTransform_t transform=CM_GetPathTexTransform(ent);box2_t bounds=CM_GetWorldBounds();
+    float point[]={wc3_widget_clamp_axis(ent->s.origin.x,bounds.min.x,bounds.max.x),
+        wc3_widget_clamp_axis(ent->s.origin.y,bounds.min.y,bounds.max.y)};
+    wc3_widget_snap(point,transform.width,transform.height);
+    ent->destructable->footprint_origin=(vec2_t){point[0],point[1]};
+}
+
+static void G_RefreshDestructableAlivePathing(edict_t *ent) {
+    destructable_t *dstr = ent->destructable;
+    G_MarkMoveSpatialObject(ent);
+    ent->pathtex = ent->destructable->placement_solid
+        ? ent->destructable->alive_pathtex
         : NULL;
     ent->collision = dstr->placement_solid
         ? dstr->alive_collision
@@ -24,21 +38,51 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
         ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
-static void G_ApplyDestructableDeathPathing(edict_t *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
-    assert(ent && dstr);
-    ent->pathtex = dstr->placement_solid
-        ? dstr->death_pathtex
+static void G_ApplyDestructableAlivePathing(edict_t *ent) {
+    G_RefreshDestructableAlivePathing(ent);G_CaptureDestructableFootprintOrigin(ent);
+}
+
+static void G_RefreshDestructableDeathPathing(edict_t *ent) {
+    destructable_t *dstr = ent->destructable;
+    G_MarkMoveSpatialObject(ent);
+    ent->pathtex = ent->destructable->placement_solid
+        ? ent->destructable->death_pathtex
         : NULL;
     ent->collision = 0.0f;
     dstr->pathing_active = dstr->placement_solid &&
         ent->pathtex != NULL;
     ent->s.flags &= ~EF_GROUND_SURFACE;
 }
+static void G_ApplyDestructableDeathPathing(edict_t *ent) {
+    S_RetireMoveRegions(ent);G_RefreshDestructableDeathPathing(ent);G_CaptureDestructableFootprintOrigin(ent);
+}
+
+/* The authored constructor selects rotation and snaps pose before publishing
+ * its footprint. Apply this equally to fresh creation and map-script binding. */
+vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing) {
+    assert(ent && ent->destructable);
+    pathTex_t const *pt=ent->destructable->alive_pathtex;
+    if(!pt) return point;
+    if(ent->data.DestructableData->fixedRot>=0)
+        facing=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    unsigned turn=wc3_widget_texture_turn(facing,pt->width,pt->height);
+    box2_t bounds=CM_GetWorldBounds();
+    float snapped[]={wc3_widget_clamp_axis(point.x,bounds.min.x,bounds.max.x),
+        wc3_widget_clamp_axis(point.y,bounds.min.y,bounds.max.y)};
+    wc3_widget_snap(snapped,turn&1 ? pt->height : pt->width,turn&1 ? pt->width : pt->height);
+    return (vec2_t){snapped[0],snapped[1]};
+}
+
+void G_ApplyDestructableCreationPose(edict_t *ent) {
+    if (!G_IsDestructable(ent)) return;
+    if (ent->data.DestructableData->fixedRot>=0)
+        ent->s.angle=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    ent->s.origin2=G_DestructableCreationPoint(ent,ent->s.origin2,ent->s.angle);
+}
 
 /* Saved records retain logical placement state; map/model pointers are rebuilt. */
 void G_RestoreDestructableData(edict_t *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     DestructableData_t const *row;
     assert(ent && dstr);
     row = ent->data.DestructableData;
@@ -64,8 +108,10 @@ void G_RestoreDestructableData(edict_t *ent) {
             gi.error("WC3 LoadGame: missing destructable placement");
         }
     }
-    if (dstr->dead) G_ApplyDestructableDeathPathing(ent);
-    else G_ApplyDestructableAlivePathing(ent);
+    /* The save already restored ordered fine-region identities. Rebind texture
+     * resources and derived flags without executing the death transition again. */
+    if (ent->destructable->dead) G_RefreshDestructableDeathPathing(ent);
+    else G_RefreshDestructableAlivePathing(ent);
 }
 
 /*
@@ -91,24 +137,26 @@ void G_ActivateScriptedDestructable(edict_t *ent,
     ent->s.angle = facing;
     ent->s.scale = scale;
 
-    G_GetDestructable(ent)->dead = false;
-    G_GetDestructable(ent)->loot_processed = false;
+    ent->destructable->dead = false;
+    ent->destructable->loot_processed = false;
 
     /*
      * CreateDestructable creates the normal active form, even when the
      * war3map.doo entry used as its placeholder had flags=0.
      */
-    G_GetDestructable(ent)->placement_solid = true;
+    ent->destructable->placement_solid = true;
 
     ent->svflags &= ~SVF_DEADMONSTER;
 
-    ent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(ent,false);
     ent->s.renderfx &= ~RF_NO_SHADOW;
     ent->s.flags &= ~EF_NOT_SELECTABLE;
 
     ent->health.value = ent->health.max_value;
 
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
+    G_ApplyDestructableCreationPose(ent);
     G_DestructableStartAliveAnimation(ent, false);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
 
@@ -119,7 +167,7 @@ bool G_IsDestructable(edict_t const *ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;
     }
-    if (G_GetDestructable(ent)) {
+    if (ent->destructable) {
         return true;
     }
     /* Spawned units are never destructables.  Besides avoiding an object-data
@@ -132,14 +180,14 @@ bool G_IsDestructable(edict_t const *ent) {
 }
 
 bool G_DestructableIsAttackable(edict_t const *ent) {
-    return G_IsDestructable(ent) && !G_GetDestructable(ent)->dead &&
+    return G_IsDestructable(ent) && !ent->destructable->dead &&
         ent->health.value > 0.0f && ent->targtype != TARG_NONE &&
         !(ent->s.renderfx & RF_HIDDEN) &&
         !(ent->s.flags & EF_NOT_SELECTABLE);
 }
 
 bool G_DestructableIsWalkable(edict_t const *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
         dstr->placement_solid && !dstr->dead;
 }
@@ -150,7 +198,7 @@ bool G_DestructableCanBeAttackedBy(edict_t const *attacker, edict_t const *targe
     uint32_t flag;
 
     if (!attacker || !G_DestructableIsAttackable(target) ||
-        (attacker->unit_state->attack1.type == ATK_NONE && attacker->unit_state->attack2.type == ATK_NONE)) {
+        (S_AttackProfileRead(attacker, 0)->type == ATK_NONE && S_AttackProfileRead(attacker, 1)->type == ATK_NONE)) {
         return false;
     }
     /* Retail lets the explicit Attack command cut down trees even though
@@ -158,8 +206,8 @@ bool G_DestructableCanBeAttackedBy(edict_t const *attacker, edict_t const *targe
      * Smart handling is still separate and workers keep Harvest precedence. */
     if (target->targtype == TARG_TREE) {
         bool const researched = G_ImpalingBoltResearchLevel(attacker) > 0;
-        unitAttack_t const *one = &attacker->unit_state->attack1;
-        unitAttack_t const *two = &attacker->unit_state->attack2;
+        unitAttack_t const *one = S_AttackProfileRead(attacker, 0);
+        unitAttack_t const *two = S_AttackProfileRead(attacker, 1);
         /* Ballista Aline attacks cannot directly attack trees until Repb.
          * Preserve normal explicit tree attacks for other weapon types. */
         return (one->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
@@ -168,8 +216,8 @@ bool G_DestructableCanBeAttackedBy(edict_t const *attacker, edict_t const *targe
                 (two->weapon != WPN_ALINE || researched));
     }
     flag = G_TargetFlagForType(target->targtype);
-    return flag && ((attacker->unit_state->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
-                    (attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->unit_state->attack2.targetsAllowed & flag)));
+    return flag && ((S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) ||
+                    (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)));
 }
 
 bool G_DestructableAcceptsSmartAttack(edict_t const *attacker, edict_t const *target) {
@@ -265,7 +313,7 @@ static void G_QueueDestructableDrop(uint32_t item_id,
  * world item.
  * Marking first makes the operation safe against callbacks or repeated kills. */
 void G_SpawnDestructableLoot(edict_t *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     mapRandomItemTable_t const *table;
     uint32_t *selected;
     uint32_t selected_count = 0;
@@ -325,12 +373,13 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
                                           bool rebuild_pathing) {
     void (*callback)(edict_t *, edict_t *);
 
-    if (!G_IsDestructable(ent) || G_GetDestructable(ent)->dead) return false;
+    if (!G_IsDestructable(ent) || ent->destructable->dead) return false;
+    uint32_t const birth = ent->spawn_time;
 
 #ifdef WC3_SC2API
     if (publish_event) WC3_SC2API_RecordDeath(ent);
 #endif
-    G_GetDestructable(ent)->dead = true;
+    ent->destructable->dead = true;
     ent->health.value = 0.0f;
     ent->svflags |= SVF_DEADMONSTER;
     ent->s.flags |= EF_NOT_SELECTABLE;
@@ -347,13 +396,17 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
         CM_BakeStaticObstacles();
     }
     if (publish_event) {
+        /* Widget death publishes its changed footprint before target-loss
+         * subscribers recover/rebind their approach (retail widgetgoal). */
+        S_UnitTargetLost(ent);
+        if (!ent->inuse || ent->spawn_time != birth || !G_IsDestructable(ent)) return true;
         G_SpawnDestructableLoot(ent);
         G_PublishEventWithSource(ent, EVENT_UNIT_DEATH, killer);
     } else {
         /* Initially dead and CreateDeadDestructable instances did not die in
          * gameplay, so they must not expose deferred loot. Restoration starts
          * a fresh lifecycle and clears this guard. */
-        G_GetDestructable(ent)->loot_processed = true;
+        ent->destructable->loot_processed = true;
     }
 
     /* The lifecycle is complete before an optional compatibility callback is
@@ -366,7 +419,7 @@ static bool G_EnterDestructableDeathState(edict_t *ent,
 }
 
 void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     float life_fraction;
     bool visible;
 
@@ -385,10 +438,10 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
     dstr->placement_solid = (placement->flags & 2) != 0;
     visible = placement->flags != 0;
     if (visible) {
-        ent->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(ent,false);
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     } else {
-        ent->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(ent,true);
         ent->s.flags |= EF_NOT_SELECTABLE;
     }
 
@@ -413,17 +466,23 @@ bool G_SetDestructableDeadState(edict_t *ent, bool process_death) {
 }
 
 bool G_RemoveDestructable(edict_t *ent) {
-    if (!G_IsDestructable(ent)) {
-        return false;
-    }
-    unit_leavecombat(ent);
-    G_FreeEdict(ent);
-    CM_BakeStaticObstacles();
+    if (!G_IsDestructable(ent) || G_IsDeferredFree(ent))return false;
+    /*6c3630 retires the alive texture and constructs the death texture before
+     *6c0890 target loss;0557b0 schedules canonical-wrapper release. A placement
+     *inside the same callback observes the new footprint. No death event/loot. */
+    if(ent->destructable->dead)unit_leavecombat(ent);
+    else G_EnterDestructableDeathState(ent,NULL,false,true);
+    G_InvalidateRallyTarget(ent);
+    G_SetEntitySelectionMask(ent,0);
+    wc3Clock_t clock=G_TimerQueryClock(NULL);G_QueueEdictRelease(ent,&clock);
+    /* Remove has no death event, but the same lost-target Move continuation.
+     * Publish after both the replacement footprint and deferred identity. */
+    S_UnitTargetLost(ent);
     return true;
 }
 
 bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     float restored_life;
 
     if (!G_IsDestructable(ent)) {
@@ -449,6 +508,7 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
     if (!(ent->s.renderfx & RF_HIDDEN)) {
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     }
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_DestructableStartAliveAnimation(ent, birth);
@@ -457,7 +517,7 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
 }
 
 bool G_SetDestructableLife(edict_t *ent, float life) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent ? ent->destructable : NULL;
     if (!G_IsDestructable(ent)) {
         return false;
     }
@@ -476,7 +536,7 @@ bool G_SetDestructableLife(edict_t *ent, float life) {
 }
 
 bool G_DestructableApplyDamage(edict_t *ent, edict_t *attacker, float damage) {
-    if (!G_IsDestructable(ent) || G_GetDestructable(ent)->dead || G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE) || damage <= 0.0f) return false;
+    if (!G_IsDestructable(ent) || ent->destructable->dead || (ent && ent->invulnerable) || damage <= 0.0f) return false;
 
     if (damage >= ent->health.value) {
         return G_KillDestructable(ent, attacker);

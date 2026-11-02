@@ -53,12 +53,12 @@ static nsoFix_t nso_setup(void) {
     fix.caster->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
     fix.ally->svflags |= SVF_MONSTER;
     fix.caster->targtype = fix.enemy->targtype = fix.ally->targtype = TARG_GROUND;
-    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ANSO, .level = 1);
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANSO, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 200;
     fix.enemy->health.value = fix.enemy->health.max_value = 500;
     fix.enemy->mana.value = fix.enemy->mana.max_value = 200;
-    fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
-    fix.enemy->unit_state->ranks[1] = MAKE(heroability_t, .code = BZ_ATAU, .level = 1);
+    fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_AHTB, .level = 1);
+    fix.enemy->heroabilities[1] = MAKE(heroability_t, .code = BZ_ATAU, .level = 1);
     return fix;
 }
 

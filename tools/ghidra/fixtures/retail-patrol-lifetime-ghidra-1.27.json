@@ -1,0 +1,263 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f5fdff0",
+      "name": "Move_CreatePatrolTasks",
+      "prototype": "void __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix * move, void * event)",
+      "comment": "d0017 dispatch. Retain order, read both endpoints48/50 and5c/64; generate d0175 and ordinary point chain, or alternate690fa0 order. Payoff124 two complete240-tick public captures retain851991 through automatic actual combat, enemy loss and nested replacement;40 constructions and33 d0175 continuations repeat. Prepending reverses task creation order: point d016b executes BEFORE d0175. Complete physical engine composition remains ORDER-01.18.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "move",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "event",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f5fff70",
+      "name": "Move_AppendPatrolContinuation",
+      "prototype": "void __thiscall Move_AppendPatrolContinuation(WC3MoveSpeedPrefix * move, void * event)",
+      "comment": "ECX Move, stack4 event, RET4. Event+c task38/40 are return endpoint;54/5c retained outward endpoint. Unit virtualec returns owner.690fa0 ECX\u003dd0017/EDX\u003downer creates swapped endpoint order;693490 appends without replacing current head. Actual point arrival executes this task before completing the old public order.33 complete native transitions repeat; Shift input shows existing successors remain ahead of the new return.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "move",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "event",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f690fa0",
+      "name": "OrderPoint_CreateWithContinuation",
+      "prototype": "WC3PatrolEndpointsPrefix * __fastcall OrderPoint_CreateWithContinuation(uint command, uint player, void * target, WC3PathScalar * x, WC3PathScalar * y, WC3PathScalar * continuation_x, WC3PathScalar * continuation_y, void * association)",
+      "comment": "Fastcall ECX command,EDX player; stack4 target,8 X,c Y,10 continuationX,14 continuationY,18 association, RET18; returns COrderPoint.689820 sets command24/player28 and wrappers44/4c payload48/50; independent wrappers58/60 retain payload5c/64. Preserve register inputs: stale decompiler prototypes previously hid d0017 and owner.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "command",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "player",
+          "storage": "EDX:4"
+        },
+        {
+          "name": "target",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "continuation_x",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "continuation_y",
+          "storage": "Stack[0x14]:4"
+        },
+        {
+          "name": "association",
+          "storage": "Stack[0x18]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f692010",
+      "name": "Unit_PrependTwoPointTask",
+      "prototype": "uint __thiscall Unit_PrependTwoPointTask(WC3UnitOrdersPrefix * unit, uint event_code, WC3PathScalar * x, WC3PathScalar * y, WC3PathScalar * continuation_x, WC3PathScalar * continuation_y, WC3PathScalar * range, void * association)",
+      "comment": "ECX Unit, stack4 event,8 X,c Y,10 continuationX,14 continuationY,18 range,1c association, RET1c.684b40-derived task,689d40 setter then691e60 prepends. Patrol d0175 task receives return endpoint first and outward endpoint second; creation order is opposite dispatch order.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "unit",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "event_code",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "x",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "y",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "continuation_x",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "continuation_y",
+          "storage": "Stack[0x14]:4"
+        },
+        {
+          "name": "range",
+          "storage": "Stack[0x18]:4"
+        },
+        {
+          "name": "association",
+          "storage": "Stack[0x1c]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f689d40",
+      "name": "TaskTwoPoint_SetArguments",
+      "prototype": "void __thiscall TaskTwoPoint_SetArguments(WC3PatrolTaskPrefix * task, WC3UnitOrdersPrefix * unit, uint event_code, WC3PathScalar * x, WC3PathScalar * y, WC3PathScalar * continuation_x, WC3PathScalar * continuation_y, WC3PathScalar * range, void * association)",
+      "comment": "ECX task, stack4 Unit,8 event,c X,10 Y,14 continuationX,18 continuationY,1c range,20 association, RET20. Writes event30; scalar payload38/40,48,54/5c; retained association4c; invalidates successor24/28. Partial WC3PatrolTaskPrefix96 preserves only proven fields.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "task",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "unit",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "event_code",
+          "storage": "Stack[0x8]:4"
+        },
+        {
+          "name": "x",
+          "storage": "Stack[0xc]:4"
+        },
+        {
+          "name": "y",
+          "storage": "Stack[0x10]:4"
+        },
+        {
+          "name": "continuation_x",
+          "storage": "Stack[0x14]:4"
+        },
+        {
+          "name": "continuation_y",
+          "storage": "Stack[0x18]:4"
+        },
+        {
+          "name": "range",
+          "storage": "Stack[0x1c]:4"
+        },
+        {
+          "name": "association",
+          "storage": "Stack[0x20]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f685da0",
+      "name": "CUnit_GetOwnerIndex",
+      "prototype": "uint __thiscall CUnit_GetOwnerIndex(WC3UnitOrdersPrefix * unit)",
+      "comment": "ThiscallECX CUnit,RETplain,u32EAX,loads58. Authentic CUnit vtable6fb77eb0 ECslot.695090 uses player high nibble;6803f0 obtains owner before factory, no three-argument virtual call.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "parameters": [
+        {
+          "name": "unit",
+          "storage": "ECX:4"
+        }
+      ]
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3PatrolEndpointsPrefix",
+      "length": 104,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "command",
+          "type": "/uint"
+        },
+        {
+          "offset": 72,
+          "name": "primary_x",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 80,
+          "name": "primary_y",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 92,
+          "name": "alternate_x",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 100,
+          "name": "alternate_y",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        }
+      ]
+    },
+    {
+      "name": "WC3PatrolTaskPrefix",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "/uint"
+        },
+        {
+          "offset": 12,
+          "name": "identity",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity"
+        },
+        {
+          "offset": 36,
+          "name": "successor",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity"
+        },
+        {
+          "offset": 48,
+          "name": "event_code",
+          "type": "/uint"
+        },
+        {
+          "offset": 56,
+          "name": "primary_x",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 64,
+          "name": "primary_y",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 72,
+          "name": "range",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 76,
+          "name": "association",
+          "type": "/void *32"
+        },
+        {
+          "offset": 84,
+          "name": "continuation_x",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        },
+        {
+          "offset": 92,
+          "name": "continuation_y",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar"
+        }
+      ]
+    }
+  ],
+  "saved": true
+}

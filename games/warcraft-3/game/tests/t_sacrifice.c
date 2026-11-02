@@ -76,8 +76,8 @@ static void sac_setup(sacFix_t *fix) {
     fix->pit->think = monster_think;
     fix->acolyte->targtype = fix->other->targtype = TARG_GROUND;
     fix->pit->stand = fix->acolyte->stand = fix->other->stand = unit_stand;
-    fix->pit->unit_state->ranks[0] = MAKE(heroability_t, .code = ID_ASAC, .level = 1);
-    fix->acolyte->unit_state->ranks[0] = MAKE(heroability_t, .code = ID_ALAM, .level = 1);
+    fix->pit->heroabilities[0] = MAKE(heroability_t, .code = ID_ASAC, .level = 1);
+    fix->acolyte->heroabilities[0] = MAKE(heroability_t, .code = ID_ALAM, .level = 1);
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
@@ -114,11 +114,11 @@ TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
     result->stand = unit_stand;
     result->collision = 16.0f;
     T_EQ(result->class_id, ID_SHADE);
-    T_ASSERT(G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
-    T_NOT_NULL(G_GetSacrifice(result));
-    T_ASSERT(G_GetSacrifice(result)->worker == fix.acolyte);
+    T_ASSERT((result && result->training));
+    T_NOT_NULL(result->sacrifice);
+    T_ASSERT(result->sacrifice->worker == fix.acolyte);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
-    T_ASSERT(G_UnitHasFlag(fix.acolyte, UNIT_FLAG_PAUSED));
+    T_ASSERT((fix.acolyte && fix.acolyte->paused));
     /* Sacrifice does not reserve the Shade's food while the Acolyte still owns
      * its slot. */
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
@@ -142,12 +142,12 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
     result->data.UnitBalance = &result_balance;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !G_UnitHasFlag(result, UNIT_FLAG_TRAINING)) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
     T_ASSERT(result->inuse);
-    T_ASSERT(!G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
-    T_NULL(G_GetSacrifice(result));
+    T_ASSERT(!(result && result->training));
+    T_NULL(result->sacrifice);
     T_ASSERT(!(result->s.renderfx & RF_HIDDEN));
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
     sac_done(&fix);
@@ -164,7 +164,7 @@ TEST(wc3_spell, sacrifice_cancel_restores_acolyte_and_removes_queued_shade) {
     T_NULL(fix.pit->build);
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(fix.acolyte, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(fix.acolyte && fix.acolyte->paused));
     T_ASSERT(!result->inuse);
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
     sac_done(&fix);
@@ -176,7 +176,7 @@ TEST(wc3_spell, sacrifice_requires_counterpart_ability_and_idle_pit) {
     sac_setup(&fix);
     T_ASSERT(!S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.other));
     blocker = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 128, 0);
-    G_SetUnitFlag(blocker, UNIT_FLAG_TRAINING, true);
+    blocker->training = true;
     fix.pit->build = blocker;
     T_ASSERT(!S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     fix.pit->build = NULL;
@@ -260,18 +260,18 @@ TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
     result->collision = 4000.0f; /* no exit fits: placement must fail */
     FOR_LOOP(i, 20) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !G_UnitHasFlag(result, UNIT_FLAG_TRAINING)) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
-    T_ASSERT(G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
+    T_ASSERT((result && result->training));
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
     result->collision = 16.0f;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !G_UnitHasFlag(result, UNIT_FLAG_TRAINING)) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
-    T_ASSERT(result->inuse && !G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
+    T_ASSERT(result->inuse && !(result && result->training));
     sac_done(&fix);
 }
 
@@ -292,18 +292,18 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     T_ASSERT(fix.pit->build == result);
-    T_NOT_NULL(G_GetSacrifice(result));
-    T_ASSERT(G_GetSacrifice(result)->worker == fix.acolyte);
+    T_NOT_NULL(result->sacrifice);
+    T_ASSERT(result->sacrifice->worker == fix.acolyte);
     result_balance = *result->data.UnitBalance;
     result_balance.buildTime = 1;
     result_balance.foodUsed = 1;
     result->data.UnitBalance = &result_balance;
     FOR_LOOP(i, 40) {
         level.time += FRAMETIME; G_RunEntity(fix.pit);
-        if (!result->inuse || !G_UnitHasFlag(result, UNIT_FLAG_TRAINING)) break;
+        if (!result->inuse || !(result && result->training)) break;
     }
     T_ASSERT(!fix.acolyte->inuse);
-    T_ASSERT(result->inuse && !G_UnitHasFlag(result, UNIT_FLAG_TRAINING));
+    T_ASSERT(result->inuse && !(result && result->training));
     remove(filename);
     sac_done(&fix);
 }
@@ -323,7 +323,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
     T_NULL(fix.pit->build);
     T_ASSERT(fix.acolyte->inuse);
     T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!G_UnitHasFlag(fix.acolyte, UNIT_FLAG_PAUSED));
+    T_ASSERT(!(fix.acolyte && fix.acolyte->paused));
     remove(filename);
     sac_done(&fix);
 }

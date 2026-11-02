@@ -1,0 +1,24 @@
+{
+  "capture_example": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol265-public-observer-v3",
+  "captures": {
+    "observe1.jsonl": "61ed52ace3a412b35d0a6cf97a85ad361eaadc8f1881c470ac9fe81b6e1f8523",
+    "observe2.jsonl": "80f3d828c5f63d0586b2f4e88127f4b33b63f8ee4240fb4145ce231dfdb6f9f3",
+    "control1.jsonl": "00dd1c934efbad517d5a07aa2d7ee9b4834171446090129aa731bdd424f77589",
+    "control1-preload.txt": "f59f189b2fdc20fc503dae37c359833c94de8fcee449f7680ac67771565da7ab",
+    "frozen-sources.json": "657405f512d209ceb34995808520424518ce642e8ec91b63eb0faa70f4c887df",
+    "itemdrop_probe.j": "3ba500abb7a1f6ab606bd9c363ca6e43ae66366b98d0be8e87f9db97b484fe02",
+    "itemdrop_observer.js": "6647d34e375aa160565af9949cea05baf3d5d895b755d8b507276a2f83e53e70",
+    "itemdrop_capture.py": "6514508c66612624e23ed556234e6c6477af062fcaf337ec3cc1ee6faf255b30",
+    "itemdrop_make_map.py": "053e8c2d5d4b22f274d0db29b49b570b7a076b8204bf63506fa57e9242fb3069",
+    "RS-TARGET265-patrol-public-v2.w3m": "61398ccf04ec20791b04e94173583b0a32a4ebd05a4827a9f570c374f1a360cf",
+    "findings.json": "d1025216a18781233637ae5053a9fced92966b31a5d629d9eafb3dbbe47a7fc8",
+    "stock-profiles.json": "b64942a0b99dcdaf3eddc3bf3ff5571f7eb2c982b5c422d60260adacd9958244"
+  },
+  "repository_files": {
+    "tools/ghidra/research/patrol265_public_projection.py": "fbbe5665804b3c326658600e4a2068e1f6eda2505cf76037c8098850053eb706",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json": "ab5a28b4426d67fc1bc54688ec3593bc13732aaa89d33cc8b792c062c9ee3af5",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.h": "8b24c92acf93b9bb26b09452bf50542d8f341710f116a3fb15336002dc1a431f",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol265_stock.h": "e73aa3b296cc2144f8df7bceaf9ea76305433ef15a668eb5b1c7a4c34698e8ae"
+  },
+  "header_status": "semantic generated header checked against public+literalprobe+all1632typedpolls"
+}

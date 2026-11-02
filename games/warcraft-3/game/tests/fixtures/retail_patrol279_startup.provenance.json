@@ -1,0 +1,34 @@
+{
+  "captures": {
+    "itemdrop_capture.py": "12e08cc03d3e1465638a416edf3f1e4dcabd28c525f53c26569f1d14faa9cc40",
+    "itemdrop_make_map.py": "053e8c2d5d4b22f274d0db29b49b570b7a076b8204bf63506fa57e9242fb3069",
+    "itemdrop_probe.j": "3ba500abb7a1f6ab606bd9c363ca6e43ae66366b98d0be8e87f9db97b484fe02",
+    "itemdrop_observer.js": "89fba02109b0ab6c025b8ee6bcadaf15bb99cadce233f8f8fd5c7952eb9bb4e5",
+    "RS-TARGET265-patrol-public-v2.w3m": "61398ccf04ec20791b04e94173583b0a32a4ebd05a4827a9f570c374f1a360cf",
+    "run.py": "76548852765e485c0001d411780a0b71aeb7735034d7b8eda1db3d9f8b97b3ff",
+    "design.json": "97dae08785522ce445c21af252910c94230f2e2b5fe7830b63118bc148c4a29a",
+    "startup-abi.json": "682e56228731ec9cb15bcf3e3154f061e02f59f189941beaf2e76d77719a7762",
+    "reaction-abi.json": "3208b47901b12249528b36c992cfb9749457759efd5504e67af0abafd849c4ee",
+    "timer-abi.json": "ed0c703d70f5b127c7a7331896df3687b3694ca150515b8825c3215cd145ef8d",
+    "frozen-sources.json": "1f2212693e410cc07054bad3fe7395f579e5dc681c629784f4266afdee5410b1",
+    "audit.py": "fa6ddc7e014e5df5bb2e8e02619e7ed4fe912675e2561859cc3940e72048d4d8",
+    "observe1.jsonl": "52edb2317de8e847625ea8a32099a6daaaa5595cb866f5a77309513b175196ee",
+    "observe2.jsonl": "26defb7c11071f92e6377ba8390488ab13b4ab4d4c5bad766d5de60343570587",
+    "control1.jsonl": "2156b7f4b77442ea4b37d858b3e32ceb6dcf1987862b11875421a37b9eb20e1b",
+    "control1-preload.txt": "2f1540c9b9ee7c46aa9d233ec423b743f59292c4f5bfff404c0145751a5af5b9",
+    "runs.json": "ffb08224b3d641a18d953250e353d0b674926df7743c2d7e2653f021934c0a23",
+    "startup-projection.json": "2aef6cee0030afc0c005f229f4975de69f8547da58f615c93dca8a26f1141724",
+    "validated-summary.json": "6e7ae1bbcb5c9feadffaeaaabb50e6d74144b20517905624be61ab4444fa6c97",
+    "nonpurpose-seed-rows.json": "59a16efe94e5268bdd76fa95989dca23bebfb27c80e709fcef7337df470d5d35",
+    "findings.json": "07dad3e1059cedadca5e9aa7e21be500c9ec194a94f338d8f6189228e40f96b6"
+  },
+  "repository_files": {
+    "tools/ghidra/research/patrol279_startup_projection.py": "e165fa5b81c17aa1c45208dd666ec359dfa4e19013b9e48612f3a8fa46ebd531",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol279_startup.json": "29c923dee408f0fd7ab2f51dfbd32463bec8a1d78620dd380aba5edc58ee57f7",
+    "tools/ghidra/research/patrol275_fine_projection.py": "e3b8a431543c476931c0825620896b7348a0e121346c056469efa938db9cfed1",
+    "tools/ghidra/research/patrol274_steering_projection.py": "3a8600a6faba8480edc5646ff26625e3b74daac433e46a0c1c0cde01deb95f68",
+    "tools/ghidra/research/patrol265_public_projection.py": "fbbe5665804b3c326658600e4a2068e1f6eda2505cf76037c8098850053eb706",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol275_fine.json": "b82c05f6be79bc52e614cdfd88f326d444ec5f90cd70a1b66d95920e40e3119e"
+  },
+  "scope": "All14890prior275core plus814interleavedpurpose/Attackrows and1084freshcontrol markers.321nonpurpose seeds/run explicitly retained but excluded."
+}

@@ -1,0 +1,106 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "SCHED-02.3/captures190/populated-observe-1.jsonl": {
+      "sha256": "3a03db1885dcafe19817d983710ce6b571c1259db84d1c902c3af3b92d4e5ec0",
+      "bytes": 1436338,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff190",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "schedule190_observer.js": "9434a8e0a4ff62ca32dbaebbc090acdcb7de84dbfed2035700d83a8108cdfdca",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "77b2f897c2905ddbb069bc76e0b0e402f43c399336ca6247509b35653d07dba4"
+        },
+        "map": "Maps\\RS-Schedule190.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "SCHED-02.3/captures190/populated-observe-2.jsonl": {
+      "sha256": "248a6b0f88e9de24fdaa554b3bbcc518b6d4b69c7a53d52948b633b67ddc7f23",
+      "bytes": 1436338,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff190",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "schedule190_observer.js": "9434a8e0a4ff62ca32dbaebbc090acdcb7de84dbfed2035700d83a8108cdfdca",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "77b2f897c2905ddbb069bc76e0b0e402f43c399336ca6247509b35653d07dba4"
+        },
+        "map": "Maps\\RS-Schedule190.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "SCHED-02.3/captures190/populated-control-1.jsonl": {
+      "sha256": "7a7a5dfd6de24d1035c1b18e004917969a6f59765154a7470cf7c95a92b2a6b2",
+      "bytes": 1540,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff190",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "77b2f897c2905ddbb069bc76e0b0e402f43c399336ca6247509b35653d07dba4"
+        },
+        "map": "Maps\\RS-Schedule190.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "timeline_sha256": "57703c768be5761d640f2445ef7ca4684c287446ff0e3f0b1e53d35e353d12a8",
+  "map_sha256": "77b2f897c2905ddbb069bc76e0b0e402f43c399336ca6247509b35653d07dba4",
+  "scope": "Complete1000 populated retail owner callbacks:328 shared publications,357 newest-first radius visits,32 ticks with both12+1 groups and1000 alternating separation visits. Repeated function-entry observations preserve304 public markers against control. This is phase ordering and same-tick aggregate visibility, not closure of reentrant callback mutation or all gameplay state."
+}

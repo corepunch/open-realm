@@ -39,6 +39,8 @@ static bool item_test_location_callback(edict_t *clent, vec2_t const *location) 
     return false;
 }
 
+typedef struct {stbIniCache_t misc;bool started,configured,scripts;} itemPickupTest_t;
+
 static void item_noop_write(pfWriteType_t type, void const *value) {
     (void)type;
     (void)value;
@@ -170,10 +172,10 @@ static edict_t *make_item_test_world_item(uint32_t class_id, float x, float y) {
     item->s.model = 1;
     item->movetype = MOVETYPE_NONE;
     item->targtype = TARG_ITEM;
-    G_AddItem(item);
-    G_GetItem(item)->carrier = NULL;
-    G_GetItem(item)->inventory_slot = -1;
-    G_GetItem(item)->in_world = true;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->carrier = NULL;
+    item->item->inventory_slot = -1;
+    item->item->in_world = true;
     gi.LinkEntity(item);
     return item;
 }
@@ -190,8 +192,8 @@ static edict_t *make_item_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddStock(shop);
-    G_GetStock(shop)->item_slots = 11;
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
+    shop->stock->item_slots = 11;
     gi.LinkEntity(shop);
     return shop;
 }
@@ -208,8 +210,8 @@ static edict_t *make_unit_test_shop(float x, float y) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddStock(shop);
-    G_GetStock(shop)->unit_slots = 11;
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
+    shop->stock->unit_slots = 11;
     gi.LinkEntity(shop);
     return shop;
 }
@@ -233,15 +235,15 @@ TEST(wc3_items, validated_state_preserves_identity_and_never_allocates) {
     ent->targtype = TARG_ITEM;
     T_NULL(G_ItemState(NULL));
     T_NULL(G_ItemState(ent));
-    T_NULL(ent->components);
-    item_t *rec = G_AddItem(ent);
+    T_NULL(ent->item);
+    item_t *rec = (ent->item ? ent->item : (ent->item=G_AllocItem()));
     ent->data.ItemData = NULL;
     T_NULL(G_ItemState(ent));
     rec->in_world = true;
     T_ASSERT(G_ItemState(ent) == rec);
     ent->targtype = TARG_NONE;
     T_NULL(G_ItemState(ent));
-    T_ASSERT(G_GetItem(ent) == rec);
+    T_ASSERT(ent->item == rec);
     ent->targtype = TARG_ITEM;
     ent->inuse = false;
     T_NULL(G_ItemState(ent));
@@ -271,9 +273,9 @@ TEST(wc3_items, spawn_initializes_world_state) {
     SP_SpawnItem(item);
 
     T_ASSERT(G_IsItem(item));
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->in_world);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
     T_EQ(item->targtype, TARG_ITEM);
     T_ASSERT(!(item->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(item->svflags & SVF_NOCLIENT));
@@ -285,6 +287,36 @@ TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
     SP_SpawnItem(item);
 
     T_EQ(G_ItemCharges(item), 1);
+}
+
+TEST(wc3_items, spawn_uses_authored_scalar_life_without_fallback) {
+    char const slk[] = "ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\n"
+        "C;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\n"
+        "C;Y2;X1;K\"i001\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K63\n"
+        "C;Y3;X1;K\"i002\"\nC;Y3;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y3;X3;K63.5\n"
+        "C;Y4;X1;K\"i003\"\nC;Y4;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y4;X3;K-7\n"
+        "C;Y5;X1;K\"i004\"\nC;Y5;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y5;X3;K0\n"
+        "C;Y6;X1;K\"i005\"\nC;Y6;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nE\n";
+    /* Retail's decimal parser rounds the authored "63.5" one word above
+     * the host C literal. Keep that exact scalar instead of relaxing equality. */
+    float const maximum[] = {63, wc3_float(0x427e0001), -7, 0, 0};
+    setup_test_world();
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("ItemData", rows);
+    FOR_LOOP(i, 5) {
+        edict_t *item = SP_SpawnAtLocation(MAKEFOURCC('i','0','0','1'+i), 0,
+                                          &(vec2_t){32,64});
+        T_NOT_NULL(item);
+        if (!item) continue;
+        T_ASSERT(G_IsItem(item));
+        T_EQ(item->data.ItemData->HP, maximum[i]);
+        T_EQ(item->health.max_value, maximum[i]);
+        T_EQ(item->health.value, maximum[i] > 0 ? maximum[i] : 0);
+    }
+    reset_entities();
+    G_SetSLKRows("ItemData", old);
+    free_slk_rows(rows);
+    setup_test_world();
 }
 
 TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
@@ -306,7 +338,7 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
     T_ASSERT(ability->flags & AB_ITEM);
     {
         abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','I','c','t'));
-        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .entity = player);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = player);
         T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
     }
     T_ASSERT(level.timeofday.false_time.active);
@@ -317,7 +349,943 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
          (int32_t)(30.0f / ((float)FRAMETIME / 1000.0f)));
 }
 
-TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
+/* Carrier-only regression: current AIvi status behavior is intentionally kept;
+ * this does not assert its still-separate native fade/duration contract. */
+static void item321_bound_carrier(bool invisible, bool shop_ui) {
+    reset_entities();setup_test_world();
+    char const ability_slk[]=
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"DataA1\"\nC;X5;K\"DataC1\"\nC;X6;K\"DataD1\"\nC;X7;K\"DataE1\"\n"
+        "C;X8;K\"Data11\"\nC;X9;K\"Data13\"\nC;X10;K\"Data14\"\nC;X11;K\"Data15\"\n"
+        "C;X12;K\"Dur1\"\nC;X13;K\"HeroDur1\"\nC;X14;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X4;K6\nC;X5;K1\nC;X6;K1\nC;X7;K1\n"
+        "C;X8;K6\nC;X9;K1\nC;X10;K1\nC;X11;K1\n"
+        "C;Y3;X1;K\"Zi31\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K12\nC;X13;K12\nC;X14;K\"Bixx\"\n"
+        "C;Y4;X1;K\"Zh31\"\nC;X2;K\"AIhe\"\nC;X3;K1\nC;X4;K37\nC;X8;K37\nE\n";
+    slkTestData_t *rows=parse_slk_string(ability_slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(run_test_jass(
+        "globals\ninteger uses321=0\nendglobals\n"
+        "function used321 takes nothing returns nothing\n"
+        "call BJassAssert(GetUnitUserData(GetManipulatingUnit())==3211,\"actual carrier event\")\n"
+        "call BJassAssert(GetItemTypeId(GetManipulatedItem())=='spro',\"actual held item event\")\n"
+        "set uses321=uses321+1\nendfunction\n"
+        "function check321 takes nothing returns nothing\ncall BJassAssert(uses321==1,\"one use event\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+        "call TriggerAddAction(t,function used321)\nendfunction\n"));
+    edict_t *player=G_GetPlayerEntityByNumber(0);
+    edict_t *carrier=make_item_test_inventory_unit(100,0);
+    carrier->s.player=0;carrier->svflags|=SVF_MONSTER;carrier->targtype=TARG_GROUND;carrier->user_data=3211;
+    carrier->health.value=20;
+    edict_t *selected=shop_ui ? make_item_test_shop(0,0) : make_item_test_inventory_unit(300,0);
+    if(!shop_ui)selected->s.player=0;
+    selected->svflags|=SVF_MONSTER;selected->targtype=TARG_GROUND;
+    selected->health.value=30;selected->health.max_value=100;
+    ItemData_t data={.abilList=invisible ? "Zi31" : "Zh31",.uses=2,.usable=true,.perishable=true};
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','p','r','o'),100,0);
+    item->data.ItemData=&data;item->item->charges=2;
+    T_ASSERT(G_InventoryCanUseItems(carrier));
+    T_ASSERT(G_AddItemToSlot(carrier,item,0));
+    G_SelectEntity(player->client,selected);
+    T_EQ(G_GetMainSelectedUnit(player->client),selected);
+    if(shop_ui) {
+        T_EQ(G_FindShopPatron(player->client,selected),carrier);
+        cstring_t command[]={"inventory","0"};G_ClientCommand(player,2,command);
+    } else G_UseItem(carrier,0);
+    if(invisible) {
+        heroabilitystatus_t *status=unit_findstatusclass(carrier,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);if(status) {T_EQ(status->data,MAKEFOURCC('Z','i','3','1'));T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));}
+        T_ASSERT(status && status->invisibility_pending);
+        T_ASSERT(!(carrier->s.renderfx&RF_HIDDEN));
+        T_NULL(unit_findstatus(selected,MAKEFOURCC('B','i','n','v')));
+        T_ASSERT(!(selected->s.renderfx&RF_HIDDEN));
+    } else T_EQ(carrier->health.value,57.0f);
+    T_EQ(selected->health.value,30.0f);
+    T_EQ(G_InventoryItem(carrier,0),item);T_EQ(G_ItemCharges(item),1);
+    T_EQ(G_GetMainSelectedUnit(player->client),selected);
+    G_RunEvents();jass_runevents(level.vm);
+    jass_callbyname(level.vm,"check321",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_items, carrier321_invisibility_alias_uses_carrier_not_selection) {item321_bound_carrier(true,false);}
+TEST(wc3_items, carrier321_heal_alias_uses_carrier_not_selection) {item321_bound_carrier(false,false);}
+TEST(wc3_items, carrier321_inventory_shop_command_uses_patron_not_selection) {item321_bound_carrier(false,true);}
+
+/* Original62f280/63ce40: item invisibility fixes the Binv class and two-second
+ * shared transition; authored BuffID remains the presented identifier. */
+static void item322_primary_step(void) {
+    level.time+=5;level.pathing_msec+=5;
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    bool const scheduled=level.scheduled_frame;
+    level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+/* Private531a80 refresh/constructor input, not a public item command. The
+ * original-byte oracle exercises this service while suspended; public paused
+ * item admission remains a separate, unproved producer disposition. */
+static void item323_effect_service(edict_t *unit,uint32_t slot) {
+    edict_t *source=G_InventoryItem(unit,slot);
+    abilityitem_t ability=S_AbilityItem(FS_SLKKey(G_ItemAbilityList(source)));
+    abilityCall_t call={.item=&ability,.source_item=source,.source_item_spawn_time=source->spawn_time};
+    T_ASSERT(S_AbilityMessage(unit,A_EXECUTE,&call));
+}
+
+static void item322_invisibility_fixture(unsigned pause_mode) {
+    reset_entities();setup_test_world();
+    char const ability_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"Data11\"\nC;Y1;X9;K\"Data13\"\nC;Y1;X10;K\"Data14\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"6\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi32\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\".125\"\nC;Y3;X8;K\".125\"\nC;Y3;X12;K\"6\"\nC;Y3;X13;K\"6\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"Zs32\"\nC;Y4;X2;K\"AIvi\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\".125\"\nC;Y4;X8;K\".125\"\nC;Y4;X12;K\"2\"\nC;Y4;X13;K\"2\"\nC;Y4;X14;K\"Bixx\"\nC;Y5;X1;K\"Zl32\"\nC;Y5;X2;K\"AIvi\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\".125\"\nC;Y5;X8;K\".125\"\nC;Y5;X12;K\"10\"\nC;Y5;X13;K\"10\"\nC;Y5;X14;K\"Bixx\"\nC;Y6;X1;K\"Zz32\"\nC;Y6;X2;K\"AIvi\"\nC;Y6;X3;K\"1\"\nC;Y6;X4;K\".125\"\nC;Y6;X8;K\".125\"\nC;Y6;X12;K\"0\"\nC;Y6;X13;K\"0\"\nC;Y6;X14;K\"Bixx\"\nC;Y7;X1;K\"Zn32\"\nC;Y7;X2;K\"AIvi\"\nC;Y7;X3;K\"1\"\nC;Y7;X4;K\".125\"\nC;Y7;X8;K\".125\"\nC;Y7;X12;K\"-1\"\nC;Y7;X13;K\"-1\"\nC;Y7;X14;K\"Bixx\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y8;X1;K\"Zo32\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K6\nC;X13;K6\nC;X14;K\"Byyy,Bzzz\"\nC;Y9;X1;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K6\nC;X13;K6\nC;X14;K\"Bixx\"\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nC;Y10;X1;K\"Z032\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K0\nC;X13;K0\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nE\n";
+    char const item_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"i320\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"Zi32\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nC;Y3;X1;K\"i321\"\nC;Y3;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y3;X3;K\"50\"\nC;Y3;X4;K\"Zs32\"\nC;Y3;X5;K\"10\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"1\"\nC;Y4;X1;K\"i322\"\nC;Y4;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y4;X3;K\"50\"\nC;Y4;X4;K\"Zl32\"\nC;Y4;X5;K\"10\"\nC;Y4;X6;K\"1\"\nC;Y4;X7;K\"0\"\nC;Y4;X8;K\"1\"\nC;Y5;X1;K\"i323\"\nC;Y5;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y5;X3;K\"50\"\nC;Y5;X4;K\"Zz32\"\nC;Y5;X5;K\"10\"\nC;Y5;X6;K\"1\"\nC;Y5;X7;K\"0\"\nC;Y5;X8;K\"1\"\nC;Y6;X1;K\"i324\"\nC;Y6;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y6;X3;K\"50\"\nC;Y6;X4;K\"Zn32\"\nC;Y6;X5;K\"10\"\nC;Y6;X6;K\"1\"\nC;Y6;X7;K\"0\"\nC;Y6;X8;K\"1\"\nC;Y7;X1;K\"i325\"\nC;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;X3;K50\nC;X4;K\"Zo32\"\nC;X5;K10\nC;X6;K1\nC;X7;K0\nC;X8;K1\nE\n";
+    slkTestData_t *ar=parse_slk_string(ability_text),*ir=parse_slk_string(item_text);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir);
+    if(pause_mode) {
+        T_ASSERT(run_test_jass(
+            "globals\nunit carrier323=null\nendglobals\n"
+            "function used323 takes nothing returns nothing\nset carrier323=GetManipulatingUnit()\nendfunction\n"
+            "function pause323 takes nothing returns nothing\ncall PauseUnit(carrier323,true)\nendfunction\n"
+            "function resume323 takes nothing returns nothing\ncall PauseUnit(carrier323,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+            "call TriggerAddAction(t,function used323)\nendfunction\n"));
+    } else T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *unit=make_item_test_inventory_unit(100,100);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    unsigned number=unit->s.number;
+    edict_t *items[6]={0};
+    FOR_LOOP(n,6) {
+        items[n]=SP_SpawnAtLocation(MAKEFOURCC('i','3','2','0'+n),0,&unit->s.origin2);
+        T_NOT_NULL(items[n]);if(items[n])T_ASSERT(G_AddItemToSlot(unit,items[n],n));
+    }
+    G_SelectEntity(G_GetPlayerEntityByNumber(0)->client,unit);
+    G_UseItem(unit,0);
+    heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);T_EQ(unit_findstatus(unit,MAKEFOURCC('B','i','x','x')),status);
+    if(pause_mode) {
+        /* Original531420 freezes only Binv's private expiry. The unit fade
+         * remains live;531a80 refresh can arm a new timer while that saved
+         * remainder is still held. These are service-path native contracts,
+         * exercised with an ordinary initial use, JASS PauseUnit and direct
+         * effect-service refresh. The refresh does not execute item completion. */
+        G_RunEvents();jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(status) {
+            FOR_LOOP(n,100)item322_primary_step();
+            uint32_t instance=status->instance_id;
+            uint32_t const fade_sequence=unit->permanent_invisibility_fade.request.sequence;
+            wc3Clock_t const before_pause=G_TimerQueryClock(NULL);
+            float remaining=wc3_sub(status->class_timer.deadline.time,before_pause.time);
+            T_ASSERT(remaining>5.0f);T_ASSERT(status->invisibility_pending);
+            jass_callbyname(level.vm,"pause323",false);
+            T_ASSERT(unit->paused);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!status->class_timer.active);
+            T_EQ(status->class_clock_depth,1);
+            T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade_sequence);
+            if(pause_mode==3) {
+                /* Bootstrap only the JASS carrier handle with the first use;
+                 * the tested owner is created by a fresh effect service while paused. */
+                unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                item323_effect_service(unit,0);
+                status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+                T_NOT_NULL(status);
+                if(!status)goto item322_cleanup;
+                T_NE(status->instance_id,instance);instance=status->instance_id;
+                remaining=status->class_timer_remaining;
+                T_FEQ(remaining,6.0f,0.00001f);
+                T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+                T_ASSERT(status->invisibility_pending);
+                T_ASSERT(unit->permanent_invisibility_fade.request.active);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,0)),9);
+            }
+            if(pause_mode==4) {
+                item323_effect_service(unit,3); /* Zero-duration refresh does not erase +ac. */
+                T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                item323_effect_service(unit,4); /* Negative duration has the same inverse. */
+                T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,3)),10);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,4)),10);
+            }
+            if(pause_mode==2) {
+                item323_effect_service(unit,2); /* Longer-duration effect service. */
+                status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+                T_NOT_NULL(status);
+                if(status) {
+                    T_ASSERT(status->class_timer.active);
+                    T_EQ(status->instance_id,instance);
+                    T_EQ(status->class_clock_depth,1);
+                    T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                    T_EQ(G_ItemCharges(G_InventoryItem(unit,2)),10);
+                }
+            }
+            /* Corrupt only live saved fields, then restore the exact valid
+             * owner before serialization; no fabricated file byte offsets. */
+            T_ASSERT(S_ValidateInvisibilityOwners());
+            int32_t const depth=status->class_clock_depth;
+            status->class_clock_depth=-1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_clock_depth=depth+1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_clock_depth=depth;
+            float const frozen=status->class_timer_remaining;
+            status->class_timer_remaining=-1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_timer_remaining=wc3_float(0x7fc00000);T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_timer_remaining=frozen;
+            int32_t const unit_depth=unit->ability_clock_depth;
+            unit->ability_clock_depth=unit_depth+1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            unit->ability_clock_depth=unit_depth;
+            T_ASSERT(S_ValidateInvisibilityOwners());
+            cstring_t path=Test_TempPath("item323-paused-binv.bin");
+            T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+number;
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+            T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_EQ(status->class_clock_depth,1);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                FOR_LOOP(n,500)item322_primary_step();
+                T_ASSERT(unit->paused);T_ASSERT(unit->permanent_invisibility_fade.published);
+                T_ASSERT(unit->s.renderfx&RF_HIDDEN);T_ASSERT(!status->invisibility_pending);
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                T_EQ(status->class_timer.active,pause_mode==2);
+                /* Mode1 crosses the original unfrozen deadline while held. */
+                if(pause_mode==1) {FOR_LOOP(n,800)item322_primary_step();}
+                T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+                wc3Clock_t const resumed_at=G_TimerQueryClock(NULL);
+                jass_callbyname(level.vm,"resume323",false);
+                T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!unit->paused);
+                T_EQ(status->class_clock_depth,0);T_EQ(status->class_timer_remaining,0.0f);
+                T_ASSERT(status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer.deadline.time),
+                     wc3_float_bits(wc3_add(resumed_at.time,remaining)));
+                FOR_LOOP(n,1000)item322_primary_step();
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                FOR_LOOP(n,300)item322_primary_step();
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+            }
+        }
+        goto item322_cleanup;
+    }
+    if(status) {
+        T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+        T_EQ(status->data,MAKEFOURCC('Z','i','3','2'));T_EQ(status->timestamp,0);
+        T_ASSERT(status->class_timer.active);T_ASSERT(status->invisibility_owned);T_ASSERT(status->invisibility_pending);
+        T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+        uint32_t instance=status->instance_id;
+        abilityPrimaryTimer_t expiry=status->class_timer,fade=unit->permanent_invisibility_fade.request;
+        T_ASSERT(fade.active);T_EQ(unit->permanent_invisibility_fade.slope,0.5f);
+        /* Same primary clock makes same authored duration exactly equal. */
+        G_UseItem(unit,0);G_UseItem(unit,1);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->instance_id,instance);T_EQ(status->class_timer.sequence,expiry.sequence);
+            T_EQ(wc3_float_bits(status->class_timer.deadline.time),wc3_float_bits(expiry.deadline.time));
+            G_UseItem(unit,2);
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_NE(status->class_timer.sequence,expiry.sequence);
+                T_ASSERT(status->class_timer.deadline.time>expiry.deadline.time);
+                T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                G_UseItem(unit,3);T_ASSERT(!status->class_timer.active);
+                G_UseItem(unit,4);T_ASSERT(!status->class_timer.active);
+                T_EQ(status->instance_id,instance);T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                G_UseItem(unit,0);T_ASSERT(status->class_timer.active);
+                T_EQ(G_ItemCharges(items[0]),7);
+                FOR_LOOP(n,100)item322_primary_step();
+                T_ASSERT(status->invisibility_pending);
+                T_ASSERT(!unit->permanent_invisibility_fade.published);
+                cstring_t file=Test_TempPath("item322-pending-fade.bin");
+                T_ASSERT(WriteGame(file));S_ClearMoveGroups();T_ASSERT(ReadGame(file));remove(file);
+                unit=g_edicts+number;status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+                if(status) {
+                    T_EQ(status->instance_id,instance);T_ASSERT(status->invisibility_pending);
+                    T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+                    FOR_LOOP(n,500) {if(unit->permanent_invisibility_fade.published)break;item322_primary_step();}
+                    T_ASSERT(unit->permanent_invisibility_fade.published);T_ASSERT(unit->s.renderfx&RF_HIDDEN);
+                    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                    FOR_LOOP(n,1400) {if(!unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')))break;item322_primary_step();}
+                    T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                    T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+                }
+            }
+        }
+    }
+    /* Actual Aivs then actual held AIvi refresh one concrete owner even
+     * though their presented buff identifiers differ (62f050/62f280). */
+    static UnitAbilities_t overlap_abilities={.abilList="AInv,Aivs,Z032"};
+    edict_t *caster=make_item_test_inventory_unit(200,100);caster->s.player=0;
+    caster->svflags|=SVF_MONSTER;caster->data.UnitAbilities=&overlap_abilities;unit->targtype=TARG_GROUND;
+    T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('A','i','v','s'),unit));
+    status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+    if(status) {
+        uint32_t instance=status->instance_id,fade=unit->permanent_invisibility_fade.request.sequence;
+        T_EQ(status->code,MAKEFOURCC('B','i','x','x'));
+        G_UseItem(unit,5);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->code,MAKEFOURCC('B','y','y','y'));T_EQ(status->instance_id,instance);
+            T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+            T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('A','i','v','s'),unit));
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->instance_id,instance);}
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+            /* A zero buff-context word retains the presented ID; zero
+             * duration removes only timed expiry from the same owner. */
+            T_ASSERT(S_CastUnitTargetSpell(caster,MAKEFOURCC('Z','0','3','2'),unit));
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_EQ(status->code,MAKEFOURCC('B','i','x','x'));
+                T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));T_ASSERT(!status->class_timer.active);
+                T_EQ(status->timestamp,0);T_EQ(status->duration_ms,0);
+            }
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade);
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        }
+    }
+item322_cleanup:
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);
+    free_slk_rows(ar);free_slk_rows(ir);
+}
+
+TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry) {
+    item322_invisibility_fixture(0);
+}
+TEST(wc3_items, invisibility323_script_pause_freezes_expiry_not_shared_fade) {
+    item322_invisibility_fixture(1);
+}
+TEST(wc3_items, invisibility323_paused_effect_refresh_preserves_frozen_remainder) {
+    item322_invisibility_fixture(2);
+}
+
+TEST(wc3_items, invisibility323_fresh_attachment_inherits_script_pause) {
+    item322_invisibility_fixture(3);
+}
+TEST(wc3_items, invisibility323_nonpositive_paused_refresh_rearms_frozen_remainder) {
+    item322_invisibility_fixture(4);
+}
+
+
+/*324: public Sleep admission, then independent temporary-invisibility clocks.
+ * These are component fixtures, not literal timeline replays. */
+static void item324_frame(void) {
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time+=5;globals.RunFrame();
+}
+extern void (*test_preload_marker)(cstring_t);
+static struct {
+    edict_t *unit;unsigned calls,contributions;bool binv,permanent,published;
+    wc3Clock_t origin;uint32_t sequence;
+} item325_order;
+static void item325_order_marker(cstring_t text) {
+    if(strcmp(text,"P325 ORDER"))return;
+    edict_t *unit=item325_order.unit;item325_order.calls++;
+    item325_order.binv=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'))!=NULL;
+    item325_order.permanent=unit->permanent_invisibility_fade.permanent_owned;
+    item325_order.contributions=unit->permanent_invisibility_fade.temporary_contributions;
+    item325_order.published=unit->permanent_invisibility_fade.published;
+    item325_order.origin=unit->permanent_invisibility_fade.origin;
+    item325_order.sequence=unit->permanent_invisibility_fade.request.sequence;
+}
+static void item325_check_node_order(edict_t *unit,bool permanent_first) {
+    int position=0,apiv=-1,binv=-1;
+    for(unitAbilityDisable_t *node=unit->ability_disables;node;node=node->next,position++) {
+        if(!node->linked)continue;
+        if(node->code==MAKEFOURCC('A','p','i','v') && !node->class_code)apiv=position;
+        if(node->class_code==MAKEFOURCC('B','i','n','v'))binv=position;
+    }
+    T_ASSERT(apiv>=0);T_ASSERT(binv>=0);
+    T_EQ(binv<apiv,permanent_first);
+}
+static void item324_sleep_composition(unsigned overlap) {
+    reset_entities();setup_test_world();
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y1;X18;K\"Cost1\"\nC;Y1;X19;K\"Cool1\"\nC;Y1;X20;K\"Cast1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi24\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"AUsl\"\nC;Y4;X2;K\"AUsl\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"2\"\nC;Y4;X5;K\"2\"\nC;Y4;X12;K\"12\"\nC;Y4;X13;K\"12\"\nC;Y4;X14;K\"BUsl,BUsp,BUst\"\nC;Y4;X15;K\"ground,enemy,organic\"\nC;Y4;X16;K\"ground,enemy,organic\"\nC;Y4;X17;K\"600\"\nC;Y4;X18;K\"0\"\nC;Y4;X19;K\"0\"\nC;Y4;X20;K\"0\"\nC;Y5;X1;K\"Apiv\"\nC;Y5;X2;K\"Apiv\"\nC;Y5;X3;K\"1\"\nC;Y5;X12;K\"3\"\nC;Y5;X13;K\"3\"\nE\n";
+    char const items[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"i324\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"Zi24\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nC;Y3;X1;K\"Hpal\"\nC;Y3;X2;K\"foot\"\nC;Y3;X3;K\"ground\"\nC;Y3;X4;K\"16\"\nC;Y3;X5;K\"0.6\"\nC;Y3;X6;K\"60\"\nC;Y3;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0\"\nC;Y3;X1;K\"Hpal\"\nC;Y3;X2;K\"0\"\nC;Y3;X3;K\"0\"\nC;Y3;X4;K\"0\"\nE\n";
+    char const unit_abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitAbilID\"\nC;X2;K\"abilList\"\nC;Y2;X1;K\"Hpal\"\nC;X2;K\"AInv\"\nC;Y3;X1;K\"hfoo\"\nC;X2;K\"\"\nE\n";
+    slkTestData_t *ur=parse_slk_string(unit_abilities),*ou=G_SetSLKRows("UnitAbilities",ur);
+    slkTestData_t *ar=parse_slk_string(abilities),*ir=parse_slk_string(items);
+    slkTestData_t *dr=parse_slk_string(data),*wr=parse_slk_string(weapons);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir);
+    slkTestData_t *od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr);
+    T_ASSERT(run_test_jass(
+        "globals\nunit target324\nunit caster324\nendglobals\n"
+        "function sleep324 takes nothing returns nothing\n"
+        "call BJassAssert(IssueTargetOrder(caster324,\"sleep\",target324),\"public Sleep admitted\")\nendfunction\n"
+        "function pause324 takes nothing returns nothing\ncall PauseUnit(target324,true)\nendfunction\n"
+        "function resume324 takes nothing returns nothing\ncall PauseUnit(target324,false)\nendfunction\n"
+        "function add324 takes nothing returns nothing\ncall BJassAssert(UnitAddAbility(target324,'Apiv'),\"Apiv attached\")\nendfunction\n"
+        "function remove324 takes nothing returns nothing\ncall BJassAssert(UnitRemoveAbility(target324,'Apiv'),\"Apiv removed\")\nendfunction\n"
+        "function wake324 takes nothing returns nothing\ncall UnitRemoveBuffs(target324,false,true)\nendfunction\n"
+        "function phase325 takes nothing returns nothing\ncall Preload(\"P325 ORDER\")\nendfunction\n"
+        "function register325 takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterUnitEvent(t,target324,ConvertUnitEvent(289))\ncall TriggerAddAction(t,function phase325)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "set target324=CreateUnit(Player(0),'Hpal',256,256,0)\n"
+        "set caster324=CreateUnit(Player(1),'hfoo',304,256,180)\n"
+        "call SetUnitUserData(target324,3241)\ncall SetUnitUserData(caster324,3242)\n"
+        "call BJassAssert(UnitAddAbility(caster324,'AUsl'),\"Sleep attached\")\nendfunction\n"));
+    edict_t *unit=NULL,*caster=NULL;
+    FOR_LOOP(n,globals.num_edicts) {
+        if(g_edicts[n].inuse && g_edicts[n].user_data==3241)unit=g_edicts+n;
+        if(g_edicts[n].inuse && g_edicts[n].user_data==3242)caster=g_edicts+n;
+    }
+    T_NOT_NULL(unit);T_NOT_NULL(caster);if(!unit || !caster)goto item324_cleanup;
+    T_EQ(G_InventoryCapacity(unit),6);T_ASSERT(G_InventoryCanUseItems(unit));
+    edict_t *item=SP_SpawnAtLocation(MAKEFOURCC('i','3','2','4'),0,&unit->s.origin2);
+    T_NOT_NULL(item);if(!item)goto item324_cleanup;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));T_EQ(G_InventoryItem(unit,0),item);
+    if(overlap==1 || overlap==3)jass_callbyname(level.vm,"add324",false);
+    G_UseItem(unit,0);T_EQ(G_ItemCharges(item),1);
+    if(overlap==2 || overlap==4)jass_callbyname(level.vm,"add324",false);
+    heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+    T_NOT_NULL(status);if(!status)goto item324_cleanup;
+    T_ASSERT(status->class_timer.active);T_EQ(status->class_clock_depth,0);
+    if(overlap==5) {
+        /*63ce40 owns100 until628a10 notification: v12c leaves this pending
+         * owner intact. Exercise the common phase, not the buff directly. */
+        uint32_t const instance=status->instance_id;
+        abilityPrimaryTimer_t const expiry=status->class_timer;
+        abilityPrimaryTimer_t const fade=unit->permanent_invisibility_fade.request;
+        wc3Clock_t const origin=unit->permanent_invisibility_fade.origin;
+        T_ASSERT(status->invisibility_pending);T_ASSERT(!unit->permanent_invisibility_fade.published);
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        memset(&item325_order,0,sizeof(item325_order));item325_order.unit=unit;
+        test_preload_marker=item325_order_marker;
+        jass_callbyname(level.vm,"register325",false);
+        S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=MAKEFOURCC('Z','i','2','4'),
+            .target={.type=SPELL_TARGET_NONE},.player_event=EVENT_PLAYER_UNIT_SPELL_CHANNEL,
+            .unit_event=EVENT_UNIT_SPELL_CHANNEL},325);
+        test_preload_marker=saved_marker;
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(item325_order.calls,1);
+        T_ASSERT(item325_order.binv);T_EQ(item325_order.contributions,1);
+        T_ASSERT(!item325_order.permanent);T_ASSERT(!item325_order.published);
+        status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);
+        if(status) {
+            T_EQ(status->instance_id,instance);T_ASSERT(status->invisibility_pending);
+            T_EQ(status->class_timer.active,expiry.active);T_EQ(status->class_timer.sequence,expiry.sequence);
+            T_EQ(wc3_float_bits(status->class_timer.deadline.time),wc3_float_bits(expiry.deadline.time));
+            T_EQ(status->class_timer.deadline.epoch,expiry.deadline.epoch);
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        T_EQ(unit->permanent_invisibility_fade.request.active,fade.active);
+        T_EQ(unit->permanent_invisibility_fade.request.sequence,fade.sequence);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(fade.deadline.time));
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+        memset(&item325_order,0,sizeof(item325_order));
+        goto item324_cleanup;
+    }
+    if(overlap>=3) {
+        /* Original691210 post-callback list traversal +643fb0/643f60.
+         * Actual producers establish order; CHANNEL below is a component
+         * boundary invocation, not a full captured item-cast replay. */
+        FOR_LOOP(n,660)item324_frame();
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+        item325_check_node_order(unit,overlap==3);
+        uint32_t const number=unit->s.number;
+        cstring_t path=Test_TempPath("item325-ordered-action.bin");
+        T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+        unit=g_edicts+number;item325_check_node_order(unit,overlap==3);
+        wc3Clock_t const origin=unit->permanent_invisibility_fade.origin;
+        uint32_t const sequence=unit->permanent_invisibility_fade.request.sequence;
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        memset(&item325_order,0,sizeof(item325_order));item325_order.unit=unit;
+        test_preload_marker=item325_order_marker;
+        jass_callbyname(level.vm,"register325",false);
+        S_DispatchOwnedSpellPhase(&(spellPhaseParams_t){.caster=unit,.code=MAKEFOURCC('Z','i','2','4'),
+            .target={.type=SPELL_TARGET_NONE},.player_event=EVENT_PLAYER_UNIT_SPELL_CHANNEL,
+            .unit_event=EVENT_UNIT_SPELL_CHANNEL},325);
+        test_preload_marker=saved_marker;
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(item325_order.calls,1);
+        T_ASSERT(!item325_order.binv);T_ASSERT(item325_order.permanent);T_EQ(item325_order.contributions,0);
+        T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+        T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+        if(overlap==3) {
+            T_ASSERT(!item325_order.published);T_ASSERT(item325_order.origin.time>origin.time);
+            T_NE(item325_order.sequence,sequence);T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        } else {
+            T_ASSERT(item325_order.published);
+            T_EQ(wc3_float_bits(item325_order.origin.time),wc3_float_bits(origin.time));
+            T_EQ(item325_order.origin.epoch,origin.epoch);T_EQ(item325_order.sequence,sequence);
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+        }
+        memset(&item325_order,0,sizeof(item325_order));
+        goto item324_cleanup;
+    }
+    if(!overlap)T_ASSERT(status->invisibility_pending);
+    /* Overlap notification is immediate; successful public Sleep below is
+     * the admission proof, independent of the shared presentation state. */
+    jass_callbyname(level.vm,"sleep324",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(n,400) {if(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')))break;item324_frame();}
+    T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+    T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','p')));
+    T_ASSERT(!unit->paused);T_ASSERT(unit->movement.internal_suspend_depth>0);
+    T_EQ(unit->ability_clock_depth,0);
+
+    uint32_t const number=unit->s.number,instance=status->instance_id;
+    if(overlap) {
+        jass_callbyname(level.vm,"pause324",false);
+        T_ASSERT(unit->paused);T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+        cstring_t path=Test_TempPath("item324-sleep-pause.bin");
+        T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+        unit=g_edicts+number;status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+        T_NOT_NULL(status);if(!status)goto item324_cleanup;
+        T_EQ(status->instance_id,instance);
+        /* Bixx is a display alias; this case does not establish general
+         * authored buff-polarity classification parity. */
+        jass_callbyname(level.vm,"wake324",false);
+        T_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+        T_ASSERT(unit->paused);T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+        T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+        if(overlap==1) {
+            jass_callbyname(level.vm,"remove324",false);
+            T_ASSERT(!unit->permanent_invisibility_fade.permanent_owned);
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        FOR_LOOP(n,900)item324_frame();
+        T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        uint32_t const fade_sequence=unit->permanent_invisibility_fade.request.sequence;
+        jass_callbyname(level.vm,"resume324",false);
+        T_ASSERT(!unit->paused);T_EQ(status->class_clock_depth,0);T_ASSERT(status->class_timer.active);
+        if(overlap==2) {
+            /* Resume admits the retained permanent owner as a non-first
+             * contribution; it must not restart an already published fade. */
+            FOR_LOOP(n,10)item324_frame();
+            T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+            T_ASSERT(unit->permanent_invisibility_fade.published);
+            T_ASSERT(!unit->permanent_invisibility_fade.request.active);
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade_sequence);
+        }
+    }
+    FOR_LOOP(n,1000)item324_frame();
+    T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+    if(overlap==2) {
+        T_ASSERT(unit->permanent_invisibility_fade.permanent_owned);
+        T_ASSERT(S_PermanentInvisibilityActive(unit));
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        jass_callbyname(level.vm,"remove324",false);
+        T_ASSERT(!unit->permanent_invisibility_fade.permanent_owned);
+        T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));
+    }
+    if(!overlap) {
+        T_NOT_NULL(unit_findstatus(unit,MAKEFOURCC('B','U','s','l')));
+        T_ASSERT(unit->movement.internal_suspend_depth>0);
+        T_EQ(unit->ability_clock_depth,0);
+    }
+    T_ASSERT(!jass_rterror_pending(level.vm));
+item324_cleanup:
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);
+    G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);
+    G_SetSLKRows("UnitAbilities",ou);
+    free_slk_rows(ar);free_slk_rows(ir);free_slk_rows(dr);free_slk_rows(wr);free_slk_rows(ur);
+}
+TEST(wc3_items, invisibility324_public_sleep_does_not_freeze_private_expiry) {item324_sleep_composition(0);}
+TEST(wc3_items, invisibility324_public_sleep_pause_apiv_independent_inverse) {
+    item324_sleep_composition(1);item324_sleep_composition(2);
+}
+
+
+extern void (*test_preload_marker)(cstring_t);
+static struct {
+    edict_t *caster;
+    unsigned count[4];
+    bool owned[4],published[4],runtime[4];
+    wc3Clock_t origin[4];
+    uint32_t sequence[4];
+} item325_observed;
+static void item325_marker(cstring_t text) {
+    char const *labels[]={"P325 BEFORE","P325 CHANNEL","P325 CAST","P325 EFFECT"};
+    FOR_LOOP(i,4)if(!strcmp(text,labels[i])) {
+        edict_t const *unit=item325_observed.caster;
+        T_NOT_NULL(unit);if(!unit)return;
+        item325_observed.count[i]++;
+        item325_observed.owned[i]=unit->permanent_invisibility_fade.permanent_owned;
+        item325_observed.published[i]=unit->permanent_invisibility_fade.published;
+        item325_observed.runtime[i]=S_PermanentInvisibilityActive(unit);
+        item325_observed.origin[i]=unit->permanent_invisibility_fade.origin;
+        item325_observed.sequence[i]=unit->permanent_invisibility_fade.request.sequence;
+    }
+}
+TEST(wc3_items, invisibility325_pending_binv_survives_common_channel_action) {
+    item324_sleep_composition(5);
+}
+TEST(wc3_items, invisibility325_ordered_binv_apiv_action_after_cold_save) {
+    item324_sleep_composition(3);item324_sleep_composition(4);
+}
+/*325: actual public spell phases share the native action notification. */
+TEST(wc3_items, invisibility325_public_channel_cast_reset_before_callbacks) {
+    reset_entities();setup_test_world();
+    void (*saved_marker)(cstring_t)=test_preload_marker;
+    memset(&item325_observed,0,sizeof(item325_observed));
+    test_preload_marker=item325_marker;
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"targs\"\nC;Y1;X7;K\"targs1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"Cost1\"\nC;Y1;X10;K\"Cool1\"\nC;Y1;X11;K\"Cast1\"\nC;Y1;X12;K\"BuffID1\"\nC;Y1;X13;K\"DataA1\"\nC;Y1;X14;K\"Data11\"\nC;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"3\"\nC;Y2;X5;K\"3\"\nC;Y3;X1;K\"Ainf\"\nC;Y3;X2;K\"Ainf\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"10\"\nC;Y3;X5;K\"10\"\nC;Y3;X6;K\"ground,friend\"\nC;Y3;X7;K\"ground,friend\"\nC;Y3;X8;K\"600\"\nC;Y3;X9;K\"0\"\nC;Y3;X10;K\"0\"\nC;Y3;X11;K\"4\"\nC;Y3;X12;K\"Binf\"\nC;Y3;X13;K\"0.1\"\nC;Y3;X14;K\"0.1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"0.2\"\nE\n";
+    slkTestData_t *ar=parse_slk_string(abilities),*dr=parse_slk_string(data),*wr=parse_slk_string(weapons);
+    slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr);
+    level.alliances[0][2]=level.alliances[2][0]=0;
+    T_ASSERT(run_test_jass(
+        "globals\nunit caster325\nunit target325\nendglobals\n"
+        "function channel325 takes nothing returns nothing\n"
+        "call Preload(\"P325 CHANNEL\")\n"
+        "call SetUnitUserData(caster325,1)\nendfunction\n"
+        "function cast325 takes nothing returns nothing\n"
+        "call Preload(\"P325 CAST\")\n"
+        "call SetUnitUserData(caster325,2)\nendfunction\n"
+        "function effect325 takes nothing returns nothing\ncall Preload(\"P325 EFFECT\")\ncall SetUnitUserData(caster325,3)\nendfunction\n"
+        "function issue325 takes nothing returns nothing\n"
+        "call Preload(\"P325 BEFORE\")\n"
+        "call BJassAssert(IssueTargetOrder(caster325,\"innerfire\",target325),\"public Inner Fire admitted\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger ch=CreateTrigger()\n"
+        "local trigger ca=CreateTrigger()\nlocal trigger ef=CreateTrigger()\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call SetPlayerTechResearched(Player(0),'Rhpt',2)\n"
+        "set caster325=CreateUnit(Player(0),'hfoo',256,256,0)\n"
+        "set target325=CreateUnit(Player(0),'hfoo',304,256,180)\n"
+        "call SetUnitUserData(caster325,3251)\ncall SetUnitUserData(target325,3252)\n"
+        "call BJassAssert(UnitAddAbility(caster325,'Ainf'),\"Ainf attached\")\n"
+        "call BJassAssert(UnitAddAbility(caster325,'Apiv'),\"Apiv attached\")\n"
+        "call TriggerRegisterUnitEvent(ch,caster325,ConvertUnitEvent(289))\ncall TriggerAddAction(ch,function channel325)\n"
+        "call TriggerRegisterUnitEvent(ca,caster325,ConvertUnitEvent(290))\ncall TriggerAddAction(ca,function cast325)\n"
+        "call TriggerRegisterUnitEvent(ef,caster325,ConvertUnitEvent(291))\ncall TriggerAddAction(ef,function effect325)\nendfunction\n"));
+    edict_t *caster=NULL;
+    FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3251)caster=g_edicts+n;
+    T_NOT_NULL(caster);if(!caster)goto item325_cleanup;
+    item325_observed.caster=caster;
+    FOR_LOOP(n,800) {if(caster->permanent_invisibility_fade.published)break;item324_frame();}
+    T_ASSERT(S_PermanentInvisibilityActive(caster));
+    T_ASSERT(S_UnitIsInvisibleToPlayer(caster,2));
+    uint32_t const initial_sequence=caster->permanent_invisibility_fade.request.sequence;
+    jass_callbyname(level.vm,"issue325",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    FOR_LOOP(n,200) {if(caster->user_data==1)break;item324_frame();}
+    T_EQ(caster->user_data,1);
+    wc3Clock_t const channel_origin=caster->permanent_invisibility_fade.origin;
+    uint32_t const channel_sequence=caster->permanent_invisibility_fade.request.sequence;
+    T_NE(channel_sequence,initial_sequence);T_ASSERT(caster->permanent_invisibility_fade.request.active);
+    bool republished=false;
+    FOR_LOOP(n,1000) {
+        if(caster->user_data!=1)break;
+        if(caster->permanent_invisibility_fade.published)republished=true;
+        item324_frame();
+    }
+    T_ASSERT(republished);T_EQ(caster->user_data,2);
+    wc3Clock_t const cast_origin=caster->permanent_invisibility_fade.origin;
+    uint32_t const cast_sequence=caster->permanent_invisibility_fade.request.sequence;
+    T_NE(cast_sequence,channel_sequence);T_ASSERT(cast_origin.time>channel_origin.time);
+    T_ASSERT(caster->permanent_invisibility_fade.request.active);
+    FOR_LOOP(n,200) {if(caster->user_data==3)break;item324_frame();}
+    T_EQ(caster->user_data,3);
+    T_EQ(wc3_float_bits(caster->permanent_invisibility_fade.origin.time),wc3_float_bits(cast_origin.time));
+    T_EQ(caster->permanent_invisibility_fade.origin.epoch,cast_origin.epoch);
+    T_EQ(caster->permanent_invisibility_fade.request.sequence,cast_sequence);
+    FOR_LOOP(i,4) {T_EQ(item325_observed.count[i],1);T_ASSERT(item325_observed.owned[i]);}
+    T_ASSERT(item325_observed.published[0]);T_ASSERT(item325_observed.runtime[0]);
+    T_ASSERT(!item325_observed.published[1]);T_ASSERT(!item325_observed.runtime[1]);
+    T_ASSERT(!item325_observed.published[2]);T_ASSERT(!item325_observed.runtime[2]);
+    T_NE(item325_observed.sequence[1],item325_observed.sequence[0]);
+    T_NE(item325_observed.sequence[2],item325_observed.sequence[1]);
+    T_ASSERT(item325_observed.origin[2].time>item325_observed.origin[1].time);
+    T_EQ(item325_observed.sequence[3],item325_observed.sequence[2]);
+    T_EQ(wc3_float_bits(item325_observed.origin[3].time),wc3_float_bits(item325_observed.origin[2].time));
+    T_EQ(item325_observed.origin[3].epoch,item325_observed.origin[2].epoch);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+item325_cleanup:
+    test_preload_marker=saved_marker;memset(&item325_observed,0,sizeof(item325_observed));
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",oa);G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);
+    free_slk_rows(ar);free_slk_rows(dr);free_slk_rows(wr);
+}
+
+
+/*326 exact ordered public projection: before-use through first after-use
+ * state, excluding pose rows only. Native FourCC integers are mapped to the
+ * engine's typed four-letter representation; event/order IDs are unchanged.
+ * No trajectory or primary-clock parity is asserted by this component test. */
+/* Source JSON SHA256 f16d09f894f951fb7a63d9e9fd724e48bfba0f292b18f94b70867b3f4f8d81ae */
+static char const *const item326_scene0[]={
+    "before-use",
+    "state head=851986 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=292 code=829835585 used=0",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "event id=87 code=0 used=1986947440",
+    "state head=852008 binv=1 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=1 item=0 slot=0"
+};
+static char const *const item326_scene1[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "event id=290 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene2[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "event id=291 code=829835585 used=0",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene3[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=290 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=291 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "order id=851972 head=851972",
+    "callback-stop result=1",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=0 item=1986947440 slot=1"
+};
+static char const *const item326_scene4[]={
+    "before-use",
+    "state head=0 binv=0 item=1986947440 slot=1",
+    "order id=852008 head=852008",
+    "event id=289 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "event id=293 code=829835585 used=0",
+    "state head=852008 binv=0 item=1986947440 slot=1",
+    "callback-remove-item",
+    "event id=290 code=0 used=0",
+    "state head=852008 binv=0 item=0 slot=0",
+    "event id=291 code=0 used=0",
+    "state head=852008 binv=0 item=0 slot=0",
+    "use result=1",
+    "after-use",
+    "state head=0 binv=1 item=0 slot=0"
+};
+static struct {char const *const *rows;size_t count,index;bool active;} item326_trace;
+static void item326_marker(cstring_t text) {
+    if(strncmp(text,"I326 ",5))return;
+    text+=5;
+    if(!strcmp(text,"before-use"))item326_trace.active=true;
+    if(!item326_trace.active)return;
+    T_ASSERT(item326_trace.index<item326_trace.count);
+    if(item326_trace.index<item326_trace.count)T_STREQ(text,item326_trace.rows[item326_trace.index]);
+    item326_trace.index++;
+}
+static void item326_inventory_protocol(bool engine_lifetimes) {
+    char const *const *rows[]={item326_scene0,item326_scene1,item326_scene2,item326_scene3,item326_scene4};
+    size_t counts[]={sizeof(item326_scene0)/sizeof(item326_scene0[0]),sizeof(item326_scene1)/sizeof(item326_scene1[0]),sizeof(item326_scene2)/sizeof(item326_scene2[0]),sizeof(item326_scene3)/sizeof(item326_scene3[0]),sizeof(item326_scene4)/sizeof(item326_scene4[0])};
+    char const abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"Data14\"\nC;Y1;X10;K\"DataE1\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y1;X15;K\"Cost1\"\nC;Y1;X16;K\"Cool1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"AIv1\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X12;K\"4\"\nC;Y3;X13;K\"4\"\nC;Y3;X14;K\"Binv\"\nC;Y3;X15;K\"0\"\nC;Y3;X16;K\"0\"\nE\n";
+    char const items[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"pinv\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"AIv1\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\nE\n";
+    char const data[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"collision\"\nC;Y1;X5;K\"turnRate\"\nC;Y1;X6;K\"propWin\"\nC;Y1;X7;K\"deathType\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"foot\"\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"16\"\nC;Y2;X5;K\"0.6\"\nC;Y2;X6;K\"60\"\nC;Y2;X7;K\"3\"\nE\n";
+    char const weapons[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitWeapID\"\nC;Y1;X2;K\"weapsOn\"\nC;Y1;X3;K\"castpt\"\nC;Y1;X4;K\"castbsw\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"0\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0\"\nE\n";
+    char const unit_abilities[]="ID;PWXL;N;E\nC;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"Hpal\"\nC;Y2;X2;K\"AInv\"\nE\n";
+    FOR_LOOP(scene,9) {
+        if((scene>=5)!=engine_lifetimes)continue;
+        reset_entities();setup_test_world();
+        slkTestData_t *ar=parse_slk_string(abilities),*ir=parse_slk_string(items),*dr=parse_slk_string(data),*wr=parse_slk_string(weapons),*ur=parse_slk_string(unit_abilities);
+        slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir),*od=G_SetSLKRows("UnitData",dr),*ow=G_SetSLKRows("UnitWeapons",wr),*ou=G_SetSLKRows("UnitAbilities",ur);
+        void (*saved_marker)(cstring_t)=test_preload_marker;
+        item326_trace=(typeof(item326_trace)){0};
+        if(!engine_lifetimes)item326_trace=(typeof(item326_trace)){.rows=rows[scene],.count=counts[scene]};
+        test_preload_marker=engine_lifetimes ? NULL : item326_marker;
+        char script[10000];
+        snprintf(script,sizeof(script),
+            "type eventid extends handle\n"
+            "globals\n"
+            /* Minimal common.j omits these unit spell enums. */
+            " constant unitevent EVENT_UNIT_USE_ITEM=ConvertUnitEvent(87)\n"
+            " constant unitevent EVENT_UNIT_SPELL_CHANNEL=ConvertUnitEvent(289)\n"
+            " constant unitevent EVENT_UNIT_SPELL_CAST=ConvertUnitEvent(290)\n"
+            " constant unitevent EVENT_UNIT_SPELL_EFFECT=ConvertUnitEvent(291)\n"
+            " constant unitevent EVENT_UNIT_SPELL_FINISH=ConvertUnitEvent(292)\n"
+            " constant unitevent EVENT_UNIT_SPELL_ENDCAST=ConvertUnitEvent(293)\n"
+            " unit I326U=null\n"
+            " item I326Item=null\n"
+            " item I326Sibling=null\n"
+            " timer I326Timer=null\n"
+            " integer I326Tick=0\n"
+            " integer I326Scene=%u\n"
+            " boolean I326Acted=false\n"
+            "endglobals\n"
+            "function I326Bool takes boolean b returns integer\n"
+            " if b then\n"
+            "  return 1\n"
+            " endif\n"
+            " return 0\n"
+            "endfunction\n"
+            "function I326Emit takes string s returns nothing\n"
+            " call Preload(\"I326 \"+s)\n"
+            "endfunction\n"
+            "function I326State takes nothing returns nothing\n"
+            " call I326Emit(\"state head=\"+I2S(GetUnitCurrentOrder(I326U))+\" binv=\"+I2S(GetUnitAbilityLevel(I326U,'Binv'))+\" item=\"+I2S(GetItemTypeId(I326Item))+\" slot=\"+I2S(I326Bool(UnitItemInSlot(I326U,0)==I326Item)))\n"
+            "endfunction\n"
+            "function I326Event takes nothing returns nothing\n"
+            " local eventid e=GetTriggerEventId()\n"
+            " call I326Emit(\"event id=\"+I2S(GetHandleId(e))+\" code=\"+I2S(GetSpellAbilityId())+\" used=\"+I2S(GetItemTypeId(GetManipulatedItem())))\n"
+            " call I326State()\n"
+            " if not I326Acted and ((I326Scene==1 and e==EVENT_UNIT_SPELL_CHANNEL) or (I326Scene==2 and e==EVENT_UNIT_SPELL_CAST) or (I326Scene==3 and e==EVENT_UNIT_SPELL_EFFECT)) then\n"
+            "  set I326Acted=true\n"
+            "  call I326Emit(\"callback-stop result=\"+I2S(I326Bool(IssueImmediateOrder(I326U,\"stop\"))))\n"
+            " elseif not I326Acted and (I326Scene==4 or I326Scene==7) and e==EVENT_UNIT_SPELL_CHANNEL then\n"
+            "  set I326Acted=true\n"
+            "  call RemoveItem(I326Item)\n"
+            "  call I326Emit(\"callback-remove-item\")\n"
+            " elseif not I326Acted and I326Scene==8 and e==EVENT_UNIT_SPELL_CHANNEL then\n"
+            "  set I326Acted=true\n"
+            "  call BJassAssert(IssuePointOrder(I326U,\"move\",1900,512),\"replacement Move accepted\")\n"
+            " endif\n"
+            "endfunction\n"
+            "function I326Order takes nothing returns nothing\n"
+            " call I326Emit(\"order id=\"+I2S(GetIssuedOrderId())+\" head=\"+I2S(GetUnitCurrentOrder(I326U)))\n"
+            "endfunction\n"
+            "function resume326 takes nothing returns nothing\ncall PauseUnit(I326U,false)\nendfunction\n"
+            "function repick326 takes nothing returns nothing\n"
+            "call UnitRemoveItem(I326U,I326Item)\n"
+            "call BJassAssert(UnitAddItem(I326U,I326Item),\"same item reattached\")\nendfunction\n"
+            "function check326 takes nothing returns nothing\n"
+            "if I326Scene==5 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0 and GetUnitAbilityLevel(I326U,'Binv')==1,\"saved queued use completed\")\n"
+            "elseif I326Scene==6 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)=='pinv' and GetItemCharges(I326Item)==1 and UnitItemInSlot(I326U,0)==I326Item,\"new attachment not consumed\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==0,\"old queued attachment rejected\")\n"
+            "elseif I326Scene==7 then\n"
+            "call BJassAssert(GetItemTypeId(I326Item)==0,\"old source removed\")\n"
+            "call BJassAssert(GetItemTypeId(I326Sibling)=='pinv' and GetItemCharges(I326Sibling)==1 and UnitItemInSlot(I326U,1)==I326Sibling,\"sibling retained exactly\")\n"
+            "call BJassAssert(GetUnitAbilityLevel(I326U,'Binv')==1,\"retained source ability executed\")\n"
+            "elseif I326Scene==8 then\n"
+            "call BJassAssert(GetUnitCurrentOrder(I326U)==OrderId(\"move\"),\"callback successor survives unwind\")\n"
+            "endif\nendfunction\n"
+            "function run326 takes nothing returns nothing\nlocal boolean accepted\n"
+            " call I326Emit(\"before-use\")\n"
+            " call I326State()\n"
+            " set accepted=UnitUseItem(I326U,I326Item)\n"
+            " call I326Emit(\"use result=\"+I2S(I326Bool(accepted)))\n"
+            " if I326Scene>=5 then\ncall BJassAssert(accepted,\"public use accepted\")\nendif\n"
+            " call I326Emit(\"after-use\")\n"
+            " call I326State()\n"
+            "endfunction\n"
+            "function main takes nothing returns nothing\n"
+            " local trigger tr\n"
+            " set I326U=CreateUnit(Player(0),'Hpal',1024,512,0)\n"
+            " call SetUnitUserData(I326U,3261)\n"
+            " set I326Item=CreateItem('pinv',1024,512)\n"
+            " call BJassAssert(GetUnitAbilityLevel(I326U,'AInv')==1,\"natural inventory\")\n"
+            " call BJassAssert(UnitAddItem(I326U,I326Item),\"actual pickup\")\n"
+            " call BJassAssert(UnitItemInSlot(I326U,0)==I326Item,\"held item identity\")\n"
+            " if I326Scene==7 then\nset I326Sibling=CreateItem('pinv',1024,512)\n"
+            "call BJassAssert(UnitAddItem(I326U,I326Sibling),\"same alias sibling held\")\nendif\n"
+            " set tr=CreateTrigger()\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CHANNEL)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_CAST)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_EFFECT)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_FINISH)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_SPELL_ENDCAST)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_USE_ITEM)\n"
+            " call TriggerAddAction(tr,function I326Event)\n"
+            " set tr=CreateTrigger()\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_ISSUED_ORDER)\n"
+            " call TriggerRegisterUnitEvent(tr,I326U,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
+            " call TriggerAddAction(tr,function I326Order)\n"
+            " if I326Scene==0 then\n"
+            "  call BJassAssert(IssuePointOrder(I326U,\"move\",1900,512),\"initial Move\")\n"
+            " endif\n"
+            "endfunction\n"
+            ,scene);
+        T_ASSERT(run_test_jass(script));
+        edict_t *held=NULL;
+        if(scene==5 || scene==6) {
+            FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)held=g_edicts+n;
+            T_NOT_NULL(held);
+            /* Component hold exercises680320 queue/save ownership. This is
+             * not a claim about public item admission during scripted Pause. */
+            if(held)held->construction_held=true;
+        }
+        jass_callbyname(level.vm,"run326",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!engine_lifetimes)T_EQ(item326_trace.index,item326_trace.count);
+        else {
+            /* Engine ownership/inverse regressions, NOT additional native
+             * timeline projections. The two saved queue cases use an internal
+             * execution hold; item use and callback mutations are public JASS. */
+            edict_t *unit=NULL;
+            FOR_LOOP(n,globals.num_edicts)if(g_edicts[n].inuse && g_edicts[n].user_data==3261)unit=g_edicts+n;
+            T_NOT_NULL(unit);
+            if(unit && (scene==5 || scene==6)) {
+                T_ASSERT(unit->construction_held);T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_NOT_NULL(G_InventoryItem(unit,0));
+                uint32_t const number=unit->s.number;
+                cstring_t path=Test_TempPath("item326-held-attachment.bin");
+                T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+number;T_ASSERT(unit->construction_held);
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                if(scene==6)jass_callbyname(level.vm,"repick326",false);
+                unit->construction_held=false;
+                G_UnitStartNextQueuedOrder(unit);
+            }
+            jass_callbyname(level.vm,"check326",false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        test_preload_marker=saved_marker;memset(&item326_trace,0,sizeof(item326_trace));
+        reset_entities();setup_test_world();
+        G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);G_SetSLKRows("UnitData",od);G_SetSLKRows("UnitWeapons",ow);G_SetSLKRows("UnitAbilities",ou);
+        free_slk_rows(ar);free_slk_rows(ir);free_slk_rows(dr);free_slk_rows(wr);free_slk_rows(ur);
+    }
+}
+
+
+TEST(wc3_items, invisibility326_public_inventory_phase_callback_protocol) {
+    item326_inventory_protocol(false);
+}
+TEST(wc3_items, invisibility326_public_inventory_attachment_and_callback_inverses) {
+    item326_inventory_protocol(true);
+}
+
+TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -344,7 +1312,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     player->client->menu.ability_code = MAKEFOURCC('A','I','v','i');
     item = S_AbilityItem(MAKEFOURCC('A','I','v','i'));
     T_EQ(item.ability->proc, CAbilityItemInvis);
-    call = MAKE(abilityCall_t, .item = &item, .entity = player);
+    call = MAKE(abilityCall_t, .item = &item, .client = player);
 
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
     status = unit_findstatus(hero, MAKEFOURCC('B','i','x','x'));
@@ -355,6 +1323,11 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
         return;
     }
     T_EQ(status->duration_ms, 7250);
+    T_EQ(status->timestamp,0);T_ASSERT(status->class_timer.active);
+    T_ASSERT(status->invisibility_pending);T_ASSERT(!(hero->s.renderfx&RF_HIDDEN));
+    T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
+    FOR_LOOP(i,500) {if(hero->permanent_invisibility_fade.published)break;item322_primary_step();}
+    T_ASSERT(hero->permanent_invisibility_fade.published);
     T_ASSERT(hero->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(hero));
     T_ASSERT(S_UnitIsInvisibleToPlayer(hero, 1));
@@ -362,8 +1335,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_ASSERT(G_GetMainSelectedUnit(player->client) == hero);
     T_ASSERT(G_UnitCanControl(player->client, hero));
 
-    level.time = status->timestamp;
-    unit_updatestatuses(hero);
+    FOR_LOOP(i,1600) {if(!unit_findstatus(hero,MAKEFOURCC('B','i','x','x')))break;item322_primary_step();}
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
@@ -372,21 +1344,23 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
 
-    memset(hero->unit_state->statuses, 0, sizeof(hero->unit_state->statuses));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        hero->unit_state->statuses[i].code = MAKEFOURCC('T','s','t','0') + (uint32_t)i;
-        hero->unit_state->statuses[i].level = 1;
+        hero->abilstatus[i].code = MAKEFOURCC('T','s','t','0') + (uint32_t)i;
+        hero->abilstatus[i].level = 1;
     }
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','x','x')), 0);
 
-    memset(hero->unit_state->statuses, 0, sizeof(hero->unit_state->statuses));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     hero->health.value = 0.0f;
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
-    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
+    T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -418,7 +1392,7 @@ TEST(wc3_items, stock_invisibility_item_applies_and_expires_binv) {
     G_SelectEntity(player->client, hero);
     player->client->menu.ability_code = MAKEFOURCC('A','I','v','i');
     item = S_AbilityItem(MAKEFOURCC('A','I','v','i'));
-    call = MAKE(abilityCall_t, .item = &item, .entity = player);
+    call = MAKE(abilityCall_t, .item = &item, .client = player);
 
     T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
     status = unit_findstatus(hero, MAKEFOURCC('B','i','n','v'));
@@ -426,9 +1400,11 @@ TEST(wc3_items, stock_invisibility_item_applies_and_expires_binv) {
     if (status) {
         T_EQ(status->duration_ms, 120000);
         T_EQ(status->data, MAKEFOURCC('A','I','v','i'));
-        T_ASSERT(hero->s.renderfx & RF_HIDDEN);
-        level.time = status->timestamp;
-        unit_updatestatuses(hero);
+        T_EQ(status->timestamp,0);T_ASSERT(status->class_timer.active);
+        T_ASSERT(status->invisibility_pending);T_ASSERT(!(hero->s.renderfx&RF_HIDDEN));
+        FOR_LOOP(i,500) {if(hero->permanent_invisibility_fade.published)break;item322_primary_step();}
+        T_ASSERT(hero->s.renderfx&RF_HIDDEN);
+        FOR_LOOP(i,25000) {if(!unit_findstatus(hero,MAKEFOURCC('B','i','n','v')))break;item322_primary_step();}
         T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','n','v')));
         T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     }
@@ -585,7 +1561,7 @@ TEST(wc3_items, rexxar_stash_backpack_six_slots_and_live_inventory_refresh) {
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 0, 0);
     T_ASSERT(G_AddItemToSlot(stash, item, 5));
     T_ASSERT(G_InventoryItem(stash, 5) == item);
-    T_ASSERT(G_GetItem(item)->carrier == stash);
+    T_ASSERT(item->item->carrier == stash);
 
     G_SetMapAbilityOverrides(NULL);
     G_SetSLKRows("AbilityData", old_rows);
@@ -706,7 +1682,7 @@ TEST(wc3_items, pickup_respects_inventory_capacity_not_storage_size) {
     T_ASSERT(G_AddItemToSlot(unit, second, 1));
     T_ASSERT(!G_AddItemToSlot(unit, extra, 2));
     T_EQ(G_FindFreeInventorySlot(unit), -1);
-    T_ASSERT(G_GetItem(extra)->in_world);
+    T_ASSERT(extra->item->in_world);
 }
 
 TEST(wc3_items, pickup_sets_both_sides_of_inventory_state) {
@@ -716,9 +1692,9 @@ TEST(wc3_items, pickup_sets_both_sides_of_inventory_state) {
 
     T_ASSERT(G_AddItemToSlot(unit, item, 2));
     T_ASSERT(G_InventoryItem(unit, 2) == item);
-    T_ASSERT(G_GetItem(item)->carrier == unit);
-    T_EQ(G_GetItem(item)->inventory_slot, 2);
-    T_ASSERT(!G_GetItem(item) || !G_GetItem(item)->in_world);
+    T_ASSERT(item->item->carrier == unit);
+    T_EQ(item->item->inventory_slot, 2);
+    T_ASSERT(!item->item || !item->item->in_world);
     T_ASSERT(item->s.renderfx & RF_HIDDEN);
     T_ASSERT(item->svflags & SVF_NOCLIENT);
     T_NULL(item->area.prev);
@@ -734,7 +1710,7 @@ TEST(wc3_items, pickup_uses_first_empty_slot) {
     unit->s.player = 0; /* score belongs to the owner at the time of acquisition */
     T_ASSERT(G_PickupItem(unit, second));
     T_ASSERT(G_InventoryItem(unit, 1) == second);
-    T_EQ(G_GetItem(second)->inventory_slot, 1);
+    T_EQ(second->item->inventory_slot, 1);
     T_EQ(game.clients[unit->s.player].score.values[WC3_PLAYER_SCORE_ITEMS_GAINED], 1);
 }
 
@@ -746,8 +1722,8 @@ TEST(wc3_items, unit_without_inventory_capability_rejects_item) {
     unit->health.value = unit->health.max_value = 100;
     T_ASSERT(!G_UnitHasInventory(unit));
     T_ASSERT(!G_PickupItem(unit, item));
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_NULL(G_GetItem(item)->carrier);
+    T_ASSERT(item->item->in_world);
+    T_NULL(item->item->carrier);
 }
 
 TEST(wc3_items, full_inventory_leaves_item_in_world) {
@@ -761,9 +1737,9 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     edict_t *extra = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 96, 0);
 
     T_ASSERT(!G_PickupItem(unit, extra));
-    T_ASSERT(G_GetItem(extra)->in_world);
-    T_NULL(G_GetItem(extra)->carrier);
-    T_EQ(G_GetItem(extra)->inventory_slot, -1);
+    T_ASSERT(extra->item->in_world);
+    T_NULL(extra->item->carrier);
+    T_EQ(extra->item->inventory_slot, -1);
     T_ASSERT(!(extra->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(extra->svflags & SVF_NOCLIENT));
     T_NOT_NULL(extra->area.prev);
@@ -796,7 +1772,7 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     owner = G_GetPlayerClientByNumber(0);
@@ -851,10 +1827,10 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     ally->ps.number = saved_ally_number;
     level.alliances[1][0] = saved_ally_alliance;
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 337);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_EQ(G_GetItem(item)->charges, 0);
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
     T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
 
     G_SetSLKRows("AbilityData", old);
@@ -877,7 +1853,7 @@ TEST(wc3_items, gold_powerup_negative_data_drains_and_clamps_at_zero) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     owner = G_GetPlayerClientByNumber(0);
@@ -888,8 +1864,8 @@ TEST(wc3_items, gold_powerup_negative_data_drains_and_clamps_at_zero) {
         item->data.ItemData = &gold_data;
         T_ASSERT(G_PickupItem(unit, item));
         T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
-        T_ASSERT(G_GetItem(item)->pending_use_removal);
-        T_EQ(G_GetItem(item)->charges, 0);
+        T_ASSERT(item->item->pending_use_removal);
+        T_EQ(item->item->charges, 0);
     }
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -921,7 +1897,7 @@ TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     owner = G_GetPlayerClientByNumber(0);
@@ -964,10 +1940,10 @@ TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     T_ASSERT(pickup_text_capture.recipient == &g_edicts[1]);
     T_STREQ(pickup_text_capture.text, "+237");
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 337);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_EQ(G_GetItem(item)->charges, 0);
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
     T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
 
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 65500;
@@ -1010,7 +1986,7 @@ TEST(wc3_items, lumber_powerup_negative_data_clamps_at_zero) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     owner = G_GetPlayerClientByNumber(0);
@@ -1021,7 +1997,7 @@ TEST(wc3_items, lumber_powerup_negative_data_clamps_at_zero) {
         item->data.ItemData = &lumber_data;
         T_ASSERT(G_PickupItem(unit, item));
         T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
-        T_ASSERT(G_GetItem(item)->pending_use_removal);
+        T_ASSERT(item->item->pending_use_removal);
     }
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -1047,13 +2023,13 @@ TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
     distant = make_item_test_inventory_unit(100, 0);
     mechanical = make_item_test_inventory_unit(30, 0);
     picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(nearby);
+
     nearby->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(distant);
+
     distant->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(mechanical);
+
     mechanical->svflags |= SVF_MONSTER;
     picker->targtype = nearby->targtype = distant->targtype = TARG_GROUND;
     mechanical->targtype = TARG_MECHANICAL;
@@ -1073,8 +2049,8 @@ TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
     T_FEQ(nearby->health.value, 100.0f, 0.01f);
     T_FEQ(distant->health.value, 25.0f, 0.01f);
     T_FEQ(mechanical->health.value, 25.0f, 0.01f);
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
-    T_EQ(G_GetItem(rune)->charges, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
     /* An unwounded group still triggers normal powerup consumption. */
@@ -1082,7 +2058,7 @@ TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
     rune = make_item_test_world_item(MAKEFOURCC('r','h','e','3'), 32, 0);
     rune->data.ItemData = &healing_data;
     T_ASSERT(G_PickupItem(picker, rune));
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -1113,15 +2089,15 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     mechanical = make_item_test_inventory_unit(40, 0);
     picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
     enemy->s.player = 1;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(nearby);
+
     nearby->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(distant);
+
     distant->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(enemy);
+
     enemy->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(mechanical);
+
     mechanical->svflags |= SVF_MONSTER;
     picker->targtype = nearby->targtype = distant->targtype = enemy->targtype = TARG_GROUND;
     mechanical->targtype = TARG_MECHANICAL;
@@ -1145,8 +2121,8 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     T_FEQ(distant->mana.value, 10.0f, 0.01f);
     T_FEQ(enemy->mana.value, 10.0f, 0.01f);
     T_FEQ(mechanical->mana.value, 10.0f, 0.01f);
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
-    T_EQ(G_GetItem(rune)->charges, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
     /* The greater rune uses its own authored amount, not the smaller rune's. */
@@ -1156,17 +2132,64 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     rune->data.ItemData = &rune_data;
     T_ASSERT(G_PickupItem(picker, rune));
     T_FEQ(picker->mana.value, 310.0f, 0.01f);
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
 
     /* Full mana does not leave a supported powerup sitting on the ground. */
     picker->mana.value = nearby->mana.value = 500.0f;
     rune = make_item_test_world_item(MAKEFOURCC('r','m','a','2'), 32, 0);
     rune->data.ItemData = &rune_data;
     T_ASSERT(G_PickupItem(picker, rune));
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+TEST(wc3_items, mana_and_restoration_item_messages_use_carrier_and_authored_alias_data) {
+    setup_test_world();
+    mapInfo_t *info=(mapInfo_t *)level.mapinfo;
+    uint32_t old_format=info->fileFormat;
+    edict_t *player=&g_edicts[0];
+    edict_t *carrier=make_item_test_inventory_unit(0,0);
+    edict_t *selected=make_item_test_inventory_unit(64,0);
+    carrier->s.player=selected->s.player=0;
+    carrier->mana.max_value=selected->mana.max_value=200;
+    player->client->ps.number=0;
+    G_SelectEntity(player->client,selected);
+    static ItemData_t data={.abilList="Zman,Zres",.uses=1,.usable=true,.perishable=true};
+    edict_t *source=make_item_test_world_item(MAKEFOURCC('p','m','a','n'),0,0);
+    source->data.ItemData=&data;
+    source->item->carrier=carrier;source->item->inventory_slot=0;
+    source->item->in_world=false;source->item->charges=1;carrier->inventory[0]=source;
+    for(unsigned edition=0;edition<2;edition++) {
+        info->fileFormat=edition ? 25 : 24;
+        char text[1400];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+            "C;X4;K\"%s\"\nC;X5;K\"%s\"\n"
+            "C;Y2;X1;K\"Zman\"\nC;X2;K\"AIma\"\nC;X3;K1\nC;X4;K37\n"
+            "C;Y3;X1;K\"Zres\"\nC;X2;K\"AIre\"\nC;X3;K1\nC;X4;K23\nC;X5;K41\nE\n",
+            edition ? "DataA1" : "Data11",edition ? "DataB1" : "Data12");
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        carrier->health.value=selected->health.value=50;
+        carrier->mana.value=10;selected->mana.value=5;
+        abilityitem_t item=S_AbilityItem(MAKEFOURCC('Z','m','a','n'));
+        abilityCall_t call={.item=&item,.client=player,.source_item=source,.source_item_spawn_time=source->spawn_time};
+        T_ASSERT(S_AbilityMessage(carrier,A_ITEM_USE,&call));
+        T_FEQ(carrier->mana.value,47,0);T_FEQ(selected->mana.value,5,0);
+        item=S_AbilityItem(MAKEFOURCC('Z','r','e','s'));
+        T_ASSERT(S_AbilityMessage(carrier,A_ITEM_USE,&call));
+        T_FEQ(carrier->mana.value,88,0);T_FEQ(carrier->health.value,73,0);
+        T_FEQ(selected->mana.value,5,0);T_FEQ(selected->health.value,50,0);
+        T_EQ(source->item->charges,1); /* Resource body alone does not commit item use. */
+        T_ASSERT(G_GetMainSelectedUnit(player->client) == selected);
+        /* The existing client-driven path still uses its selected unit. */
+        item=S_AbilityItem(MAKEFOURCC('Z','m','a','n'));
+        T_ASSERT(S_AbilityMessage(player,A_ITEM_USE,&call));
+        T_FEQ(selected->mana.value,42,0);T_FEQ(carrier->mana.value,88,0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    info->fileFormat=old_format;
 }
 
 TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
@@ -1192,15 +2215,15 @@ TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
     mechanical = make_item_test_inventory_unit(35, 0);
     picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
     enemy->s.player = 1;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(nearby);
+
     nearby->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(distant);
+
     distant->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(enemy);
+
     enemy->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(mechanical);
+
     mechanical->svflags |= SVF_MONSTER;
     picker->targtype = nearby->targtype = distant->targtype = enemy->targtype = TARG_GROUND;
     mechanical->targtype = TARG_MECHANICAL;
@@ -1229,8 +2252,8 @@ TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
     T_FEQ(enemy->mana.value, 5.0f, 0.01f);
     T_FEQ(mechanical->health.value, 20.0f, 0.01f);
     T_FEQ(mechanical->mana.value, 5.0f, 0.01f);
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
-    T_EQ(G_GetItem(rune)->charges, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
     picker->health.value = nearby->health.value = 100.0f;
@@ -1238,7 +2261,7 @@ TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
     rune = make_item_test_world_item(MAKEFOURCC('r','r','e','s'), 32, 0);
     rune->data.ItemData = &rune_data;
     T_ASSERT(G_PickupItem(picker, rune));
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -1266,7 +2289,7 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     picker = make_item_test_inventory_unit(0, 0);
     picker->s.player = 0;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
     picker->targtype = TARG_GROUND;
     FOR_LOOP(slot, G_InventoryCapacity(picker)) {
@@ -1305,18 +2328,18 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     T_FEQ(near_high->health.value, near_high->health.max_value, 0.01f);
     T_ASSERT(M_IsDead(distant));
     T_ASSERT(M_IsDead(enemy));
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
-    T_EQ(G_GetItem(rune)->charges, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
     /* With no eligible corpse, report failure and leave the rune on the ground. */
     rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
     rune->data.ItemData = &rune_data;
-    charges_before = G_GetItem(rune)->charges;
+    charges_before = rune->item->charges;
     T_ASSERT(!G_PickupItem(picker, rune));
-    T_ASSERT(G_GetItem(rune)->in_world);
-    T_ASSERT(!G_GetItem(rune)->pending_use_removal);
-    T_EQ(G_GetItem(rune)->charges, charges_before);
+    T_ASSERT(rune->item->in_world);
+    T_ASSERT(!rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, charges_before);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -1349,9 +2372,9 @@ TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
     outside = make_item_test_inventory_unit(200, 0);
     picker->s.player = ally->s.player = outside->s.player = 0;
     enemy->s.player = 1;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER; ally->svflags |= SVF_MONSTER;
-    G_InitUnitOrders(enemy);
+
     enemy->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
     picker->targtype = ally->targtype = enemy->targtype = outside->targtype = TARG_GROUND;
     FOR_LOOP(slot, G_InventoryCapacity(picker)) {
@@ -1368,7 +2391,7 @@ TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
     T_EQ(G_UnitStatusLevel(outside, shield), 0);
     T_EQ(unit_findstatus(ally, shield)->duration_ms, 0);
     T_ASSERT(unit_findstatus(ally, shield)->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
     /* Reapplication refreshes a single charge rather than stacking. */
@@ -1403,7 +2426,7 @@ TEST(wc3_items, shielding_rune_intercepts_hostile_unit_spells_only) {
     caster = make_item_test_inventory_unit(0, 0);
     victim = make_item_test_inventory_unit(50, 0);
     caster->s.player = 1; victim->s.player = 0;
-    G_InitUnitOrders(caster);
+
     caster->svflags |= SVF_MONSTER; victim->svflags |= SVF_MONSTER;
     caster->targtype = victim->targtype = TARG_GROUND;
     unit_addstatus(victim, "BNss", 1);
@@ -1442,7 +2465,7 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
@@ -1466,11 +2489,11 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
         unit_updatestatuses(unit);
         T_ASSERT(!S_ItemSpeedActive(unit));
     }
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
 
     recipient = make_item_test_inventory_unit(50, 0);
     recipient->s.player = 0;
-    G_InitUnitOrders(recipient);
+
     recipient->svflags |= SVF_MONSTER;
     recipient->targtype = TARG_GROUND;
     item = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 0, 0);
@@ -1483,7 +2506,7 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
         T_EQ(status->data, MAKEFOURCC('A','P','s','a'));
         T_ASSERT(S_ItemSpeedActive(recipient));
     }
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -1504,7 +2527,7 @@ TEST(wc3_items, speed_powerup_without_valid_recipient_is_consumed) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     picker = make_item_test_inventory_unit(0, 0);
     picker->s.player = 0;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
     picker->targtype = TARG_MECHANICAL;
     item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
@@ -1512,9 +2535,9 @@ TEST(wc3_items, speed_powerup_without_valid_recipient_is_consumed) {
 
     T_ASSERT(G_PickupItem(picker, item));
     T_NULL(unit_findstatus(picker, MAKEFOURCC('B','s','p','x')));
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->pending_use_removal);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
     FOR_LOOP(slot, G_InventoryCapacity(picker)) T_NULL(G_InventoryItem(picker, slot));
 
     G_SetSLKRows("AbilityData", old);
@@ -1537,7 +2560,7 @@ TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
-    G_InitUnitOrders(unit);
+
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
     item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
@@ -1583,13 +2606,13 @@ TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
     }
     item = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), ITEM_PICKUP_RANGE + 100, 0);
     item->data.ItemData = &shimmerweed;
-    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
     T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_EQ(G_GetItem(item)->charges, 0);
-    T_ASSERT(!G_GetItem(item)->in_world);
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_ASSERT(!item->item->in_world);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
     FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(G_InventoryItem(unit, slot) != item);
 }
 
@@ -1607,9 +2630,9 @@ TEST(wc3_items, secret_level_powerup_uses_quest_pickup_path) {
     item = make_item_test_world_item(MAKEFOURCC('s','c','l','p'), 32, 0);
     item->data.ItemData = &quest;
     T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_EQ(G_GetItem(item)->charges, 0);
-    T_NULL(G_GetItem(item)->carrier);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
     FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(G_InventoryItem(unit, slot) != item);
 }
 
@@ -1627,8 +2650,8 @@ TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
     rune->data.ItemData = &speed_data;
     ordinary = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), ITEM_PICKUP_RANGE + 100, 0);
 
-    T_ASSERT(!G_OrderPickupItem(unit, ordinary));
-    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", ordinary, false, unit->s.player));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", rune, false, unit->s.player));
     T_ASSERT(unit->goalentity == rune);
 }
 
@@ -1829,9 +2852,9 @@ TEST(wc3_items, backpack_carrier_drops_items_on_death_but_hero_retains_them) {
     T_ASSERT(G_AddItemToSlot(footman, carried, 0));
     unit_die(footman, NULL);
     T_NULL(G_InventoryItem(footman, 0));
-    T_NULL(G_GetItem(carried)->carrier);
-    T_EQ(G_GetItem(carried)->inventory_slot, -1);
-    T_ASSERT(G_GetItem(carried)->in_world);
+    T_NULL(carried->item->carrier);
+    T_EQ(carried->item->inventory_slot, -1);
+    T_ASSERT(carried->item->in_world);
     T_ASSERT(!(carried->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(carried->svflags & SVF_NOCLIENT));
 
@@ -1843,8 +2866,8 @@ TEST(wc3_items, backpack_carrier_drops_items_on_death_but_hero_retains_them) {
     T_ASSERT(G_AddItemToSlot(hero, hero_item, 0));
     unit_die(hero, NULL);
     T_ASSERT(G_InventoryItem(hero, 0) == hero_item);
-    T_ASSERT(G_GetItem(hero_item)->carrier == hero);
-    T_ASSERT(!G_GetItem(hero_item) || !G_GetItem(hero_item)->in_world);
+    T_ASSERT(hero_item->item->carrier == hero);
+    T_ASSERT(!hero_item->item || !hero_item->item->in_world);
 }
 
 TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mutation) {
@@ -1871,7 +2894,7 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
     T_EQ(G_InventoryCapacity(unit), 2);
     T_ASSERT(!G_InventoryCanGetItems(unit));
     T_ASSERT(!G_InventoryCanDropItems(unit));
-    T_ASSERT(!G_OrderPickupItem(unit, item));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
 
     /* UnitAddItem/UnitAddItemToSlot style script operations call the direct
      * mutation path and are intentionally not blocked by inv4. */
@@ -1880,11 +2903,11 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
 
     /* Player drop orders respect inv5, while UnitRemoveItem-style direct
      * removal still uses the authoritative direct drop primitive. */
-    T_ASSERT(!G_OrderDropItemAt(unit, item, &destination));
-    T_ASSERT(G_InventoryItem(unit, 0) == item);
+    T_ASSERT(!S_OrderDropItemPoint(unit, item, &destination));
+    T_ASSERT(unit->inventory[0] == item);
     T_ASSERT(G_DropItem(unit, 0));
     T_NULL(G_InventoryItem(unit, 0));
-    T_ASSERT(G_GetItem(item)->in_world);
+    T_ASSERT(item->item->in_world);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -2063,9 +3086,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     shop->s.player = 0;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddStock(shop);
-    T_NOT_NULL(G_GetStock(shop));
-    G_GetStock(shop)->item_slots = 11;
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
     gi.LinkEntity(shop);
     params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 4 };
 
@@ -2088,9 +3111,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     gate_shop->s.player = 0;
     gate_shop->collision = 32.0f;
     gate_shop->spawn_time = G_Time();
-    G_AddStock(gate_shop);
-    T_NOT_NULL(G_GetStock(gate_shop));
-    G_GetStock(gate_shop)->item_slots = 11;
+    (gate_shop->stock ? gate_shop->stock : (gate_shop->stock=G_AllocStock()));
+    T_NOT_NULL(gate_shop->stock);
+    gate_shop->stock->item_slots = 11;
     gi.LinkEntity(gate_shop);
     gate_params = (shopItemButtonsParams_t){
         .client = client, .shop = gate_shop, .buttons = gate_buttons, .max_buttons = 4
@@ -2106,9 +3129,9 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     custom_shop->s.player = 0;
     custom_shop->collision = 32.0f;
     custom_shop->spawn_time = G_Time();
-    G_AddStock(custom_shop);
-    T_NOT_NULL(G_GetStock(custom_shop));
-    G_GetStock(custom_shop)->item_slots = 11;
+    (custom_shop->stock ? custom_shop->stock : (custom_shop->stock=G_AllocStock()));
+    T_NOT_NULL(custom_shop->stock);
+    custom_shop->stock->item_slots = 11;
     gi.LinkEntity(custom_shop);
     custom_params = (shopItemButtonsParams_t){
         .client = client, .shop = custom_shop, .buttons = custom_buttons, .max_buttons = 2
@@ -2146,9 +3169,9 @@ TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
     shop->s.player = PLAYER_NEUTRAL_PASSIVE;
     shop->collision = 32.0f;
     shop->spawn_time = G_Time();
-    G_AddStock(shop);
-    T_NOT_NULL(G_GetStock(shop));
-    G_GetStock(shop)->item_slots = 11;
+    (shop->stock ? shop->stock : (shop->stock=G_AllocStock()));
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
     gi.LinkEntity(shop);
     params = (shopItemButtonsParams_t){
         .client = player->client, .shop = shop, .buttons = button, .max_buttons = 2
@@ -2158,7 +3181,7 @@ TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
     T_ASSERT(button[0].disabled);
     T_ASSERT(strstr(button[0].ubertip, "Invalid item requirement data") != NULL);
     T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('b','a','d','1')));
-    T_EQ(G_GetStock(shop)->items[0].current, 1);
+    T_EQ(shop->stock->items[0].current, 1);
     T_NULL(G_InventoryItem(hero, 0));
 }
 
@@ -2272,15 +3295,15 @@ TEST(wc3_items, neutral_item_shop_runtime_stock_override_is_immediate_and_replen
 
     T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('s','p','r','o'), 1, 1));
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->items[0].current, 1);
-    T_EQ(G_GetStock(shop)->items[0].maximum, 1);
+    T_EQ(shop->stock->items[0].current, 1);
+    T_EQ(shop->stock->items[0].maximum, 1);
     T_ASSERT(!buttons[0].disabled);
 
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
-    T_EQ(G_GetStock(shop)->items[0].current, 0);
+    T_EQ(shop->stock->items[0].current, 0);
     level.time += 60000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->items[0].current, 1);
+    T_EQ(shop->stock->items[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
 
     G_RemoveItemStock(shop, MAKEFOURCC('s','p','r','o'));
@@ -2326,8 +3349,8 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 350);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 75);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
-    T_EQ(G_GetStock(shop)->unit_count, 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 0);
+    T_EQ(shop->stock->unit_count, 1);
+    T_EQ(shop->stock->units[0].current, 0);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 1);
 }
 
@@ -2492,7 +3515,7 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     armory->data.UnitAbilities = &sell_items;
     armory->collision = 32.0f;
     armory->spawn_time = G_Time();
-    armory->selected |= 1;
+    G_SetEntitySelectionMask(armory,armory->selected | 1);
     player->client->connected = true;
     player->client->ps.number = 0;
     G_SelectEntity(player->client, armory);
@@ -2512,7 +3535,7 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
 
-    T_EQ(G_GetStock(armory)->item_count, 0);
+    T_EQ(armory->stock->item_count, 0);
     T_ASSERT(player->client->commands_dirty);
     FOR_LOOP(i, MAX_INVENTORY) {
         if (G_InventoryItem(buyer, i) && G_InventoryItem(buyer, i)->class_id == base_ids[selected]) got_reward = true;
@@ -2544,15 +3567,15 @@ TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replen
     /* Campaign stock natives override the authored initial delay immediately. */
     T_ASSERT(G_AddUnitStock(shop, MAKEFOURCC('n','m','e','r'), 1, 1));
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 1);
-    T_EQ(G_GetStock(shop)->units[0].maximum, 1);
+    T_EQ(shop->stock->units[0].current, 1);
+    T_EQ(shop->stock->units[0].maximum, 1);
     T_ASSERT(!buttons[0].disabled);
 
     T_ASSERT(G_ShopPurchaseUnit(player, shop, MAKEFOURCC('n','m','e','r')));
-    T_EQ(G_GetStock(shop)->units[0].current, 0);
+    T_EQ(shop->stock->units[0].current, 0);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 1);
+    T_EQ(shop->stock->units[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
 
     G_RemoveUnitStock(shop, MAKEFOURCC('n','m','e','r'));
@@ -2578,18 +3601,18 @@ TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {
     params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 12 };
 
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 0);
+    T_EQ(shop->stock->units[0].current, 0);
     T_ASSERT(buttons[0].disabled);
     level.time += 3000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 1);
+    T_EQ(shop->stock->units[0].current, 1);
     T_ASSERT(!buttons[0].disabled);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 2);
+    T_EQ(shop->stock->units[0].current, 2);
     level.time += 5000;
     T_EQ(G_GetShopButtons(&params), 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 2);
+    T_EQ(shop->stock->units[0].current, 2);
 }
 
 TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
@@ -2613,8 +3636,8 @@ TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
-    T_EQ(G_GetStock(shop)->unit_count, 1);
-    T_EQ(G_GetStock(shop)->units[0].current, 1);
+    T_EQ(shop->stock->unit_count, 1);
+    T_EQ(shop->stock->units[0].current, 1);
 }
 
 TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
@@ -2637,9 +3660,8 @@ TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
     item = G_InventoryItem(hero, 0);
     T_NOT_NULL(item);
-    T_ASSERT(G_ShopPawnItem(&(shopPawnItemParams_t){
-        .clent = player, .shop = shop, .carrier = hero, .item = item }));
-    T_NULL(G_InventoryItem(hero, 0));
+    T_ASSERT(G_PawnCarriedItem(shop,item));
+    T_NULL(hero->inventory[0]);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 425);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 88);
 }
@@ -2701,12 +3723,12 @@ TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
     item->data.ItemData = &perishable;
-    G_AddItem(item);
-    G_GetItem(item)->charges = 2;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->charges = 2;
 
     G_ConsumeItemCharge(item);
     T_ASSERT(item->inuse);
-    T_EQ(G_GetItem(item)->charges, 1);
+    T_EQ(item->item->charges, 1);
 
     G_ConsumeItemCharge(item);
     T_ASSERT(!item->inuse);
@@ -2719,16 +3741,16 @@ TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
     item->data.ItemData = &reusable;
-    G_AddItem(item);
-    G_GetItem(item)->charges = 2;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->charges = 2;
 
     G_ConsumeItemCharge(item);
     T_ASSERT(item->inuse);
-    T_EQ(G_GetItem(item)->charges, 1);
+    T_EQ(item->item->charges, 1);
 
     G_ConsumeItemCharge(item);
     T_ASSERT(item->inuse);
-    T_ASSERT(!G_GetItem(item) || G_GetItem(item)->charges == 0);
+    T_ASSERT(!item->item || item->item->charges == 0);
 }
 
 TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
@@ -2752,7 +3774,7 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     unit->s.player = client->ps.number;
     unit->svflags |= SVF_MONSTER;
     unit->targtype = TARG_GROUND;
-    unit->unit_state->armor_value = 3.0f;
+    unit->armor_value = 3.0f;
     base_armor = G_UnitArmorValue(unit);
     G_SelectEntity(client, unit);
 
@@ -2765,15 +3787,15 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     G_ClientCommand(clent, 2, command);
 
     T_FEQ(G_UnitArmorValue(unit), base_armor + 2.0f, 0.01f);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == MAKEFOURCC('B','d','e','f')) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == MAKEFOURCC('B','d','e','f')) {
             found_buff = true;
             break;
         }
     }
     T_ASSERT(found_buff);
     T_NULL(G_InventoryItem(unit, 0));
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
     G_RunEvents();
     G_RunConsumedItemFrees();
     T_ASSERT(!item->inuse);
@@ -2837,6 +3859,9 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     cstring_t valid_click[] = { "point", "640", "0" };
 
     setup_test_world();
+    /* Point approaches now run on the physical owner schedule. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
     player = &g_edicts[0]; player->client->ps.number = 0;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
@@ -2845,11 +3870,11 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
     hero->think = monster_think; hero->stand = unit_stand; hero->movetype = MOVETYPE_STEP;
     hero->collision = 16.0f; unit_stand(hero); gi.LinkEntity(hero);
-    hero->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
+    hero->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
     item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
     item_slot = (uint32_t)(item - g_edicts);
-    G_AddItem(item);
-    item->data.ItemData = &item_data; G_GetItem(item)->charges = 4; item->spawn_time = 1234;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->data.ItemData = &item_data; item->item->charges = 4; item->spawn_time = 1234;
     T_ASSERT(G_AddItemToSlot(hero, item, 0));
     G_SelectEntity(player->client, hero);
 
@@ -2864,7 +3889,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(hero->goalentity);
     if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
     T_EQ(G_ItemCharges(item), 4);
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
@@ -2875,7 +3900,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_ClientCommand(player, 2, replace_approach);
     G_ClientCommand(player, 3, replace_click);
     level.time += FRAMETIME;
-    G_RunEntities();
+    globals.RunFrame();
     T_ASSERT(!approach->inuse);
     T_EQ(G_ItemCharges(item), 4);
     mine = NULL;
@@ -2888,17 +3913,18 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_ClientCommand(player, 3, far_click);
     T_NOT_NULL(hero->goalentity);
     if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
     if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_EQ(hero->movement.fine_route.group_count,0); /* Replacement approach owns a fresh plan. */
     {
         float const start_x = hero->s.origin2.x;
         uint32_t frame;
         for (frame = 0; frame < 200 && approach->inuse; frame++) {
             level.time += FRAMETIME;
-            G_RunEntities();
+            globals.RunFrame();
         }
         T_ASSERT(hero->s.origin2.x > start_x);
         T_ASSERT(frame < 200);
@@ -2917,7 +3943,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_UseItem(hero, 0);
     G_ClientCommand(player, 3, another_far_click);
     approach = NULL;
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
     T_NOT_NULL(approach);
@@ -2936,7 +3962,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(mine);
     for (uint32_t frame = 0; frame < 100; frame++) {
         level.time += FRAMETIME;
-        G_RunEntities();
+        globals.RunFrame();
     }
     T_EQ(G_ItemCharges(item), 2);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
@@ -2946,7 +3972,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_UseItem(hero, 0);
     G_ClientCommand(player, 3, save_far_click);
     approach = NULL;
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && G_GetChannel(ent) && G_GetChannel(ent)->source_item == item &&
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->channel && ent->spell_item == item &&
                   ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
@@ -2968,7 +3994,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
                 uint32_t frame;
                 for (frame = 0; frame < 400 && approach->inuse; frame++) {
                     level.time += FRAMETIME;
-                    G_RunEntities();
+                    globals.RunFrame();
                 }
                 T_ASSERT(hero->s.origin2.y > start_y);
                 T_ASSERT(frame < 400);
@@ -3050,6 +4076,7 @@ TEST(wc3_items, blizzard_unit_and_widget_drop_item_create_world_loot) {
     setup_test_world();
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
+        "  call SetRandomSeed(1)\n"
         "  local unit source = CreateUnit(Player(0), 'Hpal', 128.0, 128.0, 0.0)\n"
         "  local item first = UnitDropItem(source, 'spro')\n"
         "  local item second = WidgetDropItem(source, 'ratf')\n"
@@ -3091,13 +4118,13 @@ TEST(wc3_items, blizzard_unit_and_widget_drop_item_create_world_loot) {
     T_NOT_NULL(item_widget_drop);
     T_EQ(created, 3);
     if (unit_drop && widget_drop && item_widget_drop) {
-        T_ASSERT(G_GetItem(unit_drop)->in_world && G_GetItem(widget_drop)->in_world && G_GetItem(item_widget_drop)->in_world);
-        T_NULL(G_GetItem(unit_drop)->carrier);
-        T_NULL(G_GetItem(widget_drop)->carrier);
-        T_NULL(G_GetItem(item_widget_drop)->carrier);
-        T_EQ(G_GetItem(unit_drop)->drop_id, MAKEFOURCC('H','p','a','l'));
-        T_EQ(G_GetItem(widget_drop)->drop_id, 0);
-        T_EQ(G_GetItem(item_widget_drop)->drop_id, 0);
+        T_ASSERT(unit_drop->item->in_world && widget_drop->item->in_world && item_widget_drop->item->in_world);
+        T_NULL(unit_drop->item->carrier);
+        T_NULL(widget_drop->item->carrier);
+        T_NULL(item_widget_drop->item->carrier);
+        T_EQ(unit_drop->item->drop_id, MAKEFOURCC('H','p','a','l'));
+        T_EQ(widget_drop->item->drop_id, 0);
+        T_EQ(item_widget_drop->item->drop_id, 0);
     }
 }
 
@@ -3123,12 +4150,12 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
         }
     }
     T_NOT_NULL(item);
-    T_EQ(G_GetItem(item)->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(item->item->drop_id, MAKEFOURCC('h','f','o','o'));
     unit = make_item_test_inventory_unit(64, 64);
     T_ASSERT(G_PickupItem(unit, item));
     T_EQ(G_InventoryItem(unit, 0), item);
     T_ASSERT(G_DropItem(unit, 0));
-    T_EQ(G_GetItem(item)->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(item->item->drop_id, MAKEFOURCC('h','f','o','o'));
 }
 
 TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
@@ -3148,13 +4175,13 @@ TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
         }
     }
     T_NOT_NULL(item);
-    T_EQ(G_GetItem(item)->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(item->item->drop_id, MAKEFOURCC('h','f','o','o'));
     index = item->s.number;
     T_ASSERT(WriteGame(path));
-    G_AddItem(item);
-    G_GetItem(item)->drop_id = 0;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->drop_id = 0;
     T_ASSERT(ReadGame(path));
-    T_EQ(G_GetItem(&g_edicts[index])->drop_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(g_edicts[index].item->drop_id, MAKEFOURCC('h','f','o','o'));
     remove(path);
 }
 
@@ -3166,9 +4193,9 @@ TEST(wc3_items, drop_restores_same_item_to_world) {
     T_ASSERT(G_AddItemToSlot(unit, item, 3));
     T_ASSERT(G_DropItem(unit, 3));
     T_NULL(G_InventoryItem(unit, 3));
-    T_NULL(G_GetItem(item)->carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
-    T_ASSERT(G_GetItem(item)->in_world);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    T_ASSERT(item->item->in_world);
     T_FEQ(item->s.origin2.x, unit->s.origin2.x, 0.001f);
     T_FEQ(item->s.origin2.y, unit->s.origin2.y, 0.001f);
     T_ASSERT(!(item->s.renderfx & RF_HIDDEN));
@@ -3176,20 +4203,60 @@ TEST(wc3_items, drop_restores_same_item_to_world) {
     T_NOT_NULL(item->area.prev);
 }
 
+/* Pickup is now a physical owner. Drive its actual scheduler in these older
+ * transaction fixtures, preserving the caller's Misc and script-start flags. */
+static itemPickupTest_t item_pickup_start(edict_t *unit) {
+    itemPickupTest_t saved={game.config.misc,level.started,level.scriptsConfigured,level.scriptsStarted};
+    game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nPickupItemRange=150\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    unit->svflags|=SVF_MONSTER;unit->targtype=TARG_GROUND;unit->think=monster_think;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    return saved;
+}
+static void item_pickup_tick(void) {level.time+=FRAMETIME;globals.RunFrame();}
+static void item_pickup_end(itemPickupTest_t saved) {
+    level.started=saved.started;level.scriptsConfigured=saved.configured;level.scriptsStarted=saved.scripts;
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved.misc;
+}
+
 TEST(wc3_items, pickup_order_waits_for_simulation_tick) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);
     edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE - 1, 0);
 
+    itemPickupTest_t saved=item_pickup_start(unit);
     T_ASSERT(unit_issuetargetorder(unit, "smart", item));
     T_NULL(G_InventoryItem(unit, 0));
-    T_ASSERT(G_GetItem(item)->in_world);
+    T_ASSERT(item->item->in_world);
 
-    unit->currentmove->think(unit);
+    for(unsigned frame=0;frame<100 && item->item->carrier!=unit;frame++)item_pickup_tick();
 
     T_ASSERT(G_InventoryItem(unit, 0) == item);
-    T_ASSERT(!G_GetItem(item) || !G_GetItem(item)->in_world);
+    T_ASSERT(!item->item || !item->item->in_world);
     T_NULL(unit->goalentity);
+    item_pickup_end(saved);
+}
+
+/* RoC has no authored Inventory row on this Hero. Its implicit owner must
+ * still receive ordinary admission and activation through the public path. */
+TEST(wc3_items, roc_implicit_inventory_collects_through_public_smart_scheduler) {
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(roc_inventory_slk),*old=G_SetSLKRows("AbilityData",rows);
+    UnitAbilities_t abilities={.abilList="",.heroAbilList=""};
+    edict_t *unit=make_item_test_inventory_unit(0,0);
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('r','a','t','f'),400,0);
+    itemPickupTest_t saved=item_pickup_start(unit);
+    ((mapInfo_t *)level.mapinfo)->fileFormat=24;unit->data.UnitAbilities=&abilities;
+    T_ASSERT(!G_ActorHasAbilityCode(unit,MAKEFOURCC('A','I','n','v')));
+    T_EQ(G_InventoryCapacity(unit),6);
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"smart",item,false,unit->s.player));
+    T_EQ(unit->current_order_id,G_OrderId("smart"));T_NULL(item->item->carrier);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityInventory));
+    for(unsigned frame=0;frame<150 && unit->current_order_id;frame++)item_pickup_tick();
+    T_EQ(unit->inventory[0],item);T_EQ(item->item->carrier,unit);
+    T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));
+    item_pickup_end(saved);G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_first) {
@@ -3241,80 +4308,23 @@ TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_
 
 TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 100, 0);
-
-    T_ASSERT(G_OrderPickupItem(unit, item));
-    unit->currentmove->think(unit);
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_ASSERT(unit->s.origin2.x > 0);
-
-    G_AddItem(item);
-    G_GetItem(item)->in_world = false;
-    unit->currentmove->think(unit);
-    T_NULL(unit->goalentity);
-    T_NULL(G_InventoryItem(unit, 0));
-    T_STREQ(unit->currentmove->animation, "stand");
+    edict_t *unit=make_item_test_inventory_unit(0,0);
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('r','a','t','f'),ITEM_PICKUP_RANGE+100,0);
+    itemPickupTest_t saved=item_pickup_start(unit);
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"smart",item,false,unit->s.player));
+    for(unsigned frame=0;frame<10 && unit->s.origin2.x==0;frame++)item_pickup_tick();
+    T_ASSERT(item->item->in_world);T_ASSERT(unit->s.origin2.x>0);
+    /* A real competing carrier replaces the old impossible in_world=false,
+     * carrier=NULL mutation. The admitted approach still reaches its terminal. */
+    edict_t *other=make_item_test_inventory_unit(0,128);
+    T_ASSERT(G_AddItemScripted(other,item));
+    for(unsigned frame=0;frame<100 && unit->current_order_id;frame++)item_pickup_tick();
+    T_NULL(unit->goalentity);T_NULL(unit->inventory[0]);T_EQ(item->item->carrier,other);
+    T_STREQ(unit->currentmove->animation,"stand");item_pickup_end(saved);
 }
 
-TEST(wc3_items, point_drop_waits_for_simulation_tick) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    T_ASSERT(G_InventoryItem(unit, 0) == item);
-    T_ASSERT(!G_GetItem(item) || !G_GetItem(item)->in_world);
-
-    unit->currentmove->think(unit);
-
-    T_NULL(G_InventoryItem(unit, 0));
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_FEQ(item->s.origin2.x, destination.x, 0.001f);
-    T_FEQ(item->s.origin2.y, destination.y, 0.001f);
-    T_NULL(unit->orders->item_drop);
-    T_NULL(unit->goalentity);
-}
-
-TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    unit->currentmove->think(unit);
-
-    T_ASSERT(G_InventoryItem(unit, 0) == item);
-    T_ASSERT(!G_GetItem(item) || !G_GetItem(item)->in_world);
-    T_ASSERT(unit->s.origin2.x > 0.0f);
-    T_ASSERT(unit->orders->item_drop == item);
-    T_NOT_NULL(unit->goalentity);
-}
-
-TEST(wc3_items, point_drop_revalidates_carried_item) {
-    setup_test_world();
-    edict_t *unit = make_item_test_inventory_unit(0, 0);
-    edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
-
-    T_ASSERT(G_PickupItem(unit, item));
-    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
-    G_AddItem(item);
-    G_GetItem(item)->carrier = NULL;
-    unit->currentmove->think(unit);
-
-    T_NULL(unit->orders->item_drop);
-    T_NULL(unit->goalentity);
-    T_STREQ(unit->currentmove->animation, "stand");
-}
-
-/* Generic handoff is used both by targeted item orders and by scripted
- * UnitAddItem when the item is already carried. None of these tests needs a
- * Rexxar-specific unit or game asset. */
+/* Scripted insertion preserves the same item through its world-drop and
+ * recipient attachment phases, without a Rexxar-specific asset. */
 TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
     edict_t *source, *recipient, *item;
     uint32_t old_charges = 3;
@@ -3325,17 +4335,17 @@ TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
     T_ASSERT(G_AddItemToSlot(source, item, 2));
     G_SetItemCharges(item, old_charges);
-    T_ASSERT(G_TransferCarriedItem(recipient, item));
-    T_NULL(G_InventoryItem(source, 2));
-    T_ASSERT(G_InventoryItem(recipient, 0) == item);
-    T_ASSERT(G_GetItem(item)->carrier == recipient);
-    T_EQ(G_GetItem(item)->inventory_slot, 0);
+    T_ASSERT(G_AddItemScripted(recipient, item));
+    T_NULL(source->inventory[2]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_ASSERT(item->item->carrier == recipient);
+    T_EQ(item->item->inventory_slot, 0);
     T_EQ(G_ItemCharges(item), old_charges);
-    T_ASSERT(!G_GetItem(item)->in_world);
+    T_ASSERT(!item->item->in_world);
     T_ASSERT(item->s.renderfx & RF_HIDDEN);
     T_ASSERT(item->svflags & SVF_NOCLIENT);
-    T_ASSERT(G_TransferCarriedItem(recipient, item));
-    T_ASSERT(G_InventoryItem(recipient, 0) == item);
+    T_ASSERT(G_AddItemScripted(recipient, item));
+    T_ASSERT(recipient->inventory[0] == item);
 }
 
 TEST(wc3_items, carried_item_transfer_full_recipient_is_atomic) {
@@ -3350,30 +4360,14 @@ TEST(wc3_items, carried_item_transfer_full_recipient_is_atomic) {
     }
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
     T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(!G_TransferCarriedItem(recipient, item));
-    T_ASSERT(G_InventoryItem(source, 0) == item);
-    T_ASSERT(G_GetItem(item)->carrier == source);
-    T_EQ(G_GetItem(item)->inventory_slot, 0);
+    T_ASSERT(!G_AddItemScripted(recipient, item));
+    T_ASSERT(source->inventory[0] == item);
+    T_ASSERT(item->item->carrier == source);
+    T_EQ(item->item->inventory_slot, 0);
 }
 
-TEST(wc3_items, targeted_give_to_inventory_unit_finishes_on_tick) {
-    edict_t *source, *recipient, *item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    T_ASSERT(G_InventoryItem(source, 0) == item); /* Pending orders do not teleport items. */
-    source->currentmove->think(source);
-    T_NULL(G_InventoryItem(source, 0));
-    T_ASSERT(G_InventoryItem(recipient, 0) == item);
-    T_NULL(source->orders->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
+TEST(wc3_items, inventory_drag_select_entity_hands_off_in_range) {
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
     void (*saved_unicast)(edict_t *) = gi.unicast;
     edict_t *source, *recipient, *item, *clent;
@@ -3383,6 +4377,8 @@ TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
     cstring_t select[] = { "select", target_number };
 
     setup_test_world();
+    stbIniCache_t old_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[Misc]\nGiveItemRange=150\n"));
     gi.Write = item_noop_write;
     gi.unicast = item_noop_unicast;
     clent = &g_edicts[0];
@@ -3397,123 +4393,21 @@ TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
     T_ASSERT(client->menu.dragged_item == item);
     snprintf(target_number, sizeof(target_number), "%u", recipient->s.number);
     G_ClientCommand(clent, 2, select);
-    T_ASSERT(source->orders->item_drop == item);
-    T_ASSERT(source->goalentity == recipient);
-    T_ASSERT(G_InventoryItem(source, 0) == item);
-    source->currentmove->think(source);
-    T_NULL(G_InventoryItem(source, 0));
-    T_ASSERT(G_InventoryItem(recipient, 0) == item);
+    /* Native54efe0 completes a nearby, facing Give before select returns. */
+    T_EQ(source->current_order_id,0);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=old_misc;
     gi.Write = saved_write;
     gi.unicast = saved_unicast;
 }
 
-TEST(wc3_items, targeted_give_to_stationary_container) {
-    edict_t *source, *container, *item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    container = make_item_test_inventory_unit(80, 0);
-    container->movetype = MOVETYPE_NONE;
-    container->aiflags |= AI_IMMOBILE;
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, container));
-    source->currentmove->think(source);
-    T_ASSERT(G_InventoryItem(container, 0) == item);
-    T_NULL(G_InventoryItem(source, 0));
-}
 
-TEST(wc3_items, stationary_inventory_giver_hands_off_only_in_range) {
-    edict_t *source, *recipient, *item, *far_recipient, *far_item;
 
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    source->movetype = MOVETYPE_NONE;
-    source->aiflags |= AI_IMMOBILE;
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    T_NULL(G_InventoryItem(source, 0));
-    T_ASSERT(G_InventoryItem(recipient, 0) == item);
-    T_NULL(source->orders->item_drop);
-    T_NULL(source->goalentity);
 
-    far_recipient = make_item_test_inventory_unit(512, 0);
-    far_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, far_item, 0));
-    T_ASSERT(!G_OrderGiveItemTarget(source, far_item, far_recipient));
-    T_ASSERT(G_InventoryItem(source, 0) == far_item);
-    T_NULL(source->orders->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, targeted_give_full_container_drops_at_target) {
-    edict_t *source, *recipient, *item;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
-        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
-        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
-    }
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    source->currentmove->think(source);
-    T_NULL(G_InventoryItem(source, 0));
-    T_NULL(G_GetItem(item)->carrier);
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_ASSERT(Vector2_distance(&item->s.origin2, &recipient->s.origin2) <= ITEM_DROP_RANGE);
-}
-
-TEST(wc3_items, targeted_give_revalidates_cancelled_or_invalid_target) {
-    edict_t *source, *recipient, *item;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(1000, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
-    source->currentmove->think(source);
-    T_ASSERT(G_InventoryItem(source, 0) == item);
-    T_NULL(G_InventoryItem(recipient, 0));
-    recipient->health.value = 0.0f;
-    source->currentmove->think(source);
-    T_ASSERT(G_InventoryItem(source, 0) == item);
-    T_NULL(source->orders->item_drop);
-    T_NULL(source->goalentity);
-}
-
-TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
-    edict_t *source, *recipient, *item;
-    uint16_t saved_alliance;
-
-    setup_test_world();
-    source = make_item_test_inventory_unit(0, 0);
-    recipient = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
-    T_ASSERT(G_AddItemToSlot(source, item, 0));
-    source->s.player = 0;
-    recipient->s.player = 1;
-    saved_alliance = level.alliances[0][1];
-    level.alliances[0][1] = 0;
-    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
-    recipient->s.player = source->s.player;
-    G_GetItem(item)->droppable_set = true;
-    G_GetItem(item)->droppable = false;
-    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
-    G_GetItem(item)->droppable = true;
-    {
-        edict_t *world_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 48, 0);
-        T_ASSERT(!G_OrderGiveItemTarget(source, item, world_item));
-        T_ASSERT(!G_TransferCarriedItem(world_item, item));
-    }
-    T_ASSERT(G_InventoryItem(source, 0) == item);
-    level.alliances[0][1] = saved_alliance;
-}
 
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     gameClient_t *client;
@@ -3558,8 +4452,8 @@ TEST(wc3_items, remove_unit_cleans_six_carried_items_without_world_drops) {
     /* RemoveUnit leaves the unit and inventory intact until its deferred
      * teardown; StoreUnit can still capture that state beforehand. */
     T_ASSERT(carrier->inuse);
-    FOR_LOOP(slot, MAX_INVENTORY) T_ASSERT(G_InventoryItem(carrier, slot) == items[slot]);
-    G_RunDeferredFrees();
+    FOR_LOOP(slot, MAX_INVENTORY) T_ASSERT(carrier->inventory[slot] == items[slot]);
+    G_TestFinishDeferredFrees();
     T_ASSERT(!carrier->inuse);
     FOR_LOOP(slot, MAX_INVENTORY) {
         T_ASSERT(!items[slot]->inuse);
@@ -3578,13 +4472,13 @@ TEST(wc3_items, remove_unit_preserves_items_already_transferred_elsewhere) {
     T_ASSERT(G_AddItemToSlot(carrier, moved, 0));
     T_ASSERT(G_AddItemToSlot(carrier, left, 1));
     G_SetItemCharges(moved, 5);
-    T_ASSERT(G_TransferCarriedItem(survivor, moved));
+    T_ASSERT(G_AddItemScripted(survivor, moved));
     G_FreeEdict(carrier);
     T_ASSERT(!carrier->inuse);
     T_ASSERT(!left->inuse);
     T_ASSERT(moved->inuse);
     T_ASSERT(G_InventoryItem(survivor, 0) == moved);
-    T_ASSERT(G_GetItem(moved)->carrier == survivor);
+    T_ASSERT(moved->item->carrier == survivor);
     T_EQ(G_ItemCharges(moved), 5);
 }
 
@@ -3597,8 +4491,8 @@ TEST(wc3_items, remove_unit_cleans_script_detached_item) {
     T_ASSERT(G_AddItemToSlot(carrier, item, 0));
     T_ASSERT(G_DetachItemAtScripted(carrier, 0));
     T_NULL(G_InventoryItem(carrier, 0));
-    T_ASSERT(G_GetItem(item)->carrier == carrier);
-    T_EQ(G_GetItem(item)->inventory_slot, -1);
+    T_ASSERT(item->item->carrier == carrier);
+    T_EQ(item->item->inventory_slot, -1);
     G_FreeEdict(carrier);
     T_ASSERT(!carrier->inuse);
     T_ASSERT(!item->inuse);
@@ -3610,14 +4504,14 @@ TEST(wc3_items, remove_unit_severs_pending_consumed_item_carrier_link) {
     setup_test_world();
     carrier = make_item_test_inventory_unit(0, 0);
     consumed = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
-    G_GetItem(consumed)->in_world = false;
-    G_GetItem(consumed)->pending_use_removal = true;
-    G_GetItem(consumed)->pending_use_carrier = carrier;
-    G_GetItem(consumed)->pending_use_carrier_spawn_time = carrier->spawn_time;
+    consumed->item->in_world = false;
+    consumed->item->pending_use_removal = true;
+    consumed->item->pending_use_carrier = carrier;
+    consumed->item->pending_use_carrier_spawn_time = carrier->spawn_time;
     G_FreeEdict(carrier);
     T_ASSERT(consumed->inuse); /* Its JASS event may still own the handle. */
-    T_NULL(G_GetItem(consumed)->pending_use_carrier);
-    T_EQ(G_GetItem(consumed)->pending_use_carrier_spawn_time, 0);
+    T_NULL(consumed->item->pending_use_carrier);
+    T_EQ(consumed->item->pending_use_carrier_spawn_time, 0);
     G_FreeEdict(consumed);
 }
 
@@ -3714,7 +4608,7 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
 
     carrier = make_item_test_inventory_unit(64, 64);
     carrier->s.player = 0;
-    G_InitUnitOrders(carrier);
+
     carrier->svflags |= SVF_MONSTER;
     grom = NULL;
     FOR_LOOP(i, globals.num_edicts) {
@@ -3737,7 +4631,7 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
     T_ASSERT(!(grom->svflags & SVF_DEADMONSTER));
     T_FEQ(grom->s.origin2.x, 96.0f, 0.001f);
     T_FEQ(grom->s.origin2.y, 64.0f, 0.001f);
-    T_ASSERT(G_UnitHasFlag(grom, UNIT_FLAG_PAUSED));
+    T_ASSERT((grom && grom->paused));
     T_ASSERT(G_UnitIsWorldActive(grom));
     T_ASSERT(grom->svflags & SVF_MONSTER);
     T_EQ(grom->targtype, TARG_GROUND);
@@ -3745,8 +4639,8 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
 
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem);
-    G_GetItem(gem)->charges = 1;
+    (gem->item ? gem->item : (gem->item=G_AllocItem()));
+    gem->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
     clent = G_GetPlayerEntityByNumber(0);
     client = clent->client;
@@ -3760,15 +4654,15 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
     T_ASSERT(grom->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(!M_IsDead(grom));
     T_ASSERT(grom->s.renderfx & RF_HIDDEN);
-    T_ASSERT(G_GetSoulTrap(carrier)->head == grom);
-    T_ASSERT(G_GetSoulTrap(grom)->carrier == carrier);
-    T_ASSERT(G_GetItem(gem)->pending_use_removal);
+    T_ASSERT(carrier->soul_trap_head == grom);
+    T_ASSERT(grom->soul_trap_carrier == carrier);
+    T_ASSERT(gem->item->pending_use_removal);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     T_ASSERT(G_InventoryItem(carrier, 0) && G_InventoryItem(carrier, 0)->class_id == MAKEFOURCC('s','o','u','l'));
 }
 
-TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispatch) {
+TEST(wc3_items, soul_gem_approach_retains_same_hero_revived_by_synchronous_death_trigger) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y4;X12\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
@@ -3814,7 +4708,7 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
 
     carrier = make_item_test_inventory_unit(64, 64);
     carrier->s.player = 0;
-    G_InitUnitOrders(carrier);
+
     carrier->svflags |= SVF_MONSTER;
     grom = NULL;
     FOR_LOOP(i, globals.num_edicts) {
@@ -3827,10 +4721,12 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     T_NOT_NULL(grom);
     if (!grom) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
     grom->targtype = TARG_GROUND;
+    /* A frame-driven approach must retain vision of this distant enemy Hero. */
+    G_AddUnitForcedVisibility(grom, 0);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem);
-    G_GetItem(gem)->charges = 1;
+    (gem->item ? gem->item : (gem->item=G_AllocItem()));
+    gem->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
     clent = G_GetPlayerEntityByNumber(0);
@@ -3842,26 +4738,47 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(carrier->goalentity == grom);
     T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
     T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));
 
     G_SetHealth(grom, 0.0f);
     unit_die(grom, NULL);
-    T_ASSERT(M_IsDead(grom));
-    /* Model a frame where the approach check runs before the queued death-trigger revival. */
-    thinker->think(thinker);
+    /* Death retires Move's subscribed approach synchronously (retail scenes
+     *54/55). A same-identity revival permits a fresh cast, not the old receiver. */
     T_ASSERT(!thinker->inuse);
+    T_NULL(S_UnitTargetApproachReceiver(carrier));
+    T_NULL(carrier->goalentity);
+    G_UseItem(carrier, 0);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(grom->paused);
+    carrier->think = monster_think;
+    bool const started = level.started, scripts = level.scriptsStarted;
+    level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
+    globals.RunFrame();
+    level.started = started; level.scriptsStarted = scripts;
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+    T_ASSERT(carrier->goalentity==grom);
     T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
     T_ASSERT(G_InventoryItem(carrier, 0) == gem);
-    T_ASSERT(!G_GetItem(gem) || !G_GetItem(gem)->pending_use_removal);
+    T_ASSERT(!gem->item || !gem->item->pending_use_removal);
 
     G_RunEvents();
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(!M_IsDead(grom));
-    T_ASSERT(G_UnitHasFlag(grom, UNIT_FLAG_PAUSED));
+    T_ASSERT((grom && grom->paused));
     T_ASSERT(G_UnitIsWorldActive(grom));
     T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
     T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','I','s','o'), carrier, grom));
@@ -3907,7 +4824,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
     carrier = make_item_test_inventory_unit(64, 64);
     carrier->s.player = 0;
-    G_InitUnitOrders(carrier);
+
     carrier->svflags |= SVF_MONSTER;
     existing_soul = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
     existing_soul->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
@@ -3923,8 +4840,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gi.LinkEntity(target);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem);
-    G_GetItem(gem)->charges = 1;
+    (gem->item ? gem->item : (gem->item=G_AllocItem()));
+    gem->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 1));
 
     clent = G_GetPlayerEntityByNumber(0);
@@ -3941,14 +4858,14 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(!M_IsDead(target));
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(G_InventoryItem(carrier, 0) == existing_soul);
-    T_ASSERT(G_GetItem(gem)->pending_use_removal);
+    T_ASSERT(gem->item->pending_use_removal);
     G_FowUpdate();
     T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
     T_ASSERT(!G_FowPlayerCanSeeEntity(2, carrier));
     T_EQ(level.fow.players[1].visible[G_FowWorldToCellY(carrier->s.origin2.y) * level.fow.width +
                                       G_FowWorldToCellX(carrier->s.origin2.x)], 0);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
-    T_ASSERT(gem->inuse && G_GetItem(gem)->pending_use_removal);
+    T_ASSERT(gem->inuse && gem->item->pending_use_removal);
     T_ASSERT(G_InventoryItem(carrier, 0) == existing_soul);
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
@@ -3960,11 +4877,11 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
         if (G_InventoryItem(carrier, i) && G_InventoryItem(carrier, i)->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
     T_EQ(soul_count, 2);
     T_ASSERT(!G_ItemDroppable(filled));
-    T_NULL(G_GetItem(existing_soul)->soul_target);
-    T_ASSERT(G_GetSoulTrap(target)->item != existing_soul);
-    T_ASSERT(G_GetSoulTrap(target)->item == filled);
-    T_ASSERT(G_GetItem(filled)->soul_target == target);
-    T_EQ(carrier->vision->forced[1], 1);
+    T_NULL(existing_soul->item->soul_target);
+    T_ASSERT(target->soul_trap_item != existing_soul);
+    T_ASSERT(target->soul_trap_item == filled);
+    T_ASSERT(filled->item->soul_target == target);
+    T_EQ(carrier->forced_visibility_count[1], 1);
     T_ASSERT(!G_DropItemAtScripted(carrier, 1, &carrier->s.origin2));
     target->s.player = 2; /* Forced visibility remains paired with capture-time owner. */
 
@@ -3974,8 +4891,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     target2->stand = unit_stand; unit_stand(target2); gi.LinkEntity(target2);
     gem2 = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem2->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem2);
-    G_GetItem(gem2)->charges = 1;
+    (gem2->item ? gem2->item : (gem2->item=G_AllocItem()));
+    gem2->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem2, 2));
     G_UseItem(carrier, 2);
     T_NOT_NULL(client->menu.on_entity_selected);
@@ -3984,7 +4901,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_NULL(client->menu.on_entity_selected);
     T_ASSERT(target2->aiflags & AI_SOUL_TRAPPED);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
-    T_ASSERT(gem2->inuse && G_GetItem(gem2)->pending_use_removal);
+    T_ASSERT(gem2->inuse && gem2->item->pending_use_removal);
     T_NULL(G_InventoryItem(carrier, 2));
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
@@ -3996,9 +4913,9 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
         if (G_InventoryItem(carrier, i) && G_InventoryItem(carrier, i)->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
     T_EQ(soul_count, 3);
     T_ASSERT(filled2 != filled);
-    T_ASSERT(G_GetSoulTrap(target2)->item == filled2);
-    T_ASSERT(G_GetItem(filled2)->soul_target == target2);
-    T_EQ(carrier->vision->forced[1], 2);
+    T_ASSERT(target2->soul_trap_item == filled2);
+    T_ASSERT(filled2->item->soul_target == target2);
+    T_EQ(carrier->forced_visibility_count[1], 2);
 
     carrier->s.origin2 = MAKE(vec2_t, 192, 224);
     carrier->s.origin.x = 192;
@@ -4006,9 +4923,9 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
     G_SetHealth(carrier, 0.0f);
     unit_die(carrier, NULL);
-    T_NULL(G_GetSoulTrap(carrier));
-    T_NULL(G_GetSoulTrap(target));
-    T_NULL(G_GetSoulTrap(target2));
+    T_NULL(carrier->soul_trap_head); T_NULL(carrier->soul_trap_carrier); T_NULL(carrier->soul_trap_item);
+    T_NULL(target->soul_trap_head); T_NULL(target->soul_trap_carrier); T_NULL(target->soul_trap_item);
+    T_NULL(target2->soul_trap_head); T_NULL(target2->soul_trap_carrier); T_NULL(target2->soul_trap_item);
     T_ASSERT(!M_IsDead(target));
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
     T_FEQ(target->s.origin2.x, 192.0f, 0.001f);
@@ -4019,8 +4936,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_FEQ(target2->s.origin2.y, 224.0f, 0.001f);
     T_ASSERT(!filled->inuse);
     T_ASSERT(!filled2->inuse);
-    T_EQ(carrier->vision->forced[1], 0);
-    T_EQ(carrier->vision->forced[2], 0);
+    T_EQ(carrier->forced_visibility_count[1], 0);
+    T_EQ(carrier->forced_visibility_count[2], 0);
     T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 1));
     G_FowShutdown();
 }
@@ -4037,7 +4954,7 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     level.alliances[0][1] = level.alliances[1][0] = 0;
     carrier = make_item_test_inventory_unit(64, 64);
     carrier->s.player = 0;
-    G_InitUnitOrders(carrier);
+
     carrier->svflags |= SVF_MONSTER;
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 64);
     target->s.player = 1;
@@ -4046,8 +4963,8 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     target->targtype = TARG_GROUND;
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem);
-    G_GetItem(gem)->charges = 1;
+    (gem->item ? gem->item : (gem->item=G_AllocItem()));
+    gem->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
     clent = G_GetPlayerEntityByNumber(0);
@@ -4059,8 +4976,8 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     G_ClientCommand(clent, 2, select);
     T_NOT_NULL(client->menu.on_entity_selected);
     T_ASSERT(G_InventoryItem(carrier, 0) == gem);
-    T_EQ(G_GetItem(gem)->charges, 1);
-    T_NULL(G_GetSoulTrap(target));
+    T_EQ(gem->item->charges, 1);
+    T_NULL(target->soul_trap_head); T_NULL(target->soul_trap_carrier); T_NULL(target->soul_trap_item);
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
 }
 
@@ -4068,12 +4985,12 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
 TEST(wc3_items, unused_soul_trap_state_stays_absent) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(64, 64);
-    T_NULL(G_GetSoulTrap(unit));
+    T_NULL(unit->soul_trap_head); T_NULL(unit->soul_trap_carrier); T_NULL(unit->soul_trap_item);
     T_ASSERT(G_ActorAddSkill(unit, MAKEFOURCC('A','s','o','u')));
     S_UnitAbilityEvent(unit, A_DISABLE);
-    T_NULL(G_GetSoulTrap(unit));
+    T_NULL(unit->soul_trap_head); T_NULL(unit->soul_trap_carrier); T_NULL(unit->soul_trap_item);
     G_FreeEdict(unit);
-    T_NULL(G_GetSoulTrap(unit));
+    T_NULL(unit->soul_trap_head); T_NULL(unit->soul_trap_carrier); T_NULL(unit->soul_trap_item);
 }
 
 TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
@@ -4087,34 +5004,34 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     target->s.player = 1;
     T_ASSERT(G_ActorAddSkill(carrier, asou));
     T_ASSERT(G_ActorAddSkill(target, asou));
-    G_AddSoulTrap(carrier);
-    G_AddSoulTrap(target);
-    G_GetSoulTrap(carrier)->possession_added = true;
+
+
+    carrier->soul_possession_added = true;
     filled = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
     filled->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
     T_ASSERT(G_AddItemToSlot(carrier, filled, 0));
 
-    G_GetSoulTrap(carrier)->head = target;
-    G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
-    G_GetSoulTrap(target)->carrier = carrier;
-    G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
-    G_GetSoulTrap(target)->viewer = target->s.player;
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_viewer = target->s.player;
     G_AddUnitForcedVisibility(carrier, target->s.player);
-    G_GetSoulTrap(target)->item = filled;
-    G_GetSoulTrap(target)->item_spawn_time = filled->spawn_time;
+    target->soul_trap_item = filled;
+    target->soul_trap_item_spawn_time = filled->spawn_time;
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN;
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
-    G_AddItem(filled);
-    G_GetItem(filled)->soul_target = target;
-    G_GetItem(filled)->soul_target_spawn_time = target->spawn_time;
+    (filled->item ? filled->item : (filled->item=G_AllocItem()));
+    filled->item->soul_target = target;
+    filled->item->soul_target_spawn_time = target->spawn_time;
 
     T_ASSERT(G_UnitIsForcedVisibleToPlayer(carrier, 1));
     G_FreeEdict(target);
 
     T_ASSERT(!target->inuse);
-    T_NULL(G_GetSoulTrap(carrier));
+    T_NULL(carrier->soul_trap_head); T_NULL(carrier->soul_trap_carrier); T_NULL(carrier->soul_trap_item);
     T_ASSERT(!G_ActorHasSkill(carrier, "Asou"));
     T_NULL(G_InventoryItem(carrier, 0));
     T_ASSERT(!filled->inuse);
@@ -4155,8 +5072,8 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     target->stand = unit_stand; unit_stand(target); gi.LinkEntity(target);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
-    G_AddItem(gem);
-    G_GetItem(gem)->charges = 1;
+    (gem->item ? gem->item : (gem->item=G_AllocItem()));
+    gem->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
 
     clent = G_GetPlayerEntityByNumber(0); client = clent->client;
@@ -4172,26 +5089,36 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think);
-    T_ASSERT(G_GetChannel(thinker)->source_item == gem);
-    T_EQ(G_GetChannel(thinker)->owner_spawn_time, carrier->spawn_time);
-    T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+    T_ASSERT(thinker->spell_item == gem);
+    T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
 
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
-        /* g_save.c checks the append-only v47 roster identity directly; this
-         * round trip verifies the pending thinker pointer and its payload. */
-        thinker->think = NULL; G_GetChannel(thinker)->source_item = NULL;
+        /* Retail185 retains a receiver on Move's group instead of polling.
+         * Restore its callback binding and payload before advancing Move. */
+        thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
-        T_NOT_NULL(thinker->think);
-        T_EQ(thinker->think, S_SpellTargetApproachThink);
-        T_ASSERT(G_GetChannel(thinker)->source_item == gem);
-        T_EQ(G_GetChannel(thinker)->owner_spawn_time, carrier->spawn_time);
-        T_EQ(G_GetChannel(thinker)->target_spawn_time, target->spawn_time);
-        carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
-        if (thinker->think) thinker->think(thinker);
+        T_NULL(thinker->think);
+        T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+        T_ASSERT(thinker->spell_item == gem);
+        T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
+        T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
+        G_AddUnitForcedVisibility(target, 0);
+        carrier->think = monster_think;
+        if (!level.vm) T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        bool const started = level.started, scripts = level.scriptsStarted;
+        level.started = level.scriptsStarted = true;
+        for (unsigned frame = 0; frame < 200 && thinker->inuse; frame++) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        level.started = started; level.scriptsStarted = scripts;
         T_ASSERT(!thinker->inuse);
         T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     }
@@ -4203,7 +5130,8 @@ cleanup_soul_approach_save:
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
+/* All six native V2 captures reject UnitDropItemPoint for undroppable items. */
+TEST(wc3_items, set_item_droppable_blocks_manual_and_public_native_drop) {
     edict_t *carrier = NULL;
     edict_t *item = NULL;
 
@@ -4214,7 +5142,7 @@ TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
         "  item gem = null\n"
         "endglobals\n"
         "function scripted_drop takes nothing returns nothing\n"
-        "  call UnitDropItemPoint(carrier, gem, 128.0, 64.0)\n"
+        "  call BJassAssert(not UnitDropItemPoint(carrier, gem, 128.0, 64.0),\"undroppable native rejects\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set carrier = CreateUnit(Player(0), 'Hpal', 64.0, 64.0, 0.0)\n"
@@ -4231,16 +5159,17 @@ TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
     }
     T_NOT_NULL(carrier);
     T_NOT_NULL(item);
-    T_ASSERT(G_GetItem(item)->carrier == carrier);
+    T_ASSERT(item->item->carrier == carrier);
     T_ASSERT(!G_ItemDroppable(item));
-    T_ASSERT(!G_DropItem(carrier, (uint32_t)G_GetItem(item)->inventory_slot));
-    T_ASSERT(G_GetItem(item)->carrier == carrier);
+    T_ASSERT(!G_DropItem(carrier, (uint32_t)item->item->inventory_slot));
+    T_ASSERT(item->item->carrier == carrier);
 
     jass_callbyname(level.vm, "scripted_drop", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    T_NULL(G_GetItem(item)->carrier);
-    T_ASSERT(G_GetItem(item)->in_world);
+    T_EQ(item->item->carrier,carrier);
+    T_ASSERT(!item->item->in_world);
+    T_EQ(carrier->current_order_id,0);
 }
 
 TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
@@ -4286,26 +5215,26 @@ TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
     if (!carrier || !other || !soul || !target) return;
     target->s.player = 1;
     target->aiflags |= AI_SOUL_TRAPPED;
-    G_AddSoulTrap(carrier);
-    G_AddSoulTrap(target);
-    G_GetSoulTrap(target)->carrier = carrier;
-    G_GetSoulTrap(target)->carrier_spawn_time = carrier->spawn_time;
-    G_GetSoulTrap(carrier)->head = target;
-    G_GetSoulTrap(carrier)->head_spawn_time = target->spawn_time;
-    G_GetSoulTrap(target)->item = soul;
-    G_GetSoulTrap(target)->item_spawn_time = soul->spawn_time;
-    G_AddItem(soul);
-    G_GetItem(soul)->soul_target = target;
-    G_GetItem(soul)->soul_target_spawn_time = target->spawn_time;
+
+
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_item = soul;
+    target->soul_trap_item_spawn_time = soul->spawn_time;
+    (soul->item ? soul->item : (soul->item=G_AllocItem()));
+    soul->item->soul_target = target;
+    soul->item->soul_target_spawn_time = target->spawn_time;
     T_ASSERT(G_ActorAddSkill(carrier, MAKEFOURCC('A','s','o','u')));
 
     jass_callbyname(level.vm, "swap_soul_slot", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(soul->inuse);
-    T_ASSERT(G_GetItem(soul)->carrier == carrier);
-    T_EQ(G_GetItem(soul)->inventory_slot, 1);
+    T_ASSERT(soul->item->carrier == carrier);
+    T_EQ(soul->item->inventory_slot, 1);
     T_ASSERT(G_InventoryItem(carrier, 1) == soul);
-    T_ASSERT(!G_GetItem(soul) || !G_GetItem(soul)->in_world);
+    T_ASSERT(!soul->item || !soul->item->in_world);
 }
 
 TEST(wc3_items, missing_item_data_does_not_make_item_droppable) {
@@ -4314,9 +5243,9 @@ TEST(wc3_items, missing_item_data_does_not_make_item_droppable) {
     setup_test_world();
     item = alloc_test_unit(MAKEFOURCC('z','z','z','z'), 32.0f, 32.0f);
     item->targtype = TARG_ITEM;
-    G_AddItem(item);
-    G_GetItem(item)->in_world = true;
-    G_GetItem(item)->inventory_slot = -1;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->in_world = true;
+    item->item->inventory_slot = -1;
     item->data.ItemData = NULL;
     T_EQ(G_ItemData(item->class_id)->id, 0);
     T_ASSERT(!G_ItemDroppable(item));
@@ -4362,21 +5291,21 @@ TEST(wc3_items, consumed_perishable_keeps_manipulated_item_through_sleep) {
     T_NOT_NULL(carrier);
     item = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     item->data.ItemData = &soul_data;
-    G_AddItem(item);
-    G_GetItem(item)->charges = 1;
+    (item->item ? item->item : (item->item=G_AllocItem()));
+    item->item->charges = 1;
     T_ASSERT(G_AddItemToSlot(carrier, item, 0));
 
     G_CompleteItemUse(carrier, item);
     T_NULL(G_InventoryItem(carrier, 0));
     T_ASSERT(item->inuse);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
-    T_ASSERT(!G_GetItem(item) || G_GetItem(item)->charges == 0);
+    T_ASSERT(item->item->pending_use_removal);
+    T_ASSERT(!item->item || item->item->charges == 0);
 
     G_RunEvents();
     jass_runevents(level.vm);
     G_RunConsumedItemFrees();
     T_ASSERT(item->inuse);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
 
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -4392,6 +5321,8 @@ static int item_cursor_test_image(cstring_t path) { (void)path; return 73; }
 
 TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_removal) {
     setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    game.clients[0].mapplayer=level.mapinfo->players;
     void (*write)(pfWriteType_t, void const *) = gi.Write;
     void (*unicast)(edict_t *) = gi.unicast;
     gi.Write = item_noop_write; gi.unicast = item_noop_unicast;
@@ -4432,14 +5363,25 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
     G_ClientCommand(clent, 2, drag);
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     cstring_t point[] = {"point", "24", "0"};
     G_ClientCommand(clent, 3, point);
     T_NULL(client->menu.dragged_item);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
-    T_ASSERT(G_InventoryItem(unit, 0) == item); /* Drop order awaits simulation. */
-    unit->currentmove->think(unit);
-    T_ASSERT(G_GetItem(item)->in_world);
+    T_ASSERT(unit->inventory[0] == item); /* Drop order awaits simulation. */
+    T_NOT_NULL(move_unit_group(unit));
+    /* The cursor submits an order; only the real frame scheduler runs Move's owner. */
+    for (uint32_t frame = 0; frame < 100 && !item->item->in_world; frame++) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+    }
+    T_ASSERT(item->item->in_world);
+    T_NULL(move_unit_group(unit));
+    T_EQ(unit->current_order_id,0);
     T_ASSERT(G_PickupItem(unit, item));
     G_ClientCommand(clent, 2, drag);
     /* Same address with a new lifetime must never show/operate on a recycled item. */
@@ -4469,37 +5411,346 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     gi.Write = write; gi.unicast = unicast;
 }
 
-
-/* The active handoff order carries two edict references and an umove_t.
- * Both must survive a full snapshot before the giver completes the approach. */
-TEST(wc3_items, targeted_give_order_survives_full_game_save_load) {
-    cstring_t filename = Test_TempPath("wc3-item-handoff-inflight.sav");
-    edict_t *giver, *receiver, *item;
-
-    reset_entities();
-    setup_test_world();
-    giver = make_item_test_inventory_unit(0, 0);
-    receiver = make_item_test_inventory_unit(64, 0);
-    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
-    T_ASSERT(G_AddItemToSlot(giver, item, 0));
-    T_ASSERT(G_OrderGiveItemTarget(giver, item, receiver));
-    T_ASSERT(WriteGame(filename));
-    /* These transient changes are discarded by the restored save. */
-    giver->goalentity = NULL;
-    giver->orders->item_drop = NULL;
-    T_ASSERT(ReadGame(filename));
-    T_ASSERT(giver->goalentity == receiver);
-    T_ASSERT(giver->orders->item_drop == item);
-    T_NOT_NULL(giver->currentmove);
-    T_ASSERT(G_InventoryItem(giver, 0) == item);
-    if (giver->currentmove && giver->currentmove->think)
-        giver->currentmove->think(giver);
-    T_NULL(G_InventoryItem(giver, 0));
-    T_ASSERT(G_InventoryItem(receiver, 0) == item);
-    T_NULL(giver->orders->item_drop);
-    T_NULL(giver->goalentity);
-    remove(filename);
+/* These scalar cast fixtures deliver their own SpellCast queue. Independent
+ * Attack acquisition requests share the production primary merger and may be
+ * earlier; they must not replace the request whose deadline is under test. */
+static bool item327_next_cast(abilityTimerRequest_t *next) {
+    abilityCall_t call={.primary_timer=next};
+    next->proc=CAbilitySpellCast;
+    return CAbilitySpellCast(NULL,A_PRIMARY_TIMER_NEXT,&call);
 }
+
+/* Native327: ItemTeleport acquires at cast begin, holds Stop, rejects Move,
+ * and releases before the deferred pause task. Authored Cast owns the delay. */
+TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(!S_PlayerOrderWorking(unit));
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(S_PlayerOrderWorking(unit));
+    T_ASSERT(S_PlayerOrderCastProtected(unit));
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_ASSERT(!S_PlayerOrderWorking(unit));
+    T_ASSERT(!S_PlayerOrderCastProtected(unit));
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_items, teleport327_public_item_lifecycle_releases_only_its_owner) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    for(unsigned action=0;action<8;action++) {
+    G_RunEvents();reset_entities();setup_test_world();
+    FOR_LOOP(i,game.max_clients)g_edicts[i].client=game.clients+i;
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_EQ(unit->invulnerability_depth,1);T_EQ(unit->spell_immunity_depth,1);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    if(action==0) {
+        G_RemoveItem(item);
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+        T_EQ(unit->current_order_id,0);
+    } else if(action==1) {
+        unit_die(unit,NULL);
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+    } else if(action==2 || action==7) {
+        G_DeferFreeEdict(target);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        abilityTimerRequest_t loss;
+        T_ASSERT(item327_next_cast(&loss));
+        wc3Clock_t expected=level.pathing_clock;
+        FOR_LOOP(i,2)wc3_clock_advance(&expected,wc3_float(0x3ba3d70a),0);
+        T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
+        if(loss.deadline.time==expected.time) {
+            if(action==7) {
+                wc3Clock_t release;uint32_t sequence;
+                T_ASSERT(G_NextUnitRelease(&release,&sequence));
+                G_RunEvents();level.pathing_clock=release;G_FireUnitRelease();
+                unsigned u=unit->s.number,i=item->s.number;
+                cstring_t path=Test_TempPath("teleport327-lost-target.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+u;item=g_edicts+i;item->data.ItemData=&data;
+                T_ASSERT(item327_next_cast(&loss));
+                T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
+            }
+            level.pathing_clock=loss.deadline;
+            abilityCall_t call={.primary_timer=&loss};loss.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+        }
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+        T_EQ(G_ItemCharges(item),4);
+    } else if(action==3 || action==4) {
+        S_SetUnitPaused(unit,true);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_pause_depth,0);
+        if(action==4) {
+            unsigned u=unit->s.number,t=target->s.number,i=item->s.number;
+            cstring_t path=Test_TempPath("teleport327-pause.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+u;target=g_edicts+t;item=g_edicts+i;target->data.UnitBalance=&town;
+            item->data.ItemData=&data;
+            T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit->ability_exclusive_depth,1);
+        }
+    } else if(action==5) {
+        edict_t *sibling=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+        sibling->data.ItemData=&data;sibling->item->charges=4;
+        T_ASSERT(G_AddItemToSlot(unit,sibling,1));G_RemoveItem(sibling);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_exclusive_depth,1);
+    } else {
+        G_UseItem(unit,0);
+        if(player->client->menu.on_entity_selected) {
+            char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+            cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+        }
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_exclusive_depth,1);
+    }
+    if(action<3 || action==7) {
+        reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);continue;
+    }
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    if(action==3 || action==4) {
+        T_ASSERT(unit->paused);T_EQ(unit->ability_pause_depth,1);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        S_SetUnitPaused(unit,false);level.pathing_clock.time=1.5f;S_RunMoveTimers();
+        T_EQ(unit->ability_pause_depth,0);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+TEST(wc3_items, teleport327_cast_protection_preserves_scripted_invulnerability) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    status_application_t positive={.buff="Binf",.level=1,.duration=30,
+        .source_ability=MAKEFOURCC('A','i','n','f'),.data=MAKEFOURCC('A','i','n','f'),.source=unit,.rank=1};
+    status_application_t negative={.buff="Bslo",.level=1,.duration=30,
+        .source_ability=MAKEFOURCC('A','s','l','o'),.data=MAKEFOURCC('A','s','l','o'),.source=target,.rank=1};
+    T_NOT_NULL(unit_applystatus(unit,&positive));T_NOT_NULL(unit_applystatus(unit,&negative));
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_EQ(G_UnitStatusLevel(unit,MAKEFOURCC('B','i','n','f')),0);
+    T_EQ(G_UnitStatusLevel(unit,MAKEFOURCC('B','s','l','o')),0);
+    float health=unit->health.value;
+    T_Damage(unit,target,10);T_FEQ(unit->health.value,health,0.001f);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    unit->invulnerable=true; /* A script contribution must survive the cast inverse. */
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(unit->invulnerable);T_ASSERT(!S_UnitSpellImmune(unit));
+    unit->invulnerable=false;
+    T_Damage(unit,target,10);T_ASSERT(unit->health.value<health);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+
+TEST(wc3_items, teleport327_passenger_limit_prefers_hero_and_excludes_enemy) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K2\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *footman=alloc_test_unit(MAKEFOURCC('h','f','o','o'),80,64);
+    edict_t *hero=alloc_test_unit(MAKEFOURCC('H','p','a','l'),160,64);
+    edict_t *enemy=alloc_test_unit(MAKEFOURCC('h','f','o','o'),96,64);
+    footman->s.player=hero->s.player=0;enemy->s.player=1;
+    footman->svflags|=SVF_MONSTER;hero->svflags|=SVF_MONSTER;enemy->svflags|=SVF_MONSTER;
+    hero->hero.level=1;
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    T_ASSERT(Vector2_distance(&hero->s.origin2,&target->s.origin2)<256);
+    T_FEQ(footman->s.origin2.x,80,0.001f);T_FEQ(enemy->s.origin2.x,96,0.001f);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+
+TEST(wc3_items, teleport327_rejects_non_townhall_and_unfinished_destination) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    for(unsigned action=0;action<2;action++) {
+    G_RunEvents();reset_entities();setup_test_world();
+    FOR_LOOP(i,game.max_clients)g_edicts[i].client=game.clients+i;
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    if(action==0)town.type="Mechanical";
+    else target->construction=G_AllocConstruction();
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,0);T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->ability_exclusive_depth,0);T_EQ(G_ItemCharges(item),4);
+    G_RunEvents();reset_entities();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+
+
 
 /* A zero-slot inventory can still collect auto-usable powerups, but it does
  * not acquire a regular item slot. inv3 must be enabled for consumption. */
@@ -4533,21 +5784,21 @@ TEST(wc3_items, zero_slot_inventory_consumes_powerups_but_not_regular_items) {
     ordinary = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
     T_ASSERT(!G_CanPickupItem(unit, ordinary));
     T_ASSERT(!G_PickupItem(unit, ordinary));
-    T_ASSERT(G_GetItem(ordinary)->in_world);
+    T_ASSERT(ordinary->item->in_world);
 
     rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
     rune->data.ItemData = &rune_data;
     T_ASSERT(G_CanPickupItem(unit, rune));
     T_ASSERT(G_PickupItem(unit, rune));
-    T_ASSERT(G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->pending_use_removal);
     T_EQ(G_InventoryCapacity(unit), 0);
 
     quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
     quest->data.ItemData = &quest_data;
     T_ASSERT(G_CanPickupItem(unit, quest));
     T_ASSERT(G_PickupItem(unit, quest));
-    T_ASSERT(G_GetItem(quest)->pending_use_removal);
-    T_NULL(G_GetItem(quest)->carrier);
+    T_ASSERT(quest->item->pending_use_removal);
+    T_NULL(quest->item->carrier);
 
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
@@ -4583,24 +5834,24 @@ TEST(wc3_items, inventory_without_use_permission_carries_runes_and_quest_items) 
     rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
     rune->data.ItemData = &rune_data;
     G_SetItemCharges(rune, 3);
-    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", rune, false, unit->s.player));
     T_ASSERT(G_PickupItem(unit, rune));
     T_ASSERT(G_InventoryItem(unit, 0) == rune);
-    T_ASSERT(!G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(!rune->item->pending_use_removal);
     T_EQ(G_ItemCharges(rune), 3);
 
     quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
     quest->data.ItemData = &quest_data;
     T_ASSERT(G_PickupItem(unit, quest));
     T_ASSERT(G_InventoryItem(unit, 1) == quest);
-    T_ASSERT(!G_GetItem(quest)->pending_use_removal);
+    T_ASSERT(!quest->item->pending_use_removal);
 
     third = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
     third->data.ItemData = &rune_data;
-    T_ASSERT(!G_OrderPickupItem(unit, third));
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "smart", third, false, unit->s.player));
     T_ASSERT(!G_PickupItem(unit, third));
-    T_ASSERT(G_GetItem(third)->in_world);
-    T_NULL(G_GetItem(third)->carrier);
+    T_ASSERT(third->item->in_world);
+    T_NULL(third->item->carrier);
 
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
@@ -4630,17 +5881,20 @@ TEST(wc3_items, pickup_approach_rechecks_inv4_after_ability_change) {
     level.mapinfo = &tft;
     unit = make_item_test_inventory_unit(0, 0);
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 200, 0);
-    T_ASSERT(G_OrderPickupItem(unit, item));
+    itemPickupTest_t saved=item_pickup_start(unit);
+    T_ASSERT(G_IssueUnitTargetOrder(unit, "smart", item, false, unit->s.player));
     T_ASSERT(unit->goalentity == item);
     unit->data.UnitAbilities = &no_pickup;
     T_EQ(G_InventoryCapacity(unit), 2);
     T_ASSERT(!G_InventoryCanGetItems(unit));
     T_NOT_NULL(unit->currentmove);
-    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    item_pickup_tick();T_EQ(unit->goalentity,item);
+    for(unsigned frame=0;frame<100 && unit->current_order_id;frame++)item_pickup_tick();
     T_NULL(unit->goalentity);
-    T_ASSERT(G_GetItem(item)->in_world);
-    T_NULL(G_GetItem(item)->carrier);
+    T_ASSERT(item->item->in_world);
+    T_NULL(item->item->carrier);
 
+    item_pickup_end(saved);
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
     level.mapinfo = old_map;
@@ -4665,8 +5919,8 @@ TEST(wc3_items, jass_item_player_and_drop_on_death_flags) {
     T_NOT_NULL(item);
     if (item) {
         T_EQ(item->s.player, 2);
-        T_ASSERT(G_GetItem(item)->drop_on_death_set);
-        T_ASSERT(G_GetItem(item)->drop_on_death);
+        T_ASSERT(item->item->drop_on_death_set);
+        T_ASSERT(item->item->drop_on_death);
     }
 }
 
@@ -4701,7 +5955,7 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
     memset(client->tech, 0, sizeof(client->tech));
     picker = make_item_test_inventory_unit(0, 0);
     picker->s.player = 0;
-    G_InitUnitOrders(picker);
+
     picker->svflags |= SVF_MONSTER;
     picker->targtype = TARG_GROUND;
     item = make_item_test_world_item(MAKEFOURCC('g','f','o','r'), 32, 0);
@@ -4710,13 +5964,13 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
     T_EQ(G_AbilityLevel(MAKEFOURCC('A','I','g','f'), 1)->unitID, MAKEFOURCC('R','g','f','1'));
     T_ASSERT(G_PickupItem(picker, item));
     T_EQ(G_GetPlayerTechResearchedLevel(client, MAKEFOURCC('R','g','f','1')), 2);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
 
     item = make_item_test_world_item(MAKEFOURCC('g','u','v','i'), 32, 0);
     item->data.ItemData = &ultravision;
     T_ASSERT(G_PickupItem(picker, item));
     T_EQ(G_GetPlayerTechResearchedLevel(client, MAKEFOURCC('R','g','u','1')), 1);
-    T_ASSERT(G_GetItem(item)->pending_use_removal);
+    T_ASSERT(item->item->pending_use_removal);
 
     G_SetSLKRows("UpgradeData", old_upgrades);
     G_SetSLKRows("AbilityData", old_abilities);
@@ -4750,15 +6004,86 @@ TEST(wc3_items, rune_rebirth_requires_original_monster_identity) {
     rune->data.ItemData = &rune_data;
     T_EQ(S_ItemPowerup(collector, rune).code, MAKEFOURCC('A','I','r','b'));
     T_ASSERT(!G_PickupItem(collector, rune));
-    T_ASSERT(G_GetItem(rune)->in_world);
-    T_ASSERT(!G_GetItem(rune)->pending_use_removal);
+    T_ASSERT(rune->item->in_world);
+    T_ASSERT(!rune->item->pending_use_removal);
 
     /* A stale or invalid SetItemDropID must not create a random unit. */
-    G_GetItem(rune)->drop_id = MAKEFOURCC('Z','Z','Z','Z');
+    rune->item->drop_id = MAKEFOURCC('Z','Z','Z','Z');
     T_ASSERT(!G_PickupItem(collector, rune));
-    T_ASSERT(G_GetItem(rune)->in_world);
+    T_ASSERT(rune->item->in_world);
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
+}
+
+/* Engine regression: Soul Trap's existing world-absence contract must own
+ * separation membership. The nonstock repulse policy is deliberate; this is
+ * not a new retail Soul Trap count/suppression claim. */
+TEST(wc3_items, soul_trap_refreshes_authored_repulsor_capture_and_release) {
+    FOR_LOOP(paused_release,2) {
+        reset_entities();setup_test_world();
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType=kPlayerTypeHuman;
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+        level.alliances[0][1]=level.alliances[1][0]=0;
+        T_ASSERT(run_test_jass(
+            "function SoulRepulseUsed takes nothing returns nothing\n"
+            "local item filled=null\ncall TriggerSleepAction(0.10)\n"
+            "set filled=UnitAddItemById(GetManipulatingUnit(),'soul')\n"
+            "call SetItemDroppable(filled,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger used=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(used,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+            "call TriggerAddAction(used,function SoulRepulseUsed)\nendfunction\n"));
+        edict_t *carrier=make_item_test_inventory_unit(64,64);
+        carrier->s.player=0;carrier->svflags|=SVF_MONSTER;
+        edict_t *target=alloc_test_unit(MAKEFOURCC('H','p','a','l'),96,64);
+        edict_t *neighbor=alloc_test_unit(MAKEFOURCC('H','p','a','l'),96,64);
+        /* Preserve the real Hero stats used by AIso's authored hero mask. */
+        UnitBalance_t balance=*target->data.UnitBalance;
+        balance.repulse=1;balance.repulseParam=balance.repulseGroup=balance.repulsePrio=0;
+        FOR_LOOP(i,2) {
+            edict_t *unit=i ? neighbor : target;
+            unit->data.UnitBalance=&balance;unit->s.player=1;unit->svflags|=SVF_MONSTER;
+            unit->s.model=1;unit->targtype=TARG_GROUND;unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;
+            unit_stand(unit);CAbilityMove(unit,A_UNIT_INIT,NULL);gi.LinkEntity(unit);
+            T_ASSERT(G_UnitIsHero(unit));T_ASSERT(unit->movement.repulse.active);T_EQ(unit->movement.repulse.disable_depth,0);
+        }
+        G_AddUnitForcedVisibility(target,0);
+        edict_t *gem=make_item_test_world_item(MAKEFOURCC('g','s','o','u'),64,64);
+        gem->data.ItemData=G_ItemData(MAKEFOURCC('g','s','o','u'));
+        if(!gem->item) {gem->item=G_AllocItem();}
+        gem->item->charges=1;
+        T_ASSERT(G_AddItemToSlot(carrier,gem,0));
+        edict_t *clent=G_GetPlayerEntityByNumber(0);G_SelectEntity(clent->client,carrier);
+        G_UseItem(carrier,0);T_NOT_NULL(clent->client->menu.on_entity_selected);
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(clent,2,select);
+        T_ASSERT(target->aiflags&AI_SOUL_TRAPPED);T_ASSERT(!G_UnitIsWorldActive(target));
+        T_ASSERT(!target->movement.repulse.active);T_EQ(target->movement.repulse.disable_depth,0);
+        vec2_t captured=target->s.origin2;
+        bool started=level.started,configured=level.scriptsConfigured,scripts=level.scriptsStarted;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        FOR_LOOP(frame,12) {level.time+=35;globals.RunFrame();}
+        T_EQ(wc3_float_bits(target->s.origin2.x),wc3_float_bits(captured.x));
+        T_EQ(wc3_float_bits(target->s.origin2.y),wc3_float_bits(captured.y));
+        if(paused_release)S_SetUnitPaused(target,true);
+        int32_t const pause_depth=target->movement.repulse.disable_depth;
+        if(paused_release) {T_ASSERT(pause_depth>0);}
+        else {T_EQ(pause_depth,0);}
+        T_ASSERT(!target->movement.repulse.active);
+        G_SetHealth(carrier,0);unit_die(carrier,NULL);
+        T_ASSERT(!(target->aiflags&AI_SOUL_TRAPPED));T_ASSERT(G_UnitIsWorldActive(target));
+        T_EQ(target->movement.repulse.active,!paused_release);
+        T_EQ(target->movement.repulse.disable_depth,pause_depth);
+        if(paused_release) {
+            T_ASSERT(target->paused);S_SetUnitPaused(target,false);
+            /* Resume releases its own physical hold at the scheduler boundary. */
+            FOR_LOOP(frame,12) {level.time+=35;globals.RunFrame();}
+            T_ASSERT(!target->paused);
+            T_ASSERT(target->movement.repulse.active);T_EQ(target->movement.repulse.disable_depth,0);
+        }
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        level.started=started;level.scriptsConfigured=configured;level.scriptsStarted=scripts;
+        reset_entities();
+    }
 }
 
 #endif /* BZ_TESTS */

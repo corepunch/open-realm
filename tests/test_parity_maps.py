@@ -84,6 +84,23 @@ call SetNextLevelBJ("Maps\\FrozenThrone\\Campaign\\OrcX03a.w3x")
                 (optional / 'Second.w3m').write_bytes(nested.read_bytes())
                 self.assertEqual(len(maps.load_catalog(root, tool, map_dirs=[optional])), 3)
 
+    def test_mpq_pack_preserves_files_beyond_old_128_file_limit(self):
+        tool = ROOT / 'build/bin/mpqtool'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'source'
+            source.write_bytes(b'all requested pairs survive')
+            archive = root / 'many.mpq'
+            pairs = [value for i in range(140)
+                     for value in (str(source), f'Fixtures/File{i}.txt')]
+            subprocess.run([str(tool), '-mpq', str(archive), 'pack', *pairs],
+                           check=True, capture_output=True)
+            for index in (0, 127, 128, 139):
+                result = subprocess.run([str(tool), '-mpq', str(archive), 'cat',
+                                         f'Fixtures/File{index}.txt'],
+                                        check=True, capture_output=True)
+                self.assertEqual(result.stdout, source.read_bytes())
+
     def test_picker_search_enter_cancel_and_resize(self):
         rows = [dict(maps.MENU), dict(edition='tft', slug='elf1', name='Rise of the Naga',
                                      title='Chapter One', campaign='Terror of the Tides', path='Maps/Elf.w3x')]

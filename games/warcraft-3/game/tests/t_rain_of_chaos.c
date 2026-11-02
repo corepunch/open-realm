@@ -45,7 +45,7 @@ static rocFix_t roc_setup(uint32_t code) {
     fix.rows = parse_slk_string(roc_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('U', 'w', 'a', 'r'), 0, 0);
     fix.caster->s.player = 0; fix.caster->svflags |= SVF_MONSTER; fix.caster->targtype = TARG_GROUND;
-    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 100;
     fix.point = MAKE(vec2_t, .x = 128, .y = 96);
     return fix;
@@ -86,7 +86,7 @@ TEST(wc3_spell, rain_of_chaos_procedure_and_flags) {
 TEST(wc3_spell, rain_of_chaos_schedules_authored_landings) {
     rocFix_t fix = roc_setup(BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     T_NOT_NULL(roc_thinker(fix.caster));
 
@@ -107,7 +107,7 @@ TEST(wc3_spell, rain_of_chaos_continues_after_caster_moves) {
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 2);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
@@ -120,7 +120,7 @@ TEST(wc3_spell, rain_of_chaos_anr3_shares_procedure_cast) {
     rocFix_t fix = roc_setup(BZ_ANR3);
     T_EQ(S_AbilityItem(BZ_ANR3).ability->proc, CAbilityRainOfChaos);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANR3, &fix.point));
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     T_NOT_NULL(roc_thinker(fix.caster));
     roc_done(fix);

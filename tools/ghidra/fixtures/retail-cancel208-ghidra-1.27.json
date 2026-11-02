@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "task": "ORDER-06.3",
+  "functions": [
+    {
+      "address": "6f171340",
+      "name": "Mover_StopAndInvalidatePath",
+      "comment": "Payoff208 ORDER-06.3: Stop is physical, independent of the public ability animation move. Two original scenes cancel idle/moving timed angular requests and natural turns; public Stop/Hold and point replacement detach9c/a0, zero velocity, invalidate100000 and clear path counts/indices/retry/delay/FIFO links while retaining path storage. C208 repeats30 paired Stops and326 visual visits; Q208 repeats492 paired Stops plus737 completed fine/adaptive searches. Physical8c freezes after Stop while visualc8/cc continue settling. No authored turn or desired facing is overwritten. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f05ca50",
+      "name": "MoverBridge_StopWithRecovery",
+      "comment": "Payoff208 ORDER-06.3: Bridge stop resolves the physical mover even when public head is0. Idle SetUnitFacingTimed cohorts are canceled by public Stop/Hold through this same171340 path. Engine exposes Move-owned S_StopUnitMovement before any stand/queued successor admission instead of relying on walking A_MOVE_LEAVE. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f69a840",
+      "name": "Unit_StopWithRecoveryAndSupport",
+      "comment": "Payoff208 ORDER-06.3: Cleanup invokes physical stop/recovery before the task successor becomes visible. Idle angular request ownership is independent of unit public head. C208 raw after-cancel state and all80 sample boundaries match actual engine plus Save150 continuation in Classic/TFT. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f600340",
+      "name": "Move_HandleCleanupTask",
+      "comment": "Payoff208 ORDER-06.3: d0144 cleanup funnels through69a840 even without an active walking state, then clears Move active4. This explains why an idle bridge angular request must retire on Stop/Hold. Engine Stop/Hold invoke Move-owned physical cancellation before stand can admit a successor; old callbacks are not invoked twice. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f5fccf0",
+      "name": "Move_CreateHoldTasks",
+      "comment": "Payoff208 ORDER-06.3: C208 Hold issued during an idle timed angular request performs the same physical cancellation as Stop; public head is0 at native return while hold behavior remains. Old group/path ownership is invalidated without snapping visual heading. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f05c0e0",
+      "name": "MoveBridge_BeginFacingRequest",
+      "comment": "Payoff208 ORDER-06.3: C208 public Stop/Hold cancels this independent idle request even when public head0 and the animation behavior never entered Move. Point replacement cancels it too. Normal and timed turn physical/visual scalar sequences are frozen independently. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f16c150",
+      "name": "PathGroup_TickMovement",
+      "comment": "Payoff208 ORDER-06.3: Q208 public Stop/replacement at pending fine heads52/50 and moving actors94/95 retains the old group/path at native return, then both are reclaimed by the following owner update. Survivors keep exact FIFO/accounting. Engine retains empty owners through save/load and releases them on preparation; private stale member layout remains separately scoped. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f14a4c0",
+      "name": "PathFine_Search",
+      "comment": "Payoff208 ORDER-06.3: Q208 read-only search-depth brackets across737 fine/adaptive executions show every public command marker and physical Stop outside the bounded synchronous search. The core returns on goal/heap/budget without dispatching orders. Public cancellation operates between owner work quanta; no forced mid-search callback is a retail witness. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    },
+    {
+      "address": "6f163f50",
+      "name": "PathAcc_Search",
+      "comment": "Payoff208 ORDER-06.3: Q208 paired search-depth observation confirms the same atomic public boundary as fine search. Waiting Stop/replacement unlinks the old request without altering survivor order or bucket work/countdown/counter/clock. Original repeated full3529-row stream and observer-free57 stored public markers certify these cancellation boundaries. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md stop-cancels-physical-ownership-independently-of-animation-payoff208."
+    }
+  ],
+  "fields": "Existing typed mover8c/c8/cc/9c/a0/a8, path1c/20/50/70/74/78/88/8c/90/94/98 and scheduler buckets reused without widening or overwriting peer types."
+}

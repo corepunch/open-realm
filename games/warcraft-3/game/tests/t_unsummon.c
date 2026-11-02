@@ -54,7 +54,7 @@ static void uns_setup(unsFix_t *fix) {
     fix->building->data.UnitBalance = &fix->bldg_bal;
     fix->enemy_bldg->data.UnitBalance = &fix->bldg_bal;
     fix->unit->data.UnitBalance = &fix->unit_bal;
-    fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AUNS, .level = 1);
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AUNS, .level = 1);
     fix->caster->mana.value = fix->caster->mana.max_value = 100;
     fix->building->health.value = fix->building->health.max_value = 100;
     fix->enemy_bldg->health.value = fix->enemy_bldg->health.max_value = 100;
@@ -218,15 +218,15 @@ TEST(wc3_spell, unsummon_cancel_only_matches_channel_serial) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     old_thinker = uns_thinker(fix.caster);
     T_NOT_NULL(old_thinker);
-    T_ASSERT(G_GetUnsummon(old_thinker)->approaching);
-    T_NOT_NULL(G_GetChannel(fix.caster));
-    T_NE(G_GetChannel(old_thinker)->serial, 0);
+    T_ASSERT(old_thinker->unsummon->approaching);
+    T_NOT_NULL(fix.caster->channel);
+    T_NE(old_thinker->channel->serial, 0);
     /* Simulate a newer cast serial while the earlier approach still exists. */
-    G_GetChannel(fix.caster)->serial++;
+    fix.caster->channel->serial++;
     S_SpellCancelChannel(fix.caster);
     T_ASSERT(old_thinker->inuse);
-    T_ASSERT(G_GetUnsummon(old_thinker)->approaching);
-    T_ASSERT(G_GetUnsummon(fix.caster)->approaching);
+    T_ASSERT(old_thinker->unsummon->approaching);
+    T_ASSERT(fix.caster->unsummon->approaching);
     uns_done(&fix);
 }
 
@@ -312,7 +312,7 @@ TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
     uns_tick(fix.caster, 2);
     first = uns_thinker(fix.caster);
     T_NOT_NULL(first);
-    T_ASSERT(!G_GetUnsummon(first) || !G_GetUnsummon(first)->approaching);
+    T_ASSERT(!first->unsummon || !first->unsummon->approaching);
     unit_issueimmediateorder(fix.caster, "stop");
 
     /* Leave the first demolition alive, then approach a second structure. */
@@ -340,7 +340,7 @@ TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
     fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     fix.client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     fix.unit->data.UnitBalance = &training_bal;
-    G_SetUnitFlag(fix.unit, UNIT_FLAG_TRAINING, true);
+    fix.unit->training = true;
     fix.building->build = fix.unit;
     T_ASSERT(G_ReserveTrainingFood(fix.unit));
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
@@ -400,12 +400,12 @@ TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     thinker = uns_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_ASSERT(WriteGame(filename));
-    thinker->think = NULL; thinker->goalentity = NULL;
+    thinker->think = NULL; S_SetMoveGoal(thinker, &thinker->goalentity, NULL);
     T_ASSERT(ReadGame(filename));
     thinker = uns_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_ASSERT(thinker->goalentity == fix.building);
-    T_EQ(G_GetChannel(thinker)->target_spawn_time, fix.building->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, fix.building->spawn_time);
     remove(filename);
     uns_done(&fix);
 }

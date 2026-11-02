@@ -59,9 +59,9 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;
-    if (damage_alert && unit->unit_state->shortcut_alert_until > G_Time()) {
+    if (damage_alert && unit->hero_shortcut_alert_until > G_Time()) {
         frame.flagsvalue |= UIFLAG_ALERT_RED_PULSE;
-        frame.value = (float)unit->unit_state->shortcut_alert_until;
+        frame.value = (float)unit->hero_shortcut_alert_until;
     }
     UI_SetShortcutRect(&frame, parent, x, y, size, size);
     UI_WriteProxyFrame(&frame, NULL, 0);
@@ -124,7 +124,7 @@ void UI_WriteUnitShortcutLayer(edict_t *clent) {
                                    HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
         UI_WriteShortcutNumber(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
                                HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                               HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->unit_state->hero.skillpoints);
+                               HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->hero.skillpoints);
     }
 
     if (!next_idle) next_idle = wrap_idle;

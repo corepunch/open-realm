@@ -64,7 +64,7 @@ static dispelFix_t dispel_setup(uint32_t code) {
 	fix.caster->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
 	fix.summon->svflags |= SVF_MONSTER; fix.far->svflags |= SVF_MONSTER;
 	fix.caster->targtype = fix.enemy->targtype = fix.summon->targtype = fix.far->targtype = TARG_GROUND;
-	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
 	fix.caster->mana.value = fix.caster->mana.max_value = 200;
 	fix.caster->health.value = fix.caster->health.max_value = 500;
 	fix.enemy->health.value = fix.enemy->health.max_value = 500;
@@ -261,8 +261,8 @@ TEST(wc3_spell, magical_dispel_preserves_ensnared_flyer_until_expiry) {
 	priest->s.player = raider->s.player = 0; flyer->s.player = 1;
 	priest->svflags |= SVF_MONSTER; raider->svflags |= SVF_MONSTER; flyer->svflags |= SVF_MONSTER;
 	priest->targtype = raider->targtype = TARG_GROUND; flyer->targtype = TARG_AIR;
-	priest->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
-	raider->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AENS, .level = 1);
+	priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+	raider->heroabilities[0] = MAKE(heroability_t, .code = BZ_AENS, .level = 1);
 	priest->mana.value = priest->mana.max_value = 100;
 	raider->mana.value = raider->mana.max_value = 100;
 	memset(&flyer_data, 0, sizeof(flyer_data));

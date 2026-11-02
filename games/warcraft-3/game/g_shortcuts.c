@@ -33,12 +33,12 @@ bool G_UnitIsWorker(edict_t const *ent) {
      * harvest-capable custom workers without a build menu. This avoids
      * hard-coding race/unit rawcodes while keeping combat-only resource
      * gatherers out unless their data explicitly makes them builders. */
-    return (builds && *builds) || G_ActorHasSkill((edict_t *)ent, "Ahar");
+    return (builds && *builds) || G_ActorHasAbilityCode((edict_t *)ent, MAKEFOURCC('A','h','a','r'));
 }
 
 bool G_UnitShowsHeroShortcut(gameClient_t *client, edict_t const *ent) {
     return G_ShortcutIsControlledMonster(client, ent) && ent->data.UnitBalance &&
-        ent->data.UnitUI && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) &&
+        ent->data.UnitUI && !(ent && ent->training) &&
         (!(ent->s.renderfx & RF_HIDDEN) || M_IsDead(ent)) &&
         !ent->data.UnitUI->hideHeroBar && !(ent->aiflags & AI_ILLUSION) &&
         G_UnitIsHero(ent);
@@ -46,9 +46,9 @@ bool G_UnitShowsHeroShortcut(gameClient_t *client, edict_t const *ent) {
 
 bool G_UnitIsIdleWorker(edict_t const *ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
-        !ent->data.UnitBalance || G_UnitHasFlag(ent, UNIT_FLAG_TRAINING) || G_UnitIsStructure(ent) ||
+        !ent->data.UnitBalance || (ent && ent->training) || G_UnitIsStructure(ent) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
-        S_GoldMineWorkerIsInside(ent) || (ent->orders && ent->orders->holding_position) ||
+        S_GoldMineWorkerIsInside(ent) || ent->movement.holding_position ||
         !ent->currentmove || ent->currentmove->proc || !ent->currentmove->animation ||
         strcmp(ent->currentmove->animation, "stand")) {
         return false;
@@ -93,7 +93,7 @@ void G_AlertHeroShortcutDamage(edict_t *ent) {
     if (!owner || owner->ps.number != ent->s.player || !G_UnitShowsHeroShortcut(owner, ent)) return;
 
     /* Damage used to leave the persistent Hero button visually unchanged; carry one expiry timestamp in its next layout instead. */
-    ent->unit_state->shortcut_alert_until = G_Time() + WC3_HERO_DAMAGE_ALERT_MS;
+    ent->hero_shortcut_alert_until = G_Time() + WC3_HERO_DAMAGE_ALERT_MS;
     G_InvalidateUnitShortcuts(owner);
 }
 

@@ -1,0 +1,1689 @@
+{
+  "schema": 1,
+  "scope": "Exactly the historical53 containing functions, NOT a complete direct-callsite inventory or a claim of53 gameplay producers. New calls/virtual edges must be reconciled separately.",
+  "engine_parity": false,
+  "classification_policy": {
+    "covered_bounded": "Accepted bounded producer evidence only; not whole-function parity.",
+    "missing": "Some producer coverage may exist, but exact row-level closure remains unproved.",
+    "other_owner": "Identified non-unit/Captain domain with explicit owner; not automatically proven irrelevant."
+  },
+  "historical_inventory": {
+    "path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/target-parameter-producers53-index.json",
+    "sha256": "34cffb3e7a2fd3c78b72428a61ed0e20ee8311a570e7d9bf342f3eb48c714376",
+    "count": 53
+  },
+  "frozen_decompilation": {
+    "path": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/target-parameter-producers53-decompilation.json",
+    "sha256": "33c2e7f646da53e875710ccb93e269824bb4bd1539ae47a11a698a26b5a7b655"
+  },
+  "global_open_leaves": 25,
+  "this_leaf": "TARGET-01.2",
+  "rows": [
+    {
+      "address": "0x6f05b940",
+      "rva": "0x05b940",
+      "name": "Unknown function at RVA 0x05b940",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "FUN_6f05b940(uint param_1,uint param_2,uint param_3,uint param_4,uint param_5,uint param_6,",
+      "task_ids_observed_in_frozen_body": [],
+      "bounded_existing_evidence": "Point-bridge argument adapter; no independent public command identity established.",
+      "exact_remaining_requirement": "Resolve its callers to the point-bridge owning rows and verify all eight forwarded arguments; do not count the wrapper as a separate gameplay command.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/FORM-01.3/HANDOFF.md",
+          "line": 35
+        }
+      ],
+      "frozen_body_key": "6f05b940"
+    },
+    {
+      "address": "0x6f40a7a0",
+      "rva": "0x40a7a0",
+      "name": "Initial shared-spell task producer",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "(WC3SpellAbilityPrefix *this,WC3UnitOrdersPrefix *unit_target,void *other_widget,",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd015f",
+        "0xd0160",
+        "0xd0161",
+        "0xd016b",
+        "0xd016e",
+        "0xd0174",
+        "0xd0178"
+      ],
+      "bounded_existing_evidence": "Target/far-point shared spell and bounded Acoi zero/authored/FLT_MAX/bit8 paths verified.",
+      "exact_remaining_requirement": "Complete the non-Acoi point-spell initially-in-range facing-away branch, plus any remaining shape-specific range/heading/force/stop branches; compare full polls and equality/adjacent inputs.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 228
+        },
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 670
+        },
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 680
+        },
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 695
+        },
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 701
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16966
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16967
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16976
+        }
+      ],
+      "frozen_body_key": "6f40a7a0"
+    },
+    {
+      "address": "0x6f40e030",
+      "rva": "0x40e030",
+      "name": "Spell target-phase completion",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Spell_CompleteTargetPhase(int *param_1,undefined4 param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd015f",
+        "0xd0160",
+        "0xd016b",
+        "0xd0174"
+      ],
+      "bounded_existing_evidence": "Acoi forced CHANNEL/FINISH/ENDCAST and target-binding cleanup measured.",
+      "exact_remaining_requirement": "Separate physical producer arguments from broader spell-phase lifecycle; cover remaining reachable task-producing branches, leave unrelated channel/reentrancy combinations to ORDER-01.13.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 703
+        }
+      ],
+      "frozen_body_key": "6f40e030"
+    },
+    {
+      "address": "0x6f418580",
+      "rva": "0x418580",
+      "name": "Harvest/resource target continuation; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f418580(int *param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0151",
+        "0xd0171",
+        "0xd0182",
+        "0xd0183",
+        "0xd0191"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve the resource variant and d0191/d0182/d0183 terminal branch; compare d0171 range against accepted Harvest approach evidence.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f418580"
+    },
+    {
+      "address": "0x6f418660",
+      "rva": "0x418660",
+      "name": "Harvest/resource authored-range continuation; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f418660(WC3SpellAbilityPrefix *param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0171",
+        "0xd0184",
+        "0xd0185"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve the resource variant and d0184/d0185 branch; compare captured authored cast range and reconstructed d0171 sequence.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f418660"
+    },
+    {
+      "address": "0x6f4192b0",
+      "rva": "0x4192b0",
+      "name": "Harvest/resource target-task constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f4192b0(int param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd0171",
+        "0xd0178",
+        "0xd0182",
+        "0xd0183"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Identify the public resource action producing d0182/d0183 and d0171; verify its entry range, force/stop/action parameters and complete approach polls.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f4192b0"
+    },
+    {
+      "address": "0x6f419380",
+      "rva": "0x419380",
+      "name": "Harvest/resource order/point retry constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f419380(int *param_1,void *param_2,uint param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0150",
+        "0xd0151",
+        "0xd0152",
+        "0xd0161",
+        "0xd0166",
+        "0xd016e",
+        "0xd0171",
+        "0xd0178",
+        "0xd0182",
+        "0xd0183",
+        "0xd0191"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Identify target versus point retry branches leading to d016e/d0171/d0182/d0183/d0191; reconcile with Harvest and Return evidence without assuming one variant covers all.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f419380"
+    },
+    {
+      "address": "0x6f419530",
+      "rva": "0x419530",
+      "name": "Harvest/resource point/target retry constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f419530(WC3SpellAbilityPrefix *param_1,int *param_2,uint param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0150",
+        "0xd0152",
+        "0xd0161",
+        "0xd0166",
+        "0xd016e",
+        "0xd0171",
+        "0xd0178",
+        "0xd0184",
+        "0xd0185",
+        "0xd01c2"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve resource variant and d01c2 versus d0184/d0185 dispatch; compare point retry and target-range parameters separately.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f419530"
+    },
+    {
+      "address": "0x6f426f50",
+      "rva": "0x426f50",
+      "name": "Root placed-point producer",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Root_BeginPlacedPointOrder(uint self,uint arg_04)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd00c5",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd016b",
+        "0xd0178",
+        "0xd018d",
+        "0xd018f"
+      ],
+      "bounded_existing_evidence": "Root placement angle, point approach and rooted completion integration documented.",
+      "exact_remaining_requirement": "Reconcile exact caller branches and boundary/firing evidence with Root/Entangle fixtures; bounded command integration alone is not all-function poll coverage.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 14670
+        }
+      ],
+      "frozen_body_key": "6f426f50"
+    },
+    {
+      "address": "0x6f42ca90",
+      "rva": "0x42ca90",
+      "name": "Resource Return target constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f42ca90(int param_1,void *param_2,int param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0150",
+        "0xd0152",
+        "0xd0166",
+        "0xd0174",
+        "0xd0178",
+        "0xd0186"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve public Return/resource owner and d0186/d0187 consumer; validate d0174 range and forced/retry branches against exact Return capture.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f42ca90"
+    },
+    {
+      "address": "0x6f4377d0",
+      "rva": "0x4377d0",
+      "name": "Unknown function at RVA 0x4377d0",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __fastcall FUN_6f4377d0(WC3SpellAbilityPrefix *param_1)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0151",
+        "0xd0167",
+        "0xd0171"
+      ],
+      "bounded_existing_evidence": "Historical53 contains this exact function body, but its public owner is not established by the cited repository documents.",
+      "exact_remaining_requirement": "Resolve the exact vtable/call chain into this address and identify the public command or non-unit owner. Account for its recorded task IDs 0xd0151, 0xd0167, 0xd0171; then attach existing producer evidence or supply the missing public parameter/boundary/full-poll test. Do not assign a guessed ability name.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f4377d0"
+    },
+    {
+      "address": "0x6f437ae0",
+      "rva": "0x437ae0",
+      "name": "Unknown function at RVA 0x437ae0",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f437ae0(int *param_1,float param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0167",
+        "0xd0171"
+      ],
+      "bounded_existing_evidence": "Historical53 contains this exact function body, but its public owner is not established by the cited repository documents.",
+      "exact_remaining_requirement": "Resolve the exact vtable/call chain into this address and identify the public command or non-unit owner. Account for its recorded task IDs 0xd0032, 0xd0167, 0xd0171; then attach existing producer evidence or supply the missing public parameter/boundary/full-poll test. Do not assign a guessed ability name.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f437ae0"
+    },
+    {
+      "address": "0x6f438680",
+      "rva": "0x438680",
+      "name": "Shared-spell target-approach continuation",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "CAbilitySimpleSpell_BeginTargetApproach(WC3SpellAbilityPrefix *ability,WC3ScriptEventPacket *packet)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0174"
+      ],
+      "bounded_existing_evidence": "Authored-range target continuation and public cast ownership are documented.",
+      "exact_remaining_requirement": "Match every retained continuation producer branch to existing full-poll evidence; add only uncovered heading/range boundary cases, not repeat initial40a7a0 proof.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 12929
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 12954
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13060
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16905
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16979
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 16980
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-reachable-inventory.md",
+          "line": 207
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
+          "line": 2434
+        }
+      ],
+      "frozen_body_key": "6f438680"
+    },
+    {
+      "address": "0x6f438880",
+      "rva": "0x438880",
+      "name": "Harvest deposit and resume",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Harvest_DepositAndResume(int *param_1,undefined4 param_2,int param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0150",
+        "0xd0167",
+        "0xd0174",
+        "0xd0186"
+      ],
+      "bounded_existing_evidence": "Gold/lumber deposit and explicit Return versus auto-resume ownership documented.",
+      "exact_remaining_requirement": "Audit its resulting point/target parameters against existing Harvest captures; remaining Harvest order lifetimes belong ORDER-01.12, not an invented new target family.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 28
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 37
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 39
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 86
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 87
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 88
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-harvest-ownership.md",
+          "line": 89
+        }
+      ],
+      "frozen_body_key": "6f438880"
+    },
+    {
+      "address": "0x6f4943f0",
+      "rva": "0x4943f0",
+      "name": "Attack target admission and retained idle home",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f4943f0(WC3AttackRangePrefix *param_1,WC3UnitOrdersPrefix *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0148",
+        "0xd014b",
+        "0xd0163",
+        "0xd0168",
+        "0xd016a",
+        "0xd016c",
+        "0xd016f"
+      ],
+      "bounded_existing_evidence": "Patrol public265 exposes idle-combat home range50 and failed-target ownership.",
+      "exact_remaining_requirement": "Finish current public265 complete stream and saved replay after failed-target cache correction; match retained home and replacement branches.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
+          "line": 523
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 1007
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 20142
+        }
+      ],
+      "frozen_body_key": "6f4943f0"
+    },
+    {
+      "address": "0x6f49a980",
+      "rva": "0x49a980",
+      "name": "Attack tasks from public order",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Attack_CreateTasksFromOrder(WC3AttackRangePrefix *ability,void *event)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0003",
+        "0xd000f",
+        "0xd0144",
+        "0xd0148",
+        "0xd0149",
+        "0xd014a",
+        "0xd014c",
+        "0xd014d",
+        "0xd014e",
+        "0xd0161",
+        "0xd0163",
+        "0xd0166",
+        "0xd0168",
+        "0xd016a",
+        "0xd016b",
+        "0xd016e",
+        "0xd016f",
+        "0xd0170",
+        "0xd0178"
+      ],
+      "bounded_existing_evidence": "Point371 raw synchronous point Attack and order-ownership integration verified.",
+      "exact_remaining_requirement": "Complete AttackMove initial/return/recovery numeric producer and full firing-poll matrix; do not reopen closed ORDER-01.10 public-head ownership.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 12180
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 20517
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 20551
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-point-command-admission.md",
+          "line": 6
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 27
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 28
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 30
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 157
+        }
+      ],
+      "frozen_body_key": "6f49a980"
+    },
+    {
+      "address": "0x6f49af00",
+      "rva": "0x49af00",
+      "name": "Attack Ground tasks",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Attack_CreateAttackGroundTasks(WC3AttackRangePrefix *ability,void *event)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd000f",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd0169",
+        "0xd016b",
+        "0xd0178"
+      ],
+      "bounded_existing_evidence": "Ground371 selected range, minimum rejection, immobile completion and blocked recovery verified.",
+      "exact_remaining_requirement": "Reconcile full firing-poll/equality-adjacent coverage for remaining selected-weapon/force branches; retain nonfiring ordinary-weapon policy.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-ground-command-admission.md",
+          "line": 3
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-point-command-admission.md",
+          "line": 61
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 27
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+          "line": 29
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/proposed-docs.md",
+          "line": 24
+        }
+      ],
+      "frozen_body_key": "6f49af00"
+    },
+    {
+      "address": "0x6f49d280",
+      "rva": "0x49d280",
+      "name": "Attack target-task recovery",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "Attack_RecoverTargetTask(WC3AttackRangePrefix *ability,int forced,undefined *target_event)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd016c"
+      ],
+      "bounded_existing_evidence": "Invalid-target recovery and prior target chase evidence documented.",
+      "exact_remaining_requirement": "Map forced versus ordinary recovery and resulting target/action arguments to exact captures; compare any still-uncovered complete poll suffix.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 15383
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.6.2.1.2/HANDOFF.md",
+          "line": 33
+        }
+      ],
+      "frozen_body_key": "6f49d280"
+    },
+    {
+      "address": "0x6f49eb00",
+      "rva": "0x49eb00",
+      "name": "Unknown function at RVA 0x49eb00",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f49eb00(WC3AttackRangePrefix *param_1,float param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd000f",
+        "0xd0011",
+        "0xd0148",
+        "0xd0168",
+        "0xd016a",
+        "0xd016c",
+        "0xd016f"
+      ],
+      "bounded_existing_evidence": "Attack-prefix continuation body appears in historical index; no exact public-owner proof cited.",
+      "exact_remaining_requirement": "Resolve task messages d0168/d016a/d016c/d016f and public Attack/AttackMove reachability; distinguish already-covered recovery from uncovered producer decisions.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f49eb00"
+    },
+    {
+      "address": "0x6f4e3c60",
+      "rva": "0x4e3c60",
+      "name": "Legacy Archer/Hippogryph coupling",
+      "classification": "covered_bounded",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f4e3c60(int param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd00ad",
+        "0xd014c",
+        "0xd014e",
+        "0xd0171",
+        "0xd0178",
+        "0xd018a"
+      ],
+      "bounded_existing_evidence": "Legacy target coupling zero-range reciprocal producer, two-ready merge and lifecycle captures verified.",
+      "exact_remaining_requirement": "Do not reopen the verified bounded producer; only classify any additional caller branch actually absent from that accepted legacy contract.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/hippogryph-couple.md",
+          "line": 129
+        }
+      ],
+      "frozen_body_key": "6f4e3c60"
+    },
+    {
+      "address": "0x6f54cc80",
+      "rva": "0x54cc80",
+      "name": "Unknown function at RVA 0x54cc80",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f54cc80(int *param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0161",
+        "0xd016b",
+        "0xd016e",
+        "0xd0171",
+        "0xd0178"
+      ],
+      "bounded_existing_evidence": "Historical53 contains this exact function body, but its public owner is not established by the cited repository documents.",
+      "exact_remaining_requirement": "Resolve the exact vtable/call chain into this address and identify the public command or non-unit owner. Account for its recorded task IDs 0xd0144, 0xd0148, 0xd014a, 0xd014c, 0xd014e, 0xd0161, 0xd016b, 0xd016e, 0xd0171, 0xd0178; then attach existing producer evidence or supply the missing public parameter/boundary/full-poll test. Do not assign a guessed ability name.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f54cc80"
+    },
+    {
+      "address": "0x6f54efe0",
+      "rva": "0x54efe0",
+      "name": "Inventory point drop / Give / Pawn tasks",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Inventory_CreatePointOrTargetDropTasks(int param_1,WC3UnitMoverBridge *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd016b",
+        "0xd0171",
+        "0xd0178",
+        "0xd017c",
+        "0xd017d",
+        "0xd0299"
+      ],
+      "bounded_existing_evidence": "Inventory point drop, Give/Pawn and target-associated full Drop100 producer documented.",
+      "exact_remaining_requirement": "Reconcile exact per-branch raw range/heading/force/stop and complete firing streams with existing Itemdrop evidence; avoid redoing accepted normal flows.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 808
+        },
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 879
+        },
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 939
+        },
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 1064
+        }
+      ],
+      "frozen_body_key": "6f54efe0"
+    },
+    {
+      "address": "0x6f55bb10",
+      "rva": "0x55bb10",
+      "name": "Inventory Smart pickup",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f55bb10(int param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0171",
+        "0xd0178",
+        "0xd017e"
+      ],
+      "bounded_existing_evidence": "Smart pickup d017e(item,0)+d0171(PickupItemRange), true physical/radial boundary and lifecycle evidence documented.",
+      "exact_remaining_requirement": "Check complete firing-poll and literal adjacent-boundary coverage for the remaining initial/reconstructed pickup branch; accepted periodic markers alone do not establish every poll.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 1155
+        },
+        {
+          "path": "docs/games/warcraft-3/inventory-and-items.md",
+          "line": 1198
+        }
+      ],
+      "frozen_body_key": "6f55bb10"
+    },
+    {
+      "address": "0x6f562380",
+      "rva": "0x562380",
+      "name": "Entangle retained target-action constructor",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f562380(int param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0178",
+        "0xd018b"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Map d018b construction and cancellation to accepted Entangle traces; prove any remaining task parameter and full-poll branch rather than infer from placement producer5624f0.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f562380"
+    },
+    {
+      "address": "0x6f5624f0",
+      "rva": "0x5624f0",
+      "name": "Entangle target placement producer",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f5624f0(int param_1,void *param_2,int param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd016b",
+        "0xd0178",
+        "0xd0182",
+        "0xd018b",
+        "0xd018f",
+        "0xd0190"
+      ],
+      "bounded_existing_evidence": "Entangle rooted-in-range versus unroot/placement producer integrated.",
+      "exact_remaining_requirement": "Reconcile rooted and placement task parameters and complete ordered polls; remaining ownership callback compositions are not automatically TARGET scope.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 22009
+        }
+      ],
+      "frozen_body_key": "6f5624f0"
+    },
+    {
+      "address": "0x6f562700",
+      "rva": "0x562700",
+      "name": "Entangle unroot/point retry constructor",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f562700(int param_1,uint param_2,uint param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd00b3",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0161",
+        "0xd016e",
+        "0xd0178",
+        "0xd0190"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Map d0190 and d016e retry route for Entangle d00b3; reconcile saved unroot/point ownership with existing Entangle evidence.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f562700"
+    },
+    {
+      "address": "0x6f56a930",
+      "rva": "0x56a930",
+      "name": "Entangle point-completion/root continuation",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f56a930(int param_1,uint param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd018f"
+      ],
+      "bounded_existing_evidence": "Entangle point completion appends facing/root action; separate terminal range documented.",
+      "exact_remaining_requirement": "Verify this continuation against saved placement replay and exact completion parameter evidence; identify only missing branch/poll coverage.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 22012
+        }
+      ],
+      "frozen_body_key": "6f56a930"
+    },
+    {
+      "address": "0x6f56ad70",
+      "rva": "0x56ad70",
+      "name": "Unknown function at RVA0x56ad70: d0171 target continuation",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f56ad70(int *param_1,undefined4 *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0171"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve owner/vtable and DAT_6fd6d920 range source for d0171; classify actual public reachability before asserting a new command family.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f56ad70"
+    },
+    {
+      "address": "0x6f56af20",
+      "rva": "0x56af20",
+      "name": "Entangle placement/task continuation",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f56af20(int param_1,undefined4 *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd00b3",
+        "0xd00b4",
+        "0xd016b",
+        "0xd0182",
+        "0xd018b",
+        "0xd018f"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Compare d018b/d018f and d016b re-entry for ordinary d00b3 versus instant d00b4 with accepted placement/native continuation streams.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f56af20"
+    },
+    {
+      "address": "0x6f59b180",
+      "rva": "0x59b180",
+      "name": "Resource target continuation; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f59b180(int *param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0171",
+        "0xd0184",
+        "0xd0185"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Identify which resource selector supplies d0184/d0185 and d0171; establish whether its range and retry behavior share or differ from418660.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f59b180"
+    },
+    {
+      "address": "0x6f59b8c0",
+      "rva": "0x59b8c0",
+      "name": "Resource target constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f59b8c0(int *param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd0171",
+        "0xd0178",
+        "0xd0182",
+        "0xd0183"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Identify selector/public action for d0182/d0183 target chain and its suspension/force gates; bind exact accepted capture or missing branch test.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f59b8c0"
+    },
+    {
+      "address": "0x6f59b9b0",
+      "rva": "0x59b9b0",
+      "name": "Resource point/target constructor; exact resource variant unresolved",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f59b9b0(int *param_1,void *param_2,uint param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0032",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0161",
+        "0xd0166",
+        "0xd016e",
+        "0xd0171",
+        "0xd0178",
+        "0xd0184",
+        "0xd0185"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Identify selector/public action for d0184/d0185 and point d016e branch; compare exact range/heading/force/stop and full retry polls.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f59b9b0"
+    },
+    {
+      "address": "0x6f5fad30",
+      "rva": "0x5fad30",
+      "name": "Move boarding task producer",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Move_CreateBoardTasks(WC3PathScalar param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0012",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd016c",
+        "0xd0173",
+        "0xd0174",
+        "0xd0178",
+        "0xd017f",
+        "0xd029d"
+      ],
+      "bounded_existing_evidence": "Boarding persistent/static carrier distinctions and range500 passenger path documented.",
+      "exact_remaining_requirement": "Map mobile/static/Float carrier branches to accepted captures and isolate missing boundary/complete poll coverage; cargo lifetimes remain their owning order tasks.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21188
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21275
+        }
+      ],
+      "frozen_body_key": "6f5fad30"
+    },
+    {
+      "address": "0x6f5fc640",
+      "rva": "0x5fc640",
+      "name": "Move target bridge",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "(WC3MoveSpeedPrefix *self,uint arg_04,uint arg_08,uint arg_0c,uint arg_10)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Shared captured-target bridge has multiple verified consumers.",
+      "exact_remaining_requirement": "Reconcile callsite arguments with each command owner; helper coverage alone cannot close a missing public producer. Avoid duplicate helper numerical work.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 12956
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13053
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 15287
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 17542
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 17548
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 19070
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21403
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-target-audit356.md",
+          "line": 52
+        }
+      ],
+      "frozen_body_key": "6f5fc640"
+    },
+    {
+      "address": "0x6f5fd270",
+      "rva": "0x5fd270",
+      "name": "Move tasks from order",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Move_CreateTasksFromOrder(uint self,uint arg_04,uint arg_08,uint arg_0c)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0002",
+        "0xd0003",
+        "0xd000f",
+        "0xd0012",
+        "0xd0014",
+        "0xd0016",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd014f",
+        "0xd0161",
+        "0xd0165",
+        "0xd0166",
+        "0xd016b",
+        "0xd016c",
+        "0xd016e",
+        "0xd0170",
+        "0xd0173",
+        "0xd0174",
+        "0xd0178",
+        "0xd0193"
+      ],
+      "bounded_existing_evidence": "Ordinary Move/Follow and current unit-target Patrol conversion evidence documented.",
+      "exact_remaining_requirement": "Finish Patrol integration checks for friendly target branch and retain existing Follow evidence; cover only still-unmapped force/stop/rejection branches.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 690
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 1105
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 5382
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 5469
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13025
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 14929
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 15146
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 17448
+        }
+      ],
+      "frozen_body_key": "6f5fd270"
+    },
+    {
+      "address": "0x6f5fdff0",
+      "rva": "0x5fdff0",
+      "name": "Patrol tasks",
+      "classification": "covered_bounded",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Move_CreatePatrolTasks(WC3MoveSpeedPrefix *move,void *event)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0012",
+        "0xd0017",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014e",
+        "0xd0166",
+        "0xd016b",
+        "0xd0175",
+        "0xd0178"
+      ],
+      "bounded_existing_evidence": "D113 CALL5fe12f to692120 supplies d016b, first endpoint X/Y, raw range0 and NULLassociation. Native265 captures27 calls (returnPC5fe134),27 d0175 two-point constructions and22 returns. Both-edition complete1084 public records and1632 ordered firing polls match, including path-cleared saved suffix. Threshold611.99993896484375/612/612.00006103515625, Move attachment/availability, runtime speed0 clamping and authored speed0 cases are covered; historical176 FIFO/rotation and saved continuation evidence is retained. Checkpoint290:18 processes,1226 tests,309036 assertions passed.",
+      "exact_remaining_requirement": "None for this bounded direct producer parameter contract. Preserve D113 coverage; this does not close TARGET-01.2 or resolve the separately enumerated computed-call receiver inventory.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 691
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 799
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 860
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 919
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 1086
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.18/HANDOFF.md",
+          "line": 8
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.18/HANDOFF.md",
+          "line": 31
+        },
+        {
+          "path": "games/warcraft-3/game/tests/fixtures/retail_patrol265_public.json"
+        },
+        {
+          "path": "games/warcraft-3/game/tests/t_patrol_public.c"
+        },
+        {
+          "path": "games/warcraft-3/game/tests/t_patrol_orders.c"
+        }
+      ],
+      "frozen_body_key": "6f5fdff0",
+      "bounded_checkpoint": {
+        "checkpoint": 290,
+        "processes": 18,
+        "tests": 1226,
+        "assertions": 309036,
+        "direct_call_instruction_rva": "0x5fe12f",
+        "native_recorded_return_pc_rva": "0x5fe134",
+        "native_direct_calls": 27,
+        "native_two_point_constructions": 27,
+        "native_return_continuations": 22,
+        "public_records": 1084,
+        "ordered_poll_rows": 1632,
+        "both_editions": true,
+        "path_cleared_saved_suffix": true,
+        "scope": "D113 actual-command parameters and assigned admission/continuation cases only"
+      }
+    },
+    {
+      "address": "0x6f5fe3e0",
+      "rva": "0x5fe3e0",
+      "name": "Unknown function at RVA 0x5fe3e0",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f5fe3e0(int param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0012",
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0166",
+        "0xd0174",
+        "0xd0178",
+        "0xd018e"
+      ],
+      "bounded_existing_evidence": "Historical53 contains this exact function body, but its public owner is not established by the cited repository documents.",
+      "exact_remaining_requirement": "Resolve the exact vtable/call chain into this address and identify the public command or non-unit owner. Account for its recorded task IDs 0xd0012, 0xd0144, 0xd0148, 0xd014a, 0xd014c, 0xd014e, 0xd0166, 0xd0174, 0xd0178, 0xd018e; then attach existing producer evidence or supply the missing public parameter/boundary/full-poll test. Do not assign a guessed ability name.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f5fe3e0"
+    },
+    {
+      "address": "0x6f5feb60",
+      "rva": "0x5feb60",
+      "name": "Static boarding retry",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __fastcall Move_RetryStaticBoard(WC3PathScalar param_1)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0174",
+        "0xd017f",
+        "0xd0194"
+      ],
+      "bounded_existing_evidence": "Static boarding half-second retry and bounded repeated failure evidence documented.",
+      "exact_remaining_requirement": "Reconcile retry range/heading/force/stop and complete firing suffix with accepted boarding fixtures; no generic cargo expansion.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21193
+        }
+      ],
+      "frozen_body_key": "6f5feb60"
+    },
+    {
+      "address": "0x6f5ffb60",
+      "rva": "0x5ffb60",
+      "name": "Move point-task handler",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Move_HandlePointTask(uint self,uint arg_04,uint arg_08,uint arg_0c)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0050",
+        "0xd0196",
+        "0xd0198",
+        "0xd01c3"
+      ],
+      "bounded_existing_evidence": "Ordinary point Move independently closed TARGET-01.4; public point command routing documented.",
+      "exact_remaining_requirement": "Retain ordinary zero-range Move closure; identify only extra command/force/cannot-path callers not covered by it.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 5469
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13367
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13379
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13412
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 17031
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-movement.md",
+          "line": 763
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-movement.md",
+          "line": 861
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-movement.md",
+          "line": 1013
+        }
+      ],
+      "frozen_body_key": "6f5ffb60"
+    },
+    {
+      "address": "0x6f600080",
+      "rva": "0x600080",
+      "name": "Move continuation including captured Waygate exit",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Move_AdvanceTaskContinuation(uint param_1,uint param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0012",
+        "0xd016b",
+        "0xd0174",
+        "0xd018e"
+      ],
+      "bounded_existing_evidence": "Captured Waygate exit and Move continuation appear in static body; Waygate377 integration documented.",
+      "exact_remaining_requirement": "Reconcile the Waygate continuation with377 full replay; classify non-Waygate continuation branches separately rather than extending that closure.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f600080"
+    },
+    {
+      "address": "0x6f62e8f0",
+      "rva": "0x62e8f0",
+      "name": "Militia partner approach",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall FUN_6f62e8f0(int param_1,WC3UnitOrdersPrefix *param_2,undefined4 param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e",
+        "0xd0174",
+        "0xd0178",
+        "0xd0188"
+      ],
+      "bounded_existing_evidence": "Militia Hall current-rank range and facing-only FLT_MAX, forward/reverse initial cases and forward lifecycle verified.",
+      "exact_remaining_requirement": "Audit exact full-poll/boundary coverage beyond accepted initial projections; reverse interruption matrix is not claimed by forward lifecycle evidence.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 22414
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 22419
+        }
+      ],
+      "frozen_body_key": "6f62e8f0"
+    },
+    {
+      "address": "0x6f643720",
+      "rva": "0x643720",
+      "name": "Unknown function at RVA0x643720: d024d/d029a point branch",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __fastcall FUN_6f643720(float param_1)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd014c",
+        "0xd014e",
+        "0xd016b",
+        "0xd0178",
+        "0xd024d",
+        "0xd029a"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve public action d024d and internal point action d029a, including caller into644350; identify authored point transform/range and required branch test.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f643720"
+    },
+    {
+      "address": "0x6f644350",
+      "rva": "0x644350",
+      "name": "Unknown function at RVA0x644350: d029b target branch",
+      "classification": "missing",
+      "owner": "Unresolved; retained in TARGET-01.2 inventory",
+      "historical_signature": "void __thiscall FUN_6f644350(int param_1,void *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd014c",
+        "0xd014e",
+        "0xd0174",
+        "0xd0178",
+        "0xd029b"
+      ],
+      "bounded_existing_evidence": "Frozen historical function-body task dispatch and coordinated original-code inventory establish the stated family only; exact variant/public reachability remains as stated, not engine parity.",
+      "exact_remaining_requirement": "Resolve public owner of d029b and caller643720; identify target range/force/stop inputs and whether existing producer evidence already covers them.",
+      "repository_evidence": [],
+      "frozen_body_key": "6f644350"
+    },
+    {
+      "address": "0x6f690a50",
+      "rva": "0x690a50",
+      "name": "Unit suspension tasks",
+      "classification": "missing",
+      "owner": "TARGET-01.2",
+      "historical_signature": "void __thiscall Unit_CreateSuspensionTasks(WC3UnitOrdersPrefix *param_1,int param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0144",
+        "0xd0145",
+        "0xd0146",
+        "0xd0147",
+        "0xd0148",
+        "0xd014a",
+        "0xd014c",
+        "0xd014e"
+      ],
+      "bounded_existing_evidence": "Suspension d0144 before physical begin documented.",
+      "exact_remaining_requirement": "Associate each suspension producer with existing Pause/Sleep/movement contracts; prove any remaining command-specific force/stop argument without reopening generic pause domains.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 18822
+        }
+      ],
+      "frozen_body_key": "6f690a50"
+    },
+    {
+      "address": "0x6f6cf5e0",
+      "rva": "0x6cf5e0",
+      "name": "Artillery-line point-path initialization",
+      "classification": "other_owner",
+      "owner": "Projectile/route owner; exclusion requires retaining cited provenance",
+      "historical_signature": "void __thiscall CArtilleryLine_StartPointPath(uint self)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0196",
+        "0xd0198",
+        "0xd01aa",
+        "0xd01c1"
+      ],
+      "bounded_existing_evidence": "Projectile path classes and target capture explicitly identified in route/target audit.",
+      "exact_remaining_requirement": "Keep projectile lifecycle/path consumers separate from public unit commands; reconcile this exact direct call with the existing projectile/route owner before excluding it from the factory graph.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9027
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9058
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-routes.md",
+          "line": 119
+        }
+      ],
+      "frozen_body_key": "6f6cf5e0"
+    },
+    {
+      "address": "0x6f6cfe00",
+      "rva": "0x6cfe00",
+      "name": "Missile-line point-path initialization",
+      "classification": "other_owner",
+      "owner": "Projectile/route owner; exclusion requires retaining cited provenance",
+      "historical_signature": "void __thiscall CMissileLine_StartPointPath(uint self)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0196",
+        "0xd0198",
+        "0xd01aa",
+        "0xd01c1"
+      ],
+      "bounded_existing_evidence": "Projectile path classes and target capture explicitly identified in route/target audit.",
+      "exact_remaining_requirement": "Keep projectile lifecycle/path consumers separate from public unit commands; reconcile this exact direct call with the existing projectile/route owner before excluding it from the factory graph.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9027
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9059
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-routes.md",
+          "line": 119
+        }
+      ],
+      "frozen_body_key": "6f6cfe00"
+    },
+    {
+      "address": "0x6f6d0630",
+      "rva": "0x6d0630",
+      "name": "Missile target replacement",
+      "classification": "other_owner",
+      "owner": "Projectile/route owner; exclusion requires retaining cited provenance",
+      "historical_signature": "void __thiscall FUN_6f6d0630(uint param_1,undefined4 param_2,int *param_3)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Projectile path classes and target capture explicitly identified in route/target audit.",
+      "exact_remaining_requirement": "Keep projectile lifecycle/path consumers separate from public unit commands; reconcile this exact direct call with the existing projectile/route owner before excluding it from the factory graph.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21407
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-target-audit356.md",
+          "line": 63
+        }
+      ],
+      "frozen_body_key": "6f6d0630"
+    },
+    {
+      "address": "0x6f6d30c0",
+      "rva": "0x6d30c0",
+      "name": "Shared missile point-path initialization",
+      "classification": "other_owner",
+      "owner": "Projectile/route owner; exclusion requires retaining cited provenance",
+      "historical_signature": "void __thiscall CMissile_StartPointPath(uint self,uint arg_04,uint arg_08,uint arg_0c,uint arg_10)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0196",
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Projectile path classes and target capture explicitly identified in route/target audit.",
+      "exact_remaining_requirement": "Keep projectile lifecycle/path consumers separate from public unit commands; reconcile this exact direct call with the existing projectile/route owner before excluding it from the factory graph.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9027
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9060
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-routes.md",
+          "line": 119
+        }
+      ],
+      "frozen_body_key": "6f6d30c0"
+    },
+    {
+      "address": "0x6f6d3190",
+      "rva": "0x6d3190",
+      "name": "Shared missile target-path initialization",
+      "classification": "other_owner",
+      "owner": "Projectile/route owner; exclusion requires retaining cited provenance",
+      "historical_signature": "void __thiscall CMissile_StartTargetPath(uint self,uint arg_04,uint arg_08,uint arg_0c,uint arg_10)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0196",
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Projectile path classes and target capture explicitly identified in route/target audit.",
+      "exact_remaining_requirement": "Keep projectile lifecycle/path consumers separate from public unit commands; reconcile this exact direct call with the existing projectile/route owner before excluding it from the factory graph.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 9061
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21406
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-routes.md",
+          "line": 119
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-target-audit356.md",
+          "line": 63
+        }
+      ],
+      "frozen_body_key": "6f6d3190"
+    },
+    {
+      "address": "0x6f9d16c0",
+      "rva": "0x9d16c0",
+      "name": "Captain member-order update",
+      "classification": "other_owner",
+      "owner": "GROUP / Captain contracts",
+      "historical_signature": "void __thiscall CaptainAI_UpdateMemberOrders(WC3CaptainAIPrefix *captain)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd00",
+        "0xd0012",
+        "0xd0196",
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Captain473 retreat member policy integrated.",
+      "exact_remaining_requirement": "Keep Captain strategic/member policy under GROUP ownership; reconcile this direct producer with existing Captain parameter gates, do not claim whole-group closure.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
+          "line": 614
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain473.md",
+          "line": 23
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain473.md",
+          "line": 63
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 6281
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13374
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13516
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-reachable-inventory.md",
+          "line": 167
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-routes.md",
+          "line": 451
+        }
+      ],
+      "frozen_body_key": "6f9d16c0"
+    },
+    {
+      "address": "0x6f9d3bc0",
+      "rva": "0x9d3bc0",
+      "name": "Captain combat target update",
+      "classification": "other_owner",
+      "owner": "GROUP / Captain contracts",
+      "historical_signature": "void __thiscall FUN_6f9d3bc0(WC3CaptainAIPrefix *param_1,WC3UnitOrdersPrefix *param_2)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd000f",
+        "0xd0014",
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Captain zero-radius target capture documented.",
+      "exact_remaining_requirement": "Remaining composed Captain combat-target movement belongs GROUP-03.2; retain captured range-helper proof and identify any distinct TARGET argument gap.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-target-audit356.md",
+          "line": 62
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/FORM-01.3/proposed-docs.md",
+          "line": 17
+        }
+      ],
+      "frozen_body_key": "6f9d3bc0"
+    },
+    {
+      "address": "0x6f9d44d0",
+      "rva": "0x9d44d0",
+      "name": "Captain point request",
+      "classification": "other_owner",
+      "owner": "GROUP / Captain contracts",
+      "historical_signature": "(WC3CaptainAIPrefix *captain,WC3PathScalar *x,WC3PathScalar *y,uint retain_request,",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0014",
+        "0xd0196",
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Captain authored point/range publication and ordinary point contrast documented.",
+      "exact_remaining_requirement": "Preserve Captain parameter evidence; remaining composed journeys/strategic membership belong GROUP, not ordinary Move re-research.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain473.md",
+          "line": 23
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 6664
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13373
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 13412
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
+          "line": 2001
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding.md",
+          "line": 443
+        }
+      ],
+      "frozen_body_key": "6f9d44d0"
+    },
+    {
+      "address": "0x6f9d4600",
+      "rva": "0x9d4600",
+      "name": "Captain live-target movement refresh",
+      "classification": "other_owner",
+      "owner": "GROUP / Captain contracts",
+      "historical_signature": "(WC3CaptainAIPrefix *captain,WC3UnitOrdersPrefix *target,uint policy,WC3PathScalar *range)",
+      "task_ids_observed_in_frozen_body": [
+        "0xd0198"
+      ],
+      "bounded_existing_evidence": "Captain live-target selected approach range and null-target point branch documented.",
+      "exact_remaining_requirement": "Match those two branches to existing Captain gates; remaining composed moving-target policy is GROUP-owned.",
+      "repository_evidence": [
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
+          "line": 477
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 6510
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+          "line": 21405
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-target-audit356.md",
+          "line": 62
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding.md",
+          "line": 443
+        },
+        {
+          "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/FORM-01.3/proposed-docs.md",
+          "line": 17
+        }
+      ],
+      "frozen_body_key": "6f9d4600"
+    }
+  ]
+}

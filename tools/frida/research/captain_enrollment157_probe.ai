@@ -1,0 +1,7 @@
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call CreateCaptains()
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction

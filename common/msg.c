@@ -34,6 +34,7 @@ netField_t entityStateFields[] = {
     /* Whole-unit coordinates turned fractional RTS movement into visible grid steps. */
     { NETF(entityState_t, origin), NFT_VECTOR3_FLOAT },
     { NETF(entityState_t, angle), NFT_ANGLE },
+    { NETF(entityState_t, pose_offset), NFT_VECTOR3_FLOAT },
 #ifdef WOW
     { NETF(entityState_t, rotation), NFT_VECTOR3 },
 #endif

@@ -53,7 +53,7 @@ static void tm_setup(tmFix_t *fix) {
     fix->enemy->data.UnitBalance = &fix->enemy_bal;
     fix->ally->data.UnitBalance = &fix->ally_bal;
     fix->hero->data.UnitBalance = &fix->hero_bal;
-    fix->caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ANTM, .level = 1);
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANTM, .level = 1);
     fix->caster->mana.value = fix->caster->mana.max_value = 200;
     fix->enemy->health.value = fix->enemy->health.max_value = 500;
     fix->ally->health.value = fix->ally->health.max_value = 500;

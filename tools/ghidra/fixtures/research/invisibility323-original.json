@@ -1,0 +1,269 @@
+{
+  "schema": 1,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope": "Original counter transitions, private freeze/resume and paused refresh with labelled clock/heap/context services; no public or scheduler parity claim.",
+  "executed_function_rvas": [
+    "0x427610",
+    "0x43b0e0",
+    "0x531420",
+    "0x532fa0",
+    "0x531a80",
+    "0x532b50",
+    "0x606c0",
+    "0x60ad0"
+  ],
+  "guard_only_function_rvas": [
+    "0x48e460",
+    "0x48b4c0",
+    "0x697770",
+    "0x6977a0",
+    "0x6977f0",
+    "0x688d30",
+    "0x69c490",
+    "0x62f050",
+    "0x62f280",
+    "0x63ce40",
+    "0x52fe50"
+  ],
+  "external_services": {
+    "060a90": "Active-request remaining fixture value8; original060ad0 no-request branch still executes and returnszero.",
+    "embedded_v1c": "Elapsed fixture value2.",
+    "FloatMini_setter": "Copies supplied raw word; no notification subscribers.",
+    "0609b0": "Records event d01c4 and requested duration, installs synthetic request; no heap/time advancement.",
+    "buff_v1b4_v1c8_324_348": "Context/selector notifications, selector0; no gameplay callbacks."
+  },
+  "inputs": {
+    "live_remaining_word": 1090519040,
+    "live_elapsed_word": 1073741824,
+    "paused_refresh_duration_word": 1077936128
+  },
+  "guards": [
+    {
+      "rva": "0x427610",
+      "length": 34,
+      "sha256": "8bf39c6aa9dba483707d7f36a2183d37de5f95dfc97726e7b33efe1a93f067af",
+      "bytes": "558bec8b51488b450801414885d27f0e837948007e088b01ff90e80000005dc20400"
+    },
+    {
+      "rva": "0x43b0e0",
+      "length": 34,
+      "sha256": "c12f9034000bae852d1dc6144fa5f298b589e4f9020d993465e38b8dba07d4ae",
+      "bytes": "558bec8b51488b450829414885d27e0e837948007f088b01ff90ec0000005dc20400"
+    },
+    {
+      "rva": "0x531420",
+      "length": 97,
+      "sha256": "8b5fe299b26aa72f91d6e3a1ccd402cc52f934fa54c32c9aa12c0639612c627c",
+      "bytes": "558bec51568bf18d4dfc57518b86840000008d8e84000000ff50188b96a80000008d8ea80000006a0150ff128b86840000008d4dfc518d8e84000000ff501c8b96a00000008d8ea00000006a0150ff128d8e84000000e845f2b2ff5f5e8be55dc3"
+    },
+    {
+      "rva": "0x532fa0",
+      "length": 72,
+      "sha256": "3c76a6665c96a373f040b4bcc6f835a52a5192ea632b2ddf76dc54b5fd675e44",
+      "bytes": "558bec51568bf18b86ac0000008945fcf30f1045fc0f2f0544c7d36f76108b068d4dfc6a00518bceff904c0300008b86a80000008d8ea80000006a016844c7d36fff105e8be55dc3"
+    },
+    {
+      "rva": "0x531a80",
+      "length": 131,
+      "bytes": "558bec53578bf98b07ff90b40100008b078bcfff90c80100008b078bcfff7508ff90240300008b5d0c8d8f84000000f30f10030f2f0544c7d36f7635814f20800000008d55088b0152ff5018f30f10030f2f007628568b378bcfff964803000050538bcfff964c0300005e5f5b5dc20800e8caebb2ff8167207fffffff5f5b5dc20800",
+      "sha256": "7bf028ce403a0c06914d1c52ee66f6113a793658f322c8ffb2e83d1ec197aa5f"
+    },
+    {
+      "rva": "0x532b50",
+      "length": 85,
+      "sha256": "aec8d847645bad0e52ed920ccfba99927dd99e4f216d7d1a3aefeba5a23e2456",
+      "bytes": "558bec56578bf98d8f84000000e85edbb2ff8b87a00000008d8fa00000006a016844c7d36fff106a006a005768c4010d00ff75088d8f84000000e821deb2ff837d0c00740a8b078bcfff90040300005f5e5dc20800"
+    },
+    {
+      "rva": "0x606c0",
+      "length": 59,
+      "bytes": "568bf18b460c85c0740df6401201750781481000000100c7460c000000008b4e0885c97410ff490475048b01ff10c7460800000000836610f95ec3",
+      "sha256": "ef0017b5a364d55d9175e13b342d3c3be21c2c561784de74467adbaf17a542ef"
+    },
+    {
+      "rva": "0x60ad0",
+      "length": 201,
+      "bytes": "558bec83ec10578bf9837f0c0075128b45088b0d44c7d36f5f89088be55dc2040066837f14000f868b000000a144c7d36f8945fc0fb7471683f801762b6894c8d36f8d50ff8d4df8e8630201008bd08d4df4e899ee0000508d55fc8d4df0e87df000008b008945fc8b570c8d4df88b420c83c20483c04050e843ef00008d45f8508d55fc8d4df0e854f0000066837f16008b008945fc76118d4718508d55fc8d4df0e839f000008b008b4d085f89018bc18be55dc20400ff7508e801ffffff8b45085f8be55dc20400",
+      "sha256": "5eced666a28e8493f3cf6e07da2a33d9b4f35e48ce57f255affff069697a3e08"
+    },
+    {
+      "rva": "0x48e460",
+      "length": 117,
+      "sha256": "853ea97f8d90a9407aa1b2bf2456898e805881947b7e3b2d6004f3229da21553",
+      "bytes": "558bec33c0538b5d0885db0f95c08d0445ffffffff0181d401000081c1dc0100008b4104230183f8ff744556e88f2ebdff8bf085f67438578b46288d4e2423018bfe83f8ff750433f6eb07e8702ebdff8bf08b078bcf6a0185db7408ff90bc000000eb06ff90c000000085f675ca5f5e5b5dc20400"
+    },
+    {
+      "rva": "0x48b4c0",
+      "length": 781,
+      "bytes": "558bec6aff68b826a26f64a10000000050535657a19c68ce6f33c5508d45f464a3000000008bf18b7d08f64720400f85c50200008b078bcfff90e001000085c074298b068bceff901c01000085c0741b8bcfe83997f6ff8b4df464890d00000000595f5e5b8be55dc204008b86dc0100008d9edc01000023430483f8ff743f8bcbe8da5dbdff85c074348b50108b480ce8db8fbcff85c0742533c981780c6c67612b0f94c133d285c90f45d085d2740e8b42148947248b4218894728eb0ec74728ffffffffc74724ffffffff578bcbe87c8dd9ff8b078bcfff501c3d75624e417f39744e3d756248417f1274453d75624541743e3d756247417437eb523d72654841740f3d766e4941754489bef8010000eb3c89bef0010000eb343d6b7461417f2074163d75624f4174073d75625541751d89bef4010000eb1589bee8010000eb0d3d766f6d41750689beec0100008b078bcfff90b00100008b078bcfff90b40100008b86b801000085c0740a506a008bcfe8a9c0f7ff8b86c401000085c0740a506a018bcfe895c0f7ff83bed001000000741d8b078bcfff90d000000085c0740fffb6d00100008bcf6a00e86fc0f7ff8b8ed401000085c9740b8b07518bcfff90bc00000083bed801000000743c578d4d08e838faf0ff8b4d08c745fc0000000085c974118b01ffb6d8010000ff90bc0000008b4d08c745fcffffffff85c97409ff490475048b01ff108b078bcfff90d801000085c074288b86bc01000085c0740a506a008bcfe8f3bff7ff8b86c801000085c0740a506a018bcfe8dfbff7ff8b078bcfff90dc01000085c074288b86c001000085c0740a506a008bcfe8bdbff7ff8b86cc01000085c0740a506a018bcfe8a9bff7ff83be58010000007e398b078bcfff90e001000085c0752b8b078bcfff90e401000085c0751d8b078bcfff501c8bf0e8d6d200003bf0750b6a016a008bcfe867bff7ff8b4304230383f8ff74368bcbe8965bbdff8bf085f674298b46288d4e2423018bde83f8ff750433f6eb07e8785bbdff8bf08b038bcb57ff90a401000085f675d78b4df464890d00000000595f5e5b8be55dc20400",
+      "sha256": "ba54122ac2357981422bc8eceb66f77d98dac4ef9debbe7c7d63368de6b1bc60"
+    },
+    {
+      "rva": "0x697770",
+      "length": 44,
+      "bytes": "568bf1f7465c00002000751e814e5c00002000f7465c000010007405e80f0000006a008bcee89615ffff5ec3",
+      "sha256": "86b9467d91c752f575d069f5f2f93bc057ee47d3628f42e8c066128899cbf9e3"
+    },
+    {
+      "rva": "0x6977a0",
+      "length": 27,
+      "sha256": "1a60ecb587e2c804b11b713d9845249454fff63026d989a496bb398885393d9f",
+      "bytes": "566a018bf1e8b66cdfff6a006a006a016a018bcee80751dfff5ec3"
+    },
+    {
+      "rva": "0x6977f0",
+      "length": 27,
+      "sha256": "b4d2ff70491d0b99e0953fe5c10e92cfccba5d43f63cc2d4c71035af75c2c375",
+      "bytes": "566a006a006a006a018bf1e8c050dfff6a008bcee8576cdfff5ec3"
+    },
+    {
+      "rva": "0x688d30",
+      "length": 94,
+      "bytes": "558bec568bf18b56548d420189465485d27546f7465c00001000740ae8df53ffff5e5dc204008b066a016a006a006a006844c7d36f6844c7d36fff75086a00ff90ec0000008bd0b905000d00e8ff2f0100508bcee89775ffff5e5dc20400",
+      "sha256": "3e3288106aa46a1833a3f946a9488c4a2ad0c8994f78e971ec2b77de51bd3e83"
+    },
+    {
+      "rva": "0x69c490",
+      "length": 51,
+      "sha256": "c7ced0e8d89d263b1f1e29885739467d3b93b0618c1850c8d3d7bc833fe9f579",
+      "bytes": "568bf1e8b878ffff837e54007e23814e5c000010008bcee8e4c8feff83665cfef7465c0000200074088bce5ee9dfb2ffff5ec3"
+    },
+    {
+      "rva": "0x62f050",
+      "length": 222,
+      "bytes": "558bec83ec3853568bf1578b7d088bcf8b5e50e8a81ffdff8bce5385c0740b8d45ec50e8f864deffeb298d45e850e86d5fdeff8b8e9c0000008d55f8894dfc8d4df48b008945f88d45fc50e8100ba4ff8d45f48b008bceff76508945088d45f050e89a5adeff6a00568d4dc8e87fc2dbff6a016a016a006a00e8f2a20000508bcfe8aadae5ff85c0741b8b108d4d08518d4dc8518bc8ff92500300005f5e5b8be55dc20400e83627feff8bf08d45c8508bce8b16ff92240300008b168d45f0508d45088bce5057ff9254030000568bcfe8abc6e5ff5f5e5b8be55dc20400",
+      "sha256": "088babcddac2d9ff8a85ea24d12646d2ea75f2cfec448df374dd8c3211126374"
+    },
+    {
+      "rva": "0x62f280",
+      "length": 215,
+      "bytes": "558bec83ec38568bf1578b7e3085ff7507e82a6aa2ff8bf8538b5e508bcfe86d1dfdff8bce5385c0740b8d45ec50e8bd62deffeb298d45e850e8325ddeff8b8e9c0000008d55f4894df88d4df08b008945f48d45f850e8d508a4ff8d45f08b008d4dc86a00568945fce852c0dbff6a016a016a006a00e8c5a00000508bcfe87dd8e5ff5b85c074188b108d4dfc518d4dc8518bc8ff92500300005f5e8be55dc3e80b25feff8bf08d45c8508bce8b16ff92240300008b168d45fc684cc7d36f50578bceff9254030000568bcfe87fc4e5ff5f5e8be55dc3",
+      "sha256": "19138394cb2868b2323d0fcdc6dbee23fafde71e91640e629184fb52aa5083ac"
+    },
+    {
+      "rva": "0x63ce40",
+      "length": 73,
+      "bytes": "558bec538bd956ff75108d8bcc000000e83bb3a1ff8b038bcb8b75086a01ff750c56ff90200300006a01538bcee86e310500ff7510814b20000100008bcee85dc802005e5b5dc20c00",
+      "sha256": "9a7ea8c10906027f63cc59f8a09b49ebe2891dc70659323fb6dfbaeb3de9a20f"
+    },
+    {
+      "rva": "0x52fe50",
+      "length": 160,
+      "bytes": "558bec56578bf16a00ff75088b7e34e8acffffff85ff7403897e34837d10007507814e20000000018b068bceff9040030000ff75088bcee85479efff8b4d0cf30f10010f2f0544c7d36f761a814e20800000008b066a00518bceff904c0300005f5e5dc20c008b86a80000008d8ea80000006a016844c7d36fff108b86a00000008d8ea00000006a016844c7d36fff108b068bceff90ec0000005f5e5dc20c00",
+      "sha256": "249600dd34e077314f46e75fc47ccf74fafcc4f57e388f7c3032d73e3486e037"
+    }
+  ],
+  "rows": [
+    {
+      "case": "first_add",
+      "depth": 1,
+      "active": false,
+      "frozen_word": 1090519040,
+      "elapsed_word": 1073741824,
+      "calls": [
+        "remaining",
+        "scalar",
+        "elapsed",
+        "scalar"
+      ],
+      "rearm_word": null,
+      "stack_delta": 8
+    },
+    {
+      "case": "nested_add",
+      "depth": 2,
+      "active": false,
+      "frozen_word": 1090519040,
+      "elapsed_word": 1073741824,
+      "calls": [],
+      "rearm_word": null,
+      "stack_delta": 8
+    },
+    {
+      "case": "nonlast_remove",
+      "depth": 1,
+      "active": false,
+      "frozen_word": 1090519040,
+      "elapsed_word": 1073741824,
+      "calls": [],
+      "rearm_word": null,
+      "stack_delta": 8
+    },
+    {
+      "case": "paused_refresh",
+      "depth": 1,
+      "active": true,
+      "frozen_word": 1090519040,
+      "elapsed_word": 0,
+      "calls": [
+        "v1b4",
+        "v1c8",
+        "context",
+        "selector",
+        "scalar",
+        "rearm"
+      ],
+      "rearm_word": 1077936128,
+      "stack_delta": 12
+    },
+    {
+      "case": "last_remove",
+      "depth": 0,
+      "active": true,
+      "frozen_word": 0,
+      "elapsed_word": 0,
+      "calls": [
+        "scalar",
+        "rearm",
+        "scalar"
+      ],
+      "rearm_word": 1090519040,
+      "stack_delta": 8
+    },
+    {
+      "case": "inherited_three",
+      "depth": 3,
+      "active": false,
+      "frozen_word": 1090519040,
+      "elapsed_word": 1073741824,
+      "calls": [
+        "remaining",
+        "scalar",
+        "elapsed",
+        "scalar"
+      ],
+      "rearm_word": null,
+      "stack_delta": 8
+    },
+    {
+      "case": "inherited_remove_two",
+      "depth": 1,
+      "active": false,
+      "frozen_word": 1090519040,
+      "elapsed_word": 1073741824,
+      "calls": [],
+      "rearm_word": null,
+      "stack_delta": 8
+    },
+    {
+      "case": "inherited_last",
+      "depth": 0,
+      "active": true,
+      "frozen_word": 0,
+      "elapsed_word": 0,
+      "calls": [
+        "scalar",
+        "rearm",
+        "scalar"
+      ],
+      "rearm_word": 1090519040,
+      "stack_delta": 8
+    }
+  ],
+  "negative_controls": 9,
+  "limits": [
+    "Synthetic fixture clock values8/2/3 are not measured public durations.",
+    "Does not execute scriptPause/Sleep/task admission or fresh list inheritance; those bodies are guarded static evidence only.",
+    "No claim for callback mutation, world pause, elapsed arithmetic, signed counter overflow or negative depths."
+  ]
+}

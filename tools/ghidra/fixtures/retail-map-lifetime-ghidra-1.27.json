@@ -1,0 +1,36 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f1591e0",
+      "name": "PathOwner_Destroy",
+      "comment": "[MAP-06.1] Thiscall ECX owner. Path owner destructor; first call 6f15b620. Callers 6f0509d0 (owner replacement), 6f053110, 6f04c020.",
+      "signature": "undefined PathOwner_Destroy(void)"
+    },
+    {
+      "address": "6f0509d0",
+      "name": "PathOwner_Replace",
+      "comment": "[MAP-06.1] Thiscall ECX seed; SMemAlloc(0x978) + PathOwner_Construct, destroy+free the previous [6fd53a48], publish the new owner.",
+      "signature": "undefined PathOwner_Replace(void)"
+    },
+    {
+      "address": "6f15ee60",
+      "name": "Mover_RetireSpatialObjects",
+      "comment": "[MAP-06.1] Thiscall ECX mover, stack4 forwarded; RET4. Mover +4C |= 0x1000000, 6f161180, SpatialObject_Retire on +94 (proximity) then +98 (fine), clear both, 6f160f70.",
+      "signature": "undefined Mover_RetireSpatialObjects(void)"
+    },
+    {
+      "address": "6f15b670",
+      "name": "PathMaps_Release",
+      "comment": "[MAP-06.1] Thiscall ECX owner, RET0. Vtable+10(0) releases +24C/+250 search systems, +234/+238 proximity maps and +23C..248 accelerator maps; clears each owner slot. Live ChangeLevel and eight RestartGame cycles retire all movers/regions before release; no outstanding live spatial objects.",
+      "signature": "undefined PathMaps_Release(void)"
+    },
+    {
+      "address": "6f15ab60",
+      "name": "PathMaps_Create",
+      "comment": "[MAP-06.1] Thiscall ECX owner, stack4/8 descriptors. Calls PathMaps_Release 6f15b670 first (6f15ab81), then creates fresh search/proximity/accelerator maps. Reload rebuilds geometry, storage, maintenance and mover state; first movement repeats exactly before teardown.",
+      "signature": "void __thiscall PathMaps_Create(WC3PathOwnerCounterPrefix * owner, uint cookie, uint * fine_dimensions)"
+    }
+  ]
+}

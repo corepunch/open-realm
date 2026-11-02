@@ -13,8 +13,17 @@ struct word_extractor {
     char const *delimiters;
     bool error;
     bool eat_quotes;
+    bool retail_numbers;
 };
 #endif
+
+typedef enum {
+    JLEX_NOT_NUMBER,
+    JLEX_INTEGER,
+    JLEX_REAL
+} jlexNumberKind_t;
+
+jlexNumberKind_t jlex_number_kind(cstring_t text);
 
 cstring_t parse_token(wordExtractor_t *p);
 cstring_t jlex_parse_token(wordExtractor_t *p); /* libjass entry; game TU may shadow parse_token via stb_fdf */

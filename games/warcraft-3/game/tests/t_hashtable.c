@@ -285,4 +285,73 @@ TEST(wc3_api, hashtable_save_load_gethandleid_stable_slot) {
     remove(path);
 }
 
+/* Maps and the journey parity probe store far more than 65536 slots in one table.
+ * Removal/flush reorders the entry array; every survivor stays reachable before
+ * and after a save round trip, and the table keeps growing afterwards. */
+TEST(wc3_api, hashtable_grows_beyond_65536_slots_and_survives_reorder_and_save) {
+    cstring_t path = Test_TempPath("wc3-hashtable-large-save-test.bin");
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "endglobals\n"
+        "function fill takes integer first, integer last returns nothing\n"
+        "  local integer i = first\n"
+        "  loop\n"
+        "    exitwhen i > last\n"
+        "    call SaveInteger(ht, i / 16, i - (i / 16) * 16, i)\n"
+        "    call SaveReal(ht, i / 16, i - (i / 16) * 16, I2R(i) * 0.5)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local integer i = 0\n"
+        "  set ht = InitHashtable()\n"
+        "  call fill(0, 49999)\n"
+        "  loop\n"
+        "    exitwhen i == 200\n"
+        "    call FlushChildHashtable(ht, i * 7)\n"
+        "    call RemoveSavedReal(ht, i * 7 + 3, 5)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  local integer i = 0\n"
+        "  local integer p\n"
+        "  loop\n"
+        "    exitwhen i == 50000\n"
+        "    set p = i / 16\n"
+        "    if p - (p / 7) * 7 == 0 and p < 1400 then\n"
+        "      call BJassAssert(not HaveSavedInteger(ht, p, i - p * 16), \"flushed child kept\")\n"
+        "    else\n"
+        "      call BJassAssert(LoadInteger(ht, p, i - p * 16) == i, \"integer lost\")\n"
+        "      if p - (p / 7) * 7 == 3 and p < 1400 and i - p * 16 == 5 then\n"
+        "        call BJassAssert(not HaveSavedReal(ht, p, 5), \"removed real kept\")\n"
+        "        call BJassAssert(HaveSavedInteger(ht, p, 5), \"removal crossed types\")\n"
+        "      else\n"
+        "        call BJassAssert(LoadReal(ht, p, i - p * 16) == I2R(i) * 0.5, \"real lost\")\n"
+        "      endif\n"
+        "    endif\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"
+        "function grow takes nothing returns nothing\n"
+        "  call fill(50000, 59999)\n"
+        "  call BJassAssert(LoadInteger(ht, 59999 / 16, 59999 - (59999 / 16) * 16) == 59999, \"grown slot\")\n"
+        "  call BJassAssert(LoadReal(ht, 1, 1) == 8.5, \"early slot after growth\")\n"
+        "endfunction\n"));
+    hashtable_t const *table = NULL;
+    FOR_LOOP(i, MAX_HASHTABLES) if (level.hashtables[i].inuse) table = level.hashtables + i;
+    T_NOT_NULL(table);
+    if (table) T_EQ(table->num_entries, 100000u - 200u * 32u - 200u);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    jass_callbyname(level.vm, "grow", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
 #endif /* BZ_TESTS */

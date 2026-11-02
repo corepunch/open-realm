@@ -54,7 +54,7 @@ static cycFix_t cyc_setup(cstring_t slk, uint32_t code) {
     fix.enemy->svflags |= SVF_MONSTER; fix.mech->svflags |= SVF_MONSTER;
     fix.caster->targtype = fix.ally->targtype = fix.enemy->targtype = TARG_GROUND;
     fix.mech->targtype = TARG_MECHANICAL;
-    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 200;
     fix.enemy->health.value = fix.enemy->health.max_value = 500;
     fix.ally->health.value = fix.ally->health.max_value = 500;
@@ -101,15 +101,15 @@ TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
     T_ASSERT(!S_SpellAllowsTarget(BZ_AICY, fix.caster, fix.ally));
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AICY, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (fix.enemy->unit_state->statuses[i].level && fix.enemy->unit_state->statuses[i].code == BZ_BCYC) {
-            slot = fix.enemy->unit_state->statuses + i; break;
+    FOR_LOOP(i, G_UnitStatusSlotCount(fix.enemy))
+        if (fix.enemy->abilstatus[i].level && fix.enemy->abilstatus[i].code == BZ_BCYC) {
+            slot = fix.enemy->abilstatus + i; break;
         }
     T_NOT_NULL(slot);
     T_EQ(slot->data, BZ_AICY);
     T_ASSERT(!S_StatusIsUndispellable(slot));
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
-    priest->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+    priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
     priest->mana.value = priest->mana.max_value = 200;
     point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(priest, BZ_ADIS, &point));
@@ -147,13 +147,13 @@ TEST(wc3_spell, cyclone_rejects_already_cycloned_without_mana_spend) {
 TEST(wc3_spell, cyclone_locks_move_attack_spell_and_damage) {
     cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
     edict_t *wp;
-    fix.enemy->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ACYC, .level = 1);
+    fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_ACYC, .level = 1);
     fix.enemy->mana.value = fix.enemy->mana.max_value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
 
     wp = Waypoint_add(&(vec2_t){200, 0});
-    fix.enemy->goalentity = NULL;
+    S_SetMoveGoal(fix.enemy, &fix.enemy->goalentity, NULL);
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity != wp);
 
@@ -213,8 +213,8 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     wp = Waypoint_add(&(vec2_t){220, 0});
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity == wp);
-    fix.caster->unit_state->attack1.type = ATK_NORMAL;
-    fix.caster->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.caster, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.caster, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     T_ASSERT(S_OrderAttack(fix.caster, fix.enemy));
     fix.enemy->health.value = 500;
     S_ResolveAttackHit(fix.caster, fix.enemy, 40);
@@ -264,7 +264,7 @@ TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_adis) {
     vec2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
-    priest->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+    priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
     priest->mana.value = priest->mana.max_value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
@@ -285,7 +285,7 @@ TEST(wc3_spell, cyclone_dataa_zero_survives_adis) {
     vec2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
-    priest->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+    priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
     priest->mana.value = priest->mana.max_value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
@@ -307,7 +307,7 @@ TEST(wc3_spell, cyclone_dataa_zero_survives_purge) {
     abilityCall_t call;
 
     shaman->s.player = 0; shaman->svflags |= SVF_MONSTER; shaman->targtype = TARG_GROUND;
-    shaman->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_APRG, .level = 1);
+    shaman->heroabilities[0] = MAKE(heroability_t, .code = BZ_APRG, .level = 1);
     shaman->mana.value = shaman->mana.max_value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
@@ -329,7 +329,7 @@ TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_purge) {
     abilityCall_t call;
 
     shaman->s.player = 0; shaman->svflags |= SVF_MONSTER; shaman->targtype = TARG_GROUND;
-    shaman->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_APRG, .level = 1);
+    shaman->heroabilities[0] = MAKE(heroability_t, .code = BZ_APRG, .level = 1);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     item = S_AbilityItem(BZ_APRG);
     st = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = fix.enemy);

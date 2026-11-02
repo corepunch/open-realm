@@ -10,8 +10,6 @@ typedef struct {
 } tgaHeader_t;
 #pragma pack (pop)
 
-#define TGA_ORIGIN_MASK 0x30
-
 pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     tgaHeader_t const *header;
     uint8_t const *tga;
@@ -46,20 +44,24 @@ pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     num_pixels = (size_t)columns * rows;
     /* Pathing TGAs are archive data, but rejecting truncated payloads here keeps
      * a bad bridge resource from reading beyond its VFS buffer. Valid WC3 BGRA
-     * bytes retain their existing channel and row interpretation. */
+     * bytes retain their file channel order. */
     if (num_pixels > (SIZE_MAX - sizeof(pathTex_t)) / sizeof(color32_t) ||
         num_pixels > (size - offset) / bytes_per_pixel) return NULL;
     // Allocate memory for decoded image
     pathTex_t *pathTex = gi.MemAlloc(num_pixels * sizeof(color32_t) + sizeof(pathTex_t));
     if (!pathTex)
         return NULL;
-    pathTex->width = columns;
-    pathTex->height = rows;
+    /* 21e790 passes width/height destinations in reverse to 70dd90, then
+     * transposes the normalized image. Keep this footprint coordinate system
+     * through snapping, ordered raster publication and removal. */
+    pathTex->width = rows;
+    pathTex->height = columns;
     // Uncompressed RGB image
     if (header->image_type==2 || header->image_type==3) {
-        for (int row=rows-1; row>=0; row--) {
-            for (int column=0; column<columns; column++) {
-                color32_t const *pcolor = &pathTex->map[column + row * columns];
+        for (uint32_t row=0; row<rows; row++) {
+            for (uint32_t column=0; column<columns; column++) {
+                uint32_t y = header->attributes & 0x20 ? row : rows - 1 - row;
+                color32_t *pcolor = &pathTex->map[y + column * rows];
                 uint8_t *dest = (uint8_t *)pcolor;
                 uint8_t value;
                 switch (header->pixel_size) {

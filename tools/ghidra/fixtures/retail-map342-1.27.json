@@ -1,0 +1,6381 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "bf3981cb9b70ccf4aaa87f0ead883a60168bc1e1be96332c548df526275063ac",
+  "bundle_sha256": "b550dde5bde873bf0ea01ddf1a6205e05a7bd5574d0dfaa8cc945b6c41697862",
+  "source_sha256": {
+    "tools/frida/research/map342_probe.j": "2e1c703b4c9adbdca13d5427911208712539d7e3cec9e625e459a6b375875f8f",
+    "tools/frida/research/map342_make_map.py": "b8e16abea90a09fdcd462de517db069bfb48d67300f9695f43284830b5c90e3f",
+    "tools/frida/research/map342_observer.js": "1b0da4118dfb32e973c4dbf12986631ef4c38f9daf93a6b4fec165963115adee",
+    "tools/frida/research/stop284_capture.py": "0fc1c43c7b4930b994b476deaf8f8aad6dfa1f3cf96969c1d9ae123927f1c666"
+  },
+  "engine_patterns": [
+    "wc3_movement.map342*",
+    "wc3_movement.stop284*",
+    "wc3_movement.scope299*",
+    "wc3_movement.scope300*",
+    "wc3_movement.scope301*",
+    "wc3_order_reentry.*",
+    "wc3_order_lifecycle.*",
+    "wc3_interrupt.*",
+    "wc3_api.*",
+    "wc3_unit.public_speed_uses_empty_status_discovery_and_live_custom_windwalk"
+  ],
+  "public": [
+    "M342 tick=0 scene=0 label=start order=0 x=0.000 y=0.000",
+    "M342 tick=1 scene=0 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=1 scene=0 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=1 scene=0 label=filter-exit order=0 x=624.000 y=592.000",
+    "M342 tick=1 scene=0 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=2 scene=0 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=4 scene=0 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=11 scene=1 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=11 scene=1 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=11 scene=1 label=filter-exit order=0 x=624.000 y=592.000",
+    "M342 tick=11 scene=1 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=12 scene=1 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=14 scene=1 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=21 scene=2 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=21 scene=2 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=21 scene=2 label=filter-exit order=851986 x=624.000 y=592.000",
+    "M342 tick=21 scene=2 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=22 scene=2 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=24 scene=2 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=31 scene=3 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=31 scene=3 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=31 scene=3 label=filter-exit order=851973 x=624.000 y=592.000",
+    "M342 tick=31 scene=3 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=32 scene=3 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=34 scene=3 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=41 scene=4 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=41 scene=4 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=41 scene=4 label=filter-exit order=0 x=624.000 y=592.000",
+    "M342 tick=41 scene=4 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=42 scene=4 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=44 scene=4 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=51 scene=5 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=51 scene=5 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=51 scene=5 label=filter-exit order=0 x=624.000 y=592.000",
+    "M342 tick=51 scene=5 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=52 scene=5 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=54 scene=5 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=61 scene=6 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=61 scene=6 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=61 scene=6 label=filter-exit order=0 x=1000.000 y=1000.000",
+    "M342 tick=61 scene=6 label=after order=0 x=1000.000 y=1000.000",
+    "M342 tick=62 scene=6 label=action order=0 x=1000.000 y=1000.000",
+    "M342 tick=64 scene=6 label=settled order=0 x=1000.000 y=1000.000",
+    "M342 tick=71 scene=7 label=before order=0 x=656.000 y=656.000",
+    "M342 tick=71 scene=7 label=filter-enter order=0 x=624.000 y=592.000",
+    "M342 tick=71 scene=7 label=filter-exit order=0 x=624.000 y=592.000",
+    "M342 tick=71 scene=7 label=after order=0 x=624.000 y=592.000",
+    "M342 tick=72 scene=7 label=action order=0 x=624.000 y=592.000",
+    "M342 tick=74 scene=7 label=settled order=0 x=624.000 y=592.000",
+    "M342 tick=78 scene=8 label=complete order=0 x=0.000 y=0.000"
+  ],
+  "chronology": [
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=0 scene=0 label=start order=0 x=0.000 y=0.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=1 scene=0 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 0,
+      "seq": 0
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 0,
+      "seq": 1
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 0,
+      "seq": 2
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 0,
+      "seq": 3,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 0,
+      "seq": 4,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        848,
+        857
+      ],
+      "regions": 0,
+      "scene": 0,
+      "seq": 5,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 0,
+      "seq": 6,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 0,
+      "seq": 7,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 0,
+      "seq": 8
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 0,
+      "seq": 9
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 0,
+      "seq": 10
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 0,
+      "seq": 11
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 0,
+      "seq": 12
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 0,
+      "seq": 13
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 0,
+      "seq": 14
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 0,
+      "seq": 15
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=1 scene=0 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=1 scene=0 label=filter-exit order=0 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 0,
+      "seq": 16
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 0,
+      "seq": 17
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 0,
+      "seq": 18
+    },
+    {
+      "event": "stop-exit",
+      "scene": 0,
+      "seq": 19
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 0,
+      "seq": 20,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 0,
+      "seq": 21,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        848,
+        857
+      ],
+      "regions": 0,
+      "scene": 0,
+      "seq": 22,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 0,
+      "seq": 23
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 0,
+      "seq": 24
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 0,
+      "seq": 25
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 0,
+      "seq": 26
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 0,
+      "seq": 27
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 0,
+      "seq": 28
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 0,
+      "seq": 29,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 0,
+      "seq": 30,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        848,
+        857
+      ],
+      "regions": 0,
+      "scene": 0,
+      "seq": 31,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 0,
+      "seq": 32,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 0,
+      "seq": 33,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 0,
+      "seq": 34
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 0,
+      "seq": 35
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 0,
+      "seq": 36
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 0,
+      "seq": 37
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 0,
+      "seq": 38
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 0,
+      "seq": 39
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 0,
+      "seq": 40
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 0,
+      "seq": 41
+    },
+    {
+      "event": "stop-exit",
+      "scene": 0,
+      "seq": 42
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 0,
+      "seq": 43,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        848,
+        857
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 0,
+      "seq": 44,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        848,
+        857
+      ],
+      "regions": 0,
+      "scene": 0,
+      "seq": 45,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 0,
+      "seq": 46
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 0,
+      "seq": 47
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 0,
+      "seq": 48,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 0,
+      "seq": 49
+    },
+    {
+      "event": "admit-exit",
+      "scene": 0,
+      "seq": 50
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=1 scene=0 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=2 scene=0 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=4 scene=0 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=11 scene=1 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 1,
+      "seq": 51
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 1,
+      "seq": 52
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 1,
+      "seq": 53
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 54,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 55,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 56,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 57,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 58,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 1,
+      "seq": 59
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 60
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 61
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 62
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 1,
+      "seq": 63
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 1,
+      "seq": 64
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 1,
+      "seq": 65
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 66
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=11 scene=1 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 1,
+      "seq": 67
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 1,
+      "seq": 68
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 1,
+      "seq": 69
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 70,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 71,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 72,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 73,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 74
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 75,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 1,
+      "seq": 76
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 77
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 78
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 79
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 1,
+      "seq": 80
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 81
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 82
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 83
+    },
+    {
+      "event": "stop-exit",
+      "scene": 1,
+      "seq": 84
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 85,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 86
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 87,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 88,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 1,
+      "seq": 89
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 90
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 1,
+      "seq": 91
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 1,
+      "seq": 92
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 1,
+      "seq": 93
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 1,
+      "seq": 94
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 95,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 96,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 97,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 98,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 99
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 100,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 1,
+      "seq": 101
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 102
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 103
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 104
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 1,
+      "seq": 105
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 106
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 107
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 108
+    },
+    {
+      "event": "stop-exit",
+      "scene": 1,
+      "seq": 109
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 110,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 111
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 112,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 113,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 1,
+      "seq": 114
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 115
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 116,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 117
+    },
+    {
+      "event": "admit-exit",
+      "scene": 1,
+      "seq": 118
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=11 scene=1 label=filter-exit order=0 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 119
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 120
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 121
+    },
+    {
+      "event": "stop-exit",
+      "scene": 1,
+      "seq": 122
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 123,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 124,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 125,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 1,
+      "seq": 126
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 127
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 1,
+      "seq": 128
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 1,
+      "seq": 129
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 1,
+      "seq": 130
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 1,
+      "seq": 131
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 132,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 133,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 134,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 135,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 1,
+      "seq": 136,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 1,
+      "seq": 137
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 1,
+      "seq": 138
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 139
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 1,
+      "seq": 140
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 1,
+      "seq": 141
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 142
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 1,
+      "seq": 143
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 1,
+      "seq": 144
+    },
+    {
+      "event": "stop-exit",
+      "scene": 1,
+      "seq": 145
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 146,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        870,
+        903
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 1,
+      "seq": 147,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        870,
+        903
+      ],
+      "regions": 0,
+      "scene": 1,
+      "seq": 148,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 1,
+      "seq": 149
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 150
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 1,
+      "seq": 151,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 1,
+      "seq": 152
+    },
+    {
+      "event": "admit-exit",
+      "scene": 1,
+      "seq": 153
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=11 scene=1 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=12 scene=1 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=14 scene=1 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=21 scene=2 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 2,
+      "seq": 154
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 2,
+      "seq": 155
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 2,
+      "seq": 156
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 2,
+      "seq": 157,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 2,
+      "seq": 158,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 159,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 160,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 161,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 2,
+      "seq": 162
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 163
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 164
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 165
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 2,
+      "seq": 166
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 2,
+      "seq": 167
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 2,
+      "seq": 168
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 169
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=21 scene=2 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x206fae",
+      "event": "admit-enter",
+      "scene": 2,
+      "seq": 170
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 2,
+      "seq": 171
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 2,
+      "seq": 172
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 2,
+      "seq": 173,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 2,
+      "seq": 174,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 175,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 176,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 177
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 178,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 2,
+      "seq": 179
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 180
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 181
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 182
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 2,
+      "seq": 183
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 184
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 185
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 186
+    },
+    {
+      "event": "stop-exit",
+      "scene": 2,
+      "seq": 187
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 188,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 189
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 190,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 191,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 2,
+      "seq": 192
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 193
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 2,
+      "seq": 194
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 2,
+      "seq": 195
+    },
+    {
+      "ability": 0,
+      "caller": "0x679d2e",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 2,
+      "seq": 196,
+      "task_event": 851986
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 197
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 198,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 199,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 200,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 201,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 202
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 203,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 2,
+      "seq": 204
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 205
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 206
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 207
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 2,
+      "seq": 208
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 209
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 210
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 211
+    },
+    {
+      "event": "stop-exit",
+      "scene": 2,
+      "seq": 212
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 213,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 214
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 215,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 216,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 2,
+      "seq": 217
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 218
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 219,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 220
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 221,
+      "task_event": 852331
+    },
+    {
+      "counter": 3,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 222
+    },
+    {
+      "counter": 3,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 223
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 224
+    },
+    {
+      "event": "admit-exit",
+      "scene": 2,
+      "seq": 225
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=21 scene=2 label=filter-exit order=851986 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 226
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 227
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 228
+    },
+    {
+      "event": "stop-exit",
+      "scene": 2,
+      "seq": 229
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 230,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 231,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 512,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 232,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 2,
+      "seq": 233
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 234
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 2,
+      "seq": 235
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 2,
+      "seq": 236
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 2,
+      "seq": 237
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 2,
+      "seq": 238
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 239,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 240,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 241,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 242,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 2,
+      "seq": 243,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 2,
+      "seq": 244
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 2,
+      "seq": 245
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 246
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 2,
+      "seq": 247
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 2,
+      "seq": 248
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 249
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 2,
+      "seq": 250
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 2,
+      "seq": 251
+    },
+    {
+      "event": "stop-exit",
+      "scene": 2,
+      "seq": 252
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 253,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        869,
+        953
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 2,
+      "seq": 254,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        869,
+        953
+      ],
+      "regions": 0,
+      "scene": 2,
+      "seq": 255,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 2,
+      "seq": 256
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 257
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 144,
+      "scene": 2,
+      "seq": 258,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 2,
+      "seq": 259
+    },
+    {
+      "event": "admit-exit",
+      "scene": 2,
+      "seq": 260
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=21 scene=2 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=22 scene=2 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=24 scene=2 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=31 scene=3 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 3,
+      "seq": 261
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 3,
+      "seq": 262
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 3,
+      "seq": 263
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 264,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 265,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 266,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 267,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 268,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 3,
+      "seq": 269
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 270
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 271
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 272
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 3,
+      "seq": 273
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 3,
+      "seq": 274
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 3,
+      "seq": 275
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 276
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=31 scene=3 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x688d89",
+      "event": "admit-enter",
+      "scene": 3,
+      "seq": 277
+    },
+    {
+      "caller": "0x6803a9",
+      "event": "cancel-active-enter",
+      "scene": 3,
+      "seq": 278
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 279,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 280,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 2097665,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 281,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 282,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 283
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 284,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 3,
+      "seq": 285
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 286
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 287
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 288
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 3,
+      "seq": 289
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 290
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 291
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 292
+    },
+    {
+      "event": "stop-exit",
+      "scene": 3,
+      "seq": 293
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 294,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 295
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 296,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 2097665,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 297,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 3,
+      "seq": 298
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 3,
+      "seq": 299
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 3,
+      "seq": 300
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 301,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 302,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 2097665,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 303,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 304,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 305
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 306,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 3,
+      "seq": 307
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 308
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 309
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 310
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 3,
+      "seq": 311
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 312
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 313
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 314
+    },
+    {
+      "event": "stop-exit",
+      "scene": 3,
+      "seq": 315
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 316,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 317
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 318,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 2097665,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 319,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 3,
+      "seq": 320
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 3,
+      "seq": 321
+    },
+    {
+      "ability": 0,
+      "caller": "0x407710",
+      "event": "move-cancel-enter",
+      "flags": 16,
+      "scene": 3,
+      "seq": 322,
+      "task_event": null
+    },
+    {
+      "caller": "0x5fc18a",
+      "event": "unit-stop-enter",
+      "flags": 3146240,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 323,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 324,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 325
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 3,
+      "seq": 326,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 3,
+      "seq": 327
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 3,
+      "seq": 328
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 329
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 3,
+      "seq": 330
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 3,
+      "seq": 331
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 332
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 333
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 334
+    },
+    {
+      "event": "stop-exit",
+      "scene": 3,
+      "seq": 335
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 336,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 337
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 338,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 3146240,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 339,
+      "unit": 1
+    },
+    {
+      "event": "move-cancel-exit",
+      "scene": 3,
+      "seq": 340
+    },
+    {
+      "event": "admit-exit",
+      "scene": 3,
+      "seq": 341
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=31 scene=3 label=filter-exit order=851973 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 342
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 3,
+      "seq": 343
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 3,
+      "seq": 344
+    },
+    {
+      "event": "stop-exit",
+      "scene": 3,
+      "seq": 345
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 346,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        900,
+        1013
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 3,
+      "seq": 347,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 3146240,
+      "identity": [
+        900,
+        1013
+      ],
+      "regions": 0,
+      "scene": 3,
+      "seq": 348,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 3,
+      "seq": 349
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 3,
+      "seq": 350
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 3,
+      "seq": 351
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 3,
+      "seq": 352
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 3,
+      "seq": 353
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 3,
+      "seq": 354
+    },
+    {
+      "event": "admit-exit",
+      "scene": 3,
+      "seq": 355
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=31 scene=3 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=32 scene=3 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=34 scene=3 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=41 scene=4 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 4,
+      "seq": 356
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 4,
+      "seq": 357
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 4,
+      "seq": 358
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 359,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 360,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 361,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 362,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 363,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 4,
+      "seq": 364
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 365
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 366
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 367
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 4,
+      "seq": 368
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 4,
+      "seq": 369
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 4,
+      "seq": 370
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 371
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=41 scene=4 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x679c44",
+      "event": "cancel-all-enter",
+      "scene": 4,
+      "seq": 372
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 4,
+      "seq": 373
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 374,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 375,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 376,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 377,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 378
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 379,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 4,
+      "seq": 380
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 381
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 382
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 383
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 4,
+      "seq": 384
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 385
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 386
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 387
+    },
+    {
+      "event": "stop-exit",
+      "scene": 4,
+      "seq": 388
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 389,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 390
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 391,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 392,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 4,
+      "seq": 393
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 4,
+      "seq": 394
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 4,
+      "seq": 395
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 4,
+      "seq": 396
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 397,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 398,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 399,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 400,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 401
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 402,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 4,
+      "seq": 403
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 404
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 405
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 406
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 4,
+      "seq": 407
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 408
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 409
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 410
+    },
+    {
+      "event": "stop-exit",
+      "scene": 4,
+      "seq": 411
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 412,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 413
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 414,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 415,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 4,
+      "seq": 416
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 4,
+      "seq": 417
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 418,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 4,
+      "seq": 419
+    },
+    {
+      "ability": 0,
+      "caller": "0x407710",
+      "event": "move-cancel-enter",
+      "flags": 16,
+      "scene": 4,
+      "seq": 420,
+      "task_event": null
+    },
+    {
+      "caller": "0x5fc18a",
+      "event": "unit-stop-enter",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 421,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 422,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 423
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 4,
+      "seq": 424,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 4,
+      "seq": 425
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 4,
+      "seq": 426
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 427
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 4,
+      "seq": 428
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 4,
+      "seq": 429
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 430
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 431
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 432
+    },
+    {
+      "event": "stop-exit",
+      "scene": 4,
+      "seq": 433
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 434,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 435
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 436,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 801,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 437,
+      "unit": 1
+    },
+    {
+      "event": "move-cancel-exit",
+      "scene": 4,
+      "seq": 438
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=41 scene=4 label=filter-exit order=0 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 439
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 4,
+      "seq": 440
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 4,
+      "seq": 441
+    },
+    {
+      "event": "stop-exit",
+      "scene": 4,
+      "seq": 442
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 443,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        883,
+        1068
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 4,
+      "seq": 444,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 800,
+      "identity": [
+        883,
+        1068
+      ],
+      "regions": 0,
+      "scene": 4,
+      "seq": 445,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 4,
+      "seq": 446
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 4,
+      "seq": 447
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 4,
+      "seq": 448
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 4,
+      "seq": 449
+    },
+    {
+      "event": "admit-exit",
+      "scene": 4,
+      "seq": 450
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=41 scene=4 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=42 scene=4 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=44 scene=4 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=51 scene=5 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 5,
+      "seq": 451
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 5,
+      "seq": 452
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 5,
+      "seq": 453
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 454,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 455,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 456,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 457,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 458,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 5,
+      "seq": 459
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 460
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 461
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 462
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 5,
+      "seq": 463
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 5,
+      "seq": 464
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 5,
+      "seq": 465
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 466
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=51 scene=5 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x6946b7",
+      "event": "cancel-all-enter",
+      "scene": 5,
+      "seq": 467
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 5,
+      "seq": 468
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 469,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 470,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 471,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 472,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 473
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 474,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 5,
+      "seq": 475
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 476
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 477
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 478
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 5,
+      "seq": 479
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 480
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 481
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 482
+    },
+    {
+      "event": "stop-exit",
+      "scene": 5,
+      "seq": 483
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 484,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 485
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 486,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 487,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 5,
+      "seq": 488
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 489
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 5,
+      "seq": 490
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 5,
+      "seq": 491
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 492,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 493,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 494,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 495,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 496
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 497,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 5,
+      "seq": 498
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 499
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 500
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 501
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 5,
+      "seq": 502
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 503
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 504
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 505
+    },
+    {
+      "event": "stop-exit",
+      "scene": 5,
+      "seq": 506
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 507,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 508
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 509,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 510,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 5,
+      "seq": 511
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 512
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 513,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 514
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=51 scene=5 label=filter-exit order=0 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 515
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 516
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 517
+    },
+    {
+      "event": "stop-exit",
+      "scene": 5,
+      "seq": 518
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 519,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 520,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 520,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 521,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 5,
+      "seq": 522
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 523
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 5,
+      "seq": 524
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 5,
+      "seq": 525
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 5,
+      "seq": 526
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 5,
+      "seq": 527
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 528,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 529,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 530,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 531,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 5,
+      "seq": 532,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 5,
+      "seq": 533
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 5,
+      "seq": 534
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 535
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 5,
+      "seq": 536
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 5,
+      "seq": 537
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 538
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 5,
+      "seq": 539
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 5,
+      "seq": 540
+    },
+    {
+      "event": "stop-exit",
+      "scene": 5,
+      "seq": 541
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 542,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        859,
+        1116
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 5,
+      "seq": 543,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 521,
+      "identity": [
+        859,
+        1116
+      ],
+      "regions": 0,
+      "scene": 5,
+      "seq": 544,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 5,
+      "seq": 545
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 546
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 5,
+      "seq": 547,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 5,
+      "seq": 548
+    },
+    {
+      "event": "admit-exit",
+      "scene": 5,
+      "seq": 549
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=51 scene=5 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=52 scene=5 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=54 scene=5 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=61 scene=6 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 6,
+      "seq": 550
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 6,
+      "seq": 551
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 6,
+      "seq": 552
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 553,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 554,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 555,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 556,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 557,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 6,
+      "seq": 558
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 559
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 560
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 561
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 562
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 6,
+      "seq": 563
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 564
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 565
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=61 scene=6 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "caller": "0x680419",
+      "event": "admit-enter",
+      "scene": 6,
+      "seq": 566
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 6,
+      "seq": 567
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 6,
+      "seq": 568
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 569,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 570,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 571,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 572,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 573
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 574,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 6,
+      "seq": 575
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 576
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 577
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 578
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 579
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 580
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 581
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 582
+    },
+    {
+      "event": "stop-exit",
+      "scene": 6,
+      "seq": 583
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 584,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 585
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 586,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 587,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 6,
+      "seq": 588
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 589
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 6,
+      "seq": 590
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 6,
+      "seq": 591
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 6,
+      "seq": 592
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 6,
+      "seq": 593
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 594,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 595,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 596,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 597,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 598
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 599,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 6,
+      "seq": 600
+    },
+    {
+      "counter": 5,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 601
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 602
+    },
+    {
+      "counter": 5,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 603
+    },
+    {
+      "counter": 6,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 604
+    },
+    {
+      "counter": 5,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 605
+    },
+    {
+      "counter": 5,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 606
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 607
+    },
+    {
+      "event": "stop-exit",
+      "scene": 6,
+      "seq": 608
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 609,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 610
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 611,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 612,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 6,
+      "seq": 613
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 614
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 615,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 616
+    },
+    {
+      "event": "admit-exit",
+      "scene": 6,
+      "seq": 617
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 618,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 619
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 620,
+      "unit": 1
+    },
+    {
+      "counter": 4,
+      "event": "placement",
+      "mode": 0,
+      "scene": 6,
+      "seq": 621
+    },
+    {
+      "counter": 4,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 622
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 623,
+      "unit": 1
+    },
+    {
+      "counter": 3,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 624
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 625,
+      "unit": 1
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=61 scene=6 label=filter-exit order=0 x=1000.000 y=1000.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 626
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 627
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 628
+    },
+    {
+      "event": "stop-exit",
+      "scene": 6,
+      "seq": 629
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 630,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 631,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 632,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 6,
+      "seq": 633
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 634
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 6,
+      "seq": 635
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 6,
+      "seq": 636
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 6,
+      "seq": 637
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 6,
+      "seq": 638
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 639,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 640,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 641,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 642,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 6,
+      "seq": 643,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 6,
+      "seq": 644
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 6,
+      "seq": 645
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 646
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 6,
+      "seq": 647
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 6,
+      "seq": 648
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 649
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 6,
+      "seq": 650
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 6,
+      "seq": 651
+    },
+    {
+      "event": "stop-exit",
+      "scene": 6,
+      "seq": 652
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 653,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        906,
+        1166
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 6,
+      "seq": 654,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        906,
+        1166
+      ],
+      "regions": 0,
+      "scene": 6,
+      "seq": 655,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 6,
+      "seq": 656
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 657
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 6,
+      "seq": 658,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 6,
+      "seq": 659
+    },
+    {
+      "event": "admit-exit",
+      "scene": 6,
+      "seq": 660
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=61 scene=6 label=after order=0 x=1000.000 y=1000.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=62 scene=6 label=action order=0 x=1000.000 y=1000.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=64 scene=6 label=settled order=0 x=1000.000 y=1000.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=71 scene=7 label=before order=0 x=656.000 y=656.000"
+    },
+    {
+      "caller": "0x206b5e",
+      "event": "admit-enter",
+      "scene": 7,
+      "seq": 661
+    },
+    {
+      "caller": "0x680396",
+      "event": "cancel-all-enter",
+      "scene": 7,
+      "seq": 662
+    },
+    {
+      "caller": "0x673630",
+      "event": "cancel-active-enter",
+      "scene": 7,
+      "seq": 663
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 7,
+      "seq": 664,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 7,
+      "seq": 665,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        902,
+        1216
+      ],
+      "regions": 0,
+      "scene": 7,
+      "seq": 666,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 7,
+      "seq": 667,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 7,
+      "seq": 668,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 7,
+      "seq": 669
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 7,
+      "seq": 670
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 7,
+      "seq": 671
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 7,
+      "seq": 672
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 7,
+      "seq": 673
+    },
+    {
+      "counter": 3,
+      "event": "placement",
+      "mode": 0,
+      "scene": 7,
+      "seq": 674
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 7,
+      "seq": 675
+    },
+    {
+      "counter": 3,
+      "event": "commit",
+      "mode": 0,
+      "scene": 7,
+      "seq": 676
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=71 scene=7 label=filter-enter order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": {
+        "counter": 3,
+        "mode": 0
+      },
+      "heldDepth": 1,
+      "value": "M342 tick=71 scene=7 label=filter-exit order=0 x=624.000 y=592.000"
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 7,
+      "seq": 677
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 7,
+      "seq": 678
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 7,
+      "seq": 679
+    },
+    {
+      "event": "stop-exit",
+      "scene": 7,
+      "seq": 680
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 7,
+      "seq": 681,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 7,
+      "seq": 682,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        902,
+        1216
+      ],
+      "regions": 0,
+      "scene": 7,
+      "seq": 683,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 7,
+      "seq": 684
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 7,
+      "seq": 685
+    },
+    {
+      "event": "cancel-active-exit",
+      "scene": 7,
+      "seq": 686
+    },
+    {
+      "event": "cancel-all-exit",
+      "scene": 7,
+      "seq": 687
+    },
+    {
+      "caller": "0x6904d2",
+      "event": "stop-tasks-enter",
+      "scene": 7,
+      "seq": 688
+    },
+    {
+      "event": "stop-tasks-exit",
+      "scene": 7,
+      "seq": 689
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 7,
+      "seq": 690,
+      "task_event": 852292
+    },
+    {
+      "ability": 0,
+      "caller": "0x5fdae5",
+      "event": "move-cleanup-enter",
+      "flags": 16,
+      "scene": 7,
+      "seq": 691,
+      "task_event": null
+    },
+    {
+      "caller": "0x600433",
+      "event": "unit-stop-enter",
+      "flags": 513,
+      "identity": [
+        902,
+        1216
+      ],
+      "regions": 0,
+      "scene": 7,
+      "seq": 692,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 7,
+      "seq": 693,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 1,
+      "regions": 0,
+      "scene": 7,
+      "seq": 694,
+      "unit": 1
+    },
+    {
+      "callback": true,
+      "event": "stop-enter",
+      "scene": 7,
+      "seq": 695
+    },
+    {
+      "counter": 2,
+      "event": "outer-toggle",
+      "on": 1,
+      "scene": 7,
+      "seq": 696
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-enter",
+      "mode": 0,
+      "scene": 7,
+      "seq": 697
+    },
+    {
+      "counter": 2,
+      "event": "inner-enter",
+      "mode": 0,
+      "scene": 7,
+      "seq": 698
+    },
+    {
+      "counter": 3,
+      "event": "footprint",
+      "mode": 1,
+      "scene": 7,
+      "seq": 699
+    },
+    {
+      "counter": 2,
+      "event": "inner-exit",
+      "mode": 0,
+      "scene": 7,
+      "seq": 700
+    },
+    {
+      "counter": 2,
+      "event": "stop-mover-exit",
+      "mode": 0,
+      "scene": 7,
+      "seq": 701
+    },
+    {
+      "counter": 1,
+      "event": "outer-toggle",
+      "on": 0,
+      "scene": 7,
+      "seq": 702
+    },
+    {
+      "event": "stop-exit",
+      "scene": 7,
+      "seq": 703
+    },
+    {
+      "event": "unit-toggle-enter",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 7,
+      "seq": 704,
+      "unit": 1
+    },
+    {
+      "event": "unit-toggle-exit",
+      "identity": [
+        902,
+        1216
+      ],
+      "on": 0,
+      "regions": 0,
+      "scene": 7,
+      "seq": 705,
+      "unit": 1
+    },
+    {
+      "event": "unit-stop-exit",
+      "flags": 513,
+      "identity": [
+        902,
+        1216
+      ],
+      "regions": 0,
+      "scene": 7,
+      "seq": 706,
+      "unit": 1
+    },
+    {
+      "event": "move-cleanup-exit",
+      "scene": 7,
+      "seq": 707
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 7,
+      "seq": 708
+    },
+    {
+      "ability": 0,
+      "caller": "0x71f17",
+      "event": "move-dispatch-enter",
+      "flags": 16,
+      "scene": 7,
+      "seq": 709,
+      "task_event": 852344
+    },
+    {
+      "event": "move-dispatch-exit",
+      "scene": 7,
+      "seq": 710
+    },
+    {
+      "event": "admit-exit",
+      "scene": 7,
+      "seq": 711
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=71 scene=7 label=after order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=72 scene=7 label=action order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=74 scene=7 label=settled order=0 x=624.000 y=592.000"
+    },
+    {
+      "event": "marker",
+      "held": null,
+      "heldDepth": 0,
+      "value": "M342 tick=78 scene=8 label=complete order=0 x=0.000 y=0.000"
+    }
+  ],
+  "instructions": {
+    "6f15f7b0": "55",
+    "6f15f7b1": "8bec",
+    "6f15f7b3": "56",
+    "6f15f7b4": "ff7508",
+    "6f15f7b7": "8bf1",
+    "6f15f7b9": "e8120c0000",
+    "6f15f7be": "837d0c00",
+    "6f15f7c2": "740b",
+    "6f15f7c4": "8b16",
+    "6f15f7c6": "8d4678",
+    "6f15f7c9": "50",
+    "6f15f7ca": "8bce",
+    "6f15f7cc": "ff5254",
+    "6f15f7cf": "5e",
+    "6f15f7d0": "5d",
+    "6f15f7d1": "c20800",
+    "6f16fa00": "55",
+    "6f16fa01": "8bec",
+    "6f16fa03": "83ec48",
+    "6f16fa06": "a19c68ce6f",
+    "6f16fa0b": "33c5",
+    "6f16fa0d": "8945fc",
+    "6f16fa10": "8bc1",
+    "6f16fa12": "56",
+    "6f16fa13": "8b7508",
+    "6f16fa16": "8945c4",
+    "6f16fa19": "83b8a800000000",
+    "6f16fa20": "0f846c010000",
+    "6f16fa26": "a1483ad56f",
+    "6f16fa2b": "8bc8",
+    "6f16fa2d": "53",
+    "6f16fa2e": "57",
+    "6f16fa2f": "8945c8",
+    "6f16fa32": "e8f9c0feff",
+    "6f16fa37": "8d5604",
+    "6f16fa3a": "8bd8",
+    "6f16fa3c": "8d4dc0",
+    "6f16fa3f": "e83c12f0ff",
+    "6f16fa44": "8bc8",
+    "6f16fa46": "e8d506f0ff",
+    "6f16fa4b": "8bd6",
+    "6f16fa4d": "8d4dcc",
+    "6f16fa50": "8bf8",
+    "6f16fa52": "e82912f0ff",
+    "6f16fa57": "8bc8",
+    "6f16fa59": "e8c206f0ff",
+    "6f16fa5e": "8b75c4",
+    "6f16fa61": "81c6d0000000",
+    "6f16fa67": "8945b8",
+    "6f16fa6a": "897dbc",
+    "6f16fa6d": "8975c0",
+    "6f16fa70": "3b06",
+    "6f16fa72": "7509",
+    "6f16fa74": "3b7e04",
+    "6f16fa77": "0f8413010000",
+    "6f16fa7d": "8b4dc8",
+    "6f16fa80": "e8abd4feff",
+    "6f16fa85": "8bf8",
+    "6f16fa87": "85ff",
+    "6f16fa89": "0f8401010000",
+    "6f16fa8f": "57",
+    "6f16fa90": "56",
+    "6f16fa91": "8bcb",
+    "6f16fa93": "e858d3fdff",
+    "6f16fa98": "8b771c",
+    "6f16fa9b": "8d45b8",
+    "6f16fa9e": "57",
+    "6f16fa9f": "50",
+    "6f16faa0": "8bcb",
+    "6f16faa2": "e849d3fdff",
+    "6f16faa7": "8b471c",
+    "6f16faaa": "8bde",
+    "6f16faac": "8945cc",
+    "6f16faaf": "3bf0",
+    "6f16fab1": "7331",
+    "6f16fab3": "8b470c",
+    "6f16fab6": "8b1498",
+    "6f16fab9": "33c0",
+    "6f16fabb": "85f6",
+    "6f16fabd": "741f",
+    "6f16fabf": "90",
+    "6f16fac0": "8b4f0c",
+    "6f16fac3": "391481",
+    "6f16fac6": "7511",
+    "6f16fac8": "c7048100000000",
+    "6f16facf": "8b4f0c",
+    "6f16fad2": "c7049900000000",
+    "6f16fad9": "40",
+    "6f16fada": "3bc6",
+    "6f16fadc": "72e2",
+    "6f16fade": "43",
+    "6f16fadf": "3b5dcc",
+    "6f16fae2": "72cf",
+    "6f16fae4": "8b45c4",
+    "6f16fae7": "0f57c0",
+    "6f16faea": "33db",
+    "6f16faec": "c745d06f72705e",
+    "6f16faf3": "c745d475637060",
+    "6f16fafa": "c745d86c267063",
+    "6f16fb01": "8945dc",
+    "6f16fb04": "c745f000000000",
+    "6f16fb0b": "c745f8ffffffff",
+    "6f16fb12": "c745f4ffffffff",
+    "6f16fb19": "f30f7f45e0",
+    "6f16fb1e": "85f6",
+    "6f16fb20": "7425",
+    "6f16fb22": "8b470c",
+    "6f16fb25": "8b0498",
+    "6f16fb28": "85c0",
+    "6f16fb2a": "7416",
+    "6f16fb2c": "837838ff",
+    "6f16fb30": "7410",
+    "6f16fb32": "8b4830",
+    "6f16fb35": "85c9",
+    "6f16fb37": "7409",
+    "6f16fb39": "8b01",
+    "6f16fb3b": "8d55d0",
+    "6f16fb3e": "52",
+    "6f16fb3f": "ff5020",
+    "6f16fb42": "43",
+    "6f16fb43": "3bde",
+    "6f16fb45": "72db",
+    "6f16fb47": "8b5dcc",
+    "6f16fb4a": "c745d865267063",
+    "6f16fb51": "3bf3",
+    "6f16fb53": "7325",
+    "6f16fb55": "8b470c",
+    "6f16fb58": "8b04b0",
+    "6f16fb5b": "85c0",
+    "6f16fb5d": "7416",
+    "6f16fb5f": "837838ff",
+    "6f16fb63": "7410",
+    "6f16fb65": "8b4830",
+    "6f16fb68": "85c9",
+    "6f16fb6a": "7409",
+    "6f16fb6c": "8b01",
+    "6f16fb6e": "8d55d0",
+    "6f16fb71": "52",
+    "6f16fb72": "ff5020",
+    "6f16fb75": "46",
+    "6f16fb76": "3bf3",
+    "6f16fb78": "72db",
+    "6f16fb7a": "8b4dc8",
+    "6f16fb7d": "e8eed3feff",
+    "6f16fb82": "8b4dc0",
+    "6f16fb85": "8b45b8",
+    "6f16fb88": "8901",
+    "6f16fb8a": "8b45bc",
+    "6f16fb8d": "894104",
+    "6f16fb90": "5f",
+    "6f16fb91": "5b",
+    "6f16fb92": "8b4dfc",
+    "6f16fb95": "33cd",
+    "6f16fb97": "5e",
+    "6f16fb98": "e8b8ec6100",
+    "6f16fb9d": "8be5",
+    "6f16fb9f": "5d",
+    "6f16fba0": "c20400",
+    "6f170080": "55",
+    "6f170081": "8bec",
+    "6f170083": "6aff",
+    "6f170085": "6800769e6f",
+    "6f17008a": "64a100000000",
+    "6f170090": "50",
+    "6f170091": "83ec28",
+    "6f170094": "53",
+    "6f170095": "56",
+    "6f170096": "57",
+    "6f170097": "a19c68ce6f",
+    "6f17009c": "33c5",
+    "6f17009e": "50",
+    "6f17009f": "8d45f4",
+    "6f1700a2": "64a300000000",
+    "6f1700a8": "8bd9",
+    "6f1700aa": "8b0d483ad56f",
+    "6f1700b0": "e83baffeff",
+    "6f1700b5": "8b9390000000",
+    "6f1700bb": "8bf8",
+    "6f1700bd": "f30f1005f853cd6f",
+    "6f1700c5": "8955e8",
+    "6f1700c8": "f30f104de8",
+    "6f1700cd": "0f2fc1",
+    "6f1700d0": "7609",
+    "6f1700d2": "c745f000000000",
+    "6f1700d9": "eb34",
+    "6f1700db": "f30f100548c7d36f",
+    "6f1700e3": "0f2fc1",
+    "6f1700e6": "7609",
+    "6f1700e8": "c745f001000000",
+    "6f1700ef": "eb1e",
+    "6f1700f1": "f30f10052054cd6f",
+    "6f1700f9": "0f2fc1",
+    "6f1700fc": "0f97c0",
+    "6f1700ff": "0fb6c0",
+    "6f170102": "f7d8",
+    "6f170104": "1bc0",
+    "6f170106": "83c003",
+    "6f170109": "0fb7c0",
+    "6f17010c": "8945f0",
+    "6f17010f": "8d45ec",
+    "6f170112": "8bcb",
+    "6f170114": "50",
+    "6f170115": "e8260fffff",
+    "6f17011a": "50",
+    "6f17011b": "8d45dc",
+    "6f17011e": "8bcb",
+    "6f170120": "50",
+    "6f170121": "e8aabceeff",
+    "6f170126": "8bb398000000",
+    "6f17012c": "8975e4",
+    "6f17012f": "85f6",
+    "6f170131": "7403",
+    "6f170133": "ff4640",
+    "6f170136": "8b87d4000000",
+    "6f17013c": "c745fc00000000",
+    "6f170143": "897dd4",
+    "6f170146": "8945ec",
+    "6f170149": "8945d8",
+    "6f17014c": "c787d400000001000000",
+    "6f170156": "ff75f0",
+    "6f170159": "8d4508",
+    "6f17015c": "c645fc01",
+    "6f170160": "50",
+    "6f170161": "8d45dc",
+    "6f170164": "8bcf",
+    "6f170166": "50",
+    "6f170167": "e80492fdff",
+    "6f17016c": "85c0",
+    "6f17016e": "8b45ec",
+    "6f170171": "8987d4000000",
+    "6f170177": "7404",
+    "6f170179": "33c0",
+    "6f17017b": "eb51",
+    "6f17017d": "8b45dc",
+    "6f170180": "8b4de0",
+    "6f170183": "6a00",
+    "6f170185": "ff7514",
+    "6f170188": "8945d0",
+    "6f17018b": "ff7510",
+    "6f17018e": "8945d8",
+    "6f170191": "8d4508",
+    "6f170194": "ff750c",
+    "6f170197": "894dcc",
+    "6f17019a": "50",
+    "6f17019b": "8d45e8",
+    "6f17019e": "894dd4",
+    "6f1701a1": "50",
+    "6f1701a2": "ff7518",
+    "6f1701a5": "8d45cc",
+    "6f1701a8": "c645fc00",
+    "6f1701ac": "50",
+    "6f1701ad": "8d45dc",
+    "6f1701b0": "8bcf",
+    "6f1701b2": "50",
+    "6f1701b3": "e828a0fdff",
+    "6f1701b8": "85c0",
+    "6f1701ba": "740d",
+    "6f1701bc": "6a01",
+    "6f1701be": "8d45dc",
+    "6f1701c1": "8bcb",
+    "6f1701c3": "50",
+    "6f1701c4": "e857c6eeff",
+    "6f1701c9": "b801000000",
+    "6f1701ce": "85f6",
+    "6f1701d0": "7403",
+    "6f1701d2": "ff4e40",
+    "6f1701d5": "8b4df4",
+    "6f1701d8": "64890d00000000",
+    "6f1701df": "59",
+    "6f1701e0": "5f",
+    "6f1701e1": "5e",
+    "6f1701e2": "5b",
+    "6f1701e3": "8be5",
+    "6f1701e5": "5d",
+    "6f1701e6": "c21400",
+    "6f05ca50": "55",
+    "6f05ca51": "8bec",
+    "6f05ca53": "56",
+    "6f05ca54": "57",
+    "6f05ca55": "8bf9",
+    "6f05ca57": "8b570c",
+    "6f05ca5a": "8b4f08",
+    "6f05ca5d": "e8ce7affff",
+    "6f05ca62": "6a01",
+    "6f05ca64": "8bcf",
+    "6f05ca66": "8bf0",
+    "6f05ca68": "e8c3f2ffff",
+    "6f05ca6d": "ff750c",
+    "6f05ca70": "8b4d08",
+    "6f05ca73": "51",
+    "6f05ca74": "f7d9",
+    "6f05ca76": "1bc9",
+    "6f05ca78": "83e105",
+    "6f05ca7b": "51",
+    "6f05ca7c": "6a00",
+    "6f05ca7e": "6a00",
+    "6f05ca80": "6a00",
+    "6f05ca82": "6a01",
+    "6f05ca84": "8bce",
+    "6f05ca86": "e8b5481100",
+    "6f05ca8b": "6a00",
+    "6f05ca8d": "8bcf",
+    "6f05ca8f": "e89cf2ffff",
+    "6f05ca94": "5f",
+    "6f05ca95": "5e",
+    "6f05ca96": "5d",
+    "6f05ca97": "c20800",
+    "6fa912f0": "00fa166f"
+  }
+}

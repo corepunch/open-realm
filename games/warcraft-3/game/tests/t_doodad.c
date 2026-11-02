@@ -31,15 +31,15 @@ TEST(wc3_doodad, map_placement_initializes_hero_state_but_not_scenery_state) {
     edict_t *hero = G_Spawn();
     edict_t *scenery = G_Spawn();
 
-    T_NULL(hero->unit_state);
+    T_EQ(hero->hero.level,0);
     G_InitMapPlacementUnitState(hero, &hero_placement);
-    T_NOT_NULL(hero->unit_state);
-    T_EQ(hero->unit_state->hero.level, 4);
-    T_EQ(hero->unit_state->hero.xp, 900);
+    T_NE(hero->hero.level,0);
+    T_EQ(hero->hero.level, 4);
+    T_EQ(hero->hero.xp, 900);
 
-    T_NULL(scenery->unit_state);
+    T_EQ(scenery->hero.level,0); T_NULL(scenery->abilstatus);
     G_InitMapPlacementUnitState(scenery, &scenery_placement);
-    T_NULL(scenery->unit_state);
+    T_EQ(scenery->hero.level,0); T_NULL(scenery->abilstatus);
 }
 
 TEST(wc3_doodad, rect_special_hide_only_changes_matching_doodads) {
@@ -88,7 +88,7 @@ TEST(wc3_doodad, nonlooping_animation_holds_authored_final_frame) {
     umove_t move = { "death", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &death;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -104,7 +104,7 @@ TEST(wc3_doodad, looping_animation_wraps_to_sequence_start) {
     umove_t move = { "stand", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &stand;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -135,7 +135,7 @@ TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
         T_ASSERT(G_IsDoodad(ent));
         T_NOT_NULL(ent->animation);
         T_EQ(ent->s.frame, first);
-        T_STREQ(ent->animation_request, "Stand");
+        T_STREQ(G_UnitAnimationRequest(ent), "Stand");
         T_ASSERT(ent->think == monster_think);
         if (ent->animation && ent->think) {
             ent->think(ent);

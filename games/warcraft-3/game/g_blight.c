@@ -26,6 +26,7 @@ static bool G_SetBlightCell(int32_t x, int32_t y, bool add, uint32_t mask) {
     index = (uint32_t)x + (uint32_t)y * level.blight.width;
     if (level.blight.cells[index] == (uint8_t)(add != 0)) return false;
     level.blight.cells[index] = add ? 1 : 0;
+    G_SetTerrainBlightCell((uint32_t)x,(uint32_t)y,add);
     if (level.blight.dirty_rows) level.blight.dirty_rows[y] |= mask;
     return true;
 }
@@ -49,7 +50,7 @@ static float G_SnapBlightCorner(float value, float minimum) {
 }
 
 static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent->destructable;
     pathTex_t const *pathtex;
 
     if (!ent || !G_IsDestructable(ent) || dstr->dead) return false;
@@ -67,11 +68,11 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
 }
 
 void G_BlightMarkDestructable(edict_t *ent) {
-    destructable_t *dstr = G_GetDestructable(ent);
+    destructable_t *dstr = ent->destructable;
     if (!ent || !G_IsDestructable(ent) || dstr->blighted) return;
     dstr->blighted = true;
     ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
-    G_SetUnitFlag(ent, UNIT_FLAG_VERTEX_COLOR_SET, true);
+    ent->vertex_color_set = true;
     /* Preserve the authored replaceable texture: synthesizing a Blight
      * filename selected missing assets such as Cliff1Blight and rendered a
      * placeholder instead of the cliff texture with this tint. */
@@ -91,7 +92,7 @@ void G_BlightUpdateDestructables(box2_t const *region) {
     expanded.max.x += WC3_BLIGHT_TERRAIN_CELL;
     expanded.max.y += WC3_BLIGHT_TERRAIN_CELL;
     FILTER_EDICTS(ent, ent->inuse && G_IsDestructable(ent) &&
-        !G_GetDestructable(ent)->blighted && Box2_containsPoint(&expanded, &ent->s.origin2)) {
+        !ent->destructable->blighted && Box2_containsPoint(&expanded, &ent->s.origin2)) {
         if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
     }
 }
@@ -153,6 +154,12 @@ bool G_IsPointBlighted(vec2_t const *point) {
     return G_BlightCell(point, &x, &y) && level.blight.cells[x + y * level.blight.width] != 0;
 }
 
+/* Terrain pathing natives edit one32-unit cell, rather than SetBlight's
+ * authored128-unit corner raster. Keep the shared Blight state authoritative. */
+void G_SetBlightPathCell(uint32_t x, uint32_t y, bool add) {
+    G_SetBlightCell((int32_t)x,(int32_t)y,add,G_BlightConnectedMask());
+}
+
 void G_SetBlightPoint(vec2_t const *point, bool add) {
     float x, y;
     uint32_t mask;
@@ -207,7 +214,7 @@ void G_DispelBlightRadius(vec2_t const *point, float radius) {
             bool maintained = false;
             if (dx * dx + dy * dy > radius * radius) continue;
             FILTER_EDICTS(source, source->inuse && !M_IsDead(source)) {
-                blightGrowth_t const *growth = G_GetBlightGrowth(source);
+                blightGrowth_t const *growth = source->blight_growth;
                 if (!growth || !growth->ability || growth->radius <= 0.0f ||
                     !G_IsUnitAbilityAvailable(source, growth->ability) ||
                     S_SpellData(growth->ability, MAX(1u, G_UnitAbilityLevel(source, growth->ability)), 1) == 0.0f)
@@ -253,6 +260,8 @@ bool G_SetBlightState(uint8_t const *data, uint32_t size) {
     uint32_t const mask = G_BlightConnectedMask();
     if (size != expected || (size && !data)) return false;
     if (size) memcpy(level.blight.cells, data, size);
+    FOR_LOOP(y,level.blight.height) FOR_LOOP(x,level.blight.width)
+        G_SetTerrainBlightCell(x,y,level.blight.cells[y*level.blight.width+x]!=0);
     if (level.blight.dirty_rows) FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] |= mask;
     return true;
 }

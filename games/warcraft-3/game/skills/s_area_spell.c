@@ -222,7 +222,7 @@ static void carrion_swarm_spawn_missile(edict_t *caster, uint32_t code, vec2_t c
     missile->s.model = G_RegisterModel(art);
     if (!missile->s.model) { G_FreeEdict(missile); return; }
     G_InheritUnitTeamColor(missile, caster);
-    cast = G_AddChannel(missile);
+    cast = (missile->channel ? missile->channel : (missile->channel=G_AllocChannel()));
     cast->owner_spawn_time = caster->spawn_time;
     cast->origin = *point;
     missile->velocity = speed / 1000.0f;
@@ -252,7 +252,7 @@ static void shockwave_spawn_missile(edict_t *caster, uint32_t code, vec2_t const
     missile->s.model = G_RegisterModel(art);
     if (!missile->s.model) { G_FreeEdict(missile); return; }
     G_InheritUnitTeamColor(missile, caster);
-    cast = G_AddChannel(missile);
+    cast = (missile->channel ? missile->channel : (missile->channel=G_AllocChannel()));
     cast->owner_spawn_time = caster->spawn_time;
     cast->origin = Vector2_mad(&caster->s.origin2, length, direction);
     missile->velocity = speed / 1000.0f;
@@ -434,7 +434,7 @@ static umove_t death_and_decay_area_effect_move = { "stand", NULL, G_FreeEdict, 
 
 static bool death_and_decay_hits_tree(edict_t const *target, vec2_t const *origin, float radius) {
     return target && target->inuse && target->targtype == TARG_TREE && G_IsDestructable(target) &&
-           !G_GetDestructable(target)->dead && !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE) &&
+           !target->destructable->dead && !(target && target->invulnerable) &&
            Vector2_distance(&target->s.origin2, origin) <= radius;
 }
 
@@ -647,8 +647,52 @@ BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
     starfall_think(thinker);
 }
 
-/* CAbilityChannel remains a non-spell ability for ad-hoc testing. */
-BZ_COMMAND_PROC(AbilityChannel) {
-    UI_AddCancelButton(clent);
-    S_SpellCursorSplat(clent, 200.0f);
+/* ANcl has distinct ability-disable and channel-work lifetimes. The ordered
+ * cast owns its deadline and saved continuation; DataA replaces follow-through. */
+BZ_ABILITY_PROC(CAbilityChannel) {
+    uint32_t code=call && call->item ? call->item->code : 0;
+    switch(msg) {
+    case A_UNIT_TYPE_UPDATE:return ent ? 0 : UNIT_UPDATE_POINTER(channel);
+    case A_SPELL_COMMAND_PROFILE: {
+        abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(ent,code));
+        uint32_t type=wc3_int_bits(wc3_float_bits(data->data[1].number));
+        /*4da0d0 fixes the base order from DataF1, with an explicit native
+         * channel default for absent/unregistered names. Rank affects DataB. */
+        uint32_t order=G_RegisteredOrderId(G_AbilityLevel(code,1)->data[5].text);
+        *call->spell_command=(spellCommandProfile_t){
+            .order_id=order ? order : G_OrderId("channel"),
+            .target_type=type<=3 ? (spellTargetType_t)type : SPELL_TARGET_NONE};
+        return true;
+    }
+    case A_CAST_PROFILE:
+        S_DefaultSpellCastProfile(ent,code,call->cast_profile);
+        call->cast_profile->backswing=S_SpellData(code,S_SpellLevel(ent,code),1);
+        call->cast_profile->intercept_before_work=true;
+        return true;
+    case A_CAST_BEGIN:
+        if(S_SpellData(code,S_SpellLevel(ent,code),5)!=0) {
+            S_AcquireExclusiveAbilityDisables(ent,code);
+            S_AcquireUnitSeparationSuppression(ent);
+        }
+        return true;
+    case A_EXECUTE:
+        if(!ent->channel)ent->channel=G_AllocChannel();
+        assert(ent->channel);
+        ent->channel->serial++;ent->channel->code=code;
+        ent->channel->origin=ent->s.origin2;
+        S_UnitAbilityEvent(ent,A_CHANNEL_STATE_CHANGED);
+        return true;
+    case A_CAST_END:
+        if(S_ReleaseExclusiveAbilityDisables(ent,code))
+            S_ReleaseUnitSeparationSuppression(ent);
+        if(ent->channel && ent->channel->code==code) {
+            ent->channel->code=0;
+            S_UnitAbilityEvent(ent,A_CHANNEL_STATE_CHANGED);
+        }
+        return true;
+    case A_UNIT_SUSPEND:
+    case A_DISABLE:
+        S_CancelSpellOwner(ent,code);return true;
+    default:return CAbilitySimpleSpell(ent,msg,call);
+    }
 }

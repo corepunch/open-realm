@@ -1308,7 +1308,7 @@ void R_SetupEnvironmentLighting(void) {
 /* Matrix reuse is independent of MDX pose reuse: opaque-only entities and
  * MDX pose-cache-budget misses can avoid rebuilding a transform three times in
  * the cull, solid and alpha passes. Only real view-array entries qualify.
- * Warcraft III's R_EntityPose basis is fixed; origin, yaw and scale are the
+ * Warcraft III's R_EntityPose basis is fixed; origin, yaw, pose offset and scale are the
  * complete inputs to R_GetEntityMatrix. Selection of terrain-fitted models
  * is intentionally NOT cached, and must still run for every draw. */
 #define WC3_VIEW_MATRIX_ENTRIES 4096
@@ -1316,6 +1316,7 @@ void R_SetupEnvironmentLighting(void) {
 typedef struct {
     vec3_t origin;
     float angle, scale;
+    orientation_t pose_offset;
 } wc3MatrixPoseKey_t;
 
 typedef struct {
@@ -1407,7 +1408,8 @@ static void R_W3GetViewEntityMatrix(renderEntity_t const *entity, mat4_t *matrix
     if (R_W3ResolveAttachmentMatrix(entity, matrix)) return;
     uint32_t index = R_W3ViewMatrixSceneIndex(entity);
     wc3MatrixPoseKey_t key = { .origin = entity->origin,
-                               .angle = entity->angle, .scale = entity->scale };
+                               .angle = entity->angle, .scale = entity->scale,
+                               .pose_offset = entity->pose_offset };
     wc3ViewMatrixEntry_t *entry = NULL;
 
     if (index != UINT32_MAX) {
@@ -1550,7 +1552,7 @@ bool R_CameraUsesTerrainHeight(void) { return true; }
 
 /* Most snapshots contain only a handful of bridges or elevators. Keep the
  * candidate list on the stack rather than allocate every frame. If a scripted
- * map exceeds this bound, use the original full scan so no surface is lost. */
+ * map exceeds this bound, allocate the complete compact list for this call. */
 #define W3_GROUND_SURFACE_INDEX_CAPACITY 128
 
 #ifdef WC3_GROUND_CONFORM_TESTS
@@ -1594,23 +1596,34 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
  * coarse destructable-origin support height with the highest authored MDX hit. */
 
 void R_ConformGroundSurfaces(viewDef_t *viewdef) {
-    uint32_t surface_indices[W3_GROUND_SURFACE_INDEX_CAPACITY];
-    uint32_t surface_count = 0;
-    bool overflow = false;
+    renderEntity_t const *local_surfaces[W3_GROUND_SURFACE_INDEX_CAPACITY];
+    renderEntity_t const **surfaces = local_surfaces;
+    uint32_t count = 0;
 
     if (!viewdef || (viewdef->rdflags & RDF_NOWORLDMODEL)) return;
 
-    /* Build a per-call index, not a persistent cache: visibility, model and
-     * animation state may all change between consecutive render frames. Keep
-     * source entity order for equal-height ties. */
+    /* Snapshot entities are mostly units and ordinary scenery. Compact the
+     * actual support providers once, retaining snapshot order. In particular,
+     * a world without bridges costs one linear pass, not units * entities.
+     * Keep exact mesh queries: general model bounds need not enclose the
+     * selectable geosets used by the walkable-surface trace. */
     FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t const *ent = &viewdef->entities[i];
+        if (ent->flags & RF_GROUND_SURFACE)
+            count++;
         W3_GROUND_VISIT();
-        if (!(viewdef->entities[i].flags & RF_GROUND_SURFACE)) continue;
-        if (surface_count == W3_GROUND_SURFACE_INDEX_CAPACITY) {
-            overflow = true;
-            break;
-        }
-        surface_indices[surface_count++] = i;
+    }
+    if (count > sizeof(local_surfaces) / sizeof(*local_surfaces))
+        surfaces = ri.MemAlloc((long)((size_t)count * sizeof(*surfaces)));
+    if (!surfaces) {
+        fprintf(stderr, "WC3 renderer: cannot allocate walkable surface list\n");
+        abort();
+    }
+    count = 0;
+    FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t const *ent = &viewdef->entities[i];
+        if (ent->flags & RF_GROUND_SURFACE)
+            surfaces[count++] = ent;
     }
 
     FOR_LOOP(i, viewdef->num_entities) {
@@ -1624,34 +1637,25 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
             (ent->flags & RF_GROUND_SURFACE) || !ent->model) {
             continue;
         }
-
-        /* Overflow deliberately falls back to the original exhaustive
-         * iteration, including any surfaces beyond the bounded index. */
-        uint32_t const candidates = overflow ? viewdef->num_entities : surface_count;
-        FOR_LOOP(j, candidates) {
-            uint32_t const surface_index = overflow ? j : surface_indices[j];
-            renderEntity_t const *surface = &viewdef->entities[surface_index];
+        FOR_LOOP(j, count) {
             float hit_z;
-
             W3_GROUND_VISIT();
-            if (!(surface->flags & RF_GROUND_SURFACE)) continue;
-            if (!R_W3WalkableSurfaceHit(surface, ent->origin.x, ent->origin.y, &hit_z)) continue;
+
+            if (!R_W3WalkableSurfaceHit(surfaces[j], ent->origin.x, ent->origin.y, &hit_z)) continue;
             if (!found_surface || hit_z > authored_support) {
                 authored_support = hit_z;
                 found_surface = true;
             }
         }
-
         if (found_surface) {
-            /* Preserve the game-authored elevator altitude when its animated
-             * walkable mesh traces below the requested logical deck level. */
             float support_z = authored_support + ent->ground_offset;
             if (ent->ground_snapshot_valid)
                 support_z = MAX(support_z, ent->ground_snapshot_z);
-            ent->origin.z = MAX(ent->origin.z, support_z);
+            ent->origin.z = support_z;
             ent->flags |= RF_GROUND_SURFACE_SUPPORT;
         }
     }
+    if (surfaces != local_surfaces) ri.MemFree(surfaces);
 }
 #undef W3_GROUND_VISIT
 #undef W3_GROUND_TRACE

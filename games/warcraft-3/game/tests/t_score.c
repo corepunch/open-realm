@@ -358,7 +358,7 @@ TEST(wc3_score, hero_experience_appears_in_hero_score) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     hero->s.player = client->ps.number;
     G_PlayerScoreUnitTrained(hero);
-    hero->unit_state->hero.level = 1;
+    hero->hero.level = 1;
     G_HeroSetXP(hero, 500);
     G_HeroSetXP(hero, 600);
     G_HeroSetXP(hero, 200); /* lowering an XP value must not add score */
@@ -374,10 +374,10 @@ TEST(wc3_score, scripted_level_assignments_do_not_count_as_earned_xp) {
     memset(&client->score, 0, sizeof(client->score));
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     hero->s.player = client->ps.number;
-    hero->unit_state->hero.level = 1;
+    hero->hero.level = 1;
     G_HeroSetXPForLevel(hero, G_HeroXPForLevel(3));
     T_EQ(client->score.experience_gained, 0);
-    G_HeroSetXP(hero, hero->unit_state->hero.xp + 500);
+    G_HeroSetXP(hero, hero->hero.xp + 500);
     T_EQ(client->score.experience_gained, 500);
 }
 
@@ -394,7 +394,7 @@ TEST(wc3_score, stock_level_four_and_three_scripted_xp_total_retail_value) {
     kael = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     vashj = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     kael->s.player = vashj->s.player = game.clients[0].ps.number;
-    kael->unit_state->hero.level = vashj->unit_state->hero.level = 1;
+    kael->hero.level = vashj->hero.level = 1;
     G_HeroSetXPForLevel(kael, G_HeroXPForLevel(4));
     G_HeroSetXPForLevel(vashj, G_HeroXPForLevel(3));
     T_EQ(G_PlayerScoreScriptedXP(game.clients[0].ps.number), 1400);
@@ -539,9 +539,9 @@ TEST(wc3_score, hero_portrait_roster_tracks_current_ownership_and_levels) {
     duplicate = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128.0f, 0.0f);
     T_NOT_NULL(arthas); T_NOT_NULL(anubarak); T_NOT_NULL(duplicate);
     arthas->s.player = anubarak->s.player = duplicate->s.player = 0;
-    arthas->unit_state->hero.level = 3;
-    anubarak->unit_state->hero.level = 7;
-    duplicate->unit_state->hero.level = 2;
+    arthas->hero.level = 3;
+    anubarak->hero.level = 7;
+    duplicate->hero.level = 2;
     G_PlayerScoreSnapshotHeroes(&first);
     T_EQ(first.hero_count, 3);
     T_EQ(first.heroes[0].entity, arthas->s.number);
@@ -586,14 +586,14 @@ TEST(wc3_score, hero_portrait_snapshot_is_immutable_and_not_creation_count) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     T_NOT_NULL(hero);
     hero->s.player = 0;
-    hero->unit_state->hero.level = 3;
+    hero->hero.level = 3;
     G_PlayerScoreUnitTrained(hero);
     G_PlayerScoreUnitTrained(hero); /* even a duplicate event must not change the roster */
     G_PlayerScoreSnapshotHeroes(&player);
     T_EQ(player.hero_count, 1);
     T_ASSERT(WC3_ScoreCellValue(&player, 2, 0, &sort_value, NULL));
     T_EQ(sort_value, 1);
-    hero->unit_state->hero.level = 4;
+    hero->hero.level = 4;
     hero->s.player = 1;
     T_EQ(player.heroes[0].level, 3);
     T_EQ(player.hero_count, 1);
@@ -610,7 +610,7 @@ TEST(wc3_score, hero_portrait_roster_keeps_full_count_when_art_slots_fill) {
                                        (float)i * 64.0f, 0.0f);
         T_NOT_NULL(hero);
         hero->s.player = 0;
-        hero->unit_state->hero.level = i + 1;
+        hero->hero.level = i + 1;
     }
     G_PlayerScoreSnapshotHeroes(&player);
     T_EQ(player.hero_count, WC3_SCORE_HERO_PORTRAITS + 1u);
@@ -627,7 +627,7 @@ TEST(wc3_score, scripted_level_xp_follows_current_hero_owner) {
     kept = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
     transferred = alloc_test_unit(MAKEFOURCC('H','b','l','m'), 64.0f, 0.0f);
     kept->s.player = transferred->s.player = 0;
-    kept->unit_state->hero.level = transferred->unit_state->hero.level = 1;
+    kept->hero.level = transferred->hero.level = 1;
     G_HeroSetXPForLevel(kept, G_HeroXPForLevel(3));
     G_HeroSetXPForLevel(transferred, G_HeroXPForLevel(7));
     T_EQ(G_PlayerScoreScriptedXP(0), G_HeroXPForLevel(3) + G_HeroXPForLevel(7));

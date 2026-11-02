@@ -37,7 +37,7 @@ static dpFix_t dp_setup(void) {
     fix.rows = parse_slk_string(andp_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('U', 'w', 'a', 'r'), 0, 0);
     fix.caster->s.player = 0; fix.caster->svflags |= SVF_MONSTER; fix.caster->targtype = TARG_GROUND;
-    fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ANDP, .level = 1);
+    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANDP, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 100;
     fix.point = MAKE(vec2_t, .x = 128, .y = 96);
     return fix;
@@ -82,7 +82,7 @@ TEST(wc3_spell, dark_portal_reads_authored_data) {
 TEST(wc3_spell, dark_portal_schedules_authored_exits) {
     dpFix_t fix = dp_setup();
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANDP, &fix.point));
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(dp_troops(fix.caster), 1);
     T_NOT_NULL(dp_thinker(fix.caster));
 
@@ -103,7 +103,7 @@ TEST(wc3_spell, dark_portal_continues_after_caster_moves) {
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANDP, &fix.point));
     T_EQ(dp_troops(fix.caster), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
-    T_ASSERT(!G_GetChannel(fix.caster) || G_GetChannel(fix.caster)->code == 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(dp_troops(fix.caster), 2);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();

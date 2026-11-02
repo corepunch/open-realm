@@ -1,0 +1,1452 @@
+{
+  "passed": true,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "window_cases": [
+    {
+      "flags": 0,
+      "event_flags": null,
+      "trace": [
+        [
+          "prepare",
+          0
+        ],
+        [
+          "relocate",
+          0,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          0
+        ]
+      ],
+      "final": 0
+    },
+    {
+      "flags": 0,
+      "event_flags": 1,
+      "trace": [
+        [
+          "prepare",
+          0
+        ],
+        [
+          "relocate",
+          0,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 0,
+      "event_flags": 8388609,
+      "trace": [
+        [
+          "prepare",
+          0
+        ],
+        [
+          "relocate",
+          0,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 0,
+      "event_flags": 536876101,
+      "trace": [
+        [
+          "prepare",
+          0
+        ],
+        [
+          "relocate",
+          0,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536876101
+        ]
+      ],
+      "final": 536876101
+    },
+    {
+      "flags": 0,
+      "event_flags": 4294967295,
+      "trace": [
+        [
+          "prepare",
+          0
+        ],
+        [
+          "relocate",
+          0,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    },
+    {
+      "flags": 1,
+      "event_flags": null,
+      "trace": [
+        [
+          "prepare",
+          1
+        ],
+        [
+          "relocate",
+          1,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388609,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 1,
+      "event_flags": 1,
+      "trace": [
+        [
+          "prepare",
+          1
+        ],
+        [
+          "relocate",
+          1,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388609,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 1,
+      "event_flags": 8388609,
+      "trace": [
+        [
+          "prepare",
+          1
+        ],
+        [
+          "relocate",
+          1,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388609,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 1,
+      "event_flags": 536876101,
+      "trace": [
+        [
+          "prepare",
+          1
+        ],
+        [
+          "relocate",
+          1,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388609,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536876101
+        ]
+      ],
+      "final": 536876101
+    },
+    {
+      "flags": 1,
+      "event_flags": 4294967295,
+      "trace": [
+        [
+          "prepare",
+          1
+        ],
+        [
+          "relocate",
+          1,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388609,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    },
+    {
+      "flags": 8388608,
+      "event_flags": null,
+      "trace": [
+        [
+          "prepare",
+          8388608
+        ],
+        [
+          "relocate",
+          8388608,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          0
+        ]
+      ],
+      "final": 0
+    },
+    {
+      "flags": 8388608,
+      "event_flags": 1,
+      "trace": [
+        [
+          "prepare",
+          8388608
+        ],
+        [
+          "relocate",
+          8388608,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 8388608,
+      "event_flags": 8388609,
+      "trace": [
+        [
+          "prepare",
+          8388608
+        ],
+        [
+          "relocate",
+          8388608,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 8388608,
+      "event_flags": 536876101,
+      "trace": [
+        [
+          "prepare",
+          8388608
+        ],
+        [
+          "relocate",
+          8388608,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536876101
+        ]
+      ],
+      "final": 536876101
+    },
+    {
+      "flags": 8388608,
+      "event_flags": 4294967295,
+      "trace": [
+        [
+          "prepare",
+          8388608
+        ],
+        [
+          "relocate",
+          8388608,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          8388608,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    },
+    {
+      "flags": 536871942,
+      "event_flags": null,
+      "trace": [
+        [
+          "prepare",
+          536871942
+        ],
+        [
+          "relocate",
+          536871942,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          545260550,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536871942
+        ]
+      ],
+      "final": 536871942
+    },
+    {
+      "flags": 536871942,
+      "event_flags": 1,
+      "trace": [
+        [
+          "prepare",
+          536871942
+        ],
+        [
+          "relocate",
+          536871942,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          545260550,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 536871942,
+      "event_flags": 8388609,
+      "trace": [
+        [
+          "prepare",
+          536871942
+        ],
+        [
+          "relocate",
+          536871942,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          545260550,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 536871942,
+      "event_flags": 536876101,
+      "trace": [
+        [
+          "prepare",
+          536871942
+        ],
+        [
+          "relocate",
+          536871942,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          545260550,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536876101
+        ]
+      ],
+      "final": 536876101
+    },
+    {
+      "flags": 536871942,
+      "event_flags": 4294967295,
+      "trace": [
+        [
+          "prepare",
+          536871942
+        ],
+        [
+          "relocate",
+          536871942,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          545260550,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    },
+    {
+      "flags": 4294967295,
+      "event_flags": null,
+      "trace": [
+        [
+          "prepare",
+          4294967295
+        ],
+        [
+          "relocate",
+          4294967295,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          4294967295,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    },
+    {
+      "flags": 4294967295,
+      "event_flags": 1,
+      "trace": [
+        [
+          "prepare",
+          4294967295
+        ],
+        [
+          "relocate",
+          4294967295,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          4294967295,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 4294967295,
+      "event_flags": 8388609,
+      "trace": [
+        [
+          "prepare",
+          4294967295
+        ],
+        [
+          "relocate",
+          4294967295,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          4294967295,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          1
+        ]
+      ],
+      "final": 1
+    },
+    {
+      "flags": 4294967295,
+      "event_flags": 536876101,
+      "trace": [
+        [
+          "prepare",
+          4294967295
+        ],
+        [
+          "relocate",
+          4294967295,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          4294967295,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          536876101
+        ]
+      ],
+      "final": 536876101
+    },
+    {
+      "flags": 4294967295,
+      "event_flags": 4294967295,
+      "trace": [
+        [
+          "prepare",
+          4294967295
+        ],
+        [
+          "relocate",
+          4294967295,
+          1145307136,
+          1149501440
+        ],
+        [
+          "notify",
+          4294967295,
+          852388,
+          268435456,
+          0,
+          0
+        ],
+        [
+          "finish",
+          4286578687
+        ]
+      ],
+      "final": 4286578687
+    }
+  ],
+  "validation_cases": [
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 0,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 0,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 170,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 169,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 169,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 0,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 0,
+      "queries": [
+        [
+          "visibility",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 0,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 0,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 0,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 0,
+      "result": 221,
+      "queries": []
+    },
+    {
+      "unit": 1,
+      "dead": 1,
+      "hidden": 1,
+      "transient": 1,
+      "loaded": 1,
+      "visible": 1,
+      "result": 221,
+      "queries": []
+    }
+  ],
+  "cases": 90,
+  "boundaries": [
+    "position admission",
+    "event delivery",
+    "dead/type virtual queries",
+    "visibility result"
+  ]
+}

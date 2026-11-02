@@ -1,0 +1,3 @@
+// Proposed rows for tools/ghidra/MapPathfinding.java (append; existing comments are extended, not replaced).
+        {"6f16f570", "Separate_CollectCandidates", "[SEP-02.2] SEP-02.2: live order inside one fine cell is newest-created first; a source updated earlier in the same owner pass is seen at its applied position (positions resolved per candidate via 161040/05bdd0 at 1703cd..1703db)."},
+        {"6f16ffa0", "Separate_ApplyPendingDisplacement", "[SEP-02.2] SEP-02.2: skips only when x*x+y*y == 0 exactly (ucomiss/lahf/jnp); otherwise validates predicted position+vector via 16ee80 (return 17002e) and applies through 05c820; never clears the vector. Live triad: 3,000 bodies, rejected endpoints keep the vector for the next visit."},

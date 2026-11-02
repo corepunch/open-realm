@@ -183,3 +183,13 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.raise_dead*limit*'
 
 The patch was prepared without running compilation or tests locally, per the handoff
 request.
+
+### Script-owned suspension (ORDER343)
+
+Retail `UnitSuspendDecay(unit,true)` cancels a dead unit's current flesh/bone
+internal task, including its animation-duration scaling. It does not accept a
+living unit or the preceding death animation. `false` starts a fresh full
+bone-decay phase, even if the canceled phase was flesh; it does not resume the
+remaining timer. The game owns `AI_CORPSE_DECAY_SUSPENDED`, independently of
+consumer reservation and cargo flags. Save195 persists this bit; previous saves
+are rejected. See [retail evidence](retail-pathfinding-engine.md#script-decay-suspension-cancels-the-scaled-internal-task-order343).

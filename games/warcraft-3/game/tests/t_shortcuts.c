@@ -67,7 +67,6 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
 }
 
 TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
-    umove_t busy = { "walk", NULL, NULL, NULL, .travel = true };
     edict_t *worker;
 
     reset_entities();
@@ -80,7 +79,8 @@ TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
 
     T_ASSERT(G_ActorHasSkill(worker, "Ahar"));
     T_ASSERT(G_UnitIsIdleWorker(worker));
-    unit_setmove(worker, &busy);
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){640,64},false,0,0));
+    T_EQ(worker->current_order_id,G_OrderId("move"));
     T_ASSERT(!G_UnitIsIdleWorker(worker));
     unit_stand(worker);
     T_ASSERT(G_UnitIsIdleWorker(worker));
@@ -95,7 +95,7 @@ TEST(wc3_shortcuts, hold_position_worker_is_not_idle) {
     worker->svflags |= SVF_MONSTER;
     worker->s.player = 0;
     worker->stand = unit_stand;
-    worker->orders->holding_position = true;
+    worker->movement.holding_position = true;
     unit_stand(worker);
 
     T_ASSERT(!G_UnitIsIdleWorker(worker));
@@ -147,10 +147,10 @@ TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f, 64.0f);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    hero->unit_state->hero.skillpoints = 0;
+    hero->hero.skillpoints = 0;
 
     T_ASSERT(G_HeroModifySkillPoints(hero, 1));
-    T_EQ(hero->unit_state->hero.skillpoints, 1);
+    T_EQ(hero->hero.skillpoints, 1);
     T_ASSERT(client->shortcuts.dirty);
 }
 
@@ -169,7 +169,7 @@ TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
 
     G_AlertHeroShortcutDamage(hero);
 
-    T_ASSERT(hero->unit_state->shortcut_alert_until > level.time);
+    T_ASSERT(hero->hero_shortcut_alert_until > level.time);
     T_ASSERT(client->shortcuts.dirty);
 }
 
@@ -333,8 +333,8 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     hero_profile = *hero->data.UnitProfile;
     hero_profile.art = "TestUI\\Textures\\solid_white.blp";
     hero->data.UnitProfile = &hero_profile;
-    hero->unit_state->hero.skillpoints = 2;
-    hero->unit_state->shortcut_alert_until = 6000;
+    hero->hero.skillpoints = 2;
+    hero->hero_shortcut_alert_until = 6000;
     level.time = 5000;
 
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);

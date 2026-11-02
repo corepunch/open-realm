@@ -1,0 +1,5098 @@
+{
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "original_functions": [
+    "001cd0",
+    "49d280",
+    "497190",
+    "4985c0",
+    "06fbb0"
+  ],
+  "scope": [
+    "Original producer, real task-pop branch and two-slot maximum selection execute unmodified.",
+    "Synthetic memory and labelled external identity/class/weapon-eligibility/worldposition/radius/ownership/taskqueue services; no public reachability or native scheduler claim.",
+    "RuntimeFifty is initialized by unmodified001cd0 after poisoning its output; original06fbb0 arithmetic executes. Adjusted-range targetidentity invalid as ordinary public initialization; no adjusted2cc branch claim.",
+    "Release/stop services deliberately retain flag4 to exercise postcallback branch; no callback mutation/reentrancy claim."
+  ],
+  "rows": [
+    {
+      "case": 0,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 1,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 2,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 3,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 4,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 5,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 6,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 7,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 8,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 9,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 10,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 11,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 12,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 13,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 14,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 15,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 16,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 17,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 18,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 19,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 20,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 21,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 22,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 23,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 24,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 25,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 26,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 27,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 28,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 29,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 30,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 31,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": false,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 262144,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 32,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 33,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 34,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 35,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 36,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 37,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 38,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 39,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 40,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 41,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 42,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 43,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 44,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 45,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 46,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 47,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 48,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 49,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 50,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 51,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 52,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 53,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 54,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 55,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 0,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 56,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 57,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 58,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 59,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": false,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 60,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 61,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 62,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 63,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 1,
+        "capture": 1,
+        "loss": true,
+        "source200": true,
+        "target": "unit",
+        "blink": true,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 64,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "null",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 65,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "widget",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 66,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "invalid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        4294967295,
+        4294967295
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 67,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "stale",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 68,
+      "maximum_range_word": 1119092736,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          false
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1126891520,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 69,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          false,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 70,
+      "maximum_range_word": 0,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          false,
+          false
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1117913088,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 71,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852329,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852329
+        }
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 72,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852330,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852330,
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 73,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 74,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1141981184,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 75,
+      "maximum_range_word": 1140457472,
+      "range_input_words": [
+        1119092736,
+        1140457472
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          90.0,
+          500.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        }
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 76,
+      "maximum_range_word": 1134985216,
+      "range_input_words": [
+        1134985216,
+        1134985216
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          333.0,
+          333.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1137639424,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 77,
+      "maximum_range_word": 1134985216,
+      "range_input_words": [
+        1134985215,
+        1134985216
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          332.9999694824219,
+          333.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1137639424,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 78,
+      "maximum_range_word": 1134985216,
+      "range_input_words": [
+        1134985216,
+        1134985215
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          333.0,
+          332.9999694824219
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1137639424,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 79,
+      "maximum_range_word": 1134985217,
+      "range_input_words": [
+        1134985216,
+        1134985217
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          333.0,
+          333.0000305175781
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1137639425,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    },
+    {
+      "case": 80,
+      "maximum_range_word": 1134985217,
+      "range_input_words": [
+        1134985217,
+        1134985216
+      ],
+      "inputs": {
+        "active": true,
+        "forced": 0,
+        "capture": 0,
+        "loss": true,
+        "source200": false,
+        "target": "unit",
+        "blink": false,
+        "alternative": "valid",
+        "ranges": [
+          333.0000305175781,
+          333.0
+        ],
+        "enabled": [
+          true,
+          true
+        ],
+        "radius": 31.0,
+        "position": [
+          1234.25,
+          987.125,
+          0.0
+        ],
+        "chain": [
+          852328,
+          852323,
+          852335,
+          852331
+        ]
+      },
+      "flags_after": 0,
+      "alternative_after": [
+        9,
+        11
+      ],
+      "chain_after": [
+        852331
+      ],
+      "services": [
+        "clear_active_ownership_service",
+        "release_target_windup_service",
+        "stop_service",
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        },
+        {
+          "point_words": [
+            852332,
+            1150961664,
+            1148635136,
+            1137639425,
+            0
+          ]
+        },
+        "dispatch"
+      ],
+      "stack_delta": 12,
+      "references_after": 10
+    }
+  ],
+  "pop_rows": [
+    {
+      "before": [
+        852330,
+        852331
+      ],
+      "result": 0,
+      "after": [
+        852330,
+        852331
+      ],
+      "services": [],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852329,
+        852331
+      ],
+      "result": 0,
+      "after": [
+        852331
+      ],
+      "services": [
+        {
+          "pop": 852329
+        }
+      ],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852328,
+        852323,
+        852335,
+        852331
+      ],
+      "result": 1,
+      "after": [
+        852331
+      ],
+      "services": [
+        {
+          "pop": 852328
+        },
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        }
+      ],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852323,
+        852335,
+        852331
+      ],
+      "result": 1,
+      "after": [
+        852331
+      ],
+      "services": [
+        "cancel_completion",
+        {
+          "pop": 852323
+        },
+        {
+          "pop": 852335
+        }
+      ],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852335,
+        852331
+      ],
+      "result": 1,
+      "after": [
+        852331
+      ],
+      "services": [
+        {
+          "pop": 852335
+        }
+      ],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852328,
+        852331
+      ],
+      "result": 0,
+      "after": [
+        852331
+      ],
+      "services": [
+        {
+          "pop": 852328
+        }
+      ],
+      "stack_delta": 4
+    },
+    {
+      "before": [
+        852331
+      ],
+      "result": 0,
+      "after": [
+        852331
+      ],
+      "services": [],
+      "stack_delta": 4
+    }
+  ],
+  "negative_controls": [
+    "missing",
+    "extra",
+    "reorder",
+    "range_word",
+    "point_word",
+    "event_word",
+    "force_clear",
+    "flags",
+    "task_pop"
+  ],
+  "initializer": {
+    "entry_rva": "0x001cd0",
+    "output_va": "0x6fd3c7ac",
+    "poison_before": 3735928559,
+    "word_after": 1112014848
+  }
+}

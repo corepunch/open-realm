@@ -36,8 +36,8 @@ static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_
             stage ? stage : "?", (unsigned)ent->s.number, unit_code,
             (unsigned)ent->s.player, viewer ? (int)viewer->ps.number : -1,
             (unsigned)now);
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t const *status = ent->unit_state->statuses + i;
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
         char code[5] = { 0 };
         int32_t remaining;
 
@@ -48,7 +48,7 @@ static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_
                 "WC3_TIMED_STATUS server status slot=%u code=%s level=%u timestamp=%u duration_ms=%u remaining_ms=%ld eligible=%u fraction=%.4f\n",
                 (unsigned)i, code, (unsigned)status->level,
                 (unsigned)status->timestamp, (unsigned)status->duration_ms,
-                (long)remaining, (unsigned)unit_statusshowstimedbar(status->code),
+                (long)remaining, (unsigned)unit_statusshowstimedbar(G_UnitStatusClassCode(status)),
                 unit_statusremainingfraction(status));
     }
 }
@@ -253,7 +253,7 @@ void UI_TestFormatAttackDamageWithStatus(char *buffer, size_t buffer_size,
 #endif
 
 static void FormatArmorValue(char *buffer, size_t buffer_size, edict_t const *ent) {
-    float const temporary_bonus = ent->unit_state ? ent->unit_state->temporary_armor_bonus : 0.0f;
+    float const temporary_bonus = ent->temporary_armor_bonus;
     float const status_bonus = unit_status_modifier_total(ent, WC3_STATUS_MOD_ARMOR_FLAT);
     int32_t const base = (int32_t)(G_UnitArmorValue(ent) - temporary_bonus - status_bonus + 0.5f);
     int32_t const bonus = (int32_t)(temporary_bonus + status_bonus);
@@ -275,18 +275,18 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
 
     UI_SetText(hud.unit.AttackLabel1, "Damage:");
     FormatAttackDamageWithStatus(buffer, sizeof(buffer), ent, min_damage, max_damage,
-                            ent->unit_state->attack1.temporaryDamageBonus,
-                            ent->unit_state->attack1.damageBase);
+                            S_AttackProfileRead(ent, 0)->temporaryDamageBonus,
+                            S_AttackProfileRead(ent, 0)->damageBase);
     UI_SetText(hud.unit.AttackValue1, "%s", buffer);
     UI_SetText(hud.unit.AttackLabel2, "Damage:");
     FormatAttackDamageWithStatus(buffer, sizeof(buffer), ent, min_damage2, max_damage2,
-                            ent->unit_state->attack2.temporaryDamageBonus,
-                            ent->unit_state->attack2.damageBase);
+                            S_AttackProfileRead(ent, 1)->temporaryDamageBonus,
+                            S_AttackProfileRead(ent, 1)->damageBase);
     UI_SetText(hud.unit.AttackValue2, "%s", buffer);
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
-    if (G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) UI_SetText(hud.unit.DefenseValue, "%s", "|cffff0000Invulnerable|r");
+    if (G_UnitIsInvulnerable(ent)) UI_SetText(hud.unit.DefenseValue, "%s", "|cffff0000Invulnerable|r");
     else {
         FormatArmorValue(buffer, sizeof(buffer), ent);
         UI_SetText(hud.unit.DefenseValue, "%s", buffer);
@@ -294,16 +294,16 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
     UI_SetText(hud.unit.SpeedValue, "%d", (int)(ent->unitinfo.MoveSpeed + 0.5f));
     UI_SetText(hud.unit.RangeTitle1, "Range:");
-    UI_SetText(hud.unit.RangeValue1, "%d", (int)(ent->unit_state->attack1.range + 0.5f));
+    UI_SetText(hud.unit.RangeValue1, "%d", (int)(S_AttackProfileRead(ent, 0)->range + 0.5f));
     UI_SetText(hud.unit.RangeTitle2, "Range:");
-    UI_SetText(hud.unit.RangeValue2, "%d", (int)(ent->unit_state->attack2.range + 0.5f));
+    UI_SetText(hud.unit.RangeValue2, "%d", (int)(S_AttackProfileRead(ent, 1)->range + 0.5f));
     UI_SetHidden(hud.unit.RangeTitle2, !has_attack2);
     UI_SetHidden(hud.unit.RangeValue2, !has_attack2);
 
     if (is_hero) {
         cstring_t const prim = ent->data.UnitBalance->primaryAttribute;
         struct { cstring_t code; uint32_t val; } attrs[3] = {
-            { "STR", ent->unit_state->hero.str }, { "AGI", ent->unit_state->hero.agi }, { "INT", ent->unit_state->hero.intel },
+            { "STR", ent->hero.str }, { "AGI", ent->hero.agi }, { "INT", ent->hero.intel },
         };
         frameDef_t *icon_values[3] = {
             hud.unit.IconValue1, hud.unit.IconValue2, hud.unit.IconValue3,
@@ -319,7 +319,7 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
         uint32_t const have = G_HeroXPForLevel(level);
         if (need > have) {
             snprintf(buffer, sizeof(buffer), "XP: %lu / %lu",
-                     (unsigned long)(ent->unit_state->hero.xp - (ent->unit_state->hero.xp < have ? ent->unit_state->hero.xp : have)),
+                     (unsigned long)(ent->hero.xp - (ent->hero.xp < have ? ent->hero.xp : have)),
                      (unsigned long)(need - have));
             UI_SetText(hud.unit.IconValue4, "%s", buffer);
             hud.unit.IconValue4->Font.Color = MAKE(color32_t, 200, 200, 200, 255);
@@ -523,7 +523,7 @@ static cstring_t TimedStatusLabel(heroabilitystatus_t const *status) {
     uint32_t buff_code;
     cstring_t tip;
 
-    if (!status || !unit_statusshowstimedbar(status->code)) return NULL;
+    if (!status || !unit_statusshowstimedbar(G_UnitStatusClassCode(status))) return NULL;
     buff_code = G_UnitStatusBuffCode(status);
     if (!buff_code) return NULL;
     tip = StatusBuffField(buff_code, "Bufftip");
@@ -574,8 +574,8 @@ static void WriteBuffStatusFrames(edict_t *ent) {
     UI_SetText(&hud.buff_label, "%s", UI_GetString("COLON_STATUS"));
     UI_WriteFrame(&hud.buff_label);
 
-    FOR_LOOP(i, ent->unit_state ? MAX_UNIT_STATUSES : 0) {
-        heroabilitystatus_t const *status = ent->unit_state->statuses + i;
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
         cstring_t art;
         cstring_t tip;
         cstring_t ubertip;
@@ -649,8 +649,8 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
         SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType,
                               weapon_upgrade != 0);
         FormatAttackDamageWithStatus(value, sizeof(value), ent, min_damage, max_damage,
-                                ent->unit_state->attack1.temporaryDamageBonus,
-                                ent->unit_state->attack1.damageBase);
+                                S_AttackProfileRead(ent, 0)->temporaryDamageBonus,
+                                S_AttackProfileRead(ent, 0)->damageBase);
         UI_SetText(hud.simple.InfoPanelIconValue, "%s", value);
         SetUpgradeLevel(hud.simple.InfoPanelIconLevel, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack1);
@@ -660,8 +660,8 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
         SetTypedInfoPanelIcon(hud.attack2_icon_backdrop, "Damage", weapons->attack2.attackType,
                               weapon_upgrade != 0);
         FormatAttackDamageWithStatus(value, sizeof(value), ent, min_damage2, max_damage2,
-                                ent->unit_state->attack2.temporaryDamageBonus,
-                                ent->unit_state->attack2.damageBase);
+                                S_AttackProfileRead(ent, 1)->temporaryDamageBonus,
+                                S_AttackProfileRead(ent, 1)->damageBase);
         UI_SetText(hud.attack2_icon_value, "%s", value);
         SetUpgradeLevel(hud.attack2_icon_level, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack2);
@@ -670,7 +670,7 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
 
     SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop_2, "Armor", ent->data.UnitBalance->defenseType,
                           armor_upgrade != 0);
-    if (G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", "|cffff0000Invulnerable|r");
+    if (G_UnitIsInvulnerable(ent)) UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", "|cffff0000Invulnerable|r");
     else {
         FormatArmorValue(value, sizeof(value), ent);
         UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", value);
@@ -707,9 +707,9 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
 
     if (is_hero) {
         SetHeroPrimaryAttributeIcon(ent->data.UnitBalance->primaryAttribute);
-        UI_SetText(hud.simple.InfoPanelIconHeroStrengthValue, "%lu", (unsigned long)ent->unit_state->hero.str);
-        UI_SetText(hud.simple.InfoPanelIconHeroAgilityValue, "%lu", (unsigned long)ent->unit_state->hero.agi);
-        UI_SetText(hud.simple.InfoPanelIconHeroIntellectValue, "%lu", (unsigned long)ent->unit_state->hero.intel);
+        UI_SetText(hud.simple.InfoPanelIconHeroStrengthValue, "%lu", (unsigned long)ent->hero.str);
+        UI_SetText(hud.simple.InfoPanelIconHeroAgilityValue, "%lu", (unsigned long)ent->hero.agi);
+        UI_SetText(hud.simple.InfoPanelIconHeroIntellectValue, "%lu", (unsigned long)ent->hero.intel);
         UI_WriteFrame(&hud.hero);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconHero, &hud.hero);
     }
@@ -723,22 +723,22 @@ static float HeroLevelProgress(edict_t *ent) {
     uint32_t need;
 
     if (!ent) return 0.0f;
-    level = MAX(1u, ent->unit_state->hero.level);
+    level = MAX(1u, ent->hero.level);
     have = G_HeroXPForLevel(level);
     need = G_HeroXPForLevel(level + 1);
     if (need <= have) return 1.0f;
-    if (ent->unit_state->hero.xp <= have) return 0.0f;
-    return MIN(1.0f, (float)(ent->unit_state->hero.xp - have) / (float)(need - have));
+    if (ent->hero.xp <= have) return 0.0f;
+    return MIN(1.0f, (float)(ent->hero.xp - have) / (float)(need - have));
 }
 
 static void WriteHeroLevelBar(frameDef_t *bar, edict_t *ent) {
     char tooltip[64];
-    uint32_t const level = MAX(1u, ent->unit_state->hero.level);
+    uint32_t const level = MAX(1u, ent->hero.level);
     uint32_t const have = G_HeroXPForLevel(level);
     uint32_t const need = G_HeroXPForLevel(level + 1);
     uint32_t const span = need > have ? need - have : 0;
-    uint32_t const earned = span && ent->unit_state->hero.xp > have
-        ? MIN(ent->unit_state->hero.xp - have, span) : 0;
+    uint32_t const earned = span && ent->hero.xp > have
+        ? MIN(ent->hero.xp - have, span) : 0;
     cstring_t const old_tip = bar->Tip;
     cstring_t const old_ubertip = bar->Ubertip;
 
@@ -815,7 +815,7 @@ static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_
         if (is_hero) {
             class_format = UI_GetString("INFOPANEL_LEVEL_CLASS");
             snprintf(class_text, sizeof(class_text), class_format,
-                     (unsigned)MAX(1u, ent->unit_state->hero.level), unit_name);
+                     (unsigned)MAX(1u, ent->hero.level), unit_name);
             UI_SetText(hud.simple.SimpleClassValue, "%s", class_text);
             UI_SetHidden(hud.simple.SimpleClassValue, false);
         } else {
@@ -869,24 +869,24 @@ uint32_t UI_WriteBuildingQueueShell(edict_t *ent, cstring_t action_key, bool sho
 }
 
 void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
-    cargo_t *hold = G_GetCargo(ent);
+    cargo_t *hold = ent ? ent->cargo : NULL;
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
-    cstring_t name = ent->unit_state && ent->unit_state->proper_name && *ent->unit_state->proper_name
-        ? ent->unit_state->proper_name
+    cstring_t name = ent->proper_name && *ent->proper_name
+        ? ent->proper_name
         : G_LevelString(G_UnitProfile(ent->class_id)->properNames);
     cstring_t unit_name = G_UnitName(ent->class_id);
     bool const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
-    uint32_t level = is_hero && ent->unit_state->hero.level > 0 ? ent->unit_state->hero.level
+    uint32_t level = is_hero && ent->hero.level > 0 ? ent->hero.level
                                                  : MAX(1, balance->level);
-    int32_t dice = ent->unit_state->attack1.numberOfDice;
+    int32_t dice = S_AttackProfileRead(ent, 0)->numberOfDice;
     bool has_attack1 = dice > 0;
-    int32_t min_damage = has_attack1 ? MAX(0, (int32_t)(ent->unit_state->attack1.damageBase + dice)) : 0;
-    int32_t max_damage = has_attack1 ? MAX(0, (int32_t)(ent->unit_state->attack1.damageBase + dice * ent->unit_state->attack1.sidesPerDie)) : 0;
-    int32_t dice2 = ent->unit_state->attack2.numberOfDice;
+    int32_t min_damage = has_attack1 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 0)->damageBase + dice)) : 0;
+    int32_t max_damage = has_attack1 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 0)->damageBase + dice * S_AttackProfileRead(ent, 0)->sidesPerDie)) : 0;
+    int32_t dice2 = S_AttackProfileRead(ent, 1)->numberOfDice;
     bool has_attack2 = UI_HasSecondAttack(weapons) && dice2 > 0;
-    int32_t min_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->unit_state->attack2.damageBase + dice2)) : 0;
-    int32_t max_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->unit_state->attack2.damageBase + dice2 * ent->unit_state->attack2.sidesPerDie)) : 0;
+    int32_t min_damage2 = has_attack2 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 1)->damageBase + dice2)) : 0;
+    int32_t max_damage2 = has_attack2 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 1)->damageBase + dice2 * S_AttackProfileRead(ent, 1)->sidesPerDie)) : 0;
 
     if (!name || !*name) name = unit_name;
 
@@ -1024,7 +1024,7 @@ static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
-    return G_GetConstruction(unit) || G_BuildingUpgradeActive(unit) || unit->build != NULL;
+    return unit->construction || G_BuildingUpgradeActive(unit) || unit->build != NULL;
 }
 
 #ifdef BZ_TESTS
@@ -1037,15 +1037,15 @@ void UI_SeedInfoPanelCache(edict_t *ent, edict_t * *selected, uint32_t count) {
     if (!ent->client) return;
     if (count == 1 && !UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = selected[0]->s.number;
-        ent->client->infopanel.count = 0;
-        ent->client->infopanel.xp = (int32_t)(selected[0]->unit_state ? selected[0]->unit_state->hero.xp : 0);
+        ent->client->infopanel.hp = 0;
+        ent->client->infopanel.xp = (int32_t)(selected[0]->hero.xp);
     } else {
         ent->client->infopanel.entity = 0;
         /* HP/mana no longer drive the live portrait bars. Reuse hp as the
          * non-single selection-count cache so async removals (death/fog/hide)
          * can invalidate a still-multiselect info panel. -1 distinguishes
          * the building queue from an empty selection. */
-        ent->client->infopanel.count = count == 1 ? -1 : (int32_t)count;
+        ent->client->infopanel.hp = count == 1 ? -1 : (int32_t)count;
         ent->client->infopanel.xp = 0;
     }
 }
@@ -1244,7 +1244,7 @@ static void WritePortraitStats(edict_t *ent) {
      * OpenRealm keeps the portrait runtime-authored because SmashUI is not a
      * retail MPQ FDF, but uses the same final WC3-space geometry. */
     /* Move both baselines up by roughly two pixels while preserving their gap. */
-    if (!G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE))
+    if (!G_UnitIsInvulnerable(ent))
         WritePortraitText(health, PortraitHealthColor(ent), 0.584f, UI_STAT_SELECTION_HEALTH_TEXT);
     WritePortraitText(mana, COLOR32_WHITE, 0.5985f, UI_STAT_SELECTION_MANA_TEXT);
 }
@@ -1415,8 +1415,8 @@ void G_InvalidateUnitInfoPanel(edict_t *unit) {
             /* -1 means the queue layer was already serialized. Preserve the
              * existing cache representation, but make that queue panel dirty
              * so an upgrade/construction state change is sent next frame. */
-            if (client->infopanel.count == -1) {
-                client->infopanel.count = 0;
+            if (client->infopanel.hp == -1) {
+                client->infopanel.hp = 0;
             } else if (client->infopanel.entity == unit->s.number) {
                 /* UINT32_MAX is outside the entity-number range. Reuse the
                  * entity cache key to invalidate only a currently displayed
@@ -1517,7 +1517,7 @@ void G_RefreshInfoPanel(edict_t *ent) {
     UpdateSelectedLiveStats(ent->client, count ? G_GetMainSelectedUnit(ent->client) : NULL);
     if (count != 1) {
         if (ent->client->infopanel.entity == 0 &&
-            ent->client->infopanel.count == (int32_t)count) {
+            ent->client->infopanel.hp == (int32_t)count) {
             return;
         }
         UI_SendInfoPanel(ent, selected, count);
@@ -1534,7 +1534,7 @@ void G_RefreshInfoPanel(edict_t *ent) {
          * Rebuild them while Unsummon owns the building so a paused training
          * queue remains visually paused instead of continuing on the client. */
         if (G_BuildingIsUnsummoning(selected[0]) ||
-            ent->client->infopanel.entity != 0 || ent->client->infopanel.count != -1) {
+            ent->client->infopanel.entity != 0 || ent->client->infopanel.hp != -1) {
             UI_SendInfoPanel(ent, selected, count);
         }
         return;
@@ -1542,7 +1542,7 @@ void G_RefreshInfoPanel(edict_t *ent) {
     /* HP/mana/timed-status progress are live player-state bindings, so changing
      * their values must not force LAYER_INFOPANEL/FDF reserialization every frame. */
     if (selected[0]->s.number == ent->client->infopanel.entity &&
-        (int32_t)(selected[0]->unit_state ? selected[0]->unit_state->hero.xp : 0) == ent->client->infopanel.xp) {
+        (int32_t)(selected[0]->hero.xp) == ent->client->infopanel.xp) {
         return;
     }
     UI_SendInfoPanel(ent, selected, count);

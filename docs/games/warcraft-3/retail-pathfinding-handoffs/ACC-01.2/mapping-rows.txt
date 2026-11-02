@@ -1,0 +1,1 @@
+// ACC-01.2 adds no new Ghidra rows; it relies on the ACC-01.1 rows (mapping-rows-ACC-01.1.txt), already applied through gw.py.

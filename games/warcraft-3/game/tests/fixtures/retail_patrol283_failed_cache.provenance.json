@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "original_binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "repository_files": {
+    "tools/ghidra/research/patrol283_failed_cache_oracle.py": "4b77ba6acdd38f5468189d9512c53f69fa10e9b017839d7a87ad75773d4d9ebb",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+    "games/warcraft-3/game/tests/fixtures/retail_patrol283_failed_cache.json": "b6f05a793a4d0aa468abe074c4ac93efe0ba5b168a6b24e3155e6a5a328f84ee"
+  },
+  "original_entries": [
+    "6f495c00",
+    "6f00b500",
+    "6f070d80"
+  ],
+  "service_stubs": {
+    "6f061320": "resolve current synthetic identity to target",
+    "6f652500": "requested class token",
+    "synthetic vtable+1c": "target class token",
+    "6f04cdd0": "class-derived predicate true",
+    "6f4968e0": "task validation0 or explicit rejection1",
+    "synthetic timer vtable+18": "provided remaining-time float",
+    "6f0606c0": "record selected timer cancellation",
+    "6f0608d0": "record duration, event, receiver and scheduling flags"
+  },
+  "limitations": [
+    "Synthetic identity registry and time-remaining values; helper instructions unchanged.",
+    "Does not execute native timer queue or external validation/class services.",
+    "Does not establish live eight-target reachability or public callback chronology."
+  ],
+  "runtime_static_evidence": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/patrol283-failed-target-cache-lifecycle-static.json",
+  "command": "python tools/ghidra/research/patrol283_failed_cache_oracle.py --binary /path/to/original/game.dll --check"
+}

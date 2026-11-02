@@ -1,0 +1,24 @@
+{
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f166e90",
+      "name": "Path_RequestFineRoute",
+      "prototype": "uint Path_RequestFineRoute(WC3PathPrefix * path, WC3PathVector2 * source, WC3PathVector2 * goal)",
+      "comment": "Payoff146: engine captures self and target pooled records before fine search, increments both even when aliased, then decrements target before self. Complete45 supplied spatial fixtures match all six counter/window boundaries plus route words/index; includes hierarchy10000000 and held outer counters. A null self does not disable target/other-object queries. No callbacks run in the closed search graph; counters are synchronous derived state, never saved mid-scope. Public recovery/group scopes remain independently owned."
+    },
+    {
+      "address": "6f1489a0",
+      "name": "PathFine_TestOccupiedCell",
+      "prototype": "uint PathFine_TestOccupiedCell(WC3FineSearchPrefix * fine, uint x, uint y)",
+      "comment": "Payoff146 engine raw predicate consumes record occupancy counters rather than a search-only boolean. Target_seen precedes low-counter and moving/exemption gates; complete45 original18x18 windows compared at all six engine boundaries. Ordinary unit categories are live authored profiles; category06/asymmetric rectangles in this oracle remain explicitly supplied fixtures, not public construction claims."
+    },
+    {
+      "address": "6f166c30",
+      "name": "Path_RequestAcceleratedRoute",
+      "prototype": "undefined Path_RequestAcceleratedRoute()",
+      "comment": "Payoff146 expands engine comparisons to all45 original coarse scopes: dynamic, hierarchy and held outer counters, three raw encounter orders, five self/target roles. All1360 class bytes/five boundaries and complete route words match. Coarse never changes counters and rebuilds self before target, including early re-exposure; actual public flying/pending-edit regression remains Payoff130."
+    }
+  ]
+}

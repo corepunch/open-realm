@@ -1,0 +1,31 @@
+{
+  "capture_files_sha256": {
+    "observe1.jsonl": "078ad318fbf88d208dcb033b0c69a762b8a9a43c2b61db74d720a01017bd6a66",
+    "observe2.jsonl": "9df073a1ce086622a6d0f366dc41eb59ecb7f15bd6cd8dc1a9c9fbcd88ed215f",
+    "control1.jsonl": "61bbd2d0ec942040575c2601d8b86e4aa9381fbafdd277591fe7680b1994d827",
+    "observe1-preload.txt": "c64cd0e3842ccd1d710533a7330e481ca2f1ea178aa1aece15aecfa5bcd46b36",
+    "observe2-preload.txt": "1726abe869f511987e76ce600e1d32e91da67f1d1c2ec9aaf5bdceaa16d37a37",
+    "control1-preload.txt": "c8178faee5b51269c562958f201df49aa77747f9bab67edd89681fea855083bc",
+    "frozen-sources.json": "4e13b18b70f6cfdcab3b2cf825413db7cd372d00e352af1bdf9d6cb4193e5de1",
+    "runs.json": "48f255c275275b575d7af954bfa71bbfdd44ff28d091561692199da5838a5453",
+    "abi-static.json": "c782ff1f95d38cb882b8afdff5d454d38632275a058a2d4b13ee36e1ad33b840",
+    "owner-constructor-static.json": "9c941c7b8e5d1fe3bea4d80f034f43ef74b4a0a7b99601f224234e4294c9b0a6",
+    "owner-phase-static.json": "e97005845bae5501ae59339494f1bc232588a74111d42a5293402ae2deaeb4cc",
+    "RS-TARGET251-couple-cantpath-v1.json": "eed7f9d14ec5957409d79bd4c103f876c170aeb22ed2ef71f44fc2b6d2eac075",
+    "itemdrop_capture.py": "b2e25346367ec768e34c229ee4d67b0c9b108f32ceae58e7493fd15ae854bd74",
+    "itemdrop_make_map.py": "7ed646842f001a7fc968589497a5907393739999a9eda59f74503a0d63492c38",
+    "itemdrop_probe.j": "6dab9f30482a3472adb8a0cb414f8846bb051b4b90786699e2e9ac7a57e8b047",
+    "itemdrop_observer.js": "46ed1ea028d2c74f5939a723f198b0aba9218b8bf32d3edf2fc04230dec0d6c7",
+    "RS-TARGET251-couple-cantpath-v1.w3m": "e5afa56cd448b08331c5dfd94ffa304bf1266bbeaeab8b651ff878d7f955402d",
+    "run.py": "0ab1f90e28d33519d10caf5719249d96f9c592b44fb5b9b997d90c329aa58a35"
+  },
+  "projection_sha256": "75b7d5103bc29fbb466497d6869c18242c4f2ff0e09f676db032d50ac5a97cad",
+  "header_sha256": "81dcd97e63a614cc85d225d0463e74a6021314fd9a48142491685aa7b922291b",
+  "capture_dir": "/GitHub/wc3-analysis/runtime/claude-TARGET-01.2/coupling-cantpath258-rng-v1",
+  "limits": [
+    "Only actual owner seed caller29ec20 selected; other per-unit seeds remain raw.",
+    "All seed/draw/direction/state fields read during actual native execution; no guessed poses or injected state.",
+    "First visit phase is AFTER15aa80 toggles; constructor phase0 is independently established by original157610 assignment.",
+    "Retains257 supplemental query and opaque-prefix limits; no full renderer query oracle."
+  ]
+}

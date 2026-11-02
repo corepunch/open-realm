@@ -32,7 +32,7 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     buff = S_SpellBuffId(code, rank);
     /* Map overrides may omit BuffID; both Incinerate variants use BNic in the TFT profiles. */
     if (!buff || strlen(buff) < 4) buff = "BNic";
-    stacks = G_UnitStatusLevel(target, FS_SLKKey(buff)) + 1;
+    stacks = G_UnitStatusClassLevel(target, FS_SLKKey(buff)) + 1;
     slot = S_SpellApplyTimedStatus(target, buff, stacks, S_SpellDuration(code, rank, false));
     if (!slot) return;
     slot->data = code; slot->source_ability = code; slot->rank = rank;
@@ -52,8 +52,9 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
         return true;
     }
     blast = G_Spawn(); blast->owner = source;
-    G_AddChannel(blast);
-    G_GetChannel(blast)->owner_spawn_time = slot->source_spawn_time;
+    if (!blast->channel) blast->channel = G_AllocChannel();
+    assert(blast->channel);
+    blast->channel->owner_spawn_time = slot->source_spawn_time;
     blast->class_id = slot->data; blast->resources = slot->rank; blast->s.origin2 = ent->s.origin2;
     blast->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
     blast->think = incinerate_explode_think;

@@ -39,6 +39,7 @@ typedef struct slkField_s {
     cstring_t        id;      /* optional four-character object-data field ID */
     cstring_t        default_value; /* typed value used when the source omits the field */
     uint8_t       list;    /* 0: whole cell; N: Nth comma-separated element (1-based), last element when shorter */
+    ptrdiff_t     presence_offset; /* optional bool in the typed row; zero means untracked */
 } slkField_t;
 
 /* INI files are runtime-keyed dictionaries, so keep their parser state opaque

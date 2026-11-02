@@ -1,0 +1,11 @@
+{
+  "program": "game.dll",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "readback": true,
+  "notes": {
+    "6f16b5c0": "Payoff150 integrates this policy into OpenRealm Move commits: min(requested,cap), then bit800 plus unseen==0, strictly faster than resolved moving target, strictly inside (arrival_range+runtime4)^2 of the SAMPLER destination. Native runtime scale word3f733334 is retained. Fresh original-code policy oracle executes registry, clock, prediction and arithmetic, stopping read-only at16fe20:6480 constructed cases,96 adjusted. These include forced flags and are not public producer proof. Delivered GROUP-03.2 live repeats separately establish natural capped/exempt Follow adjustments.",
+    "6f16cd30": "Payoff150 engine owner now retains hidden-visit counter and cached destination across fog and save126. A visible visit resets unseen but samples only when countdown0. Speed matching consumes this visit's sampled destination; route group_goal may remain older after admission rejection. Broader target loss/validation and delayed changed-cell admissions remain TARGET-02/03.",
+    "6f23a760": "Payoff150 uses a game-owned mode4/flags0 tracking query: owned/shared-vision detection does not bypass the target's vision cell. Presentation ownership shortcuts cannot implement this callback. Virtual captain actors retain the no-unit-wrapper bypass. Caller-specific flags/TLS, notification outcomes and all visibility producers remain TARGET-03."
+  }
+}

@@ -1,0 +1,306 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "portal_rows": [
+    {
+      "event": "portal-enter",
+      "c": 1108,
+      "self": 1,
+      "before": 0,
+      "point": [
+        1112408064,
+        1099694080
+      ],
+      "args": [
+        32,
+        24,
+        6
+      ]
+    },
+    {
+      "event": "portal-held",
+      "c": 1108,
+      "self": 1,
+      "flags": 1,
+      "callback": 0,
+      "context": 0
+    },
+    {
+      "event": "portal-candidate",
+      "c": 1108,
+      "self": 1,
+      "flags": 1,
+      "outer": 0
+    },
+    {
+      "event": "portal-leave",
+      "c": 1108,
+      "self": 1,
+      "before": 0,
+      "after": 0,
+      "result": 1,
+      "point": [
+        1112670208,
+        1099169792
+      ]
+    }
+  ],
+  "map_manifest": {
+    "task": "MAP-04.2 / payoff188",
+    "probe": "portal188_probe.j",
+    "scenes": 1,
+    "variant": 0,
+    "base_sha256": "199683be6cd1a888ade00f3dce1e3e93f16e92e05724717048b033108b5a2104",
+    "map_sha256": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc",
+    "members": [
+      "war3map.doo",
+      "war3map.j",
+      "war3map.mmp",
+      "war3map.shd",
+      "war3map.w3c",
+      "war3map.w3e",
+      "war3map.w3i",
+      "war3map.w3r",
+      "war3map.w3s",
+      "war3map.w3u",
+      "war3map.wct",
+      "war3map.wpm",
+      "war3map.wtg",
+      "war3map.wts",
+      "war3mapMap.blp",
+      "war3mapUnits.doo"
+    ],
+    "changed_members": {
+      "war3map.doo": "16d74745ef06ff4e6ba55a4afc510adaeadd93027f22fea3ddab504fb56702d7",
+      "war3map.j": "29cbeae616771560ae2129150073ad4791b6f94985c406c0e09d3e512c32533b",
+      "war3map.shd": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+      "war3map.w3e": "5ed7e2bb7c1b4646f98f52490a0c735b299746c989f59a46dfd393cd7fb28920",
+      "war3map.wpm": "115055309afc7ff7cc9b8820df49d0f4b0bbf6f300f6ca09420f1968ee8d7587",
+      "war3mapUnits.doo": "ce9dc95470ad7718f9924ab12a1dfdb8feb60e25145c200f37072b1194bd8385"
+    },
+    "preload_output": "rs-portal188.txt",
+    "builder_sha256": "33a264d9dcb4aa4f5a0f3dc062633d110239dab2c8cc1e169e8638548738ba16",
+    "probe_sha256": "cb31fd0e602de743ba897250ad1234085444544625452d015c3add5458a612d2",
+    "wall": {
+      "fine_x": [
+        30,
+        33
+      ],
+      "fine_y": [
+        0,
+        49
+      ],
+      "wpm": 202
+    },
+    "floor_wpm": 64,
+    "fine_origin": [
+      0.0,
+      0.0
+    ],
+    "fine_cell_world": 32.0,
+    "container": "rebuilt MPQ with original HM3W header; signature not retained"
+  },
+  "scope": "Public point Move with active Way Gate and occupied destination. Minimal function-entry hooks: native16ec00 entry,16ecc0 held boundary,16ee00 candidate and return. Enter fine51.5/17.5, admitted52.5/16.5. Both observed166-marker trajectories equal observer-free control. Broad observer157-marker mismatches are rejected. The inherited controller retains unrelated source pins; actual map/probe/builder are pinned by map_manifest.",
+  "rejected_captures": {
+    "MAP-04.2/captures188/observe-1.jsonl": {
+      "bytes": 236538,
+      "sha256": "a5be285d699e516d50903f92e2261fa6c4d67277159c78e5c6fd9e11382994d8",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "MAP-04.2/captures188/observe-2.jsonl": {
+      "bytes": 236536,
+      "sha256": "2f3fe5a9b0d8a6512f873b9722c2becd189076146a1736d59c06dd4604025b6e",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "MAP-04.2/captures188/control-1.jsonl": {
+      "bytes": 1530,
+      "sha256": "33cc30c7d1163333c1a4e9c3475020c663f252350a41b3ddf2704ec8aa549dc4",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "rejected_public_differences": 157,
+  "captures": {
+    "MAP-04.2/captures188/minimal-observe-1.jsonl": {
+      "bytes": 21691,
+      "sha256": "4c9ba55d96141a661eb5cb40eb08582677ca2d06d2aeaa6a3ce965b04c38cfc6",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "MAP-04.2/captures188/minimal-observe-2.jsonl": {
+      "bytes": 21691,
+      "sha256": "79e09ef51b7cb53dbad6a29211035477884da34bcdfc12fdc87a9cef6f1d8ec2",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "MAP-04.2/captures188/minimal-control-1.jsonl": {
+      "bytes": 1532,
+      "sha256": "2e169f6b1379e94ad932a7d1ba059798b10c738b2de096b1a739a8fce6d35016",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff188",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+        },
+        "map": "Maps\\RS-Portal188.w3m",
+        "seconds": 130.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P188 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  }
+}

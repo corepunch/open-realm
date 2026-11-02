@@ -1,0 +1,104 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "live1.jsonl": {
+      "bytes": 35933,
+      "sha256": "723d5336ad072e38aed23e32051a6d17c7a639eeca54d3c63fba1beb2371beb5",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff191",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "base191_observer.js": "6d1671bc22e28af2150d39c9291d77e984d3eb0ff479cc37fa91921aabef8eaa",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+        },
+        "map": "Maps/RS-Base191.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "live2.jsonl": {
+      "bytes": 35935,
+      "sha256": "49e9e2d18f467db2b8b9e837754c500586b5058cb4569322a1c0fd3100004a5b",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff191",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "base191_observer.js": "6d1671bc22e28af2150d39c9291d77e984d3eb0ff479cc37fa91921aabef8eaa",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+        },
+        "map": "Maps/RS-Base191.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "control.jsonl": {
+      "bytes": 1536,
+      "sha256": "daf869e7339004e98bb7d5cd168ec6e78142d55d08598027cd9718fb82d77e7e",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff191",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+        },
+        "map": "Maps/RS-Base191.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "PATHTRACE ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "timeline_sha256": "e55f13ac65481bb3a381a11d5371b874e0e0e1b919464fdda78480c741a6cfd8"
+}

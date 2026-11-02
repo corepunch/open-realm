@@ -14,8 +14,8 @@ static uint32_t militia_actor_ability_alias(edict_t *ent, uint32_t base_code) {
             if (G_AbilityCode(code) == base_code) return code;
         }
     }
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.added) : 0)) {
-        uint32_t const code = ent->unit_state->overrides.added[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(alias, &code, 4);
         if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return code;
@@ -25,8 +25,8 @@ static uint32_t militia_actor_ability_alias(edict_t *ent, uint32_t base_code) {
 
 static bool militia_actor_ability_removed(edict_t *ent, uint32_t base_code) {
     if (!ent) return false;
-    FOR_LOOP(i, (ent->unit_state ? ARRAY_COUNT(ent->unit_state->overrides.removed) : 0)) {
-        uint32_t const code = ent->unit_state->overrides.removed[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.removed)) {
+        uint32_t const code = ent->abilities.removed[i];
         if (code && G_AbilityCode(code) == base_code) return true;
     }
     return false;
@@ -81,64 +81,41 @@ bool S_MilitiaEnsureHallAbility(edict_t *hall) {
 
 static void militia_sync_form(edict_t *unit, uint32_t ability) {
     uint32_t normal_type, militia_type;
-    militia_t *state = G_GetMilitia(unit);
 
-    if (!unit || !ability || (state && state->ability)) return;
+    if (!unit || !ability || (unit->militia && unit->militia->ability)) return;
     normal_type = S_SpellDataId(ability, 1, 1);
     militia_type = S_SpellDataId(ability, 1, 2);
     if (!normal_type || !militia_type || unit->class_id != militia_type) return;
-    state = G_AddMilitia(unit);
-    state->ability = ability;
-    state->normal_type = normal_type;
-    state->militia_type = militia_type;
-    state->active = true;
+    if (!unit->militia) unit->militia = G_AllocMilitia();
+    assert(unit->militia);
+    unit->militia->ability = ability;
+    unit->militia->normal_type = normal_type;
+    unit->militia->militia_type = militia_type;
+    unit->militia->active = true;
 }
 
-static bool militia_partner_valid(edict_t *worker, edict_t *hall) {
-    militia_t *state = G_GetMilitia(worker);
-    if (!worker || !hall || !hall->inuse || M_IsDead(worker) || M_IsDead(hall)) return false;
-    if (worker->s.player != hall->s.player || G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) || G_UnitHasFlag(hall, UNIT_FLAG_PAUSED)) return false;
-    if (hall != state->partner || hall->spawn_time != state->partner_spawn_time) return false;
-    if (!militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'))) return false;
-    return militia_hall_ability_alias(hall, false) != 0;
+/* Terminal ability validity is independent of the already admitted Move task. */
+static bool militia_partner_valid(edict_t *worker,edict_t *hall) {
+    return worker && worker->militia && hall && hall->inuse && !G_IsDeferredFree(hall) &&
+        !M_IsDead(worker) && !M_IsDead(hall) && worker->s.player==hall->s.player &&
+        hall==worker->militia->partner && hall->spawn_time==worker->militia->partner_spawn_time &&
+        militia_actor_ability_alias(worker,MAKEFOURCC('A','m','i','l')) &&
+        militia_hall_ability_alias(hall,false);
 }
 
-static bool militia_in_range(edict_t *worker, edict_t *hall) {
-    uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
-    float const range = hall_ability ? MAX(0.0f, S_SpellRange(hall_ability, 1)) : 0.0f;
-    float const footprint = CM_DistanceToPathingFootprint(hall, &worker->s.origin2);
-
-    if (footprint < FLT_MAX) return footprint <= worker->collision + range;
-    return Vector2_distance(&worker->s.origin2, &hall->s.origin2) <=
-        worker->collision + hall->collision + range;
+static float militia_hall_range(edict_t *hall) {
+    uint32_t ability=militia_hall_ability_alias(hall,false);
+    return ability ? MAX(0.0f,S_SpellRange(ability,S_SpellLevel(hall,ability))) : 0;
 }
-
-static bool militia_prepare_approach(edict_t *worker, edict_t *hall) {
-    uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
-    vec2_t approach;
-    float range;
-
-    if (!worker || !hall || !hall_ability) return false;
-    range = worker->collision + MAX(0.0f, S_SpellRange(hall_ability, 1));
-    if (CM_FindApproachPointToFootprintForRadius(
-            hall, &worker->s.origin2, range, worker->collision, &approach)) {
-        worker->goalentity = Waypoint_add(&approach);
-        move_reset_progress(worker);
-        return worker->goalentity != NULL;
-    }
-    if (!hall->pathtex) {
-        worker->goalentity = hall;
-        move_reset_progress(worker);
-        return true;
-    }
-    return false;
+static bool militia_in_range(edict_t *worker,edict_t *hall,float range) {
+    return S_UnitTargetInMoveRange(worker,hall,range) || S_UnitTargetOnPerimeter(worker,hall);
 }
 
 static returnResource_t militia_previous_resource(edict_t *worker) {
     if (!worker) return 0;
-    if ((worker->harvest ? worker->harvest->gold : 0) || (worker->currentmove && worker->currentmove->proc == CAbilityGoldMine))
+    if (worker->harvested_gold || (worker->currentmove && worker->currentmove->proc == CAbilityGoldMine))
         return RETURN_RESOURCE_GOLD;
-    if ((worker->harvest ? worker->harvest->lumber : 0) || (worker->currentmove && worker->currentmove->proc == CAbilityHarvest))
+    if (worker->harvested_lumber || (worker->currentmove && worker->currentmove->proc == CAbilityHarvest))
         return RETURN_RESOURCE_LUMBER;
     return 0;
 }
@@ -147,23 +124,23 @@ static void militia_return_carried_resources(edict_t *worker) {
     player_t *player;
 
     if (!worker || !(player = G_GetPlayerByNumber(worker->s.player))) return;
-    if ((worker->harvest ? worker->harvest->gold : 0)) {
+    if (worker->harvested_gold) {
         G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_GOLD,
-                               (int32_t)(worker->harvest ? worker->harvest->gold : 0));
+                               (int32_t)worker->harvested_gold);
         S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
     }
-    if ((worker->harvest ? worker->harvest->lumber : 0)) {
+    if (worker->harvested_lumber) {
         G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_LUMBER,
-                               (int32_t)(worker->harvest ? worker->harvest->lumber : 0));
+                               (int32_t)worker->harvested_lumber);
         S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 0);
     }
 }
 
 static void militia_remove_buff(edict_t *unit) {
     uint32_t const code = MAKEFOURCC('B','m','i','l');
-    FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0) {
-        if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == code)
-            unit_removestatus(unit, unit->unit_state->statuses + i, STATUS_REMOVE_TRANSFORM);
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        if (unit->abilstatus[i].level && G_UnitStatusClassCode(unit->abilstatus+i) == code)
+            unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_TRANSFORM);
     }
 }
 
@@ -172,11 +149,10 @@ static bool militia_transform_type(edict_t *unit, uint32_t type) {
 }
 
 static void militia_clear_pairing(edict_t *unit) {
-    militia_t *state = G_GetMilitia(unit);
-    assert(state);
-    state->partner = NULL;
-    state->partner_spawn_time = 0;
-    state->returning = false;
+    assert(unit->militia);
+    unit->militia->partner = NULL;
+    unit->militia->partner_spawn_time = 0;
+    unit->militia->returning = false;
 }
 
 static void militia_back_to_work(edict_t *unit, returnResource_t resource) {
@@ -186,21 +162,20 @@ static void militia_back_to_work(edict_t *unit, returnResource_t resource) {
 }
 
 static bool militia_transform_forward(edict_t *worker) {
-    militia_t *state = G_GetMilitia(worker);
-    uint32_t const ability = state->ability;
+    uint32_t const ability = worker->militia->ability;
     uint32_t const normal_type = S_SpellDataId(ability, 1, 1);
     uint32_t const militia_type = S_SpellDataId(ability, 1, 2);
     float const duration = S_SpellDuration(ability, 1, false);
 
     if (!normal_type || !militia_type || worker->class_id != normal_type ||
         !G_UnitUI(militia_type)->modelFile) return false;
-    state->normal_type = normal_type;
-    state->militia_type = militia_type;
+    worker->militia->normal_type = normal_type;
+    worker->militia->militia_type = militia_type;
     militia_return_carried_resources(worker);
     if (!militia_transform_type(worker, militia_type)) return false;
-    state->active = true;
+    worker->militia->active = true;
     militia_clear_pairing(worker);
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
     if (duration > 0.0f) (void)S_SpellApplyTimedStatus(worker, MILITIA_BUFF, 1, duration);
     unit_stand(worker);
@@ -208,128 +183,108 @@ static bool militia_transform_forward(edict_t *worker) {
 }
 
 static bool militia_transform_back(edict_t *militia, bool resume_work) {
-    militia_t *state = G_GetMilitia(militia);
-    returnResource_t const resource = (returnResource_t)state->previous_resource;
-    uint32_t const normal_type = state->normal_type;
+    returnResource_t const resource = (returnResource_t)militia->militia->previous_resource;
+    uint32_t const normal_type = militia->militia->normal_type;
 
-    if (!normal_type || militia->class_id != state->militia_type) return false;
+    if (!normal_type || militia->class_id != militia->militia->militia_type) return false;
     militia_remove_buff(militia);
     if (!militia_transform_type(militia, normal_type)) return false;
-    state->ability = 0;
-    state->active = false;
-    state->normal_type = 0;
-    state->militia_type = 0;
-    state->previous_resource = 0;
+    militia->militia->ability = 0;
+    militia->militia->active = false;
+    militia->militia->normal_type = 0;
+    militia->militia->militia_type = 0;
+    militia->militia->previous_resource = 0;
     militia_clear_pairing(militia);
     if (resume_work) {
-        militia->goalentity = NULL;
+        S_SetMoveGoal(militia, &militia->goalentity, NULL);
         move_reset_progress(militia);
         militia_back_to_work(militia, resource);
     }
     return true;
 }
 
-static void ai_militia_pair_walk(edict_t *worker) {
-    militia_t *state = G_GetMilitia(worker);
-    edict_t *hall = worker ? state->partner : NULL;
-    float distance, step;
+static void militia_pair_think(edict_t *);
+static void militia_pair_leave(edict_t *unit) {
+    S_EndUnitTargetChase(unit,CAbilityMilitia);
+    S_CancelMilitiaPairing(unit);
+}
+static umove_t militia_move_walk={.animation="walk",.think=militia_pair_think,.proc=CAbilityMilitia,
+    .sample_pose=S_PublishMovement,.leave=militia_pair_leave};
 
-    if (!militia_partner_valid(worker, hall)) {
-        militia_clear_pairing(worker);
-        worker->goalentity = NULL;
-        move_reset_progress(worker);
-        unit_stand(worker);
-        return;
+void S_MilitiaApproachComplete(edict_t *receiver,edict_t *worker,bool arrived) {
+    if(receiver!=worker || worker->currentmove!=&militia_move_walk || !worker->militia)return;
+    if(!arrived && worker->movement.group_id)return;
+    edict_t *hall=worker->militia->partner;
+    if(militia_partner_valid(worker,hall) &&
+       militia_in_range(worker,hall,militia_hall_range(hall))) {
+        if(worker->militia->returning ? militia_transform_back(worker,true) : militia_transform_forward(worker))return;
     }
-    if (militia_in_range(worker, hall)) {
-        bool const transformed = state->returning
-            ? militia_transform_back(worker, true)
-            : militia_transform_forward(worker);
-        if (!transformed) {
-            S_CancelMilitiaPairing(worker);
-            worker->goalentity = NULL;
-            move_reset_progress(worker);
-            unit_stand(worker);
-        }
-        return;
-    }
-    distance = M_DistanceToGoal(worker);
-    step = unit_movedistance(worker);
-    if (move_is_blocked(worker, distance, step) || worker->movement->flow_unreachable) {
-        militia_clear_pairing(worker);
-        worker->goalentity = NULL;
-        move_reset_progress(worker);
-        unit_stand(worker);
-        return;
-    }
-    unit_changeangle_for_radius(worker, worker->collision);
-    if (worker->movement->flow_goal_reached && !militia_in_range(worker, hall)) {
-        militia_clear_pairing(worker);
-        worker->goalentity = NULL;
-        move_reset_progress(worker);
-        unit_stand(worker);
-        return;
-    }
-    unit_moveindirection(worker);
+    S_CancelMilitiaPairing(worker);S_SetMoveGoal(worker,&worker->goalentity,NULL);unit_stand(worker);
 }
 
-static umove_t militia_move_walk = { "walk", ai_militia_pair_walk, NULL, CAbilityMilitia, .travel = true };
+/* Native pairing builds d0174 with authored range when outside range. If only
+ * facing fails, FLT_MAX retains the ordinary target turn without translation.
+ * Ability loss is checked at the terminal, never while Move owns approach. */
+static void militia_pair_think(edict_t *worker) {
+    if(S_UnitTargetChaseActive(worker,CAbilityMilitia))return;
+    edict_t *hall=worker->militia ? worker->militia->partner : NULL;
+    if(!hall || !hall->inuse || G_IsDeferredFree(hall) || hall->spawn_time!=worker->militia->partner_spawn_time) {
+        S_MilitiaApproachComplete(worker,worker,false);return;
+    }
+    float range=worker->militia->pair_range;
+    if(militia_in_range(worker,hall,range)) {
+        if(S_UnitTargetInFacingWindow(worker,hall,.2f)) {
+            S_MilitiaApproachComplete(worker,worker,true);return;
+        }
+        range=FLT_MAX;
+    }
+    if(!S_BeginUnitTargetChase(worker,hall,range,CAbilityMilitia,S_MilitiaApproachComplete))
+        S_MilitiaApproachComplete(worker,worker,false);
+}
 
-bool S_MilitiaTargetOrder(edict_t *worker, cstring_t order, edict_t *hall) {
-    uint32_t worker_ability;
-    bool returning;
+static bool militia_pair_order(cstring_t order) {
+    return order && (!strcmp(order,"militiaconvert") || !strcmp(order,"militiaunconvert"));
+}
 
-    if (!worker || !order || !hall) {
-        return false;
-    }
-    if (M_IsDead(worker) || M_IsDead(hall)) {
-        return false;
-    }
-    if (worker->s.player != hall->s.player) {
-        return false;
-    }
-    if (G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) || G_UnitHasFlag(hall, UNIT_FLAG_PAUSED)) {
-        return false;
-    }
-    if (!militia_hall_ability_alias(hall, true)) {
-        return false;
-    }
-    returning = !strcmp(order, "militiaoff");
-    if (!returning && strcmp(order, "militia")) {
-        return false;
-    }
-    worker_ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
-    if (!worker_ability) {
-        return false;
-    }
-    militia_sync_form(worker, worker_ability);
-    militia_t *state = G_AddMilitia(worker);
+static abilityOrderResult_t militia_target_admit(edict_t *worker,abilityCall_t const *call) {
+    if(!call || !militia_pair_order(call->issued_target_order.order))return ABILITY_ORDER_UNHANDLED;
+    edict_t *hall=call->issued_target_order.target;
+    uint32_t ability=militia_actor_ability_alias(worker,MAKEFOURCC('A','m','i','l'));
+    if(!worker || !hall || !hall->inuse || G_IsDeferredFree(hall) || M_IsDead(worker) || M_IsDead(hall) ||
+       worker->s.player!=hall->s.player || worker->paused || hall->paused || !ability ||
+       !G_IsUnitAbilityAvailable(worker,ability) || !militia_hall_ability_alias(hall,true))return ABILITY_ORDER_REJECTED;
+    bool returning=!strcmp(call->issued_target_order.order,"militiaunconvert");
+    uint32_t type=S_SpellDataId(ability,1,returning ? 2 : 1);
+    return worker->class_id==type ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+}
 
-    if (returning != state->active) {
-        return false;
-    }
+/* Rejection at dispatch still owns the published packet. Use the normal
+ * completion edge so a queued successor or idle stand replaces it. */
+static queuedOrderResult_t militia_pair_rejected(edict_t *worker) {
+    unit_stand(worker);
+    return QUEUED_ORDER_REPLACED;
+}
 
-    if (!returning && !state->ability)
-        state->previous_resource = militia_previous_resource(worker);
-    if (!state->ability) state->ability = worker_ability;
-    state->partner = hall;
-    state->partner_spawn_time = hall->spawn_time;
-    state->returning = returning;
-    worker->orders->holding_position = false;
-    if (militia_in_range(worker, hall)) {
-        bool const transformed = returning ? militia_transform_back(worker, true) : militia_transform_forward(worker);
-        if (!transformed) S_CancelMilitiaPairing(worker);
-        return transformed;
-    }
-    if (!militia_prepare_approach(worker, hall)) {
-        militia_clear_pairing(worker);
-        worker->goalentity = NULL;
-        move_reset_progress(worker);
-        if (!returning) state->ability = 0;
-        return false;
-    }
-    unit_setmove(worker, &militia_move_walk);
-    return true;
+static queuedOrderResult_t militia_pair_activate(edict_t *worker,unitOrder_t const *packet) {
+    edict_t *hall=packet->target_number<globals.num_edicts ? g_edicts+packet->target_number : NULL;
+    if(!hall || !hall->inuse || G_IsDeferredFree(hall) || hall->spawn_time!=packet->target_spawn_time)return militia_pair_rejected(worker);
+    abilityCall_t admission={.issued_target_order={.target=hall,.order=packet->order}};
+    if(militia_target_admit(worker,&admission)!=ABILITY_ORDER_ACCEPTED)return militia_pair_rejected(worker);
+    uint32_t ability=militia_actor_ability_alias(worker,MAKEFOURCC('A','m','i','l'));
+    militia_sync_form(worker,ability);
+    if(!worker->militia)worker->militia=G_AllocMilitia();
+    bool returning=!strcmp(packet->order,"militiaunconvert");
+    if(returning!=worker->militia->active)return militia_pair_rejected(worker);
+    if(!returning && !worker->militia->ability)worker->militia->previous_resource=militia_previous_resource(worker);
+    worker->militia->ability=ability;worker->militia->partner=hall;
+    worker->militia->partner_spawn_time=hall->spawn_time;worker->militia->returning=returning;
+    worker->militia->pair_range=militia_hall_range(hall);
+    S_SetMoveGoal(worker,&worker->goalentity,hall);move_reset_progress(worker);
+    unit_setmove(worker,&militia_move_walk);worker->current_order_id=packet->order_id;
+    uint32_t generation=worker->spawn_time,revision=G_UnitMoveRevision(worker);
+    militia_pair_think(worker);
+    return worker->inuse && worker->spawn_time==generation && !G_IsDeferredFree(worker) &&
+        worker->currentmove==&militia_move_walk && G_UnitMoveRevision(worker)==revision ? QUEUED_ORDER_STARTED : QUEUED_ORDER_REPLACED;
 }
 
 float S_MilitiaPairSearchRadius(uint32_t ability) {
@@ -352,7 +307,7 @@ static edict_t *militia_find_partner(edict_t *worker, uint32_t worker_ability) {
 
         if (hall->s.player != worker->s.player) continue;
         if (!G_UnitIsStructure(hall)) continue;
-        if (M_IsDead(hall) || G_UnitHasFlag(hall, UNIT_FLAG_PAUSED)) continue;
+        if (M_IsDead(hall) || hall->paused) continue;
         hall_ability = militia_hall_ability_alias(hall, true);
         if (!hall_ability) continue;
         distance = Vector2_distance(&worker->s.origin2, &hall->s.origin2);
@@ -366,11 +321,10 @@ static edict_t *militia_find_partner(edict_t *worker, uint32_t worker_ability) {
 }
 
 static bool militia_toggle_on(edict_t *unit) {
-    militia_t *state = G_GetMilitia(unit);
     uint32_t ability, militia_type;
 
     if (!unit) return false;
-    if (state && state->active) return true;
+    if (unit->militia && unit->militia->active) return true;
     ability = militia_actor_ability_alias(unit, MAKEFOURCC('A','m','i','l'));
     militia_type = ability ? S_SpellDataId(ability, 1, 2) : 0;
     return militia_type && unit->class_id == militia_type;
@@ -384,8 +338,7 @@ static void militia_cmd(edict_t *clent) {
         uint32_t const ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
         edict_t *hall;
         cstring_t order;
-        militia_t const *state = G_GetMilitia(worker);
-        if (!ability || G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) || (state && state->partner) || S_GoldMineWorkerIsInside(worker)) {
+        if (!ability || worker->paused || (worker->militia && worker->militia->partner) || S_GoldMineWorkerIsInside(worker)) {
             continue;
         }
         militia_sync_form(worker, ability);
@@ -393,8 +346,7 @@ static void militia_cmd(edict_t *clent) {
         if (!hall) {
             continue;
         }
-        state = G_GetMilitia(worker); /* militia_sync_form may have attached the record. */
-        order = state && state->active ? "militiaoff" : "militia";
+        order = worker->militia && worker->militia->active ? "militiaunconvert" : "militiaconvert";
         if (G_IssueUnitTargetOrder(worker, order, hall, false, clent->client->ps.number))
             issued = true;
     }
@@ -402,20 +354,18 @@ static void militia_cmd(edict_t *clent) {
 }
 
 void S_CancelMilitiaPairing(edict_t *unit) {
-    militia_t *state = G_GetMilitia(unit);
-    if (!state || !state->ability) return;
+    if (!unit || !unit->militia || !unit->militia->ability) return;
     militia_clear_pairing(unit);
-    if (!state->active) {
-        state->ability = 0;
-        state->normal_type = 0;
-        state->militia_type = 0;
-        state->previous_resource = 0;
+    if (!unit->militia->active) {
+        unit->militia->ability = 0;
+        unit->militia->normal_type = 0;
+        unit->militia->militia_type = 0;
+        unit->militia->previous_resource = 0;
     }
 }
 
 void S_MilitiaExpire(edict_t *unit) {
-    militia_t const *state = G_GetMilitia(unit);
-    if (!state || !state->active || M_IsDead(unit)) return;
+    if (!unit || !unit->militia || !unit->militia->active || M_IsDead(unit)) return;
     if (!militia_transform_back(unit, false)) return;
     /* Natural expiration is not Back to Work. Preserve a combat/move behavior
      * when one exists; only retire an in-flight militia pairing walk. */
@@ -433,19 +383,20 @@ BZ_COMMAND_PROC(AbilityMilitiaConvert) {
     FOR_CONTROLLABLE_SELECTED_UNITS(client, hall) {
         uint32_t const hall_ability = militia_hall_ability_alias(hall, true);
         float radius;
-        if (!hall_ability || G_UnitHasFlag(hall, UNIT_FLAG_PAUSED)) continue;
+        if (!hall_ability || hall->paused) continue;
         radius = S_MilitiaPairSearchRadius(hall_ability);
         FILTER_EDICTS(worker, worker->inuse && (worker->svflags & SVF_MONSTER) && !M_IsDead(worker) &&
-                      !G_UnitHasFlag(worker, UNIT_FLAG_PAUSED) && worker->s.player == hall->s.player) {
+                      !worker->paused && worker->s.player == hall->s.player) {
             uint32_t const worker_ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
             float const distance = Vector2_distance(&worker->s.origin2, &hall->s.origin2);
-            militia_t const *state = G_GetMilitia(worker);
-            if (!worker_ability || (state && state->partner) || S_GoldMineWorkerIsInside(worker)) continue;
+            if (!worker_ability || (worker->militia && worker->militia->partner) || S_GoldMineWorkerIsInside(worker)) continue;
             militia_sync_form(worker, worker_ability);
-            state = G_AddMilitia(worker);
-            if (off != state->active) continue;
+    if (!worker->militia) worker->militia = G_AllocMilitia();
+    assert(worker->militia);
+
+            if (off != (worker->militia && worker->militia->active)) continue;
             if (distance > radius) continue;
-            if (G_IssueUnitTargetOrder(worker, off ? "militiaoff" : "militia", hall, false, client->ps.number))
+            if (G_IssueUnitTargetOrder(worker, off ? "militiaunconvert" : "militiaconvert", hall, false, client->ps.number))
                 issued = true;
         }
     }
@@ -456,7 +407,28 @@ BZ_COMMAND_PROC(AbilityMilitiaConvert) {
 
 BZ_ABILITY_PROC(CAbilityMilitia) {
     switch (msg) {
-    case A_COMMAND: militia_cmd(call && call->entity ? call->entity : ent); return true;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_TARGET_ORDER_ADMIT,A_QUEUE_ORDER_START,A_MOVE_LEAVE,A_DEATH,A_UNIT_REMOVE,A_DISABLE);
+    case A_TARGET_ORDER_ADMIT: return militia_target_admit(ent,call);
+    case A_TARGET_REMOVED:
+        if(ent && ent->militia && call && ent->militia->partner==call->removed_target) {
+            /* Keep the public head until the scheduled owner retires, but
+             * stop physical translation at the target-removal boundary. */
+            S_EndUnitTargetChase(ent,CAbilityMilitia);S_SetMoveGoal(ent,&ent->goalentity,NULL);
+            return true;
+        }
+        return false;
+    case A_QUEUE_ORDER_START:
+        if(call && call->queued_order->target_type==UNIT_ORDER_TARGET_ENTITY && militia_pair_order(call->queued_order->order))
+            return militia_pair_activate(ent,call->queued_order);
+        return QUEUED_ORDER_UNHANDLED;
+    case A_MOVE_LEAVE:
+        if(call && call->next_move_proc!=CAbilityMilitia)militia_pair_leave(ent);
+        return false;
+    case A_DEATH:
+    case A_UNIT_REMOVE: militia_pair_leave(ent);return false;
+    case A_DISABLE: return false; /* Retain admitted physical work until its terminal. */
+    case A_COMMAND: militia_cmd(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return militia_toggle_on(ent);
     default: return false;
     }

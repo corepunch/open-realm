@@ -1,0 +1,1856 @@
+{
+  "accepted": true,
+  "public_records": 246,
+  "scoped_records": 627,
+  "public_sha256": "e9d0ddb1db44b124f32fa0d2238c6244e57b486ea680a8f518910c7aa03df3e0",
+  "observations": 1,
+  "control_reused": "build/tests/invisibility324/native/control-v4-preload.txt",
+  "phase_entries": [
+    {
+      "event": "item-phase",
+      "seq": 11,
+      "tick": 0,
+      "scene": 0,
+      "rva": 4236544,
+      "caller": 4338145,
+      "ability_flags": 8224,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          849,
+          856
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        894,
+        912
+      ],
+      "stack": [
+        4338145,
+        4236544,
+        4348827,
+        4348560,
+        6790446,
+        6794372,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772,
+        9488861,
+        1955909,
+        2065422
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 12,
+      "tick": 0,
+      "scene": 0,
+      "rva": 4176768,
+      "caller": 4422022,
+      "ability_flags": 8225,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          849,
+          856
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        894,
+        912
+      ],
+      "stack": [
+        4422022,
+        4176768,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 13,
+      "tick": 0,
+      "scene": 0,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          849,
+          856
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        894,
+        912
+      ],
+      "stack": [
+        4177132,
+        4175312,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 14,
+      "tick": 0,
+      "scene": 0,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          849,
+          856
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        894,
+        912
+      ],
+      "stack": [
+        4175649,
+        4240256,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 21,
+      "tick": 0,
+      "scene": 0,
+      "rva": 4252576,
+      "caller": 4252506,
+      "ability_flags": 28705,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          849,
+          856
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        894,
+        912
+      ],
+      "stack": [
+        4252506,
+        4252576,
+        4240581,
+        4175649,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 184,
+      "tick": 24,
+      "scene": 1,
+      "rva": 4236544,
+      "caller": 4338145,
+      "ability_flags": 8224,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          921,
+          973
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        871,
+        1030
+      ],
+      "stack": [
+        4338145,
+        4236544,
+        4348827,
+        4348560,
+        6790446,
+        6794372,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772,
+        9488861,
+        1955909,
+        2065422
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 185,
+      "tick": 24,
+      "scene": 1,
+      "rva": 4176768,
+      "caller": 4422022,
+      "ability_flags": 8225,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          921,
+          973
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        871,
+        1030
+      ],
+      "stack": [
+        4422022,
+        4176768,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 186,
+      "tick": 24,
+      "scene": 1,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          921,
+          973
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        871,
+        1030
+      ],
+      "stack": [
+        4177132,
+        4175312,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 187,
+      "tick": 24,
+      "scene": 1,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          921,
+          973
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 0,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        871,
+        1030
+      ],
+      "stack": [
+        4175649,
+        4240256,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 194,
+      "tick": 24,
+      "scene": 1,
+      "rva": 4252576,
+      "caller": 4252506,
+      "ability_flags": 28705,
+      "unit": {
+        "pointer": "0x8da0634",
+        "identity": [
+          921,
+          973
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        871,
+        1030
+      ],
+      "stack": [
+        4252506,
+        4252576,
+        4240581,
+        4175649,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 427,
+      "tick": 49,
+      "scene": 2,
+      "rva": 4236544,
+      "caller": 4338145,
+      "ability_flags": 8224,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          880,
+          1094
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        946,
+        1154
+      ],
+      "stack": [
+        4338145,
+        4236544,
+        4348827,
+        4348560,
+        6790446,
+        6794372,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772,
+        9488861,
+        1955909,
+        2065422
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 428,
+      "tick": 49,
+      "scene": 2,
+      "rva": 4176768,
+      "caller": 4422022,
+      "ability_flags": 8225,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          880,
+          1094
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        946,
+        1154
+      ],
+      "stack": [
+        4422022,
+        4176768,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474,
+        9553772
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 435,
+      "tick": 49,
+      "scene": 2,
+      "rva": 4175312,
+      "caller": 4177132,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          880,
+          1094
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        946,
+        1154
+      ],
+      "stack": [
+        4177132,
+        4175312,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875,
+        9550474
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 442,
+      "tick": 49,
+      "scene": 2,
+      "rva": 4240256,
+      "caller": 4175649,
+      "ability_flags": 12321,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          880,
+          1094
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 1,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        946,
+        1154
+      ],
+      "stack": [
+        4175649,
+        4240256,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638,
+        2199831,
+        9539875
+      ]
+    },
+    {
+      "event": "item-phase",
+      "seq": 449,
+      "tick": 49,
+      "scene": 2,
+      "rva": 4252576,
+      "caller": 4252506,
+      "ability_flags": 28705,
+      "unit": {
+        "pointer": "0x8da0014",
+        "identity": [
+          880,
+          1094
+        ],
+        "rawcode": 1215324524,
+        "flags": 4609,
+        "suspension": 0,
+        "invisibility": 2,
+        "availability": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "clock_depth": 0
+      },
+      "unit60": 0,
+      "user_head": [
+        946,
+        1154
+      ],
+      "stack": [
+        4252506,
+        4252576,
+        4240581,
+        4175649,
+        4177132,
+        4422022,
+        4348677,
+        4348560,
+        466711,
+        466396,
+        466351,
+        6807421,
+        6794449,
+        6895009,
+        6816670,
+        2124638
+      ]
+    }
+  ],
+  "footer": {
+    "event": "trace-end",
+    "installed": true,
+    "complete": true,
+    "counts": {
+      "module": 1,
+      "marker": 247,
+      "unit-state": 72,
+      "item-phase": 15,
+      "buff-enter": 30,
+      "buff-leave": 30,
+      "unit-enter": 28,
+      "unit-leave": 28,
+      "availability-owner-enter": 80,
+      "availability-owner-leave": 80,
+      "availability-walk-enter": 8,
+      "availability-walk-leave": 8
+    },
+    "sequence": 627,
+    "dropped": 0,
+    "overflow": false,
+    "readOnly": true,
+    "pending_queries": 0
+  },
+  "source_freeze": {
+    "tools/frida/research/invisibility325_physical_observer.js": "28aa9577b7ca9f7c79912fe8c1bb0063cbebf4b0b74dddb8804fd9ca7bd3c4a2",
+    "tools/frida/research/invisibility324_probe.j": "28534a29fd5d42c933baff4d6c794ed084741635d3fb7af9608c78a6e5324765",
+    "build/tests/invisibility324/native/Invisibility324-v4.w3m": "ddf4d628e10c1116a54dd39e5cc258866df3f17d15f5d0f2c2cae951f63a26f1"
+  },
+  "functions": {
+    "6f40a500": {
+      "name": "FUN_6f40a500",
+      "size": 330,
+      "address": "6f40a500",
+      "language_id": "x86:LE:32:default",
+      "variant": "default",
+      "body_start": "6f40a500",
+      "body_end": "6f40a649",
+      "decompiled_code": "\nvoid __fastcall FUN_6f40a500(int *param_1)\n\n{\n  bool bVar1;\n  WC3UnitOrdersPrefix *self;\n  uint uVar2;\n  int iVar3;\n  undefined4 uVar4;\n  \n  self = (WC3UnitOrdersPrefix *)param_1[0xc];\n  if (self == (WC3UnitOrdersPrefix *)0x0) {\n    self = (WC3UnitOrdersPrefix *)FUN_6f055cc0();\n  }\n  uVar2 = (**(code **)(*param_1 + 0x34c))();\n  if (((uVar2 & 0x2000000) == 0) && ((self->separation_category_flags & 8) == 0)) {\n    bVar1 = false;\n  }\n  else {\n    bVar1 = true;\n  }\n  iVar3 = Spell_DispatchPreparatoryOrders();\n  if (iVar3 != 0) {\n    iVar3 = (**(code **)(*param_1 + 0x370))(0);\n    if (iVar3 == 0) {\n      return;\n    }\n    iVar3 = (**(code **)(*param_1 + 0x3dc))(0,0);\n    if (iVar3 != 0) {\n      return;\n    }\n    iVar3 = (**(code **)(*param_1 + 0x380))(1);\n    if (iVar3 == 0) {\n      return;\n    }\n  }\n  if (bVar1) {\n    param_1[8] = param_1[8] | 0x100;\n    Ability_SetActiveOwnership();\n    Spell_BeginChannelPhase(0);\n    return;\n  }\n  iVar3 = (**(code **)(*param_1 + 0x314))();\n  if (iVar3 == 0) {\n    uVar4 = (**(code **)(*param_1 + 0x348))();\n  }\n  else {\n    uVar4 = (**(code **)(*param_1 + 0x368))();\n  }\n  Unit_CreateActionTask(self,0);\n  Unit_CreateEventTask(self,0xd0148);\n  iVar3 = (**(code **)((int)self->vtable + 0xec))();\n  if (iVar3 != 0xc) {\n    Unit_CreateEventTask(self,0xd014a);\n  }\n  FUN_6f692380(0xd0160,uVar4);\n  FUN_6f692380(0xd015f,uVar4);\n  Unit_CreateEventTask(self,0xd014c);\n  iVar3 = (**(code **)((int)self->vtable + 0xec))();\n  if (iVar3 != 0xc) {\n    Unit_CreateEventTask(self,0xd014e);\n  }\n  FUN_6f692380(0xd0144,uVar4);\n  Unit_CreateActionTask(self,3);\n  return;\n}\n\n",
+      "disassembly": [
+        {
+          "address": "6f40a500",
+          "mnemonic": "PUSH",
+          "operands": "EBX"
+        },
+        {
+          "address": "6f40a501",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a502",
+          "mnemonic": "MOV",
+          "operands": "ESI, ECX"
+        },
+        {
+          "address": "6f40a504",
+          "mnemonic": "PUSH",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f40a505",
+          "mnemonic": "MOV",
+          "operands": "EDI, dword ptr [ESI + 0x30]"
+        },
+        {
+          "address": "6f40a508",
+          "mnemonic": "TEST",
+          "operands": "EDI, EDI"
+        },
+        {
+          "address": "6f40a50a",
+          "mnemonic": "JNZ",
+          "operands": "0x6f40a513"
+        },
+        {
+          "address": "6f40a50c",
+          "mnemonic": "CALL",
+          "operands": "0x6f055cc0"
+        },
+        {
+          "address": "6f40a511",
+          "mnemonic": "MOV",
+          "operands": "EDI, EAX"
+        },
+        {
+          "address": "6f40a513",
+          "mnemonic": "MOV",
+          "operands": "EDX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a515",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a517",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EDX + 0x34c]"
+        },
+        {
+          "address": "6f40a51d",
+          "mnemonic": "TEST",
+          "operands": "EAX, 0x2000000"
+        },
+        {
+          "address": "6f40a522",
+          "mnemonic": "JNZ",
+          "operands": "0x6f40a52e"
+        },
+        {
+          "address": "6f40a524",
+          "mnemonic": "TEST",
+          "operands": "byte ptr [EDI + 0x60], 0x8"
+        },
+        {
+          "address": "6f40a528",
+          "mnemonic": "JNZ",
+          "operands": "0x6f40a52e"
+        },
+        {
+          "address": "6f40a52a",
+          "mnemonic": "XOR",
+          "operands": "EBX, EBX"
+        },
+        {
+          "address": "6f40a52c",
+          "mnemonic": "JMP",
+          "operands": "0x6f40a533"
+        },
+        {
+          "address": "6f40a52e",
+          "mnemonic": "MOV",
+          "operands": "EBX, 0x1"
+        },
+        {
+          "address": "6f40a533",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a535",
+          "mnemonic": "CALL",
+          "operands": "0x6f608ed0"
+        },
+        {
+          "address": "6f40a53a",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f40a53c",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a57c"
+        },
+        {
+          "address": "6f40a53e",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a540",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a542",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f40a544",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x370]"
+        },
+        {
+          "address": "6f40a54a",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f40a54c",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a646"
+        },
+        {
+          "address": "6f40a552",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a554",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a556",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f40a558",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f40a55a",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x3dc]"
+        },
+        {
+          "address": "6f40a560",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f40a562",
+          "mnemonic": "JNZ",
+          "operands": "0x6f40a646"
+        },
+        {
+          "address": "6f40a568",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a56a",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a56c",
+          "mnemonic": "PUSH",
+          "operands": "0x1"
+        },
+        {
+          "address": "6f40a56e",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x380]"
+        },
+        {
+          "address": "6f40a574",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f40a576",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a646"
+        },
+        {
+          "address": "6f40a57c",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a57e",
+          "mnemonic": "TEST",
+          "operands": "EBX, EBX"
+        },
+        {
+          "address": "6f40a580",
+          "mnemonic": "JNZ",
+          "operands": "0x6f40a631"
+        },
+        {
+          "address": "6f40a586",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a588",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x314]"
+        },
+        {
+          "address": "6f40a58e",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f40a590",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a592",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f40a594",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a59e"
+        },
+        {
+          "address": "6f40a596",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x368]"
+        },
+        {
+          "address": "6f40a59c",
+          "mnemonic": "JMP",
+          "operands": "0x6f40a5a4"
+        },
+        {
+          "address": "6f40a59e",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x348]"
+        },
+        {
+          "address": "6f40a5a4",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f40a5a6",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5a8",
+          "mnemonic": "MOV",
+          "operands": "ESI, EAX"
+        },
+        {
+          "address": "6f40a5aa",
+          "mnemonic": "CALL",
+          "operands": "0x6f6927a0"
+        },
+        {
+          "address": "6f40a5af",
+          "mnemonic": "PUSH",
+          "operands": "0xd0148"
+        },
+        {
+          "address": "6f40a5b4",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5b6",
+          "mnemonic": "CALL",
+          "operands": "0x6f691f20"
+        },
+        {
+          "address": "6f40a5bb",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [EDI]"
+        },
+        {
+          "address": "6f40a5bd",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5bf",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0xec]"
+        },
+        {
+          "address": "6f40a5c5",
+          "mnemonic": "CMP",
+          "operands": "EAX, 0xc"
+        },
+        {
+          "address": "6f40a5c8",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a5d6"
+        },
+        {
+          "address": "6f40a5ca",
+          "mnemonic": "PUSH",
+          "operands": "0xd014a"
+        },
+        {
+          "address": "6f40a5cf",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5d1",
+          "mnemonic": "CALL",
+          "operands": "0x6f691f20"
+        },
+        {
+          "address": "6f40a5d6",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a5d7",
+          "mnemonic": "PUSH",
+          "operands": "0xd0160"
+        },
+        {
+          "address": "6f40a5dc",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5de",
+          "mnemonic": "CALL",
+          "operands": "0x6f692380"
+        },
+        {
+          "address": "6f40a5e3",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a5e4",
+          "mnemonic": "PUSH",
+          "operands": "0xd015f"
+        },
+        {
+          "address": "6f40a5e9",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5eb",
+          "mnemonic": "CALL",
+          "operands": "0x6f692380"
+        },
+        {
+          "address": "6f40a5f0",
+          "mnemonic": "PUSH",
+          "operands": "0xd014c"
+        },
+        {
+          "address": "6f40a5f5",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a5f7",
+          "mnemonic": "CALL",
+          "operands": "0x6f691f20"
+        },
+        {
+          "address": "6f40a5fc",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [EDI]"
+        },
+        {
+          "address": "6f40a5fe",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a600",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0xec]"
+        },
+        {
+          "address": "6f40a606",
+          "mnemonic": "CMP",
+          "operands": "EAX, 0xc"
+        },
+        {
+          "address": "6f40a609",
+          "mnemonic": "JZ",
+          "operands": "0x6f40a617"
+        },
+        {
+          "address": "6f40a60b",
+          "mnemonic": "PUSH",
+          "operands": "0xd014e"
+        },
+        {
+          "address": "6f40a610",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a612",
+          "mnemonic": "CALL",
+          "operands": "0x6f691f20"
+        },
+        {
+          "address": "6f40a617",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a618",
+          "mnemonic": "PUSH",
+          "operands": "0xd0144"
+        },
+        {
+          "address": "6f40a61d",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a61f",
+          "mnemonic": "CALL",
+          "operands": "0x6f692380"
+        },
+        {
+          "address": "6f40a624",
+          "mnemonic": "PUSH",
+          "operands": "0x3"
+        },
+        {
+          "address": "6f40a626",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f40a628",
+          "mnemonic": "CALL",
+          "operands": "0x6f6927a0"
+        },
+        {
+          "address": "6f40a62d",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f40a62e",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a62f",
+          "mnemonic": "POP",
+          "operands": "EBX"
+        },
+        {
+          "address": "6f40a630",
+          "mnemonic": "RET",
+          "operands": ""
+        },
+        {
+          "address": "6f40a631",
+          "mnemonic": "OR",
+          "operands": "dword ptr [ESI + 0x20], 0x100"
+        },
+        {
+          "address": "6f40a638",
+          "mnemonic": "CALL",
+          "operands": "0x6f3f5930"
+        },
+        {
+          "address": "6f40a63d",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f40a63f",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f40a641",
+          "mnemonic": "CALL",
+          "operands": "0x6f3fbb80"
+        },
+        {
+          "address": "6f40a646",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f40a647",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f40a648",
+          "mnemonic": "POP",
+          "operands": "EBX"
+        },
+        {
+          "address": "6f40a649",
+          "mnemonic": "RET",
+          "operands": ""
+        }
+      ],
+      "revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    "6f2190c0": {
+      "name": "FUN_6f2190c0",
+      "size": 99,
+      "address": "6f2190c0",
+      "language_id": "x86:LE:32:default",
+      "variant": "default",
+      "body_start": "6f2190c0",
+      "body_end": "6f219122",
+      "decompiled_code": "\nundefined4 FUN_6f2190c0(uint param_1)\n\n{\n  WC3UnitOrdersPrefix *pWVar1;\n  int iVar2;\n  int iVar3;\n  undefined4 uVar4;\n  \n  pWVar1 = Jass_ResolveUnitHandle(param_1);\n  if (pWVar1 != (WC3UnitOrdersPrefix *)0x0) {\n    iVar2 = FUN_6f66f000();\n    if (iVar2 != 0) {\n      iVar2 = FUN_6f1ed690();\n      if (iVar2 != 0) {\n        iVar3 = FUN_6f687f30(iVar2);\n        if (iVar3 != 0) {\n          uVar4 = FUN_6f658270(0);\n          uVar4 = (**(code **)((int)pWVar1->vtable + 100))(iVar2,uVar4);\n          uVar4 = Jass_DispatchImmediateOrder(pWVar1,uVar4);\n          return uVar4;\n        }\n      }\n      return 0;\n    }\n  }\n  return 0;\n}\n\n",
+      "disassembly": [
+        {
+          "address": "6f2190c0",
+          "mnemonic": "PUSH",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f2190c1",
+          "mnemonic": "MOV",
+          "operands": "EBP, ESP"
+        },
+        {
+          "address": "6f2190c3",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [EBP + 0x8]"
+        },
+        {
+          "address": "6f2190c6",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f2190c7",
+          "mnemonic": "CALL",
+          "operands": "0x6f1eef90"
+        },
+        {
+          "address": "6f2190cc",
+          "mnemonic": "MOV",
+          "operands": "ESI, EAX"
+        },
+        {
+          "address": "6f2190ce",
+          "mnemonic": "TEST",
+          "operands": "ESI, ESI"
+        },
+        {
+          "address": "6f2190d0",
+          "mnemonic": "JZ",
+          "operands": "0x6f21911e"
+        },
+        {
+          "address": "6f2190d2",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f2190d4",
+          "mnemonic": "CALL",
+          "operands": "0x6f66f000"
+        },
+        {
+          "address": "6f2190d9",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f2190db",
+          "mnemonic": "JZ",
+          "operands": "0x6f21911e"
+        },
+        {
+          "address": "6f2190dd",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [EBP + 0xc]"
+        },
+        {
+          "address": "6f2190e0",
+          "mnemonic": "PUSH",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f2190e1",
+          "mnemonic": "CALL",
+          "operands": "0x6f1ed690"
+        },
+        {
+          "address": "6f2190e6",
+          "mnemonic": "MOV",
+          "operands": "EDI, EAX"
+        },
+        {
+          "address": "6f2190e8",
+          "mnemonic": "TEST",
+          "operands": "EDI, EDI"
+        },
+        {
+          "address": "6f2190ea",
+          "mnemonic": "JZ",
+          "operands": "0x6f2190f8"
+        },
+        {
+          "address": "6f2190ec",
+          "mnemonic": "PUSH",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f2190ed",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f2190ef",
+          "mnemonic": "CALL",
+          "operands": "0x6f687f30"
+        },
+        {
+          "address": "6f2190f4",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f2190f6",
+          "mnemonic": "JNZ",
+          "operands": "0x6f2190fe"
+        },
+        {
+          "address": "6f2190f8",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f2190f9",
+          "mnemonic": "XOR",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f2190fb",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f2190fc",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f2190fd",
+          "mnemonic": "RET",
+          "operands": ""
+        },
+        {
+          "address": "6f2190fe",
+          "mnemonic": "PUSH",
+          "operands": "0x0"
+        },
+        {
+          "address": "6f219100",
+          "mnemonic": "MOV",
+          "operands": "ECX, EDI"
+        },
+        {
+          "address": "6f219102",
+          "mnemonic": "CALL",
+          "operands": "0x6f658270"
+        },
+        {
+          "address": "6f219107",
+          "mnemonic": "PUSH",
+          "operands": "EAX"
+        },
+        {
+          "address": "6f219108",
+          "mnemonic": "MOV",
+          "operands": "EAX, dword ptr [ESI]"
+        },
+        {
+          "address": "6f21910a",
+          "mnemonic": "MOV",
+          "operands": "ECX, ESI"
+        },
+        {
+          "address": "6f21910c",
+          "mnemonic": "PUSH",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f21910d",
+          "mnemonic": "CALL",
+          "operands": "dword ptr [EAX + 0x64]"
+        },
+        {
+          "address": "6f219110",
+          "mnemonic": "PUSH",
+          "operands": "EAX"
+        },
+        {
+          "address": "6f219111",
+          "mnemonic": "PUSH",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f219112",
+          "mnemonic": "CALL",
+          "operands": "0x6f206b20"
+        },
+        {
+          "address": "6f219117",
+          "mnemonic": "ADD",
+          "operands": "ESP, 0x10"
+        },
+        {
+          "address": "6f21911a",
+          "mnemonic": "POP",
+          "operands": "EDI"
+        },
+        {
+          "address": "6f21911b",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f21911c",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f21911d",
+          "mnemonic": "RET",
+          "operands": ""
+        },
+        {
+          "address": "6f21911e",
+          "mnemonic": "XOR",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f219120",
+          "mnemonic": "POP",
+          "operands": "ESI"
+        },
+        {
+          "address": "6f219121",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f219122",
+          "mnemonic": "RET",
+          "operands": ""
+        }
+      ],
+      "revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    },
+    "6f206b20": {
+      "name": "Jass_DispatchImmediateOrder",
+      "size": 69,
+      "address": "6f206b20",
+      "language_id": "x86:LE:32:default",
+      "variant": "default",
+      "body_start": "6f206b20",
+      "body_end": "6f206b64",
+      "decompiled_code": "\n// \n// Payoff286: validates69dc80 before factory690930 and680320 replacement. Only0/DC pass; paused Stop\n// is core-valid and retained, Hold fails DD before mutation. Shared680320 suspension branch alone\n// does NOT imply ordinary paused orders are accepted.\n\nundefined4\nJass_DispatchImmediateOrder(WC3UnitOrdersPrefix *param_1,uint param_2,void *param_3,uint param_4)\n\n{\n  int iVar1;\n  WC3OrderPrefix *arg_04;\n  uint arg_08;\n  uint arg_0c;\n  \n  iVar1 = CUnit_ValidateImmediateOrder(param_4,param_2,param_3);\n  if ((iVar1 == 0) || (iVar1 == 0xdc)) {\n    arg_0c = 1;\n    arg_08 = 1;\n    arg_04 = OrderImmediate_Create(param_4,param_2,param_3);\n    Unit_AdmitOrder(param_1,(uint)arg_04,arg_08,arg_0c);\n    return 1;\n  }\n  return 0;\n}\n\n",
+      "disassembly": [
+        {
+          "address": "6f206b20",
+          "mnemonic": "PUSH",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f206b21",
+          "mnemonic": "MOV",
+          "operands": "EBP, ESP"
+        },
+        {
+          "address": "6f206b23",
+          "mnemonic": "PUSH",
+          "operands": "dword ptr [EBP + 0x10]"
+        },
+        {
+          "address": "6f206b26",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [EBP + 0x8]"
+        },
+        {
+          "address": "6f206b29",
+          "mnemonic": "PUSH",
+          "operands": "dword ptr [EBP + 0xc]"
+        },
+        {
+          "address": "6f206b2c",
+          "mnemonic": "PUSH",
+          "operands": "dword ptr [EBP + 0x14]"
+        },
+        {
+          "address": "6f206b2f",
+          "mnemonic": "CALL",
+          "operands": "0x6f69dc80"
+        },
+        {
+          "address": "6f206b34",
+          "mnemonic": "TEST",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f206b36",
+          "mnemonic": "JZ",
+          "operands": "0x6f206b43"
+        },
+        {
+          "address": "6f206b38",
+          "mnemonic": "CMP",
+          "operands": "EAX, 0xdc"
+        },
+        {
+          "address": "6f206b3d",
+          "mnemonic": "JZ",
+          "operands": "0x6f206b43"
+        },
+        {
+          "address": "6f206b3f",
+          "mnemonic": "XOR",
+          "operands": "EAX, EAX"
+        },
+        {
+          "address": "6f206b41",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f206b42",
+          "mnemonic": "RET",
+          "operands": ""
+        },
+        {
+          "address": "6f206b43",
+          "mnemonic": "MOV",
+          "operands": "EDX, dword ptr [EBP + 0xc]"
+        },
+        {
+          "address": "6f206b46",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [EBP + 0x14]"
+        },
+        {
+          "address": "6f206b49",
+          "mnemonic": "PUSH",
+          "operands": "0x1"
+        },
+        {
+          "address": "6f206b4b",
+          "mnemonic": "PUSH",
+          "operands": "0x1"
+        },
+        {
+          "address": "6f206b4d",
+          "mnemonic": "PUSH",
+          "operands": "dword ptr [EBP + 0x10]"
+        },
+        {
+          "address": "6f206b50",
+          "mnemonic": "CALL",
+          "operands": "0x6f690930"
+        },
+        {
+          "address": "6f206b55",
+          "mnemonic": "MOV",
+          "operands": "ECX, dword ptr [EBP + 0x8]"
+        },
+        {
+          "address": "6f206b58",
+          "mnemonic": "PUSH",
+          "operands": "EAX"
+        },
+        {
+          "address": "6f206b59",
+          "mnemonic": "CALL",
+          "operands": "0x6f680320"
+        },
+        {
+          "address": "6f206b5e",
+          "mnemonic": "MOV",
+          "operands": "EAX, 0x1"
+        },
+        {
+          "address": "6f206b63",
+          "mnemonic": "POP",
+          "operands": "EBP"
+        },
+        {
+          "address": "6f206b64",
+          "mnemonic": "RET",
+          "operands": ""
+        }
+      ],
+      "revision": {
+        "token": "1793548212865:095422a7:3",
+        "epoch": "095422a7",
+        "modification_number": 3,
+        "saved_time": 1793548212865,
+        "unsaved_changes": false,
+        "decompiled": true
+      }
+    }
+  },
+  "function_guards": {
+    "6f40a500": {
+      "rva": "0x40a500",
+      "bytes": "53568bf1578b7e3085ff7507e8afb7c4ff8bf88b168bceff924c030000a900000002750af6476008750433dbeb05bb010000008bcee896e91f0085c0743e8b068bce6a00ff907003000085c00f84f40000008b068bce6a006a00ff90dc03000085c00f85de0000008b068bce6a01ff908003000085c00f84ca0000008bce85db0f85ab0000008b06ff901403000085c08bce8b067408ff9068030000eb06ff90480300006a008bcf8bf0e8f18128006848010d008bcfe8657928008b078bcfff90ec00000083f80c740c684a010d008bcfe84a792800566860010d008bcfe89d7d280056685f010d008bcfe8907d2800684c010d008bcfe8247928008b078bcfff90ec00000083f80c740c684e010d008bcfe809792800566844010d008bcfe85c7d28006a038bcfe8738128005f5e5bc3814e2000010000e8f3b2feff6a008bcee83a15ffff5f5e5bc3",
+      "sha256": "3fa3dee0d8417f6926df4c6de12218af91cdbba91bf1d411c89958133c2c9ed0"
+    },
+    "6f2190c0": {
+      "rva": "0x2190c0",
+      "bytes": "558bec8b4d0856e8c45efdff8bf085f6744c8bcee8275f450085c074418b4d0c57e8aa45fdff8bf885ff740c578bcee83cee460085c075065f33c05e5dc36a008bcfe869f14300508b068bce57ff50645056e809dafeff83c4105f5e5dc333c05e5dc3",
+      "sha256": "8bf7a2a76a0ab9caa1540545f66aa61afe2397ec60a05750d56f0f394658f241"
+    },
+    "6f206b20": {
+      "rva": "0x206b20",
+      "bytes": "558becff75108b4d08ff750cff7514e84c71490085c0740b3ddc000000740433c05dc38b550c8b4d146a016a01ff7510e8db9d48008b4d0850e8c2974700b8010000005dc3",
+      "sha256": "48cd31dae2d0b308f17c45dce75f42c3e5652306c6c41fcd27e71c4a8fc3bd73"
+    }
+  },
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "files": {
+    "build/tests/invisibility325/physical.jsonl": "e721db0b02ee2a991cce0ac6959c9499ae0fac58ef8816f462da6f75b74fc923",
+    "build/tests/invisibility325/physical-preload.txt": "7aa71afb776a3f36c034ed52bdfce833ae468480b747d429af921d69576978f1",
+    "build/tests/invisibility325/physical-exports.json": "a8b10b911713688d6d7522ee66495e204c5ad625e162d70e4823d237621032c9"
+  },
+  "findings": [
+    "Public UnitUseItem AIvi enters40a500 with Unit60 bit8 clear and ability100 clear in all three scenes.",
+    "CHANNEL caller437986 is actual d0160 task activation437940; same live userhead identity persists through FINISH entry.",
+    "This actual JASS path takes ordinary no-target task construction, not preparatory inline bypass. Zero timings alone must not select inline-preserve-Move."
+  ],
+  "limits": [
+    "Stationary source: no new moving-unit public observation. Task-owner disposition derives from observed branch inputs plus original factory body.",
+    "No UI dispatch parity claim; no blanket AB_ITEM policy.",
+    "Backtrace words are diagnostic raw return addresses; immediate caller and branch fields carry the claim.",
+    "One supplemental observation with exact frozen same-input observer-free control; no new control or private repeat.",
+    "Sleep effective guard2 retained."
+  ]
+}

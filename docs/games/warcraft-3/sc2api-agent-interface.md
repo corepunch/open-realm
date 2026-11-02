@@ -207,7 +207,9 @@ python3 tools/engine_boundary_audit.py
 
 `tests/test_sc2api_transport.py` uses Python's standard library and generated test assets to exercise
 a real dedicated endpoint, fragmentation/ping/close/masking/FIFO, lifecycle, recovery after a real
-map-load failure and exact stepping.
+map-load failure and exact stepping. Its Data request also checks command catalog entries alongside
+registered abilities with no order list. The catalog must check the nullable `ability_t.orders` before
+indexing it; indexing `AIt9`'s absent list caused a dedicated-server crash after Create/Join.
 `games/warcraft-3/game/tests/t_sc2api*.c` exercises the production core and wire/session dispatcher;
 only response delivery is captured. The generic server suite verifies server-owned frame budgets
 and early terminal completion. CI explicitly builds/tests SC2API without protobuf in debug/release,

@@ -1,0 +1,1064 @@
+{
+  "passed": true,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "case_count": 48,
+  "cases": [
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 0,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 1,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 2,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 0,
+      "cls": 3,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        50.25,
+        16.75
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 0,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        0,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 1,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        2,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 2,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        4,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 0,
+      "absent": 0,
+      "held": 1,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 0,
+      "absent": 1,
+      "held": 0,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 0,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 1,
+      "absent": 0,
+      "held": 2,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 1,
+      "absent": 1,
+      "held": 1,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 1,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 7,
+      "absent": 0,
+      "held": 8,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    },
+    {
+      "result": 1,
+      "cls": 3,
+      "outer": 7,
+      "absent": 1,
+      "held": 7,
+      "policy": [
+        6,
+        32,
+        24,
+        6,
+        0,
+        0,
+        2,
+        0
+      ],
+      "final_counter": 7,
+      "point": [
+        51.5,
+        17.5
+      ]
+    }
+  ],
+  "scope": "Complete original16ec00; controlled16ecc0 placement verdict/output only. Captured record, four footprints, null self, three outer depths, both exits and SEH/RET10; no geometry or thrown exception claim."
+}

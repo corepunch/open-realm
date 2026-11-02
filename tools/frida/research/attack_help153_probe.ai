@@ -1,0 +1,5 @@
+function main takes nothing returns nothing
+ loop
+  call Sleep(100.0)
+ endloop
+endfunction

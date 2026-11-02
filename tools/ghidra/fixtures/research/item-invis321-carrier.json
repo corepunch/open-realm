@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "original_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope": "Carrier ownership only. Native fade, fixed Binv and lifetime/refresh semantics remain separate.",
+  "functions": [
+    {
+      "rva": "0x62f280",
+      "size": 215,
+      "sha256": "19138394cb2868b2323d0fcdc6dbee23fafde71e91640e629184fb52aa5083ac",
+      "bytes": "558bec83ec38568bf1578b7e3085ff7507e82a6aa2ff8bf8538b5e508bcfe86d1dfdff8bce5385c0740b8d45ec50e8bd62deffeb298d45e850e8325ddeff8b8e9c0000008d55f4894df88d4df08b008945f48d45f850e8d508a4ff8d45f08b008d4dc86a00568945fce852c0dbff6a016a016a006a00e8c5a00000508bcfe87dd8e5ff5b85c074188b108d4dfc518d4dc8518bc8ff92500300005f5e8be55dc3e80b25feff8bf08d45c8508bce8b16ff92240300008b168d45fc684cc7d36f50578bceff9254030000568bcfe87fc4e5ff5f5e8be55dc3"
+    }
+  ],
+  "vtable_guards": {
+    "0xb681d8": "80f2626f"
+  },
+  "claim": "CAbilityItemInvis effect62f280 loads its bound unit from ability+0x30 (MOV EDI,[ESI+0x30] at RVA62f28a)."
+}
