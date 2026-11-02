@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "BOwk common ownership and exact-instance continuation are verified in both editions. All five329 gates and exact normal/saved C299 pass; B01 overlaps and caller dispositions remain open.",
+  "status": "BOwk ownership and exact-instance continuation pass focused checks. First329 full run found a stale Captain cleanup fixture; corrected Captain cohort passes both editions. Full rerun is pending; B01 remains open.",
   "save_version": 246,
   "full_suite_run": false,
   "native299_engine_parity": true,
@@ -7466,6 +7466,35 @@
       "entries": 614,
       "guarded_files": 3357
     },
-    "source_freeze": "build/tests/windwalk329/gates/source-before.json"
+    "source_freeze": "build/tests/windwalk329/gates/source-before.json",
+    "full_suite_attempt": {
+      "passed": false,
+      "source_commit": "5177e5520",
+      "tests": 9476,
+      "assertions": 60733176,
+      "failed_test_executions": 4,
+      "failed_assertions": 20,
+      "report": "build/tests/windwalk329/full/summary.json",
+      "cause": "Two Captain376 Wind Walk cases per edition assumed retained Captain roles at final clear, although genuine TargetLost had already retired them. Suicide selection assertions passed."
+    },
+    "captain_fixture_fix": {
+      "production_changed": false,
+      "native_scope": "The accepted376 suicide-query-o interval proves query selection and contains no later Captain clear.",
+      "assertions_preserved": "All strict invisible-target query, point Attack and no-Attack Move assertions remain; require roles already released at publication and final empty-role clear to preserve the prior goal/active_goal/range.",
+      "focused_passed": true,
+      "tests_per_edition": 35,
+      "assertions_per_edition": 2853,
+      "reports": [
+        "build/tests/windwalk329/captain-fix/roc.xml",
+        "build/tests/windwalk329/captain-fix/tft.xml"
+      ],
+      "captain473_gate": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates-captain-fix/captain473.json",
+        "tests_per_edition": 10,
+        "assertions_per_edition": 156882
+      },
+      "excluded_check": "Earlier wc3_bot.*windwalk* glob selected zero tests and is excluded from verification."
+    }
   }
 }

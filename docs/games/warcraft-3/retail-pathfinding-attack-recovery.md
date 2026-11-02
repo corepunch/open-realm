@@ -943,3 +943,13 @@ real queued-Move callback regression fails one speed assertion without that
 condition (27/28), then passes all28 in both editions with it. Direct Wind effect
 calls in this test are explicitly component boundaries, not public admission.
 B01 and all 25 whole leaves remain open.
+
+The first full329 batch completed 9,476 tests with four failing executions
+(two Captain376 Wind Walk cases in each edition), totaling 20 failed assertions.
+The strict Suicide query/point assertions passed. Genuine Wind Walk TargetLost
+had already released Captain roles; the shared test tail incorrectly expected
+another target retirement from final clear. The fixture now checks released
+roles and preserves the already-established goal/range on empty-role clear.
+Both editions pass the complete35-test preferred376 cohort (2,853 assertions
+each) and the Captain473 gate. No production behavior changed for this correction.
+A fresh full batch is pending; the earlier failed batch is not a full-suite pass.

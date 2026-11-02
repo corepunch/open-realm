@@ -1725,6 +1725,11 @@ static void Captain376PublicTownClear(bool cold,unsigned inverse) {
             T_ASSERT(S_UnitHasTemporaryInvisibility(selected,NULL));
             T_ASSERT(S_UnitIsInvisibleToPlayer(selected,0));
             T_ASSERT(G_UnitHasWorldPresence(selected));
+            if(inverse==15 || inverse==17) {
+                /* Real Wind Walk publication has already delivered TargetLost.
+                 * Suicide's independent query can still select this unit. */
+                T_NULL(captain->target.unit);T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);
+            }
             if(inverse==16) {
                 jass_callbyname(level.vm,"preferred376HideQuery",false);
                 T_ASSERT(!G_UnitHasWorldPresence(selected));
@@ -1941,14 +1946,23 @@ static void Captain376PublicTownClear(bool cold,unsigned inverse) {
     T_ASSERT(wc3_float_bits(preferred->s.origin2.x)!=wc3_float_bits(selected->s.origin2.x) ||
              wc3_float_bits(preferred->s.origin2.y)!=wc3_float_bits(selected->s.origin2.y));
     uint32_t count=ARRAY_COUNT(captain->units);T_EQ(count,(inverse==9 || (inverse>=11 && inverse<=13) || inverse>=15) ? 5u : 6u);
+    vec2_t active_point=point;
+    float clear_range=200;
+    if(inverse==15 || inverse==17) {
+        /* Native query-O proves Suicide selection, not a second retirement
+         * of the target already released by Wind Walk. Empty-role clear is
+         * idempotent; preserve the goal established by the earlier event. */
+        T_NULL(captain->target.unit);T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);
+        point=captain->goal;active_point=captain->active_goal;clear_range=captain->request_range;
+    }
     G_BotClearCaptainTargets(player);
     T_NULL(captain->target.unit);T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);
     T_EQ(ARRAY_COUNT(captain->units),count);
     T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));
     T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(point.y));
-    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(point.x));
-    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(point.y));
-    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(active_point.x));
+    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(active_point.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(clear_range));
 preferred376_cleanup:
     move_test_point_approach=NULL;
     G_BotStop(0);level.started=false;reset_entities();

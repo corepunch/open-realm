@@ -60987,7 +60987,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "96d0bd84d53cc3709e9cf1ea1c444547d573c68178bbf40669daa2f550357c13"
+      "sha256": "8d097e6d35ace5446b76fe5fb4f4ebdeb467285be9ffb312f39c5d2aa5cd4e49"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
