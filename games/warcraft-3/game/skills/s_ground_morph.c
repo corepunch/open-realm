@@ -46,6 +46,7 @@ static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reve
     unit->current_order_id=data->dur==0 ? 0 : G_OrderId(item->ability->orders[reverse ? 1 : 0]);
     /*4c85b0 removes114 and republishes occupancy before the reverse hold. */
     bool burrow_reverse=reverse && ground_morph_is_burrow(item);
+    if(reverse && !S_NotifyMorphReverse(unit))return true;
     if(burrow_reverse && !ground_morph_category(unit,code,false))return true;
     S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
     if(burrow_reverse) {unit->morph->category_clear=0;unit->morph->category_set=10;}
@@ -116,6 +117,9 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
         if(ground_morph_is_burrow(call->item))S_CompleteMorphDetachTransition(ent,code);
         {
             bool release=ground_morph_is_burrow(call->item) && ent && ent->class_id==data->unitID;
+            /*540e30 skips the reverse for permanent forms. */
+            bool permanent=(wc3_int_bits(wc3_float_bits(S_SpellData(code,S_SpellLevel(ent,code),2)))&8)!=0;
+            if(ent && ent->class_id==data->unitID && !permanent && !S_NotifyMorphReverse(ent))return true;
             if(release && ent->morph && !ground_morph_category(ent,code,false))return true;
             /* Type rebind refreshes retained invisibility. Keep the passive
              * suspended through base restoration, then restart its fade. */

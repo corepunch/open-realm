@@ -96,6 +96,7 @@ void S_UpdateMorphRise(edict_t *);
 BZ_ABILITY_PROC(CAbilityAvengerForm);
 void S_BeginMorphTransition(edict_t *,uint32_t code,uint32_t base,uint32_t target,bool reverse,bool deferred,float delay);
 void S_RemoveMorphAbility(edict_t *,uint32_t code);
+bool S_NotifyMorphReverse(edict_t *unit);
 void S_CompleteMorphDetachTransition(edict_t *,uint32_t);
 void S_ScheduleMorphExpiration(edict_t *,float duration);
 bool S_HoldMorphAnimation(edict_t *);

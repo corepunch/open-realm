@@ -61823,7 +61823,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "54676067a46770acbfdd84a2f1f25cca49e6acc7585431a28833fa97f5d94e07"
+      "sha256": "1e9f37cd46fd915b64233540c513a4341091859e4352a0b0ecac7d7751e0ba16"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -67111,7 +67111,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_morph.c",
-      "sha256": "24ede7a8febc48d8bbdfbc0bd96f0ad39b6e8e900e459cb2d0b1576354323c81"
+      "sha256": "27cecbe29e0dd3821f83c195edfbdfa7e2a96a8f14a79343bac4fb522b4854d3"
     },
     {
       "path": "games/warcraft-3/game/skills/s_raven.c",
@@ -67167,7 +67167,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_ground_morph.c",
-      "sha256": "749dc5199e6b994c7d6ca35b7c2209219540f256417d3e0fec48b0940d4bee0d"
+      "sha256": "d25127e7f379d263535a98f86c8442f70751c510bcad46fad063ac24f1259a01"
     },
     {
       "path": "tools/frida/research/morph331_probe.j",
@@ -71488,6 +71488,14 @@
     {
       "path": "tools/ghidra/research/burrow335_capture_check.py",
       "sha256": "85a5ef01dbf093654431f7f5b0bf938b4c53fda6ce6c71adb44f7baff3d4ed6c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/morph336-reverse-original.json",
+      "sha256": "31887a077a444fe7e2508c70091c5981fa395e507dac80cb8955344c2423e364"
+    },
+    {
+      "path": "tools/ghidra/research/morph336_reverse_check.py",
+      "sha256": "018976b101e29cc89f898bd09a1697caa41aaf9c8fe325a7a98e3ed1a540e246"
     }
   ]
 }

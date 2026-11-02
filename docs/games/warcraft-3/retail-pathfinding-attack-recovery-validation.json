@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Burrow335 joins the shared invisibility owner using existing attachment/depth storage; focused checks and six gates pass. New native v2 matches284 public rows before missing Morph reverse CAST/ACTION notification; v1 exposes public Morph admission/phase gaps. Earlier331899,333591 and normal/saved299 remain exact. B01 remains open.",
+  "status": "Morph336 reverse now sends original internal CAST then ACTION before subtype inverse; all1290 Burrow335v2 public rows match, including paused detach. Earlier331899/333591/C299normal+saved remain exact. PublicMorph335v1 remains redfirst110. Fullsuitebatch next; B01 remains open.",
   "save_version": 249,
   "full_suite_run": true,
   "native299_engine_parity": true,
@@ -7962,7 +7962,7 @@
       "full_batch_repeated": false
     }
   },
-  "current_phase": 335,
+  "current_phase": 336,
   "full_suite_passed": false,
   "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
   "latest_full_known_failures_corrected": true,
@@ -8235,5 +8235,71 @@
     "whole_backlog_leaf_closed": false,
     "open_backlog_leaves": 25,
     "next_action": "Port original guarded Morph reverse CAST/ACTION notification before subtype inverse, then replay unchanged1290-row reference."
+  },
+  "phase336": {
+    "scope": "Original shared Morph reverse notification, currently used at GroundMorph reverse and nonpermanent alternate detach before subtype release.",
+    "save_version": 249,
+    "full_suite_run": false,
+    "original": {
+      "passed": true,
+      "fixture": "tools/ghidra/fixtures/research/morph336-reverse-original.json",
+      "checker": "tools/ghidra/research/morph336_reverse_check.py",
+      "whole_functions": 3,
+      "direct_calls": 13,
+      "negative_controls": 7,
+      "chain": "5698a0 calls48ba80 (cached-next v178 then691210/v12c) before subtypev410."
+    },
+    "implementation": "Shared guarded helper; no public events, buff-specific removal, Pause rejection or MoveRevision rejection. Actor/form replacement aborts its continuation. Configured/permanent form policies remain separate.",
+    "c335v2": {
+      "passed": true,
+      "public_records": 1290,
+      "mismatches": 0,
+      "assertions": 7,
+      "edition": "tft",
+      "report": "build/tests/morph336/c335-v2.summary.json"
+    },
+    "c335v1": {
+      "passed": false,
+      "matching_prefix": 110,
+      "actual_public_records": 1306,
+      "expected_public_records": 1416,
+      "report": "build/tests/morph336/c335-v1.summary.json",
+      "remaining": "Public Morph admission/head/phase lifetime, not the shared zero-source service."
+    },
+    "focused": {
+      "passed": true,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "tests": 1454,
+      "assertions": 85498,
+      "report": "build/tests/morph336/focused/summary.json"
+    },
+    "burrow_gate": {
+      "passed": true,
+      "tests": 48,
+      "assertions": 9096,
+      "directory": "build/tests/morph336/gates"
+    },
+    "retained_replays": {
+      "passed": true,
+      "c331_public": 899,
+      "c333_public": 591,
+      "c299_normal_and_saved_public": 2066,
+      "c299_normal_and_saved_motion": 5342
+    },
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guards": 3396
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "next_action": "Batch full native suite after these implementation commits; then fix original public Morph order/phase ownership from unchanged335v1 reference."
   }
 }

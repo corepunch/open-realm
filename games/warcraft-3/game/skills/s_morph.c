@@ -4,6 +4,30 @@
  * callbacks and of a pending Stop or scripted pause. */
 static edict_t *morph_heap[MAX_ENTITIES];
 static uint32_t morph_positions[MAX_ENTITIES], morph_count;
+
+/*5698a0 runs48ba80 (cached-next v178, then691210/v12c) before
+ * the subtype reverse. This is an internal notification, not a public cast.
+ * A replacement Move does not discharge the removed Morph's inverse; only
+ * replacement of the actor/form owner prevents this continuation. */
+bool S_NotifyMorphReverse(edict_t *unit) {
+    if(!unit || !unit->inuse || M_IsDead(unit) || G_IsDeferredFree(unit))return false;
+    uint64_t epoch=S_SpellPreparationEpoch();
+    uint32_t birth=unit->spawn_time,type=unit->class_id;
+    morph_t *owner=unit->morph;
+    uint32_t code=owner ? owner->code : 0;
+    uint64_t transition=owner ? owner->transition.sequence : 0;
+    uint64_t expiration=owner ? owner->expiration.sequence : 0;
+    abilityMsg_t const messages[]={A_UNIT_SPELL_CAST,A_UNIT_ACTION};
+    for(unsigned i=0;i<sizeof(messages)/sizeof(messages[0]);++i) {
+        S_UnitAbilityEvent(unit,messages[i]);
+        if(epoch!=S_SpellPreparationEpoch() || !unit->inuse ||
+           unit->spawn_time!=birth || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+           unit->class_id!=type || unit->morph!=owner ||
+           (owner && (owner->code!=code || owner->transition.sequence!=transition ||
+                      owner->expiration.sequence!=expiration)))return false;
+    }
+    return true;
+}
 static bool morph_is_permanent(edict_t *unit,uint32_t code) {
     /*55d380 maps authored DataB bit8 to ability flag02000000. This is
      * independent of UnitMakeAbilityPermanent's attachment lifetime. */

@@ -1053,8 +1053,12 @@ and [335v2](../../../tools/ghidra/fixtures/research/burrow335-v2-public-original
 references preserve 1,416 and 1,290 public rows from repeated observations and
 fresh controls. V1 proves that public Burrow removes the positive contributor
 before its own completion. V2 proves actual positive/Burrow overlap with Sleep
-and Pause. C v2 matches through row284, then incorrectly retains Binv/BOwk at
-paused detach. Native `5698a0 → 48ba80 → 691210` supplies the missing internal
-CAST/ACTION notification before the subtype inverse; that is the next change.
-V1 also exposes the separate public Morph order/phase gap. Neither complete335
-replay nor B01 closure is claimed.
+and Pause. The historical335 C v2 first failed at row284 by retaining Binv/BOwk
+on paused detach. Checkpoint336 restores the paired internal CAST→ACTION
+notification before the Burrow subtype inverse through `S_NotifyMorphReverse`,
+following native `5698a0 → 48ba80 → 691210`; it synthesizes no public spell event
+and does not clear statuses by type. The [original336 proof](../../../tools/ghidra/fixtures/research/morph336-reverse-original.json)
+and [checker](../../../tools/ghidra/research/morph336_reverse_check.py) pin this
+boundary. Current C v2 matches all 1,290 public rows; Save249 is unchanged.
+V1 still fails first at row110 in the separate public Morph order/phase path,
+which remains next after the batched full suite. B01 remains open.
