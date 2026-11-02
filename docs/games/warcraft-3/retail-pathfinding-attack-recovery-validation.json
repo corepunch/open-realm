@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Save245 per-item AIvi availability and canonical shared pending ENDCAST/item-completion ownership pass final focused, five coordinated gates and normal/saved C299 checks. Queued ITEM context supersedes the stricter326 attachment-token policy. No327 full suite was run; B01 and all25 backlog leaves remain open.",
-  "save_version": 245,
+  "status": "BOwk shared contribution, DataA fade, primary expiry and additive DataB speed pass both editions, five fresh gates and exact C299. B01 remains open; callback replacement identity is the next correction.",
+  "save_version": 246,
   "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
@@ -7172,6 +7172,162 @@
       "passed": true,
       "entries": 614,
       "guarded_files": 3355
+    }
+  },
+  "phase328": {
+    "scope": "Concrete BOwk shared invisibility, configured AOwk/ANwk fade/expiry and additive speed, ordered CAST inverse; bounded engine component and saved-owner checks.",
+    "save_version": 246,
+    "original_proof": {
+      "fixture": "tools/ghidra/fixtures/research/windwalk328-ownership-original.json",
+      "checker": "tools/ghidra/research/windwalk328_ownership_check.py",
+      "sha256": "4e4930525a83706d841ecc36f72484ac409fd65683717a8c004108ded1224690",
+      "passed": true,
+      "whole_functions": 21,
+      "vtable_words": 35,
+      "direct_calls": 102,
+      "negative_controls": 6,
+      "scope": "Static original bytes; no new live mixed-overlap witness."
+    },
+    "ownership": [
+      "58ce50 supplies DataA as fade, DataB as a raw additive Move contribution, and DataC as breaking damage. Row loader6a74b0 proves the column mapping.",
+      "BOwk setup59daa0 calls common63ce40 and inherits private clock methods427610/43b0e0/531420/532fa0; its concrete class stays separate from Binv.",
+      "48ba80 caches the next owner before v178; BOwk removal precedes691210 action notification and public CAST. CHANNEL v174 and action v12c do not remove BOwk.",
+      "58e110 releases common invisibility/suppression through6314d0 before Wind Walk speed/collision cleanup."
+    ],
+    "component_checks": {
+      "tests": 2,
+      "assertions_per_edition": 117,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "reports": [
+        "build/tests/windwalk328/roc-wind-phase.xml",
+        "build/tests/windwalk328/tft-wind-phase.xml"
+      ],
+      "passed": true,
+      "scope": "Configured AOwk/Aivs in both attachment orders, primary expiry, saved identities and contributions; component scripted clock owner freeze/save/inverse and actual spell phase dispatcher."
+    },
+    "fixture_corrections": [
+      "Old Wind Walk save fixture zeroed live statuses before ReadGame; it now lets the real inverse dispose the old world.",
+      "Speed-query fixture now applies the actual ability effect and compares original software arithmetic rather than compiler arithmetic.",
+      "Overlap fixture now owns Move; make_hero deliberately created a MOVETYPE_NONE actor, which correctly received no native Move contribution."
+    ],
+    "full_suite_run": false,
+    "remaining": [
+      "Return original BOwk instance identity from shared setup before applying speed; outer callbacks may replace the same alias.",
+      "No fresh live public Pause/Sleep mixed-overlap capture is claimed.",
+      "BOwk e0/e4 target-mask transformation remains outside this shared owner port.",
+      "Remaining B01 consumers and exact incoming caller dispositions remain required."
+    ],
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "focused": {
+      "passed": true,
+      "processes": 4,
+      "tests": 1720,
+      "assertions": 171686,
+      "report": "build/tests/windwalk328/focused/summary.json"
+    },
+    "c299": {
+      "normal_passed": true,
+      "saved_passed": true,
+      "public_rows": 2066,
+      "motion_rows": 5342,
+      "mismatches": 0,
+      "reports": [
+        "build/tests/windwalk328/c299.summary.json",
+        "build/tests/windwalk328/c299-saved.summary.json"
+      ]
+    },
+    "fresh_gates": {
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/windwalk328/gates/supportgoal.json",
+        "engine": {
+          "classic": {
+            "tests": 514,
+            "assertions": 2002196
+          },
+          "tft": {
+            "tests": 514,
+            "assertions": 2002196
+          }
+        }
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/windwalk328/gates/group012.json",
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/windwalk328/gates/waygate377.json",
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/windwalk328/gates/itemdrop.json",
+        "engine": {
+          "classic": {
+            "tests": 154,
+            "assertions": 12568
+          },
+          "tft": {
+            "tests": 154,
+            "assertions": 12568
+          }
+        }
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/windwalk328/gates/captain473.json",
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      }
+    },
+    "fresh_gates_summary": {
+      "passed": true,
+      "gates": 5,
+      "tests": 1474,
+      "assertions": 7096350
+    },
+    "python": {
+      "passed": true,
+      "tests": 76,
+      "itemdrop": 38,
+      "corpus": 38
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3357
     }
   }
 }

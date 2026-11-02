@@ -79,6 +79,19 @@ public/motion suffix.
 No new full327-suite claim is made. B01 and all 25 whole leaves
 remain open for their stated remaining work.
 
+**Checkpoint328, verified shared-owner increment:** AOwk DataA fade/DataB raw additive speed
+and BOwk's shared contribution, primary expiry and inherited private Pause owner
+are implemented with Save246. Original cached-NEXT dispatch calls v178 before
+v12c at CAST; BOwk removes at v178, not at CHANNEL or its no-op action12c. The
+[guarded static evidence](../../../tools/ghidra/fixtures/research/windwalk328-ownership-original.json)
+covers 21 bodies/35 vtable words/102 calls with six negative controls. Configured
+AOwk/Aivs overlap and saved ownership tests pass 117 assertions per edition.
+Spell/save checks pass 1,720 executions/171,686 assertions; all five fresh gates
+and uninterrupted/nine-save C299 pass. Next: prevent the outer Wind Walk effect
+from applying speed to a same-alias replacement made during synchronous recovery.
+This is not a new live overlap capture or completed B01 disposition; all 25 whole
+leaves remain open.
+
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 
 1. Preserve the completed public265 stream and cache correction. For D036–D041, attach the exact acquisition/home/replacement scene rather than describing that completed stream as unfinished.

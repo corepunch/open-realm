@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 245; /* Retain per-attachment item availability owner counters and order. */
+static uint32_t const save_version = 246; /* BOwk owns shared invisibility and its paused primary expiry. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -3154,7 +3154,8 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
                *(uint8_t const *)&saved.pause_owned>1 || *(uint8_t const *)&saved.retire_owned>1)goto failed;
         } else if(saved.class_code) {
             if(saved.class_code!=MAKEFOURCC('B','E','m','e') &&
-               !(saved.class_code==MAKEFOURCC('B','i','n','v') && saved.code==saved.class_code))goto failed;
+               !((saved.class_code==MAKEFOURCC('B','i','n','v') ||
+                  saved.class_code==MAKEFOURCC('B','O','w','k')) && saved.code==saved.class_code))goto failed;
         } else if(!S_AbilityItem(saved.code).ability)goto failed;
         for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
             if(saved.attachment_slot ? (s->attachment_slot==saved.attachment_slot && s->attachment_generation==saved.attachment_generation) :

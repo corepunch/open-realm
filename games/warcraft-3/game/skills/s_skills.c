@@ -270,6 +270,7 @@ static ability_t abilitylist[] = {
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
     { "AEme", CAbilityMetamorphosis, AB_SPELL },  /* Metamorphosis */
     { "Binv", CBuffInvisibility, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },
+    { "BOwk", CBuffWindWalk, AB_ENGINE_EVENTS },
     { "BEme", CBuffMetamorphosis, AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },  /* Attached typed buff; no command slot. */
     { "AEer", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots */
     { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */
@@ -1529,11 +1530,13 @@ static bool unit_dispatch_approach_command(edict_t *ent,abilityMsg_t msg,ability
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
 static bool ability_action_event(edict_t *);
+static bool ability_spell_cast_event(edict_t *);
 bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
     bool handled = false;
 
     if (!ent) return false;
     if (msg == A_UNIT_ACTION)return ability_action_event(ent);
+    if (msg == A_UNIT_SPELL_CAST)return ability_spell_cast_event(ent);
     if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
         return unit_dispatch_engine_event_abilities(ent, msg, payload);
     bool owner_event = msg == A_UNIT_OWNER_CHANGING || msg == A_UNIT_OWNER_CHANGED;
@@ -2031,6 +2034,34 @@ bool S_ItemAbilityAttachmentDisabled(edict_t const *ent,uint32_t slot,uint32_t g
     return true;
 }
 
+/*48ba80 caches NEXT before virtual178. Keep both nodes alive when the
+ * callback removes its own status or a later attachment. */
+static bool ability_spell_cast_event(edict_t *ent) {
+    ability_disable_prepare(ent);
+    uint32_t const birth=ent->spawn_time;
+    unitAbilityDisable_t *state=ent->ability_disables;
+    if(state)state->references++;
+    bool handled=false;
+    while(state) {
+        unitAbilityDisable_t *next=state->next;
+        if(next)next->references++;
+        if(state->linked) {
+            abilityitem_t item=ability_disable_item(state);
+            if(known_unit_ability_receives(item,A_UNIT_SPELL_CAST)) {
+                abilityCall_t call={.item=&item};
+                handled|=S_AbilityMessage(ent,A_UNIT_SPELL_CAST,&call)!=0;
+            }
+        }
+        ability_disable_release(state);
+        if(!ent->inuse || ent->spawn_time!=birth || G_IsDeferredFree(ent)) {
+            if(next)ability_disable_release(next);
+            break;
+        }
+        state=next;
+    }
+    return handled;
+}
+
 /*691210 resolves NEXT after the callback. Unlike48c8c0's counted walk,
  * a callback can change this successor. Retain the current owner while a
  * removable buff unlinks itself, but do not visit an unlinked successor. */
@@ -2088,7 +2119,8 @@ void S_ResetUnitAbilityAIMode(edict_t *ent) {
 }
 
 void S_AttachStatusAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
-    assert(class_code==MAKEFOURCC('B','E','m','e') || class_code==MAKEFOURCC('B','i','n','v'));
+    assert(class_code==MAKEFOURCC('B','E','m','e') || class_code==MAKEFOURCC('B','i','n','v') ||
+           class_code==MAKEFOURCC('B','O','w','k'));
     ability_disable_prepare(ent);
     unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
     abilityitem_t item=ability_disable_item(owner);

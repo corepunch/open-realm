@@ -19,16 +19,17 @@ static bool wind_walk_event_status(abilityCall_t const *call) {
            G_UnitStatusClassCode(call->status.slot) == WW_ID_BOWK;
 }
 
-static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) {
+static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t *status) {
     if (!unit || !status || !status->level) return;
-    if (!status->data) {
-        fprintf(stderr, "WC3 Wind Walk: status on unit %u has no applying ability rawcode\n",
-                unit->s.number);
-        if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
-        return;
-    }
-    if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
-    S_SpellStartCooldown(unit, status->data, status->level);
+    uint32_t const code=status->data,rank=status->level,birth=unit->spawn_time;
+    uint64_t const epoch=S_SpellPreparationEpoch();
+    /*58e110 calls the shared6314d0 inverse before its Wind Walk cleanup.
+     * Release may synchronously dispatch Attack recovery callbacks. */
+    if(status->invisibility_owned)S_TemporaryInvisibilityRelease(unit,status);
+    else if(!S_UnitHasTemporaryInvisibility(unit,status))G_SetEntityHidden(unit,false);
+    if(epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return;
+    S_RemoveMoveSpeedContribution(unit,status);
+    if(code)S_SpellStartCooldown(unit,code,rank);
     G_InvalidateUnitInfoPanel(unit);
 }
 
@@ -49,28 +50,33 @@ static bool wind_walk_validate(edict_t *unit, abilityCall_t const *call) {
             if (!unit->abilstatus[i].level) { has_slot = true; break; }
     }
     level = S_SpellLevel(unit, call->item->code);
-    if (!has_slot || S_SpellDuration(call->item->code, level, true) <= 0.0f) return false;
+    if (!has_slot || S_SpellDuration(call->item->code, level, G_UnitIsHero(unit)) <= 0.0f) return false;
     return CAbilitySimpleSpell(unit, A_VALIDATE, call) != 0;
 }
 
 static void wind_walk_execute(edict_t *unit, abilityitem_t const *spell) {
-    uint32_t level = S_SpellLevel(unit, spell->code);
-    heroabilitystatus_t *status;
-
-    status = S_SpellApplyTimedStatus(unit, "BOwk", level,
-                                     S_SpellDuration(spell->code, level, true));
-    if (!status) {
-        fprintf(stderr, "WC3 Wind Walk: failed to create status for unit %u\n", unit->s.number);
-        return;
-    }
-    status->data = spell->code;
-    G_SetEntityHidden(unit,true);
+    uint32_t rank=S_SpellLevel(unit,spell->code);
+    /*58ce50 ->59daa0 ->63ce40: DataA is the shared fade, not speed.
+     * BOwk is concrete; the first authored BuffID remains presentation. */
+    uint32_t const birth=unit->spawn_time;
+    uint64_t const epoch=S_SpellPreparationEpoch();
+    if(!S_ApplyTypedTemporaryInvisibility(unit,unit,spell->code,rank,
+            S_SpellBuffId(spell->code,rank),WW_ID_BOWK,
+            S_SpellDuration(spell->code,rank,G_UnitIsHero(unit)),S_SpellData(spell->code,rank,1)))
+        fprintf(stderr,"WC3 Wind Walk: failed to create status for unit %u\n",unit->s.number);
+    if(epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return;
+    heroabilitystatus_t *status=wind_walk_status(unit);
+    if(status && status->data==spell->code && status->invisibility_owned)
+        S_UpdateMoveSpeedContribution(unit,status,S_SpellData(spell->code,rank,2));
 }
 
 BZ_ABILITY_PROC(CAbilityWindWalk) {
     heroabilitystatus_t *status;
 
     switch (msg) {
+    case A_CAST_PROFILE:
+        if(!call || !call->item || !call->cast_profile)return false;
+        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);return true;
     case A_VALIDATE:
         return wind_walk_validate(ent, call);
     case A_EXECUTE:

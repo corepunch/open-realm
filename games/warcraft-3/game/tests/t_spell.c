@@ -554,6 +554,8 @@ TEST(wc3_spell, shared_handler_uses_each_requested_rawcode) {
     free_slk_rows(rows);
 }
 
+static void wind_walk328_step(unsigned frames);
+
 TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_origin) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X9\n"
@@ -579,6 +581,10 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
     T_EQ(S_AbilityItem(MAKEFOURCC('A','O','w','k')).ability->proc, CAbilityWindWalk);
     T_EQ(S_AbilityItem(MAKEFOURCC('A','N','w','k')).ability->proc, CAbilityWindWalk);
     T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','O','w','k')));
+    FOR_LOOP(frame, 200) {
+        if (unit_findstatus(caster, MAKEFOURCC('B','O','w','k'))) break;
+        wind_walk328_step(1);
+    }
     status = unit_findstatus(caster, MAKEFOURCC('B','O','w','k'));
     T_NOT_NULL(status);
     T_EQ(status->duration_ms, 2750);
@@ -588,8 +594,6 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
 
     number = caster->s.number;
     T_ASSERT(WriteGame(save));
-    G_EnsureUnitStatusSlots(caster);
-    memset(caster->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*caster->abilstatus));
     T_ASSERT(ReadGame(save));
     caster = g_edicts + number;
     status = unit_findstatus(caster, MAKEFOURCC('B','O','w','k'));
@@ -608,59 +612,144 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
     free_slk_rows(rows);
 }
 
-TEST(wc3_spell, wind_walk_and_temporary_invisibility_keep_hidden_until_both_expire) {
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X8\n"
+/* Drive the primary scheduler: these owners no longer expire via status.timestamp. */
+static void wind_walk328_step(unsigned frames) {
+    FOR_LOOP(i, frames) {
+        level.time += 5;
+        level.pathing_msec += 5;
+        wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
+        bool const scheduled = level.scheduled_frame;
+        level.scheduled_frame = true;
+        G_RunTimers();
+        level.scheduled_frame = scheduled;
+    }
+}
+
+TEST(wc3_spell, wind_walk328_configured_overlap_saved_owner_and_primary_expiry) {
+    char slk[2400];
+    bool const tft = atoi(gi.CvarString("fs_expansion", "0")) != 0;
+    snprintf(slk, sizeof(slk),
+        "ID;PWXL;N;EBB;Y3;X13\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
-        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Dur1\"\n"
-        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"%s\"\n"
+        "C;Y1;X11;K\"%s\"\nC;Y1;X12;K\"%s\"\nC;Y1;X13;K\"%s\"\n"
         "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
-        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
-        "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"77\"\nE\n";
-    UnitAbilities_t abilities = { .abilList = "AOwk" };
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"600\"\n"
+        "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"2.75\"\nC;Y2;X9;K\"BOwk\"\n"
+        "C;Y2;X11;K\"0.5\"\nC;Y2;X12;K\"0.17\"\nC;Y2;X13;K\"77\"\n"
+        "C;Y3;X1;K\"Aivs\"\nC;Y3;X2;K\"Aivs\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"600\"\n"
+        "C;Y3;X7;K\"3.5\"\nC;Y3;X8;K\"3.5\"\nC;Y3;X9;K\"Binv\"\n"
+        "C;Y3;X10;K\"air,ground,friend\"\nC;Y3;X11;K\"0.75\"\nE\n",
+        tft ? "targs1" : "targs", tft ? "DataA1" : "Data11",
+        tft ? "DataB1" : "Data12", tft ? "DataC1" : "Data13");
+    static UnitAbilities_t wind_abilities = { .abilList = "AOwk" };
+    static UnitAbilities_t invis_abilities = { .abilList = "Aivs" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    edict_t *walk_first, *walk_second;
-    heroabilitystatus_t *wind, *invis;
-
-    setup_test_world();
-    walk_first = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
-    walk_first->data.UnitAbilities = &abilities;
-    walk_first->s.player = 0;
-    T_ASSERT(S_CastNoTargetSpell(walk_first, MAKEFOURCC('A','O','w','k')));
-    unit_addtimedstatus(walk_first, "Bixx", 1, 10.0f);
-    unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
-    wind = unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k'));
-    invis = unit_findstatus(walk_first, MAKEFOURCC('B','i','x','x'));
-    T_NOT_NULL(wind); T_NOT_NULL(invis);
-    level.time = wind->timestamp;
-    unit_updatestatuses(walk_first);
-    T_NULL(unit_findstatus(walk_first, MAKEFOURCC('B','O','w','k')));
-    T_ASSERT(G_UnitStatusLevel(walk_first, MAKEFOURCC('B','i','x','x')));
-    T_ASSERT(walk_first->s.renderfx & RF_HIDDEN);
-
-    level.time = invis->timestamp;
-    unit_updatestatuses(walk_first);
-    T_ASSERT(!(walk_first->s.renderfx & RF_HIDDEN));
-
-    walk_second = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
-    walk_second->data.UnitAbilities = &abilities;
-    walk_second->s.player = 0;
-    T_ASSERT(S_CastNoTargetSpell(walk_second, MAKEFOURCC('A','O','w','k')));
-    unit_addtimedstatus(walk_second, "Bixx", 1, 1.0f);
-    unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'))->data = MAKEFOURCC('A','I','v','i');
-    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
-    invis = unit_findstatus(walk_second, MAKEFOURCC('B','i','x','x'));
-    T_NOT_NULL(wind); T_NOT_NULL(invis);
-    level.time = invis->timestamp;
-    unit_updatestatuses(walk_second);
-    T_ASSERT(G_UnitStatusLevel(walk_second, MAKEFOURCC('B','O','w','k')));
-    T_ASSERT(walk_second->s.renderfx & RF_HIDDEN);
-
-    wind = unit_findstatus(walk_second, MAKEFOURCC('B','O','w','k'));
-    level.time = wind->timestamp;
-    unit_updatestatuses(walk_second);
-    T_ASSERT(!(walk_second->s.renderfx & RF_HIDDEN));
-
+    cstring_t save = Test_TempPath("wind-walk328-overlap.bin");
+    uint32_t const ww = MAKEFOURCC('A','O','w','k'), iv = MAKEFOURCC('A','i','v','s');
+    uint32_t const bw = MAKEFOURCC('B','O','w','k'), bi = MAKEFOURCC('B','i','n','v');
+    FOR_LOOP(order, 3) {
+        edict_t *unit = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 64, 0);
+        unit->movetype = MOVETYPE_STEP; unit->unitinfo.MoveSpeed = 270;
+        unit->data.UnitAbilities = &wind_abilities;
+        unit->s.player = 0; unit->targtype = TARG_GROUND;
+        edict_t *source = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+        source->data.UnitAbilities = &invis_abilities;
+        source->s.player = 0; source->targtype = TARG_GROUND;
+        source->health.value = source->health.max_value = 100;
+        source->mana.value = source->mana.max_value = 200;
+        source->svflags |= SVF_MONSTER;
+        /* Binv first remains pending while the target casts Wind Walk;
+         * in the other order an external Sorceress applies Binv. */
+        T_ASSERT(order ? S_CastNoTargetSpell(unit, ww) : S_CastUnitTargetSpell(source, iv, unit));
+        if (order) {
+            FOR_LOOP(frame, 200) {
+                if (unit_findstatus(unit, bw)) break;
+                wind_walk328_step(1);
+            }
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 1);
+        T_ASSERT(unit->permanent_invisibility_fade.request.active);
+        wc3Clock_t const fade = unit->permanent_invisibility_fade.request.deadline;
+        wind_walk328_step(20);
+        T_ASSERT(order ? S_CastUnitTargetSpell(source, iv, unit) : S_CastNoTargetSpell(unit, ww));
+        if (!order) {
+            FOR_LOOP(frame, 200) {
+                if (unit_findstatus(unit, bw)) break;
+                wind_walk328_step(1);
+            }
+        }
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 2);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time), wc3_float_bits(fade.time));
+        heroabilitystatus_t *wind = unit_findstatus(unit, bw), *invis = unit_findstatus(unit, bi);
+        T_NOT_NULL(wind); T_NOT_NULL(invis);
+        if (!wind || !invis) break;
+        T_ASSERT(wind->invisibility_owned && invis->invisibility_owned);
+        T_EQ(wind->timestamp, 0); T_ASSERT(wind->class_timer.active);
+        T_FEQ(wind->move_speed_delta, .17f, .000001f);
+        uint32_t const number = unit->s.number, wi = wind->instance_id, ii = invis->instance_id;
+        T_ASSERT(WriteGame(save));
+        T_ASSERT(ReadGame(save));
+        unit = g_edicts + number;
+        wind = unit_findstatus(unit, bw); invis = unit_findstatus(unit, bi);
+        T_NOT_NULL(wind); T_NOT_NULL(invis);
+        if (!wind || !invis) break;
+        T_EQ(wind->instance_id, wi); T_EQ(invis->instance_id, ii);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 2);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time), wc3_float_bits(fade.time));
+        wind_walk328_step(160);
+        T_ASSERT(unit->permanent_invisibility_fade.published);
+        T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+        if (order == 2) {
+            /* Component boundary: the scripted owner freezes both private
+             * clocks; it does not release either invisibility contribution. */
+            S_AcquireScriptedAbilityDisables(unit);
+            wind = unit_findstatus(unit, bw); invis = unit_findstatus(unit, bi);
+            T_ASSERT(wind && invis);
+            T_EQ(wind->class_clock_depth, 1); T_EQ(invis->class_clock_depth, 1);
+            T_ASSERT(!wind->class_timer.active && !invis->class_timer.active);
+            wind_walk328_step(600);
+            T_NOT_NULL(unit_findstatus(unit, bw)); T_NOT_NULL(unit_findstatus(unit, bi));
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 2);
+            T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save));
+            unit = g_edicts + number;
+            S_ReleaseScriptedAbilityDisables(unit);
+            wind = unit_findstatus(unit, bw); invis = unit_findstatus(unit, bi);
+            T_ASSERT(wind && invis);
+            T_EQ(wind->class_clock_depth, 0); T_EQ(invis->class_clock_depth, 0);
+            T_ASSERT(wind->class_timer.active && invis->class_timer.active);
+            /* Actual phase dispatcher: BOwk ignores CHANNEL/action, then
+             * its distinct v178 inverse runs at CAST. */
+            spellPhaseParams_t phase = { .caster = unit, .code = ww,
+                .target = { .type = SPELL_TARGET_NONE },
+                .player_event = EVENT_PLAYER_UNIT_SPELL_CHANNEL,
+                .unit_event = EVENT_UNIT_SPELL_CHANNEL };
+            S_DispatchSpellPhase(&phase);
+            T_NOT_NULL(unit_findstatus(unit, bw)); T_NULL(unit_findstatus(unit, bi));
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 1);
+            phase.player_event = EVENT_PLAYER_UNIT_SPELL_CAST;
+            phase.unit_event = EVENT_UNIT_SPELL_CAST;
+            S_DispatchSpellPhase(&phase);
+            T_NULL(unit_findstatus(unit, bw));
+            T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 0);
+            T_FEQ(unit->movement.speed_factor, 1, 0);
+            T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
+            continue;
+        }
+        /* Either owner can be removed without removing its sibling's visibility. */
+        unit_removestatus(unit, unit_findstatus(unit, order ? bi : bw), STATUS_REMOVE_SCRIPT);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 1);
+        T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+        wind_walk328_step(800);
+        T_NULL(unit_findstatus(unit, bw)); T_NULL(unit_findstatus(unit, bi));
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions, 0);
+        T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
+        T_ASSERT(!S_SpellCooldownReady(unit, ww));
+    }
+    remove(save);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

@@ -925,3 +925,18 @@ Settled Pause admission is now established by static original guards and engine
 execution, without a new live witness. The complete public Pause-during-cast
 timeline, remaining mixed overlaps and caller dispositions are still unproved.
 B01 and TARGET-01.2 remain open.
+
+## Wind Walk overlap dependency: checkpoint328
+
+The AOwk/BOwk consumer now uses shared contribution/fade ownership, primary
+expiry and inherited private Pause clocks (Save246). AOwk58ce50 supplies DataA
+fade and DataB raw additive speed; BOwk59daa0 calls63ce40. Cached-NEXT owner
+dispatch delivers v178 before v12c on CAST: BOwk removes at v178, while its
+CHANNEL/action12c handlers are no-ops. This differs from Binv action removal.
+[original328 evidence](../../../tools/ghidra/fixtures/research/windwalk328-ownership-original.json) and the [byte checker](../../../tools/ghidra/research/windwalk328_ownership_check.py) guard 21 bodies/35 vtable words/102 calls and six
+negative controls. Configured overlap/saved-owner tests pass 117 assertions per
+edition; spell/save cohorts pass 1,720 executions/171,686 assertions, and all five
+fresh gates pass. Normal/nine-save C299 remain exact. This is not a live overlap
+witness. The next correction must retain the applied BOwk instance across
+callbacks before applying speed; same-alias replacement alone is insufficient.
+B01 and all 25 whole leaves remain open.

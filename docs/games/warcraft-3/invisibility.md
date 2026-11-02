@@ -244,3 +244,30 @@ gates and normal/nine-checkpoint saved C299 pass. No full327 suite is claimed. T
 sibling-effect assertion incorrectly expected synchronous execution immediately
 after PauseUnit(false); the corrected fixture drains the real resume scheduler.
 It is not failing-first product evidence. Mixed-contributor B01 work remains open.
+
+## Wind Walk common ownership: checkpoint328
+
+AOwk58ce50 reads DataA as fade duration and DataB as the raw additive movement
+speed contribution. BOwk59daa0 enters the shared63ce40 contribution/fade owner;
+it retains concrete BOwk identity, primary expiry and the inherited private
+Pause clock. Its removal releases its own contribution and speed before the
+existing cooldown inverse. It does not substitute a hidden-flag toggle.
+
+The original owner traversal caches NEXT, dispatches v178 before v12c for CAST,
+and removes BOwk at v178. CHANNEL and BOwk's action12c are no-ops; Binv's action
+removal must not be copied onto BOwk. [original328 evidence](../../../tools/ghidra/fixtures/research/windwalk328-ownership-original.json) and the
+[byte checker](../../../tools/ghidra/research/windwalk328_ownership_check.py) guard 21 bodies, 35 vtable words and 102 calls, with six negative
+controls. This is static evidence, not a new live overlap capture.
+
+Save246 carries BOwk through the common saved owner/clock validation. The
+tests use configured AOwk and external Aivs in both attachment orders, distinct
+fade/speed data, saved shared ownership, either removal inverse and real primary
+expiry. Both editions pass 117 Wind Walk assertions, including the component
+scripted-clock save/inverse and CHANNEL-versus-CAST boundary. The complete spell
+and save cohorts pass 1,720 test executions/171,686 assertions; five fresh
+regression gates and normal/nine-save C299 pass. No new live overlap witness
+or B01 closure is claimed.
+
+Next correction: return the applied BOwk instance from the shared setup so an
+outer effect cannot apply its speed to a same-alias replacement created during
+synchronous recovery callbacks.

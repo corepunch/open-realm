@@ -4669,8 +4669,7 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     speed = wc3_add(speed, bonus);
-    uint32_t level = G_QueryUnitStatusClassLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
-    if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
+    /* Wind Walk DataB is a retained additive Move speed-factor contribution. */
     speed = wc3_mul(speed, 1.0f + S_UnholyMoveBonus(ent));
     speed = wc3_mul(speed, ent->movement.speed_factor_initialized ? ent->movement.speed_factor : 1);
     speed = wc3_mul(speed, S_HumanMoveFactor(ent));

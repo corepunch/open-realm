@@ -930,6 +930,10 @@ bool S_DispatchSpellPhase(spellPhaseParams_t const *params) {
      * Preserve the old packet through notifications, then guard its lifetime. */
     if(player_event==EVENT_PLAYER_UNIT_SPELL_CHANNEL || player_event==EVENT_PLAYER_UNIT_SPELL_CAST) {
         uint64_t const epoch=S_SpellPreparationEpoch();
+        if(player_event==EVENT_PLAYER_UNIT_SPELL_CAST) {
+            S_UnitAbilityEvent(caster,A_UNIT_SPELL_CAST);
+            if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=spawn)return false;
+        }
         S_UnitAbilityEvent(caster,A_UNIT_ACTION);
         if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=spawn)return false;
     }

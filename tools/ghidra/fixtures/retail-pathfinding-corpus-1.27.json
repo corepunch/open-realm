@@ -59659,11 +59659,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "cfd9ce9cc7a9530a9bea39e3af24569fa42d9c577ec8cf86cfc1e480fd2cae50"
+      "sha256": "a27dd102fcfecd2e11b62190d035e542855f557d19bf79ecf9eec99571f0eac8"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "d8bd4340d73a01e04a847bf504bf72cece4c5847cc6fa1ab3d6620f52d234ac6"
+      "sha256": "8b2a962c46285f1d2091a1debff9e9503326bc53d2e3ba31d60ef92a4f37ffeb"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -60099,7 +60099,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "66f0b32f35d65358eb9586a2ea3d2cccab7342f54d5b12125c55dd9f7026a647"
+      "sha256": "590b90855d41224dc20c70009e9e4ac4e63e6b5cadadbc1f80ab0a1dbebbb266"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -60107,7 +60107,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "d8e57ac1e3395f53b2b117479ba8221cbd16e9c1b987871d8b02879b117d6bd6"
+      "sha256": "f7252cc802a8748cb39ceb2feac343994e5d375cee484b07c54f8f875e7652a5"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -60607,7 +60607,7 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "5eb1b01eba21b7ae81d18e2830c95b7ca8f46db73481018621373c67ffb6d208"
+      "sha256": "aca977b97efb17ddeddd792e26eee9ca2e44c7a195658ed5acf0592a31fa3c4e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
@@ -60627,7 +60627,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "6bcef66e55a00d064aeebb54da8bbf6513ca09e49592a85c725a7de508964666"
+      "sha256": "4cd18c98ddc7fcc8555528bed58f44fcc6b69c74c9d333ff6153578a98057349"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -61415,7 +61415,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "96e63dea3ab4449104c21cea16f21e7a1a2398990cafbee52a26a48f1e6f3d61"
+      "sha256": "0c855e8481ab06e9b6214cf93a95e0628defa4744d42aa5a48f0b7be402c51a9"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -61823,7 +61823,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "d73fb4288db8ba4e6ffc7209ef9ab8c4df3bbc9b17a0fb01a94a8a3356cbee15"
+      "sha256": "3fbe682273f1dd275ac91c96878b78892632a416af497ca210fb0667f32b1977"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -62051,7 +62051,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "4fcc1d6dd51dfc361cceb4bd85fdedef8318c01249a2437234132e8001600803"
+      "sha256": "df958d5bb782d2eb8ab2057e3e68bb0f92301d0d4d52994adbfd8067fbb18a36"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -67147,7 +67147,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_requested_abilities.c",
-      "sha256": "d6e46c2d828619c4ddf32c65e3609f7fc1f130213e5d3fbccaddcc5a3adbee27"
+      "sha256": "a57a347e5e4d5e3b7b93890dce7768c26d31254f9e5d07fd17ed48719203c83f"
     },
     {
       "path": "games/warcraft-3/game.mk",
@@ -69307,7 +69307,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_wards.c",
-      "sha256": "16313706531ffc6cd0628f2f1ce0da46e7f1c9c77c8355cf8f842d41bab0c412"
+      "sha256": "d957d035368ee3ff18db395f9e1250df0416145a29b1a7c37f87a778d141cbcb"
     },
     {
       "path": "games/warcraft-3/game/tests/t_morph374.c",
@@ -69743,7 +69743,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json",
-      "sha256": "799c4e4f6a55443e975fe17d9e9185f960264088e5de250e16592b658215986e"
+      "sha256": "5656d14cca894f67dc86b2e828e53c63be2a61b8f11345332fe5ad33977780a6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-waygate377-1.27.json.gz",
@@ -69903,7 +69903,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_wind_walk.c",
-      "sha256": "ec83cc3f00fef0eb5ea5890ee25a7c6333cd2e4b13024cb3ca353f7ea1591886"
+      "sha256": "0d953e285e48013c0e9473b4cbb2eefc6e6b82bf5b9e18bf234ea012ea1bf072"
     },
     {
       "path": "games/warcraft-3/game/tests/t_morph382.c",
@@ -70107,7 +70107,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "64ed3d29b85febeb4138bfb5ad2f53610041e9d26e9beb39938ced2c3da7cf56"
+      "sha256": "c6409ea08e948f597e97ef05e361cde66abc7a944de1c7fb95342713635542d2"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -70187,7 +70187,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json",
-      "sha256": "6017d2065da7c766cc21dbc1437162e7eceffad50c8b658f9fcab6bd11187b05"
+      "sha256": "7e393d773d184f074e7b3212b737017f01910d0e73e57c5a60eb9128a0c24afb"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain473-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "19fdea78879de10bde91a7f9f55b24afa15b465fc320b522f1bcf9a531e796d4"
+      "sha256": "cc10434b1b89c6ff322bff47b3da7d820fc320b9ab07f053768707487c459b6c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "cda8548ea0d438229f487568d69756b5c4d2378bfb4be7573474f13c3c35ee7e"
+      "sha256": "ab4a1a3f1c29e7ff9710bae0f8b4d63c439557356979f60cd65a1097795eee94"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",
@@ -71332,6 +71332,14 @@
     {
       "path": "tools/ghidra/research/invisibility327_availability_check.py",
       "sha256": "01e659ace5996c275ea8e2108e6d2d5ccafe2bb03b6cdecdcdd659f85ae2f62c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/windwalk328-ownership-original.json",
+      "sha256": "4e4930525a83706d841ecc36f72484ac409fd65683717a8c004108ded1224690"
+    },
+    {
+      "path": "tools/ghidra/research/windwalk328_ownership_check.py",
+      "sha256": "8da21484805a37bb380f030c6d8d5f93f2b9f10cd44967a05cfdd4f8c6fad216"
     }
   ]
 }

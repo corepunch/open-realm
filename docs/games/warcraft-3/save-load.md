@@ -1,4 +1,11 @@
-Save245 retains each profiled AIvi item's ordered availability node, keyed by
+Candidate Save246 extends the existing temporary-Invisibility saved ownership
+contract to concrete BOwk: shared contribution/fade, per-status primary expiry,
+inherited private Pause clock and captured additive speed contribution. Loading
+uses the common owner/clock validation; older formats are rejected. No new live
+overlap capture is implied. Candidate328 tests/build are pending; see
+[Wind Walk ownership](invisibility.md#wind-walk-common-ownership-candidate328).
+
+The prior Save245 retains each profiled AIvi item's ordered availability node, keyed by
 attachment slot/generation and exact alias. Signed counters, list order and
 canonical pending flags survive restore and validate against the item registry.
 The shared item owner, not each recursive cast record, owns 0x1000/0x4000. First
@@ -11,7 +18,8 @@ the numeric slot command, not an ability attachment token. The same original
 item dropped and repicked into the same slot activates its new owner; a different
 same-alias item cannot satisfy the old packet. Cold-save tests cover both cases,
 ordered duplicate-item availability and independent detach. Prior formats are
-rejected. Final focused/gate totals are pending; no full327 suite is claimed.
+rejected. Final327 focused checks pass 2,326 tests/286,242 assertions and all five gates;
+no full327 suite is claimed.
 
 The prior Save244 introduced the item-cast contract. Its queued attachment-token
 restriction was superseded by the original690930 weak-Item/slot semantics above.

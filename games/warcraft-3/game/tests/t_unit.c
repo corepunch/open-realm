@@ -643,27 +643,32 @@ TEST(wc3_unit, public_speed_uses_empty_status_discovery_and_live_custom_windwalk
     UnitBalance_t balance = *unit->data.UnitBalance;
     balance.speed = 331.75f; balance.minSpeed = 1; balance.maxSpeed = 522;
     unit->data.UnitBalance = &balance; unit->unitinfo.MoveSpeed = balance.speed;
-    AbilityData_t windwalk = { .id = MAKEFOURCC('A','O','w','k'), .code = MAKEFOURCC('A','O','w','k') };
-    windwalk.level[0].data[0].number = 19;
-    slkTestData_t table = { .rows = &windwalk, .count = 1 };
-    slkTestData_t *old = G_SetSLKRows("AbilityData", &table);
+    slkTestData_t *table = parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y1;X6;K\"DataB1\"\nC;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\n"
+        "C;Y2;X3;K1\nC;Y2;X4;K0.1\nC;Y2;X5;K0.07\nC;Y2;X6;K0.19\nE\n");
+    slkTestData_t *old = G_SetSLKRows("AbilityData", table);
     S_UnitMoveSpeed(unit);
     G_TestUnitStatusQueries(true);
     FOR_LOOP(i, 128) T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
     T_EQ(G_TestUnitStatusQueries(false), 0);
-    G_EnsureUnitStatusSlots(unit);
-    unit->abilstatus[MAX_UNIT_STATUSES - 1] = (heroabilitystatus_t){
-        .code = MAKEFOURCC('B','O','w','k'), .level = 1, .timestamp = 100 };
-    level.time = 0;
-    T_FEQ(S_UnitMoveSpeed(unit), 331.75f * 1.19f, 0);
+    abilityitem_t windwalk = S_AbilityItem(MAKEFOURCC('A','O','w','k'));
+    abilityCall_t call = { .item = &windwalk };
+    T_ASSERT(S_AbilityMessage(unit, A_EXECUTE, &call));
+    /* The retained Move owner uses software addition/multiplication. */
+    T_FEQ(S_UnitMoveSpeed(unit), wc3_mul(331.75f,
+        wc3_add(1, S_SpellData(windwalk.code, 1, 2))), 0);
     T_ASSERT(G_TestUnitStatusQueries(false) > 0);
-    level.time = 100;
+    level.time += 105; level.pathing_msec += 105;
+    wc3_clock_advance(&level.pathing_clock, 0.105f, 0);
+    bool scheduled = level.scheduled_frame;
+    level.scheduled_frame = true; G_RunTimers(); level.scheduled_frame = scheduled;
     T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
-    unit->abilstatus[MAX_UNIT_STATUSES - 1].level = 0;
     G_TestUnitStatusQueries(true);
     T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
     T_EQ(G_TestUnitStatusQueries(false), 0);
-    G_SetSLKRows("AbilityData", old); free(old);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(table);
     reset_entities(); setup_test_world();
 }
 TEST(wc3_unit, pure_queries_share_ownership_discovery_and_preserve_rank_status_precedence) {

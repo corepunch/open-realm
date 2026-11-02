@@ -1093,7 +1093,8 @@ bool S_ValidateMetamorphosisOwners(void) {
         edict_t *unit=g_edicts+n;if(!unit->inuse)continue;
         FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
             heroabilitystatus_t const *status=unit->abilstatus+i;
-            if(status->class_code==MAKEFOURCC('B','i','n','v') && status->invisibility_owned)continue;
+            if((status->class_code==MAKEFOURCC('B','i','n','v') ||
+                status->class_code==MAKEFOURCC('B','O','w','k')) && status->invisibility_owned)continue;
             if(!status->class_code) {
                 if(!status->invisibility_owned &&
                    (status->class_timer.active || status->class_timer_remaining || status->class_clock_depth))return false;
@@ -1124,7 +1125,8 @@ bool S_ValidateMetamorphosisOwners(void) {
                 continue;
             }
             /* Binv's status/node relation belongs to its own validator. */
-            if(owner->class_code==MAKEFOURCC('B','i','n','v'))continue;
+            if(owner->class_code==MAKEFOURCC('B','i','n','v') ||
+               owner->class_code==MAKEFOURCC('B','O','w','k'))continue;
             if(owner->class_code!=metamorphosis_buff || owner->morph_owned || owner->exclusive_owned ||
                owner->exclusive_inventory || owner->ethereal_initialized || owner->ethereal_owned ||
                owner->burrow_initialized || owner->burrow_owned)return false;

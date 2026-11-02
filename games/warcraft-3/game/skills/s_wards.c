@@ -606,11 +606,14 @@ static void temporary_invisibility_clock_adjust(heroabilitystatus_t *status,int3
         status->class_timer_remaining=0;
     }
 }
+static bool invisibility_concrete_class(uint32_t code) {
+    return code==ID_BINV || code==ID_BOWK;
+}
 void S_AdjustTemporaryInvisibilityClocks(edict_t *unit,int32_t delta) {
     bool changed=false;
     FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status=unit->abilstatus+i;
-        if(status->invisibility_owned && status->class_code==MAKEFOURCC('B','i','n','v') &&
+        if(status->invisibility_owned && invisibility_concrete_class(status->class_code) &&
            status->class_clock_depth>=0) {
             if(!changed)temporary_expiry_forget(unit);
             changed=true;
@@ -748,8 +751,8 @@ void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,fl
 void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
     if(!unit || !status || !status->invisibility_owned)return;
     uint32_t birth=unit->spawn_time;
-    if(status->class_code==MAKEFOURCC('B','i','n','v'))
-        S_DetachStatusAbilityAvailability(unit,MAKEFOURCC('B','i','n','v'),MAKEFOURCC('B','i','n','v'));
+    if(invisibility_concrete_class(status->class_code))
+        S_DetachStatusAbilityAvailability(unit,status->class_code,status->class_code);
     /* Inspect presence while this contribution still explains RF_HIDDEN.
      * Loaded, mined, trained, reviving and world-retired units keep their
      * independent hiding owner when the temporary contribution leaves. */
@@ -774,10 +777,9 @@ void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
 
 /*62f050/62f280 find the concrete Binv class.532a80 may replace the
  * presented buff ID without replacing that object or its contribution. */
-bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
-        uint32_t rank,cstring_t buff,float duration,float transition) {
-    uint32_t const concrete=MAKEFOURCC('B','i','n','v');
-    if(!unit || !unit->inuse || !isfinite(duration))return false;
+bool S_ApplyTypedTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
+        uint32_t rank,cstring_t buff,uint32_t concrete,float duration,float transition) {
+    if(!unit || !unit->inuse || !isfinite(duration) || !invisibility_concrete_class(concrete))return false;
     bool const authored=buff && strlen(buff)>=4;
     heroabilitystatus_t *status=unit_findstatusclass(unit,concrete);
     if(status && status->invisibility_owned) {
@@ -798,7 +800,7 @@ bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
         S_TemporaryInvisibilitySetDuration(unit,status,duration,true);
         return true;
     }
-    status_application_t app={.buff=authored ? buff : "Binv",.class_code=concrete,
+    status_application_t app={.buff=authored ? buff : concrete==ID_BOWK ? "BOwk" : "Binv",.class_code=concrete,
         .level=rank,.data=code,.source_ability=code,.source=source,.rank=rank};
     status=unit_applystatus(unit,&app);
     if(!status)return false;
@@ -822,6 +824,26 @@ bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
         }
     }
     return true; /* Acquisition can synchronously retire the unit/status. */
+}
+
+bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
+        uint32_t rank,cstring_t buff,float duration,float transition) {
+    return S_ApplyTypedTemporaryInvisibility(unit,source,code,rank,buff,ID_BINV,duration,transition);
+}
+
+/* BOwk inherits the shared contribution and private clock, but its12c is a
+ * no-op. It must not inherit Binv's notified-owner action removal. */
+BZ_ABILITY_PROC(CBuffWindWalk) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_ACTION,A_UNIT_SPELL_CAST);
+    case A_UNIT_ACTION:return true;
+    case A_UNIT_SPELL_CAST: {
+        heroabilitystatus_t *status=ent ? unit_findstatusclass(ent,ID_BOWK) : NULL;
+        if(status)unit_expirestatus(ent,status);
+        return true;
+    }
+    default:return false;
+    }
 }
 
 static void temporary_expiry_fire(void) {
@@ -887,13 +909,13 @@ bool S_ValidateInvisibilityOwners(void) {
         edict_t const *unit=g_edicts+n;
         if(!unit->inuse)continue;
         if(unit->ability_clock_depth<0 || unit->ability_clock_depth!=unit->ability_pause_depth)return false;
-        uint32_t contributions=0,held=0,binv_owners=0,binv_nodes=0;
+        uint32_t contributions=0,held=0,owners[2]={0},nodes[2]={0};
         for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next)
-            if(node->class_code==MAKEFOURCC('B','i','n','v')) {
+            if(invisibility_concrete_class(node->class_code)) {
                 if(node->code!=node->class_code || !node->linked || node->morph_owned ||
                    node->exclusive_owned || node->exclusive_inventory || node->ethereal_initialized ||
                    node->ethereal_owned || node->burrow_initialized || node->burrow_owned)return false;
-                binv_nodes++;
+                nodes[node->class_code==ID_BOWK]++;
             }
         FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
             if(!unit->abilstatus)return false;
@@ -902,15 +924,15 @@ bool S_ValidateInvisibilityOwners(void) {
                *(uint8_t const *)&status->invisibility_pending>1 ||
                *(uint8_t const *)&status->invisibility_suppression_held>1)return false;
             if(status->invisibility_owned) {
-                if(status->class_code==MAKEFOURCC('B','i','n','v'))binv_owners++;
+                if(invisibility_concrete_class(status->class_code))owners[status->class_code==ID_BOWK]++;
                 if(!status->level || !status->instance_id ||
                    !S_UnitStatusIsTemporaryInvisibility(status) ||
                    (unit->permanent_invisibility_fade.published && status->invisibility_pending))return false;
                 abilityPrimaryTimer_t const *expiry=&status->class_timer;
-                if((status->class_code && status->class_code!=MAKEFOURCC('B','i','n','v')) ||
+                if((status->class_code && !invisibility_concrete_class(status->class_code)) ||
                    status->class_clock_depth<0 || !isfinite(status->class_timer_remaining) ||
                    status->class_timer_remaining<0 ||
-                   (status->class_code==MAKEFOURCC('B','i','n','v') &&
+                   (invisibility_concrete_class(status->class_code) &&
                     status->class_clock_depth!=unit->ability_clock_depth) ||
                    (!status->class_clock_depth && status->class_timer_remaining) ||
                    *(uint8_t const *)&expiry->active>1)return false;
@@ -927,7 +949,7 @@ bool S_ValidateInvisibilityOwners(void) {
                 if(status->invisibility_attack_generation==unit->attack_invisibility_generation)held++;
             }
         }
-        if(binv_nodes!=binv_owners || contributions!=unit->permanent_invisibility_fade.temporary_contributions ||
+        if(nodes[0]!=owners[0] || nodes[1]!=owners[1] || owners[0]>1 || owners[1]>1 || contributions!=unit->permanent_invisibility_fade.temporary_contributions ||
            held!=unit->attack_invisibility_suppression)return false;
         if(*(uint8_t const *)&unit->permanent_invisibility_fade.permanent_owned>1 ||
            *(uint8_t const *)&unit->permanent_invisibility_fade.published>1 ||
