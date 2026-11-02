@@ -952,4 +952,7 @@ another target retirement from final clear. The fixture now checks released
 roles and preserves the already-established goal/range on empty-role clear.
 Both editions pass the complete35-test preferred376 cohort (2,853 assertions
 each) and the Captain473 gate. No production behavior changed for this correction.
-A fresh full batch is pending; the earlier failed batch is not a full-suite pass.
+The fresh full batch at `71126adb4` passes all 9,476 tests/60,733,200 assertions
+in eight shards across both editions, with zero failures/errors/skips. All606
+game C/header,16 compiled artifact and42 asset hashes match its frozen source
+record. The earlier failed batch remains separately recorded. B01 remains open.

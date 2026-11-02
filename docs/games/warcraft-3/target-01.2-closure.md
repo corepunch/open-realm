@@ -91,7 +91,9 @@ and uninterrupted/nine-save C299 pass. Checkpoint329 additionally prevents the
 outer Wind Walk effect from applying speed to a same-alias replacement made
 during synchronous recovery. Its callback mutation component passes28 assertions
 per edition after reproducing one speed failure without the instance check.
-This is not a new live overlap capture or completed B01 disposition; all 25 whole
+The full329 batch at `71126adb4` passes 9,476 tests/60,733,200 assertions across
+both editions; all source/artifact/asset hashes match the frozen record. This
+is not a new live overlap capture or completed B01 disposition; all 25 whole
 leaves remain open.
 
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20

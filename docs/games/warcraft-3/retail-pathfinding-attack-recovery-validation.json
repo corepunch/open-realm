@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "BOwk ownership and exact-instance continuation pass focused checks. First329 full run found a stale Captain cleanup fixture; corrected Captain cohort passes both editions. Full rerun is pending; B01 remains open.",
+  "status": "Wind Walk and exact-instance continuation are verified by full329:9476 tests/60733200 assertions across both editions. B01 consumer overlaps and caller dispositions remain open.",
   "save_version": 246,
-  "full_suite_run": false,
+  "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -7355,7 +7355,7 @@
       ],
       "scope": "Real Attack/FIFO recovery dispatches queued Move; issued callback removes BOwk, changes same alias to rank2 and invokes nested concrete effect service. Replacement speed must remain rank2. Direct effect calls are component boundaries, not public spell admission."
     },
-    "full_suite_run": false,
+    "full_suite_run": true,
     "whole_backlog_leaf_closed": false,
     "open_backlog_leaves": 25,
     "focused": {
@@ -7495,6 +7495,22 @@
         "assertions_per_edition": 156882
       },
       "excluded_check": "Earlier wc3_bot.*windwalk* glob selected zero tests and is excluded from verification."
+    },
+    "full_suite": {
+      "passed": true,
+      "source_commit": "71126adb436dd439a4e63ffed4b20bdf46502128",
+      "production_commit": "5177e5520",
+      "processes": 8,
+      "tests": 9476,
+      "assertions": 60733200,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "report": "build/tests/windwalk329/full-captain-fix/summary.json",
+      "source_freeze": "build/tests/windwalk329/full-captain-fix-source.json",
+      "frozen_sources": 606,
+      "frozen_artifacts": 16,
+      "frozen_assets": 42
     }
   }
 }

@@ -274,3 +274,7 @@ callback regression removes the old buff and applies the same alias at rank2:
 without the guard, the outer rank1 overwrote its speed (27/28 assertions passed);
 with the guard, both editions pass all28. This is an effect-service mutation
 component, not proof of public reentrant Wind Walk admission.
+
+Full329 verification at `71126adb4` passes 9,476 tests/60,733,200 assertions
+across both editions. All606 source,16 artifact and42 asset hashes remain frozen;
+there are no failures, errors or skips. B01 remains open.
