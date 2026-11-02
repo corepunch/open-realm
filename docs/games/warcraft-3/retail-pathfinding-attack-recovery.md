@@ -1062,3 +1062,11 @@ and [checker](../../../tools/ghidra/research/morph336_reverse_check.py) pin this
 boundary. Current C v2 matches all 1,290 public rows; Save249 is unchanged.
 V1 still fails first at row110 in the separate public Morph order/phase path,
 which remains next after the batched full suite. B01 remains open.
+
+
+The full336 batch at `cbad36d55` passes **9,492 tests and 60,734,932
+assertions** in eight shards across both editions, with no failures, errors or
+skips. All 607 C/header files, 16 compiled artifacts and 42 fixture assets match
+the before/after freeze (`build/tests/morph336/full/integrity.json`). This also
+verifies the earlier332 legacy-fixture corrections in the complete suite.
+The next gap remains public Morph packet/phase ownership in335v1; B01 stays open.

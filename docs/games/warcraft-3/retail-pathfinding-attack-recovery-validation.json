@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Morph336 reverse now sends original internal CAST then ACTION before subtype inverse; all1290 Burrow335v2 public rows match, including paused detach. Earlier331899/333591/C299normal+saved remain exact. PublicMorph335v1 remains redfirst110. Fullsuitebatch next; B01 remains open.",
+  "status": "Full336 atcbad36d55 passes9492tests/60734932assertions across8shards/both editions, all607sources/16artifacts/42assets unchanged. Morph reverse335v2 matches1290public rows; earlier331899/333591/C299normal+saved exact. PublicMorph335v1 remains redfirst110; B01 remains open.",
   "save_version": 249,
   "full_suite_run": true,
   "native299_engine_parity": true,
@@ -7963,10 +7963,10 @@
     }
   },
   "current_phase": 336,
-  "full_suite_passed": false,
-  "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
+  "full_suite_passed": true,
+  "latest_full_source_commit": "cbad36d55186c81a8abdb606b20b3b5a7fcd46a0",
   "latest_full_known_failures_corrected": true,
-  "latest_full_repeated_after_fixture_corrections": false,
+  "latest_full_repeated_after_fixture_corrections": true,
   "phase333": {
     "scope": "Explicit persisted taskless Wind Walk ownership, authored delay, callback-safe retirement and saved continuation.",
     "save_version": 248,
@@ -8239,7 +8239,7 @@
   "phase336": {
     "scope": "Original shared Morph reverse notification, currently used at GroundMorph reverse and nonpermanent alternate detach before subtype release.",
     "save_version": 249,
-    "full_suite_run": false,
+    "full_suite_run": true,
     "original": {
       "passed": true,
       "fixture": "tools/ghidra/fixtures/research/morph336-reverse-original.json",
@@ -8300,6 +8300,48 @@
     },
     "whole_backlog_leaf_closed": false,
     "open_backlog_leaves": 25,
-    "next_action": "Batch full native suite after these implementation commits; then fix original public Morph order/phase ownership from unchanged335v1 reference."
+    "next_action": "Implement original ordinary public Morph packet and phase lifetime against unchanged1416-row335v1 reference; no repeat full batch until several further implementation commits.",
+    "full_suite": {
+      "passed": true,
+      "source_commit": "cbad36d55186c81a8abdb606b20b3b5a7fcd46a0",
+      "tests": 9492,
+      "assertions": 60734932,
+      "shards": 8,
+      "editions": [
+        "roc",
+        "tft"
+      ],
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "unchanged_source_files": 607,
+      "unchanged_artifacts": 16,
+      "unchanged_assets": 42,
+      "summary": "build/tests/morph336/full/summary.json",
+      "before": "build/tests/morph336/full/before.json",
+      "after": "build/tests/morph336/full/after.json",
+      "integrity": "build/tests/morph336/full/integrity.json"
+    }
+  },
+  "latest_full_evidence": {
+    "passed": true,
+    "source_commit": "cbad36d55186c81a8abdb606b20b3b5a7fcd46a0",
+    "tests": 9492,
+    "assertions": 60734932,
+    "shards": 8,
+    "editions": [
+      "roc",
+      "tft"
+    ],
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "unchanged_source_files": 607,
+    "unchanged_artifacts": 16,
+    "unchanged_assets": 42,
+    "summary": "build/tests/morph336/full/summary.json",
+    "before": "build/tests/morph336/full/before.json",
+    "after": "build/tests/morph336/full/after.json",
+    "integrity": "build/tests/morph336/full/integrity.json"
   }
 }
