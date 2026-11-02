@@ -14,6 +14,20 @@ For a D row, record the exact fixture filename and scene/record, submitted raw a
 
 ### B01. Correct and finish Attack recovery — F19 / D051
 
+**Checkpoint338 original-engine correction, implementation still open:**
+Ahid is `CAbilityHide`, an explicit Hold/control owner; Ashm owns the passive
+fade. Stock Akama has Apiv plus Ahid, without Ashm. Two retail observations
+and an unhooked control agree on832 public records; each observation retains
+1,107 native records. Ahid-only ambush succeeds at noon and midnight without
+acquiring invisibility, emits no spell phases, and leaves Attack220 at1 after
+Ahid removal and a later Move. Ashm's button and contribution are separate.
+The [exact model and remaining code changes](shadowmeld.md#original-control-and-lifetime)
+replace the earlier “Ahid night-fade variant” assumption. The C baseline is
+red (834 rows against832); its first difference is time-of-day reporting.
+No C behavior, whole caller disposition, B01 closure or completion percentage
+is claimed by this evidence checkpoint. Production remains checkpoint337,
+Save250; the latest full regression remains checkpoint336.
+
 Current checkpoint337: Abur's shared owner and public Morph packet/phase
 lifetime match the complete1,416-row and1,290-row retail references. Save250
 preserves pending transitions, queued completion and lost cleanup permission.

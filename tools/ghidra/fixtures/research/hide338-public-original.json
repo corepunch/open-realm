@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "engine_parity": false,
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "9120e259eadd98d3a29478641cd7f55958fa1daa4c77abbef81735868b8c1468",
+  "public_records": 832,
+  "public_sha256": "bcfbc6af2bf4966fc8f7e26e2f1cf9b19107553b7886a656226a9d578fadc0b7",
+  "native_records": 1107,
+  "native_counts": {
+    "module": 1,
+    "marker": 832,
+    "recovery-enter": 8,
+    "unit-state": 200,
+    "hide-enter": 19,
+    "hide-leave": 19,
+    "unit-enter": 14,
+    "unit-leave": 14
+  },
+  "native_rows_sha256": {
+    "observe": "9ea8eaaf28e2215d4f8a81cca190c6eef39f4dc3ab068136c9a7071edd8ec711",
+    "repeat": "80ef62a296c0c7d750f91cde25fd028a01f8aa4998aacbe80fbd775b9c617cba"
+  },
+  "capture_source_sha256": {
+    "attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "hide338_observer.js": "82c8178e1827926ec4534620168a82742824299376857f4a9df0d26a3c57e993",
+    "attack_recovery299_make_map.py": "ae03da7d788176cf82464829df3209c9266abefb83bfe9bfb6989bd46823a988",
+    "attack_recovery299_probe.j": "a450db55d024d43e7b4e553bd913007a002bf4ee9ea92fa7936829131d8ab9c6",
+    "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+    "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "attack_recovery299_plan.json": "cec2b64404e2547b32f20faf752f27b9a9964ceae4cd3c10854d43d5f4d29a56",
+    "make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "point214_ui_input.exe": "ae7ba4ec56c0a70332ac0afca2268baa22569445ef13b5984ec49073388a8fac",
+    "point214_ui_input.exe.so": "5314bcb9f6f7485d97007619439fa879b458158ebc7b553c7472c746fc580176",
+    "map": "9120e259eadd98d3a29478641cd7f55958fa1daa4c77abbef81735868b8c1468"
+  },
+  "readable_sources": {
+    "sources/hide338_probe.j": "f6256924f6ae5985160a526a62487738de84e9f384be0fbd881396f369db384b",
+    "sources/hide338_make_map.py": "ef18978a417e4f51ed4446d59af88e5363d2b3321efbfc127cda0cd6f5fe78b6",
+    "sources/hide338_observer.js": "82c8178e1827926ec4534620168a82742824299376857f4a9df0d26a3c57e993",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee"
+  },
+  "files": {
+    "observe.jsonl": "f06c77c95b7d56fe99bad1e3585615fa3111f9daed2e25b23d00878d99bc0d18",
+    "observe-start-preload.txt": "c25dca7fe3de702f1eb83449af2648bfd9fb11b0def29a8e743319973079b6a2",
+    "observe-preload.txt": "d7f7b0d59b402ce1775534c1d0bff6412c95fffa9ca9ba1d8c5e19b319bba4fa",
+    "repeat.jsonl": "4bf4cb32032711b716b9a29ddc0753999cd57f7c94df27ba1ae5e928ff1cdc25",
+    "repeat-start-preload.txt": "4101c4ce599288864dc353914b2c0c1590140218bbb58822cbf6e5ac740116af",
+    "repeat-preload.txt": "badee18a6fc41ceb80029667a50375f273d58875ae521300c1e4fbc832476a4e",
+    "control.jsonl": "8725d13f026eb6164249e72d5868e9c9e967f22add03b39862b4cdeef1a8800a",
+    "control-start-preload.txt": "ebf79e9805c457318976d75c6351ccde627bebc45530ebbcd75181b1208b8b77",
+    "control-preload.txt": "badee18a6fc41ceb80029667a50375f273d58875ae521300c1e4fbc832476a4e",
+    "source-freeze.json": "2fa8b51160d15a1943cfe7ca5bbcd3f304da1071d79fa727428f8928dc67bc85",
+    "stock-unit-attachments.json": "831099ebbeba1bf503842ba70fa7cb9b1504496200854a73fe1bb322f6128d0c",
+    "selected-original-rows.json": "f5ffbf353535429503ade74646453457451a1d09984cb374eabe645a00798319",
+    "sources/hide338_probe.j": "f6256924f6ae5985160a526a62487738de84e9f384be0fbd881396f369db384b",
+    "sources/hide338_make_map.py": "ef18978a417e4f51ed4446d59af88e5363d2b3321efbfc127cda0cd6f5fe78b6",
+    "sources/hide338_observer.js": "82c8178e1827926ec4534620168a82742824299376857f4a9df0d26a3c57e993",
+    "sources/attack_recovery299_capture.py": "dab8168641e7d3e8d6ffe346788020494616e64b4e7a2747532506b30fb996ee",
+    "authored/Hide338.json": "24ab5be0c2d0d6f035d1a85f72315b95b2177bba09ae0cb991d65b2fefb03d5b",
+    "authored/war3map.j": "ad7c5cefb4e1e3fb2b4c15e40bb6fa14b93788900ce7d759ce9aa4a7ab1f8904",
+    "authored/war3map.w3a": "b76875c50ef704dbbf7f02c982445971d1bbd61aebe2e4b28ddc58a1d66317d5",
+    "authored/war3map.w3u": "30aba0dfcc7b835c3571b866244253c297cfbffd0a024db8fc98bb28e71624b0"
+  },
+  "scope": "Ahid-only day/night never acquires Unit114; explicitambush acquires Attack suppression retained after Ahid removal+Move. Ashm-night alone/both acquire Unit114 and Move releases suppression. No publicSpellphases. Viewer queries remain literal, not equated to Unit114.",
+  "limits": [
+    "All private pointers/identity/scalar words preserved and hashed per observation; no numeric normalization or full private equality claim.",
+    "Ahid detached ability is not dereferenced after removal; last flags111 observation is before detach. Unit suppression1 remains observed after detach/Move.",
+    "Ashm initial acquisition fade0 publishes immediately; after-Move reacquire1.5000001 has only0.5seconds beforecleanup. Viewer query0 is not explained by incomplete initialfade.",
+    "Inherited299 capture source labels are runner dependencies; actual338 source freeze is separately preserved."
+  ],
+  "bundle_sha256": "26feb8747b9de9dd3973f7e4f564ed8dae1dec5fc2541ca4a1a7f75941a6240b"
+}

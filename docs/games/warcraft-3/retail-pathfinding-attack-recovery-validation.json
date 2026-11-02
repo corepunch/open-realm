@@ -8440,5 +8440,49 @@
       "Release-callback reentrancy and active retained40000 paused recovery.",
       "Complete the17 incoming-call dispositions without inferring public reachability from service-boundary tests."
     ]
+  },
+  "original_evidence338": {
+    "scope": "Ahid Hide button versus Ashm passive invisibility; production remains checkpoint337/Save250.",
+    "engine_parity": false,
+    "whole_leaves_closed": 0,
+    "reference": "tools/ghidra/fixtures/research/hide338-public-original.json",
+    "checker": "tools/ghidra/research/hide338_capture_check.py",
+    "observations": 2,
+    "unhooked_controls": 1,
+    "public_records_per_capture": 832,
+    "native_records_per_observation": 1107,
+    "negative_controls": 10,
+    "public_sha256": "bcfbc6af2bf4966fc8f7e26e2f1cf9b19107553b7886a656226a9d578fadc0b7",
+    "c_baseline": {
+      "passed": false,
+      "report": "build/tests/hide338/c-baseline338.summary.json",
+      "actual_public_records": 834,
+      "expected_public_records": 832,
+      "positional_differences": 612,
+      "first_difference": "scene0 tick0 time-of-day: C0.100 versus retail12.000",
+      "sources_and_binaries_unchanged": true
+    },
+    "remaining": [
+      "Correct Ahid autonomous fade and unconditional acquisition policy.",
+      "Port explicit Hide Hold/control ownership without unit-spell phases.",
+      "Retain and save raw Attack220 balance across Hide detach; inverse resolves current Attack.",
+      "Port Ashm shared contribution and primary-clock lifecycle.",
+      "Resolve literal time-of-day baseline difference separately."
+    ],
+    "limits": [
+      "No whole caller disposition or B01 closure.",
+      "No private detached-ability flag claim.",
+      "Viewer-query results are not equated with shared contribution count.",
+      "Latest full suite remains checkpoint336; no C edits or build for338 evidence."
+    ],
+    "static": {
+      "reference": "tools/ghidra/fixtures/research/shadow338-original.json",
+      "checker": "tools/ghidra/research/shadow338_check.py",
+      "complete_bodies": 18,
+      "vtable_words": 30,
+      "direct_calls": 96,
+      "negative_controls": 8,
+      "passed": true
+    }
   }
 }
