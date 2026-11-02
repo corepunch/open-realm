@@ -4538,7 +4538,7 @@
   "instruction_count": 4512,
   "pins": {
     "games/warcraft-3/game/g_destructable.c": "c565801f5f3fae1babe6a5e8c3fae564546a93773651accb187d6c1502ee4db7",
-    "games/warcraft-3/game/g_local.h": "fcf59babdf099148cf996451806421ed3cca300cc0e5706c9f4287296afd9fb5",
+    "games/warcraft-3/game/g_local.h": "d02b5b2ce514fb522b2e596a5111667f8a785b7f1d49dcd59d418b0007533fc0",
     "games/warcraft-3/game/g_support.c": "29fa39762f93459ff08fd4a9fc6f0b1613cecfaf0bc0861c523b243c233cb477",
     "games/warcraft-3/game/g_world.c": "8368df391f4c2848fe0947be7a1b6750c0c1e7fde8a977c943576739911bd024",
     "games/warcraft-3/game/m_unit.c": "f133c2a992dc6c00c69f358d9055169bb4cb0a15b9d3f3d88f2e4b0f34d3413c",
@@ -4549,7 +4549,7 @@
     "games/warcraft-3/game/tests/fixtures/retail_preparedwater_ramp_kernels.h": "df1b14eedf61aeca4a1bdf32a642046549cf4ea4890020a5f537b3f711d3e3d9",
     "games/warcraft-3/game/tests/fixtures/retail_support_metadata.h": "cde258a626129b3b8ea1781ac11a0cfac6debf2d2a1c03dba773c2203cc798b9",
     "games/warcraft-3/game/tests/fixtures/retail_widgetgoal_water.h": "d4c5e96353c18c05791e109370f3dc34d8b42e7e4470962263f5a5cf67fbf0f1",
-    "games/warcraft-3/game/tests/t_movement.c": "57f469e73c3f5fbba0e4f6604ce294be113fcb36ff559ed41a5760093318d5da",
+    "games/warcraft-3/game/tests/t_movement.c": "f86eb3172d9de66a1156c9adb54ee3c0d6140da5f57b6165f7b7ac71544348ac",
     "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
     "tools/frida/research/preparedwater_ramp_make_map.py": "ee1a989a5c8d6528c4c51d8a1da4b61e669b5a54ae9979b4520040b0a9b2ae3a",
     "tools/frida/research/preparedwater_ramp_observer.js": "5934eea511835cae8c7de3969c5cbf8dbc2e93c05410e3ea4ff095a38984c16c",

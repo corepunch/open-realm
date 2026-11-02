@@ -75,6 +75,27 @@ static void combat_primary_step(void) {
     level.scheduled_frame=scheduled;
 }
 
+/* Public target admission first owns reaction, then a real physical arrival.
+ * Keep animation stepping separate from the damage-point fixture helper. */
+static bool combat_reach_attack_phase(edict_t *unit, bool damage) {
+    uint32_t const birth=unit->spawn_time;
+    FOR_LOOP(i,2000) {
+        if(!unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))break;
+        if(damage ? unit->attack_damage.active :
+           (!unit->attack_reaction.active && S_UnitTargetChaseActive(unit,CAbilityAttack)))return true;
+        combat_primary_step();
+        if((i+1)%6==0) {
+            level.pathing_counter++;
+            bool const scheduled=level.scheduled_think;
+            level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            level.scheduled_think=scheduled;
+        }
+    }
+    T_ASSERT(false); /* No forced phase or timer mutation on timeout. */
+    return false;
+}
+
 static float combat_damage_remaining(edict_t const *unit) {
     wc3Clock_t now=G_TimerQueryClock(NULL);
     T_ASSERT(unit->attack_damage.active);
@@ -565,15 +586,19 @@ TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
     cairne->s.player = 4; tauren->s.player = 0;
     cairne->targtype = tauren->targtype = TARG_GROUND;
     S_AttackProfileWrite(tauren, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(tauren, 0)->range = 128.0f; /* Authored pre-hit fixture: target is 48 units away. */
     S_AttackProfileWrite(tauren, 0)->cooldown = 1.5f;
+    S_AttackProfileWrite(tauren, 0)->damagePoint = 0.5f; /* Hide during a real pre-hit windup. */
     S_AttackProfileWrite(tauren, 0)->damageBase = 25;
     S_AttackProfileWrite(tauren, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    /* Tauren metadata is absent from the fixture archive. This visibility
+     * test starts an in-range, aligned windup rather than testing turn data. */
+    S_SetUnitFacingTimed(tauren,180,0);
     gi.LinkEntity(cairne); gi.LinkEntity(tauren);
 
     T_ASSERT(G_FindNearestEnemy(tauren, 128.0f) == cairne);
     T_ASSERT(S_OrderAttack(tauren, cairne));
-    attack_melee(tauren);
-    tauren->wait = 0.0f;
+    if(!combat_reach_attack_phase(tauren,true))return;
     cairne->s.renderfx |= RF_HIDDEN;
     cairne->s.player = 5;
     tauren->currentmove->think(tauren);
@@ -737,7 +762,7 @@ TEST(wc3_combat, explicit_attack_continues_against_allied_target) {
     G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
 
     T_ASSERT(S_OrderAttack(attacker, target));
-    attacker->currentmove->think(attacker);
+    if(!combat_reach_attack_phase(attacker,true))return;
 
     T_ASSERT(attacker->goalentity == target);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
@@ -762,7 +787,7 @@ TEST(wc3_combat, undead_campaign_arthas_can_attack_a_ground_unit) {
     T_ASSERT(S_OrderAttack(arthas, target));
     T_ASSERT(arthas->currentmove && arthas->currentmove->proc == CAbilityAttack);
     T_ASSERT(arthas->goalentity == target);
-    arthas->currentmove->think(arthas);
+    if(!combat_reach_attack_phase(arthas,true))return;
     T_STREQ(arthas->currentmove->animation, "attack");
     combat_finish_damage_request(arthas);
 
@@ -1221,7 +1246,7 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     target->armor_value = 0.0f;
 
     T_ASSERT(S_OrderAttack(attacker, target));
-    attack_ranged(attacker);
+    if(!combat_reach_attack_phase(attacker,true))return;
     combat_finish_damage_request(attacker);
     FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
@@ -2753,7 +2778,7 @@ TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
     T_STREQ(attacker->currentmove->animation, "walk");
 }
 
-TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
+TEST(wc3_combat, target_leaving_base_range_commits_inside_buffer_at_damage_point) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     float const health = target->health.value;
@@ -2765,6 +2790,7 @@ TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
     S_AttackProfileWrite(attacker, 0)->rangeBuffer = 100.0f;
     S_AttackProfileWrite(attacker, 0)->damagePoint = 0.3f;
     S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2774,11 +2800,14 @@ TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
     target->s.origin2.x = 180.0f;
     attacker->currentmove->think(attacker);
 
-    T_STREQ(attacker->currentmove->animation, "walk");
+    T_ASSERT(attacker->attack_damage.active);
     T_FEQ(target->health.value, health, 0.001f);
+    combat_finish_damage_request(attacker);
+    T_ASSERT(target->health.value < health);
+    T_ASSERT(attacker->attack_swing.active);
 }
 
-TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
+TEST(wc3_combat, target_outside_commit_buffer_misses_but_retains_swing) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
 
@@ -2796,19 +2825,17 @@ TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
     T_STREQ(attacker->currentmove->animation, "attack");
     T_ASSERT(combat_damage_remaining(attacker) > 0.0f);
 
-    target->s.origin2.x = 180.0f;
+    float const health=target->health.value;
+    target->s.origin2.x = 400.0f; /* Beyond range+buffer and both footprints. */
     attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
-
-    target->s.origin2.x = 80.0f;
-    attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "stand ready");
-    T_ASSERT(attacker->wait > 0.0f);
-    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
+    T_ASSERT(attacker->attack_damage.active);
+    combat_finish_damage_request(attacker);
+    T_FEQ(target->health.value,health,0.001f);
+    T_ASSERT(attacker->attack_swing.active);
+    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time-G_Time())>0);
 }
 
-TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replaced) {
+TEST(wc3_combat, replaced_pending_windup_releases_cooldown_before_reacquisition) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
 
@@ -2822,36 +2849,20 @@ TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replace
 
     order_attack(attacker, target);
     attacker->currentmove->think(attacker);
-    target->s.origin2.x = 180.0f;
+    T_ASSERT(attacker->attack_damage.active);
+    T_ASSERT(attacker->attack_cooldown_active);
+    vec2_t const replacement = {240.0f,0.0f};
+    T_ASSERT(unit_issueorder(attacker,"move",&replacement));
+    T_ASSERT(attacker->currentmove->proc!=CAbilityAttack);
+    T_ASSERT(!attacker->attack_damage.active);
+    T_ASSERT(!attacker->attack_cooldown_active);
+    T_EQ(attacker->attack_cooldown_end_time,0);
+    T_FEQ(attacker->attack_cooldown_remaining,0,0);
+    order_attack(attacker,target); /* Internal automatic admission stays separate. */
     attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) > 0);
-
-    vec2_t const replacement = { 240.0f, 0.0f };
-    T_ASSERT(unit_issueorder(attacker, "move", &replacement));
-    T_ASSERT(attacker->currentmove->proc != CAbilityAttack);
-    uint32_t const deadline = attacker->attack_cooldown_end_time;
-    level.time = deadline - 1;
-    target->s.origin2.x = 80.0f;
-    order_attack(attacker, target);
-    attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "stand ready");
-    T_EQ(attacker->attack_cooldown_end_time, deadline);
-    /* Reissuing at expiry clears the replaced move's wait, as ordinary orders do. */
-    level.time = deadline;
-    target->s.origin2.x = 180.0f;
-    order_attack(attacker, target);
-    attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "walk");
-    T_ASSERT((int32_t)(attacker->attack_cooldown_end_time - G_Time()) <= 0);
-    target->s.origin2.x = 80.0f;
-    /* The preceding out-of-range order installed a cached physical chase.
-     * Reissue at the new target pose: the new order retires that approach,
-     * while the expired weapon deadline permits a fresh windup. */
-    order_attack(attacker, target);
-    attacker->currentmove->think(attacker);
-    T_STREQ(attacker->currentmove->animation, "attack");
-    T_ASSERT(attacker->attack_cooldown_end_time > deadline);
+    T_STREQ(attacker->currentmove->animation,"attack");
+    T_ASSERT(attacker->attack_damage.active);
+    T_ASSERT(attacker->attack_cooldown_active);
 }
 
 TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
@@ -2898,6 +2909,8 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     S_AttackProfileWrite(attacker, 0)->rangeBuffer = 60.0f;
     target->targtype = TARG_GROUND;
     T_ASSERT(S_OrderAttack(attacker, target));
+    if(!combat_reach_attack_phase(attacker,false))return;
+    T_ASSERT(S_UnitTargetChaseActive(attacker,CAbilityAttack));
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
     attacker->attack_cooldown_end_time = G_Time() + 730;
 
@@ -5208,7 +5221,9 @@ TEST(wc3_combat, entangling_roots_pauses_existing_attack_without_cancelling_orde
     target->health.value = target->health.max_value = 200.0f;
 
     T_ASSERT(S_OrderAttack(attacker, target));
-    attacker->currentmove->think(attacker); /* attack walk -> melee windup */
+    if(!combat_reach_attack_phase(attacker,true)) {
+        target->data.UnitBalance=original_balance;return;
+    }
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
     unit_addtimedstatus(attacker, "BEer", 1, 12.0f);
     roots = unit_findstatus(attacker, MAKEFOURCC('B','E','e','r'));

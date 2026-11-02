@@ -1,4 +1,11 @@
-Save234 stores the shared Apiv/Binv fade owner: first-contribution clock and
+Save235 stores the initial Attack task's captured range alongside its reaction
+timer. Public target orders capture this value before changing the movement
+owner; changes to weapon range during the reaction do not replace it. Active
+reaction ranges must be finite and at least 32 (`FLT_MAX` is valid). Save234 and
+older layouts are rejected. The focused serializer tests cover retained target,
+deadline, sequence and captured range, plus invalid active ranges.
+
+The prior Save234 change stores the shared Apiv/Binv fade owner: first-contribution clock and
 request, temporary contribution count, permanent ownership and published state.
 Each temporary status retains contribution ownership, pending notification,
 held Attack suppression and its Attack incarnation. The independent suppression

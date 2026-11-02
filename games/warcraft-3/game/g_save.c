@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 234; /* Shared invisibility fade and Binv suppression ownership. */
+static uint32_t const save_version = 235; /* Initial Attack task range retained across reaction. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1439,6 +1439,7 @@ field_t edict_fields[] = {
     F(edict_s, attack_reaction.deadline.span, F_FLOAT),
     F(edict_s, attack_reaction.sequence, F_INT),
     F(edict_s, attack_reaction.active, F_INT),
+    F(edict_s, attack_reaction_range, F_FLOAT),
     F(edict_s, attack_speed_cap.deadline.time, F_FLOAT),
     F(edict_s, attack_speed_cap.deadline.epoch, F_INT),
     F(edict_s, attack_speed_cap.deadline.span, F_FLOAT),
@@ -5754,5 +5755,66 @@ TEST(wc3_save, rejects_version_225_before_instant_couple_layout) {
     T_EQ(unit->user_data,377);
     T_ASSERT(ReadGame(current));T_EQ(unit->user_data,0);
     remove(current);remove(previous);
+}
+#endif
+
+#ifdef BZ_TESTS
+/* Admit through the actual explicit Attack producer. These tests cover saved
+ * reaction state, not a manually fabricated timer or direct timer callback. */
+static edict_t *save235_reaction_fixture(void) {
+    reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1200,256);
+    unit->s.player=0;target->s.player=1;target->targtype=TARG_GROUND;
+    level.alliances[0][1]&=~ALLIANCE_PASSIVE;
+    level.alliances[1][0]&=~ALLIANCE_PASSIVE;
+    unit->svflags=SVF_MONSTER;unit->movetype=MOVETYPE_STEP;
+    unit->stand=unit_stand;unit_stand(unit);S_SetUnitMoveSpeed(unit,270);
+    *S_AttackProfileWrite(unit,0)=(unitAttack_t){.type=ATK_NORMAL,
+        .weapon=WPN_NORMAL,.range=137.25f,.cooldown=1,.damageBase=1,
+        .targetsAllowed=WC3_TARGET_FLAG_GROUND};
+    G_FowShutdown();
+    T_ASSERT(S_OrderAttack(unit,target));
+    T_ASSERT(unit->attack_reaction.active);
+    T_EQ(unit->attack_target,target);
+    return unit;
+}
+TEST(wc3_save, initial_attack_reaction_captured_range_round_trips) {
+    cstring_t file=Test_TempPath("save-initial-attack-reaction-range.bin");
+    edict_t *unit=save235_reaction_fixture();
+    unsigned index=unit-g_edicts,target_index=unit->attack_target ? unit->attack_target-g_edicts : 0;
+    T_EQ(wc3_float_bits(unit->attack_reaction_range),wc3_float_bits(137.25f));
+    abilityPrimaryTimer_t timer=unit->attack_reaction;
+    /* A live profile change must not replace the already captured task input. */
+    S_AttackProfileWrite(unit,0)->range=999;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    unit->attack_reaction_range=32;
+    T_ASSERT(ReadGame(file));unit=g_edicts+index;
+    T_ASSERT(unit->attack_reaction.active);
+    T_EQ(unit->attack_target,g_edicts+target_index);
+    T_EQ(wc3_float_bits(unit->attack_reaction_range),wc3_float_bits(137.25f));
+    T_EQ(wc3_float_bits(unit->attack_reaction.deadline.time),wc3_float_bits(timer.deadline.time));
+    T_EQ(unit->attack_reaction.deadline.epoch,timer.deadline.epoch);
+    T_EQ(wc3_float_bits(unit->attack_reaction.deadline.span),wc3_float_bits(timer.deadline.span));
+    T_EQ(unit->attack_reaction.sequence,timer.sequence);
+    T_EQ(S_AttackProfileRead(unit,0)->range,999);
+    T_ASSERT(S_ValidateAttackTargets());remove(file);
+    reset_entities();setup_test_world();
+}
+TEST(wc3_save, active_attack_reaction_rejects_invalid_captured_range) {
+    cstring_t file=Test_TempPath("save-invalid-attack-reaction-range.bin");
+    edict_t *unit=save235_reaction_fixture();
+    /* Below32 adjacent word, negative, both infinities, and quiet NaN. */
+    uint32_t const invalid[]={0,0x41ffffffu,0xbf800000u,0x7f800000u,0xff800000u,0x7fc00000u};
+    FOR_LOOP(i,sizeof(invalid)/sizeof(*invalid)) {
+        unit->attack_reaction_range=wc3_float(invalid[i]);
+        T_ASSERT(!S_ValidateAttackTargets());T_ASSERT(!WriteGame(file));
+    }
+    unit->attack_reaction_range=32;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    unit->attack_reaction_range=FLT_MAX;
+    T_ASSERT(S_ValidateAttackTargets());T_ASSERT(WriteGame(file));
+    remove(file);reset_entities();setup_test_world();
 }
 #endif

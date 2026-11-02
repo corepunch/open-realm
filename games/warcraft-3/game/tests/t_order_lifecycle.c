@@ -29,6 +29,25 @@ static void lifecycle_primary_step(void) {
     level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
 }
 
+/* Drive admitted explicit Attack through reaction and physical arrival. The
+ * primary damage timer remains pending when this returns (fixtures author a
+ * positive damage point when they inspect the pre-hit phase). */
+static void lifecycle_wait_for_weapon_windup(edict_t *unit) {
+    FOR_LOOP(i,1000) {
+        if(unit->attack_damage.active)break;
+        lifecycle_primary_step();
+        if(unit->attack_reaction.active)continue;
+        bool scheduled=level.scheduled_think;
+        level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        level.scheduled_think=scheduled;
+        if(!unit->attack_damage.active && unit->currentmove && unit->currentmove->think)
+            unit->currentmove->think(unit);
+    }
+    T_ASSERT(!unit->attack_reaction.active);
+    T_ASSERT(unit->attack_damage.active);
+}
+
 static void lifecycle_publish_acquisition_world(edict_t *unit,edict_t *target) {
     /* The Attack selector queries Move's spatial owner, unlike the former
      * frame-local nearest-enemy helper. Supply actual map and actor geometry. */
@@ -1091,18 +1110,14 @@ TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_dam
         if(mode==2)T_ASSERT(G_IssueUnitPointOrder(unit,"attackground",&target->s.origin2,false,0,0));
         else T_ASSERT(G_IssueUnitTargetOrder(unit,mode==1 ? "attackonce" : "attack",target,false,0));
         T_ASSERT(!unit->attack_speed_cap.active);
-        /* Walk transitions to the weapon windup at the true range gate. */
-        unit->s.origin.x=280;gi.LinkEntity(unit);
-        unit->currentmove->think(unit);
-        if(mode==2) {
-            /* Eager Ground admission already owns a physical Move request.
-             * Publish the relocated fine pose and let that owner deliver
-             * arrival at the unchanged primary clock (8), before windup. */
-            S_SetUnitAxisPosition(unit,0,280);
-            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
-        }
+        /* Relocate through the real position owner, then drain the admitted
+         * reaction and initial Move arrival before inspecting the windup. */
+        S_SetUnitAxisPosition(unit,0,280);
+        lifecycle_wait_for_weapon_windup(unit);
+        float const windup_clock=G_TimerQueryClock(NULL).time;
+        float const cap_deadline=wc3_add(windup_clock,3);
         T_ASSERT(unit->attack_speed_cap.active);
-        T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_FEQ(unit->attack_speed_cap.deadline.time,cap_deadline,0);
         T_ASSERT(unit->attack_damage.active);
         T_ASSERT(unit->attack_damage.deadline.time>G_TimerQueryClock(NULL).time);T_FEQ(target->health.value,target->health.max_value,0);
         uint32_t sequence=unit->attack_speed_cap.sequence;
@@ -1111,27 +1126,36 @@ TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_dam
         uint32_t number=unit->s.number;
         cstring_t file=Test_TempPath("wc3-swing199.bin");
         T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
-        T_ASSERT(unit->attack_speed_cap.active);T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_ASSERT(unit->attack_speed_cap.active);T_FEQ(unit->attack_speed_cap.deadline.time,cap_deadline,0);
         T_EQ(unit->attack_speed_cap.sequence,sequence);
     }
     reset_entities();setup_test_world();
 }
 
-TEST(wc3_order_lifecycle, swing199_repeated_windups_use_the_existing_exact_rearm_gate) {
+/* Exact adjacent-word boundaries remain covered by
+ * wc3_movement.attack_speed_cap_rearm_matches_original_remaining_query. This
+ * integration case checks real repeated admissions inside/outside that gate. */
+TEST(wc3_order_lifecycle, swing199_repeated_windups_keep_or_rearm_existing_cap) {
     reset_entities();setup_test_world();level.timer_clock_valid=false;
     edict_t *unit=review_order_unit(0,0),*target=review_order_unit(20,1);
-    S_AttackProfileWrite(unit,0)->damagePoint=.3f;
-    uint32_t sequence=0;
+    /* Keep each inspected rearm pre-hit while real time advances .5 seconds. */
+    S_AttackProfileWrite(unit,0)->damagePoint=1.0f;
+    uint32_t sequence=0;float deadline=0;
+    level.pathing_clock=(wc3Clock_t){8,0,300};
     FOR_LOOP(i,3) {
-        level.pathing_clock=(wc3Clock_t){8+i*.25f,0,300};
+        /* The second admission follows immediately, so its ordinary reaction
+         * remains inside the no-rearm interval. The third waits a real .5s
+         * beyond that interval; retain the existing sequence branch checks. */
+        if(i==2)FOR_LOOP(step,100)lifecycle_primary_step();
         /* Each admitted explicit head reaches a ready weapon windup. */
         unit->attack_cooldown_active=false;unit->wait=0;
         T_ASSERT(G_IssueUnitTargetOrder(unit,"attack",target,false,0));
-        unit->currentmove->think(unit);
+        lifecycle_wait_for_weapon_windup(unit);
         T_ASSERT(unit->attack_speed_cap.active);
         if(i==1)T_EQ(unit->attack_speed_cap.sequence,sequence);
         else T_ASSERT(unit->attack_speed_cap.sequence>sequence);
-        T_FEQ(unit->attack_speed_cap.deadline.time,i==2 ? 11.5f : 11,0);
+        if(i!=1)deadline=wc3_add(G_TimerQueryClock(NULL).time,3);
+        T_FEQ(unit->attack_speed_cap.deadline.time,deadline,0);
         sequence=unit->attack_speed_cap.sequence;
     }
     reset_entities();setup_test_world();
@@ -1279,13 +1303,32 @@ TEST(wc3_order_lifecycle, hold_attacks_in_range_then_stays_when_enemy_leaves) {
     unit->currentmove->think(unit);
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "attack");
-    enemy->s.origin.x = 300;
+    S_SetUnitAxisPosition(enemy,0,300);
     attack_melee_cooldown(unit);
-    unit->currentmove->think(unit);
-    unit->currentmove->think(unit);
-    T_FEQ(unit->s.origin.x, 0, 0.001f);
+    /* Animation completion and leaving base range do not cancel d01b1.
+     * Hold stays stationary while the real damage/swing owners retire. */
+    vec2_t const held=unit->s.origin2;
+    FOR_LOOP(i,1000) {
+        T_ASSERT(unit->movement.holding_position);
+        T_FEQ(unit->s.origin.x,0,0.001f);
+        T_FEQ(unit->s.origin2.x,held.x,0);
+        T_FEQ(unit->s.origin2.y,held.y,0);
+        if(!unit->attack_damage.active && !unit->attack_swing.active &&
+           unit->currentmove && unit->currentmove->animation &&
+           !strcmp(unit->currentmove->animation,"stand"))break;
+        lifecycle_primary_step();
+        bool scheduled=level.scheduled_think;
+        level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        level.scheduled_think=scheduled;
+        if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    }
+    T_ASSERT(!unit->attack_damage.active);T_ASSERT(!unit->attack_swing.active);
+    T_FEQ(unit->s.origin.x,0,0.001f);
+    T_FEQ(unit->s.origin2.x,held.x,0);T_FEQ(unit->s.origin2.y,held.y,0);
     T_ASSERT(unit->movement.holding_position);
-    T_STREQ(unit->currentmove->animation, "stand");
+    T_NOT_NULL(unit->currentmove);
+    if(unit->currentmove)T_STREQ(unit->currentmove->animation, "stand");
 }
 
 TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {

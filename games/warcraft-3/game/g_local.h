@@ -2783,6 +2783,7 @@ struct edict_s {
     bool attack_scan_enabled; /* Native4000 activation, distinct from initial2000. */
     abilityPrimaryTimer_t attack_damage; /* d01b1 weapon damage-point request. */
     abilityPrimaryTimer_t attack_reaction; /*49ea80 d01af; retained identity is attack_target. */
+    float attack_reaction_range; /* Initial target task range captured before d01af. */
     bool attack_scan_initial_pending; /* Native Attack2000: first attachment request has not fired. */
     abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
     abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */

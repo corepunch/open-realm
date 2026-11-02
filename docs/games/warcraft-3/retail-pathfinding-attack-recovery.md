@@ -212,3 +212,55 @@ both published overlap orders. The saved test detaches its observation hook
 during ReadGame's old-world disposal, then requires the restored pending status,
 unchanged deadline/sequence and exactly one resumed publication. These checks
 do not replace the complete six-scene native299 public and motion comparison.
+
+## Initial Attack admission and damage ownership: checkpoint309
+
+Ordinary public target Attack now constructs the reaction and initial physical
+request even when reissuing the same target or while weapon cooldown is active.
+Automatic replacement keeps its separate immediate path. The initial task
+captures the target-compatible weapon range before changing the movement owner;
+radial or widget-perimeter acceptance selects `FLT_MAX`. Save235 retains that
+captured range and rejects invalid active values.
+
+Original `497e20` releases cooldown only when the discarded damage wait still
+has positive time remaining. Completed damage retains cooldown and independent
+swing completion. Pending-damage cleanup also runs before a windup leaves for
+an ordinary Move order; discarding the damage timer first loses this inverse. A short presentation animation cannot cancel the primary
+damage wait. At the damage deadline, `49a5b0` calls `4946b0`, which arms independent
+swing completion before checking buffered predicted range or widget perimeter.
+A geometry miss skips delivery and keeps swing recovery. See the [original
+byte-checked bodies](../../../games/warcraft-3/game/tests/fixtures/retail_attack_initial309_static.json)
+and [damage rules](attack-damage.md).
+
+The focused composite passes 1,950 tests and 736,268 assertions across both
+editions. The complete uninterrupted C299 diagnostic still fails: its first 148
+ordered movement records match, but the first public difference is Target life
+at tick 15 (C 409.050, retail 408.443), and the first movement difference is Source
+pose near 2.28 seconds. The run produced 2,059 public records versus 2,066 and 5,492
+movement records versus 5,342. This does not establish full or saved replay
+parity and does not close B01 or a whole leaf.
+
+Reproduce the generated header with
+`python tools/ghidra/research/attack_recovery299_c_replay.py --out /tmp/native299-header`.
+Run the explicit diagnostic with
+`python tools/ghidra/research/attack_recovery299_c_run.py --binary build/bin/openwarcraft3-tests --map build/tests/attack299/AttackRecovery299.w3m --data <retail-install> --log <fresh-log>`.
+The launcher requires the accepted map SHA and one executed, non-skipped test.
+Its temporary retail overlay stays outside the recursively scanned fixture
+directory. Original evidence and expected rows remain unchanged.
+
+The next two concrete fixes are fractional damage mitigation and independent
+cooldown expiry dispatch. Integer mitigation currently turns raw 13 against
+armor 2 with coefficient 0.06 into 11 instead of 11.607142857; with 0.050 regeneration,
+that exactly explains the first public health difference. At the first movement
+difference, retail has replaced its existing raw 90 chase at 2.249991894, resetting
+velocity and refreshing the target position. The original cooldown chain is
+`d01b0 ->49a4f0 ->499310(visibility=0) ->495180 ->49a240`. The callback attribution
+uses original code plus chronology; native299 did not directly trace d01b0.
+Neither fix is included in this checkpoint.
+
+All five fresh parity gates pass: Captain473, Group012, Waygate377, Item Drop,
+and Support Goals. Support Goals executes the same 17 test families per edition
+in 34 isolated processes, with four workers; each process requires a fresh,
+positive, non-skipped JUnit result agreeing with stdout. The 115 focused Python
+evidence tests pass. The refreshed corpus checks 614 entries and 3,322 guarded
+files. These checks do not replace the still-failing complete C299 comparison.

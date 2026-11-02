@@ -23660,6 +23660,8 @@ TEST(wc3_movement, target220_retained_packet_point_survives_removed_target_witho
 
 /* Retail5fc640/05a5c0 admits Attack's nonpersistent target owner; the
  * physical group freezes samples in fog, while Attack owns arrival validation. */
+static void target223_drain_reaction(edict_t *unit);
+
 static void target222_arm(edict_t *unit,edict_t *target,float range) {
     target->s.player=1;target->targtype=TARG_GROUND;
     level.alliances[0][1]&=~ALLIANCE_PASSIVE;
@@ -23683,7 +23685,7 @@ TEST(wc3_movement, order345_blocked_attack_retires_or_returns_to_guard) {
             game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
             T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
         }
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
         T_ASSERT(S_BeginUnitTargetChase(unit,target,100,CAbilityAttack,S_AttackTargetChaseComplete));
         moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
         if(group) {
@@ -23898,7 +23900,7 @@ TEST(wc3_movement, order345_failed_attack_selects_alternative_without_acquisitio
     T_ASSERT(!G_ActorHasAbilityCode(alternative,MAKEFOURCC('A','m','o','v')));
     G_PublishMoveSpatialObject(alternative);
     unit->runtime.acquisition_range=0;
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     T_ASSERT(S_BeginUnitTargetChase(unit,target,100,CAbilityAttack,S_AttackTargetChaseComplete));
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
@@ -23972,6 +23974,8 @@ TEST(wc3_movement, policy245_physical_turn_commits_match_retail_and_cold_save) {
     slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons);
     FOR_LOOP(scene,3)FOR_LOOP(saved,3) {
         edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
+        S_EndUnitTargetChase(unit,CAbilityAttack);
         S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
         S_SetUnitAxisPosition(target,0,900);S_SetUnitAxisPosition(target,1,800);
         G_FowUpdate();
@@ -23981,7 +23985,6 @@ TEST(wc3_movement, policy245_physical_turn_commits_match_retail_and_cold_save) {
         unit->s.angle=wc3_float(input[3]);
         unit->unitinfo.TurnSpeed=wc3_float(input[5]);unit->unitinfo.PropWindow=wc3_float(input[6]);
         unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
         T_ASSERT(S_BeginUnitTargetChase(unit,target,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete));
         policy245_unit=unit;policy245_scene=scene;policy245_cursor=0;move_test_motion_commit=policy245_commit;
         cstring_t file=Test_TempPath("wc3-policy245-journey.bin");
@@ -24008,7 +24011,7 @@ TEST(wc3_movement, policy245_physical_turn_commits_match_retail_and_cold_save) {
 TEST(wc3_movement, policy245_target_sentinel_forces_arrival_and_preserves_owner) {
     FOR_LOOP(saved,2) {
         edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
         unit->s.angle=wc3_float(0x40490fdbu);
         T_ASSERT(S_BeginUnitTargetChase(unit,target,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete));
         moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
@@ -24041,7 +24044,7 @@ TEST(wc3_movement, policy245_public_attack_turns_before_weapon_windup) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,517);
     float half_angle=game.constants.attackHalfAngle;game.constants.attackHalfAngle=.31f;
     unit->s.angle=wc3_float(0x40490fdbu);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
         T_EQ(group->flags&0xffffu,0x1200u);T_ASSERT(!unit->attack_cooldown_active);
@@ -24078,9 +24081,9 @@ TEST(wc3_movement, policy245_angular_bypass_preserves_fine_destination_at_negati
 
 TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,173);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     T_EQ(unit->currentmove->proc,CAbilityAttack);T_EQ(unit->goalentity,target);
-    unit->currentmove->think(unit);
+    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
         T_EQ(group->target,target);T_EQ(group->flags&0x1801u,0x1000u);
@@ -24102,7 +24105,7 @@ TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save
         T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
         /* The resumed Attack task rebuilds its chase from its own think. */
         S_SetUnitPaused(unit,false);
-        FOR_LOOP(i,10) {target166_tick();if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);}
+        FOR_LOOP(i,10) {target166_tick();target168_run_timers();if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);}
         T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
         unit_predicted_pose(unit,&current);T_ASSERT(current.grid[0]>stopped.grid[0]);
         T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
@@ -24133,10 +24136,10 @@ TEST(wc3_movement, attack306_profiles_share_physical_chase_and_lifecycle) {
             S_SetUnitAxisPosition(unit,0,target->s.origin2.x-128);
             S_SetUnitFacingTimed(unit,180,0);
         }
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
         T_NOT_NULL(unit->currentmove);
-        if(!unit->currentmove || !unit->currentmove->think)continue;
-        unit->currentmove->think(unit);
+        if(!unit->currentmove)continue;
+        if(unit->currentmove->think)unit->currentmove->think(unit);
         moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
         if(group) {
             T_EQ(unit->currentmove->proc,CAbilityAttack);T_EQ(unit->goalentity,target);
@@ -24171,7 +24174,7 @@ TEST(wc3_movement, attack306_profiles_share_physical_chase_and_lifecycle) {
                 target166_tick();
                 T_ASSERT(!S_UnitExecutionPaused(unit));
                 T_EQ(unit->movement.repulse.disable_depth,0);
-                unit->currentmove->think(unit);
+                target223_drain_reaction(unit);
                 T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
                 T_ASSERT(unit_issueimmediateorder(unit,"stop"));
             } else if(interrupt==1) {
@@ -24179,7 +24182,7 @@ TEST(wc3_movement, attack306_profiles_share_physical_chase_and_lifecycle) {
                 T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
             } else {
                 G_FreeEdict(target);
-                unit->currentmove->think(unit);
+                if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
                 T_EQ(unit->current_order_id,0);
             }
             T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
@@ -24294,11 +24297,17 @@ TEST(wc3_movement, attack306_routed_profiles_match_retail_motion_and_cold_save) 
             target->aiflags|=AI_IMMOBILE;CM_BakeStaticObstacles();G_PublishMoveSpatialObject(target);
         }
         G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();
+        /* This is a physical-request component replay. Finish real reaction
+         * before installing the captured clock/pose input, then rebuild only
+         * that initial request; uninterrupted public chronology is C299's job. */
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
+        float const captured_range=unit->attack_reaction_range;
+        T_EQ(captured_range,scene ? 450 : 90);
+        S_EndUnitTargetChase(unit,CAbilityAttack);
         level.pathing_clock=(wc3Clock_t){wc3_float(attack306_motion[scene].clock[0]),attack306_motion[scene].clock[1],300};
         level.pathing_counter=attack306_motion[scene].counter;
         S_SetUnitAxisPosition(unit,0,288);
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-        unit->currentmove->think(unit);
+        T_ASSERT(S_BeginUnitTargetChase(unit,target,captured_range,CAbilityAttack,S_AttackTargetChaseComplete));
         bool mismatch=false;
         FOR_LOOP(i,attack306_motion[scene].count) {
             moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
@@ -24332,7 +24341,7 @@ TEST(wc3_movement, attack306_routed_profiles_match_retail_motion_and_cold_save) 
 
 TEST(wc3_movement, target222_attack_chase_freezes_hidden_samples_then_validates_arrival) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
         target166_tick();vec2_t cached=group->route.group_goal;
@@ -24364,7 +24373,8 @@ TEST(wc3_movement, target222_chase_retains_automatic_combat_parents_and_rejects_
         edict_t *attackmove=unit->movement.attackmove_waypoint;
         uint32_t head=unit->current_order_id;
         order_attack(unit,target);T_EQ(unit->currentmove->proc,CAbilityAttack);
-        unit->currentmove->think(unit);moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
         if(group) {
             target166_tick();
             T_EQ(unit->movement.follow_target,follow);T_EQ(unit->movement.patrol_a,patrol);
@@ -24395,7 +24405,7 @@ TEST(wc3_movement, target222_chase_retains_automatic_combat_parents_and_rejects_
 
 TEST(wc3_movement, target222_short_fog_reacquires_same_chase_after_cold_restore) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
         target166_tick();vec2_t cached=group->route.group_goal;uint64_t sequence=group->sequence;
@@ -24428,10 +24438,31 @@ TEST(wc3_movement, target222_short_fog_reacquires_same_chase_after_cold_restore)
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* Public Attack now schedules its original null-context reaction before the
+ * first physical task. Advance the normal clock/owner and primary timer paths;
+ * never invoke a null thinker or synthesize a timer-fire callback. */
+static void target223_drain_reaction(edict_t *unit) {
+    FOR_LOOP(i,128) {
+        if(!unit->attack_reaction.active)break;
+        target166_tick();target168_run_timers();
+    }
+    T_ASSERT(!unit->attack_reaction.active);
+    T_NOT_NULL(unit->currentmove);
+    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+}
+static void target223_wait_for_windup(edict_t *unit) {
+    target223_drain_reaction(unit);
+    FOR_LOOP(i,128) {
+        if(unit->attack_damage.active)break;
+        target166_tick();target168_run_timers();
+    }
+    T_ASSERT(unit->attack_damage.active);
+}
+
 TEST(wc3_movement, target222_sampled_target_is_not_clipped_as_a_public_point) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,173);
     S_SetUnitAxisPosition(target,0,1984);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {
         target166_tick();T_EQ(group->route.group_goal.x,62);T_EQ(group->route.group_request.x,1984);
@@ -24460,7 +24491,7 @@ TEST(wc3_movement, target223_loss_during_attack_chase_retains_head_for_point_rec
         target223_script();
         /* Distinct configured radii/range reject a stock Footman shortcut. */
         unit->collision=19;target->collision=43;
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
         moveGroup_t *old=move_unit_group(unit);T_NOT_NULL(old);uint64_t id=old ? old->id : 0;
         target166_tick();wc3GridPose_t pose;unit_predicted_pose(target,&pose);
         uint32_t counter=level.pathing_counter;
@@ -24492,7 +24523,7 @@ TEST(wc3_movement, target_recovery_owner_change_dispatches_queued_move_without_c
     T_EQ(unit->s.player,0);
     T_NE(target->s.player,unit->s.player);
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-    unit->currentmove->think(unit);
+    target223_drain_reaction(unit);
     T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
     T_EQ(unit->attack_target,target);
     target166_tick();
@@ -24548,7 +24579,7 @@ TEST(wc3_movement, target_recovery_windup_loss_captures_without_physical_chase) 
     S_AttackProfileWrite(unit,0)->damagePoint=.3f;
     S_SetUnitAxisPosition(unit,0,576);
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-    unit->currentmove->think(unit);
+    target223_wait_for_windup(unit);
     T_EQ(unit->currentmove,&attack_move_melee);
     T_ASSERT(unit->attack_damage.active);
     T_EQ(unit->attack_target,target);
@@ -24603,7 +24634,7 @@ TEST(wc3_movement, target_recovery_inactive_forced_preserves_pending_and_alterna
     edict_t *unit,*target;
     target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-    unit->currentmove->think(unit);
+    target223_drain_reaction(unit);
     jass_callbyname(level.vm,"hide",false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(unit->currentmove,&attack_move_recovery);
@@ -24629,7 +24660,7 @@ TEST(wc3_movement, target_recovery_attackonce_finish_keeps_swing_without_capture
     profile->damagePoint=.03f;profile->backswingPoint=.5f;
     S_SetUnitAxisPosition(unit,0,576);
     T_ASSERT(unit_issuetargetorder(unit,"attackonce",target));
-    unit->currentmove->think(unit);
+    target223_wait_for_windup(unit);
     T_ASSERT(unit->attack_damage.active);
     float const health=target->health.value;
     FOR_LOOP(i,40) {
@@ -24984,7 +25015,7 @@ TEST(wc3_movement, target223_invisibility_validates_detection_and_shared_vision_
         slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
         if(policy==1)T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','t','r','u')));
         if(policy==2)level.alliances[1][0]|=1u<<ALLIANCE_SHARED_VISION;
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
         uint64_t id=unit->movement.group_id,rank=unit->attack_target_sequence;
         attack_target_visits=0;
         T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
@@ -25005,7 +25036,7 @@ TEST(wc3_movement, target223_invisibility_validates_detection_and_shared_vision_
 TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_stop_and_queue) {
     FOR_LOOP(queued,2) {
         edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
-        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);target166_tick();
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);target166_tick();
         fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
         if(fog) {
             *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1024,1024},.radius=2000};
@@ -25104,7 +25135,7 @@ TEST(wc3_movement, target223_attack_subscriptions_rebuild_in_order_and_skip_new_
 
 TEST(wc3_movement, target223_cyclone_releases_attack_subscription_and_physical_owner) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
     uint32_t id=unit->movement.group_id;T_ASSERT(id);T_EQ(unit->attack_target,target);
     slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\n"
         "C;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\n"
@@ -25128,11 +25159,11 @@ TEST(wc3_movement, target223_cyclone_releases_attack_subscription_and_physical_o
 
 TEST(wc3_movement, target223_replacement_attack_releases_previous_physical_target) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);target166_tick();
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);target166_tick();
     uint32_t id=unit->movement.group_id;uint64_t rank=unit->attack_target_sequence;
     edict_t *next=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1344,1024);
     next->svflags=SVF_MONSTER;next->stand=unit_stand;next->targtype=TARG_GROUND;next->s.player=1;
-    T_ASSERT(unit_issuetargetorder(unit,"attack",next));unit->currentmove->think(unit);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",next));target223_drain_reaction(unit);
     moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
     if(group) {T_NE(group->id,id);T_EQ(group->target,next);}
     T_EQ(unit->attack_target,next);T_ASSERT(unit->attack_target_sequence>rank);
@@ -25156,7 +25187,7 @@ static slkTestData_t *target224_blink(edict_t **unit,edict_t **target,slkTestDat
         "C;X6;K4000\nC;X7;K0\nC;X8;K1\nE\n";
     slkTestData_t *rows=parse_slk_string(slk);*old=G_SetSLKRows("AbilityData",rows);
     T_ASSERT(G_ActorAddSkill(*target,MAKEFOURCC('A','E','b','l')));(*target)->mana.value=1000;
-    T_ASSERT(unit_issuetargetorder(*unit,"attack",*target));(*unit)->currentmove->think(*unit);
+    T_ASSERT(unit_issuetargetorder(*unit,"attack",*target));target223_drain_reaction(*unit);
     T_ASSERT(S_UnitTargetChaseActive(*unit,CAbilityAttack));
     return rows;
 }
@@ -25229,7 +25260,11 @@ TEST(wc3_movement, target224_far_blink_after_range_entry_releases_target_without
     edict_t *unit,*target;slkTestData_t *old,*rows=target224_blink(&unit,&target,&old);
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
     S_SetUnitAxisPosition(target,0,384);
-    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    /* Exercise Blink after arrival but before damage. A zero damage point
+     * would commit during the same timer drain and introduce swing retention,
+     * which is a different branch from the one this fixture checks. */
+    S_AttackProfileWrite(unit,0)->damagePoint=.5f;
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_wait_for_windup(unit);
     T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
     S_SetUnitAxisPosition(target,0,1984);S_SetUnitAxisPosition(target,1,1984);
     attack_walk(unit);unit->currentmove->think(unit);T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
@@ -25767,7 +25802,7 @@ TEST(wc3_movement, target256_reacquisition_keeps_countdown_across_target_owners_
         if(cases[n].approach)S_SetUnitAxisPosition(target,0,1536);
         if(n==3)target222_arm(unit,target,111);
         T_ASSERT(unit_issuetargetorder(unit,cases[n].order,target));
-        if(n==3)unit->currentmove->think(unit);
+        if(n==3)target223_drain_reaction(unit);
         if(!cases[n].approach)FOR_LOOP(i,100) {
             target166_tick();if(move_unit_group(unit) && (move_unit_group(unit)->flags&1))break;
         }
@@ -30553,7 +30588,10 @@ static void target307_chase_case(float fade,bool save,bool queued) {
     S_SetUnitMoveSpeed(unit,150);
     T_ASSERT(unit_issueorder(target,"move",&(vec2_t){672,1856}));
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    FOR_LOOP(i,40) {
+        if(S_UnitTargetChaseActive(unit,CAbilityAttack))break;
+        target307_step();
+    }
     T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
     vec2_t successor={1280,1536};
     if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
@@ -30648,7 +30686,10 @@ TEST(wc3_movement,invisibility307_pending_apiv_and_public_binv_share_first_fade)
     abilityPrimaryTimer_t request=unit->permanent_invisibility_fade.request;
     T_ASSERT(request.active);T_ASSERT(!S_PermanentInvisibilityActive(unit));
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));
-    if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+    FOR_LOOP(i,40) {
+        if(S_UnitTargetChaseActive(unit,CAbilityAttack))break;
+        target307_step();
+    }
     T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
     T_ASSERT(unit_issuetargetorder(caster,"invisibility",unit));
     heroabilitystatus_t *status=NULL;
@@ -30714,6 +30755,100 @@ TEST(wc3_movement,invisibility307_published_overlap_preserves_visibility_and_wor
         }
         T_ASSERT(!S_UnitHasInvisibilityState(unit));T_ASSERT(S_ValidateInvisibilityOwners());
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement,target309_initial_aligned_acquisition_keeps_physical_arrival) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    target->s.origin.x=target->s.origin2.x=320;gi.LinkEntity(target);
+    unit->s.angle=0;
+    attack_begin_reaction(unit,target);
+    T_ASSERT(unit->attack_reaction.active);
+    level.pathing_clock=unit->attack_reaction.deadline;
+    target168_run_timers();
+    T_ASSERT(!unit->attack_reaction.active);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_ASSERT(!unit->attack_damage.active);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),0x7cffffffu);
+    target166_tick();
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_ASSERT(unit->attack_damage.active);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement,target309_public_reissue_keeps_reaction_and_captured_range) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137.25f);
+    unit->s.angle=0;
+    T_ASSERT(S_OrderAttack(unit,target));
+    T_ASSERT(unit->attack_reaction.active);
+    T_EQ(wc3_float_bits(unit->attack_reaction_range),wc3_float_bits(137.25f));
+    uint64_t sequence=unit->attack_reaction.sequence;
+    attack_set_cooldown(unit,2);
+    T_ASSERT(S_OrderAttack(unit,target));
+    T_ASSERT(unit->attack_reaction.active);
+    T_ASSERT(unit->attack_reaction.sequence>sequence);
+    T_ASSERT(unit->attack_cooldown_active);
+    S_AttackProfileWrite(unit,0)->range=999;
+    level.pathing_clock=unit->attack_reaction.deadline;
+    target168_run_timers();
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(wc3_div(wc3_add(wc3_add(137.25f,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target)),32)));
+    T_ASSERT(!unit->attack_damage.active);
+    /* Automatic replacement does not add the public order's reaction. */
+    order_attack(unit,target);
+    T_ASSERT(!unit->attack_reaction.active);
+    T_EQ(unit->currentmove,&attack_move_walk);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement,target309_reissue_cancels_only_pending_damage_cooldown) {
+    FOR_LOOP(pending,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        target->s.origin.x=target->s.origin2.x=320;gi.LinkEntity(target);
+        S_AttackProfileWrite(unit,0)->damagePoint=.5f;
+        order_attack(unit,target);attack_melee(unit);
+        T_ASSERT(unit->attack_damage.active);T_ASSERT(unit->attack_cooldown_active);
+        /* A short presentation clip must not retire the primary damage wait. */
+        abilityPrimaryTimer_t damage=unit->attack_damage;
+        T_NOT_NULL(unit->currentmove->endfunc);
+        unit->currentmove->endfunc(unit);
+        T_EQ(unit->currentmove,&attack_move_melee);
+        T_ASSERT(unit->attack_damage.active);
+        T_EQ(unit->attack_damage.sequence,damage.sequence);
+        if(!pending) {
+            level.pathing_clock=unit->attack_damage.deadline;
+            target168_run_timers();
+            T_ASSERT(!unit->attack_damage.active);
+            T_ASSERT(unit->attack_cooldown_active);
+        }
+        T_ASSERT(S_OrderAttack(unit,target));
+        T_ASSERT(unit->attack_reaction.active);
+        T_ASSERT(!unit->attack_damage.active);
+        T_EQ(unit->attack_cooldown_active,!pending);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement,target309_damage_point_uses_buffer_and_retains_missed_swing) {
+    FOR_LOOP(miss,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+        target->s.origin.x=target->s.origin2.x=320;gi.LinkEntity(target);
+        unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+        profile->rangeBuffer=250;profile->damagePoint=.5f;profile->backswingPoint=.3f;
+        order_attack(unit,target);attack_melee(unit);
+        abilityPrimaryTimer_t damage=unit->attack_damage;
+        target->s.origin.x=target->s.origin2.x=miss ? 1000 : 512;gi.LinkEntity(target);
+        ai_melee(unit);
+        T_ASSERT(unit->attack_damage.active);T_EQ(unit->attack_damage.sequence,damage.sequence);
+        float health=target->health.value;
+        level.pathing_clock=damage.deadline;target168_run_timers();
+        T_ASSERT(!unit->attack_damage.active);T_ASSERT(unit->attack_swing.active);
+        if(miss)T_EQ(target->health.value,health);
+        else T_ASSERT(target->health.value<health);
         G_FowShutdown();reset_entities();setup_test_world();
     }
 }
