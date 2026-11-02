@@ -8712,7 +8712,7 @@ TEST(wc3_spell, control_magic_costs_current_health_and_transfers_summon) {
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	old = G_SetSLKRows("AbilityData", rows);
 	caster = alloc_test_unit(MAKEFOURCC('h','b','l','m'), 0, 0);
-	enemy_summoner = alloc_test_unit(MAKEFOURCC('o','sh','m',' '), 256, 0);
+	enemy_summoner = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 256, 0);
 	summon = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
 	second_summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 32, 0);
 	caster->data.UnitAbilities = &abilities;
@@ -8795,7 +8795,7 @@ TEST(wc3_spell, control_magic_can_target_enemy_wards) {
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	old = G_SetSLKRows("AbilityData", rows);
 	caster = alloc_test_unit(MAKEFOURCC('h','b','l','m'), 0, 0);
-	summoner = alloc_test_unit(MAKEFOURCC('o','sh','m',' '), 128, 0);
+	summoner = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 128, 0);
 	ward = alloc_test_unit(MAKEFOURCC('o','w','a','r'), 64, 0);
 	caster->data.UnitAbilities = &abilities;
 	caster->svflags |= SVF_MONSTER; summoner->svflags |= SVF_MONSTER; ward->svflags |= SVF_MONSTER;

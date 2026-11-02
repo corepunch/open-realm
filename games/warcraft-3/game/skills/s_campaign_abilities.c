@@ -6,12 +6,6 @@ static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityit
     if (st.entity && buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
-static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    S_SpellDamageEnemiesInRadius(caster, &st.point, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level),
-                                 (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
-}
-
 static void campaign_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)st;
     S_ToggleUnitAbilityStatus(caster, spell->code, S_SpellLevel(caster, spell->code));
