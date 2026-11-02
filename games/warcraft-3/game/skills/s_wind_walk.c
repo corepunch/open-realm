@@ -77,7 +77,12 @@ BZ_ABILITY_PROC(CAbilityWindWalk) {
     switch (msg) {
     case A_CAST_PROFILE:
         if(!call || !call->item || !call->cast_profile)return false;
-        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);return true;
+        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);
+        /*580fb0/40a500: native100 bypasses8c/94, not authored84. */
+        call->cast_profile->cast_point=0;
+        call->cast_profile->backswing=0;
+        call->cast_profile->taskless=true;
+        return true;
     case A_VALIDATE:
         return wind_walk_validate(ent, call);
     case A_EXECUTE:

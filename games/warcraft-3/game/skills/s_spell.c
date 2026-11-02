@@ -1501,10 +1501,45 @@ bool S_InterceptSpellOrder(edict_t *caster,uint32_t code) {
     G_ClearUnitOrderQueue(caster);
     return true;
 }
+/* Native333's taskless class is explicit; zero timings alone do not opt other
+ * spells/items out of their normal task ownership. */
+static bool spell_taskless_profile_valid(uint32_t code,spellCastProfile_t const *profile,
+                                        bool has_item,moveContinuation_t const *resume) {
+    if(*(unsigned char const *)&profile->taskless>1)return false;
+    if(!profile->taskless)return true;
+    abilityitem_t item=S_AbilityItem(code);
+    return item.ability && item.ability->proc==CAbilityWindWalk && !has_item &&
+        profile->cast_point==0 && profile->backswing==0 &&
+        (!resume || !resume->order_id);
+}
+/* Physical recovery can publish region callbacks. Stop only our admitted
+ * packet; a callback replacement owns its own references and animation. */
+static bool spell_taskless_admission_live(edict_t const *caster,uint64_t epoch,
+        uint32_t birth,uint64_t packet,uint32_t move) {
+    return epoch==S_SpellPreparationEpoch() && caster->inuse &&
+        caster->spawn_time==birth && !G_IsDeferredFree(caster) && !M_IsDead(caster) &&
+        caster->active_order_revision==packet && G_UnitMoveRevision(caster)==move;
+}
+static void spell_taskless_stop(edict_t *caster,uint64_t epoch,uint32_t birth,uint64_t packet) {
+    uint32_t const move=G_UnitMoveRevision(caster);
+    S_SpellCancelChannel(caster);
+    if(!spell_taskless_admission_live(caster,epoch,birth,packet,move))return;
+    if(G_UnitIsStructure(caster))S_StopUnitMovement(caster);
+    else S_StopUnitMovementWithRecovery(caster);
+    if(!spell_taskless_admission_live(caster,epoch,birth,packet,move))return;
+    S_ClearUnitOrderReferences(caster);
+    if(!spell_taskless_admission_live(caster,epoch,birth,packet,move))return;
+    if(!caster->movement.group_id && caster->goalentity &&
+       (caster->goalentity->svflags&SVF_MOVE_WAYPOINT))
+        S_SetMoveGoal(caster,&caster->goalentity,NULL);
+    if(!spell_taskless_admission_live(caster,epoch,birth,packet,move))return;
+    unit_stand_no_queue(caster);
+}
 static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t code,spellTarget_t const *target,
                                      edict_t *source_item,uint32_t item_spawn,edict_t *approach,
                                      spellCastProfile_t profile) {
     if(!isfinite(profile.channel_delay) || !isfinite(profile.cast_point) || !isfinite(profile.backswing))return ABILITY_ORDER_REJECTED;
+    if(!spell_taskless_profile_valid(code,&profile,source_item!=NULL,NULL))return ABILITY_ORDER_REJECTED;
     if(S_InterceptSpellOrder(caster,code))return ABILITY_ORDER_ACCEPTED;
     uint32_t attachment_slot=0,attachment_generation=0;
     abilityitem_t item=S_AbilityItem(code);
@@ -1516,15 +1551,36 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     if(attachment_slot && !item_owner)return ABILITY_ORDER_REJECTED;
     uint64_t const epoch=S_SpellPreparationEpoch();
     uint32_t const birth=caster->spawn_time;
+    uint64_t const packet_revision=caster->active_order_revision;
     moveContinuation_t resume=spell_take_prepared_move(caster,approach);
+    if(profile.taskless)resume=(moveContinuation_t){0};
     S_CancelSpellCast(caster);
+    if(profile.taskless && (epoch!=S_SpellPreparationEpoch() || !caster->inuse ||
+       caster->spawn_time!=birth || G_IsDeferredFree(caster) ||
+       caster->active_order_revision!=packet_revision)) {
+        S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_ACCEPTED;
+    }
     spell_cancel_target_approaches(caster,approach);
     if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=birth) {
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_REJECTED;
     }
     spellTarget_t packet=*target;
+    if(profile.taskless && (G_IsDeferredFree(caster) ||
+       caster->active_order_revision!=packet_revision)) {
+        S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_ACCEPTED;
+    }
     if(approach && caster->goalentity==approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
-    unit_setmove(caster,&ordered_spell_move);
+    if(profile.taskless) {
+        /* The public command cancels old movement/combat, but native100 never
+         * installs d0160. Keep the admitted packet through synchronous phases. */
+        spell_taskless_stop(caster,epoch,birth,packet_revision);
+        if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=birth ||
+           G_IsDeferredFree(caster) || M_IsDead(caster) ||
+           caster->active_order_revision!=packet_revision || !caster->currentmove ||
+           caster->currentmove->think!=ai_stand) {
+            S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_ACCEPTED;
+        }
+    } else unit_setmove(caster,&ordered_spell_move);
     if(epoch!=S_SpellPreparationEpoch() || !caster->inuse || caster->spawn_time!=birth) {
         S_ReleaseAbilityAvailability(item_owner);return ABILITY_ORDER_REJECTED;
     }
@@ -1542,7 +1598,17 @@ static abilityOrderResult_t spell_start_cast_profile(edict_t *caster,uint32_t co
     if(attachment_slot) {
         cast->order_revision=caster->active_order_revision;cast->move_revision=G_UnitMoveRevision(caster);
     }
+    uint32_t const admitted_move_revision=G_UnitMoveRevision(caster);
     SpellCastPhase(cast,CAST_CHANNEL,false);
+    /* The component can retain its84 request after its public command returns.
+     * Never touch cast here: synchronous finish may have released its record. */
+    if(profile.taskless && epoch==S_SpellPreparationEpoch() && caster->inuse &&
+       caster->spawn_time==birth && !G_IsDeferredFree(caster) &&
+       caster->active_order_revision==packet_revision &&
+       G_UnitMoveRevision(caster)==admitted_move_revision) {
+        caster->current_order_id=0;
+        G_ClearActiveUnitOrder(caster);
+    }
     return ABILITY_ORDER_ACCEPTED;
 }
 /* Ordinary item activation uses the same cast owner as unit spells. It does
@@ -1634,6 +1700,7 @@ bool S_ReadSpellCasts(FILE *file) {
            saved.target>globals.num_edicts || saved.item>globals.num_edicts || saved.active>1 || saved.committed>1 ||
            saved.endcast_pending>1 || saved.active!=saved.endcast_pending || saved.item_use_pending>1 ||
            (saved.item_use_pending && (!saved.item || !saved.attachment_slot || !saved.committed)) ||
+           !spell_taskless_profile_valid(saved.code,&saved.profile,saved.item!=0,&saved.resume_move) ||
            !S_ValidMoveContinuation(&saved.resume_move) ||
            (saved.resume_move.order_id && (!saved.active ||
                 g_edicts[owner].currentmove!=&ordered_spell_move ||

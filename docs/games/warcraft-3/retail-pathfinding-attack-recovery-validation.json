@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Native333 reference and instant-admission original code are pinned; the taskless AOwk cast owner remains unported. C333 is red at25; mixed331 remains red at67. Production332 birth matches148. Full332 legacy fixture failures are corrected by focused families, not a repeated full batch. B01 remains open.",
-  "save_version": 247,
+  "status": "Wind Walk333 taskless ownership matches all591 native public rows; Save248 and both-edition focused checks pass. Mixed331 emits827 exact ordered rows but lacks72 Sleep phase/snapshot rows. Full332 fixture failures were corrected by focused checks; full batch has not been repeated. B01 remains open.",
+  "save_version": 248,
   "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
@@ -7968,9 +7968,9 @@
   "latest_full_known_failures_corrected": true,
   "latest_full_repeated_after_fixture_corrections": false,
   "phase333": {
-    "scope": "Original Wind Walk instant/taskless admission reference, not a completed C port.",
-    "save_version": 247,
-    "production_port_complete": false,
+    "scope": "Explicit persisted taskless Wind Walk ownership, authored delay, callback-safe retirement and saved continuation.",
+    "save_version": 248,
+    "production_port_complete": true,
     "full_suite_run": false,
     "native": {
       "passed": true,
@@ -8004,7 +8004,7 @@
       "Native02000000 selects ability100 taskless activation; previous Move/Attack is canceled.",
       "No ordinary spell task is constructed. Channel delay84 remains authored unless Unit60.8 overrides it; instant100 skips point8c and backswing94.",
       "Accepted Wind Walk head is visible during synchronous callbacks; delayed phases run after the head has retired to zero.",
-      "No Move-preservation, full private-row equality, or C parity claim."
+      "No Move-preservation or full private-row equality claim. All591 public C rows match the fixed native reference."
     ],
     "c_before_port": {
       "passed": false,
@@ -8019,10 +8019,72 @@
       "source_file_count": 607
     },
     "remaining": [
-      "Implement persisted taskless cast policy with correct previous-owner cancellation, no ordinary cast task, and callback-safe packet retirement.",
-      "Establish later Move/Stop semantics during the delayed channel before claiming those branches."
+      "Route Sleep through its original ordinary cast phase owner to restore the72 missing331 rows, retaining timing, guards and callback ownership.",
+      "Establish later Move/Stop semantics during the delayed Wind Walk channel before claiming those branches."
     ],
     "whole_backlog_leaf_closed": false,
-    "open_backlog_leaves": 25
+    "open_backlog_leaves": 25,
+    "c_after_port": {
+      "passed": true,
+      "report": "build/tests/invisibility333/c-port-final.summary.json",
+      "public_records": 591,
+      "assertions": 7,
+      "source_file_count": 607,
+      "library_sha256": "9bc6ae503c776276dd0b6aab907b7cecc4307e489f932e9add86aab45ebc41ea"
+    },
+    "focused": {
+      "passed": true,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "tests": 2032,
+      "assertions": 223776,
+      "report": "build/tests/invisibility333/focused/summary.json",
+      "regressions": [
+        "wind_walk333_taskless_channel_survives_halfway_save",
+        "wind333_public_recovery_filter_replacement_keeps_move"
+      ]
+    },
+    "c331": {
+      "passed": false,
+      "actual_public_records": 827,
+      "expected_public_records": 899,
+      "matching_prefix": 103,
+      "all_emitted_rows_match_in_order": true,
+      "missing_rows": 72,
+      "missing": "Sleep CAST290, FINISH292 and ENDCAST293 plus their snapshots;18rows per scene.",
+      "report": "build/tests/invisibility333/c331-port-final.summary.json",
+      "alignment": "build/tests/invisibility333/c331-alignment.json"
+    },
+    "c299": {
+      "normal_passed": true,
+      "saved_passed": true,
+      "reports": [
+        "build/tests/invisibility333/c299.summary.json",
+        "build/tests/invisibility333/c299-saved.summary.json"
+      ]
+    },
+    "gates": {
+      "passed": true,
+      "tests": 1474,
+      "assertions": 7096980,
+      "reports": [
+        "build/tests/invisibility333/gates/supportgoal.json",
+        "build/tests/invisibility333/gates/group012.json",
+        "build/tests/invisibility333/gates/waygate377.json",
+        "build/tests/invisibility333/gates/itemdrop.json",
+        "build/tests/invisibility333/gates/captain473.json"
+      ]
+    },
+    "corpus": {
+      "entries": 614,
+      "guards": 3384,
+      "passed": true
+    },
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    }
   }
 }

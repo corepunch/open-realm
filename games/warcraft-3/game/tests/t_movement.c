@@ -30794,6 +30794,61 @@ TEST(wc3_movement,wind329_recovery_callback_replacement_keeps_its_own_speed) {
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
+/* Component composition: public Wind Walk admission uses the existing342
+ * blocked-placement region filter, whose nested public Move replaces it. */
+static edict_t *wind333_region_unit,*wind333_region_goal;
+static uint32_t wind333_region_group,wind333_region_callbacks;
+static void wind333_region_marker(cstring_t text) {
+    if(!strstr(text,"label=filter-exit "))return;
+    wind333_region_callbacks++;
+    T_EQ(wind333_region_unit->current_order_id,G_OrderId("move"));
+    wind333_region_goal=wind333_region_unit->goalentity;
+    wind333_region_group=wind333_region_unit->movement.group_id;
+    T_NOT_NULL(wind333_region_goal);T_ASSERT(wind333_region_group!=0);
+}
+TEST(wc3_movement,wind333_public_recovery_filter_replacement_keeps_move) {
+    reset_entities();setup_test_world();
+    G_ClearRegionRegistry();memset(level.triggers,0,sizeof(level.triggers));level.num_triggers=0;
+    memset(&level.events,0,sizeof(level.events));
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"Dur1\"\nC;X5;K\"HeroDur1\"\nC;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"W333\"\nC;X2;K\"AOwk\"\nC;X3;K1\nC;X4;K8\nC;X5;K8\nC;X6;K\"BOwk\"\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    char script[sizeof(map342_probe)+768];
+    snprintf(script,sizeof(script),"%s\n"
+        "function ModuloInteger takes integer a, integer b returns integer\nreturn a-(a/b)*b\nendfunction\n"
+        "function main takes nothing returns nothing\nset udg_M342Scene=2\ncall M342Tick()\nendfunction\n"
+        "function cast333 takes nothing returns nothing\ncall M342Terrain(false)\n"
+        "call BJassAssert(IssueImmediateOrder(udg_M342Unit,\"windwalk\"),\"Wind Walk admission failed\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(udg_M342Unit)==851986,\"recovery callback Move was replaced\")\nendfunction\n",map342_probe);
+    T_ASSERT(run_test_jass(script));
+    edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o'))unit=e;
+    T_NOT_NULL(unit);
+    if(unit) {
+        unit->collision=31;G_PublishMoveSpatialObject(unit);
+        T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('W','3','3','3')));
+        wind333_region_unit=unit;wind333_region_goal=NULL;
+        wind333_region_group=wind333_region_callbacks=0;
+        void (*old_marker)(cstring_t)=test_preload_marker;test_preload_marker=wind333_region_marker;
+        jass_callbyname(level.vm,"cast333",false);
+        test_preload_marker=old_marker;
+        T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(wind333_region_callbacks>0);
+        T_EQ(unit->current_order_id,G_OrderId("move"));
+        T_EQ(unit->goalentity,wind333_region_goal);T_EQ(unit->movement.group_id,wind333_region_group);
+        T_ASSERT(unit->movement.group_id!=0);T_ASSERT(unit->currentmove && unit->currentmove->proc==CAbilityMove);
+        T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','O','w','k')));
+        unitOrder_t packet={0};T_ASSERT(G_GetActiveUnitOrder(unit,&packet));
+        T_EQ(packet.order_id,G_OrderId("move"));T_EQ(packet.point.x,1200);T_EQ(packet.point.y,592);
+    }
+    wind333_region_unit=wind333_region_goal=NULL;
+    G_ClearRegionRegistry();G_FowShutdown();reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_movement,invisibility307_public_chase_positive_fade_and_recovery) {
     target307_chase_case(.375f,false,false);target307_chase_case(.5f,false,false);
 }

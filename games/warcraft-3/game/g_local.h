@@ -1303,6 +1303,7 @@ typedef struct {
     bool effect_at_finish;
     bool intercept_before_work;
     bool finish_on_target_loss;
+    bool taskless; /* native20.100: component lifetime, no ordinary cast task */
 } spellCastProfile_t;
 
 typedef struct { uint32_t order_id; spellTargetType_t target_type; } spellCommandProfile_t;

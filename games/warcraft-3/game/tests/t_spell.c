@@ -625,6 +625,89 @@ static void wind_walk328_step(unsigned frames) {
     }
 }
 
+/* Native333 W333 keeps its authored channel timer after the public head
+ * retires; this save regression uses the actual common phase scheduler. */
+TEST(wc3_spell, wind_walk333_taskless_channel_survives_halfway_save) {
+    bool const tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    char slk[2048];
+    snprintf(slk,sizeof(slk),
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"Cast1\"\nC;X5;K\"Cost1\"\nC;X6;K\"Cool1\"\n"
+        "C;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\nC;X9;K\"BuffID1\"\n"
+        "C;X10;K\"%s\"\nC;X11;K\"%s\"\n"
+        "C;Y2;X1;K\"W333\"\nC;X2;K\"AOwk\"\nC;X3;K1\n"
+        "C;X4;K0.5\nC;X5;K0\nC;X6;K0\nC;X7;K4\nC;X8;K4\n"
+        "C;X9;K\"BOwk\"\nC;X10;K0.75\nC;X11;K0.25\nE\n",
+        tft?"DataA1":"Data11",tft?"DataB1":"Data12");
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    static UnitAbilities_t abilities={.abilList="W333"};
+    static UnitWeapons_t weapons;
+    edict_t *unit=make_hero(MAKEFOURCC('O','b','l','m'),500,200,64,64);
+    unit->s.player=0;unit->targtype=TARG_GROUND;
+    unit->data.UnitAbilities=&abilities;
+    T_NOT_NULL(unit->data.UnitWeapons);
+    weapons=unit->data.UnitWeapons ? *unit->data.UnitWeapons : (UnitWeapons_t){0};
+    weapons.castPoint=.5f;weapons.castBackSwing=1.67f;
+    unit->data.UnitWeapons=&weapons;
+    uint32_t const number=unit->s.number,buff=MAKEFOURCC('B','O','w','k');
+    cstring_t save=Test_TempPath("wind-walk333-pending.bin");
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "constant unitevent EVENT_UNIT_SPELL_CHANNEL=ConvertUnitEvent(289)\n"
+        "constant unitevent EVENT_UNIT_SPELL_CAST=ConvertUnitEvent(290)\n"
+        "constant unitevent EVENT_UNIT_SPELL_EFFECT=ConvertUnitEvent(291)\n"
+        "constant unitevent EVENT_UNIT_SPELL_FINISH=ConvertUnitEvent(292)\n"
+        "constant unitevent EVENT_UNIT_SPELL_ENDCAST=ConvertUnitEvent(293)\n"
+        "integer count333=0\nendglobals\n"
+        "function phase333 takes nothing returns nothing\n"
+        "call BJassAssert(GetSpellAbilityId()=='W333',\"retained configured alias\")\n"
+        "set count333=count333+1\nendfunction\n"
+        "function pending333 takes nothing returns nothing\n"
+        "call BJassAssert(count333==1,\"CHANNEL only before deadline\")\nendfunction\n"
+        "function complete333 takes nothing returns nothing\n"
+        "call BJassAssert(count333==5,\"exactly five phases\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "local trigger t=CreateTrigger()\nlocal unit u\n"
+        "call GroupEnumUnitsInRange(g,64,64,1,null)\nset u=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(289))\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(290))\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(291))\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(292))\n"
+        "call TriggerRegisterUnitEvent(t,u,ConvertUnitEvent(293))\n"
+        "call TriggerAddAction(t,function phase333)\n"
+        "call BJassAssert(IssueImmediateOrder(u,\"windwalk\"),\"public Wind Walk admitted\")\nendfunction\n"));
+    jass_callbyname(level.vm,"pending333",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(unit->current_order_id,0);T_ASSERT(!S_UnitHasSpellTask(unit));
+    T_ASSERT(S_PlayerOrderCastProtected(unit));T_NULL(unit_findstatus(unit,buff));
+    wind_walk328_step(50); /* 250 ms: halfway through actual authored 84. */
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));unit=g_edicts+number;
+    T_EQ(unit->current_order_id,0);T_ASSERT(!S_UnitHasSpellTask(unit));
+    T_ASSERT(S_PlayerOrderCastProtected(unit));T_NULL(unit_findstatus(unit,buff));
+    wind_walk328_step(40); /* Still short of the original, not restarted, deadline. */
+    jass_callbyname(level.vm,"pending333",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_NULL(unit_findstatus(unit,buff));
+    wind_walk328_step(20);
+    jass_callbyname(level.vm,"complete333",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(unit->current_order_id,0);T_ASSERT(!S_UnitHasSpellTask(unit));
+    T_ASSERT(!S_PlayerOrderCastProtected(unit));
+    heroabilitystatus_t *status=unit_findstatus(unit,buff);T_NOT_NULL(status);
+    if(status) {
+        uint32_t const instance=status->instance_id;
+        T_EQ(status->data,MAKEFOURCC('W','3','3','3'));
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+        wind_walk328_step(50);
+        jass_callbyname(level.vm,"complete333",true);jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        status=unit_findstatus(unit,buff);T_NOT_NULL(status);
+        if(status)T_EQ(status->instance_id,instance);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+    }
+    remove(save);G_FowShutdown();reset_entities();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);setup_test_world();
+}
+
 TEST(wc3_spell, wind_walk328_configured_overlap_saved_owner_and_primary_expiry) {
     char slk[2400];
     bool const tft = atoi(gi.CvarString("fs_expansion", "0")) != 0;

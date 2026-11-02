@@ -1018,7 +1018,17 @@ The [333 static proof](../../../tools/ghidra/fixtures/research/windwalk333-insta
 21 branch guards, with eight negative controls. Native02000000 sets ability100,
 enters CHANNEL without an ordinary cast task, skips point/backswing, and retains
 channel84 unless Unit60.8 overrides it. No Move-preservation claim is made.
-The current C333 replay has 591 rows but 244 positional mismatches, first at
-row25 (return before native EFFECT); it remains red. The required port is a
-retained taskless cast owner with packet-lifetime guards, not timing overrides
-alone. Later Move/Stop during delayed admission remains an evidence boundary.
+The Save248 implementation persists an explicit taskless Wind Walk cast owner.
+It retains authored channel time at +84 while skipping cast point +8c and
+backswing +94, cancels the old Move/Attack owner, and retires its own public
+head with callback lifetime/replacement guards. The guarded build matches all 591 native public rows. Both-edition focused
+checks pass: 2,032 tests and 223,776 assertions, including delayed save/load
+and actual recovery-callback replacement. Later
+Move/Stop during delayed admission remains a native evidence boundary.
+
+The corresponding C331 replay emits 827 rows, all matching an ordered subsequence
+of the frozen 899-row reference after only the declared FourCC adapter. Its 72
+missing rows are solely Sleep CAST, FINISH and ENDCAST callbacks and their state
+snapshots: 18 per scene. Sleep phase ownership is the next frontier; positional
+mismatch totals from that missing-row cascade are not additional semantic gaps.
+Full331 and B01 remain open.
