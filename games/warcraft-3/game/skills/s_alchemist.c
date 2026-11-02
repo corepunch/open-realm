@@ -6,7 +6,7 @@
 static float alchemist_missile_speed(uint32_t code) {
     cstring_t const value = S_SpellString(code, "Missilespeed", 0);
     float const speed = value ? (float)atof(value) : 0.0f;
-    return speed > 0.0f ? speed : 700.0f;
+    return speed > 0.0f ? speed : 700.0f; // world units per second; fallback for Healing Spray when MissileSpeed is absent
 }
 
 
@@ -41,11 +41,11 @@ static void healing_spray_bottles(edict_t *thinker) {
     cstring_t const art = G_AbilityEffectArt(thinker->class_id, WC3_EFFECT_MISSILE, 0);
     float const radius = thinker->collision;
     if (!caster || !art || !*art || !count) return;
-    FOR_LOOP(i, MIN(count, 64u)) {
+    FOR_LOOP(i, MIN(count, 64u)) { // bottles; bounds cosmetic projectile allocation for malformed custom ability data
         /* A deterministic dispersed pattern prevents every bottle following
          * exactly the same line.  Retail's random offsets remain unverified. */
         float const distance = sqrtf(((float)i + 0.5f) / (float)count) * radius * 0.8f;
-        float const theta = (float)i * 2.39996323f;
+        float const theta = (float)i * 2.39996323f; // radians; golden angle spaces bottle impacts without overlap bands
         vec2_t point = { thinker->s.origin2.x + cosf(theta) * distance,
                          thinker->s.origin2.y + sinf(theta) * distance };
         edict_t *bottle = G_Spawn();

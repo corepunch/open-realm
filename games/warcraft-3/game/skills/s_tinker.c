@@ -9,8 +9,8 @@
 #define TINKER_ROBOT MAKEFOURCC('N','r','o','b')
 #define TINKER_ROBO_FORM MAKEFOURCC('A','N','r','g')
 #define TINKER_DEMOLISH MAKEFOURCC('A','N','d','e')
-#define TINKER_ROCKET_PULSES_LIMIT 8u
-#define TINKER_ROCKET_MODELS_PER_PULSE 24u
+#define TINKER_ROCKET_PULSES_LIMIT 8u // pulses; bounds one Cluster Rockets cast's delayed damage scheduler
+#define TINKER_ROCKET_MODELS_PER_PULSE 24u // missiles; presentation-only cap per pulse to bound entity allocation
 
 static uint32_t const tinker_variants[4][4] = {
     { MAKEFOURCC('A','N','s','y'), MAKEFOURCC('A','N','c','s'), MAKEFOURCC('A','N','r','g'), MAKEFOURCC('A','N','d','e') },
