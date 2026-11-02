@@ -7995,6 +7995,8 @@ TEST(wc3_spell, campaign_shadow_hunter_hex_uses_polymorph_handler) {
     static UnitBalance_t const target_balance = { .level = 1 };
     slkTestData_t *rows = parse_slk_string(slk), *old, *ui_rows = parse_slk_string(ui_slk), *old_ui;
     edict_t *caster, *target;
+    abilityitem_t hex_item;
+    abilityCall_t approach_call;
     int original_model;
     setup_test_world(); reset_entities();
     old = G_SetSLKRows("AbilityData", rows);
@@ -8007,6 +8009,10 @@ TEST(wc3_spell, campaign_shadow_hunter_hex_uses_polymorph_handler) {
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
     T_EQ(FindAbilityForCommand("ANhx")->proc, CAbilityHex);
+    hex_item = (abilityitem_t){ .code = MAKEFOURCC('A','N','h','x'), .ability = FindAbilityForCommand("ANhx") };
+    approach_call = MAKE(abilityCall_t, .item = &hex_item, .spell_approach_range = 700.0f);
+    T_ASSERT(CAbilityHex(NULL, A_SPELL_APPROACH_RANGE, &approach_call));
+    T_FEQ(approach_call.spell_approach_range, 700.0f, 0.001f);
     T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','N','h','x'), target));
     T_ASSERT(S_UnitPolymorphed(target));
     T_ASSERT(target->s.model != original_model);
