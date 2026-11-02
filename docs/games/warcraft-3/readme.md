@@ -178,3 +178,6 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
 
 - [Ability message procedures](ability-procedures.md): registry, payload/result contracts, default delegation, and lifecycle.
+
+- [Retail Shop Item Tests](retail-shop-item-tests.md) — verified item/shop rawcodes and transactional stock tests.
+- [Hero Item Reference Tests](hero-item-reference-tests.md) — all five Blizzard item category references, rawcode status, and behavior acceptance matrix.
