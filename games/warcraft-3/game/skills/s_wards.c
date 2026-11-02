@@ -588,6 +588,38 @@ static void temporary_expiry_schedule(heroabilitystatus_t *slot,wc3Clock_t now,f
     slot->class_timer.deadline.time=wc3_add(now.time,MAX(duration,G_ClockMinimumDelay()));
 }
 
+/*427610/43b0e0 change the private counter; only its first/last transitions
+ * freeze/resume.531420 cancels the request and retains its remainder.532fa0
+ * rearms that old remainder even if a refresh started another request while
+ * paused. The unit's shared fade belongs to a different clock. */
+static void temporary_invisibility_clock_adjust(heroabilitystatus_t *status,int32_t delta) {
+    int32_t const before=status->class_clock_depth;
+    status->class_clock_depth=(int32_t)((uint32_t)before+(uint32_t)delta);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    if(before<1 && status->class_clock_depth>0) {
+        status->class_timer_remaining=status->class_timer.active ?
+            MAX(0,wc3_elapsed(&status->class_timer.deadline,&now)) : 0;
+        status->class_timer.active=false;
+    } else if(before>0 && status->class_clock_depth<1) {
+        if(status->class_timer_remaining>0)
+            temporary_expiry_schedule(status,now,status->class_timer_remaining);
+        status->class_timer_remaining=0;
+    }
+}
+void S_AdjustTemporaryInvisibilityClocks(edict_t *unit,int32_t delta) {
+    bool changed=false;
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t *status=unit->abilstatus+i;
+        if(status->invisibility_owned && status->class_code==MAKEFOURCC('B','i','n','v') &&
+           status->class_clock_depth>=0) {
+            if(!changed)temporary_expiry_forget(unit);
+            changed=true;
+            temporary_invisibility_clock_adjust(status,delta);
+        }
+    }
+    if(changed)temporary_expiry_insert(unit);
+}
+
 /*531a80 refreshes the context before comparing the actual event-clock
  * remainder. A short/equal refresh keeps both deadline and FIFO sequence. */
 void S_TemporaryInvisibilitySetDuration(edict_t *unit,heroabilitystatus_t *status,
@@ -723,6 +755,7 @@ void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
     bool held=status->invisibility_suppression_held;
     uint32_t generation=status->invisibility_attack_generation;
     temporary_expiry_forget(unit);status->class_timer.active=false;
+    status->class_clock_depth=0;status->class_timer_remaining=0;
     status->invisibility_attack_generation=0;
     status->invisibility_owned=false;status->invisibility_pending=false;
     status->invisibility_suppression_held=false;
@@ -769,7 +802,20 @@ bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
     if(!status)return false;
     S_TemporaryInvisibilitySetDuration(unit,status,duration,false);
     unit_status_enabletargetart(unit,status,"origin");
+    uint32_t const birth=unit->spawn_time,instance=status->instance_id;
+    /*63ce40 starts the fade before48b4c0 admits the owner to the clock walk.
+     * Reentrant publication cannot release a clock it has not inherited yet. */
+    status->class_clock_depth=-1;
     S_TemporaryInvisibilityAcquire(unit,status,transition);
+    if(invisibility_live(unit,birth)) {
+        status=unit_findstatusclass(unit,concrete);
+        if(status && status->instance_id==instance && status->invisibility_owned) {
+            temporary_expiry_forget(unit);
+            status->class_clock_depth=0;
+            temporary_invisibility_clock_adjust(status,unit->ability_clock_depth);
+            temporary_expiry_insert(unit);
+        }
+    }
     return true; /* Acquisition can synchronously retire the unit/status. */
 }
 
@@ -828,6 +874,7 @@ bool S_ValidateInvisibilityOwners(void) {
     FOR_LOOP(n,globals.num_edicts) {
         edict_t const *unit=g_edicts+n;
         if(!unit->inuse)continue;
+        if(unit->ability_clock_depth<0 || unit->ability_clock_depth!=unit->ability_pause_depth)return false;
         uint32_t contributions=0,held=0;
         FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
             if(!unit->abilstatus)return false;
@@ -841,12 +888,17 @@ bool S_ValidateInvisibilityOwners(void) {
                    (unit->permanent_invisibility_fade.published && status->invisibility_pending))return false;
                 abilityPrimaryTimer_t const *expiry=&status->class_timer;
                 if((status->class_code && status->class_code!=MAKEFOURCC('B','i','n','v')) ||
-                   status->class_clock_depth || status->class_timer_remaining ||
+                   status->class_clock_depth<0 || !isfinite(status->class_timer_remaining) ||
+                   status->class_timer_remaining<0 ||
+                   (status->class_code==MAKEFOURCC('B','i','n','v') &&
+                    status->class_clock_depth!=unit->ability_clock_depth) ||
+                   (!status->class_clock_depth && status->class_timer_remaining) ||
                    *(uint8_t const *)&expiry->active>1)return false;
                 if(expiry->active && (status->timestamp || !isfinite(expiry->deadline.time) ||
                    !isfinite(expiry->deadline.span) || expiry->deadline.span<=0 ||
                    !expiry->sequence || expiry->sequence>level.timer_sequence))return false;
-                if(!expiry->active && status->duration_ms && !status->timestamp)return false;
+                if(!expiry->active && status->duration_ms && !status->timestamp &&
+                   !status->class_clock_depth)return false;
                 contributions++;
             } else if(status->invisibility_pending || status->invisibility_suppression_held ||
                       status->invisibility_attack_generation)return false;

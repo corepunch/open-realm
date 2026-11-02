@@ -2153,8 +2153,22 @@ bool S_AbilityExecutionDisabled(edict_t const *ent,uint32_t code) {
     return false;
 }
 
-void S_AcquireScriptedAbilityDisables(edict_t *ent) {ability_disables_acquire(ent,true,true);}
-void S_ReleaseScriptedAbilityDisables(edict_t *ent) {ability_disables_release(ent,true,true);}
+/*6977a0 acquires private clocks before availability;6977f0 releases them
+ * afterwards. Keep the count across callbacks: a nested Pause can retain it. */
+void S_AcquireScriptedAbilityDisables(edict_t *ent) {
+    ent->ability_clock_depth=(int32_t)((uint32_t)ent->ability_clock_depth+1);
+    S_AdjustTemporaryInvisibilityClocks(ent,1);
+    ability_disables_acquire(ent,true,true);
+}
+void S_ReleaseScriptedAbilityDisables(edict_t *ent) {
+    bool const held=ent->ability_pause_depth>0;
+    uint32_t const birth=ent->spawn_time;
+    ability_disables_release(ent,true,true);
+    if(held && ent->inuse && ent->spawn_time==birth) {
+        ent->ability_clock_depth=(int32_t)((uint32_t)ent->ability_clock_depth-1);
+        S_AdjustTemporaryInvisibilityClocks(ent,-1);
+    }
+}
 
 /* Exclusive casts leave their own execution enabled but disable its new orders.
  * Preserve the retail pre-decrement/all-owner walk/trailing order-store sequence:

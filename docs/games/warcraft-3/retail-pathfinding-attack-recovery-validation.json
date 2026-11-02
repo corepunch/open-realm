@@ -2,7 +2,7 @@
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
   "status": "Aivs and AIvi share concrete Binv with authored display context, item transition2, saved primary expiry and strict refresh. B01 compositions and caller dispositions remain open.",
-  "save_version": 241,
+  "save_version": 242,
   "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
@@ -6524,6 +6524,161 @@
         "build/tests/invisibility322/python-corpus.log",
         "build/tests/invisibility322/python-recovery.log"
       ]
+    }
+  },
+  "phase323": {
+    "scope": "Counted Binv private expiry hold/release at scripted Pause protocol boundaries, independent shared fade, inherited attachment and positive/nonpositive paused refresh. Original engine ownership model; no complete public Sleep/Apiv composition claim.",
+    "save_version": 242,
+    "new_status_fields": false,
+    "new_unit_field": "ability_clock_depth",
+    "red": {
+      "report": "build/tests/invisibility323/red/roc.xml",
+      "tests": 2,
+      "assertions": 100,
+      "failed_assertions": 21
+    },
+    "new_regressions": {
+      "report": "build/tests/invisibility323/final/roc.xml",
+      "tests": 4,
+      "assertions": 240,
+      "passed": true
+    },
+    "original_oracle": {
+      "script": "tools/ghidra/research/invisibility323_clock_oracle.py",
+      "fixture": "tools/ghidra/fixtures/research/invisibility323-original.json",
+      "cases": 8,
+      "negative_controls": 9,
+      "original_executed": true,
+      "guard_ranges": 19,
+      "limits": "Active clock remaining/elapsed, scalar assignment, context and heap scheduling are labelled services. Pause/attachment callers are guarded bodies, not public/scheduler capture."
+    },
+    "normal_replay": {
+      "report": "build/tests/invisibility323/final/c299.log",
+      "public": 2066,
+      "motion": 5342,
+      "mismatches": 0,
+      "assertions": 9,
+      "passed": true
+    },
+    "saved_replay": {
+      "report": "build/tests/invisibility323/final/c299-saved.log",
+      "checkpoints": 9,
+      "public": 2066,
+      "motion": 5342,
+      "mismatches": 0,
+      "assertions": 29,
+      "passed": true
+    },
+    "limits": [
+      "Paused inventory use tests establish engine ownership, not original public item admission while paused.",
+      "Full public Sleep/Apiv overlap and all remaining B01 caller/adjusted-range dispositions remain open."
+    ],
+    "gates": {
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/invisibility323/gates/supportgoal.json",
+        "report_sha256": "68a93a745b6e3abc23fb7b800644142b199d0296d7e18963bf378634605d4d18",
+        "engine": {
+          "classic": {
+            "tests": 514,
+            "assertions": 2002183
+          },
+          "tft": {
+            "tests": 514,
+            "assertions": 2002183
+          }
+        }
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/invisibility323/gates/group012.json",
+        "report_sha256": "2d338efe4336bd582389c261c342522be814a68402e0145964b8a5f741f2dd86",
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/invisibility323/gates/waygate377.json",
+        "report_sha256": "abcbc0488799ac8289eb0e1f23f911586e50d96d04480904523755e3cbaecb5d",
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/invisibility323/gates/itemdrop.json",
+        "report_sha256": "2dc110a660f65f2e00d10f4e977c67d765c9b850e3ecca372be0fa156a4cf0bf",
+        "engine": {
+          "classic": {
+            "tests": 146,
+            "assertions": 11936
+          },
+          "tft": {
+            "tests": 146,
+            "assertions": 11936
+          }
+        }
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/invisibility323/gates/captain473.json",
+        "report_sha256": "8466c80b8075b13563b81752c7499dc23dc3e1d0a0d0a2c32b9e50586504a2cc",
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      }
+    },
+    "sc2api": {
+      "passed": true,
+      "report_directory": "build/tests/invisibility323/sc2api",
+      "native_tests": 166,
+      "assertions": 6016,
+      "transport_passed": 4,
+      "transport_skipped": 1,
+      "skip_reason": "optional generated SDK"
+    },
+    "python_tests": {
+      "passed": true,
+      "tests": 115
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3334
+    },
+    "final_binaries": {
+      "build/bin/openwarcraft3-tests": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "build/lib/libgame-wc3-test.so": "68d55885bf5e52821c0d2d43caf91067bd85d873c0644893e20670603a438809"
+    },
+    "full_suite": {
+      "status": "Classic passed; TFT running",
+      "report_directory": "build/tests/invisibility323/full",
+      "classic_tests": 4729,
+      "classic_assertions": 30365682,
+      "classic_passed": true,
+      "tft_passed": null
     }
   }
 }

@@ -2598,6 +2598,7 @@ struct edict_s {
     uint64_t active_order_revision; /* Callback ownership, independent of physical Move. */
     unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
     int32_t ability_pause_depth; /* Script-owned portion of Unit1c4. */
+    int32_t ability_clock_depth; /* Unit1d4: inherited private ability-clock suspension. */
     int32_t ability_disable_depth; /* Unit1b8: non-order buff availability contributions. */
     int32_t ability_exclusive_depth; /* Cast-owned portion; each inverse releases only its own source. */
     unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */

@@ -421,13 +421,22 @@ static void item322_primary_step(void) {
     bool const scheduled=level.scheduled_frame;
     level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
 }
-TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry) {
+static void item322_invisibility_fixture(unsigned pause_mode) {
     reset_entities();setup_test_world();
     char const ability_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"Data11\"\nC;Y1;X9;K\"Data13\"\nC;Y1;X10;K\"Data14\"\nC;Y1;X11;K\"Data15\"\nC;Y1;X12;K\"Dur1\"\nC;Y1;X13;K\"HeroDur1\"\nC;Y1;X14;K\"BuffID1\"\nC;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"6\"\nC;Y2;X9;K\"1\"\nC;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nC;Y3;X1;K\"Zi32\"\nC;Y3;X2;K\"AIvi\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\".125\"\nC;Y3;X8;K\".125\"\nC;Y3;X12;K\"6\"\nC;Y3;X13;K\"6\"\nC;Y3;X14;K\"Bixx\"\nC;Y4;X1;K\"Zs32\"\nC;Y4;X2;K\"AIvi\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\".125\"\nC;Y4;X8;K\".125\"\nC;Y4;X12;K\"2\"\nC;Y4;X13;K\"2\"\nC;Y4;X14;K\"Bixx\"\nC;Y5;X1;K\"Zl32\"\nC;Y5;X2;K\"AIvi\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\".125\"\nC;Y5;X8;K\".125\"\nC;Y5;X12;K\"10\"\nC;Y5;X13;K\"10\"\nC;Y5;X14;K\"Bixx\"\nC;Y6;X1;K\"Zz32\"\nC;Y6;X2;K\"AIvi\"\nC;Y6;X3;K\"1\"\nC;Y6;X4;K\".125\"\nC;Y6;X8;K\".125\"\nC;Y6;X12;K\"0\"\nC;Y6;X13;K\"0\"\nC;Y6;X14;K\"Bixx\"\nC;Y7;X1;K\"Zn32\"\nC;Y7;X2;K\"AIvi\"\nC;Y7;X3;K\"1\"\nC;Y7;X4;K\".125\"\nC;Y7;X8;K\".125\"\nC;Y7;X12;K\"-1\"\nC;Y7;X13;K\"-1\"\nC;Y7;X14;K\"Bixx\"\nC;Y1;X15;K\"targs\"\nC;Y1;X16;K\"targs1\"\nC;Y1;X17;K\"Rng1\"\nC;Y8;X1;K\"Zo32\"\nC;X2;K\"AIvi\"\nC;X3;K1\nC;X12;K6\nC;X13;K6\nC;X14;K\"Byyy,Bzzz\"\nC;Y9;X1;K\"Aivs\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K6\nC;X13;K6\nC;X14;K\"Bixx\"\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nC;Y10;X1;K\"Z032\"\nC;X2;K\"Aivs\"\nC;X3;K1\nC;X4;K0.5\nC;X8;K0.5\nC;X12;K0\nC;X13;K0\nC;X15;K\"air,ground,friend\"\nC;X16;K\"air,ground,friend\"\nC;X17;K600\nE\n";
     char const item_text[]="ID;PWXL;N;E\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"abilList\"\nC;Y1;X5;K\"uses\"\nC;Y1;X6;K\"usable\"\nC;Y1;X7;K\"perishable\"\nC;Y1;X8;K\"droppable\"\nC;Y2;X1;K\"i320\"\nC;Y2;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y2;X3;K\"50\"\nC;Y2;X4;K\"Zi32\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nC;Y3;X1;K\"i321\"\nC;Y3;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y3;X3;K\"50\"\nC;Y3;X4;K\"Zs32\"\nC;Y3;X5;K\"10\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"1\"\nC;Y4;X1;K\"i322\"\nC;Y4;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y4;X3;K\"50\"\nC;Y4;X4;K\"Zl32\"\nC;Y4;X5;K\"10\"\nC;Y4;X6;K\"1\"\nC;Y4;X7;K\"0\"\nC;Y4;X8;K\"1\"\nC;Y5;X1;K\"i323\"\nC;Y5;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y5;X3;K\"50\"\nC;Y5;X4;K\"Zz32\"\nC;Y5;X5;K\"10\"\nC;Y5;X6;K\"1\"\nC;Y5;X7;K\"0\"\nC;Y5;X8;K\"1\"\nC;Y6;X1;K\"i324\"\nC;Y6;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;Y6;X3;K\"50\"\nC;Y6;X4;K\"Zn32\"\nC;Y6;X5;K\"10\"\nC;Y6;X6;K\"1\"\nC;Y6;X7;K\"0\"\nC;Y6;X8;K\"1\"\nC;Y7;X1;K\"i325\"\nC;X2;K\"TestUI\\Models\\quad_sprite.mdx\"\nC;X3;K50\nC;X4;K\"Zo32\"\nC;X5;K10\nC;X6;K1\nC;X7;K0\nC;X8;K1\nE\n";
     slkTestData_t *ar=parse_slk_string(ability_text),*ir=parse_slk_string(item_text);
     slkTestData_t *oa=G_SetSLKRows("AbilityData",ar),*oi=G_SetSLKRows("ItemData",ir);
-    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    if(pause_mode) {
+        T_ASSERT(run_test_jass(
+            "globals\nunit carrier323=null\nendglobals\n"
+            "function used323 takes nothing returns nothing\nset carrier323=GetManipulatingUnit()\nendfunction\n"
+            "function pause323 takes nothing returns nothing\ncall PauseUnit(carrier323,true)\nendfunction\n"
+            "function resume323 takes nothing returns nothing\ncall PauseUnit(carrier323,false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_USE_ITEM,null)\n"
+            "call TriggerAddAction(t,function used323)\nendfunction\n"));
+    } else T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     edict_t *unit=make_item_test_inventory_unit(100,100);unit->s.player=0;unit->svflags|=SVF_MONSTER;
     unsigned number=unit->s.number;
     edict_t *items[6]={0};
@@ -439,6 +448,114 @@ TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry
     G_UseItem(unit,0);
     heroabilitystatus_t *status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
     T_NOT_NULL(status);T_EQ(unit_findstatus(unit,MAKEFOURCC('B','i','x','x')),status);
+    if(pause_mode) {
+        /* Original531420 freezes only Binv's private expiry. The unit fade
+         * remains live;531a80 refresh can arm a new timer while that saved
+         * remainder is still held. These are service-path native contracts,
+         * exercised here through actual inventory use and JASS PauseUnit. */
+        G_RunEvents();jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(status) {
+            FOR_LOOP(n,100)item322_primary_step();
+            uint32_t instance=status->instance_id;
+            uint32_t const fade_sequence=unit->permanent_invisibility_fade.request.sequence;
+            wc3Clock_t const before_pause=G_TimerQueryClock(NULL);
+            float remaining=wc3_sub(status->class_timer.deadline.time,before_pause.time);
+            T_ASSERT(remaining>5.0f);T_ASSERT(status->invisibility_pending);
+            jass_callbyname(level.vm,"pause323",false);
+            T_ASSERT(unit->paused);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!status->class_timer.active);
+            T_EQ(status->class_clock_depth,1);
+            T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+            T_EQ(unit->permanent_invisibility_fade.request.sequence,fade_sequence);
+            if(pause_mode==3) {
+                /* Bootstrap only the JASS carrier handle with the first use;
+                 * the tested owner is created by a fresh use while paused. */
+                unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                G_UseItem(unit,0);
+                status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+                T_NOT_NULL(status);
+                if(!status)goto item322_cleanup;
+                T_NE(status->instance_id,instance);instance=status->instance_id;
+                remaining=status->class_timer_remaining;
+                T_FEQ(remaining,6.0f,0.00001f);
+                T_EQ(status->class_clock_depth,1);T_ASSERT(!status->class_timer.active);
+                T_ASSERT(status->invisibility_pending);
+                T_ASSERT(unit->permanent_invisibility_fade.request.active);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,0)),8);
+            }
+            if(pause_mode==4) {
+                G_UseItem(unit,3); /* Zero-duration refresh does not erase +ac. */
+                T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                G_UseItem(unit,4); /* Negative duration has the same inverse. */
+                T_EQ(status->instance_id,instance);T_ASSERT(!status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,3)),9);
+                T_EQ(G_ItemCharges(G_InventoryItem(unit,4)),9);
+            }
+            if(pause_mode==2) {
+                G_UseItem(unit,2); /* Actual longer-duration held AIvi. */
+                status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+                T_NOT_NULL(status);
+                if(status) {
+                    T_ASSERT(status->class_timer.active);
+                    T_EQ(status->instance_id,instance);
+                    T_EQ(status->class_clock_depth,1);
+                    T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                    T_EQ(G_ItemCharges(G_InventoryItem(unit,2)),9);
+                }
+            }
+            /* Corrupt only live saved fields, then restore the exact valid
+             * owner before serialization; no fabricated file byte offsets. */
+            T_ASSERT(S_ValidateInvisibilityOwners());
+            int32_t const depth=status->class_clock_depth;
+            status->class_clock_depth=-1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_clock_depth=depth+1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_clock_depth=depth;
+            float const frozen=status->class_timer_remaining;
+            status->class_timer_remaining=-1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_timer_remaining=wc3_float(0x7fc00000);T_ASSERT(!S_ValidateInvisibilityOwners());
+            status->class_timer_remaining=frozen;
+            int32_t const unit_depth=unit->ability_clock_depth;
+            unit->ability_clock_depth=unit_depth+1;T_ASSERT(!S_ValidateInvisibilityOwners());
+            unit->ability_clock_depth=unit_depth;
+            T_ASSERT(S_ValidateInvisibilityOwners());
+            cstring_t path=Test_TempPath("item323-paused-binv.bin");
+            T_ASSERT(WriteGame(path));S_ClearMoveGroups();T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+number;
+            status=unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v'));
+            T_NOT_NULL(status);
+            if(status) {
+                T_EQ(status->instance_id,instance);T_EQ(status->class_clock_depth,1);
+                T_EQ(wc3_float_bits(status->class_timer_remaining),wc3_float_bits(remaining));
+                FOR_LOOP(n,500)item322_primary_step();
+                T_ASSERT(unit->paused);T_ASSERT(unit->permanent_invisibility_fade.published);
+                T_ASSERT(unit->s.renderfx&RF_HIDDEN);T_ASSERT(!status->invisibility_pending);
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+                T_EQ(status->class_timer.active,pause_mode==2);
+                /* Mode1 crosses the original unfrozen deadline while held. */
+                if(pause_mode==1) {FOR_LOOP(n,800)item322_primary_step();}
+                T_EQ(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')),status);
+                wc3Clock_t const resumed_at=G_TimerQueryClock(NULL);
+                jass_callbyname(level.vm,"resume323",false);
+                T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!unit->paused);
+                T_EQ(status->class_clock_depth,0);T_EQ(status->class_timer_remaining,0.0f);
+                T_ASSERT(status->class_timer.active);
+                T_EQ(wc3_float_bits(status->class_timer.deadline.time),
+                     wc3_float_bits(wc3_add(resumed_at.time,remaining)));
+                FOR_LOOP(n,1000)item322_primary_step();
+                T_NOT_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                FOR_LOOP(n,300)item322_primary_step();
+                T_NULL(unit_findstatusclass(unit,MAKEFOURCC('B','i','n','v')));
+                T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0);
+                T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+            }
+        }
+        goto item322_cleanup;
+    }
     if(status) {
         T_EQ(status->code,MAKEFOURCC('B','i','x','x'));T_EQ(status->class_code,MAKEFOURCC('B','i','n','v'));
         T_EQ(status->data,MAKEFOURCC('Z','i','3','2'));T_EQ(status->timestamp,0);
@@ -520,8 +637,26 @@ TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry
             T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
         }
     }
+item322_cleanup:
     reset_entities();setup_test_world();G_SetSLKRows("AbilityData",oa);G_SetSLKRows("ItemData",oi);
     free_slk_rows(ar);free_slk_rows(ir);
+}
+
+TEST(wc3_items, invisibility322_binv_class_fade_refresh_and_saved_primary_expiry) {
+    item322_invisibility_fixture(0);
+}
+TEST(wc3_items, invisibility323_script_pause_freezes_expiry_not_shared_fade) {
+    item322_invisibility_fixture(1);
+}
+TEST(wc3_items, invisibility323_paused_inventory_refresh_preserves_frozen_remainder) {
+    item322_invisibility_fixture(2);
+}
+
+TEST(wc3_items, invisibility323_fresh_attachment_inherits_script_pause) {
+    item322_invisibility_fixture(3);
+}
+TEST(wc3_items, invisibility323_nonpositive_paused_refresh_rearms_frozen_remainder) {
+    item322_invisibility_fixture(4);
 }
 
 TEST(wc3_items, invisibility_item_uses_authored_duration_and_concrete_binv) {

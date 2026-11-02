@@ -508,6 +508,7 @@ bool S_ApplyTemporaryInvisibility(edict_t *, edict_t *, uint32_t, uint32_t, cstr
 void S_TemporaryInvisibilitySetDuration(edict_t *, heroabilitystatus_t *, float, bool);
 void S_TemporaryInvisibilityAcquire(edict_t *, heroabilitystatus_t *, float);
 void S_TemporaryInvisibilityRelease(edict_t *, heroabilitystatus_t *);
+void S_AdjustTemporaryInvisibilityClocks(edict_t *, int32_t);
 /*5fd270 d014e activation; not an arbitrary physical Move/resume.*/
 void S_AttackMoveTaskStarted(edict_t *);
 uint32_t S_AttackInvisibilityAcquire(edict_t *);

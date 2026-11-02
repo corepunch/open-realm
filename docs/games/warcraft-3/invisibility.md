@@ -77,6 +77,17 @@ cases, charges, pending-fade save/load and real primary timer draining. The
 original-byte oracle and its service-stub limits are documented in
 [Attack recovery](retail-pathfinding-attack-recovery.md#item-invisibility-fade-and-expiry-checkpoint322).
 
+Scripted Pause freezes Binv's private expiry on the first clock hold and
+rearms its saved remainder on the last inverse. Sleep's physical suspension
+alone does not own that clock. The shared fade continues independently.
+A new Binv inherits the current clock count after starting its fade. Refresh
+reads the canceled expiry's zero remainder, so positive refresh can start a
+new running request while paused; unpause replaces it with the old frozen
+remainder. Nonpositive refresh also preserves that frozen remainder. These
+rules follow original427610/43b0e0,531420/532fa0 and531a80, rather than a
+blanket paused-unit timer policy. Full public Sleep/Apiv composition remains
+a separate B01 check.
+
 ## Save/load
 
 Ghost uses a persisted `runtime.flags` bit, and Wind Walk uses the persisted `heroabilitystatus_t.data` applying-ability identity. Save137 stores Permanent Invisibility's scalar origin, slope and pending primary request; its heap membership is rebuilt. No edict pointer or C callback is added. Focused save/load tests cover pending fade and these other semantics.

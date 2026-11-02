@@ -1,4 +1,10 @@
-Save241 gives owned temporary Invisibility statuses an independent primary
+Save242 persists the unit's inherited private ability-clock count separately
+from availability. Binv saves its counted hold and frozen expiry remainder in
+the existing status fields. Its shared fade remains independent. Loading rejects
+negative or mismatched unit/status clock counts and invalid frozen remainders.
+Save241 and older layouts are rejected; JASS snapshot12 is unchanged.
+
+The prior Save241 gives owned temporary Invisibility statuses an independent primary
 expiry using the existing serialized class_timer fields. Their public timestamp
 is zero; expiry belongs to the saved deadline/sequence and a derived per-unit
 heap. Nonpositive refresh cancels expiry. A short/equal positive refresh retains

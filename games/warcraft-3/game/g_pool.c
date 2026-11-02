@@ -191,6 +191,7 @@ void G_PoolsReset(void) {
         FOR_LOOP(i, globals.max_edicts) {
             S_ReleaseCoupleInstantState(g_edicts+i);S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
             g_edicts[i].ability_pause_depth=0;
+            g_edicts[i].ability_clock_depth=0;
             g_edicts[i].ability_exclusive_depth=0;
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;

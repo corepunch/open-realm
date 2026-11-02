@@ -696,3 +696,41 @@ the affected families, a fresh Itemdrop gate (142 tests/11,696 assertions per
 edition), both complete C299 replays, SC2API CI and115 Python checks. The exact
 post-gate source delta and composite provenance are recorded in the validation
 JSON. No full-suite batch was added after these two implementation commits.
+
+## Binv private clock ownership: checkpoint323
+
+The original engine has separate private clock and execution-suspension
+owners. Scripted Pause6977a0 increments Unit1d4 and visits ability bc before
+availability;6977f0 releases availability before the clock inverse. Binv
+427610/43b0e0 changes a counter. Only its first hold invokes531420 to retain
+expiry remaining and cancel the request; only its last inverse invokes532fa0
+to rearm a positive retained remainder. Sleep alone changes physical
+suspension and does not acquire this private clock. The shared fade continues.
+
+The correction follows those ownership transitions and saves Unit1d4 in
+Save242. A fresh Binv starts its fade before inheriting the current clock
+count at attachment. Publication callbacks cannot release a clock it has not
+yet inherited. Counts are preserved across reentrant availability callbacks.
+Pending removal still releases the same unit incarnation's clock owner.
+
+Refresh531a80 reads EventClock84 v18; a canceled request returns zero, not
+the retained buff remainder. Consequently a positive refresh while paused
+starts a running expiry, retaining the old frozen remainder. The last clock
+inverse replaces that running request with the old remainder if positive.
+Nonpositive refresh cancels the current request without clearing the frozen
+remainder. This is intentionally not a universal freeze-while-paused rule.
+
+The new engine tests use actual held inventory items, USE_ITEM event carrier
+identity, JASS PauseUnit, primary timer draining and cold save/load. Their
+paused inventory refresh tests exercise engine ownership; they do not prove
+retail public item admission while paused. No complete public Sleep/Apiv mixed
+sequence or remaining Wind Walk/Ghost/Burrow/Shadow Meld overlap is claimed.
+B01 and TARGET-01.2 remain open.
+
+Verification: the four new cases pass in both editions within the fresh
+Itemdrop gate (146 tests/11,936 assertions per edition). The original-byte
+clock oracle passes eight cases and nine rejecting controls. All five fresh
+pathfinding gates, the uninterrupted/nine-checkpoint saved C299 replay,
+115 Python tests, corpus integrity and the SC2API CI command pass. The full
+Classic suite passes4,729 tests/30,365,682 assertions; the full TFT run was
+still running when this code change was committed.

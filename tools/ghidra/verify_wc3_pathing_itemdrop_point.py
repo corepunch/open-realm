@@ -18,7 +18,7 @@ from wc3_pathfinding_engine_tests import run_engine
 
 SPEC = ROOT / 'tools/ghidra/fixtures/retail-itemdrop-point-1.27.json'
 PATTERNS = ['wc3_items.*', 'wc3_cursor.*']
-EXPECTED_ENGINE = {edition: dict(tests=142, assertions=11696) for edition in ('classic', 'tft')}
+EXPECTED_ENGINE = {edition: dict(tests=146, assertions=11936) for edition in ('classic', 'tft')}
 EXPECTED_NATIVE = dict(observations=8, controls=4, captures=12, public_markers=5340,
                        motion_cases=14, mover_writes=441, instruction_ranges=8)
 
