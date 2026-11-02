@@ -778,11 +778,14 @@ void S_TemporaryInvisibilityRelease(edict_t *unit,heroabilitystatus_t *status) {
 /*62f050/62f280 find the concrete Binv class.532a80 may replace the
  * presented buff ID without replacing that object or its contribution. */
 bool S_ApplyTypedTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
-        uint32_t rank,cstring_t buff,uint32_t concrete,float duration,float transition) {
+        uint32_t rank,cstring_t buff,uint32_t concrete,float duration,float transition,
+        uint32_t *applied_instance) {
+    if(applied_instance)*applied_instance=0;
     if(!unit || !unit->inuse || !isfinite(duration) || !invisibility_concrete_class(concrete))return false;
     bool const authored=buff && strlen(buff)>=4;
     heroabilitystatus_t *status=unit_findstatusclass(unit,concrete);
     if(status && status->invisibility_owned) {
+        if(applied_instance)*applied_instance=status->instance_id;
         if(authored && status->code!=*((uint32_t const *)buff)) {
             bool other_art=false;
             FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
@@ -804,6 +807,7 @@ bool S_ApplyTypedTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t co
         .level=rank,.data=code,.source_ability=code,.source=source,.rank=rank};
     status=unit_applystatus(unit,&app);
     if(!status)return false;
+    if(applied_instance)*applied_instance=status->instance_id;
     S_TemporaryInvisibilitySetDuration(unit,status,duration,false);
     unit_status_enabletargetart(unit,status,"origin");
     uint32_t const birth=unit->spawn_time,instance=status->instance_id;
@@ -828,7 +832,7 @@ bool S_ApplyTypedTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t co
 
 bool S_ApplyTemporaryInvisibility(edict_t *unit,edict_t *source,uint32_t code,
         uint32_t rank,cstring_t buff,float duration,float transition) {
-    return S_ApplyTypedTemporaryInvisibility(unit,source,code,rank,buff,ID_BINV,duration,transition);
+    return S_ApplyTypedTemporaryInvisibility(unit,source,code,rank,buff,ID_BINV,duration,transition,NULL);
 }
 
 /* BOwk inherits the shared contribution and private clock, but its12c is a

@@ -268,6 +268,9 @@ and save cohorts pass 1,720 test executions/171,686 assertions; five fresh
 regression gates and normal/nine-save C299 pass. No new live overlap witness
 or B01 closure is claimed.
 
-Next correction: return the applied BOwk instance from the shared setup so an
-outer effect cannot apply its speed to a same-alias replacement created during
-synchronous recovery callbacks.
+Checkpoint329 returns the applied BOwk instance before synchronous publication.
+The outer Wind Walk effect applies speed only to that exact instance. A recovery
+callback regression removes the old buff and applies the same alias at rank2:
+without the guard, the outer rank1 overwrote its speed (27/28 assertions passed);
+with the guard, both editions pass all28. This is an effect-service mutation
+component, not proof of public reentrant Wind Walk admission.

@@ -59,14 +59,15 @@ static void wind_walk_execute(edict_t *unit, abilityitem_t const *spell) {
     /*58ce50 ->59daa0 ->63ce40: DataA is the shared fade, not speed.
      * BOwk is concrete; the first authored BuffID remains presentation. */
     uint32_t const birth=unit->spawn_time;
+    uint32_t instance=0;
     uint64_t const epoch=S_SpellPreparationEpoch();
     if(!S_ApplyTypedTemporaryInvisibility(unit,unit,spell->code,rank,
             S_SpellBuffId(spell->code,rank),WW_ID_BOWK,
-            S_SpellDuration(spell->code,rank,G_UnitIsHero(unit)),S_SpellData(spell->code,rank,1)))
+            S_SpellDuration(spell->code,rank,G_UnitIsHero(unit)),S_SpellData(spell->code,rank,1),&instance))
         fprintf(stderr,"WC3 Wind Walk: failed to create status for unit %u\n",unit->s.number);
     if(epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth || G_IsDeferredFree(unit))return;
     heroabilitystatus_t *status=wind_walk_status(unit);
-    if(status && status->data==spell->code && status->invisibility_owned)
+    if(status && status->instance_id==instance && status->data==spell->code && status->invisibility_owned)
         S_UpdateMoveSpeedContribution(unit,status,S_SpellData(spell->code,rank,2));
 }
 

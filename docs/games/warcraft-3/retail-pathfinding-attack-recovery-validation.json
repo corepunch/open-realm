@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "BOwk shared contribution, DataA fade, primary expiry and additive DataB speed pass both editions, five fresh gates and exact C299. B01 remains open; callback replacement identity is the next correction.",
+  "status": "BOwk common ownership and exact-instance continuation are verified in both editions. All five329 gates and exact normal/saved C299 pass; B01 overlaps and caller dispositions remain open.",
   "save_version": 246,
   "full_suite_run": false,
   "native299_engine_parity": true,
@@ -7329,5 +7329,143 @@
       "entries": 614,
       "guarded_files": 3357
     }
+  },
+  "phase329": {
+    "scope": "Retain the exact BOwk instance across synchronous shared-invisibility publication before applying the outer effect speed.",
+    "save_version": 246,
+    "implementation": [
+      "Typed setup returns the original status instance before publication.",
+      "Wind Walk resumes only on that exact instance, with the original unit epoch/birth guard; matching an alias alone cannot adopt a replacement."
+    ],
+    "original_reference": "phase328 original59daa0 resumes on the same retained buff after63ce40; no new native capture.",
+    "failing_first": {
+      "report": "build/tests/windwalk329/red.xml",
+      "test": "wc3_movement.wind329_recovery_callback_replacement_keeps_its_own_speed",
+      "passed_assertions": 27,
+      "assertions": 28,
+      "failed_assertions": 1,
+      "scope": "329 API-compatible build with only the new instance equality condition omitted, reproducing328 alias-only continuation behavior."
+    },
+    "regression": {
+      "passed": true,
+      "assertions_per_edition": 28,
+      "reports": [
+        "build/tests/windwalk329/roc-green.xml",
+        "build/tests/windwalk329/tft-green.xml"
+      ],
+      "scope": "Real Attack/FIFO recovery dispatches queued Move; issued callback removes BOwk, changes same alias to rank2 and invokes nested concrete effect service. Replacement speed must remain rank2. Direct effect calls are component boundaries, not public spell admission."
+    },
+    "full_suite_run": false,
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "focused": {
+      "passed": true,
+      "processes": 8,
+      "tests": 44,
+      "assertions": 2940,
+      "report": "build/tests/windwalk329/focused/summary.json"
+    },
+    "c299": {
+      "normal_passed": true,
+      "saved_passed": true,
+      "public_rows": 2066,
+      "motion_rows": 5342,
+      "mismatches": 0,
+      "reports": [
+        "build/tests/windwalk329/c299.summary.json",
+        "build/tests/windwalk329/c299-saved.summary.json"
+      ]
+    },
+    "supersedes_phase328_remaining_identity_gap": true,
+    "fresh_gates": {
+      "supportgoal": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates/supportgoal.json",
+        "engine": {
+          "classic": {
+            "tests": 514,
+            "assertions": 2002196
+          },
+          "tft": {
+            "tests": 514,
+            "assertions": 2002196
+          }
+        }
+      },
+      "group012": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates/group012.json",
+        "engine": {
+          "classic": {
+            "tests": 20,
+            "assertions": 1146726
+          },
+          "tft": {
+            "tests": 20,
+            "assertions": 1146726
+          }
+        }
+      },
+      "waygate377": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates/waygate377.json",
+        "engine": {
+          "classic": {
+            "tests": 39,
+            "assertions": 229803
+          },
+          "tft": {
+            "tests": 39,
+            "assertions": 229803
+          }
+        }
+      },
+      "itemdrop": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates/itemdrop.json",
+        "engine": {
+          "classic": {
+            "tests": 154,
+            "assertions": 12568
+          },
+          "tft": {
+            "tests": 154,
+            "assertions": 12568
+          }
+        }
+      },
+      "captain473": {
+        "passed": true,
+        "report": "build/tests/windwalk329/gates/captain473.json",
+        "engine": {
+          "classic": {
+            "tests": 10,
+            "assertions": 156882
+          },
+          "tft": {
+            "tests": 10,
+            "assertions": 156882
+          }
+        }
+      }
+    },
+    "fresh_gates_summary": {
+      "passed": true,
+      "gates": 5,
+      "tests": 1474,
+      "assertions": 7096350
+    },
+    "python": {
+      "passed": true,
+      "tests": 76,
+      "itemdrop": 38,
+      "corpus": 38
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3357
+    },
+    "source_freeze": "build/tests/windwalk329/gates/source-before.json"
   }
 }

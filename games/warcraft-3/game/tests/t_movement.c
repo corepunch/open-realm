@@ -30709,6 +30709,74 @@ done:
     G_FowShutdown();reset_entities();setup_test_world();
     G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
 }
+/* Component regression: invoke the concrete Wind Walk effect while a real
+ * Attack/FIFO owner is active. Its synchronous invisibility recovery starts
+ * a public queued Move; that issued callback replaces the status. This does
+ * not claim that an ordinary public spell bypasses its own cast tasks. */
+static edict_t *wind329_source;
+static unsigned wind329_callbacks;
+static void wind329_replacement(cstring_t marker) {
+    if(strcmp(marker,"wind329-replacement"))return;
+    wind329_callbacks++;
+    T_EQ(wind329_callbacks,1);
+    abilityitem_t ability=S_AbilityItem(MAKEFOURCC('W','3','2','9'));
+    T_EQ(S_SpellLevel(wind329_source,ability.code),2);
+    abilityCall_t effect={.item=&ability};
+    T_ASSERT(S_AbilityMessage(wind329_source,A_EXECUTE,&effect));
+    heroabilitystatus_t *status=unit_findstatusclass(wind329_source,MAKEFOURCC('B','O','w','k'));
+    T_NOT_NULL(status);
+    if(status)T_EQ(wc3_float_bits(status->move_speed_delta),wc3_float_bits(.43f));
+}
+TEST(wc3_movement,wind329_recovery_callback_replacement_keeps_its_own_speed) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    char slk[2048];bool tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    snprintf(slk,sizeof(slk),
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"Dur1\"\nC;X5;K\"HeroDur1\"\nC;X6;K\"BuffID1\"\n"
+        "C;X7;K\"%s\"\nC;X8;K\"%s\"\nC;X9;K\"Dur2\"\nC;X10;K\"HeroDur2\"\n"
+        "C;X11;K\"BuffID2\"\nC;X12;K\"%s\"\nC;X13;K\"%s\"\nC;X14;K\"Cool1\"\nC;X15;K\"Cool2\"\n"
+        "C;Y2;X1;K\"W329\"\nC;X2;K\"AOwk\"\nC;X3;K2\nC;X4;K8\nC;X5;K8\n"
+        "C;X6;K\"BOwk\"\nC;X7;K0\nC;X8;K0.17\nC;X9;K8\nC;X10;K8\n"
+        "C;X11;K\"BOwk\"\nC;X12;K0\nC;X13;K0.43\nC;X14;K0\nC;X15;K0\nE\n",
+        tft?"DataA1":"Data11",tft?"DataB1":"Data12",tft?"DataA2":"Data21",tft?"DataB2":"Data22");
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    uint32_t const alias=MAKEFOURCC('W','3','2','9'),buff=MAKEFOURCC('B','O','w','k');
+    T_ASSERT(G_ActorAddSkill(unit,alias));
+    T_EQ(S_SpellLevel(unit,alias),1);
+    T_ASSERT(run_test_jass("globals\nunit source329\nboolean armed329=false\nendglobals\n"
+        "function replace329 takes nothing returns nothing\n"
+        "if armed329 and GetIssuedOrderId()==851986 then\nset armed329=false\n"
+        "call UnitRemoveAbility(source329,'BOwk')\ncall SetUnitAbilityLevel(source329,'W329',2)\n"
+        "call Preload(\"wind329-replacement\")\nendif\nendfunction\n"
+        "function arm329 takes nothing returns nothing\nset armed329=true\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal trigger t=CreateTrigger()\n"
+        "call GroupEnumUnitsInRange(g,256,256,1,null)\nset source329=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "call TriggerRegisterUnitEvent(t,source329,ConvertUnitEvent(76))\n"
+        "call TriggerAddAction(t,function replace329)\nendfunction\n"));
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));target223_drain_reaction(unit);
+    T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1280,1536},true,0,0));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);
+    wind329_source=unit;wind329_callbacks=0;
+    void (*old_marker)(cstring_t)=test_preload_marker;test_preload_marker=wind329_replacement;
+    jass_callbyname(level.vm,"arm329",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    abilityitem_t ability=S_AbilityItem(alias);abilityCall_t effect={.item=&ability};
+    T_ASSERT(S_AbilityMessage(unit,A_EXECUTE,&effect));
+    T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(wind329_callbacks,1);
+    heroabilitystatus_t *status=unit_findstatusclass(unit,buff);T_NOT_NULL(status);
+    if(status) {
+        T_EQ(status->data,alias);T_EQ(status->rank,2);T_EQ(status->level,2);
+        T_ASSERT(status->invisibility_owned && status->move_speed_applied);
+        T_EQ(wc3_float_bits(status->move_speed_delta),wc3_float_bits(.43f));
+    }
+    T_EQ(unit->permanent_invisibility_fade.temporary_contributions,1);
+    T_EQ(unit->attack_invisibility_suppression,1);
+    T_ASSERT(S_ValidateInvisibilityOwners());
+    test_preload_marker=old_marker;wind329_source=NULL;
+    G_FowShutdown();reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_movement,invisibility307_public_chase_positive_fade_and_recovery) {
     target307_chase_case(.375f,false,false);target307_chase_case(.5f,false,false);
 }

@@ -60355,7 +60355,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "f1f524d8060e659212adb1e5d92fbcc0c14286f6901cba3b8a2d71f42a23564a"
+      "sha256": "961abdd379563d20283015b85f23a7379fa96ddabdfb942b8a2bd78387a2f840"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -61823,7 +61823,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "3fbe682273f1dd275ac91c96878b78892632a416af497ca210fb0667f32b1977"
+      "sha256": "63db1d7c9048971330f9a56d6be74b7a1d8fd1f4ff022be0e4d1ca5e7e3a07e0"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -69307,7 +69307,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_wards.c",
-      "sha256": "d957d035368ee3ff18db395f9e1250df0416145a29b1a7c37f87a778d141cbcb"
+      "sha256": "178e42585128b7e0cfb100945a9d6e1781708816542ef96c82a3c0f1fa70b2cf"
     },
     {
       "path": "games/warcraft-3/game/tests/t_morph374.c",
@@ -69903,7 +69903,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_wind_walk.c",
-      "sha256": "0d953e285e48013c0e9473b4cbb2eefc6e6b82bf5b9e18bf234ea012ea1bf072"
+      "sha256": "228260c2db06f19ca0e40e0bb45515f4ac8e9eda2d2ce43403008b24b6034010"
     },
     {
       "path": "games/warcraft-3/game/tests/t_morph382.c",
@@ -70107,7 +70107,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-1.27.json",
-      "sha256": "c6409ea08e948f597e97ef05e361cde66abc7a944de1c7fb95342713635542d2"
+      "sha256": "d02ae1a5fbf39ca9ed8853b2489541fa9b742c0e152f82458e31302fc55a45f4"
     },
     {
       "path": "tools/ghidra/fixtures/retail-group012-native-1.27.json.gz",
@@ -70411,7 +70411,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-1.27.json",
-      "sha256": "cc10434b1b89c6ff322bff47b3da7d820fc320b9ab07f053768707487c459b6c"
+      "sha256": "ee7a94510fafe6d148330df5830c14a080db4b7b75109567578159db604cd946"
     },
     {
       "path": "tools/ghidra/fixtures/retail-supportgoal-ghidra-1.27.json",

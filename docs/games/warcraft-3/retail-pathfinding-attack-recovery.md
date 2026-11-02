@@ -937,6 +937,9 @@ CHANNEL/action12c handlers are no-ops. This differs from Binv action removal.
 negative controls. Configured overlap/saved-owner tests pass 117 assertions per
 edition; spell/save cohorts pass 1,720 executions/171,686 assertions, and all five
 fresh gates pass. Normal/nine-save C299 remain exact. This is not a live overlap
-witness. The next correction must retain the applied BOwk instance across
-callbacks before applying speed; same-alias replacement alone is insufficient.
+witness. Checkpoint329 retains the applied BOwk instance across callbacks before
+applying speed; a same-alias replacement cannot inherit the outer effect. Its
+real queued-Move callback regression fails one speed assertion without that
+condition (27/28), then passes all28 in both editions with it. Direct Wind effect
+calls in this test are explicitly component boundaries, not public admission.
 B01 and all 25 whole leaves remain open.

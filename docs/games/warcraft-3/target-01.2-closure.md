@@ -87,8 +87,10 @@ v12c at CAST; BOwk removes at v178, not at CHANNEL or its no-op action12c. The
 covers 21 bodies/35 vtable words/102 calls with six negative controls. Configured
 AOwk/Aivs overlap and saved ownership tests pass 117 assertions per edition.
 Spell/save checks pass 1,720 executions/171,686 assertions; all five fresh gates
-and uninterrupted/nine-save C299 pass. Next: prevent the outer Wind Walk effect
-from applying speed to a same-alias replacement made during synchronous recovery.
+and uninterrupted/nine-save C299 pass. Checkpoint329 additionally prevents the
+outer Wind Walk effect from applying speed to a same-alias replacement made
+during synchronous recovery. Its callback mutation component passes28 assertions
+per edition after reproducing one speed failure without the instance check.
 This is not a new live overlap capture or completed B01 disposition; all 25 whole
 leaves remain open.
 
