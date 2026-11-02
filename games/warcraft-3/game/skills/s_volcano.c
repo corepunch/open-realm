@@ -143,10 +143,15 @@ BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
     thinker->velocity = S_SpellData(spell->code, level, 4); /* DataD building damage factor */
     thinker->health.value = S_SpellData(spell->code, level, 6); /* DataF half-damage factor */
     if (unit_id) {
-        edict_t *doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y, 0, 0, 1, 0);
+        edict_t *doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y,
+                                               CM_GetHeightAtPoint(st.point.x, st.point.y), 0, 1, 0);
         if (doodad) {
             thinker->goalentity = doodad;
             G_GetChannel(thinker)->target_spawn_time = doodad->spawn_time;
+            /* Volc's Birth sequence raises the volcano from below ground. The
+             * generic destructable spawn starts at Stand, where the model's
+             * geometry is already displaced upward and misses the terrain. */
+            G_DestructableStartAliveAnimation(doodad, true);
         }
         else fprintf(stderr, "WC3 Volcano: failed to spawn UnitID %.4s\n", (cstring_t)&unit_id);
     }
