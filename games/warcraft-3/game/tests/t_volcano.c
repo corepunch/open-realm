@@ -33,7 +33,7 @@ static cstring_t volcano_dest_slk =
     "ID;PWXL;N;E\n"
     "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"HP\"\n"
     "C;Y2;X1;K\"Vtst\"\n"
-    "C;Y2;X2;K\"Abilities\\Spells\\Other\\Volcano\\Volcano.mdl\"\n"
+    "C;Y2;X2;K\"TestUI\\Models\\flame-strike-warning.mdx\"\n"
     "C;Y2;X3;K\"decoration\"\nC;Y2;X4;K\"2500\"\nE\n";
 
 typedef struct {
@@ -191,6 +191,10 @@ TEST(wc3_spell, volcano_spawns_unitid_destructible_at_point) {
     T_NOT_NULL(doodad);
     T_FEQ(doodad->s.origin2.x, 32, 0.001f);
     T_FEQ(doodad->s.origin2.y, 48, 0.001f);
+    T_FEQ(doodad->s.origin.z, CM_GetHeightAtPoint(32, 48), 0.001f);
+    T_EQ(doodad->s.model, G_RegisterModel("TestUI\\Models\\flame-strike-warning.mdx"));
+    T_STREQ(doodad->currentmove->animation, "birth");
+    T_ASSERT(G_AnimationHasPrimary(doodad->animation, "birth"));
     volcano_done(fix);
 }
 
