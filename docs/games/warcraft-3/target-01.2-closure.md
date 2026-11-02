@@ -109,6 +109,17 @@ Focused330 passes 1,764 tests/213,182 assertions and all five gates
 comparisons remain exact. No full330 suite was run.
 B01 and all 25 whole leaves remain open.
 
+**Checkpoint331 remains red:** [native331 reference](../../../tools/ghidra/fixtures/research/invisibility331-public-original.json) contains 899 identical full public rows
+from two observations and a fresh unhooked control. All four scenes prove actual
+Sleep/guard; three Wind Walk setups verify 4/0.75/0.25. The portable checker has
+eight negative controls. C uses only spell-code FourCC byte-order representation adaptation
+and currently emits 877/899 rows with 805 positional mismatches, first at row 8
+birth visibility; later Wind Walk/paused-Sleep head differences remain. Computing
+fog for all mapped, used, nonremoved participants has 40 focused assertions per edition
+(Human/Computer/Neutral/Rescuable, query non-composition and delivery flags), not
+full replay acceptance. Save247 is unchanged; no full-suite result or B01/whole-
+leaf closure is claimed.
+
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 
 1. Preserve the completed public265 stream and cache correction. For D036–D041, attach the exact acquisition/home/replacement scene rather than describing that completed stream as unfinished.

@@ -307,3 +307,22 @@ Agho and a custom Ghost alias. Normal and saved299 comparisons retain exact
 DataB target behavior and DataC spatial behavior remain explicit limits. The
 prior full329 result remains 9,476 tests/60,733,200 assertions at `71126adb4`;
 B01 and all 25 whole leaves remain open.
+
+## Public mixed-owner reference: checkpoint331 (engine replay still red)
+
+[native331 reference](../../../tools/ghidra/fixtures/research/invisibility331-public-original.json) retains two observations and a fresh unhooked control with all
+899 public rows identical. All four scenes actually enter Sleep and its initial
+guard; the three Wind Walk setups read effective duration 4, fade0.75 and speed0.25.
+The [portable checker](../../../tools/ghidra/research/invisibility331_capture_check.py) validates literal sources, preload streams and native footers and
+rejects eight mutations. It does not claim full private-row equality. The C
+comparison uses only the declared spell-code FourCC byte-order representation adapter,
+as in 299; it does not adjust clocks, positions, flags or order.
+
+C331 remains red: the current all-participants run emits 877 of 899 expected rows
+with 805 positional mismatches, first differing at row 8 birth visibility. Later
+Wind Walk heads and paused-Sleep heads also differ. The small fog-owner change
+computes planes for every mapped, used, nonremoved participant rather than only
+connected clients; its 40 new assertions per edition cover Human, Computer, Neutral and
+Rescuable participants, query non-composition and delivery flags. That focused
+coverage does not establish full331 parity. Save247 is unchanged; no full suite
+or B01/whole-leaf closure is claimed.

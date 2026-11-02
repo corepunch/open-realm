@@ -7707,5 +7707,102 @@
       "entries": 614,
       "guarded_files": 3359
     }
+  },
+  "phase331": {
+    "scope": "Complete public mixed AIvi/AOwk/Agho Sleep/Pause reference and mapped-participant fog-plane ownership. Full C331 parity remains unproved and failing.",
+    "save_version": 247,
+    "full_suite_run": false,
+    "native": {
+      "passed": true,
+      "observations": 2,
+      "fresh_unhooked_controls": 1,
+      "public_rows_per_capture": 899,
+      "private_rows_per_observation": 1324,
+      "negative_controls": 8,
+      "fixture": "tools/ghidra/fixtures/research/invisibility331-public-original.json",
+      "bundle": "tools/ghidra/fixtures/research/invisibility331-public-original.json.gz",
+      "checker": "tools/ghidra/research/invisibility331_capture_check.py",
+      "sleep_and_initial_guard_reached_in_scenes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "effective_windwalk": {
+        "setups": 3,
+        "duration": 4,
+        "fade": 0.75,
+        "speed": 0.25
+      },
+      "private_row_equality_claimed": false
+    },
+    "production": {
+      "file": "games/warcraft-3/game/g_fow.c",
+      "behavior": "All used, nonremoved map participants receive scheduled fog composition, independently of client delivery. Queries remain read-only.",
+      "new_assertions_per_edition": 40,
+      "controllers": [
+        "Human",
+        "Computer",
+        "Neutral",
+        "Rescuable"
+      ]
+    },
+    "focused": {
+      "passed": true,
+      "tests": 40,
+      "assertions": 428346,
+      "report": "build/tests/invisibility331/focused-positive.json",
+      "excluded_zero_test_pattern": "wc3_api.*fog*; rerun with supported wc3_api.fog* prefix"
+    },
+    "c331": {
+      "passed": false,
+      "report": "build/tests/invisibility331/documented-red.summary.json",
+      "actual_public_rows": 877,
+      "expected_public_rows": 899,
+      "positional_mismatches": 805,
+      "matching_prefix": 8,
+      "first_difference": {
+        "index": 8,
+        "actual": "I331 tick=0 scene=0 label=visibility invisible=1 paused=0 head=0",
+        "native": "I331 tick=0 scene=0 label=visibility invisible=0 paused=0 head=0"
+      },
+      "adapter": "Spell-code FourCC byte order only, as in C299; no clocks, positions, flags or ordering changes.",
+      "remaining": [
+        "Fresh-unit visibility publication at the first callback.",
+        "Wind Walk public phase/head completion.",
+        "Paused Sleep order-head retention."
+      ],
+      "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "library_sha256": "4a4a7eb69d41c233a26012d1cb984dbeab204a0823ff1bc4333365d183f961dd",
+      "source_file_count": 607
+    },
+    "c299": {
+      "c299": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "report": "build/tests/invisibility331/c299.summary.json"
+      },
+      "c299-saved": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "report": "build/tests/invisibility331/c299-saved.summary.json"
+      }
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "python_checks": {
+      "passed": true,
+      "tests": 76
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3367
+    },
+    "next_action": "Compare native unit and point visibility before/after CreateUnit to locate the first birth-publication boundary; do not change the already-proved visibility-query inversion or refresh fog from read-only queries."
   }
 }

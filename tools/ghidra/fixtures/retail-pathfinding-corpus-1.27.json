@@ -60563,7 +60563,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_fow.c",
-      "sha256": "1115146e7d8c2ca0d306b24719cd7395e7fd75c347c28062879e38b1d188da57"
+      "sha256": "db55af88bb8fc27bbd88c4766d66455797638de560b20c63130d951d351b41d3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_group_target_speed.h",
@@ -61243,7 +61243,7 @@
     },
     {
       "path": "docs/games/warcraft-3/fog-and-cinematics.md",
-      "sha256": "0fba9bcc9f2d4f52a884085a6d4b33d90c831812e672d1e59b9a279894df113c"
+      "sha256": "3c1b05cda22828222c920b7faa0336cce14d63841d27b3ce1b81214c927116d2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-target-visibility.md",
@@ -71348,6 +71348,38 @@
     {
       "path": "tools/ghidra/research/ghost330_check.py",
       "sha256": "936e1571987c23cdc22c48894da33f2d841a7b025a75cb876742ce8e4b9a73fd"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_invisibility331_public.c",
+      "sha256": "a64d10acb222e00226d5c910eb9959bc2c184b460931fdc93ef851980e4e1fbf"
+    },
+    {
+      "path": "tools/frida/research/invisibility331_probe.j",
+      "sha256": "3788f3a5282dca478f52740c9f1937b9516cb9b19dced02faa6ca2aaa0bcc1cd"
+    },
+    {
+      "path": "tools/frida/research/invisibility331_make_map.py",
+      "sha256": "05e3b1e3348e25320c45405f332eb72409f43a2cf1d8b8e7411d729a0432d24b"
+    },
+    {
+      "path": "tools/frida/research/invisibility331_observer.js",
+      "sha256": "4ddae5f8d50a418410d0826e1e2b4845bd8d70b0b19fdbb0c8c7518920178764"
+    },
+    {
+      "path": "tools/ghidra/research/invisibility331_capture_check.py",
+      "sha256": "0a71f836a09708a6fde31cd7d7b8dba6d9e2a16e4fbc0f61e7597b8883939c3a"
+    },
+    {
+      "path": "tools/ghidra/research/invisibility331_c_run.py",
+      "sha256": "73779bd4b588b3b2c3ccb5def1fe1609b2c6b081eb651d1a3c83b5bb1686e016"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/invisibility331-public-original.json",
+      "sha256": "f3dda624d2d8fd48f90524cc960d52f6275b115ad5d73003ec1c0ead1475bc90"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/invisibility331-public-original.json.gz",
+      "sha256": "4ea85ba6bc5e8f0f22a1b8da6a8fc21af5add67b19871f9a52adf1dc3dbc73f6"
     }
   ]
 }

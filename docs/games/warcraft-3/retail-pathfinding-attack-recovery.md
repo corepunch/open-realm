@@ -971,3 +971,16 @@ inverse retires vanished Apiv/Ghost aliases through normal detach; retained
 owners and newly introduced destination fades stay independent. DataB target and DataC spatial
 behavior remain limits; no new full native overlap capture or B01 closure is
 claimed. Prior full329 at `71126adb4` passed 9,476 tests/60,733,200 assertions.
+
+## Mixed-owner public comparison: checkpoint331
+
+[native331 reference](../../../tools/ghidra/fixtures/research/invisibility331-public-original.json) and the [portable checker](../../../tools/ghidra/research/invisibility331_capture_check.py) preserve 899 identical public rows from two observations
+and a fresh unhooked control, actual Sleep/initial guard in all four scenes, and
+effective Wind Walk 4/0.75/0.25 in all three setups. Eight mutation controls pass.
+The C comparison adapts spell-code FourCC byte-order representation only, as in 299. It
+remains red: 877/899 rows, 805 positional mismatches, first at row 8 birth visibility;
+later Wind Walk and paused-Sleep head differences remain open. The fog-owner
+change covers all mapped, used, nonremoved participants, with 40 focused assertions per edition
+including all four controller types, query non-composition and delivery flags.
+This is not full331 parity or a full-suite result. Save247, B01 and the 25 open
+whole leaves are unchanged.

@@ -1952,9 +1952,16 @@ void G_FowUpdate(void) {
         return;
     }
 
-    FOR_LOOP(player, MAX_PLAYERS)
-        if (level.fow.players[player].client_connected)
+    FOR_LOOP(player, MAX_PLAYERS) {
+        gameClient_t const *client=G_GetPlayerClientByNumber(player);
+        mapPlayer_t const *participant=client ? client->mapplayer : NULL;
+        /* Completed fog is simulation state consumed by JASS and AI, even
+         * when this mapped participant has no network client. Delivery keeps
+         * its separate client_connected ownership below. */
+        bool playing=participant && participant->used && !client->jass.removed;
+        if (level.fow.players[player].client_connected || playing)
             viewers |= 1u << player;
+    }
     if (!viewers)
         return;
 #ifdef WC3_FOW_PACKED_MASK
@@ -2471,6 +2478,42 @@ TEST(wc3_game, fow_byte_mask_matches_scalar_writes_and_preserves_row_tails) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+void reset_entities(void);
+void setup_test_world(void);
+edict_t *alloc_test_unit(uint32_t class_id,float x,float y);
+TEST(wc3_fow, mapped_participants_without_clients_own_completed_visibility) {
+    static playerType_t const types[]={kPlayerTypeHuman,kPlayerTypeComputer,kPlayerTypeNeutral,kPlayerTypeRescuable};
+    for(unsigned kind=0;kind<sizeof(types)/sizeof(types[0]);kind++) {
+        reset_entities();setup_test_world();G_FowShutdown();
+        gameClient_t *client=game.clients+1;
+        mapPlayer_t const *old_player=client->mapplayer;
+        bool old_removed=client->jass.removed;
+        mapPlayer_t participant={.used=true,.playerType=types[kind]};
+        client->mapplayer=&participant;client->jass.removed=false;
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+        unit->s.player=1;unit->health.value=unit->health.max_value=100;
+        unit->runtime.sight_radius.day=unit->runtime.sight_radius.night=128;
+        G_FowInit();
+        T_ASSERT(!level.fow.players[1].client_connected);
+        T_ASSERT(!G_FowPlayerCanTrackUnit(1,unit));
+        G_FowUpdate();
+        T_ASSERT(G_FowPlayerCanTrackUnit(1,unit));
+        T_ASSERT(!level.fow.players[1].client_connected);
+        unit->s.origin.x=unit->s.origin2.x=768;
+        /* A query reads the previous completed plane; it cannot publish the
+         * moved revealer's new sight before the next composition. */
+        T_ASSERT(!G_FowPlayerCanTrackUnit(1,unit));
+        T_EQ(G_FowPointState(1,&(vec2_t){256,256},0),WC3_FOG_STATE_VISIBLE);
+        G_FowUpdate();
+        T_ASSERT(G_FowPlayerCanTrackUnit(1,unit));
+        T_ASSERT(G_FowPointState(1,&(vec2_t){256,256},0)!=WC3_FOG_STATE_VISIBLE);
+        T_ASSERT(!level.fow.players[1].client_connected);
+        client->jass.removed=true;unit->s.origin.x=unit->s.origin2.x=0;
+        G_FowUpdate();T_ASSERT(!G_FowPlayerCanTrackUnit(1,unit));
+        client->mapplayer=old_player;client->jass.removed=old_removed;
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
 TEST(wc3_fow, packed_identity_predicate_matches_scalar_rim_neighbors_across_words) {
     uint64_t *saved_cover = fow_cover_current;
     uint32_t saved_stride = fow_cover_stride, saved_height = level.fow.height;

@@ -345,3 +345,10 @@ Stopped records remain stopped, and destroyed handles save as null. See
 [Move target visibility](retail-pathfinding-target-visibility.md).
 The headless renderer model suite also checks that the generated fragment shader applies fog after the unshaded lighting branch,
 discards zero fog samples, and that the fog sampler resolves to texture unit 2 for both regular and instanced model programs.
+
+Mapped simulation participants own completed fog planes even without a network
+client. `G_FowUpdate` includes every used, nonremoved map participant, including
+Neutral and Rescuable controllers. The client connection flag still controls
+delivery; queries read completed planes and do not trigger composition. The331
+retail comparison still exposes a separate visibility difference immediately
+after unit creation; this change does not claim that birth boundary is fixed.
