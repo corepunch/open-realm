@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "7fd28ee4acd55cfc704af836030391c27f7f4ee40fd8792289a063e902314259"
+      "sha256": "9c3d5d898018d21cf7a66eb1ad0233dd0f97116f5e92becf54c5e96384d2980c"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",

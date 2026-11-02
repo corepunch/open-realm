@@ -715,7 +715,8 @@ bool G_GiveCarriedItem(edict_t *recipient, edict_t *item) {
     itemBindingGuard_t detach_guard=G_ItemBindingGuard(recipient,item);
     if (!G_DetachCarriedItem(item)) return false;
     if (detach_guard.epoch!=S_SpellPreparationEpoch() || !recipient->inuse ||
-        recipient->spawn_time!=detach_guard.unit_birth || G_IsDeferredFree(recipient)) return false;
+        recipient->spawn_time!=detach_guard.unit_birth ||
+        G_IsDeferredFree(recipient)!=detach_guard.unit_deferred) return false;
     /*6695c0 rechecks capacity AFTER5667d0 detached the item. A callback that
      * fills/removes Inventory must not roll that completed detach back. */
     target_slot=G_FindFreeInventorySlot(recipient);

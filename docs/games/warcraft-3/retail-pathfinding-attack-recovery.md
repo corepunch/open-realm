@@ -866,3 +866,12 @@ All five fresh pathfinding gates pass. Itemdrop requires153 tests/12,406 asserti
 per edition. The86 focused Python checks and614-entry corpus audit pass. No full
 native-suite or SC2API rerun is claimed in this commit; the previous full batch
 used the frozen323 source.
+
+The first full326 batch exposed a retained-Give regression in
+`wc3_inventory_orders.give_recipient_mutation_during_drop`: a recipient marked
+for deferred removal by the source Drop callback must still receive the item,
+then publish its retirement Drop. The new guard rejected that existing retained
+state. The correction compares the lifetime/deferred state captured at the
+detach boundary. The unchanged original-backed regression passes95 assertions
+per edition. All five gates and normal/saved C299 pass again on the correction;
+a fresh full batch is running separately.

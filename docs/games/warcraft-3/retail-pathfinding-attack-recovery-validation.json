@@ -6869,13 +6869,13 @@
       "motion_rows": 5342,
       "mismatches": 0,
       "reports": [
-        "build/tests/invisibility326/engine/c299.summary.json",
-        "build/tests/invisibility326/engine/c299-saved.summary.json"
+        "build/tests/invisibility326/engine/c299-give-fix.summary.json",
+        "build/tests/invisibility326/engine/c299-saved-give-fix.summary.json"
       ]
     },
     "final_binaries": {
       "build/bin/openwarcraft3-tests": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
-      "build/lib/libgame-wc3-test.so": "c4d11a497d36ace2e277dc2b2db1b90bf444449b1f800816119cb445c264823f"
+      "build/lib/libgame-wc3-test.so": "5c67adcd70815f0db1e11bfcd1f9954dcf421c28fb11317336fd95a17b2bd206"
     },
     "full_suite_rerun": false,
     "sc2api_rerun": false,
@@ -6888,8 +6888,8 @@
     "fresh_gates": {
       "itemdrop": {
         "passed": true,
-        "report": "build/tests/invisibility326/gates-final/itemdrop.json",
-        "sha256": "baf2315bce8d716464b866db556b4194bfbc4f718b79c18962c6535c7963e546",
+        "report": "build/tests/invisibility326/gates-give-fix/itemdrop.json",
+        "sha256": "6f9d4439f84f09571388983c8e2ff0186898a6f9f13e2425626f2817e8b523e6",
         "engine": {
           "classic": {
             "tests": 153,
@@ -6903,8 +6903,8 @@
       },
       "captain473": {
         "passed": true,
-        "report": "build/tests/invisibility326/gates-final/captain473.json",
-        "sha256": "3e94c223f5e9dafe9282b5fe47586f3eb37dabc84759edd7e23e9a851c349fca",
+        "report": "build/tests/invisibility326/gates-give-fix/captain473.json",
+        "sha256": "4baae0b3de6628c4f7706cc0738c3fc53df979edc8ffb944027cfbcba8b156d4",
         "engine": {
           "classic": {
             "tests": 10,
@@ -6918,8 +6918,8 @@
       },
       "waygate377": {
         "passed": true,
-        "report": "build/tests/invisibility326/gates-final/waygate377.json",
-        "sha256": "83fcacfe9cf7829f13f962ed890a97394b7342c24657d06582390ca8db09c410",
+        "report": "build/tests/invisibility326/gates-give-fix/waygate377.json",
+        "sha256": "635f713638e531b3db2dbcf656f6718465ec6621be5771c5455c545a522e68db",
         "engine": {
           "classic": {
             "tests": 39,
@@ -6933,8 +6933,8 @@
       },
       "group012": {
         "passed": true,
-        "report": "build/tests/invisibility326/gates-final/group012.json",
-        "sha256": "a1894f1ded86c7104b4b1098d9864654b7ea4c05505b8b217400a7df6d2c3a50",
+        "report": "build/tests/invisibility326/gates-give-fix/group012.json",
+        "sha256": "2dd38d986a3bc97de50088e811efbeff1a779318f15af8678aeafdd9d8ec6d27",
         "engine": {
           "classic": {
             "tests": 20,
@@ -6948,8 +6948,8 @@
       },
       "supportgoal": {
         "passed": true,
-        "report": "build/tests/invisibility326/gates-final/supportgoal.json",
-        "sha256": "d19df75511c0582ebc0b9caf5c4888515390d52c84bbdfff1bf2a1a37d0fd8f2",
+        "report": "build/tests/invisibility326/gates-give-fix/supportgoal.json",
+        "sha256": "e16f7a3e635258a28c5f6ac84d3969995c5cabb9f0ec538d4482afd07f2a0aeb",
         "engine": {
           "classic": {
             "tests": 514,
@@ -6975,6 +6975,22 @@
       "passed": true,
       "entries": 614,
       "guarded_files": 3353
+    },
+    "full_attempt_before_give_fix": {
+      "source_commit": "04e5fdb78",
+      "classic_shards_finished": 4,
+      "failed_case": "wc3_inventory_orders.give_recipient_mutation_during_drop",
+      "failed_assertions": 3,
+      "remaining_tft_jobs_stopped": true,
+      "reason": "Correct retained recipient guards before fresh verification."
+    },
+    "give_retained_fix": {
+      "scope": "Give retains a recipient scheduled for removal during Drop. Guard the lifetime/deferred state captured at the detach boundary, rather than rejecting that existing retained state.",
+      "regression": "wc3_inventory_orders.give_recipient_mutation_during_drop",
+      "per_edition_tests": 1,
+      "per_edition_assertions": 95,
+      "passed": true,
+      "full_rerun": "build/tests/invisibility326/full-give-fix/summary.json (running when this fix is committed)"
     }
   }
 }

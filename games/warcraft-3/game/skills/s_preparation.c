@@ -155,13 +155,14 @@ bool S_AttachPreparatoryItems(edict_t *unit, edict_t *item) {
     if (!unit || !item) return false;
     uint64_t epoch = preparation_epoch;
     uint32_t unit_birth = unit->spawn_time, item_birth = item->spawn_time;
+    bool unit_deferred=G_IsDeferredFree(unit),item_deferred=G_IsDeferredFree(item);
     if (!S_DetachPreparatoryItems(item)) return false;
     /* ENDCAST may reset the world, remove either actor, or repick this item.
      * The outer attachment must not replace a callback's new binding. */
     if (epoch != preparation_epoch) return false;
     if (!unit->inuse || !item->inuse || unit->spawn_time != unit_birth ||
-        item->spawn_time != item_birth || G_IsDeferredFree(unit) ||
-        G_IsDeferredFree(item)) return false;
+        item->spawn_time != item_birth || G_IsDeferredFree(unit)!=unit_deferred ||
+        G_IsDeferredFree(item)!=item_deferred) return false;
     uint32_t item_number = (uint32_t)(item - g_edicts);
     if (item_number >= MAX_ENTITIES || preparation_heads[item_number]) return false;
     cstring_t abilities = G_ItemAbilityList(item);

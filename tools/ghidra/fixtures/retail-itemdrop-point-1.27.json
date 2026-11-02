@@ -64,7 +64,7 @@
     "games/warcraft-3/game/api/api_unit.h": "b8ba9a0c07a6d256723b60096ea925c95ad817e45a73225d2b4037531ebaca3f",
     "games/warcraft-3/game/g_ai.c": "1857b98076155f8906bd4a8d4f153b476f514e1b1b192d7ec2663b8a7818b888",
     "games/warcraft-3/game/g_commands.c": "f5eeaaeec1608fb1f1b2e2010b2f580d18b40f99a8e1e5abfa8140d5c572ce03",
-    "games/warcraft-3/game/g_items.c": "b79460762c8f221c528788b5b417277c2e8a957fa14890c28d3e1ba0716600ec",
+    "games/warcraft-3/game/g_items.c": "6e7b340319cdd21f204763f7231a03b9ea9617d74cb6011b84bb9f2b5e08e147",
     "games/warcraft-3/game/g_local.h": "2214e6fc77e8c6e27d47f529797d7507e7f068f5a3d4b7155077ee42634d5564",
     "games/warcraft-3/game/g_save.c": "9997d8e1bf50c5235e6abbbbbe60301023858c39ec5a672c7a14565c37bdff7c",
     "games/warcraft-3/game/m_unit.c": "fc11bbe094fccc9172b49ce394d2b24d210511ed0bf10482bd6135ceef3ea7e8",
