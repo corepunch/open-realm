@@ -319,7 +319,7 @@ static bool brewmaster_split_start(edict_t *hero, uint32_t code) {
     if (!controller) return false;
     FOR_LOOP(i, 3) {
         float angle = 2.0f * (float)M_PI * (float)i / 3.0f;
-        vec2_t point = { origin.x + cosf(angle) * 96.0f,
+        vec2_t point = { origin.x + cosf(angle) * 96.0f, // world units; initial clearance around the hidden hero
                          origin.y + sinf(angle) * 96.0f };
         SP_FindEmptySpaceAround(hero, ids[i], &point, &angle);
         spawned[i] = S_SummonAbilityAt(hero, code, ids[i], &point, duration);

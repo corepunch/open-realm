@@ -7,8 +7,8 @@
  * point-target Range only limits where the player may start the stampede.
  * Source: TFT AbilityData/NeutralAbilityFunc and the WC3 ability-editor
  * behaviour notes. Exact retail random distribution remains unverified. */
-#define STAMPEDE_MAX_SPAWNS_PER_TICK 4
-#define STAMPEDE_DEFAULT_MISSILE_SPEED 500.0f
+#define STAMPEDE_MAX_SPAWNS_PER_TICK 4 // beasts; bounds catch-up work when a frame misses multiple spawn intervals
+#define STAMPEDE_DEFAULT_MISSILE_SPEED 500.0f // world units per second; fallback when authored missile speed is absent
 
 static uint32_t stampede_random(uint32_t *seed) {
     uint32_t n = *seed ? *seed : 0x6d2b79f5u;
