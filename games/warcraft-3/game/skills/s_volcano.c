@@ -82,9 +82,10 @@ static float volcano_wave_damage(edict_t *ent, float dist) {
 static edict_t *volcano_owned_doodad(edict_t *ent) {
     channel_t *channel = G_GetChannel(ent);
     edict_t *doodad = ent ? ent->goalentity : NULL;
+    /* UnitID=Volc is a decoration destructable. Do not restrict this owned
+     * reference to the tree/debris target categories used by wave damage. */
     return channel && doodad && doodad->inuse &&
         doodad->spawn_time == channel->target_spawn_time &&
-        (doodad->targtype == TARG_TREE || doodad->targtype == TARG_DEBRIS) &&
         G_IsDestructable(doodad) ? doodad : NULL;
 }
 

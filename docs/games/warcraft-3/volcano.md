@@ -49,6 +49,7 @@ AbilityData.slk (ANvc, TFT only)
 CAbilityVolcano + S_SpellChannelThinker
   -> G_CreateDestructable(UnitID) at point (Volc doodad)
      -> terrain-height placement + authored Birth sequence rises from below ground
+     -> final wave removes the incarnation-checked decoration destructable
   -> volcano_think pulses while S_SpellChannelActive
 T_Damage / G_DestructableApplyDamage
   -> units: DAMAGE_TYPE_NORMAL path (hits spell-immune; not S_SpellDamage)
