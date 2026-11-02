@@ -1810,7 +1810,7 @@ TEST(wc3_game, hud_status_icon_missing_candidates_cache_null) {
     gi.ReadFile = saved_read;
 }
 
-TEST(wc3_game, hud_timed_status_fraction_is_owner_only) {
+TEST(wc3_game, hud_timed_status_fraction_is_owner_only_except_hex) {
     gameClient_t *viewer = game.clients;
     edict_t *ent = make_test_unit();
     uint16_t half;
@@ -1827,6 +1827,9 @@ TEST(wc3_game, hud_timed_status_fraction_is_owner_only) {
 
     ent->s.player = 1;
     T_EQ(UI_TestSelectedTimedStatusStat(viewer, ent), 0);
+
+    unit_addtimedstatus(ent, "BOhx", 1, 10.0f);
+    T_EQ(UI_TestSelectedTimedStatusStat(viewer, ent), USHRT_MAX);
 }
 
 TEST(wc3_game, hud_second_attack_requires_enabled_slot_and_showui) {

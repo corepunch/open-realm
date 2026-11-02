@@ -1100,6 +1100,14 @@ static cstring_t TimedStatusLabel(heroabilitystatus_t const *status) {
     return UI_GetString(tip);
 }
 
+/* Hex's duration is visible on the affected unit's selected status panel,
+ * including when the selected target belongs to an opponent or neutral. */
+static bool TimedStatusVisibleToViewer(edict_t const *unit, gameClient_t const *viewer,
+                                       heroabilitystatus_t const *status) {
+    return unit && viewer && status &&
+        (unit->s.player == viewer->ps.number || status->code == MAKEFOURCC('B','O','h','x'));
+}
+
 static cstring_t StatusBuffArt(uint32_t code) {
     cstring_t art;
 
@@ -1369,11 +1377,11 @@ static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_
     UI_SetText(hud.simple.SimpleNameValue, "%s", display_name ? display_name : "");
     unit_name = G_UnitName(ent->class_id);
 
-    /* Warsmash shows this timer only for a single unit owned by the local
-     * player. UI_SendInfoPanel already guarantees single-selection here; keep
-     * ownership explicit rather than leaking an enemy/allied timer. */
-    if (viewer && ent->s.player == viewer->ps.number) {
+    /* UI_SendInfoPanel guarantees single-selection. Most timed statuses remain
+     * owner-only; Hex is visible on the affected unit's selected panel too. */
+    if (viewer) {
         timed_status = unit_findtimedbarstatus(ent);
+        if (!TimedStatusVisibleToViewer(ent, viewer, timed_status)) timed_status = NULL;
         timed_label = TimedStatusLabel(timed_status);
     }
 
@@ -2042,9 +2050,9 @@ static uint16_t SelectedTimedStatusStat(gameClient_t *client, edict_t *selected)
     heroabilitystatus_t const *status;
     float fraction;
 
-    if (!client || !selected || selected->s.player != client->ps.number) return 0;
+    if (!client || !selected) return 0;
     status = unit_findtimedbarstatus(selected);
-    if (!status) return 0;
+    if (!TimedStatusVisibleToViewer(selected, client, status)) return 0;
     fraction = unit_statusremainingfraction(status);
     return (uint16_t)MIN((uint32_t)(fraction * (float)USHRT_MAX + 0.5f), (uint32_t)USHRT_MAX);
 }
