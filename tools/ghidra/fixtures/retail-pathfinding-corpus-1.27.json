@@ -60627,7 +60627,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "053d13054b3ce6a99483a69a3603798bddd48b4491e64e7fa88b9aac6985de4d"
+      "sha256": "361265d9831e5ed3643b84e14e92e3cbf8cc95444589f3924b37e53766c55cb1"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -70583,7 +70583,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-itemdrop-point-1.27.json",
-      "sha256": "93be528c707eba72909091a9dfd679976767b9ed7c7ad9df91f379729994f4b8"
+      "sha256": "f8db663ff170aa78a2f46549828bfc16624ceab142d0b2a95be071e2f60c8c83"
     },
     {
       "path": "tests/test_wc3_pathfinding_militia_lifecycle.py",

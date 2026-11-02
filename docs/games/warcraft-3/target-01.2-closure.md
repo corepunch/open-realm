@@ -131,7 +131,12 @@ remain open and Save247 is unchanged.
 
 Focused332 checks pass 42 tests/428,372 assertions across both editions; all
 five gates pass 1,474 tests/7,096,974 assertions. Normal and saved299 retain
-exact 2,066 public/5,342 motion rows. No full332 suite is claimed yet.
+exact 2,066 public/5,342 motion rows. Full332 at `f40dcbd60` ran 9,482 tests/60,734,274 assertions and found
+two legacy fixture types failing in both editions (four executions/ten failed
+assertions). Test-only corrections preserve the cache barriers and alpha checks
+using actual owned state. Their complete families pass 106 tests/32,586
+assertions; the 148-row birth replay and fresh item gate pass. The complete
+full batch has not been repeated after those fixture-only corrections.
 
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 

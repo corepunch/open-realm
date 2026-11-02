@@ -2907,6 +2907,31 @@ static intptr_t fresh_unknown_initializer(edict_t *ent, abilityMsg_t msg, abilit
     ent->permanent_invisibility_fade.request.active = true;
     return false;
 }
+/* Foreign initialization may create owner state after the fresh-plan shortcut
+ * was selected. Subsequent absent-owner cleanup must still observe it. */
+static intptr_t fresh_unknown_shadow_initializer(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+    T_NOT_NULL(ent); T_EQ(msg, A_UNIT_INIT); T_NOT_NULL(call);
+    fresh_unknown_calls++;
+    T_NULL(ent->shadowmeld);
+    ent->shadowmeld=G_AllocShadowMeld();
+    T_NOT_NULL(ent->shadowmeld);
+    if(ent->shadowmeld)
+        *ent->shadowmeld=(shadowMeld_t){.active=true,.fading=true,.fade_start=123};
+    return false;
+}
+static void fresh_unknown_shadow_compare(edict_t const *original,edict_t const *fresh) {
+    T_NOT_NULL(original->shadowmeld); T_NOT_NULL(fresh->shadowmeld);
+    if(original->shadowmeld && fresh->shadowmeld) {
+        T_NE(original->shadowmeld,fresh->shadowmeld);
+        T_EQ(memcmp(original->shadowmeld,fresh->shadowmeld,sizeof(*fresh->shadowmeld)),0);
+        T_ASSERT(!fresh->shadowmeld->active && !fresh->shadowmeld->fading);
+        T_EQ(fresh->shadowmeld->fade_start,0);
+    }
+    /* Independent pool addresses are not semantic initialization differences. */
+    edict_t left=*original,right=*fresh;
+    left.shadowmeld=right.shadowmeld=NULL;
+    T_EQ(memcmp(&left,&right,sizeof(left)),0);
+}
 TEST(wc3_ability_dispatch, fresh_init_preserves_unknown_callback_mutations) {
     InitAbilities();
     UnitAbilities_t row = { .abilList = "" };
@@ -2918,27 +2943,26 @@ TEST(wc3_ability_dispatch, fresh_init_preserves_unknown_callback_mutations) {
     unit_event_plan(&fresh, A_UNIT_INIT, true);
     ability_t *move = (ability_t *)FindAbilityByClassname("Amov");
     abilityProc_t saved_move = move->proc;
-    S_ReplaceAbilityProcedure(move, fresh_unknown_initializer);
+    S_ReplaceAbilityProcedure(move, fresh_unknown_shadow_initializer);
     fresh_unknown_calls = 0;
     bool expected = S_UnitAbilityEvent(&original, A_UNIT_INIT);
     T_EQ(S_InitFreshUnitAbilities(&fresh), expected);
     T_EQ(fresh_unknown_calls, 2);
-    T_EQ(memcmp(&original, &fresh, sizeof(fresh)), 0);
-    T_EQ(fresh.runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE, 0);
-    T_EQ(fresh.permanent_invisibility_fade.request.active, 0);
+    fresh_unknown_shadow_compare(&original,&fresh);
+    G_FreeShadowMeld(&original); G_FreeShadowMeld(&fresh);
     S_ReplaceAbilityProcedure(move, saved_move);
     InitAbilities();
     /* A cold plan must not query the replacement either. */
     ability_t *blight = (ability_t *)FindAbilityByClassname("Abli");
     abilityProc_t saved_blight = blight->proc;
-    S_ReplaceAbilityProcedure(blight, fresh_unknown_initializer);
+    S_ReplaceAbilityProcedure(blight, fresh_unknown_shadow_initializer);
     original = (edict_t){ .data.UnitAbilities = &row, .data.UnitData = &data };
     fresh = original; fresh_unknown_calls = 0;
     expected = S_UnitAbilityEvent(&original, A_UNIT_INIT);
     T_EQ(S_InitFreshUnitAbilities(&fresh), expected);
     T_EQ(fresh_unknown_calls, 2);
-    T_EQ(memcmp(&original, &fresh, sizeof(fresh)), 0);
-    T_EQ(fresh.runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE, 0);
+    fresh_unknown_shadow_compare(&original,&fresh);
+    G_FreeShadowMeld(&original); G_FreeShadowMeld(&fresh);
     S_ReplaceAbilityProcedure(blight, saved_blight);
     InitAbilities();
 }

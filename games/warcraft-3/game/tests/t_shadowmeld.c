@@ -26,7 +26,7 @@ static void shadowmeld_capture_write(pfWriteType_t type, void const *value) {
 }
 
 static char const shadowmeld_slk[] =
-    "ID;PWXL;N;E9;Y3;X9\n"
+    "ID;PWXL;N;E9;Y5;X9\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
     "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
@@ -34,7 +34,9 @@ static char const shadowmeld_slk[] =
     "C;Y2;X1;K\"Ashm\"\nC;Y2;X2;K\"Ashm\"\nC;Y2;X3;K\"1\"\n"
     "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"1.5\"\n"
     "C;Y3;X1;K\"Ahid\"\nC;Y3;X2;K\"Ahid\"\nC;Y3;X3;K\"1\"\n"
-    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"1.5\"\nE\n";
+    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"1.5\"\n"
+    "C;Y4;X1;K\"Apiv\"\nC;Y4;X2;K\"Apiv\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"0\"\nC;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"0\"\nC;Y4;X8;K\"0\"\nC;Y4;X9;K\"0\"\n"
+    "C;Y5;X1;K\"Agho\"\nC;Y5;X2;K\"Agho\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\"0\"\nC;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\nC;Y5;X7;K\"0\"\nC;Y5;X8;K\"0\"\nC;Y5;X9;K\"0\"\nE\n";
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -341,8 +343,8 @@ TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
     shadowmeldFix_t fix;
     edict_t *clent;
     color32_t color;
-    abilityitem_t ghost = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
-    abilityCall_t call = MAKE(abilityCall_t, .item = &ghost);
+    uint32_t const permanent = MAKEFOURCC('A','p','i','v');
+    uint32_t const ghost = MAKEFOURCC('A','g','h','o');
 
     shadowmeld_setup(&fix);
     clent = &g_edicts[0];
@@ -351,17 +353,29 @@ TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
     fix.unit->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
     fix.unit->vertex_color_set = true;
 
-    fix.unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    T_ASSERT(G_ActorAddSkill(fix.unit, permanent));
+    T_ASSERT(S_PermanentInvisibilityActive(fix.unit));
+    T_ASSERT(fix.unit->permanent_invisibility_fade.permanent_owned);
+    T_ASSERT(fix.unit->permanent_invisibility_fade.published);
+    T_EQ(fix.unit->permanent_invisibility_fade.passive_contributions, 1);
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 70);
 
-    fix.unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-    T_ASSERT(S_AbilityMessage(fix.unit, A_ENABLE, &call));
+    T_ASSERT(G_ActorRemoveSkill(fix.unit, permanent));
+    T_ASSERT(!S_PermanentInvisibilityActive(fix.unit));
+    T_EQ(fix.unit->permanent_invisibility_fade.passive_contributions, 0);
+    T_ASSERT(G_ActorAddSkill(fix.unit, ghost));
     T_ASSERT(S_GhostActive(fix.unit));
+    T_ASSERT(fix.unit->permanent_invisibility_fade.permanent_owned);
+    T_ASSERT(fix.unit->permanent_invisibility_fade.published);
+    T_EQ(fix.unit->permanent_invisibility_fade.passive_contributions, 1);
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 70);
 
-    T_ASSERT(S_AbilityMessage(fix.unit, A_DISABLE, &call));
+    T_ASSERT(G_ActorRemoveSkill(fix.unit, ghost));
+    T_ASSERT(!S_GhostActive(fix.unit));
+    T_ASSERT(!fix.unit->permanent_invisibility_fade.permanent_owned);
+    T_EQ(fix.unit->permanent_invisibility_fade.passive_contributions, 0);
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 200);
 

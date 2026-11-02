@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Candidate330 ports per-attachment Apiv/Ghost shared ownership and independent Attack scan bit; focused verification is pending. Most recent full proof remains329 at71126adb4; B01 remains open.",
+  "status": "Checkpoint332 matches all148 original same-cell birth records in C. Full332 batch found two legacy fixture types failing in both editions; their complete families pass after test-only corrections, but the full batch was not repeated. Full331 remains red at AOwk instant/taskless admission; B01 remains open.",
   "save_version": 247,
-  "full_suite_run": false,
+  "full_suite_run": true,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -373,7 +373,8 @@
     ],
     "final_source_count": 1156,
     "final_source_snapshot_sha256": "1c49cd03083918998affc6841c5552bd4004cce54ba095c50b261d73c0b7d4ce",
-    "production_build_warnings": 0
+    "production_build_warnings": 0,
+    "scope": "Historical earlier recovery verification; current source and runs are recorded under phase330 through phase332."
   },
   "prior_attempts": {
     "final26": "Two order_lifecycle cases failed in each edition because old fixtures assumed immediate Stand after explicit target death.",
@@ -7808,7 +7809,7 @@
   "phase332": {
     "scope": "Additive publication of the newly admitted public CreateUnit sight source, preserving other completed sources and independent timed reveal owners.",
     "save_version": 247,
-    "full_suite_run": false,
+    "full_suite_run": true,
     "native": {
       "passed": true,
       "reference": "tools/ghidra/fixtures/research/invisibility332-birth-v2-original.json",
@@ -7902,6 +7903,68 @@
       "passed": true,
       "entries": 614,
       "guarded_files": 3376
+    },
+    "full_suite": {
+      "passed": false,
+      "tests": 9482,
+      "assertions": 60734274,
+      "failed_test_executions": 4,
+      "failed_assertions": 10,
+      "failures": [
+        {
+          "edition": "roc",
+          "shard": 1,
+          "test": "wc3_shadowmeld.persistent_invisibility_uses_owner_ghost_alpha",
+          "assertions_failed": 2
+        },
+        {
+          "edition": "roc",
+          "shard": 3,
+          "test": "wc3_ability_dispatch.fresh_init_preserves_unknown_callback_mutations",
+          "assertions_failed": 3
+        },
+        {
+          "edition": "tft",
+          "shard": 1,
+          "test": "wc3_shadowmeld.persistent_invisibility_uses_owner_ghost_alpha",
+          "assertions_failed": 2
+        },
+        {
+          "edition": "tft",
+          "shard": 3,
+          "test": "wc3_ability_dispatch.fresh_init_preserves_unknown_callback_mutations",
+          "assertions_failed": 3
+        }
+      ],
+      "frozen_sources": 607,
+      "frozen_artifacts": 16,
+      "frozen_assets": 42,
+      "all_hashes_unchanged": true,
+      "source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
+      "report": "build/tests/invisibility332/full/summary.json",
+      "source_freeze": "build/tests/invisibility332/full-source.json"
+    },
+    "fixture_corrections": {
+      "production_code_changed": false,
+      "tests": [
+        "wc3_ability_dispatch.fresh_init_preserves_unknown_callback_mutations",
+        "wc3_shadowmeld.persistent_invisibility_uses_owner_ghost_alpha"
+      ],
+      "behavior": "Preserve warm/cold unknown-callback barriers with independent actual Shadow Meld state; drive tint through configured Apiv/Ghost attachments instead of unowned flags/private enables.",
+      "focused_passed": true,
+      "tests_run": 106,
+      "assertions": 32586,
+      "report": "build/tests/invisibility332/fixture-fix/summary.json",
+      "native_c332_passed": true,
+      "native_c332_public_rows": 148,
+      "native_c332_report": "build/tests/invisibility332/v2/c-fixture-fix.summary.json",
+      "fresh_itemdrop_gate": "build/tests/invisibility332/fixture-itemdrop/itemdrop.json",
+      "full_batch_repeated": false
     }
-  }
+  },
+  "current_phase": 332,
+  "full_suite_passed": false,
+  "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
+  "latest_full_known_failures_corrected": true,
+  "latest_full_repeated_after_fixture_corrections": false
 }
