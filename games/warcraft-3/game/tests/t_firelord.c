@@ -182,6 +182,49 @@ TEST(wc3_spell, incinerate_arrow_requires_autocast_and_pays_once_per_hit) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, lava_spawn_attack_rejected_by_invulnerability_does_not_count) {
+    firelordFix_t fix = firelord_lava_setup();
+    edict_t *marker = firelord_marker(fix.lava);
+    edict_t *target = alloc_test_unit(FS_SLKKey("hfoo"), 220, 128);
+    target->s.player = 1;
+    target->targtype = TARG_GROUND;
+    T_NOT_NULL(marker);
+    if (!marker) { firelord_lava_done(fix); return; }
+    G_SetUnitFlag(target, UNIT_FLAG_INVULNERABLE, true);
+    S_ResolveAttackHitWithArrow(fix.lava, target, 20, 0, 0);
+    T_EQ(marker->damage, 0u);
+    G_SetUnitFlag(target, UNIT_FLAG_INVULNERABLE, false);
+    S_ResolveAttackHitWithArrow(fix.lava, target, 20, 0, 0);
+    T_EQ(marker->damage, 1u);
+    firelord_lava_done(fix);
+}
+
+TEST(wc3_spell, incinerate_rejected_attack_does_not_mark_or_consume_mana) {
+    slkTestData_t *rows = parse_slk_string(firelord_arrow_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *attacker, *target;
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    attacker = alloc_test_unit(FS_SLKKey("Hpal"), 128, 128);
+    target = alloc_test_unit(FS_SLKKey("hfoo"), 192, 128);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->targtype = target->targtype = TARG_GROUND;
+    attacker->unit_state->ranks[0] = MAKE(heroability_t, .code = FIRE_INCINERATE, .level = 1);
+    attacker->mana.value = attacker->mana.max_value = 50;
+    T_ASSERT(G_SetUnitAutocast(attacker, FIRE_INCINERATE, true));
+    G_SetUnitFlag(target, UNIT_FLAG_INVULNERABLE, true);
+    S_ResolveAttackHitWithArrow(attacker, target, 20, 0, 0);
+    T_FEQ(attacker->mana.value, 50.0f, .001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNic")), 0u);
+    G_SetUnitFlag(target, UNIT_FLAG_INVULNERABLE, false);
+    S_ResolveAttackHitWithArrow(attacker, target, 20, 0, 0);
+    T_FEQ(attacker->mana.value, 41.0f, .001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNic")), 1u);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_hud, learn_lava_spawn_tooltip_resolves_summoned_unit_stats) {
     static char const config[] =
         "[ANlm]\nResearchArt=ReplaceableTextures\\CommandButtons\\BTNFireLord.blp\n"

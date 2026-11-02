@@ -211,6 +211,34 @@ TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
     volcano_done(fix);
 }
 
+TEST(wc3_spell, volcano_removed_doodad_never_frees_reused_entity_slot) {
+    volcFix_t fix; volcano_setup(&fix);
+    vec2_t point = { 32.0f, 48.0f };
+    edict_t *doodad, *thinker, *replacement;
+    uint32_t saved_generation;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
+    doodad = volcano_doodad();
+    thinker = volcano_thinker(fix.caster);
+    T_NOT_NULL(doodad); T_NOT_NULL(thinker);
+    if (!doodad || !thinker) { volcano_done(fix); return; }
+    saved_generation = doodad->spawn_time;
+    T_EQ(G_GetChannel(thinker)->target_spawn_time, saved_generation);
+    T_ASSERT(G_RemoveDestructable(doodad));
+    /* Advance past G_Spawn's one-second freed-edict reuse holdoff. Do not
+     * run the scheduler: explicitly drive the next channel wave below. */
+    level.time += 1200;
+    replacement = G_Spawn();
+    T_NOT_NULL(replacement);
+    T_EQ(replacement, doodad);
+    if (replacement) {
+        T_ASSERT(replacement->spawn_time != saved_generation);
+        thinker->freetime = level.time;
+        volcano_think(thinker);
+        T_ASSERT(replacement->inuse);
+    }
+    volcano_done(fix);
+}
+
 TEST(wc3_spell, volcano_caster_move_cancels_remaining_waves) {
     volcFix_t fix; volcano_setup(&fix);
     vec2_t point = fix.enemy->s.origin2;

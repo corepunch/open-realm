@@ -218,7 +218,7 @@ static bool brewmaster_elemental(edict_t const *unit, edict_t const *hero, uint3
          unit->class_id == MAKEFOURCC('n','p','n','1') || unit->class_id == MAKEFOURCC('n','p','n','4'));
 }
 
-static void brewmaster_unhide(edict_t *hero, vec2_t const *point) {
+static void brewmaster_unhide(edict_t *hero, vec2_t const *point, bool prior_external_pause) {
     vec2_t location;
     if (point) {
         if (!G_FindUnitUnstuckPosition(hero, point, &location)) location = *point;
@@ -228,7 +228,8 @@ static void brewmaster_unhide(edict_t *hero, vec2_t const *point) {
         hero->s.origin.z = CM_GetHeightAtPoint(location.x, location.y);
     }
     hero->aiflags &= ~AI_SOUL_TRAPPED;
-    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED, false);
+    G_SetUnitFlag(hero, UNIT_FLAG_PAUSED,
+        prior_external_pause || G_UnitHasFlag(hero, UNIT_FLAG_SCRIPT_PAUSED));
     hero->s.renderfx &= ~RF_HIDDEN;
     hero->svflags &= ~SVF_NOCLIENT;
     hero->s.flags &= ~EF_NOT_SELECTABLE;
@@ -259,11 +260,12 @@ void brewmaster_split_think(edict_t *controller) {
     /* Retire the controller first: simultaneous deaths and save restoration
      * must not trigger two independent hero returns. */
     uint32_t code = controller->class_id;
+    bool const prior_external_pause = controller->resources != 0;
     G_FreeEdict(controller);
     FILTER_EDICTS(unit, brewmaster_elemental(unit, hero, code)) {
         G_FreeEdict(unit); /* elementals disappear, not normal corpse deaths */
     }
-    brewmaster_unhide(hero, &return_point);
+    brewmaster_unhide(hero, &return_point, prior_external_pause);
     if (!alive) {
         G_SetHealth(hero, 0.0f);
         unit_die(hero, NULL);
@@ -328,6 +330,10 @@ static bool brewmaster_split_start(edict_t *hero, uint32_t code) {
         }
     }
     controller->s.origin2 = origin;
+    /* Preserve a non-script pause that predates the split; script-owned
+     * pauses are tracked independently and may change while split. */
+    controller->resources = G_UnitHasFlag(hero, UNIT_FLAG_PAUSED) &&
+        !G_UnitHasFlag(hero, UNIT_FLAG_SCRIPT_PAUSED);
     controller->freetime = G_Time() + (uint32_t)(duration * 1000.0f);
     controller->svflags |= SVF_NOCLIENT;
     controller->think = brewmaster_split_think;

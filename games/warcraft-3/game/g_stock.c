@@ -391,6 +391,10 @@ void G_UpdateShopPatronEffect(gameClient_t *client) {
     existing = G_SpawnModelEffect(art, NULL, patron, "overhead", false);
     if (existing) {
         existing->status_effect_code = WC3_EFFECT_SHOP_PATRON_ARROW;
+        /* A world effect with a personal meaning must never enter another
+         * player's snapshot. The server filters SVF_OWNER_ONLY before encoding. */
+        existing->s.player = client->ps.number;
+        existing->svflags |= SVF_OWNER_ONLY;
         existing->owner = client_entity;
         existing->s.angle = patron_arrow_yaw;
     }
@@ -722,6 +726,12 @@ void G_UpdateSelectedShopStock(gameClient_t *client) {
         }
     }
     if (changed) G_InvalidateCommands(client);
+    /* Unit movement does not inherently dirty the shop command card. Keep
+     * the selected patron arrow current without a full per-frame search. */
+    if (now >= client->shop_patron_refresh_ms) {
+        client->shop_patron_refresh_ms = now + 150u;
+        G_UpdateShopPatronEffect(client);
+    }
 }
 
 static int32_t G_FindUnitStockEntry(edict_t *shop, uint32_t unit_id) {
@@ -1026,7 +1036,6 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
      * eventsolditem stays set through queued trigger execution (same contract as
      * GetEventDamageSource — meaningful only while handling the sell event). */
     eventsolditem = item_ent;
-    eventsoldunit = NULL;
     G_PublishEventWithSource(shop, EVENT_UNIT_SELL_ITEM, patron);
     G_PublishEventWithSource(shop, EVENT_PLAYER_UNIT_SELL_ITEM, patron);
     return true;
@@ -1119,11 +1128,17 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     if (unit->strength <= 0 && unit->agility <= 0 && unit->intelligence <= 0)
         G_PlayerScoreMercenaryHired(client);
     G_InvalidateCommands(client);
+    eventsolditem = NULL; /* Item-only callback context does not apply to unit sales. */
+    /* GetSellingUnit/GetBuyingUnit resolve from the queued event context;
+     * GetSoldUnit is the newly spawned unit, not the purchasing patron. */
+    { gameEvent_t *evt = G_PublishEventWithSource(shop, EVENT_UNIT_SELL, patron);
+      if (evt) { evt->sold_unit = unit_ent; evt->sold_unit_spawn_time = unit_ent->spawn_time; } }
+    { gameEvent_t *evt = G_PublishEventWithSource(shop, EVENT_PLAYER_UNIT_SELL, patron);
+      if (evt) { evt->sold_unit = unit_ent; evt->sold_unit_spawn_time = unit_ent->spawn_time; } }
     return true;
 }
 
 edict_t *eventsolditem = NULL;
-edict_t *eventsoldunit = NULL;
 
 void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail) {
     uint32_t i;

@@ -6861,6 +6861,41 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+/* A queued unit sale retains the sold unit and its incarnation through a save. */
+TEST(wc3_save, pending_unit_sale_carries_sold_unit_across_save_load) {
+    cstring_t filename = Test_TempPath("wc3-sale-event-save.bin");
+    levelEvents_t old_events = level.events;
+    edict_t *shop, *patron, *sold;
+    gameEvent_t *queued;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    memset(&level.events, 0, sizeof(level.events));
+    shop = alloc_test_unit(MAKEFOURCC('n','t','a','v'), 0.0f, 0.0f);
+    patron = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32.0f, 0.0f);
+    sold = alloc_test_unit(MAKEFOURCC('N','a','l','c'), 64.0f, 0.0f);
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    patron->s.player = sold->s.player = 0;
+    sold->spawn_time = 1199;
+    queued = G_PublishEventWithSource(shop, EVENT_PLAYER_UNIT_SELL, patron);
+    T_NOT_NULL(queued);
+    if (queued) {
+        queued->sold_unit = sold;
+        queued->sold_unit_spawn_time = sold->spawn_time;
+        T_ASSERT(WriteGame(filename));
+        queued->sold_unit = NULL;
+        queued->sold_unit_spawn_time = 0;
+        T_ASSERT(ReadGame(filename));
+        T_EQ(level.events.write, 1u);
+        T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SELL);
+        T_ASSERT(level.events.queue[0].sold_unit == sold);
+        T_EQ(level.events.queue[0].sold_unit_spawn_time, 1199u);
+        T_ASSERT(level.events.queue[0].source == patron);
+        T_ASSERT(level.events.queue[0].edict == shop);
+    }
+    level.events = old_events;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = Test_TempPath("wc3-waypoint-save-test.bin");
     vec2_t destination = { 192.0f, 96.0f };

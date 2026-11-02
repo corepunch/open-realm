@@ -6647,7 +6647,8 @@ TEST(wc3_api, unit_flags_native_updates_preserve_other_bits) {
     jass_callbyname(level.vm, "freeze", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(unit->unit_flags, UNIT_FLAG_IGNORE_ALARM | UNIT_FLAG_INVULNERABLE |
-         UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING | UNIT_FLAG_TIMED_LIFE_PAUSED);
+         UNIT_FLAG_PAUSED | UNIT_FLAG_NO_PATHING | UNIT_FLAG_TIMED_LIFE_PAUSED |
+         UNIT_FLAG_SCRIPT_PAUSED);
     heroabilitystatus_t *life = unit_findstatus(unit, MAKEFOURCC('B','T','L','F'));
     T_NOT_NULL(life); if (!life) return;
     T_EQ(life->timestamp, 0); T_ASSERT(life->data > 0);

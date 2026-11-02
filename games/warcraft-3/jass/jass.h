@@ -75,6 +75,8 @@ struct jass_context {
     edict_t *unit;
     edict_t *enumunit;
     edict_t *source;
+    edict_t *soldUnit;
+    uint32_t soldUnitSpawnTime;
     int32_t eventValue;
     uint32_t dialog_id, dialog_button_id;
     vec2_t point;
