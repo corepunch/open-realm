@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Wind Walk333 taskless ownership matches all591 native public rows; Save248 and both-edition focused checks pass. Mixed331 emits827 exact ordered rows but lacks72 Sleep phase/snapshot rows. Full332 fixture failures were corrected by focused checks; full batch has not been repeated. B01 remains open.",
+  "status": "Sleep334 ordinary cast ownership restores all899 mixed-owner331 public rows, with zero mismatches. Wind Walk333 retains591/591; C299 normal and saved remain exact. Fourline Sleep profile change passes focused1438 tests and original Group367 gate. Full batch has not been repeated after332 fixture corrections. B01 remains open.",
   "save_version": 248,
   "full_suite_run": true,
   "native299_engine_parity": true,
@@ -7962,7 +7962,7 @@
       "full_batch_repeated": false
     }
   },
-  "current_phase": 333,
+  "current_phase": 334,
   "full_suite_passed": false,
   "latest_full_source_commit": "f40dcbd6006d3d5c069c132a162146ababa4472b",
   "latest_full_known_failures_corrected": true,
@@ -8086,5 +8086,76 @@
       "passed": true,
       "tests": 76
     }
+  },
+  "phase334": {
+    "scope": "Sleep selects existing ordinary cast owner through its default profile; effect/initial guard/Pause primary clocks unchanged.",
+    "save_version": 248,
+    "production_port_complete": true,
+    "production_lines_added": 4,
+    "full_suite_run": false,
+    "native_reference": "tools/ghidra/fixtures/research/invisibility331-public-original.json",
+    "original_ownership_evidence": {
+      "sleep_vtable": "6fb0add0",
+      "command_flags": "3f9800 returns00100004 without instant02000000",
+      "ordinary_admission": "v378=40a500;4259e0/425aa0;d0160/437940 clears instant100",
+      "concrete_effect": "v3c0=40a2b0 dispatchesv424=50c100",
+      "existing_fixtures": [
+        "tools/ghidra/fixtures/retail-group367-1.27.json",
+        "tools/ghidra/fixtures/research/windwalk333-instant-original.json"
+      ]
+    },
+    "c331": {
+      "passed": true,
+      "public_records": 899,
+      "mismatches": 0,
+      "assertions": 7,
+      "edition": "tft",
+      "report": "build/tests/sleep334/c331.summary.json"
+    },
+    "c333": {
+      "passed": true,
+      "public_records": 591,
+      "report": "build/tests/sleep334/c333.summary.json"
+    },
+    "c299": {
+      "normal_passed": true,
+      "saved_passed": true,
+      "reports": [
+        "build/tests/sleep334/c299.summary.json",
+        "build/tests/sleep334/c299-saved.summary.json"
+      ]
+    },
+    "focused": {
+      "passed": true,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "tests": 1438,
+      "assertions": 75186,
+      "report": "build/tests/sleep334/focused/summary.json"
+    },
+    "group367": {
+      "passed": true,
+      "tests": 6,
+      "assertions": 1280,
+      "report": "build/tests/sleep334/gates/group367.json",
+      "source_and_module_frozen": true
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guards": 3384,
+      "only_refreshed_source": "games/warcraft-3/game/skills/s_sleep.c"
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "remaining": [
+      "Abur and Ahid shared-contribution and Pause/Sleep dispositions.",
+      "Adjusted retained-target range setter reachability.",
+      "Release callback reentrancy and active retained40000 paused recovery.",
+      "Complete explicit dispositions for all17 incoming callers.",
+      "Later Move/Stop during delayed Wind Walk requires native evidence before claiming those branches."
+    ]
   }
 }

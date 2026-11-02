@@ -158,12 +158,19 @@ checks pass: 2,032 tests and 223,776 assertions, including delayed save/load
 and actual recovery-callback replacement. Later
 Move/Stop during delayed admission remains a native evidence boundary.
 
-The corresponding C331 replay emits 827 rows, all matching an ordered subsequence
-of the frozen 899-row reference after only the declared FourCC adapter. Its 72
-missing rows are solely Sleep CAST, FINISH and ENDCAST callbacks and their state
-snapshots: 18 per scene. Sleep phase ownership is the next frontier; positional
-mismatch totals from that missing-row cascade are not additional semantic gaps.
-Full331 and B01 remain open.
+The historical333 C331 replay matched an ordered 827-row subsequence but lacked
+72 Sleep CAST, FINISH and ENDCAST callback/snapshot rows (18 per scene).
+Checkpoint334 adds only Sleep's default ordinary cast profile, replacing its
+legacy CHANNEL/EFFECT-only path with the shared cast owner. Sleep's main duration,
+initial damage guard and independently paused primary clocks are unchanged.
+The final TFT C331 replay matches all 899 public rows with zero mismatches and
+7 passing assertions (`build/tests/sleep334/c331.summary.json`), using only the
+declared FourCC adapter. Both-edition focused checks pass: 1,438 tests and 75,186 assertions. The Group367 original gate passes six tests and 1,280 assertions; Wind Walk333 and normal/saved C299 remain exact.
+
+B01 remains open for the named Abur/Ahid overlap dispositions, adjusted retained-
+range reachability, release-callback reentrancy and the full incoming-caller
+dispositions. This bounded replay match does not close TARGET-01.2 or any of the
+25 whole leaves.
 
 B01 and all 25 whole leaves remain open.
 

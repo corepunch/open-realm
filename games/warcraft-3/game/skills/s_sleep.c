@@ -184,6 +184,10 @@ BZ_ABILITY_PROC(CAbilitySleepOwner) {
 BZ_ABILITY_PROC(CAbilitySleep) {
     heroabilitystatus_t *slot=call ? call->status.slot : NULL;
     switch(msg) {
+    case A_CAST_PROFILE:
+        if(!call || !call->item || !call->cast_profile)return false;
+        S_DefaultSpellCastProfile(ent,call->item->code,call->cast_profile);
+        return true;
     case A_STATUS_POLICY:return UNIT_BUFF_KNOWN|UNIT_BUFF_NEGATIVE|UNIT_BUFF_MAGIC|UNIT_BUFF_AUTO_DISPEL;
     case A_STATUS_REMOVE:case A_STATUS_REPLACE:
         if(slot)sleep_owner_remove(ent,slot);
