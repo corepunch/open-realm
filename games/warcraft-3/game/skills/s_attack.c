@@ -2981,6 +2981,8 @@ edict_t *S_AttackAlternativeTarget(edict_t *unit) {
  * then strict committed-center distance. The generic AI nearest query has a
  * different policy and cannot stand in for this Attack-owned selector. */
 static edict_t *attack_scan_point_target(edict_t *unit) {
+    /*493d64: passive invisibility inhibits this query, not its timer or explicit orders. */
+    if(unit->attack_passive_invisibility_blocked)return NULL;
     /*493d20 source Widget20.1; adjusted retained2bc/2c0 has no mapped
      * public producer. Keep493ff0 scan rearming independent of this gate. */
     if(unit->script_world_hidden)return NULL;
@@ -3419,6 +3421,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
             attack_set_alternative(ent,NULL);
             attack_cap_cancel(ent);
             ent->attack_invisibility_suppression=0;
+            ent->attack_passive_invisibility_blocked=false;
             if(!++ent->attack_invisibility_generation)++ent->attack_invisibility_generation;
             if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
                 sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));

@@ -82,13 +82,16 @@ No serialized field or generic event payload was added. The later authored-abili
 replacement walk (`6f694f00`/`6f6947e0`) removes an unretained zero-policy passive
 through `6f48e8a0` and its virtual detach/retirement path. Concrete Apiv slot
 `+0xe0` points to `6f62e600`, which removes the contribution with zero transition.
-The existing engine cancellation owner already handles this removal: a normal
-rebind dispatches the full `A_UNIT_INIT` path, including innate Apiv initialization.
-An absent passive makes `permanent_invisibility_transition` return negative;
-initialization removes its timer and clears the contribution. A pending Apiv timer
-also prevents the fresh-unit initialization shortcut. Both settled and pending
-return-to-base regressions pass, including checks past the former fade deadline;
-no additional removal behavior was applied.
+Source330 routes this removal through the normal retained-node detach for
+an exact Apiv or Ghost alias that vanished during authored-ability rebind. It
+does not ask initialization of an absent class to clear a unit-wide owner.
+Each vanished node releases its own contribution and held state; retained
+aliases preserve their ownership, and a passive newly introduced by the
+destination keeps its newly started authored fade. The expanded return-to-base
+fixture covers Apiv, Agho and a custom Ghost alias, in both pending and published
+states, including checks after the former fade deadline. The exact regression
+passes 324 assertions per edition, and the complete supportgoal gate passes.
+This is not a new live native Ghost/Morph capture.
 
 The policy's integer lookup `6f54c640` calls `6f047710` with default zero;
 `6f1a8d10` uses `6f1a8950`, whose numeric branch parses base zero and whose quoted

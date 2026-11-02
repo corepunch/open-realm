@@ -951,6 +951,7 @@ typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
     uint32_t code, class_code, references, exclusive_inventory; /* class0: ordinary authored ability. */
     uint32_t attachment_slot, attachment_generation; /* Nonzero only for an item instance owner. */
+    bool passive_invisibility_owned, passive_invisibility_attack_held; /* Per passive instance contribution and native80. */
     bool cast_end_pending, item_use_pending; /* Item ability instance flags1000/4000, shared by nested executions. */
     int32_t depth, order_depth, busy_depth; /* Native ability +3c/+40/+44; independently signed. */
     bool pause_owned, retire_owned, exclusive_owned, linked;
@@ -2501,10 +2502,11 @@ struct edict_s {
         wc3Clock_t origin;
         abilityPrimaryTimer_t request;
         float slope;
-        uint32_t temporary_contributions;
+        uint32_t temporary_contributions, passive_contributions;
         bool permanent_owned, published;
     } permanent_invisibility_fade;
     uint32_t attack_invisibility_generation; /* Incarnation advanced on Aatk detach. */
+    bool attack_passive_invisibility_blocked; /* Native Attack10000000: OR/AND bit, not a count. */
     uint32_t attack_invisibility_suppression; /* Native Attack220, independent of task permission. */
     /* Awan owns autonomous decisions, but ordinary Move owns the actual route. */
     uint32_t wander_next_time;

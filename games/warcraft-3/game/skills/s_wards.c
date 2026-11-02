@@ -428,9 +428,26 @@ void S_UpdateMagicSentryPresentation(edict_t *unit) {
 	} else S_RemoveMagicSentryPresentation(unit);
 }
 
-static float permanent_invisibility_transition(edict_t const *unit) {
-	uint32_t level = unit ? G_UnitAbilityClassLevel(unit, ID_APIV) : 0;
-	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
+static bool passive_invisibility_code(uint32_t code) {
+    uint32_t base=G_AbilityCode(code);
+    return base==ID_APIV || base==MAKEFOURCC('A','g','h','o');
+}
+/* Ownership and level belong to this raw attachment. Class/status queries
+ * can resolve a different alias and do not establish this instance. */
+static uint32_t passive_invisibility_level(edict_t const *unit,uint32_t code) {
+    FOR_LOOP(i,MAX_HERO_ABILITIES)
+        if(unit->heroabilities[i].code==code && unit->heroabilities[i].level)
+            return unit->heroabilities[i].level;
+    return G_ActorHasAbilityCode(unit,code) ? 1 : 0;
+}
+static void invisibility_sync_passive_flags(edict_t *unit) {
+    unit->runtime.flags&=~(UNIT_BALANCE_PERMANENT_INVISIBLE|UNIT_BALANCE_GHOST_INVISIBLE);
+    if(!unit->permanent_invisibility_fade.published)return;
+    for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next) {
+        if(!node->linked || !node->passive_invisibility_owned)continue;
+        if(G_AbilityCode(node->code)==ID_APIV)unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
+        else if(G_AbilityCode(node->code)==MAKEFOURCC('A','g','h','o'))unit->runtime.flags|=UNIT_BALANCE_GHOST_INVISIBLE;
+    }
 }
 
 bool S_GhostActive(edict_t const *unit) {
@@ -693,8 +710,7 @@ static void invisibility_publish(edict_t *unit) {
     uint32_t birth=unit->spawn_time;
     invisibility_publication_depth++;
     unit->permanent_invisibility_fade.published=true;
-    if(unit->permanent_invisibility_fade.permanent_owned)
-        unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
+    invisibility_sync_passive_flags(unit);
     if(unit->permanent_invisibility_fade.temporary_contributions)G_SetEntityHidden(unit,true);
     /* Visibility is published before synchronous TargetLost subscribers. */
     S_UnitTargetLost(unit);
@@ -704,31 +720,85 @@ static void invisibility_publish(edict_t *unit) {
 static void invisibility_last_release(edict_t *unit) {
     invisibility_remove(unit);
     memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade));
-    unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    invisibility_sync_passive_flags(unit);
     S_UnitTargetAvailable(unit);
 }
-static void invisibility_clear(edict_t *unit) {
-
-    unit->permanent_invisibility_fade.permanent_owned=false;
-    unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
-    if(!unit->permanent_invisibility_fade.temporary_contributions)invisibility_last_release(unit);
-}
-static void invisibility_begin(edict_t *unit, float transition) {
-    bool invisible=S_UnitHasInvisibilityState(unit);
-    unit->permanent_invisibility_fade.permanent_owned=true;
-    if(unit->permanent_invisibility_fade.temporary_contributions) {
-        if(unit->permanent_invisibility_fade.published)
-            unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
-        invisibility_notify(unit);return;
+/*631360/62e600 own one contribution and one held80 bit per attachment.
+ * The Attack bit intentionally is not reference counted and has no generation
+ * binding: either inverse clears the currently attached Attack's bit. */
+static void passive_invisibility_release(edict_t *unit,unitAbilityDisable_t *node,bool release_attack) {
+    uint64_t epoch=S_SpellPreparationEpoch();
+    uint32_t birth=unit->spawn_time;
+    if(node->passive_invisibility_owned) {
+        node->passive_invisibility_owned=false;
+        unit->permanent_invisibility_fade.passive_contributions--;
+        unit->permanent_invisibility_fade.permanent_owned=unit->permanent_invisibility_fade.passive_contributions!=0;
+        invisibility_sync_passive_flags(unit);
+        if(!unit->permanent_invisibility_fade.permanent_owned && !unit->permanent_invisibility_fade.temporary_contributions)
+            invisibility_last_release(unit);
     }
-    unit->permanent_invisibility_fade.published=transition==0;
-    invisibility_remove(unit);
-    if(transition==0)unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
-    else unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
-    unit->permanent_invisibility_fade.origin=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
-    unit->permanent_invisibility_fade.slope=transition ? wc3_recip(transition) : 0;
-    if(transition>0)invisibility_schedule(unit,&unit->permanent_invisibility_fade.origin);
-    else if(!invisible)S_UnitTargetLost(unit); /* Publish before synchronous subscribers. */
+    /* Removal queues the actor before dispatching this inverse. The same
+     * deferred actor must still release its held80 bit after TargetAvailable;
+     * only callback teardown or identity replacement invalidates that write. */
+    if(epoch!=S_SpellPreparationEpoch() || !unit->inuse || unit->spawn_time!=birth)return;
+    if(release_attack && node->passive_invisibility_attack_held) {
+        node->passive_invisibility_attack_held=false;
+        if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k')))
+            unit->attack_passive_invisibility_blocked=false;
+    }
+}
+static void passive_invisibility_acquire(edict_t *unit,unitAbilityDisable_t *node,bool acquire_attack) {
+    if(!node->linked || node->depth>0 || node->passive_invisibility_owned ||
+       !passive_invisibility_level(unit,node->code))return;
+    uint32_t rank=passive_invisibility_level(unit,node->code),birth=unit->spawn_time;
+    if(!rank)return;
+    float transition=S_SpellDuration(node->code,rank,false);
+    bool first=!unit->permanent_invisibility_fade.passive_contributions &&
+        !unit->permanent_invisibility_fade.temporary_contributions;
+    node->passive_invisibility_owned=true;
+    unit->permanent_invisibility_fade.passive_contributions++;
+    unit->permanent_invisibility_fade.permanent_owned=true;
+    if(first) {
+        unit->permanent_invisibility_fade.origin=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+        unit->permanent_invisibility_fade.slope=transition ? wc3_recip(transition) : 0;
+        if(transition>0)invisibility_schedule(unit,&unit->permanent_invisibility_fade.origin);
+        else if(transition==0)invisibility_publish(unit);
+    } else {
+        invisibility_sync_passive_flags(unit);
+        invisibility_notify(unit);
+    }
+    if(!invisibility_live(unit,birth) || !node->linked || !node->passive_invisibility_owned)return;
+    if(acquire_attack && !wc3_int_bits(wc3_float_bits(S_SpellData(node->code,rank,1))) &&
+       G_ActorHasAbilityCode(unit,MAKEFOURCC('A','a','t','k'))) {
+        unit->attack_passive_invisibility_blocked=true;
+        node->passive_invisibility_attack_held=true;
+    }
+}
+BZ_ABILITY_PROC(S_PassiveInvisibilityEvent) {
+    if(msg==A_UNIT_EVENT_MASK)return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_UNIT_ACTION);
+    if(!ent || !call || !call->item || !passive_invisibility_code(call->item->code))return false;
+    bool release=msg==A_DISABLE || msg==A_UNIT_REMOVING || msg==A_UNIT_REMOVE || msg==A_UNIT_SUSPEND;
+    bool acquire=msg==A_UNIT_INIT || msg==A_ENABLE || msg==A_LEVEL_CHANGED || msg==A_UNIT_RESUME;
+    /*643f60 resets only the shared contribution; held80 and Attack10000000
+     * survive action reset without a DataA reread. */
+    bool action=msg==A_UNIT_ACTION;
+    if(!release && !acquire && !action)return CAbilityPassive(ent,msg,call);
+    unitAbilityDisable_t *node=NULL;
+    if(release) {
+        /* Removal has already changed membership. Release the retained
+         * attachment without materializing an absent innate passive. */
+        for(unitAbilityDisable_t *entry=ent->ability_disables;entry;entry=entry->next)
+            if(!entry->class_code && !entry->attachment_slot && entry->code==call->item->code) {
+                node=entry;node->references++;break;
+            }
+    } else if(passive_invisibility_level(ent,call->item->code))
+        node=S_RetainAbilityAvailability(ent,call->item->code,0);
+    if(!node)return true;
+    uint32_t birth=ent->spawn_time;
+    if(release || (action && node->depth<=0))passive_invisibility_release(ent,node,release);
+    if(invisibility_live(ent,birth) && (acquire || action))passive_invisibility_acquire(ent,node,!action);
+    S_ReleaseAbilityAvailability(node);
+    return true;
 }
 void S_TemporaryInvisibilityAcquire(edict_t *unit,heroabilitystatus_t *status,float transition) {
     if(!unit || !status || status->invisibility_owned)return;
@@ -914,6 +984,25 @@ bool S_ValidateInvisibilityOwners(void) {
         if(!unit->inuse)continue;
         if(unit->ability_clock_depth<0 || unit->ability_clock_depth!=unit->ability_pause_depth)return false;
         uint32_t contributions=0,held=0,owners[2]={0},nodes[2]={0};
+        uint32_t passives=0;bool apiv=false,ghost=false;
+        if(*(uint8_t const *)&unit->attack_passive_invisibility_blocked>1)return false;
+        for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next) {
+            if(*(uint8_t const *)&node->passive_invisibility_owned>1 ||
+               *(uint8_t const *)&node->passive_invisibility_attack_held>1)return false;
+            if(node->passive_invisibility_owned || node->passive_invisibility_attack_held) {
+                if(!node->linked || node->class_code || node->attachment_slot ||
+                   !passive_invisibility_code(node->code) || !node->passive_invisibility_owned ||
+                   node->depth>0 || !passive_invisibility_level(unit,node->code))return false;
+            }
+            if(node->passive_invisibility_owned) {
+                passives++;
+                if(G_AbilityCode(node->code)==ID_APIV)apiv=true;else ghost=true;
+            }
+        }
+        if(passives!=unit->permanent_invisibility_fade.passive_contributions ||
+           !!passives!=unit->permanent_invisibility_fade.permanent_owned ||
+           !!(unit->runtime.flags&UNIT_BALANCE_PERMANENT_INVISIBLE)!=(apiv && unit->permanent_invisibility_fade.published) ||
+           !!(unit->runtime.flags&UNIT_BALANCE_GHOST_INVISIBLE)!=(ghost && unit->permanent_invisibility_fade.published))return false;
         for(unitAbilityDisable_t const *node=unit->ability_disables;node;node=node->next)
             if(invisibility_concrete_class(node->class_code)) {
                 if(node->code!=node->class_code || !node->linked || node->morph_owned ||
@@ -975,18 +1064,45 @@ bool S_ValidateInvisibilityOwners(void) {
 }
 
 void S_PermanentInvisibilityInitialize(edict_t *unit) {
-    if(!unit)return;
-    float transition=permanent_invisibility_transition(unit);
-    if(transition<0 || S_AbilityExecutionDisabled(unit,ID_APIV)) {invisibility_clear(unit);return;}
-    invisibility_begin(unit,transition);
+    if(!unit || !passive_invisibility_level(unit,ID_APIV))return;
+    unitAbilityDisable_t *node=S_RetainAbilityAvailability(unit,ID_APIV,0);
+    if(node) {passive_invisibility_acquire(unit,node,true);S_ReleaseAbilityAvailability(node);}
 }
-
-/*670950 invokes68b780 after rebind, before new ability attachment. A
- * retained enabled contribution completes its fade; a destination-only passive
- * must keep the authored fade begun by its actual initialization. */
+/* 694f00/6947e0 replace authored attachments after a same-unit type rebind.
+ * Retire vanished raw aliases through their normal detach inverse; a retained
+ * sibling does not own this attachment's contribution or held80 bit. */
+bool S_ReconcilePassiveInvisibilityOwners(edict_t *unit) {
+    uint64_t epoch=S_SpellPreparationEpoch();
+    uint32_t birth=unit->spawn_time,type=unit->class_id;
+    unitAbilityDisable_t *node=unit->ability_disables;
+    if(node)node->references++;
+    while(node) {
+        unitAbilityDisable_t *next=node->next;
+        if(next)next->references++;
+        if(node->linked && !node->class_code && !node->attachment_slot && passive_invisibility_code(node->code)) {
+            /* An outer status query may still describe the source type. */
+            unitStatusQuery_t query;
+            G_BeginUnitStatusQuery(unit,&query);
+            bool retained=passive_invisibility_level(unit,node->code)!=0;
+            G_EndUnitStatusQuery(&query);
+            if(!retained)S_DisableAbility(unit,node->code);
+        }
+        S_ReleaseAbilityAvailability(node);
+        if(epoch!=S_SpellPreparationEpoch() || !invisibility_live(unit,birth) || unit->class_id!=type) {
+            S_ReleaseAbilityAvailability(next);
+            return false;
+        }
+        node=next;
+    }
+    return true;
+}
+/*670950 retained contribution completes its fade without acquiring it twice. */
 void S_RefreshRetainedPermanentInvisibility(edict_t *unit,bool retained) {
-    if(retained && unit && G_ActorHasAbilityCode(unit,ID_APIV) && !S_AbilityExecutionDisabled(unit,ID_APIV))
-        invisibility_begin(unit,0);
+    if(retained && unit && passive_invisibility_level(unit,ID_APIV) &&
+       !S_AbilityExecutionDisabled(unit,ID_APIV) && unit->permanent_invisibility_fade.passive_contributions) {
+        invisibility_remove(unit);
+        invisibility_publish(unit);
+    }
 }
 
 /* Own Permanent Invisibility's publication and exact scalar listener queue. */
@@ -995,18 +1111,10 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
     case A_UNIT_TYPE_INIT:
         if(ent || !call)return UNIT_INIT_UNKNOWN;
         return G_UnitHasAuthoredAbility(call->unit_type,ID_APIV) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
-    case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_UNIT_SUSPEND,A_UNIT_RESUME,A_UNIT_ACTION);
-    case A_UNIT_ACTION:
-        /*643f60 uses the execution count, not the unit's physical pause. */
-        if(ent && call && call->item && !S_AbilityExecutionDisabled(ent,call->item->code))
-            S_PermanentInvisibilityReveal(ent);
-        return true;
+    case A_UNIT_EVENT_MASK:case A_UNIT_ACTION:
     case A_UNIT_INIT:case A_ENABLE:case A_LEVEL_CHANGED:case A_UNIT_RESUME:
-        S_PermanentInvisibilityInitialize(ent);return true;
     case A_DISABLE:case A_UNIT_REMOVING:case A_UNIT_REMOVE:case A_UNIT_SUSPEND:
-        if(ent)invisibility_clear(ent);
-        return true;
+        return S_PassiveInvisibilityEvent(ent,msg,call);
     case A_TIMERS_RESET:
         if(ent)return false;
         invisibility_count=0;memset(invisibility_positions,0,sizeof(invisibility_positions));return true;
@@ -1046,14 +1154,22 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
     }
 }
 void S_PermanentInvisibilityReveal(edict_t *unit) {
-    if(!unit || !unit->permanent_invisibility_fade.permanent_owned)return;
-    uint32_t const birth=unit->spawn_time;
-    /*643f60 releases this contribution before reacquiring authored Dur.
-     * Another contribution retains the shared fade across this inverse. */
-    invisibility_clear(unit);
-    if(!invisibility_live(unit,birth))return;
-    float transition=permanent_invisibility_transition(unit);
-    if(transition>=0)invisibility_begin(unit,transition);
+    if(!unit)return;
+    uint32_t birth=unit->spawn_time;
+    /* Legacy unprofiled callers reset each actual passive attachment. The
+     * ordered A_UNIT_ACTION path invokes only its own retained instance. */
+    unitAbilityDisable_t *node=unit->ability_disables;
+    if(node)node->references++;
+    while(node) {
+        unitAbilityDisable_t *next=node->next;if(next)next->references++;
+        if(node->linked && !node->class_code && passive_invisibility_code(node->code) && node->depth<=0) {
+            passive_invisibility_release(unit,node,false);
+            if(invisibility_live(unit,birth))passive_invisibility_acquire(unit,node,false);
+        }
+        S_ReleaseAbilityAvailability(node);
+        if(!invisibility_live(unit,birth)) {S_ReleaseAbilityAvailability(next);break;}
+        node=next;
+    }
 }
 
 /* RF_HIDDEN is also used for cargo, mines, training and revival.  This narrow

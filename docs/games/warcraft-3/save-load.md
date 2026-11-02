@@ -1,8 +1,18 @@
-Candidate Save246 extends the existing temporary-Invisibility saved ownership
+Save247 retains configured Apiv/Ghost ownership per exact alias,
+including contribution and held80 state, and the shared passive contribution
+count. It preserves the independent non-reference-counted Attack10000000 query
+bit; this bit does not suspend Attack timers. Restore validates owner/count
+consistency. ACTION changes only the invoking owner's contribution, and alias
+Dur drives a fresh lone-owner fade. Focused330 checks pass 1,764 tests/213,182
+assertions and all five broader gates across both editions; older
+formats are rejected. See [passive ownership](invisibility.md#per-alias-ghost-and-permanent-invisibility-candidate330).
+
+The prior Save246 extends the existing temporary-Invisibility saved ownership
 contract to concrete BOwk: shared contribution/fade, per-status primary expiry,
 inherited private Pause clock and captured additive speed contribution. Loading
 uses the common owner/clock validation; older formats are rejected. No new live
-overlap capture is implied. Candidate328 tests/build are pending; see
+overlap capture is implied. The completed full329 baseline passes 9,476 tests/60,733,200 assertions at
+`71126adb4`; see
 [Wind Walk ownership](invisibility.md#wind-walk-common-ownership-candidate328).
 
 The prior Save245 retains each profiled AIvi item's ordered availability node, keyed by

@@ -33,7 +33,7 @@ void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
 static char const wards_slk[] =
-    "ID;PWXL;N;EBB;Y14;X16\n"
+    "ID;PWXL;N;EBB;Y15;X16\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -75,7 +75,9 @@ static char const wards_slk[] =
 	"C;Y14;X1;K\"Aesn\"\nC;Y14;X2;K\"Aesn\"\nC;Y14;X3;K\"1\"\n"
 	"C;Y14;X4;K\"tree\"\nC;Y14;X5;K\"0\"\nC;Y14;X6;K\"0\"\n"
 	"C;Y14;X7;K\"800\"\nC;Y14;X8;K\"2\"\n"
-	"C;Y14;X11;K\"350\"\nC;Y14;X12;K\"96\"\nE\n";
+	"C;Y14;X11;K\"350\"\nC;Y14;X12;K\"96\"\n"
+    "C;Y15;X1;K\"Agho\"\nC;Y15;X2;K\"Agho\"\nC;Y15;X3;K\"1\"\n"
+    "C;Y15;X8;K\"0\"\nC;Y15;X9;K\"0\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -860,7 +862,7 @@ TEST(wc3_spell, ghost_lifecycle_uses_player_relative_invisibility) {
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     ward_setup(&fix);
     T_EQ(item.ability->proc, CAbilityGhost);
-    T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_INIT, &call));
+    T_ASSERT(G_ActorAddSkill(fix.enemy, item.code));
     T_ASSERT(S_GhostActive(fix.enemy));
     T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
     T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
@@ -870,7 +872,7 @@ TEST(wc3_spell, ghost_lifecycle_uses_player_relative_invisibility) {
     T_ASSERT(S_AbilityMessage(fix.enemy, A_ENABLE, &call));
     T_ASSERT(S_GhostActive(fix.enemy));
     T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
-    T_ASSERT(S_AbilityMessage(fix.enemy, A_UNIT_REMOVE, &call));
+    T_ASSERT(G_ActorRemoveSkill(fix.enemy, item.code));
     T_ASSERT(!S_GhostActive(fix.enemy));
     T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
     ward_done(&fix);
@@ -901,7 +903,7 @@ TEST(wc3_save, ghost_runtime_invisibility_round_trips) {
     uint32_t number;
 
     ward_setup(&fix);
-    T_ASSERT(S_AbilityMessage(fix.enemy, A_ENABLE, &call));
+    T_ASSERT(G_ActorAddSkill(fix.enemy, item.code));
     T_ASSERT(S_GhostActive(fix.enemy));
     number = fix.enemy->s.number;
     T_ASSERT(WriteGame(save));

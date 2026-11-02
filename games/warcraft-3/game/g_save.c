@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 246; /* BOwk owns shared invisibility and its paused primary expiry. */
+static uint32_t const save_version = 247; /* Per-attachment Apiv/Ghost contributions and independent Attack query bit. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1389,6 +1389,8 @@ field_t edict_fields[] = {
     F(edict_s, permanent_invisibility_fade.permanent_owned, F_INT),
     F(edict_s, permanent_invisibility_fade.published, F_INT),
     F(edict_s, attack_invisibility_generation, F_INT),
+    F(edict_s, attack_passive_invisibility_blocked, F_INT),
+    F(edict_s, permanent_invisibility_fade.passive_contributions, F_INT),
     F(edict_s, attack_invisibility_suppression, F_INT),
     F(edict_s, aura_effect_role, F_INT),
     F(edict_s, wander_next_time, F_INT),
@@ -3118,6 +3120,7 @@ typedef struct {
     uint32_t code,class_code,exclusive_inventory,attachment_slot,attachment_generation;
     int32_t depth,order_depth,busy_depth;
     bool cast_end_pending,item_use_pending;
+    bool passive_invisibility_owned,passive_invisibility_attack_held;
     bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned,morph_owned,burrow_initialized,burrow_owned;
 } savedAbilityDisable_t;
 
@@ -3125,13 +3128,18 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     uint32_t count=0;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
         if(count==UINT32_MAX || !s->references ||
+           *(uint8_t const *)&s->passive_invisibility_owned>1 ||
+           *(uint8_t const *)&s->passive_invisibility_attack_held>1 ||
+           ((s->passive_invisibility_owned || s->passive_invisibility_attack_held) &&
+            (s->class_code || s->attachment_slot ||
+             (G_AbilityCode(s->code)!=MAKEFOURCC('A','p','i','v') && G_AbilityCode(s->code)!=MAKEFOURCC('A','g','h','o')))) ||
            *(uint8_t const *)&s->cast_end_pending>1 || *(uint8_t const *)&s->item_use_pending>1 ||
            (!s->attachment_slot && (s->cast_end_pending || s->item_use_pending)))return false;
         count++;
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.cast_end_pending=s->cast_end_pending,.item_use_pending=s->item_use_pending,.attachment_slot=s->attachment_slot,.attachment_generation=s->attachment_generation,.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.busy_depth=s->busy_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
+        savedAbilityDisable_t saved={.passive_invisibility_owned=s->passive_invisibility_owned,.passive_invisibility_attack_held=s->passive_invisibility_attack_held,.cast_end_pending=s->cast_end_pending,.item_use_pending=s->item_use_pending,.attachment_slot=s->attachment_slot,.attachment_generation=s->attachment_generation,.code=s->code,.class_code=s->class_code,.depth=s->depth,.order_depth=s->order_depth,.busy_depth=s->busy_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned,.morph_owned=s->morph_owned,.burrow_initialized=s->burrow_initialized,.burrow_owned=s->burrow_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -3147,6 +3155,11 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
         if(!!saved.attachment_slot!=!!saved.attachment_generation ||
            *(uint8_t const *)&saved.cast_end_pending>1 || *(uint8_t const *)&saved.item_use_pending>1 ||
            (!saved.attachment_slot && (saved.cast_end_pending || saved.item_use_pending)))goto failed;
+        if(*(uint8_t const *)&saved.passive_invisibility_owned>1 ||
+           *(uint8_t const *)&saved.passive_invisibility_attack_held>1 ||
+           ((saved.passive_invisibility_owned || saved.passive_invisibility_attack_held) &&
+            (saved.class_code || saved.attachment_slot ||
+             (G_AbilityCode(saved.code)!=MAKEFOURCC('A','p','i','v') && G_AbilityCode(saved.code)!=MAKEFOURCC('A','g','h','o')))))goto failed;
         if(saved.attachment_slot) {
             if(saved.class_code!=MAKEFOURCC('A','I','v','i') || G_AbilityCode(saved.code)!=saved.class_code ||
                saved.exclusive_owned || saved.exclusive_inventory || saved.ethereal_initialized || saved.ethereal_owned ||
@@ -3162,6 +3175,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
                (!s->attachment_slot && s->code==saved.code && s->class_code==saved.class_code))goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->attachment_slot=saved.attachment_slot;state->attachment_generation=saved.attachment_generation;
+        state->passive_invisibility_owned=saved.passive_invisibility_owned;state->passive_invisibility_attack_held=saved.passive_invisibility_attack_held;
         state->cast_end_pending=saved.cast_end_pending;state->item_use_pending=saved.item_use_pending;
         state->code=saved.code;state->class_code=saved.class_code;state->depth=saved.depth;state->order_depth=saved.order_depth;state->busy_depth=saved.busy_depth;
         state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;state->morph_owned=saved.morph_owned;state->burrow_initialized=saved.burrow_initialized;state->burrow_owned=saved.burrow_owned;

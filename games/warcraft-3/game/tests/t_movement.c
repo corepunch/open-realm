@@ -23492,7 +23492,24 @@ TEST(wc3_movement, target218_queued_unseen_move_saves_point_without_target_lifet
         T_EQ(queued->target_type,UNIT_ORDER_TARGET_POINT);T_STREQ(queued->order,"move");
         T_EQ(wc3_float_bits(queued->point.x),0x44dc0000u);T_EQ(wc3_float_bits(queued->point.y),0x44800000u);
     }
-    target217_call("share");S_SetUnitAxisPosition(target,1,1408);G_DeferFreeEdict(target);
+    target217_call("share");S_SetUnitAxisPosition(target,1,1408);
+    bool attached_apiv=false;
+    for(unitAbilityDisable_t const *node=target->ability_disables;node;node=node->next) {
+        if(node->code!=MAKEFOURCC('A','p','i','v') || node->class_code)continue;
+        attached_apiv=true;
+        T_ASSERT(node->linked && node->passive_invisibility_owned);
+        T_ASSERT(node->passive_invisibility_attack_held);
+    }
+    T_ASSERT(attached_apiv);
+    G_DeferFreeEdict(target);
+    T_ASSERT(target->inuse && G_IsDeferredFree(target));
+    T_EQ(target->permanent_invisibility_fade.passive_contributions,0u);
+    /* Re-enumerate: removal may unlink nodes. Never borrow a pointer across
+     * its inverse. Every retained node must have completed both releases. */
+    for(unitAbilityDisable_t const *node=target->ability_disables;node;node=node->next) {
+        T_ASSERT(!node->passive_invisibility_owned);
+        T_ASSERT(!node->passive_invisibility_attack_held);
+    }
     cstring_t file=Test_TempPath("wc3-target218-queued-point.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     T_EQ(unit->order_queue.count,1);

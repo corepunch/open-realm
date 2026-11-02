@@ -278,3 +278,32 @@ component, not proof of public reentrant Wind Walk admission.
 Full329 verification at `71126adb4` passes 9,476 tests/60,733,200 assertions
 across both editions. All606 source,16 artifact and42 asset hashes remain frozen;
 there are no failures, errors or skips. B01 remains open.
+
+## Per-alias Ghost and Permanent Invisibility: candidate330
+
+Configured Agho and Apiv attachments each own their contribution under their
+exact alias and authored Dur. They share the unit's fade and contribution count;
+ACTION releases/reacquires only the invoking alias's contribution. A remaining
+sibling therefore preserves the shared fade, while a lone owner's action resets
+its own authored duration. Ghost's private-clock notification is a no-op; it
+does not inherit Binv's private expiry suspension.
+
+The separate native Attack10000000 query bit uses OR/AND ownership, not a
+reference count or timer suspension. Each passive owner retains its held80
+state: removing one held owner clears the bit even when another remains, and
+the remaining owner's contribution-only ACTION does not reacquire that bit.
+Save247 records per-alias ownership and validates the shared count.
+Type rebinding detaches each vanished raw alias through its normal inverse.
+Deferred removal completes the contribution and held-bit releases on the same
+actor, with identity checks after synchronous callbacks. Retained aliases and
+newly introduced destination fades keep their independent ownership.
+
+[original330 evidence](../../../tools/ghidra/fixtures/research/ghost330-original.json) and the [byte checker](../../../tools/ghidra/research/ghost330_check.py) guard 14 bodies, 24 vtable words and 43 calls, with
+eight negative controls. Focused checks pass 1,764 tests/213,182 assertions;
+all five broader gates pass 1,474 tests/7,096,974 assertions across both editions.
+The pending/published morph inverse passes 324 assertions per edition for Apiv,
+Agho and a custom Ghost alias. Normal and saved299 comparisons retain exact
+2,066 public/5,342 motion rows each. There is no new full native overlap capture. Source
+DataB target behavior and DataC spatial behavior remain explicit limits. The
+prior full329 result remains 9,476 tests/60,733,200 assertions at `71126adb4`;
+B01 and all 25 whole leaves remain open.

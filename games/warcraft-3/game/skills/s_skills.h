@@ -492,7 +492,9 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);
+BZ_ABILITY_PROC(S_PassiveInvisibilityEvent);
 void S_RefreshRetainedPermanentInvisibility(edict_t *unit,bool retained);
+bool S_ReconcilePassiveInvisibilityOwners(edict_t *unit);
 /* Concrete attached buffs share the saved ordered availability owners. */
 void S_AttachStatusAbilityAvailability(edict_t *,uint32_t,uint32_t);
 void S_DetachStatusAbilityAvailability(edict_t *,uint32_t,uint32_t);

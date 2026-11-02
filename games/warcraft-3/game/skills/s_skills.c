@@ -1884,8 +1884,10 @@ static void ability_disable_release(unitAbilityDisable_t *state) {
     }
 }
 
+static void ability_disable_prepare(edict_t *ent);
 unitAbilityDisable_t *S_RetainAbilityAvailability(edict_t *ent,uint32_t code,uint32_t class_code) {
     if(!ent || !ent->inuse || !code)return NULL;
+    ability_disable_prepare(ent);
     unitAbilityDisable_t *owner=ability_disable_typed_owner(ent,code,class_code);
     owner->references++;
     return owner;

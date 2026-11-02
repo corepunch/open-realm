@@ -6156,9 +6156,21 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
 
 static void unknown_save_think(edict_t *ent) { (void)ent; }
 
+slkTestData_t *parse_slk_string(cstring_t);
+void free_slk_rows(slkTestData_t *);
+
 TEST(wc3_save, round_trip_entity_c_callbacks) {
     cstring_t filename = Test_TempPath("wc3-save-cfunctions.bin");
     reset_entities();
+    /* Real configured passive ownership, not a forged published aggregate. */
+    char const invisibility_slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K4\nC;Y2;X5;K4\nE\n";
+    slkTestData_t *invisibility_rows = parse_slk_string(invisibility_slk);
+    slkTestData_t *old_invisibility_rows = G_SetSLKRows("AbilityData", invisibility_rows);
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     edict_t *mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 1.0f, 0.0f);
     edict_t *idle = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 2.0f, 0.0f);
@@ -6195,9 +6207,27 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
     unit->spawn_time = 2468; mine->spawn_time = 369; chain->spawn_time = 1357;
-    unit->permanent_invisibility_fade.origin=(wc3Clock_t){17.25f,3,300};
-    unit->permanent_invisibility_fade.slope=.25f;
-    unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    level.pathing_clock=(wc3Clock_t){17.25f,3,300};
+    T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','p','i','v')));
+    /* Deliver real primary requests without invoking the deliberately varied
+     * entity thinker callbacks whose serialization this test exercises. */
+    FOR_LOOP(firing,1024) {
+        if(unit->permanent_invisibility_fade.published)break;
+        abilityTimerRequest_t request;
+        bool const pending=S_NextAbilityPrimaryTimer(&request);
+        T_ASSERT(pending);
+        if(!pending)break;
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};
+        request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_ASSERT(unit->permanent_invisibility_fade.published);
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+    T_EQ(unit->permanent_invisibility_fade.origin.time,17.25f);
+    T_EQ(unit->permanent_invisibility_fade.origin.epoch,3);
+    T_EQ(unit->permanent_invisibility_fade.origin.span,300);
+    T_EQ(unit->permanent_invisibility_fade.slope,.25f);
+    T_ASSERT(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE);
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
     if (!chain->channel) chain->channel = G_AllocChannel();
     assert(chain->channel);
@@ -6232,10 +6262,15 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = S_SetMoveGoal(chain_marker, &chain_marker->goalentity, NULL);
-    memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade)); unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','p','i','v')));
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,0u);
+    T_ASSERT(!(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE));
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','p','i','v')));
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+    T_ASSERT(unit->permanent_invisibility_fade.published);
     T_ASSERT(unit->stand == unit_stand && unit->birth == unit_birth && unit->die == unit_die && unit->think == monster_think);
     T_EQ(unit->permanent_invisibility_fade.origin.time,17.25f);
     T_EQ(unit->permanent_invisibility_fade.origin.epoch,3);T_EQ(unit->permanent_invisibility_fade.origin.span,300);
@@ -6274,6 +6309,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
     T_EQ(chain_marker->channel->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
+    G_SetSLKRows("AbilityData",old_invisibility_rows);
+    free_slk_rows(invisibility_rows);
 }
 
 TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {

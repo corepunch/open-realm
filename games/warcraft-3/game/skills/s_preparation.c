@@ -290,6 +290,7 @@ static bool preparation_availability_complete(preparationItem_t const *rows,uint
            node->class_code!=MAKEFOURCC('A','I','v','i') || node->exclusive_owned ||
            node->exclusive_inventory || node->ethereal_initialized || node->ethereal_owned ||
            node->morph_owned || node->burrow_initialized || node->burrow_owned ||
+           node->passive_invisibility_owned || node->passive_invisibility_attack_held ||
            *(uint8_t const *)&node->pause_owned>1 || *(uint8_t const *)&node->retire_owned>1 ||
            *(uint8_t const *)&node->cast_end_pending>1 || *(uint8_t const *)&node->item_use_pending>1)return false;
         preparationItem_t const *row=rows+node->attachment_slot;

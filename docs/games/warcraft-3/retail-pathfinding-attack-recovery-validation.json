@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "target": "TARGET-01.2 F19/D051",
-  "status": "Wind Walk and exact-instance continuation are verified by full329:9476 tests/60733200 assertions across both editions. B01 consumer overlaps and caller dispositions remain open.",
-  "save_version": 246,
-  "full_suite_run": true,
+  "status": "Candidate330 ports per-attachment Apiv/Ghost shared ownership and independent Attack scan bit; focused verification is pending. Most recent full proof remains329 at71126adb4; B01 remains open.",
+  "save_version": 247,
+  "full_suite_run": false,
   "native299_engine_parity": true,
   "native_reference": {
     "spec": "tools/ghidra/fixtures/retail-attack-recovery299-1.27.json",
@@ -7511,6 +7511,201 @@
       "frozen_sources": 606,
       "frozen_artifacts": 16,
       "frozen_assets": 42
+    }
+  },
+  "phase330": {
+    "scope": "Exact per-alias Apiv/Agho invisibility contributions and separate native scan-query inhibition bit, preserving shared fade and callback ownership.",
+    "save_version": 247,
+    "original_proof": {
+      "fixture": "tools/ghidra/fixtures/research/ghost330-original.json",
+      "sha256": "92e73a4148811d227bb249fac351f8c84d0e8b7861ef2ea9dbdd3a4b59f098ca",
+      "checker": "tools/ghidra/research/ghost330_check.py",
+      "passed": true,
+      "whole_functions": 14,
+      "vtable_words": 24,
+      "direct_calls": 43,
+      "negative_controls": 8,
+      "scope": "Static original bytes; no new live mixed-overlap capture.",
+      "report": "build/tests/ghost330/original-check.json"
+    },
+    "ownership": [
+      "Each raw passive alias retains its own contribution and native80 latch; shared publication derives Apiv/Ghost classification independently.",
+      "631360/62e600 acquire/release shared contribution using the actual alias/rank Dur, separately from temporary Binv/BOwk expiry.",
+      "643f60 action releases/reacquires only that contribution; it does not reread DataA or clear/reacquire80.",
+      "Integer-zero DataA sets Attack10000000 and per-instance80. Either inverse clears the current Attack bit directly, without a reference count or receiver-generation normalization.",
+      "493d64 inhibits only target scanning. Primary scan timers and explicit orders retain their independent owners.",
+      "Authored type rebind retires vanished exact Apiv/Ghost aliases through normal detach before destination initialization; retained owners and fresh destination fades remain independent."
+    ],
+    "remaining": [
+      "Ghost DataB target-admission and DataC spatial-category overrides are not covered by this contribution port.",
+      "Public mixed-overlap timelines and remaining B01 caller dispositions are still required."
+    ],
+    "full_suite_run": false,
+    "prior_full_suite": {
+      "phase": 329,
+      "source_commit": "71126adb436dd439a4e63ffed4b20bdf46502128",
+      "tests": 9476,
+      "assertions": 60733200,
+      "report": "build/tests/windwalk329/full-captain-fix/summary.json",
+      "applies_to_current330_sources": false
+    },
+    "whole_backlog_leaf_closed": false,
+    "open_backlog_leaves": 25,
+    "focused": {
+      "passed": true,
+      "tests": 1764,
+      "assertions": 213182,
+      "processes": 8,
+      "editions": [
+        "classic",
+        "tft"
+      ],
+      "report": "build/tests/ghost330/focused-verified/summary.json",
+      "report_sha256": "196b55cdeb08ae778411fa3ab415d6ce9bc9f6a646041d0a57b168069e6c51da"
+    },
+    "gates": {
+      "passed": true,
+      "tests": 1474,
+      "assertions": 7096974,
+      "reports": {
+        "supportgoal": {
+          "path": "build/tests/ghost330/gates-verified/supportgoal.json",
+          "sha256": "89512a48d0a7eca0ae3318cf9dacd55942622459c7d11f506f90d1eaf403b1bf",
+          "engine": {
+            "classic": {
+              "tests": 514,
+              "assertions": 2002508
+            },
+            "tft": {
+              "tests": 514,
+              "assertions": 2002508
+            }
+          }
+        },
+        "group012": {
+          "path": "build/tests/ghost330/gates-verified/group012.json",
+          "sha256": "4599873e668fb876ba0dbc65250be8a3885e1509e54298508b8e90371dea7a01",
+          "engine": {
+            "classic": {
+              "tests": 20,
+              "assertions": 1146726
+            },
+            "tft": {
+              "tests": 20,
+              "assertions": 1146726
+            }
+          }
+        },
+        "waygate377": {
+          "path": "build/tests/ghost330/gates-verified/waygate377.json",
+          "sha256": "da92e4b438dd92d95e1439964b46bb30d0aca1b13c53fc796e992d84c330fd29",
+          "engine": {
+            "classic": {
+              "tests": 39,
+              "assertions": 229803
+            },
+            "tft": {
+              "tests": 39,
+              "assertions": 229803
+            }
+          }
+        },
+        "itemdrop": {
+          "path": "build/tests/ghost330/gates-verified/itemdrop.json",
+          "sha256": "f60873e4b1242c9fb054705942c2c4676f2bf0ae0a5cd873550defbc67a14c14",
+          "engine": {
+            "classic": {
+              "tests": 154,
+              "assertions": 12568
+            },
+            "tft": {
+              "tests": 154,
+              "assertions": 12568
+            }
+          }
+        },
+        "captain473": {
+          "path": "build/tests/ghost330/gates-verified/captain473.json",
+          "sha256": "a2cc55fabc303ba9fdf911ea2475a0e00d4e62567183190f147319384d7e3ac5",
+          "engine": {
+            "classic": {
+              "tests": 10,
+              "assertions": 156882
+            },
+            "tft": {
+              "tests": 10,
+              "assertions": 156882
+            }
+          }
+        }
+      }
+    },
+    "preflight": {
+      "passed": true,
+      "report": "build/tests/ghost330/preflight-verified/summary.json",
+      "ghost_assertions_per_edition": 77,
+      "queued_move_assertions_per_edition": 318
+    },
+    "morph_inverse": {
+      "passed": true,
+      "assertions_per_edition": 324,
+      "report": "build/tests/ghost330/rebind-fix/summary.json",
+      "aliases": [
+        "Apiv",
+        "Agho",
+        "Xg74"
+      ],
+      "states": [
+        "pending",
+        "published"
+      ]
+    },
+    "c299": {
+      "normal": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "report": "build/tests/ghost330/c299-verified.summary.json"
+      },
+      "saved": {
+        "passed": true,
+        "public_rows": 2066,
+        "motion_rows": 5342,
+        "mismatches": 0,
+        "checkpoints": 9,
+        "report": "build/tests/ghost330/c299-saved-verified.summary.json"
+      }
+    },
+    "freeze": {
+      "sources": 606,
+      "source_record": "build/tests/ghost330/gates-verified/source-before.json",
+      "source_sha256": "93c56470e16f9fe3b7dbf577b0151198c64336fd7f6c3af5eb73c89a65741d4f",
+      "binary_sha256": "5bf820a1341c4b6b75975b627268f3f4f08aae88cfb8af8f292fe6c63ae94ee1",
+      "library_sha256": "4aba8e8009b607c348fae4b410e4df078c99825b4f459828ce1dede84219bed2",
+      "asset_record": "build/tests/ghost330/gates-verified/assets-before.json"
+    },
+    "development_corrections": [
+      "Raw Hero-slot ownership is admitted before node creation; absent innate Apiv cannot create a phantom attachment.",
+      "The old save fixture now creates a real passive owner instead of forging an invisible runtime flag.",
+      "A real destination-only passive regression exposed a missed rebind inverse; normal detach fixes it for Apiv, Ghost and a custom Ghost alias.",
+      "Queued-move save exposed a real deferred-removal trailing inverse bug; held80 now releases on the same deferred actor.",
+      "Ghost acquisition regression now covers both authored DataA values: query inhibition with a running scan timer, and allowed acquisition."
+    ],
+    "python_checks": {
+      "passed": true,
+      "tests": 76,
+      "suites": [
+        "test_wc3_pathfinding_itemdrop_point",
+        "test_wc3_pathfinding_itemdrop_gate",
+        "test_wc3_pathfinding_itemdrop_admission",
+        "test_wc3_pathfinding_corpus"
+      ]
+    },
+    "corpus": {
+      "passed": true,
+      "entries": 614,
+      "guarded_files": 3359
     }
   }
 }

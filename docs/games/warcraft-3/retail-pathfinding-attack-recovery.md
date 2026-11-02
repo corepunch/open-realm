@@ -956,3 +956,18 @@ The fresh full batch at `71126adb4` passes all 9,476 tests/60,733,200 assertions
 in eight shards across both editions, with zero failures/errors/skips. All606
 game C/header,16 compiled artifact and42 asset hashes match its frozen source
 record. The earlier failed batch remains separately recorded. B01 remains open.
+
+## Passive overlap dependency: candidate330
+
+Apiv/Ghost now retain exact-alias contributions and authored Dur in the common
+shared fade owner (Save247). ACTION resets only its own contribution; it keeps
+the native held80 ownership separate. Attack10000000 is an independent query
+bit with OR/AND semantics, not a counted suppression or timer suspension.
+[original330 evidence](../../../tools/ghidra/fixtures/research/ghost330-original.json) and the [byte checker](../../../tools/ghidra/research/ghost330_check.py) guard 14 bodies/24 vtable words/43 calls and eight
+negative controls. Focused checks pass 1,764 tests/213,182 assertions; all five
+broader gates pass 1,474 tests/7,096,974 assertions across both editions. Normal
+and saved299 each preserve exact 2,066 public/5,342 motion rows. The rebind
+inverse retires vanished Apiv/Ghost aliases through normal detach; retained
+owners and newly introduced destination fades stay independent. DataB target and DataC spatial
+behavior remain limits; no new full native overlap capture or B01 closure is
+claimed. Prior full329 at `71126adb4` passed 9,476 tests/60,733,200 assertions.

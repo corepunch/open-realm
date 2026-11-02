@@ -134,7 +134,9 @@ static slkTestData_t *m374_data(unsigned schema,unsigned family) {
     char text[1800];snprintf(text,sizeof(text),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
         "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\nC;X7;K\"%s\"\n"
         "C;X1;Y2;K\"Ms74\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K0\nC;X7;K1\n"
-        "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.625\nE\n",
+        "C;X1;Y3;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X5;K0.625\n"
+        "C;X1;Y4;K\"Agho\"\nC;X2;K\"Agho\"\nC;X5;K0.625\n"
+        "C;X1;Y5;K\"Xg74\"\nC;X2;K\"Agho\"\nC;X5;K0.375\nE\n",
         schema ? "Data11" : "DataA1",schema ? "Data13" : "DataC1",family ? "Arav" : "Abrf");
     slkTestData_t *data=parse_slk_string(text);G_SetSLKRows("AbilityData",data);
     T_FEQ(G_AbilityLevel(FS_SLKKey("Ms74"),1)->data[2].number,1,.000001f);
@@ -228,28 +230,34 @@ TEST(wc3_unit,morph374_detach_releases_only_its_configured_owner) {
 /* Rebind refresh consumes only an existing contribution. A passive introduced
  * by the destination type must begin and retain its own authored fade. */
 TEST(wc3_unit,morph374_destination_only_authored_passive_keeps_its_fade) {
-    for(unsigned schema=0;schema<2;schema++)for(unsigned pending=0;pending<2;pending++) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned pending=0;pending<2;pending++)for(unsigned kind=0;kind<3;kind++) {
+        char const *aliases[]={"Apiv","Agho","Xg74"};
+        uint32_t const passive=FS_SLKKey(aliases[kind]);
         reset_entities();setup_test_world();m374Config_t config=m374_config(1);
         slkTestData_t *a,*oa,*ui,*oui,*p,*op;
         m374_install_presentation(&a,&oa,&ui,&oui,&p,&op);
         slkTestData_t *data=m374_data(schema,0);
         mapInfo_t const *oldmap=level.mapinfo;mapInfo_t info=*oldmap;
-        unitModification_t mod={.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Apiv"};
+        unitModification_t mod={.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data=(void *)aliases[kind]};
         unitData_t alternate={.originalUnitID=MAKEFOURCC('h','f','o','o'),.numbeOfModifications=1,.modifications=&mod};
         info.num_originalUnits=1;info.originalUnits=&alternate;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
         edict_t *unit=m374_unit(false);
-        T_ASSERT(!G_ActorHasAbilityCode(unit,FS_SLKKey("Apiv")));
+        T_ASSERT(!G_ActorHasAbilityCode(unit,passive));
         T_ASSERT(G_TransformUnitType(unit,FS_SLKKey("hfoo")));
-        T_ASSERT(G_ActorHasAbilityCode(unit,FS_SLKKey("Apiv")));
+        T_ASSERT(G_ActorHasAbilityCode(unit,passive));
         T_ASSERT(unit->permanent_invisibility_fade.request.active);
-        T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.slope),
+             wc3_float_bits(wc3_recip(kind==2 ? .375f : .625f)));
+        T_ASSERT(!(kind ? S_GhostActive(unit) : S_PermanentInvisibilityActive(unit)));
         T_FEQ(unit->permanent_invisibility_fade.origin.time,1,.000001f);
-        if(!pending){m374_advance(1.75f);T_ASSERT(S_PermanentInvisibilityActive(unit));}
+        if(!pending){m374_advance(1.75f);T_ASSERT((kind ? S_GhostActive(unit) : S_PermanentInvisibilityActive(unit)));}
         T_ASSERT(G_TransformUnitType(unit,FS_SLKKey("hpea")));
-        T_ASSERT(!G_ActorHasAbilityCode(unit,FS_SLKKey("Apiv")));
-        T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        T_ASSERT(!G_ActorHasAbilityCode(unit,passive));
+        T_ASSERT(!(kind ? S_GhostActive(unit) : S_PermanentInvisibilityActive(unit)));
         T_ASSERT(!unit->permanent_invisibility_fade.request.active);
-        m374_advance(2.75f);T_ASSERT(!S_PermanentInvisibilityActive(unit));
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,0u);
+        m374_advance(2.75f);T_ASSERT(!(kind ? S_GhostActive(unit) : S_PermanentInvisibilityActive(unit)));
         reset_entities();level.mapinfo=oldmap;G_SetMapUnitOverrides(oldmap);
         m374_restore_presentation(a,oa,ui,oui,p,op);free_slk_rows(data);m374_restore_config(&config);
     }

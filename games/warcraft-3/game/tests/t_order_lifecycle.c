@@ -3170,11 +3170,20 @@ TEST(wc3_order_lifecycle, hidden_source_finishes_move_without_acquiring_then_sho
 }
 
 TEST(wc3_order_lifecycle, ghost_source_remains_eligible_for_idle_acquisition) {
+    for(unsigned data_a=0;data_a<2;data_a++) {
     creep_guard_setup_frame_world();level.show_map_cheat=true;
-    static char const text[]=
-        "ID;PWXL;N;E\nB;X3;Y2\n"
+    /* reset_entities preserves primary time between these two cases. Keep
+     * the mocked server clock aligned before attaching any timer owners. */
+    level.time=level.pathing_msec;
+    /*631360 DataA integer zero owns Attack10000000 query inhibition.
+     * Both settings retain world presence; only zero blocks the scan query. */
+    char text[512];
+    snprintf(text,sizeof(text),
+        "ID;PWXL;N;E\nB;X5;Y2\n"
         "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
-        "C;Y2;X1;K\"Agho\"\nC;Y2;X2;K\"Agho\"\nC;Y2;X3;K\"1\"\nE\n";
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Data11\"\n"
+        "C;Y2;X1;K\"Agho\"\nC;Y2;X2;K\"Agho\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"%u\"\nC;Y2;X5;K\"%u\"\nE\n",data_a,data_a);
     slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
     edict_t *source=review_order_unit_at(256,256,0),*enemy=review_order_unit_at(512,256,1);
     source->think=monster_think;source->s.model=enemy->s.model=1;
@@ -3187,9 +3196,23 @@ TEST(wc3_order_lifecycle, ghost_source_remains_eligible_for_idle_acquisition) {
         "call BJassAssert(UnitAddAbility(u,'Agho'),\"authored Ghost acquired\")\nendfunction\n"));
     T_ASSERT(S_GhostActive(source));T_ASSERT(!source->script_world_hidden);
     T_ASSERT(G_UnitHasWorldPresence(source));
-    FOR_LOOP(i,30) {if(source->attack_target==enemy)break;creep_guard_run_frames(1);}
-    T_EQ(source->attack_target,enemy);
+    T_EQ(source->attack_passive_invisibility_blocked,data_a==0);
+    uint64_t sequence=source->attack_scan.sequence;
+    FOR_LOOP(i,30) {
+        if(data_a && source->attack_target==enemy)break;
+        creep_guard_run_frames(1);
+        if(!data_a) {
+            T_EQ(source->attack_target,NULL);
+            T_ASSERT(!source->attack_reaction.active);
+        }
+    }
+    if(data_a)T_EQ(source->attack_target,enemy);
+    else {
+        T_ASSERT(source->attack_scan.active);
+        T_ASSERT(source->attack_scan.sequence>sequence);
+    }
     reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
 }
 
 /* An Ensnared returning creep stands in acquisition range of an enemy. Retail

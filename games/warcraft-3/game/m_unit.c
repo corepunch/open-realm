@@ -2181,6 +2181,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     if (old_flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     unit->class_id = unit->s.class_id = type;
     G_BindEntityData(unit);
+    if(!S_ReconcilePassiveInvisibilityOwners(unit))return false;
     unit->s.flags &= ~(EF_BUILDING | EF_FOW_BLOCKER | EF_FOW_REVEALER);
     unit->aiflags &= ~(AI_FLYING | AI_IMMOBILE);
     unit->s.shadow = 0;

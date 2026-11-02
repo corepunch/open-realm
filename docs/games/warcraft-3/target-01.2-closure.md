@@ -96,6 +96,19 @@ both editions; all source/artifact/asset hashes match the frozen record. This
 is not a new live overlap capture or completed B01 disposition; all 25 whole
 leaves remain open.
 
+**Implemented330, focused verification passed:** exact-alias Apiv/Ghost contributions,
+authored Dur and shared fade/count ownership use Save247. ACTION resets only
+the invoking contribution and preserves held80; the separate non-reference-
+counted Attack10000000 query bit is not an Attack timer suspension. The
+[original330 checker evidence](../../../tools/ghidra/fixtures/research/ghost330-original.json)
+covers 14 bodies/24 vtable words/43 calls and eight negative controls. DataB
+target/DataC spatial behavior remain limits, and no full native overlap capture
+is claimed. Prior full329 passed 9,476 tests/60,733,200 assertions at `71126adb4`.
+Focused330 passes 1,764 tests/213,182 assertions and all five gates
+(1,474 tests/7,096,974 assertions), across both editions. Normal/saved299
+comparisons remain exact. No full330 suite was run.
+B01 and all 25 whole leaves remain open.
+
 ### B02. Finish Attack/AttackMove producer attribution — F15, F16, F17, F20
 
 1. Preserve the completed public265 stream and cache correction. For D036–D041, attach the exact acquisition/home/replacement scene rather than describing that completed stream as unfinished.

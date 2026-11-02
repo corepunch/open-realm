@@ -754,6 +754,125 @@ TEST(wc3_spell, wind_walk328_configured_overlap_saved_owner_and_primary_expiry) 
     free_slk_rows(rows);
 }
 
+/* Engine component coverage of the guarded original Ghost ownership chain;
+ * not a newly captured native mixed-owner timeline. */
+TEST(wc3_spell, ghost330_configured_mixed_owners_share_fade_and_saved_inverse) {
+    bool const tft=atoi(gi.CvarString("fs_expansion","0"))!=0;
+    char slk[4096]; size_t used=0;
+    char const *columns[]={"alias","code","levels","Cost1","Cool1","Rng1",
+        "Dur1","HeroDur1","BuffID1",tft?"targs1":"targs",
+        tft?"DataA1":"Data11",tft?"DataB1":"Data12"};
+    used+=(size_t)snprintf(slk+used,sizeof(slk)-used,"ID;PWXL;N;EBB;Y5;X12\n");
+    FOR_LOOP(c,12)used+=(size_t)snprintf(slk+used,sizeof(slk)-used,"C;Y1;X%u;K\"%s\"\n",c+1,columns[c]);
+    char const *values[4][12]={
+        {"Xgh1","Agho","1","0","0","600","0.75","0.75","","air,ground,friend","0","0"},
+        {"Xpiv","Apiv","1","0","0","600","0.5","0.5","","air,ground,friend","0","0"},
+        {"Aivs","Aivs","1","0","0","600","3","3","Binv","air,ground,friend","0.5","0"},
+        {"AOwk","AOwk","1","0","0","600","3","3","BOwk","air,ground,friend","0.5","0.17"}};
+    FOR_LOOP(r,4)FOR_LOOP(c,12)used+=(size_t)snprintf(slk+used,sizeof(slk)-used,
+        "C;Y%u;X%u;K\"%s\"\n",r+2,c+1,values[r][c]);
+    snprintf(slk+used,sizeof(slk)-used,"E\n");
+    T_ASSERT(used+3<sizeof(slk));
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    uint32_t const ghost=MAKEFOURCC('X','g','h','1'), apiv=MAKEFOURCC('X','p','i','v');
+    uint32_t const binv=MAKEFOURCC('B','i','n','v'), bowk=MAKEFOURCC('B','O','w','k');
+    static UnitAbilities_t cast_abilities={.abilList="Aivs,AOwk"};
+    cstring_t save=Test_TempPath("ghost330-overlap.bin");
+    FOR_LOOP(family,3)FOR_LOOP(first,2) {
+        edict_t *unit=make_hero(MAKEFOURCC('O','b','l','m'),500,200,64,64);
+        unit->s.player=0;unit->targtype=TARG_GROUND;unit->data.UnitAbilities=&cast_abilities;
+        edict_t *source=alloc_test_unit(MAKEFOURCC('h','s','o','r'),32,64);
+        source->s.player=0;source->targtype=TARG_GROUND;source->svflags|=SVF_MONSTER;
+        source->health.value=source->health.max_value=100;
+        source->mana.value=source->mana.max_value=200;source->data.UnitAbilities=&cast_abilities;
+        wc3Clock_t deadline={0};
+        FOR_LOOP(step,2) {
+            bool const add_ghost=(step==0)==(first==0);
+            if(add_ghost)T_ASSERT(G_ActorAddSkill(unit,ghost));
+            else if(family==0)T_ASSERT(G_ActorAddSkill(unit,apiv));
+            else if(family==1)T_ASSERT(S_CastUnitTargetSpell(source,MAKEFOURCC('A','i','v','s'),unit));
+            else {
+                T_ASSERT(S_CastNoTargetSpell(unit,MAKEFOURCC('A','O','w','k')));
+                FOR_LOOP(frame,200) {if(unit_findstatus(unit,bowk))break;wind_walk328_step(1);}
+                T_NOT_NULL(unit_findstatus(unit,bowk));
+            }
+            if(step==0) {
+                T_ASSERT(unit->permanent_invisibility_fade.request.active);
+                deadline=unit->permanent_invisibility_fade.request.deadline;
+            } else if(family==2 && first==0) {
+                /* Public self-cast runs Ghost12c at CHANNEL/CAST before BOwk
+                 * attaches. That legitimate reset uses Ghost's own alias Dur. */
+                T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.slope),wc3_float_bits(wc3_recip(.75f)));
+                deadline=unit->permanent_invisibility_fade.request.deadline;
+            } else T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+        }
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,family==0?2u:1u);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,family==0?0u:1u);
+        uint32_t const index=unit->s.number;
+        T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));unit=g_edicts+index;
+        T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(deadline.time));
+        wind_walk328_step(180);
+        T_ASSERT(S_GhostActive(unit));T_ASSERT(S_UnitHasInvisibilityState(unit));
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,family==0?2u:1u);
+        /* Component native availability service: player command-list toggles
+         * are a different API and do not publish this signed-depth inverse. */
+        S_AdjustAbilityAvailability(unit,ghost,0,true,true);
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,family==0?1u:0u);
+        T_ASSERT(S_UnitHasInvisibilityState(unit));
+        S_AdjustAbilityAvailability(unit,ghost,0,false,true);
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,family==0?2u:1u);
+        T_ASSERT(S_GhostActive(unit));
+        /* Either inverse leaves the other concrete owner intact. */
+        if(first==0)T_ASSERT(G_ActorRemoveSkill(unit,ghost));
+        else if(family==0)T_ASSERT(G_ActorRemoveSkill(unit,apiv));
+        else {heroabilitystatus_t *status=unit_findstatus(unit,family==1?binv:bowk);T_NOT_NULL(status);if(status)unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);}
+        T_ASSERT(S_UnitHasInvisibilityState(unit));
+        if(first!=0)T_ASSERT(G_ActorRemoveSkill(unit,ghost));
+        else if(family==0)T_ASSERT(G_ActorRemoveSkill(unit,apiv));
+        else {heroabilitystatus_t *status=unit_findstatus(unit,family==1?binv:bowk);T_NOT_NULL(status);if(status)unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);}
+        T_EQ(unit->permanent_invisibility_fade.passive_contributions,0u);
+        T_EQ(unit->permanent_invisibility_fade.temporary_contributions,0u);
+        T_ASSERT(!S_UnitHasInvisibilityState(unit));
+    }
+    /* Component dispatch of the original shared v12c action owner. The
+     * dispatcher is deliberately restricted to this configured Ghost alias. */
+    edict_t *unit=make_hero(MAKEFOURCC('O','b','l','m'),500,200,64,64);
+    unit->s.player=0;unit->targtype=TARG_GROUND;
+    T_ASSERT(G_ActorAddSkill(unit,ghost));
+    T_ASSERT(unit->attack_passive_invisibility_blocked);
+    wc3Clock_t prior=unit->permanent_invisibility_fade.request.deadline;
+    wind_walk328_step(20);
+    abilityitem_t ghost_item=S_AbilityItem(ghost);
+    abilityCall_t action={.item=&ghost_item};
+    T_ASSERT(S_AbilityMessage(unit,A_UNIT_ACTION,&action));
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+    T_ASSERT(unit->permanent_invisibility_fade.request.active);
+    T_ASSERT(unit->permanent_invisibility_fade.request.deadline.time>prior.time);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.slope),wc3_float_bits(wc3_recip(.75f)));
+    T_ASSERT(G_ActorAddSkill(unit,apiv));
+    T_ASSERT(unit->attack_passive_invisibility_blocked);
+    prior=unit->permanent_invisibility_fade.request.deadline;
+    wind_walk328_step(20);
+    T_ASSERT(S_AbilityMessage(unit,A_UNIT_ACTION,&action));
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,2u);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(prior.time));
+    T_ASSERT(G_ActorHasAbilityCode(unit,apiv));
+    T_ASSERT(G_ActorRemoveSkill(unit,ghost));
+    T_ASSERT(!unit->attack_passive_invisibility_blocked);
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+    T_EQ(wc3_float_bits(unit->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(prior.time));
+    /* Native OR/AND ownership is not a reference count: the remaining held
+     * Apiv action reset does not acquire Attack's bit a second time. */
+    abilityitem_t apiv_item=S_AbilityItem(apiv);
+    abilityCall_t apiv_action={.item=&apiv_item};
+    T_ASSERT(S_AbilityMessage(unit,A_UNIT_ACTION,&apiv_action));
+    T_ASSERT(!unit->attack_passive_invisibility_blocked);
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,1u);
+    T_ASSERT(G_ActorRemoveSkill(unit,apiv));
+    T_EQ(unit->permanent_invisibility_fade.passive_contributions,0u);
+    remove(save);G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_spell, invisibility_spell_uses_authored_buff_and_breaks_through_status_owner) {
     char slk[1024];
     cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
