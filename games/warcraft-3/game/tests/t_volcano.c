@@ -198,6 +198,24 @@ TEST(wc3_spell, volcano_spawns_unitid_destructible_at_point) {
     volcano_done(fix);
 }
 
+TEST(wc3_spell, volcano_removes_owned_decoration_after_final_wave) {
+    volcFix_t fix; volcano_setup(&fix);
+    vec2_t point = MAKE(vec2_t, 32, 48);
+    edict_t *doodad, *thinker;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
+    doodad = volcano_doodad();
+    thinker = volcano_thinker(fix.caster);
+    T_NOT_NULL(doodad); T_NOT_NULL(thinker);
+    if (doodad && thinker) {
+        T_EQ(doodad->targtype, TARG_DECORATION); /* Volc is authored as decoration. */
+        T_ASSERT(doodad->inuse);
+        level.time = thinker->freetime;
+        G_RunEntities(); /* Second and final authored wave. */
+        T_ASSERT(!doodad->inuse);
+    }
+    volcano_done(fix);
+}
+
 /* Second pulse waits for authored DataC, then fires through the entity scheduler. */
 TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
     volcFix_t fix; volcano_setup(&fix);
