@@ -161,7 +161,8 @@ void UI_LoadHudScoreScreen(void) {
     ScoreScreenBindContinue(score->ScoreScreenOKButton);
     FOR_LOOP(i, WC3_SCORE_TABS)
         UI_SetOnClick(score->ScoreScreenTabButton[i], "scorescreen_tab %u", (unsigned)i);
-    UI_SetOnClick(score->ScoreScreenScrollBar, "scorescreen_scroll");
+    if (score->ScoreScreenScrollBar)
+        UI_SetOnClick(score->ScoreScreenScrollBar, "scorescreen_scroll");
     /* These GLUECHECKBOXes are authored in ScoreScreen.fdf. Client clicks
      * submit only an intent; the server keeps each spectator's view state. */
     FOR_LOOP(c, 4) UI_SetOnClick(score->ScoreScreen4ColumnButton[c],
@@ -437,7 +438,9 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
     frameDef_t *elapsed;
     uint32_t seconds;
     if (!ent || !ent->client || !snapshot || tab >= WC3_SCORE_TABS ||
-        snapshot->count > MAX_PLAYERS || !score->ScoreScreenFrame) return false;
+        snapshot->count > MAX_PLAYERS || !score->ScoreScreenFrame) {
+        return false;
+    }
     max_scroll = WC3_ScoreMaxScroll(snapshot->count);
     start = MIN(scroll, max_scroll);
     WC3_ScoreOrderedPlayers(snapshot, tab, view, order);
@@ -456,7 +459,9 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
     }
     FOR_LOOP(i, WC3_SCORE_VISIBLE_ROWS) {
         bool visible = start + i < snapshot->count;
-        if (!hud.score_rows[i].root) return false;
+        if (!hud.score_rows[i].root) {
+            return false;
+        }
         UI_SetHidden(hud.score_rows[i].root, !visible);
         if (visible) {
             wc3ScorePlayerSnapshot_t const *player = &snapshot->players[order[start + i]];
@@ -470,11 +475,13 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
     }
     /* The stock scrollbar is self-owned; the generic client reports its
      * normalized position via its authored OnClick on wheel/thumb input. */
-    UI_SetHidden(score->ScoreScreenScrollBar, max_scroll == 0);
-    score->ScoreScreenScrollBar->Slider.MinValue = 0.0f;
-    score->ScoreScreenScrollBar->Slider.MaxValue = 1.0f;
-    score->ScoreScreenScrollBar->Slider.InitialValue = max_scroll
-        ? (float)start / (float)max_scroll : 0.0f;
+    if (score->ScoreScreenScrollBar) {
+        UI_SetHidden(score->ScoreScreenScrollBar, max_scroll == 0);
+        score->ScoreScreenScrollBar->Slider.MinValue = 0.0f;
+        score->ScoreScreenScrollBar->Slider.MaxValue = 1.0f;
+        score->ScoreScreenScrollBar->Slider.InitialValue = max_scroll
+            ? (float)start / (float)max_scroll : 0.0f;
+    }
 
     elapsed = score->ScoreScreenElapsedValue ? score->ScoreScreenElapsedValue : hud.score_elapsed;
     if (elapsed) {

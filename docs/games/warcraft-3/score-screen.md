@@ -72,10 +72,14 @@ A broken/absent MPQ must not strand the outgoing session.
 
 ### Retail FDF and artwork: presentation Patch 1
 
-The RoC and TFT `UI\FrameDef\Glue\ScoreScreen.fdf` files are reportedly
-byte-identical (based on the game-data research report of 2026-10-13). The
-repo continues to use **mounted retail assets**, and does not bundle Blizzard
-FDF, model or image files. The manually generated-style binding contract in
+An earlier report described the RoC and TFT
+`UI\FrameDef\Glue\ScoreScreen.fdf` files as byte-identical. Archive inspection
+on 2026-11-03 found that classic RoC 1.0 `War3.mpq` lacks the
+`ScoreScreenScrollBar` frame present in the installed TFT `War3x.mpq`. The
+scrollbar binding is therefore optional: without it, the score panel still
+appears, but its additional rows cannot be scrolled. The repo continues to use
+**mounted retail assets**, and does not bundle Blizzard FDF, model or image
+files. The manually generated-style binding contract in
 `generated/score_screen.h` covers the FDF root/main panel, background, page
 tabs, top bar, race artwork, four- and five-column header banks, tab controls,
 selected-tab text and OK button. The exact FDF sources were **not uploaded**;
