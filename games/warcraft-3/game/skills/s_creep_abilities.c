@@ -185,7 +185,7 @@ void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
     if (code && G_UnitIsStructure(target)) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(
             target, code, level, "Bliq", S_SpellDuration(code, level, false));
         if (status) {
             status->source = attacker;
