@@ -6379,6 +6379,38 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 	T_EQ((int)roots->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+/* RoC 1.0 AEer has no BuffID column; compatibility mode supplies stock BEer. */
+TEST(wc3_spell, entangling_roots_roc_missing_buffid_uses_compatibility_fallback) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"AEer\"\nC;Y2;X2;K\"AEer\"\nC;Y2;X3;K\"ground,enemy,neutral\"\n"
+        "C;Y2;X4;K\"15\"\nC;Y2;X5;K\"3\"\nE\n";
+    static UnitData_t const human = { .race = STR_HUMAN };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+
+    caster->s.player = 0;
+    target->data.UnitData = &human;
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+
+    T_ASSERT(test_execute_code(caster, "AEer",
+        MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_UnitStatusLevel(target, MAKEFOURCC('B','E','e','r')), 1);
+#else
+    T_EQ(G_UnitStatusLevel(target, MAKEFOURCC('B','E','e','r')), 0);
+#endif
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, frost_nova_spawns_target_effect_on_primary_victim) {
     static char const ability_slk[] =
         "ID;PWXL;N;EBB;Y2;X7\n"
