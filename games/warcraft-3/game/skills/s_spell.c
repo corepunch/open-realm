@@ -8,6 +8,11 @@
 #include <math.h>
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
+#define ENTANGLING_ROOTS_CODE MAKEFOURCC('A','E','e','r')
+
+static bool spell_is_entangling_roots(uint32_t code) {
+    return code == ENTANGLING_ROOTS_CODE;
+}
 
 typedef struct {
     edict_t *caster;
@@ -1162,7 +1167,21 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
-    if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return false;
+    if (spell_is_entangling_roots(code)) {
+        abilityLevel_t const *row = G_AbilityLevel(code, level);
+        fprintf(stderr, "WC3 Entangling Roots target-click caster=%u target=%u owner=%u friendly=%u enemy=%u alive=%u hero=%u unit-type=%u range=%.1f targs=%s\n",
+                caster ? (unsigned)caster->s.number : UINT32_MAX,
+                target ? (unsigned)target->s.number : UINT32_MAX,
+                target ? (unsigned)target->s.player : UINT32_MAX,
+                (unsigned)S_SpellIsFriend(caster, target), (unsigned)S_SpellIsEnemy(caster, target),
+                (unsigned)S_SpellIsAliveTarget(target), (unsigned)(target && G_UnitIsHero(target)),
+                target ? (unsigned)target->targtype : 0u, range,
+                row && row->targs ? row->targs : "(missing)");
+    }
+    if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=ability-or-item-source-invalid\n");
+        return false;
+    }
     if (spell->proc == CAbilityEatTree)
         range = spell_tree_target_range(code, level, caster);
     /* Searing Arrows and Orb of Annihilation are attack modifiers, not
@@ -1182,19 +1201,24 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     /* Range is intentionally excluded here. An otherwise valid out-of-range
      * target is an accepted order; the caster must walk into cast range. */
     if (!spell_validate(clent, caster, code, level, target, 0.0f)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=activation-validation\n");
         return false;
     }
     if (!S_SpellAllowsTarget(code, caster, target)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=generic-target-mask\n");
         return false;
     }
     if (!spell_message(caster, A_VALIDATE, &item, &st)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=ability-validation\n");
         return false;
     }
 
     if (!S_SpellTargetInRange(caster, target, range)) {
         if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) {
+            if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=approach-start-failed\n");
             return false;
         }
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots accepted result=approaching\n");
         spell_order_accepted(caster, spell);
         return true;
     }
@@ -1203,7 +1227,11 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = source_item_spawn_time
     };
-    if (!spell_execute_unit_target(&params, NULL)) return false;
+    if (!spell_execute_unit_target(&params, NULL)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots rejected reason=execution-validation\n");
+        return false;
+    }
+    if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots accepted result=cast\n");
     spell_order_accepted(caster, spell);
     return true;
 }
@@ -2020,17 +2048,33 @@ void spell_cmd(edict_t *clent) {
     abilityitem_t item = { .code = code, .ability = spell };
     abilityCall_t toggle_call = MAKE(abilityCall_t, .item = &item);
 
+    if (spell_is_entangling_roots(code)) {
+        abilityLevel_t const *row = G_AbilityLevel(code, caster ? S_SpellLevel(caster, code) : 1);
+        fprintf(stderr, "WC3 Entangling Roots command-button client=%u caster=%u ability=%s target-type=%u level=%u targs=%s\n",
+                clent ? (unsigned)clent->s.number : UINT32_MAX,
+                caster ? (unsigned)caster->s.number : UINT32_MAX,
+                spell && spell->classname ? spell->classname : "(missing)",
+                spell ? (unsigned)spell->target_type : 0u,
+                caster ? S_SpellLevel(caster, code) : 1u,
+                row && row->targs ? row->targs : "(missing)");
+    }
+
     if (!spell) {
         fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (cstring_t)&code);
         return;
     }
-    if (!caster) return;
+    if (!caster) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots command-rejected reason=no-selected-caster\n");
+        return;
+    }
 
     if (!G_UnitAbilityResearchAvailable(caster, code)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots command-rejected reason=research-unavailable\n");
         G_ShowCommandErrorText(clent, "Requires training.");
         return;
     }
     if (!G_IsUnitAbilityAvailable(caster, code)) {
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots command-rejected reason=ability-unavailable\n");
         G_ShowCommandErrorText(clent, "This ability is unavailable.");
         return;
     }
@@ -2054,6 +2098,7 @@ void spell_cmd(edict_t *clent) {
     case SPELL_TARGET_UNIT:
         UI_AddCancelButton(clent);
         clent->client->menu.on_entity_selected = spell_unit_target_selected;
+        if (spell_is_entangling_roots(code)) fprintf(stderr, "WC3 Entangling Roots target-mode-opened handler=unit\n");
         break;
     case SPELL_TARGET_POINT: {
         /* Resolve the Tiny cursor before opening target mode: the Cancel
