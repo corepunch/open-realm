@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic import regression fixtures (user-run, no retail data required).
 
-Run after building both native tools:
+Run the regression suite (also part of `make test`) with:
     python3 tools/test_wc3setup_import.py build/bin/isoextract build/bin/wc3setup
 """
 import pathlib
