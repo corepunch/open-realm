@@ -234,6 +234,16 @@ uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level) {
     cstring_t effect_id = G_AbilityLevel(ability_id, level)->efctID;
     if (effect_id && strlen(effect_id) >= 4) return FS_SLKKey(effect_id);
 #if BZ_COMPAT_WORKAROUNDS
+    /* TFT 1.07's ANrf row omits EfctID, while NeutralAbilityFunc still
+     * authors the impact art and sounds on XErf. */
+    if (G_AbilityCode(ability_id) == MAKEFOURCC('A','N','r','f')) {
+        static bool warned_classic_rain_of_fire;
+        if (!warned_classic_rain_of_fire) {
+            fprintf(stderr, "WC3 compatibility: 1.07 ANrf has no EfctID; using XErf impact art\n");
+            warned_classic_rain_of_fire = true;
+        }
+        return MAKEFOURCC('X','E','r','f');
+    }
     /* HACK: RoC 1.0's AOeq AbilityData row has no EfctID column; its effect
      * art is authored by the XOeq class in OrcAbilityFunc.txt. */
     if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','e','q')) {
