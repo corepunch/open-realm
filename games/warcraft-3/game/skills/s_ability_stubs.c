@@ -304,9 +304,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     if (!thinker) return;
 #if BZ_COMPAT_WORKAROUNDS
     /* RoC AbilityData has no BuffID column; the HumanAbilityFunc contract
-     * still authors Divine Shield's TargetArt under BHds. */
+     * still authors Divine Shield's TargetArt under BHds. Phase Shift has
+     * the same missing-column issue in 1.07; its status is Bpsh. */
     if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
         spell->code == MAKEFOURCC('A','H','d','s')) buff = "BHds";
+    else if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
+             spell->code == MAKEFOURCC('A','p','s','h')) buff = "Bpsh";
 #endif
     thinker->resources = G_UnitHasFlag(caster, UNIT_FLAG_INVULNERABLE);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
