@@ -165,7 +165,7 @@ that the browser code links, renders or boots. Do not redistribute game data.
 
 The browser build compiles the normal WC3 serializer (`g_save.c`). Its
 `__EMSCRIPTEN__` branch has a **separate, browser-only save format** (`W3WB`,
-version 1). The existing native `W3SV` format remains version 122 and unchanged.
+version 1). The existing native `W3SV` format remains version 136 and unchanged.
 Both still serialize the current in-memory game state, but raw records contain
 platform-specific pointer-sized slots and are deliberately not portable.
 

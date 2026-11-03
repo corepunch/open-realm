@@ -46,7 +46,7 @@ separate `W3WB` version-1 header because wasm32 raw edict/client records have
 32-bit pointers rather than the native 64-bit layout. Its `F_MMOVE`/`F_CFUNCTION`
 slots contain only the 32-bit offset/index; identity hashes are appended after
 each raw edict in the exact order of `edict_fields` and consumed as the fields
-are fixed up. The native `W3SV` version-122 format, including its in-slot
+are fixed up. The native `W3SV` version-136 format, including its in-slot
 hashes, is unchanged. The existing version, size and checksum checks reject
 incompatible layouts; there is no migration and no native/web interchange.
 Browser save files live at `/opfs/openrealm/user/saves/` on the mounted WasmFS
