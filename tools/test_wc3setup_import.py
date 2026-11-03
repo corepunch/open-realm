@@ -138,6 +138,32 @@ class TestImporter(unittest.TestCase):
         proc = self.invoke(self.iso_tool, 'extract-file', image, 'War3x.mpq', output)
         self.assertEqual(proc.returncode, 2, proc.stderr)
 
+    def test_iso_cyclic_directory_tree_is_bounded(self):
+        image_data = bytearray(iso_with_nested_setup(b'payload'))
+        # The DATA directory points back to the root directory extent.
+        data_record = 18 * 2048 + 68
+        image_data[data_record + 2:data_record + 6] = struct.pack('<I', 18)
+        image = self.root / 'cycle.iso'
+        image.write_bytes(image_data)
+        proc = self.invoke(self.iso_tool, 'extract', image, self.root / 'out')
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn('directory tree exceeds traversal limits', proc.stderr)
+        proc = self.invoke(self.iso_tool, 'extract-file', image, 'missing.mpq', self.root / 'missing')
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn('invalid directory tree', proc.stderr)
+
+    def test_iso_out_of_range_file_does_not_truncate_output(self):
+        image_data = bytearray(iso_with_nested_setup(b'payload'))
+        setup_record = 19 * 2048 + 68
+        image_data[setup_record + 2:setup_record + 6] = struct.pack('<I', 100)
+        image = self.root / 'bad-extent.iso'
+        image.write_bytes(image_data)
+        output = self.root / 'existing.mpq'
+        output.write_bytes(b'preserve existing data')
+        proc = self.invoke(self.iso_tool, 'extract-file', image, 'setup.mpq', output)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(output.read_bytes(), b'preserve existing data')
+
     def test_anonymous_archive_and_map_detection(self):
         embedded = self.expansion()
         installer = mpq([
