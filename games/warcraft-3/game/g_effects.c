@@ -264,6 +264,16 @@ uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level) {
         }
         return MAKEFOURCC('X','E','r','f');
     }
+    /* TFT 1.07's Aclf row omits EfctID; HumanAbilityFunc still authors the
+     * persistent Cloud of Fog model and loop sound on Xclf. */
+    if (G_AbilityCode(ability_id) == MAKEFOURCC('A','c','l','f')) {
+        static bool warned_classic_cloud_of_fog;
+        if (!warned_classic_cloud_of_fog) {
+            fprintf(stderr, "WC3 compatibility: TFT Aclf has no EfctID; using Xclf cloud art\n");
+            warned_classic_cloud_of_fog = true;
+        }
+        return MAKEFOURCC('X','c','l','f');
+    }
     /* HACK: RoC 1.0's AOeq AbilityData row has no EfctID column; its effect
      * art is authored by the XOeq class in OrcAbilityFunc.txt. */
     if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','e','q')) {

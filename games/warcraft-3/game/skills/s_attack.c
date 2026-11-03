@@ -125,6 +125,7 @@ typedef struct {
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || !attacker->unit_state || slot >= 2) return false;
+    if (G_UnitStatusLevel(attacker, MAKEFOURCC('B','c','l','f'))) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
     /* War Club is a per-unit switch, never a mutation of UnitWeapons. The
      * alternate weapon is authored as Attack 2 even when the stock unit enables
