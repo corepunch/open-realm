@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_blp.h"
 #include "r_game.h"
 #include "r_shader.h"
 #include "stb/stb_image.h"
@@ -228,7 +229,6 @@ static void R_Screenshot(void) {
     ri.MemFree(pixels);
 }
 
-texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize);
 texture_t *R_LoadTextureBLP2(handle_t data, uint32_t filesize);
 texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize);
 
@@ -410,7 +410,7 @@ static texture_t *R_LoadTexturePath(cstring_t textureFilename, bool *found) {
     if (found) *found = true;
     switch (*(uint32_t *)buffer) {
         case ID_BLP1:
-            texture = R_LoadTextureBLP1(buffer, fileSize);
+            texture = R_LoadTextureBLP1Named(buffer, fileSize, textureFilename);
             break;
         case ID_BLP2:
             texture = R_LoadTextureBLP2(buffer, fileSize);
