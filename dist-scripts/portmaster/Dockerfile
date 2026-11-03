@@ -59,7 +59,9 @@ RUN make clean && \
       GL_BACKEND=gles3 \
       MSAA=0 \
       FFMPEG=1 \
-      openwarcraft3
+      openwarcraft3 \
+      build/bin/isoextract \
+      build/bin/wc3setup
 
 # ---------------------------------------------------------------------------
 # Stage OpenRealm build products
@@ -68,7 +70,9 @@ RUN make clean && \
 RUN mkdir -p /src/release && \
     cp build/bin/openwarcraft3 \
        /src/release/openwarcraft3.aarch64 && \
-    cp -a build/lib/. /src/release/
+    cp -a build/lib/. /src/release/ && \
+    cp build/bin/isoextract /src/release/isoextract.aarch64 && \
+    cp build/bin/wc3setup /src/release/wc3setup.aarch64
 
 # ---------------------------------------------------------------------------
 # Assemble WC3 PortMaster package
@@ -105,11 +109,14 @@ RUN set -eux; \
        "${PKG_DIR}/gameinfo.xml"; \
     cp "${PM_SRC}/openrealm-wc3.gptk2.ini" \
        "${PKG_DIR}/openrealm-wc3.gptk2.ini"; \
+    cp "${PM_SRC}/WC3-ISO-IMPORT.md" "${PKG_DIR}/WC3-ISO-IMPORT.md"; \
     \
     # Main ARM64 executable.
     cp /src/release/openwarcraft3.aarch64 \
        "${PKG_DIR}/openwarcraft3.aarch64"; \
     chmod +x "${PKG_DIR}/openwarcraft3.aarch64"; \
+    cp /src/release/isoextract.aarch64 /src/release/wc3setup.aarch64 "${PKG_DIR}/"; \
+    chmod +x "${PKG_DIR}/isoextract.aarch64" "${PKG_DIR}/wc3setup.aarch64"; \
     \
     # Engine/game shared libraries.
     for lib in /src/release/*.so*; do \
