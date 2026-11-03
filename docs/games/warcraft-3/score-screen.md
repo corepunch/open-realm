@@ -277,8 +277,11 @@ separate renderer concerns (the style bits are retained, not silently dropped).
 Malformed FDFs no longer enter the successfully-loaded FDF cache.
 
 The campaign Quit Mission command now queues the same frozen score snapshot
-and score-screen transition as `EndGame(true)`, whereas Exit Program and
-non-campaign quit retain their existing routes. If the retail score FDF cannot
+and score-screen transition as `EndGame(true)`, then returns to the campaign
+selector. It does not use the legacy `SetCampaignMenuRace` destination because
+the race-specific menu commands open a mission list. `EndGame` retains that
+legacy destination for maps that select a race. Exit Program and non-campaign
+quit retain their existing routes. If the retail score FDF cannot
 be parsed or the player cannot be shown the modal, the existing fail-open
 transition returns to campaign selection instead of stranding the session.
 
