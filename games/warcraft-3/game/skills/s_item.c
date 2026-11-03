@@ -430,6 +430,25 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     return true;
 }
 
+/* Sacrificial Skull (Ablp) adds authored loose Blight at a selected point. */
+BZ_ABILITY_PROC(CAbilityItemBlight) {
+    if (msg == A_VALIDATE) {
+        spellTarget_t const *target = call ? call->target : NULL;
+        return call && call->item && target && target->type == SPELL_TARGET_POINT &&
+               S_SpellNumber(call->item->code, ABILITY_NUMBER_AREA, 1) > 0.0f;
+    }
+    if (msg == A_EXECUTE) {
+        spellTarget_t const *target = call ? call->target : NULL;
+        float const radius = call && call->item ?
+            S_SpellNumber(call->item->code, ABILITY_NUMBER_AREA, 1) : 0.0f;
+        bool const creates_blight = call && call->item && S_SpellData(call->item->code, 1, 2) != 0.0f;
+        if (!target || target->type != SPELL_TARGET_POINT || !(radius > 0.0f) || !creates_blight) return false;
+        G_SetBlightRadius(&target->point, radius, creates_blight);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
 /* Scroll of Life Regen (AIsl) and Lesser Clarity Potion (AIpl) share the
  * authored AIrg regeneration family. DataA/Duration restore life; DataB/Dur
  * restore mana. Statuses keep ticking independently of the item's lifetime. */

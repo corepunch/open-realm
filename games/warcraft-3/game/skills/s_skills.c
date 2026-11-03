@@ -371,7 +371,7 @@ static ability_t abilitylist[] = {
     // TODO: AIwb a_button  /* Item Web */
     // TODO: AImo a_item_mana_restore_aoe  /* Monster Lure */
     // TODO: AIri a_item_speed  /* Random Item */
-    // TODO: Ablp CAbilityItemHeal  /* Blight Placement */
+    { "Ablp", CAbilityItemBlight, AB_SPELL, SPELL_TARGET_POINT }, /* Sacrificial Skull / Blight Placement */
     // TODO: Aste a_figurine_rock_golem  /* Steal */
     // TODO: AIpv a_item_mana_restore_aoe  /* Vampiric Potion */
     // TODO: AIsr a_item_speed  /* Spell Damage Reduction */
