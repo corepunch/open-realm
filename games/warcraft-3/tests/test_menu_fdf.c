@@ -3616,7 +3616,7 @@ TEST(menu_fdf, main_menu_clones_expansion_switch_when_retail_button_is_absent) {
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
     menuImport_t saved = mi;
-    frameDef_t *root, *edition, *expansion;
+    frameDef_t *root, *edition, *expansion, *single_player;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -3637,6 +3637,8 @@ TEST(menu_fdf, main_menu_clones_expansion_switch_when_retail_button_is_absent) {
     root = UI_FindFrame("MainMenuFrame");
     edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
     if (!require_not_null(root) || !require_not_null(edition)) {
+        mainMenuScreen.shutdown();
+        UI_ResetGlueSceneModels();
         mi = saved;
         test_war3x_archive_mounted = false;
         return;
@@ -3644,9 +3646,16 @@ TEST(menu_fdf, main_menu_clones_expansion_switch_when_retail_button_is_absent) {
     UI_FreeFrameTree(edition);
     mainMenuScreen.init();
     expansion = UI_FindChildFrame(root, "OpenRealmExpansionButton");
-    T_NOT_NULL(expansion);
+    single_player = UI_FindChildFrame(root, "SinglePlayerButton");
+    if (!require_not_null(expansion) || !require_not_null(single_player)) {
+        mainMenuScreen.shutdown();
+        UI_ResetGlueSceneModels();
+        mi = saved;
+        test_war3x_archive_mounted = false;
+        return;
+    }
     T_STREQ(expansion->OnClick, "menu_edition");
-    T_FEQ(UI_FindChildFrame(root, "SinglePlayerButton")->Width, 0.149f, 0.0001f);
+    T_FEQ(single_player->Width, 0.149f, 0.0001f);
 
     mainMenuScreen.shutdown();
     T_NULL(UI_FindChildFrame(root, "OpenRealmExpansionButton"));
