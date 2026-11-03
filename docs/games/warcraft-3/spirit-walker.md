@@ -1,5 +1,8 @@
 # Spirit Walker (TFT)
 
+Resistant Skin was added to Spirit Walkers after the 1.07 TFT baseline; see
+[Warcraft III data version history](data-version-history.md).
+
 ## Data contract
 
 The standard TFT unit rows are `ospm` (ethereal) and `ospw` (corporeal), both
