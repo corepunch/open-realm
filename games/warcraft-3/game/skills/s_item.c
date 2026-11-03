@@ -16,6 +16,8 @@
 #define ID_SOUL_POSSESSION     MAKEFOURCC('A', 's', 'o', 'u')
 #define ID_FILLED_SOUL         MAKEFOURCC('s', 'o', 'u', 'l')
 
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call);
+
 /* ---- Active items (consume on use) -------------------------------------- */
 
 /* A unit may carry souls and itself be trapped; retire only after both roles finish. */
@@ -425,6 +427,63 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     }
     target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
+}
+
+/* Scroll of Life Regen (AIsl) and Lesser Clarity Potion (AIpl) share the
+ * authored AIrg regeneration family. DataA/Duration restore life; DataB/Dur
+ * restore mana. Statuses keep ticking independently of the item's lifetime. */
+#define ITEM_REGEN_TICK_MS 1000u
+static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t level) {
+    float const duration = S_SpellHeroDuration(code, level, target);
+    float const health = S_SpellData(code, level, 1);
+    float const mana = S_SpellData(code, level, 2);
+    if (!(duration > 0.0f)) return;
+    if (health > 0.0f) S_SpellHeal(target, health / duration);
+    if (mana > 0.0f) {
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + mana / duration);
+        G_InvalidateUnitInfoPanel(target);
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityItemRegeneration) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        uint32_t const code = status->source_ability ? status->source_ability : status->data;
+        uint32_t const rank = status->rank ? status->rank : MAX(1u, status->level);
+        while (unit_status_take_due_tick(status, ITEM_REGEN_TICK_MS, G_Time()))
+            item_regeneration_pulse(ent, code, rank);
+        return true;
+    }
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    edict_t *caster = item_use_caster(ent, call);
+    uint32_t const code = call->item->code;
+    uint32_t const rank = 1;
+    cstring_t buff = S_SpellBuffToken(S_SpellBuffId(code, rank), 0);
+    float const duration = caster ? S_SpellHeroDuration(code, rank, caster) : 0.0f;
+    abilityLevel_t const *row = G_AbilityLevel(code, rank);
+    /* AIrg child data can omit BuffID in older/classic datasets even though
+     * the shared regeneration buff is present. Keep valid item uses working. */
+    if (!buff) buff = "BIrg";
+    if (!caster || !(duration > 0.0f) || !row || !(row->area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, rank, buff, duration);
+        if (!status) continue;
+        status->data = code;
+        status->source_ability = code;
+        status->rank = rank;
+        /* The regeneration outlives the consumed item and its carrier. */
+        status->source = target;
+        status->source_spawn_time = target->spawn_time;
+        status->next_tick = G_Time() + ITEM_REGEN_TICK_MS;
+        /* Apply the first authored fraction now; the remaining pulses cover
+         * the rest of the duration, including the final second before expiry. */
+        item_regeneration_pulse(target, code, rank);
+    }
     return true;
 }
 
