@@ -106,6 +106,25 @@ the first wide console write.
   assigned it in `SV_Configstrings_f`.
 - `Cmd_ForwardToServer` prints "Unknown command" below `ca_active`; the canvas never calls it earlier.
 
+## Low-resolution font placement
+
+At a physical SDL drawable size of at most 960×600, `renderer/r_font.c` rounds the
+**text-run origin** to the drawable pixel grid (respecting `R_UISceneRect()`).
+It preserves the original font sizes, advance widths, line height, wrapping,
+UI alignment, glyph geometry, and linear texture filtering.
+
+Do **not** snap the position of each individual glyph: at 640×480 it changes
+letter spacing nonuniformly. Do **not** enable nearest-neighbour sampling for
+the 2× antialiased font atlases: downsampling with `GL_NEAREST` removes coverage
+antialiasing and produces jagged, broken strokes on tiny WC3 HUD text.
+
+The compatibility cvar `+set r_font_lowres_sharp 0` disables this small
+text-origin adjustment for A/B comparison; it no longer switches texture
+sampling. The default is enabled only at <=960×600. The feature cannot add
+detail that is absent from very small physical glyphs; further readability
+improvements may require different font hinting or size and should be evaluated
+separately rather than changing UI art filtering.
+
 ## Verification
 
 - `tests/test_ui_canvas.c`: resolver matrix for all policies and aspects; renderer keeps the pushed scene and rejects empty rects.
