@@ -51,6 +51,7 @@ static vec2_t fake_text_size;
 static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
+static bool test_war3x_archive_mounted;
 static char test_saved_game_deleted[256];
 static char test_saved_game_loaded[256];
 static uint32_t test_saved_game_load_count;
@@ -257,6 +258,10 @@ static int test_missing_fs_read(cstring_t file_name, void **buf) {
     (void)file_name;
     if (buf) *buf = NULL;
     return -1;
+}
+
+static bool test_fs_is_archive_mounted(cstring_t archive_name) {
+    return test_war3x_archive_mounted && archive_name && !strcasecmp(archive_name, "War3x.mpq");
 }
 
 static void test_fs_free_file(void *buf) {
@@ -3599,6 +3604,53 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
     T_STREQ(captured_cvar_value, "1");
     T_STREQ(captured_command, "menu_restart\n");
     mainMenuScreen.shutdown();
+    mi = saved;
+}
+
+TEST(menu_fdf, main_menu_clones_expansion_switch_when_retail_button_is_absent) {
+    cstring_t files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    };
+    menuImport_t saved = mi;
+    frameDef_t *root, *edition, *expansion;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    test_command_imports();
+    mi.GetRenderer = test_get_renderer;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    mi.FS_ReadFile = test_fs_read_file;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.FS_IsArchiveMounted = test_fs_is_archive_mounted;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Set = test_cvar_set;
+    test_war3x_archive_mounted = true;
+
+    T_ASSERT(mainMenuScreen.load());
+    root = UI_FindFrame("MainMenuFrame");
+    edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
+    if (!require_not_null(root) || !require_not_null(edition)) {
+        mi = saved;
+        test_war3x_archive_mounted = false;
+        return;
+    }
+    UI_FreeFrameTree(edition);
+    mainMenuScreen.init();
+    expansion = UI_FindChildFrame(root, "OpenRealmExpansionButton");
+    T_NOT_NULL(expansion);
+    T_STREQ(expansion->OnClick, "menu_edition");
+    T_FEQ(UI_FindChildFrame(root, "SinglePlayerButton")->Width, 0.149f, 0.0001f);
+
+    mainMenuScreen.shutdown();
+    T_NULL(UI_FindChildFrame(root, "OpenRealmExpansionButton"));
+    test_war3x_archive_mounted = false;
     mi = saved;
 }
 
