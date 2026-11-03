@@ -143,10 +143,7 @@ void acid_bomb_think(edict_t *thinker) {
 static void acid_bomb_apply(edict_t *caster, uint32_t code, uint32_t rank,
                             edict_t *target, bool primary) {
     float const duration = S_SpellHeroDuration(code, rank, target);
-    cstring_t buff = S_SpellBuffId(code, rank);
-#if BZ_COMPAT_WORKAROUNDS
-    if ((!buff || strlen(buff) < 4) && G_AbilityCode(code) == MAKEFOURCC('A','N','a','b')) buff = "BNab";
-#endif
+    cstring_t const buff = S_SpellBuffId(code, rank);
     heroabilitystatus_t *status;
     edict_t *thinker;
     wc3_status_modifier_t armor;
