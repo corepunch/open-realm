@@ -355,7 +355,7 @@ TEST_JOBS ?= 16
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
 	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
-		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
+		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
 
@@ -378,6 +378,7 @@ $(eval $(call test_schema,test-ui-canvas,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CF
 $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB) client/tr_public.h $(WC3_DIR)/renderer/mdx/r_mdx.h games/warcraft-3/renderer/mdx/r_mdx_render.c games/warcraft-3/renderer/r_weather.c games/warcraft-3/common/weather.h renderer/r_particles.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable,$(BIN_DIR)/test_mdx_ui$(EXE_EXT),tests/test_runner.c tests/test_mdx_ui.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_camera_height.h renderer/r_local.h renderer/r_profile.c renderer/r_profile.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c tests/test_renderer_profile.c renderer/r_trace.c renderer/r_camera_height.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-frame,$(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(wildcard renderer/*.h) renderer/r_main.c common/main.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_frame$(EXE_EXT),tests/test_runner.c tests/test_renderer_frame.c renderer/r_shader.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-font,$(SHARED_LIB) renderer/r_font.c renderer/r_local.h renderer/stb/stb_truetype.h,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_font$(EXE_EXT),tests/test_runner.c tests/test_renderer_font.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
 $(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
@@ -508,7 +509,7 @@ $(ZIP_FILE):
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass wc3-sc2api-proto \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
-	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
+	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download
 
 .PHONY: test-menu-boundary
