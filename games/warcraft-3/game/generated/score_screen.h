@@ -47,7 +47,8 @@ static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
     BZ_FDF_BIND_CHILD(out, ScoreScreen5ColumnFrame, root, "ScoreScreen5ColumnFrame");
     BZ_FDF_BIND_CHILD(out, ScoreScreenTabTextSelected, root, "ScoreScreenTabTextSelected");
     BZ_FDF_BIND_CHILD(out, ScoreScreenOKButton, root, "ScoreScreenOkButton");
-    BZ_FDF_BIND_CHILD(out, ScoreScreenScrollBar, root, "ScoreScreenScrollBar");
+    /* RoC 1.0's retail ScoreScreen.fdf has no scrollbar; it must not make the whole score panel unavailable. */
+    BZ_FDF_BIND_CHILD_OPTIONAL(out, ScoreScreenScrollBar, root, "ScoreScreenScrollBar");
     out->ScoreScreenTeamsButton = UI_FindChildFrame(root, "ScoreScreenTeamsButton");
     /* The game-data agent confirmed a team-colour button, but supplied no
      * exact identifier. Keep this binding optional until raw FDF is provided. */

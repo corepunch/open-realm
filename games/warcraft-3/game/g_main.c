@@ -286,9 +286,12 @@ void G_FlushScoreTransition(void) {
         edict_t *ent;
         if (!client->connected) continue;
         ent = G_GetPlayerEntityByNumber(client->ps.number);
-        if (!ent) continue;
+        if (!ent) {
+            continue;
+        }
         score_transition.view[i].column = WC3_SCORE_NO_SORT;
-        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0, 0, &score_transition.view[i])) {
+        bool shown = UI_ShowScoreScreen(ent, &score_transition.frozen, 0, 0, &score_transition.view[i]);
+        if (shown) {
             score_transition.awaiting[i] = true;
             presented = true;
         }
@@ -1602,19 +1605,10 @@ void G_GameResultDebug(cstring_t format, ...) {
 
 static bool G_IsCampaignMapPath(cstring_t path);
 
-/* SetCampaignMenuRace is the legacy map-selected destination after a campaign
- * session. Resolve it in the game module and dispatch only generic menu names. */
+/* Campaign exits return to the selector; race-specific commands open a
+ * selected campaign's mission list. */
 static cstring_t G_CampaignMenuTarget(void) {
-    static cstring_t const targets[] = {
-        "menu_single_player_campaign",
-        "menu_single_player_campaign_human",
-        "menu_single_player_campaign_orc",
-        "menu_single_player_campaign_undead",
-        "menu_single_player_campaign_night_elf"
-    };
-    int32_t race = level.campaign_menu_race;
-    if (race < 1 || race > 4) race = 0;
-    return targets[race];
+    return "menu_single_player_campaign";
 }
 
 void G_RequestEndGame(bool do_score_screen) {
@@ -1653,7 +1647,6 @@ void G_RequestQuitGame(void) {
         ? G_CampaignMenuTarget()
         : "menu_main";
 
-    BZ_WC3_SCORE_LOG("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);
     /* Retail campaign Quit Mission presents the outgoing scores before
      * returning to campaign selection. Do not bypass the deferred controller;
      * a missing/invalid FDF still falls through to the destination safely.
