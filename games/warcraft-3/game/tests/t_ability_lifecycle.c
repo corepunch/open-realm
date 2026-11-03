@@ -2327,6 +2327,29 @@ static void rain_of_fire_test_done(slkTestData_t *rows, slkTestData_t *old) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_ability_lifecycle, tft_1_07_rain_of_fire_resolves_missing_effect_id_to_xerf) {
+    static char const roc_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"ANrf\"\nC;Y2;X2;K\"ANrf\"\nE\n";
+    static char const effect_config[] =
+        "[XErf]\nEffectArt=TestUI\\Models\\rain-fire.mdx\n";
+    slkTestData_t *rows = parse_slk_string(roc_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(G_TestPushAbilityConfig(effect_config));
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), FS_SLKKey("XErf"));
+    T_STREQ(G_AbilityEffectArt(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), WC3_EFFECT_EFFECT, 0),
+            "TestUI\\Models\\rain-fire.mdx");
+#else
+    T_EQ(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), FS_SLKKey("ANrf"));
+    T_NULL(G_AbilityEffectArt(FS_SLKKey("ANrf"), WC3_EFFECT_EFFECT, 0));
+#endif
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 static int rain_fire_capture_sound_index(cstring_t path) {
     strlcpy(blizzard_sound_path, path ? path : "", sizeof(blizzard_sound_path));
     return path && strstr(path, "loop.wav") ? 92 : 91;

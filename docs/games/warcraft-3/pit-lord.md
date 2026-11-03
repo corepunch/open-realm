@@ -126,6 +126,12 @@ no ability-specific path is hardcoded. The MPQ report confirms the aliases,
 but one-sound-per-wave versus one-per-shard cadence and exact scatter pattern
 remain retail-observation questions.
 
+The 1.07 TFT `ANrf` row has no `EfctID`, although `NeutralAbilityFunc.txt`
+still defines the impact model and sounds on `XErf`. With
+`BZ_COMPAT_WORKAROUNDS`, `G_AbilityEffectCode()` supplies that `XErf` link when
+the row omits it; later data with an authored `EfctID` continues to take
+precedence.
+
 `BNrd`/`BNrf` are the authored `BuffID` values but the supplied asset report
 identifies **no target model mapping for either**. The presentation patch does
 not invent persistent target art or create a buff merely for its icon. Burning
