@@ -256,6 +256,27 @@ static rect_t get_uvrect(stbtt_bakedchar *g, float h, float w) {
     return uv_rect;
 }
 
+/* At low physical resolutions, align the origin of the whole text run to
+ * a drawable pixel. Keep every glyph's relative offset and advance intact:
+ * snapping individual glyphs produces visibly uneven spacing at 640x480.
+ * The UI layout and font metrics remain unchanged. */
+static bool R_LowResSharpFonts(void) {
+    return tr.drawableSize.width > 0 && tr.drawableSize.height > 0 &&
+           tr.drawableSize.width <= 960 && tr.drawableSize.height <= 600 &&
+           R_CvarEnabled("r_font_lowres_sharp", "1");
+}
+
+static vec2_t R_SnapTextAnchor(vec2_t pos) {
+    rect_t const scene = R_UISceneRect();
+    if (scene.w > 0.0f && scene.h > 0.0f) {
+        float const pixels_x = (float)tr.drawableSize.width / scene.w;
+        float const pixels_y = (float)tr.drawableSize.height / scene.h;
+        pos.x = scene.x + roundf((pos.x - scene.x) * pixels_x) / pixels_x;
+        pos.y = scene.y + roundf((pos.y - scene.y) * pixels_y) / pixels_y;
+    }
+    return pos;
+}
+
 static rect_t get_screenrect(vec2_t const *cursor, stbtt_bakedchar *g) {
     rect_t const screen = {
         .x = cursor->x + INV_SCALE_X(g->xoff),
@@ -310,6 +331,9 @@ static vec2_t process_text(drawText_t const *arg, bool draw) {
         return MAKE(vec2_t, 0, 0);
     }
     vec2_t pos = draw ? get_position(arg) : MAKE(vec2_t, 0, 0);
+    if (draw && R_LowResSharpFonts()) {
+        pos = R_SnapTextAnchor(pos);
+    }
     color32_t color = arg->color;
     vec2_t cursor = pos;
     vec2_t linesize = MAKE(vec2_t, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
