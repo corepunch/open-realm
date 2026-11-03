@@ -2261,48 +2261,64 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
-    gameClient_t temp = *client;
+    gameClient_t *temp = malloc(sizeof(*temp));
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
     uint32_t const disabled_count = client->jass.disabled_ability_count;
     size_t disabled_bytes;
+    bool ok = false;
+
+    if (!temp) {
+        fprintf(stderr, "WC3 SaveGame: unable to allocate client serialization buffer\n");
+        return false;
+    }
+    *temp = *client;
 
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
-    ClearRuntimeFields(&temp, client_fields, FIELD_RUNTIME);
-    if (target < -1 || target >= (int)globals.max_edicts) return false;
+    ClearRuntimeFields(temp, client_fields, FIELD_RUNTIME);
+    if (target < -1 || target >= (int)globals.max_edicts) goto done;
     if (!DisabledAbilityBytes(disabled_count, &disabled_bytes) ||
         (disabled_count && !client->jass.disabled_abilities)) {
         fprintf(stderr, "WC3 SaveGame: invalid disabled ability count %u\n", (unsigned)disabled_count);
-        return false;
+        goto done;
     }
-    if (!SaveBytes(f, &temp, sizeof(temp)) || !SaveBytes(f, &target, sizeof(target)) ||
-        !SaveBytes(f, &disabled_count, sizeof(disabled_count))) return false;
-    return !disabled_count || SaveBytes(f, client->jass.disabled_abilities, disabled_bytes);
+    if (!SaveBytes(f, temp, sizeof(*temp)) || !SaveBytes(f, &target, sizeof(target)) ||
+        !SaveBytes(f, &disabled_count, sizeof(disabled_count))) goto done;
+    if (!disabled_count) { ok = true; goto done; }
+    if (!SaveBytes(f, client->jass.disabled_abilities, disabled_bytes)) goto done;
+    ok = true;
+done:
+    free(temp);
+    return ok;
 }
 
 static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
-    gameClient_t temp;
+    gameClient_t *temp = malloc(sizeof(*temp));
     uint32_t *disabled_abilities = NULL;
     uint32_t disabled_count = 0;
     size_t disabled_bytes;
+    bool ok = false;
 
-    if (!LoadBytes(f, &temp, sizeof(temp)) || !LoadBytes(f, target, sizeof(*target)) ||
-        !LoadBytes(f, &disabled_count, sizeof(disabled_count))) return false;
-    if (*target < -1 || *target >= (int)globals.max_edicts) return false;
+    if (!temp) {
+        fprintf(stderr, "WC3 LoadGame: unable to allocate client deserialization buffer\n");
+        return false;
+    }
+    if (!LoadBytes(f, temp, sizeof(*temp)) || !LoadBytes(f, target, sizeof(*target)) ||
+        !LoadBytes(f, &disabled_count, sizeof(disabled_count))) goto done;
+    if (*target < -1 || *target >= (int)globals.max_edicts) goto done;
     if (!DisabledAbilityBytes(disabled_count, &disabled_bytes)) {
         fprintf(stderr, "WC3 LoadGame: invalid disabled ability count %u\n", (unsigned)disabled_count);
-        return false;
+        goto done;
     }
     if (disabled_count) {
         disabled_abilities = malloc(disabled_bytes);
         if (!disabled_abilities || !LoadBytes(f, disabled_abilities, disabled_bytes)) {
             fprintf(stderr, "WC3 LoadGame: failed to read disabled ability list\n");
-            free(disabled_abilities);
-            return false;
+            goto done;
         }
     }
 
     G_ClearPlayerAbilityAvailability(client);
-    *client = temp;
+    *client = *temp;
     client->jass.disabled_abilities = disabled_abilities;
     client->jass.disabled_ability_count = disabled_count;
     client->jass.disabled_ability_capacity = disabled_count;
@@ -2323,7 +2339,12 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 0;
     client->camera.target_controller = NULL;
     client->rally_indicator = NULL;
-    return true;
+    disabled_abilities = NULL; /* Ownership transferred to client. */
+    ok = true;
+done:
+    free(disabled_abilities);
+    free(temp);
+    return ok;
 }
 
 static bool WriteBlight(FILE *f) {
