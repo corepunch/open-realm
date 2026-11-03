@@ -18,9 +18,12 @@
 #define mkdir_one(path) mkdir(path, 0777)
 #endif
 
-#define ISO_SECTOR_SIZE 2048u
-#define ISO_MAX_PATH    4096u
-#define ISO_MAX_NAME    512u
+#define ISO_SECTOR_SIZE 2048u // bytes; ISO 9660 logical sector size used for extent offsets.
+#define ISO_MAX_PATH    4096u // bytes; bounds decoded relative and output paths.
+#define ISO_MAX_NAME    512u // bytes; bounds one decoded ISO path component.
+#define ISO_MAX_DIRECTORY_SIZE (32u * 1024u * 1024u) // bytes; caps memory used to parse one directory record table.
+#define ISO_MAX_DIRECTORY_DEPTH 32u // levels; stops cyclic or hostile directory references from exhausting the stack.
+#define ISO_MAX_DIRECTORIES 65536u // entries; caps repeated traversal of aliased or hostile directory trees.
 
 typedef struct {
     uint32_t extent;
@@ -40,6 +43,7 @@ typedef struct {
     bool joliet;
     unsigned files;
     unsigned dirs;
+    unsigned traversed_dirs;
     uint64_t bytes;
 } iso_t;
 
@@ -361,12 +365,13 @@ static bool extract_file(iso_t *iso, iso_record_t const *rec, char const *path) 
     unsigned char buffer[64 * 1024];
     uint64_t off = (uint64_t)rec->extent * ISO_SECTOR_SIZE;
     uint32_t remaining = rec->size;
-    FILE *out = fopen(path, "wb");
+    FILE *out;
 
     if (off > iso->size || (uint64_t)remaining > iso->size - off) {
         fprintf(stderr, "isoextract: file outside image: %s\n", path);
         return false;
     }
+    out = fopen(path, "wb");
     if (!out) {
         fprintf(stderr, "isoextract: cannot write %s: %s\n", path, strerror(errno));
         return false;
@@ -374,6 +379,7 @@ static bool extract_file(iso_t *iso, iso_record_t const *rec, char const *path) 
     if (!seek_abs(iso->file, off)) {
         fprintf(stderr, "isoextract: cannot seek %s\n", iso->path);
         fclose(out);
+        remove(path);
         return false;
     }
 
@@ -382,6 +388,7 @@ static bool extract_file(iso_t *iso, iso_record_t const *rec, char const *path) 
         if (!read_exact(iso->file, buffer, chunk) || fwrite(buffer, 1, chunk, out) != chunk) {
             fprintf(stderr, "isoextract: failed extracting %s\n", path);
             fclose(out);
+            remove(path);
             return false;
         }
         remaining -= (uint32_t)chunk;
@@ -397,10 +404,17 @@ static bool extract_file(iso_t *iso, iso_record_t const *rec, char const *path) 
     return true;
 }
 
-static bool walk_dir(iso_t *iso, uint32_t extent, uint32_t size, char const *out_dir, char const *rel, bool list_only) {
+static bool walk_dir(iso_t *iso, uint32_t extent, uint32_t size, char const *out_dir, char const *rel,
+                     bool list_only, unsigned depth) {
     unsigned char *data;
     size_t off = 0;
 
+    if (depth > ISO_MAX_DIRECTORY_DEPTH || size > ISO_MAX_DIRECTORY_SIZE ||
+        iso->traversed_dirs >= ISO_MAX_DIRECTORIES) {
+        fprintf(stderr, "isoextract: directory tree exceeds traversal limits at %s\n", rel);
+        return false;
+    }
+    iso->traversed_dirs++;
     if (!read_extent(iso, extent, size, &data)) {
         return false;
     }
@@ -438,11 +452,12 @@ static bool walk_dir(iso_t *iso, uint32_t extent, uint32_t size, char const *out
                 free(data);
                 return false;
             }
-            iso->dirs++;
-            if (!walk_dir(iso, rec.extent, rec.size, out_dir, child_rel, list_only)) {
+            if (iso->dirs >= ISO_MAX_DIRECTORIES ||
+                !walk_dir(iso, rec.extent, rec.size, out_dir, child_rel, list_only, depth + 1)) {
                 free(data);
                 return false;
             }
+            iso->dirs++;
         } else {
             if (list_only) {
                 printf("%s %u\n", child_rel, rec.size);
@@ -471,11 +486,13 @@ static bool name_equals(char const *a, char const *b) {
 }
 
 static bool find_file(iso_t *iso, uint32_t extent, uint32_t size, char const *target,
-                      unsigned depth, iso_record_t *found, unsigned *matches) {
+                      unsigned depth, unsigned *visited_dirs, iso_record_t *found, unsigned *matches) {
     unsigned char *data = NULL;
     size_t off = 0;
-    if (depth > 16 || size > 32u * 1024u * 1024u ||
+    if (depth > ISO_MAX_DIRECTORY_DEPTH || size > ISO_MAX_DIRECTORY_SIZE ||
+        *visited_dirs >= ISO_MAX_DIRECTORIES ||
         !read_extent(iso, extent, size, &data)) return false;
+    (*visited_dirs)++;
     while (off < size) {
         unsigned len = data[off];
         iso_record_t rec;
@@ -490,7 +507,7 @@ static bool find_file(iso_t *iso, uint32_t extent, uint32_t size, char const *ta
         off += len;
         if (rec.special || rec.associated) continue;
         if (rec.is_dir) {
-            if (!find_file(iso, rec.extent, rec.size, target, depth + 1, found, matches)) {
+            if (!find_file(iso, rec.extent, rec.size, target, depth + 1, visited_dirs, found, matches)) {
                 free(data);
                 return false;
             }
@@ -508,11 +525,12 @@ static int cmd_extract_file(char const *image, char const *filename, char const 
     iso_t iso;
     iso_record_t found;
     unsigned matches = 0;
+    unsigned visited_dirs = 0;
     char parent[ISO_MAX_PATH];
     int rc = 1;
     if (strchr(filename, '/') || strchr(filename, '\\') || !*filename) return 1;
     if (!open_iso(image, &iso)) return 1;
-    if (!find_file(&iso, iso.root_extent, iso.root_size, filename, 0, &found, &matches)) {
+    if (!find_file(&iso, iso.root_extent, iso.root_size, filename, 0, &visited_dirs, &found, &matches)) {
         fprintf(stderr, "isoextract: invalid directory tree in %s\n", image);
         goto done;
     }
@@ -529,7 +547,6 @@ static int cmd_extract_file(char const *image, char const *filename, char const 
         if (*parent && !mkdir_p(parent)) goto done;
     }
     if (!extract_file(&iso, &found, output)) {
-        remove(output);
         goto done;
     }
     printf("isoextract: extracted %s (%u bytes) from %s\n", filename, found.size, image);
@@ -544,7 +561,7 @@ static int cmd_ls(char const *image) {
     int rc = 1;
 
     if (!open_iso(image, &iso)) return 1;
-    if (walk_dir(&iso, iso.root_extent, iso.root_size, "", "", true)) {
+    if (walk_dir(&iso, iso.root_extent, iso.root_size, "", "", true, 0)) {
         fflush(stdout);
         fprintf(stderr, "isoextract: listed %u files, %u dirs, %llu bytes (%s names)\n",
                 iso.files, iso.dirs, (unsigned long long)iso.bytes, iso.joliet ? "Joliet" : "ISO 9660");
@@ -559,7 +576,7 @@ static int cmd_extract(char const *image, char const *out_dir) {
     int rc = 1;
 
     if (!open_iso(image, &iso)) return 1;
-    if (mkdir_p(out_dir) && walk_dir(&iso, iso.root_extent, iso.root_size, out_dir, "", false)) {
+    if (mkdir_p(out_dir) && walk_dir(&iso, iso.root_extent, iso.root_size, out_dir, "", false, 0)) {
         printf("isoextract: extracted %u files, %u dirs, %llu bytes to %s (%s names)\n",
                iso.files, iso.dirs, (unsigned long long)iso.bytes, out_dir, iso.joliet ? "Joliet" : "ISO 9660");
         rc = 0;
