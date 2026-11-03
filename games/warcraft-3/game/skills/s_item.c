@@ -551,6 +551,64 @@ static uint32_t item_random_tileset_critter(char tileset) {
     return selected;
 }
 
+static bool sanctuary_is_townhall(uint32_t unit_id) {
+    UnitData_t const *data = G_UnitData(unit_id);
+    return data->id == unit_id && data->buffType && !strcasecmp(data->buffType, "townhall");
+}
+
+/* Town hall profile upgrade chains provide an authored tier order. Return the
+ * number of remaining TownHall forms so the terminal form wins selection. */
+static uint32_t sanctuary_townhall_upgrade_depth(uint32_t unit_id, uint32_t depth) {
+    cstring_t upgrades;
+    uint32_t remaining = 0;
+    if (!unit_id || depth >= 8 || !(upgrades = G_UnitProfile(unit_id)->upgrade) || !*upgrades) return 0;
+    PARSE_LIST(upgrades, token, parse_segment) {
+        uint32_t next = FS_SLKKey(token);
+        if (sanctuary_is_townhall(next))
+            remaining = MAX(remaining, 1u + sanctuary_townhall_upgrade_depth(next, depth + 1));
+    }
+    return remaining;
+}
+
+static edict_t *sanctuary_highest_townhall(uint32_t player) {
+    edict_t *best = NULL;
+    uint32_t best_depth = UINT32_MAX;
+    FILTER_EDICTS(hall, hall->s.player == player && S_SpellIsAliveTarget(hall) &&
+                  G_UnitIsStructure(hall) && sanctuary_is_townhall(hall->class_id) &&
+                  !G_GetConstruction(hall) && !G_UnitHasFlag(hall, UNIT_FLAG_TRAINING)) {
+        uint32_t const remaining = sanctuary_townhall_upgrade_depth(hall->class_id, 0);
+        if (!best || remaining < best_depth ||
+            (remaining == best_depth && hall->s.number < best->s.number)) {
+            best = hall;
+            best_depth = remaining;
+        }
+    }
+    return best;
+}
+
+/* Staff of Sanctuary sends a friendly target to the user's highest-tier
+ * completed town hall, with the regular teleport presentation at both ends. */
+BZ_ABILITY_PROC(CAbilityItemSanctuary) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_VALIDATE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        return spell && ent && target && S_SpellIsAliveTarget(target) &&
+               S_SpellIsFriend(ent, target) && sanctuary_highest_townhall(ent->s.player) != NULL;
+    }
+    if (msg == A_EXECUTE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        edict_t *hall = ent ? sanctuary_highest_townhall(ent->s.player) : NULL;
+        vec2_t requested, position;
+        if (!spell || !target || !hall) return false;
+        requested = hall->s.origin2;
+        if (!G_FindUnitUnstuckPosition(target, &requested, &position)) position = requested;
+        S_SpellRelocateUnit(target, spell->code, &position);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
 /* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
 BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
     edict_t *caster, *critter;
