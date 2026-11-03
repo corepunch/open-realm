@@ -354,7 +354,7 @@ TEST_JOBS ?= 16
  test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
+	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import test-browser \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
@@ -519,6 +519,10 @@ test-menu-boundary:
 .PHONY: test-wc3-iso-import
 test-wc3-iso-import: $(BIN_DIR)/isoextract$(EXE_EXT) $(BIN_DIR)/wc3setup$(EXE_EXT)
 	@python3 tools/test_wc3setup_import.py $(BIN_DIR)/isoextract$(EXE_EXT) $(BIN_DIR)/wc3setup$(EXE_EXT)
+
+.PHONY: test-browser
+test-browser:
+	node --test port/web/tests/*.test.cjs
 
 # These tests include the terrain bakers directly; keep incremental regression runs current.
 $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_EXT): $(wildcard $(WC3_DIR)/renderer/w3m/*.[ch]) renderer/r_cliff.h
