@@ -30,13 +30,13 @@
 
 #include "common/mpq.h"
 
-#define MAX_MPQ_TABLE 65536u
-#define MAX_RAW_BLOCKS 8192u
-#define MAX_GAME_MPQ (512u * 1024u * 1024u)
-#define MAX_EMBEDDED_TOTAL (1024ull * 1024ull * 1024ull)
-#define MPQ_EXISTS 0x80000000u
-#define MPQ_HEADER_SIZE 32u
-#define COPY_BUFFER (64u * 1024u)
+#define MAX_MPQ_TABLE 65536u // entries; caps decoded hash/block tables from installer archives.
+#define MAX_RAW_BLOCKS 8192u // entries; bounds anonymous embedded-MPQ candidate scanning.
+#define MAX_GAME_MPQ (512u * 1024u * 1024u) // bytes; rejects implausibly large embedded game archives.
+#define MAX_EMBEDDED_TOTAL (1024ull * 1024ull * 1024ull) // bytes; caps combined extracted archive sizes.
+#define MPQ_EXISTS 0x80000000u // flag bit; identifies an occupied MPQ block-table entry.
+#define MPQ_HEADER_SIZE 32u // bytes; minimum classic MPQ header and raw embedded archive size.
+#define COPY_BUFFER (64u * 1024u) // bytes; bounds memory used while copying a raw embedded archive.
 
 typedef struct {
     uint32_t offset, packed, size, flags;
