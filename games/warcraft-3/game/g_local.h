@@ -80,7 +80,7 @@ typedef struct {
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
-#define MAX_HERO_ABILITIES 4
+#define MAX_HERO_ABILITIES 5 // Three standard skills, ultimate, and the Hero Attribute Bonus ability.
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
 #define MAX_UNIT_STATUSES 16
