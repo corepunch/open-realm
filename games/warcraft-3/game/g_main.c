@@ -1605,10 +1605,19 @@ void G_GameResultDebug(cstring_t format, ...) {
 
 static bool G_IsCampaignMapPath(cstring_t path);
 
-/* Campaign exits return to the selector; race-specific commands open a
- * selected campaign's mission list. */
+/* SetCampaignMenuRace is the legacy map-selected destination after a campaign
+ * session. Resolve it in the game module and dispatch only generic menu names. */
 static cstring_t G_CampaignMenuTarget(void) {
-    return "menu_single_player_campaign";
+    static cstring_t const targets[] = {
+        "menu_single_player_campaign",
+        "menu_single_player_campaign_human",
+        "menu_single_player_campaign_orc",
+        "menu_single_player_campaign_undead",
+        "menu_single_player_campaign_night_elf"
+    };
+    int32_t race = level.campaign_menu_race;
+    if (race < 1 || race > 4) race = 0;
+    return targets[race];
 }
 
 void G_RequestEndGame(bool do_score_screen) {
@@ -1643,8 +1652,10 @@ void G_RequestQuitGame(void) {
     /* Quit returns campaign missions to the selector while other sessions use the main menu. */
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool single = G_IsSinglePlayer();
+    /* Quit Mission returns to the selector. A race-specific command opens
+     * the mission list and is reserved for EndGame's legacy campaign route. */
     cstring_t target = single && G_IsCampaignMapPath(map)
-        ? G_CampaignMenuTarget()
+        ? "menu_single_player_campaign"
         : "menu_main";
 
     /* Retail campaign Quit Mission presents the outgoing scores before
