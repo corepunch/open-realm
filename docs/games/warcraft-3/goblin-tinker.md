@@ -1,5 +1,8 @@
 # Goblin Tinker: Cluster Rockets, Engineering Upgrade, Robo-Goblin and Demolish
 
+The Tinker, Robo-Goblin, Pocket Factory, and Clockwerk Goblin were introduced
+after the 1.07 TFT baseline; see [Warcraft III data version history](data-version-history.md).
+
 ## Source data and scope
 
 This implementation uses the active TFT ability rows and the Goblin Tinker MPQ research report. The normal hero is `Ntin`; its mechanical form is `Nrob`. The source and destination share `HeroTinker.mdx`, with `Morph`/`Morph Alternate` and alternate idle/attack/death sequences. Neither form is the Clockwerk Goblin model. Pocket Factory already has a dedicated handler and is integrated with the Engineering variant lookup.
