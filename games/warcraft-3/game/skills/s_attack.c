@@ -358,7 +358,7 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 
 static bool can_attack(edict_t const *ent) {
     if (S_LavaSpawnIsSplitting(ent) || S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
-        S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
+        S_UnitIsCycloned(ent) || S_UnitIsDisarmed(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
     return !ent->currentmove || ent->currentmove->proc != CAbilityAttack;
@@ -925,7 +925,7 @@ static float attack_backswing_remaining(edict_t const *ent) {
 }
 
 static void damage_target(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) return;
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
@@ -952,7 +952,7 @@ static void damage_target(edict_t *ent) {
 }
 
 static void throw_missile(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1017,7 +1017,7 @@ static void throw_missile(edict_t *ent) {
 }
 
 static void ai_melee(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1034,7 +1034,7 @@ static void ai_melee(edict_t *ent) {
 }
 
 static void ai_ranged(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1146,7 +1146,7 @@ static bool attack_target_out_of_base_range(edict_t *ent) {
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
-    if (S_UnitIsEntanglingRooted(attacker) || !S_AttackCanTarget(attacker, target)) return false;
+    if (S_UnitIsDisarmed(attacker) || !S_AttackCanTarget(attacker, target)) return false;
     if ((attacker->aiflags & AI_IMMOBILE) &&
         (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
         return false;
@@ -1162,7 +1162,7 @@ static bool attack_cooldown_elapsed(edict_t *ent) {
 
 static void ai_melee_cooldown(edict_t *ent) {
     bool ready;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1182,7 +1182,7 @@ static void ai_melee_cooldown(edict_t *ent) {
 
 static void ai_ranged_cooldown(edict_t *ent) {
     bool ready;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1199,7 +1199,7 @@ static void ai_ranged_cooldown(edict_t *ent) {
 
 static void ai_attack_walk(edict_t *ent) {
     bool cooldown_ready = false;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1430,7 +1430,7 @@ static void attack_ground_stop(edict_t *ent) {
 }
 
 static void throw_artillery_ground(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     int damage;
     mat4_t matrix;
     vec3_t origin;
@@ -1456,21 +1456,21 @@ static void throw_artillery_ground(edict_t *ent) {
 }
 
 static void ai_attack_ground_ranged(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     unit_facegoal(ent);
     unit_runwait(ent, throw_artillery_ground);
 }
 
 static void ai_attack_ground_cooldown(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
     else unit_runwait(ent, attack_ground_ranged);
 }
 
 static void ai_attack_ground_walk(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
@@ -1512,7 +1512,7 @@ static void attack_ground_ranged(edict_t *ent) {
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     edict_t *waypoint;
 
-    if (!unit || !point || S_UnitIsEntanglingRooted(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
+    if (!unit || !point || S_UnitIsDisarmed(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
         S_UnitPolymorphed(unit)) return false;
     waypoint = Waypoint_add(point);
     if (!waypoint) return false;

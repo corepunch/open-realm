@@ -1928,6 +1928,11 @@ bool S_UnitIsEntanglingRooted(edict_t const *unit) {
     return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
 }
 
+bool S_UnitIsDisarmed(edict_t const *unit) {
+    return S_UnitIsEntanglingRooted(unit) ||
+           (unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'm', 'l', 't')));
+}
+
 /* Move owns translation eligibility. False means the unit cannot change
  * position this tick (immobile, Cyclone, Entangling Roots, Ensnare, Purge
  * pause). Entangling Roots is also a disarm; attack owns that separate check. */

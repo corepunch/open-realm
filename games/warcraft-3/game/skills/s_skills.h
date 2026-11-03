@@ -677,6 +677,7 @@ bool S_UnitIsSilenced(edict_t const *unit);
 bool S_StatusIsEnsnare(uint32_t code);
 bool S_UnitIsEnsnared(edict_t const *unit);
 bool S_UnitIsEntanglingRooted(edict_t const *unit);
+bool S_UnitIsDisarmed(edict_t const *unit);
 bool S_UnitCanTranslate(edict_t const *unit);
 float S_EnsnareMeleeRange(edict_t const *unit);
 bool S_SpellIsEnemy(edict_t *caster, edict_t *target);
