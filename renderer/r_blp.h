@@ -41,4 +41,7 @@ enum tBLPFormat {
     BLP_FORMAT_DXT5_ALPHA_8  = (BLP_ENCODING_DXT << 16) | (BLP_ALPHA_DEPTH_8 << 8) | BLP_ALPHA_ENCODING_DXT5,
 };
 
+texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize);
+texture_t *R_LoadTextureBLP1Named(handle_t data, uint32_t filesize, cstring_t texture_name);
+
 #endif /* R_BLP_H */

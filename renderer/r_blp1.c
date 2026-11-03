@@ -93,7 +93,8 @@ uint32_t blp1_nbMipLevels(struct tInternalBLPInfos* pBLPInfos) {
     return pBLPInfos->infos.nbMipLevels;
 }
 
-color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPInfos* pBLPInfos, uint32_t mipLevel) {
+static color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPInfos* pBLPInfos,
+                               uint32_t mipLevel, bool force_opaque_jpeg_alpha) {
     // Check the mip level
     if (mipLevel >= pBLPInfos->infos.nbMipLevels)
         mipLevel = pBLPInfos->infos.nbMipLevels - 1;
@@ -108,10 +109,9 @@ color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPI
     switch (blp1_format(pBLPInfos)) {
         case BLP_FORMAT_JPEG:
             pDst = blp1_convert_jpeg(pSrc, &pBLPInfos->infos, size);
-            /* alphaBits 0 declares no alpha; Textures\Base.blp still stores 0 in the band of mips 1-8. */
-            if (pDst && !pBLPInfos->header.alphaBits) {
+            /* Base.blp declares no alpha but stores zeros in the alpha band of lower mips. */
+            if (pDst && force_opaque_jpeg_alpha && !pBLPInfos->header.alphaBits)
                 FOR_LOOP(p, width * height) pDst[p].a = 255;
-            }
             break;
         case BLP_FORMAT_PALETTED_NO_ALPHA:
             pDst = blp1_convert_paletted_no_alpha(pSrc, &pBLPInfos->infos, width, height);
@@ -135,8 +135,23 @@ color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPI
     return pDst;
 }
 
-texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
+static bool blp1_is_base_texture(cstring_t name) {
+    static char const suffix[] = "textures\\base.blp";
+    size_t const length = name ? strlen(name) : 0;
+    size_t const suffix_length = sizeof(suffix) - 1;
+    if (length < suffix_length ||
+        (length > suffix_length && name[length - suffix_length - 1] != '\\' &&
+         name[length - suffix_length - 1] != '/')) return false;
+    FOR_LOOP(i, suffix_length) {
+        char c = name[length - suffix_length + i] == '/' ? '\\' : name[length - suffix_length + i];
+        if ((char)tolower((unsigned char)c) != suffix[i]) return false;
+    }
+    return true;
+}
+
+texture_t *R_LoadTextureBLP1Named(handle_t data, uint32_t filesize, cstring_t texture_name) {
     struct tInternalBLPInfos* pBLPInfos = ri.MemAlloc(sizeof(struct tInternalBLPInfos));
+    bool const force_opaque_jpeg_alpha = blp1_is_base_texture(texture_name);
     memcpy(&pBLPInfos->header, data, sizeof(struct tBLP1Header));
     pBLPInfos->infos.nbMipLevels = 0;
     while ((pBLPInfos->header.offsets[pBLPInfos->infos.nbMipLevels] != 0) &&
@@ -161,7 +176,7 @@ texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
     FOR_LOOP(level, blp1_nbMipLevels(pBLPInfos)) {
         uint32_t const width = blp1_width(pBLPInfos, level);
         uint32_t const height = blp1_height(pBLPInfos, level);
-        color32_t *pPixels = blp1_convert(data, filesize, pBLPInfos, level);
+        color32_t *pPixels = blp1_convert(data, filesize, pBLPInfos, level, force_opaque_jpeg_alpha);
         if (pPixels) {
             R_LoadTextureMipLevel(pTexture, &(texMip_t){ pPixels, width, height, level, PIXEL_BGRA });
             ri.MemFree(pPixels);
@@ -169,6 +184,10 @@ texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
     }
 
     return pTexture;
+}
+
+texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
+    return R_LoadTextureBLP1Named(data, filesize, NULL);
 }
 
 color32_t *blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t dataSize) {

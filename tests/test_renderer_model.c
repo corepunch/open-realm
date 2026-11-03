@@ -2,6 +2,7 @@
 #include "renderer/r_local.h"
 #include "renderer/r_game.h"
 #include "renderer/r_emit.h"
+#include "renderer/r_blp.h"
 #include "games/warcraft-3/renderer/w3m/r_war3map.h"
 #include "games/warcraft-3/renderer/mdx/r_mdx.h"
 #include "renderer/r_shader.h"
@@ -3307,7 +3308,7 @@ TEST(renderer_texture, blp1_palette_upload_is_rgba) {
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
 }
 
-TEST(renderer_texture, blp1_jpeg_without_alpha_bits_uploads_opaque) {
+TEST(renderer_texture, blp1_jpeg_zero_alpha_bits_preserves_authored_alpha_band) {
     /* A 1x1 four-band baseline JPEG whose blocks are all DC 0, so every band decodes to 128. */
     static uint8_t const jpeg[] = {
         0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43, 0x00,
@@ -3328,8 +3329,10 @@ TEST(renderer_texture, blp1_jpeg_without_alpha_bits_uploads_opaque) {
     file.hdr.alphaBits = 8; /* A declared alpha band is authored data, as in Goldmine.blp. */
     test_free(R_LoadTextureBLP1(&file, sizeof(file)));
     T_EQ(upload_pixel.a, 128);
-    file.hdr.alphaBits = 0; /* Base.blp declares no alpha, yet stores 0 in the band of its lower mips. */
+    file.hdr.alphaBits = 0; /* Some JPEG BLPs carry a meaningful fourth band despite this header value. */
     test_free(R_LoadTextureBLP1(&file, sizeof(file)));
+    T_EQ(upload_pixel.r, 128); T_EQ(upload_pixel.a, 128);
+    test_free(R_LoadTextureBLP1Named(&file, sizeof(file), "Textures\\Base.blp"));
     T_EQ(upload_pixel.r, 128); T_EQ(upload_pixel.a, 255);
 }
 
