@@ -209,6 +209,7 @@ BZ_ABILITY_PROC(CAbilityCoupleHippogryph);
 BZ_ABILITY_PROC(CAbilityDecouple);
 BZ_ABILITY_PROC(CAbilityItemHeal);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
+BZ_ABILITY_PROC(CAbilityItemRegeneration);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityMechanicalCritter);
 BZ_ABILITY_PROC(CAbilityItemSanctuary);
