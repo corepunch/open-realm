@@ -1413,6 +1413,10 @@ cstring_t S_SearingArrowsMissileArt(edict_t *attacker) {
 
 static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
     cstring_t buff = S_SpellBuffId(code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC/TFT 1.07 omits ANms.BuffID; Mana Shield's stock active marker is BNms. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(code) == ID_MANA_SHIELD) buff = "BNms";
+#endif
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 
