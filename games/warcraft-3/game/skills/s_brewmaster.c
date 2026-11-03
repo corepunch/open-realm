@@ -94,6 +94,9 @@ void brewmaster_burn_think(edict_t *burn) {
 
 static void brewmaster_ignite(edict_t *caster, edict_t *victim, uint32_t code, uint32_t rank) {
     cstring_t buff = S_SpellBuffId(code, rank);
+#if BZ_COMPAT_WORKAROUNDS
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(code) == MAKEFOURCC('A','N','b','f')) buff = "BNbf";
+#endif
     float duration = S_SpellHeroDuration(code, rank, victim);
     heroabilitystatus_t *status;
     edict_t *burn;
@@ -161,6 +164,9 @@ static void brewmaster_haze_hit(edict_t *missile) {
     uint32_t code = missile->class_id, rank = missile->resources;
     float radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, rank);
     cstring_t buff = S_SpellBuffId(code, rank);
+#if BZ_COMPAT_WORKAROUNDS
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(code) == MAKEFOURCC('A','N','d','h')) buff = "BNdh";
+#endif
     if (caster && primary && !M_IsDead(primary) && buff) {
         vec2_t center = primary->s.origin2;
         G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &center, true);

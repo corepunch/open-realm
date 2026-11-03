@@ -59,6 +59,9 @@ identity; `acid_bomb_think` is already on `g_save.c`'s callback roster. The
 initial per-target status application samples victims only **at impact**;
 units entering the area later are not retroactively affected.
 
+With `BZ_COMPAT_WORKAROUNDS`, missing 1.07 `BuffID` on stock `ANab` falls back
+to `BNab`; an authored usable BuffID still takes precedence.
+
 Unconfirmed retail details: whether DOT starts immediately at impact versus
 one second later, the exact refresh policy for simultaneous casts and any
 special treatment of flying/immune units beyond the authored target mask.

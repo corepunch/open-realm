@@ -3,6 +3,11 @@
 static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC AbilityData omits BuffID; campaign Frost Armor uses BUfa too. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == MAKEFOURCC('A','C','f','u'))
+        buff = "BUfa";
+#endif
     if (st.entity && buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 

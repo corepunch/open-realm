@@ -6459,11 +6459,11 @@ TEST(wc3_spell, frost_nova_spawns_target_effect_on_primary_victim) {
 
 TEST(wc3_spell, frost_armor_enables_buff_target_art) {
     static char const ability_slk[] =
-        "ID;PWXL;N;EBB;Y2;X5\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
-        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
-        "C;Y2;X1;K\"AUfa\"\nC;Y2;X2;K\"AUfa\"\nC;Y2;X3;K\"BUfa\"\n"
-        "C;Y2;X4;K\"45\"\nC;Y2;X5;K\"3\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AUfa\"\nC;Y2;X2;K\"AUfa\"\n"
+        "C;Y2;X3;K\"45\"\nC;Y2;X4;K\"3\"\nE\n";
     slkTestData_t *rows = parse_slk_string(ability_slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *caster = make_hero(MAKEFOURCC('U','n','e','c'), 500, 200, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);

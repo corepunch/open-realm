@@ -29,6 +29,11 @@ shared strongest-negative status modifier policy and does not require bespoke
 movement logic. The miss roll occurs on the **attacker**, after the defender's
 ordinary evasion roll. Campaign `Acdh` keeps its separate DataB/C values.
 
+The 1.07 AbilityData schema omits `BuffID`; with `BZ_COMPAT_WORKAROUNDS`, the
+stock `ANdh`/`Acdh` and `ANbf` families resolve to `BNdh` and `BNbf`. These
+fallbacks are only used when the active row has no usable status ID, so custom
+BuffID data remains authoritative.
+
 ## Drunken Brawler
 
 The shared critical and evasion calculations also accept campaign `Acdb`.
