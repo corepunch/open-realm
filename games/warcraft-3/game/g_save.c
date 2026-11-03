@@ -2522,7 +2522,7 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
         if (pool->component) ((component_t *)slot)->next = NULL;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; field->name; field++)
-            if (!ReadField(field, slot)) return false;
+            if (!ReadField(f, field, slot)) return false;
         for (field_t const *field = pool->fields; field->name; field++)
             if (!ReadFieldStrings(f, field, slot)) return false;
         if (pool->component && ((component_t *)slot)->id != pool->component) return false;
