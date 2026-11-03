@@ -190,6 +190,37 @@ async function checkAvailableStorage(bytes) {
         ' bytes of game data; free storage and retry');
   }
 }
+// Safari 17 has OPFS sync access handles in dedicated workers but lacks
+// createWritable(). Keep the atomic writable-stream path on newer browsers.
+async function openWriter(file) {
+  if (typeof file.createWritable === 'function') return file.createWritable();
+  if (typeof file.createSyncAccessHandle !== 'function')
+    throw new Error('This browser cannot write to OPFS');
+  const access = await file.createSyncAccessHandle();
+  let offset = 0;
+  try { await access.truncate(0); }
+  catch (err) { await access.close(); throw err; }
+  return {
+    async write(data) {
+      const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+      let written = 0;
+      while (written < bytes.byteLength) {
+        const size = access.write(bytes.subarray(written), {at:offset});
+        if (!Number.isInteger(size) || size <= 0 || size > bytes.byteLength - written)
+          throw new Error('Incomplete OPFS write');
+        written += size;
+        offset += size;
+      }
+    },
+    async close() {
+      try { await access.flush(); }
+      finally { await access.close(); }
+    },
+    // Sync handles have no abort: callers write only to a disposable generation
+    // or to a temporary manifest, never directly to the active manifest.
+    async abort() { await access.close(); }
+  };
+}
 async function directory(create) {
   const origin = await navigator.storage.getDirectory();
   const root = await origin.getDirectoryHandle(ROOT, {create});
@@ -313,7 +344,7 @@ async function install(files) {
       for (const part of parts.slice(0, -1))
         parent = await parent.getDirectoryHandle(part, {create:true});
       const dest = await parent.getFileHandle(parts[parts.length - 1], {create:true});
-      const writable = await dest.createWritable();
+      const writable = await openWriter(dest);
       try {
         for (let pos = 0; pos < f.size; pos += CHUNK) {
           checkCancelled();
@@ -342,13 +373,25 @@ async function install(files) {
     };
     // This root manifest is the sole commit point. Do not remove any old
     // generation here: the engine may still have archives open from it.
-    const handle = await dir.getFileHandle(META,{create:true});
-    const out = await handle.createWritable();
+    // On Safari, sync writes are in-place. Stage the manifest inside the new
+    // generation and move it over the active one only after it is complete.
+    // Modern browsers retain createWritable's normal atomic close/abort path.
+    const stagedManifest = await stage.getFileHandle(META, {create:true});
+    const atomicStream = typeof stagedManifest.createWritable === 'function';
+    if (atomicStream) await stage.removeEntry(META);
+    const handle = atomicStream ? await dir.getFileHandle(META,{create:true}) : stagedManifest;
+    const out = await openWriter(handle);
     try {
       await out.write(JSON.stringify(manifest));
-      if (cancelled) { await out.abort(); throw new Error('Import cancelled'); }
+      if (cancelled) throw new Error('Import cancelled');
       await out.close();
     } catch (err) { await out.abort().catch(()=>{}); throw err; }
+    if (!atomicStream) {
+      if (typeof handle.move !== 'function')
+        throw new Error('This browser cannot commit an OPFS installation');
+      checkCancelled();
+      await handle.move(dir, META);
+    }
     committed = true;
     if (missing.length) postMessage({type:'notice', message:'Partial expansion installation: ' +
       missing.join(', ') + ' missing. Some campaign and localized content may not work.'});

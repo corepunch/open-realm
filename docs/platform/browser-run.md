@@ -34,7 +34,9 @@ builds a separate WebGL smoke test and does not run Warcraft III.
 - Linux, Git, Python 3, Make, and a C build toolchain.
 - An activated Emscripten SDK (`emcc` on `PATH`).
 - Chrome or Edge recommended, with WebGL 2, OffscreenCanvas, OPFS and the Web
-  Locks API available.
+  Locks API available. Safari 17 on iPadOS 17 is a compatibility target, not
+  yet a verified playable configuration; it requires the same graphics,
+  threading and origin-isolation capabilities.
 - Warcraft III game data that you are legally entitled to use. The project
   does not distribute Blizzard archives.
 
@@ -100,6 +102,17 @@ each import must include the base `War3.mpq` archive.
   or standalone MPQs. Other demo disc layouts are not recognized.
 - Direct MPQ uploads and loose maps are supported. `Setup.mpq` is installer
   data and is not installed as a game archive.
+
+On older Safari (including iPadOS 17), the installer uses synchronous OPFS
+access handles inside its dedicated worker, because Safari does not expose
+`createWritable()` until newer versions. Chrome, Edge and newer Safari continue
+to use `createWritable()` for streamed writes. The sync path stages each archive
+in a new generation and writes the new manifest to a temporary file first;
+only a completed manifest is moved into the active `installation.json` path.
+An interrupted or failed import retains the prior generation. Importing
+requires a regular browser session with OPFS storage enabled; private sessions
+may refuse OPFS, and this does not establish that the game engine runs on
+any particular iPad model. Verify real devices separately.
 
 Files remain in the browser's origin-private file system (OPFS); they are not
 uploaded. Keep using the same browser profile and URL, and avoid clearing site
