@@ -696,6 +696,15 @@ static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vec2_t const *
     S_SpellRelocateUnit(unit, code, &position);
 }
 
+static bool mass_teleport_destination_valid(uint32_t code, edict_t *caster, edict_t *target) {
+    UnitData_t const *data;
+    if (!caster || !target || !S_SpellIsAliveTarget(target)) return false;
+    if (code != MAKEFOURCC('A','I','t','p')) return true;
+    data = G_UnitData(target->class_id);
+    return G_UnitIsStructure(target) && data->buffType && !strcasecmp(data->buffType, "townhall") &&
+           S_SpellIsFriend(caster, target);
+}
+
 void mass_teleport_think(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
     edict_t *target = S_SpellChannelTarget(thinker);
@@ -710,7 +719,8 @@ void mass_teleport_think(edict_t *thinker) {
         S_SpellEndChannel(thinker);
         return;
     }
-    if (!target || !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
+    if (!mass_teleport_destination_valid(thinker->class_id, caster, target) ||
+        !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
         mass_teleport_cleanup(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -753,7 +763,8 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
     if (msg == A_VALIDATE) {
         edict_t *target = call && call->target ? call->target->entity : NULL;
         if (!target || !S_SpellIsAliveTarget(target) || target == ent ||
-            !S_SpellAllowsAreaTarget(spell ? spell->code : 0, ent, target)) return false;
+            !S_SpellAllowsAreaTarget(spell ? spell->code : 0, ent, target) ||
+            !mass_teleport_destination_valid(spell ? spell->code : 0, ent, target)) return false;
 #if BZ_COMPAT_WORKAROUNDS
         /* RoC AHmt has no player/ally relationship tokens in targs, so retain
          * its retail friendly-destination rule explicitly. */

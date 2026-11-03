@@ -347,7 +347,7 @@ static ability_t abilitylist[] = {
     { "Asou", CAbilitySoulTrapped, AB_PASSIVE },  /* Item Soul Possession */
     // TODO: AIrc a_item_reincarnation  /* Item Reincarnation */
     // TODO: AIrt a_item_recall  /* Item Recall */
-    // TODO: AItp a_item_town_portal  /* Item Town Portal */
+    { "AItp", CAbilityMassTeleport, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Scroll of Town Portal */
     { "AIpm", CAbilityPlaceMine, AB_SPELL, SPELL_TARGET_POINT },  /* Item Place Goblin Land Mine */
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
@@ -389,7 +389,7 @@ static ability_t abilitylist[] = {
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
-    // TODO: ANsa a_bounce  /* Staff of Sanctuary */
+    { "ANsa", CAbilityItemSanctuary, AB_SPELL, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
     { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */
