@@ -3955,6 +3955,38 @@ TEST(wc3_game, fow_ultravision_research_expands_only_night_sight) {
     G_FowShutdown();
 }
 
+/* The TFT 1.07 Keeper of the Grove row authors 1800 day sight, 900 night
+ * sight, and includes Reuv in Upgrades Used. Its reveal should reach the same
+ * distance at night after Ultravision is researched. */
+TEST(wc3_game, fow_ultravision_gives_keeper_day_sight_at_night) {
+    static UnitBalance_t const keeper_balance = { .upgrades = "Reuv" };
+    uint32_t const research = MAKEFOURCC('R', 'e', 'u', 'v');
+    edict_t *keeper;
+    uint32_t probe_index;
+
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f}, .max = {4096.0f, 4096.0f}));
+    fow_ultravision_clock(true);
+    G_FowInit(); G_FowConnectPlayer(0);
+    probe_index = G_FowWorldToCellY(1024.0f) * level.fow.width + G_FowWorldToCellX(2304.0f);
+    keeper = alloc_test_unit(MAKEFOURCC('E', 'k', 'e', 'e'), 1024.0f, 1024.0f);
+    keeper->s.player = 0;
+    keeper->data.UnitBalance = &keeper_balance;
+    keeper->runtime.sight_radius.day = 1800.0f;
+    keeper->runtime.sight_radius.night = 900.0f;
+
+    fow_ultravision_clock(false);
+    G_FowUpdate();
+    T_ASSERT(level.fow.players[0].visible[probe_index]);
+    fow_ultravision_clock(true);
+    G_FowUpdate();
+    T_ASSERT(!level.fow.players[0].visible[probe_index]);
+    G_SetPlayerTechResearched(&game.clients[0], research, 1);
+    G_FowUpdate();
+    T_ASSERT(level.fow.players[0].visible[probe_index]);
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_ultravision_requires_unit_upgrade_and_excludes_buildings) {
     static UnitBalance_t const eligible = { .upgrades = "Reuv" };
     static UnitBalance_t const not_eligible = { .upgrades = "" };
