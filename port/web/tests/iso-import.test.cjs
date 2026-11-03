@@ -99,10 +99,12 @@ function missing(name) {
   throw error;
 }
 class MemoryFile {
-  constructor(name, failWritesFor) {
+  constructor(name, parent) {
     this.name = name;
-    this.failWritesFor = failWritesFor;
+    this.parent = parent;
     this.value = new Blob([]);
+    this.syncOpens = 0;
+    if (parent.syncOnly) this.createWritable = undefined;
   }
   async getFile() { return this.value; }
   async createWritable() {
@@ -110,31 +112,66 @@ class MemoryFile {
     const handle = this;
     return {
       async write(data) {
-        if (handle.name === handle.failWritesFor) throw new Error('Simulated OPFS write failure');
+        if (handle.name === handle.parent.failWritesFor) throw new Error('Simulated OPFS write failure');
         buffers.push(data);
       },
       async close() { handle.value = new Blob(buffers); },
       async abort() { buffers.length = 0; }
     };
   }
+  async createSyncAccessHandle() {
+    this.syncOpens++;
+    let bytes = Buffer.from(await this.value.arrayBuffer());
+    let closed = false;
+    const handle = this;
+    function open() { if (closed) throw new Error('OPFS access handle is closed'); }
+    return {
+      truncate(size) { open(); bytes = Buffer.concat([bytes.subarray(0, size),
+        Buffer.alloc(Math.max(0, size - bytes.length))]); },
+      write(data, {at = 0} = {}) {
+        open();
+        if (handle.name === handle.parent.failWritesFor)
+          throw new Error('Simulated OPFS write failure');
+        const input = Buffer.from(data);
+        const count = handle.parent.partialSyncWrites ? Math.max(1, Math.floor(input.length / 2)) : input.length;
+        if (bytes.length < at + count)
+          bytes = Buffer.concat([bytes, Buffer.alloc(at + count - bytes.length)]);
+        input.copy(bytes, at, 0, count);
+        return count;
+      },
+      flush() { open(); handle.value = new Blob([bytes]); },
+      close() { if (!closed) { handle.value = new Blob([bytes]); closed = true; } }
+    };
+  }
+  async move(dir, name) {
+    if (name === this.parent.failMovesFor) throw new Error('Simulated OPFS move failure');
+    this.parent.files.delete(this.name);
+    this.name = name;
+    this.parent = dir;
+    dir.files.set(name, this);
+  }
 }
 class MemoryDir {
-  constructor(failWritesFor = null) {
+  constructor({failWritesFor = null, failMovesFor = null, syncOnly = false,
+    partialSyncWrites = false} = {}) {
     this.dirs = new Map();
     this.files = new Map();
     this.failWritesFor = failWritesFor;
+    this.failMovesFor = failMovesFor;
+    this.syncOnly = syncOnly;
+    this.partialSyncWrites = partialSyncWrites;
   }
   async getDirectoryHandle(name, {create = false} = {}) {
     if (!this.dirs.has(name)) {
       if (!create) missing(name);
-      this.dirs.set(name, new MemoryDir(this.failWritesFor));
+      this.dirs.set(name, new MemoryDir(this));
     }
     return this.dirs.get(name);
   }
   async getFileHandle(name, {create = false} = {}) {
     if (!this.files.has(name)) {
       if (!create) missing(name);
-      this.files.set(name, new MemoryFile(name, this.failWritesFor));
+      this.files.set(name, new MemoryFile(name, this));
     }
     return this.files.get(name);
   }
@@ -175,13 +212,15 @@ class TestLocks {
     };
   }
 }
-function makeWorker({estimate, failWritesFor = null, locks = new TestLocks()} = {}) {
-  const root = new MemoryDir(failWritesFor);
+function makeWorker({estimate, failWritesFor = null, failMovesFor = null,
+  syncOnly = false, partialSyncWrites = false, locks = new TestLocks()} = {}) {
+  const root = new MemoryDir({failWritesFor, failMovesFor, syncOnly, partialSyncWrites});
   const messages = [];
   const storage = {getDirectory: async () => root};
   if (estimate !== undefined) storage.estimate = async () => estimate;
   const context = vm.createContext({
-    Blob, AbortController, DOMException, DecompressionStream, Uint8Array, DataView, Number, Date, Math,
+    Blob, AbortController, DOMException, DecompressionStream, Uint8Array, DataView,
+    TextEncoder, Number, Date, Math,
     navigator: {storage, locks},
     postMessage: message => messages.push(message)
   });
@@ -225,6 +264,71 @@ test('ISO import copies only recognized archive extents and writes v3 manifest',
   const stage = await dir.getDirectoryHandle(manifest.generation);
   assert.equal(Buffer.compare(Buffer.from(await (await (await stage.getFileHandle('War3.mpq')).getFile()).arrayBuffer()), data), 0);
   assert.equal(stage.files.has('Setup.mpq'), false);
+});
+
+test('newer browsers retain createWritable for archives and the active manifest', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal(result.at(-1).type, 'done');
+  const dir = await worker.gameDir();
+  const stage = await dir.getDirectoryHandle(result.at(-1).manifest.generation);
+  assert.equal((await stage.getFileHandle('War3.mpq')).syncOpens, 0);
+  assert.equal((await dir.getFileHandle('installation.json')).syncOpens, 0);
+  assert.equal(stage.files.has('installation.json'), false);
+});
+
+test('Safari 17 sync-only OPFS supports partial writes and repeated imports', async () => {
+  const worker = makeWorker({syncOnly:true, partialSyncWrites:true});
+  const firstData = mpq(2048, 0x31);
+  const first = await worker.run([namedBlob(firstData, 'War3.mpq')]);
+  assert.equal(first.at(-1).type, 'done');
+  const dir = await worker.gameDir();
+  const firstStage = await dir.getDirectoryHandle(first.at(-1).manifest.generation);
+  const archive = await firstStage.getFileHandle('War3.mpq');
+  assert.equal(archive.syncOpens, 1);
+  assert.equal(Buffer.compare(Buffer.from(await (await archive.getFile()).arrayBuffer()), firstData), 0);
+  const oldManifest = await dir.getFileHandle('installation.json');
+  assert.equal(oldManifest.syncOpens, 1);
+  assert.equal(firstStage.files.has('installation.json'), false);
+
+  const secondData = mpq(96, 0x72);
+  const second = await worker.run([namedBlob(secondData, 'War3.mpq')]);
+  assert.equal(second.at(-1).type, 'done');
+  const active = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(active.generation, second.at(-1).manifest.generation);
+  assert.notEqual(active.generation, first.at(-1).manifest.generation);
+  assert.equal(active.bytes, secondData.length);
+  const secondStage = await dir.getDirectoryHandle(active.generation);
+  assert.equal(Buffer.compare(Buffer.from(await (await (await secondStage.getFileHandle('War3.mpq')).getFile()).arrayBuffer()), secondData), 0);
+  assert.equal(dir.dirs.has(first.at(-1).manifest.generation), true);
+});
+
+test('Safari sync write failure retains the previous installation', async () => {
+  const worker = makeWorker({syncOnly:true});
+  const first = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  const dir = await worker.gameDir();
+  dir.failWritesFor = 'War3x.mpq';
+  const second = await worker.run([
+    namedBlob(mpq(), 'War3.mpq'), namedBlob(mpq(), 'War3x.mpq')
+  ]);
+  assert.equal(second.at(-1).type, 'error');
+  assert.match(second.at(-1).message, /Simulated OPFS write failure/);
+  const active = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(active.generation, first.at(-1).manifest.generation);
+  assert.equal(dir.dirs.size, 1);
+});
+
+test('Safari manifest move failure cannot replace the active generation', async () => {
+  const worker = makeWorker({syncOnly:true});
+  const first = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  const dir = await worker.gameDir();
+  dir.failMovesFor = 'installation.json';
+  const second = await worker.run([namedBlob(mpq(128), 'War3.mpq')]);
+  assert.equal(second.at(-1).type, 'error');
+  assert.match(second.at(-1).message, /Simulated OPFS move failure/);
+  const active = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(active.generation, first.at(-1).manifest.generation);
+  assert.equal(dir.dirs.size, 1);
 });
 
 test('standalone MPQ uploads retain their existing manifest format', async () => {
@@ -352,8 +456,10 @@ test('OPFS write failure midway through multi-input import rolls back generation
   assert.equal(dir.dirs.size, 1);
 });
 
-test('cancel during copying preserves the previous generation', async () => {
-  const worker = makeWorker();
+for (const syncOnly of [false, true]) test(
+  'cancel during copying preserves the previous generation (' +
+  (syncOnly ? 'Safari OPFS' : 'writable stream') + ')', async () => {
+  const worker = makeWorker({syncOnly});
   const first = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
   const previous = first.at(-1).manifest.generation;
   // The first progress message is published after the first 1 MiB write.

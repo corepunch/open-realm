@@ -34,6 +34,18 @@ claiming an expansion installation.
 Both browser pages expose ISO selection from patch 4. See
 [browser ISO reader](browser-iso9660.md).
 
+The installer prefers `FileSystemFileHandle.createWritable()` when available,
+so modern browsers keep the normal buffered write/abort semantics. Safari 17
+lacks that method but implements `createSyncAccessHandle()` inside dedicated
+workers. The worker's alternate writer explicitly tracks byte offsets, handles
+partial synchronous writes, truncates new files, flushes and releases handles.
+A sync handle has no abort; the fallback therefore writes archives only into
+a new disposable installation generation and writes `installation.json` first
+inside that staging generation. After closing the sync handle it moves the
+completed manifest to the active path. The Web Locks commit guard still covers
+both paths. The fallback requires OPFS sync handles and file `move()` support;
+it does not use user-agent sniffing or downgrade modern browsers.
+
 Before staging, the worker asks `navigator.storage.estimate()` for remaining
 quota when available. An explicit shortage prevents an import; absence or
 failure of this optional estimate does not prevent trying to write. OPFS can
