@@ -533,6 +533,49 @@ static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     return rec ? rec->carrier : NULL;
 }
 
+/* Choose uniformly from valid critters authored for the map's main tileset.
+ * Tileset-specific membership comes from UnitBalance.tilesets; '*' means all. */
+static uint32_t item_random_tileset_critter(char tileset) {
+    uint32_t selected = 0, count = 0;
+    if (!tileset) return 0;
+    FOR_LOOP(i, g_UnitDataCount) {
+        UnitData_t const *unit = g_UnitData + i;
+        UnitBalance_t const *balance;
+        cstring_t tilesets;
+        if (!unit->id || !unit->valid || !unit->race || strcasecmp(unit->race, "critters")) continue;
+        balance = G_UnitBalance(unit->id);
+        if (balance->id != unit->id || !(tilesets = balance->tilesets) || !*tilesets ||
+            (!strchr(tilesets, tileset) && !strchr(tilesets, '*'))) continue;
+        if ((uint32_t)rand() % ++count == 0) selected = unit->id;
+    }
+    return selected;
+}
+
+/* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
+BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
+    edict_t *caster, *critter;
+    uint32_t code, unit_id;
+    vec2_t spawn;
+    float facing = 0.0f;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || !level.mapinfo) return false;
+    code = call->item->code;
+    unit_id = item_random_tileset_critter(level.mapinfo->mainGroundType);
+    if (!unit_id) {
+        fprintf(stderr, "WC3 Mechanical Critter: no valid critter for tileset '%c'\n",
+                level.mapinfo->mainGroundType ? level.mapinfo->mainGroundType : '?');
+        return false;
+    }
+    spawn = caster->s.origin2;
+    if (!SP_FindEmptySpaceAround(caster, unit_id, &spawn, &facing)) return false;
+    critter = S_SummonAbilityAt(caster, code, unit_id, &spawn, 0.0f);
+    if (!critter) return false;
+    critter->s.angle = facing;
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, critter, NULL, true);
+    return true;
+}
+
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
  * The authored ability supplies duration, area, target mask and BuffID.  WC3
  * treats the active speed status as maximum movement speed rather than as a
