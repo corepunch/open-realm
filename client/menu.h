@@ -50,6 +50,7 @@ typedef struct {
     /* File system operations (archive-agnostic, Quake 3 pattern) */
     int (*FS_ReadFile)(cstring_t fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
+    bool (*FS_IsArchiveMounted)(cstring_t archiveName);
     int (*FS_GetFileList)(cstring_t path, cstring_t extension, char *listbuf, int bufsize);
     void (*FS_RegisterArchiveMapSource)(cstring_t archive, cstring_t manifest,
                                         cstring_t virtual_prefix, cstring_t archive_prefix);
