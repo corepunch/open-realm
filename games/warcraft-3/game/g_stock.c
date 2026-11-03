@@ -325,15 +325,15 @@ static bool G_ShopPatronEligible(edict_t const *shop, edict_t const *unit, bool 
 
 /* Warsmash's CAbilityNeutralBuilding stores one eligible unit per player and
  * periodically reacquires it within DataA according to DataB interaction type.
- * OpenRealm resolves the nearest valid owned unit deterministically when shop
- * state is requested; item purchases additionally require inventory capacity. */
+ * OpenRealm resolves the nearest valid controllable unit deterministically when
+ * shop state is requested; item purchases additionally require inventory capacity. */
 static edict_t *G_FindShopPatronInternal(gameClient_t *client, edict_t *shop, bool require_inventory) {
     edict_t *best = NULL;
     float best_distance = FLT_MAX;
 
     if (!G_CanUseShop(client, shop)) return NULL;
     FILTER_EDICTS(unit,
-        unit->inuse && unit != shop && unit->s.player == client->ps.number &&
+        unit->inuse && unit != shop && G_UnitCanControl(client, unit) &&
         G_ShopPatronEligible(shop, unit, require_inventory)) {
         float distance = Vector2_distance(&shop->s.origin2, &unit->s.origin2);
 
