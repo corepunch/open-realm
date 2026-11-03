@@ -218,6 +218,16 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
          * include the authored green Mana Burn ribbon row. */
         if (G_AbilityCode(ability_id) == MAKEFOURCC('A','E','m','b'))
             return index ? 0 : MAKEFOURCC('M','B','U','R');
+        /* TFT 1.07 omits ANfl's LightningEffect field; both data sets have
+         * the authored Forked Lightning ribbon in LightningData.slk. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','N','f','l')) {
+            static bool warned_forked_lightning;
+            if (!warned_forked_lightning) {
+                fprintf(stderr, "WC3 compatibility: TFT ANfl has no LightningEffect; using FORK row\n");
+                warned_forked_lightning = true;
+            }
+            return index ? 0 : MAKEFOURCC('F','O','R','K');
+        }
 #endif
         return 0;
     }
