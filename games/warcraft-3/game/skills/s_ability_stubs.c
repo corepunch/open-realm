@@ -258,6 +258,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC AbilityData omits BuffID; the stock Frost Armor status is BUfa. */
+    if ((!buff || strlen(buff) < 4) && (G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','a') ||
+                  G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','u')))
+        buff = "BUfa";
+#endif
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
