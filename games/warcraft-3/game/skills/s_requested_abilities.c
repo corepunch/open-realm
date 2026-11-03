@@ -1512,6 +1512,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* TFT 1.07 omits ANht.BuffID; the stock debuff is BNht. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == MAKEFOURCC('A','N','h','t'))
+        buff = "BNht";
+#endif
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   S_SpellAllowsAreaTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
