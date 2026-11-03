@@ -1160,6 +1160,7 @@ void CL_Init(void) {
     menu = M_GetAPI((menuImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
+        .FS_IsArchiveMounted = FS_IsArchiveMounted,
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_RegisterArchiveMapSource = FS_RegisterArchiveMapSource,
         .FS_WriteFile = CL_UI_WriteFile,

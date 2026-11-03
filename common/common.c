@@ -383,6 +383,15 @@ handle_t FS_AddArchive(cstring_t filename) {
     return NULL;
 }
 
+bool FS_IsArchiveMounted(cstring_t archive_name) {
+    if (!archive_name || !*archive_name) return false;
+    FOR_LOOP(i, MAX_ARCHIVES) {
+        if (archives[i] && !strcasecmp(FS_BaseName(archiveNames[i]), FS_BaseName(archive_name)))
+            return true;
+    }
+    return false;
+}
+
 void FS_SetPriorityArchive(handle_t archive) {
     priority_archive = archive;
 }

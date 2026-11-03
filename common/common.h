@@ -225,6 +225,7 @@ static inline void Sys_Exit(int status) {
 }
 
 handle_t FS_AddArchive(cstring_t filename);
+bool FS_IsArchiveMounted(cstring_t archive_name);
 bool FS_AddDataDirectory(cstring_t dirname);
 bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename);
 /* Highest-priority open archive for FS_OpenFile/FS_ReadFile (e.g. current map MPQ). NULL clears. */

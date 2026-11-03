@@ -31,6 +31,7 @@ static uiDialogWar3_t quit_dialog;
 
 /* State */
 static frameDef_t *edition_button;
+static frameDef_t *expansion_button;
 
 static bool MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -94,6 +95,28 @@ static void MainMenu_InitFrames(void) {
      * depend on the frame being present. */
     edition_button = UI_FindChildFrame(main_menu.MainMenuFrame, "EditionButton");
     if (edition_button) UI_SetOnClick(edition_button, "menu_edition");
+
+    /* Some Reign of Chaos data sets omit Blizzard's EditionButton even when
+     * the Frozen Throne assets are installed. Reuse the adjacent RealmButton
+     * art as an edition switch in that case. */
+    if (!edition_button && main_menu.SinglePlayerBackdrop && main_menu.SinglePlayerButton &&
+        main_menu.RealmButton && mi.FS_IsArchiveMounted) {
+        bool const expansion_available = mi.FS_IsArchiveMounted("War3x.mpq");
+        if (expansion_available) {
+            expansion_button = UI_CloneFrameTree(main_menu.RealmButton, main_menu.SinglePlayerBackdrop);
+            if (expansion_button) {
+                strlcpy(expansion_button->Name, "OpenRealmExpansionButton", sizeof(expansion_button->Name));
+                UI_SetOnClick(expansion_button, "menu_edition");
+                UI_SetPoint(expansion_button, FRAMEPOINT_TOPRIGHT,
+                            main_menu.SinglePlayerBackdrop, FRAMEPOINT_TOPRIGHT, -0.012f, -0.0165f);
+                UI_SetSize(main_menu.SinglePlayerButton, 0.149f, main_menu.SinglePlayerButton->Height);
+                UI_SetPoint(main_menu.SinglePlayerButton, FRAMEPOINT_TOPRIGHT,
+                            expansion_button, FRAMEPOINT_TOPLEFT, 0.001f, 0.0f);
+            } else {
+                fprintf(stderr, "MainMenu: could not clone RealmButton for expansion switch\n");
+            }
+        }
+    }
     MainMenu_InitQuitDialog();
 
     /* Realm select buttons */
@@ -106,11 +129,14 @@ static void MainMenu_InitFrames(void) {
 static void MainMenu_Init(void) {
     mi.Printf("MainMenu_Init\n");
     edition_button = NULL;
+    expansion_button = NULL;
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();
 }
 
 static void MainMenu_Shutdown(void) {
+    if (expansion_button) UI_FreeFrameTree(expansion_button);
+    expansion_button = NULL;
     edition_button = NULL;
 }
 
