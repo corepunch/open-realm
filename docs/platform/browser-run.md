@@ -4,7 +4,10 @@
 > The browser target is a real, statically linked engine build, but full runtime
 > compatibility is still under development. A long loading pause can look like
 > a freeze; allow a minute or more before concluding that startup failed.
-> Warcraft III save/load is unsupported in this browser build. Audio uses an
+> Warcraft III Save/Load uses browser-local OPFS storage
+> (`/opfs/openrealm/user/saves/`). These saves are not compatible with native
+> desktop saves, and clearing the site's browser data removes them. A browser
+> reload/save/load round-trip still needs manual verification. Audio uses an
 > AudioWorklet after a user gesture and can underrun during loading stalls. On iPhone/iPad,
 > the launcher selects Safari's `playback` audio session so sound works with
 > the device's silent switch enabled (older Safari uses a silent looping media
