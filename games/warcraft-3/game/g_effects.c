@@ -204,6 +204,16 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
 
     if (!list || !*list) {
 #if BZ_COMPAT_WORKAROUNDS
+        /* TFT 1.07 omits Amls.LightningEffect, but both classic and current
+         * data sets contain the authored Magic Leash (LEAS) ribbon row. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','m','l','s')) {
+            static bool warned_aerial_shackles;
+            if (!warned_aerial_shackles) {
+                fprintf(stderr, "WC3 compatibility: Amls has no LightningEffect; using LEAS row\n");
+                warned_aerial_shackles = true;
+            }
+            return index ? 0 : MAKEFOURCC('L','E','A','S');
+        }
         /* RoC 1.0 omits AOcl's LightningEffect list; its data still has both
          * primary and secondary Chain Lightning ribbon rows. */
         if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','c','l')) {
@@ -505,6 +515,11 @@ cstring_t G_AbilityBuffArt(uint32_t buff_id) {
         return "ReplaceableTextures\\CommandButtons\\BTNTrueshotAura.blp";
     if (buff_id == MAKEFOURCC('B','s','p','o'))
         return "ReplaceableTextures\\CommandButtons\\BTNSlowPoison.blp";
+    /* Aerial Shackles' target buff is Bmlt. Some classic data sets omit the
+     * HumanAbilityFunc row from the HUD config lookup, despite the stock icon
+     * being present in the game archives. */
+    if (buff_id == MAKEFOURCC('B','m','l','t'))
+        return "ReplaceableTextures\\CommandButtons\\BTNMagicLariet.blp";
     /* Bfro's Buffart is authored in CommonAbilityFunc.txt rather than the
      * AbilityBuffData row. Keep its status icon available in data sets where
      * the common function table is not exposed to the HUD lookup. */

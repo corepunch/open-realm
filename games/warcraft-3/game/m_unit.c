@@ -1881,6 +1881,7 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
     case MAKEFOURCC('B','e','n','g'):
     case MAKEFOURCC('B','w','e','a'):
     case MAKEFOURCC('B','w','e','b'):
+    case MAKEFOURCC('B','m','l','t'): /* Aerial Shackles: movement and attack lock */
         return WC3_STATUS_STATE_ROOTED;
     case MAKEFOURCC('B','H','b','n'):
         return WC3_STATUS_STATE_ETHEREAL;
