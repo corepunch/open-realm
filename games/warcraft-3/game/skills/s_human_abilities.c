@@ -30,6 +30,7 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     /* ROC omits BuffID for these stock statuses. */
     switch (G_AbilityCode(spell->code)) {
     case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
+    case MAKEFOURCC('A','c','l','f'): return "Bclf";
     case MAKEFOURCC('A','i','n','f'): return "Binf";
     case MAKEFOURCC('A','s','l','o'): return "Bslo";
     case MAKEFOURCC('A','i','v','s'): return "Bivs";
@@ -205,9 +206,57 @@ static void control_magic_execute(edict_t *caster, spellTarget_t st, abilityitem
 }
 
 static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)caster;
     (void)spell;
-    return st.entity && G_UnitIsStructure(st.entity) && st.entity->unit_state->attack1.type != ATK_NONE &&
-           S_SpellIsEnemy(caster, st.entity);
+    /* Cloud is ground targeted. It remains a valid cast on empty ground. */
+    return st.type == SPELL_TARGET_POINT;
+}
+
+static void cloud_think(edict_t *cloud) {
+    edict_t *caster = cloud->owner;
+    uint32_t code = cloud->class_id, level = (uint32_t)cloud->wait;
+    if (G_Time() >= cloud->freetime) {
+        G_DestroyOwnedEffects(cloud);
+        G_FreeEdict(cloud);
+        return;
+    }
+    if (!caster || !caster->inuse || !level) return;
+    cstring_t buff = human_buff(&(abilityitem_t){ .code = code }, level);
+    if (!buff) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && G_UnitIsStructure(target) &&
+                  target->unit_state && target->unit_state->attack1.type != ATK_NONE &&
+                  S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &cloud->s.origin2) <= cloud->collision) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+            target, code, level, buff, MAX(0.1f, (cloud->freetime - G_Time()) * 0.001f));
+        if (status) {
+            status->source = caster;
+            status->source_spawn_time = caster->spawn_time;
+        }
+    }
+}
+
+static void cloud_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t effect_code = G_AbilityEffectCode(spell->code, level);
+    float duration = S_SpellDuration(spell->code, level, false);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    edict_t *cloud;
+    if (!caster || st.type != SPELL_TARGET_POINT || duration <= 0.0f) return;
+    cloud = G_Spawn();
+    if (!cloud) return;
+    cloud->owner = caster;
+    cloud->class_id = spell->code;
+    cloud->wait = (float)level;
+    cloud->collision = area;
+    cloud->s.origin2 = st.point;
+    cloud->freetime = G_Time() + (uint32_t)(duration * 1000.0f);
+    cloud->think = cloud_think;
+    edict_t *effect = G_SpawnOwnedAbilityEffectAtPoint(cloud, effect_code, WC3_EFFECT_EFFECT, 0, &st.point);
+    int loop_sound = G_AbilityEffectSoundIndex(effect_code, true);
+    if (effect && loop_sound) effect->s.sound = (uint16_t)loop_sound;
+    else if (!loop_sound) G_PlayAbilityEffectSound(effect_code, &st.point);
+    cloud_think(cloud);
 }
 
 static bool inner_fire_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -637,7 +686,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spe
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_validate(ent, target, call ? call->item : NULL), spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
-BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
+BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, cloud_execute)
 /* Name=Defend; Untip=Stop Defend */
 BZ_ABILITY_PROC(CAbilityDefend) {
     spellTarget_t target = msg == A_EXECUTE && call && call->target ?

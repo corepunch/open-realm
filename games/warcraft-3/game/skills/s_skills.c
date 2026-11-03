@@ -123,7 +123,7 @@ static ability_t abilitylist[] = {
     { "Amdf", CAbilityMagicDefense, AB_SPELL | AB_TOGGLE },  /* Magic Defense */
     { "Asph", CAbilityPassive, AB_PASSIVE },  /* Sphere */
     { "Asps", CAbilitySpellSteal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Spell Steal */
-    { "Aclf", CAbilityCloudOfFog, AB_SPELL, SPELL_TARGET_UNIT },  /* Cloud */
+    { "Aclf", CAbilityCloudOfFog, AB_SPELL, SPELL_TARGET_POINT },  /* Cloud */
     { "AHfs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AHbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish */
     { "AHpx", CAbilitySummonPhoenix, AB_SPELL },  /* Phoenix */
