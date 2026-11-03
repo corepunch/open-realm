@@ -60,6 +60,14 @@ color32_t R_WaterDepthColor(wc3WaterStyle_t const *style, float depth) {
     };
 }
 
+/* A water tile needs only one wet corner, so the outer edge of every water region has only dry corners.
+ * Fading those to nothing removes the grid-aligned seam left by Smin_A (issue #658). */
+color32_t R_WaterCornerColor(wc3WaterStyle_t const *style, war3mapVertex_t const *vertex, float depth) {
+    color32_t color = R_WaterDepthColor(style, depth);
+    if (!vertex->water) color.a = 0;
+    return color;
+}
+
 /* Tile atlases are four cells tall; an extended atlas is twice as wide and adds 16 variations on its right
  * half. The cell size follows the texture, not a fixed 64 pixels: Outland_Abyss is a 64x64 4x4 atlas. */
 void SetTileUV(war3mapVertex_t const *mv, uint32_t tile, vertex_t *vertices, texture_t const *texture) {
@@ -134,13 +142,12 @@ uint32_t IsTileCliff(war3mapVertex_t const *vertices) {
     return bIsCliff;
 }
 
+/* The W3E map-edge bit marks the whole unplayable margin, not just the outer ring, and authored water
+ * continues through it: Human03's left and bottom seas are mostly in that margin (issue #659). */
 uint32_t IsTileWater(war3mapVertex_t const *vertices) {
     int bIsWater = 0;
     FOR_LOOP(index, 4) {
         bIsWater |= vertices[index].water;
-    }
-    FOR_LOOP(index, 4) {
-        bIsWater &= !vertices[index].mapedge;
     }
     return bIsWater;
 }

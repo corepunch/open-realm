@@ -573,6 +573,25 @@ bool R_GameAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidat
     return written > 0 && (uint32_t)written < candidate_size;
 }
 
+/* war3map.w3i sets which shores show waves; without it a map shows none. */
+static uint32_t R_W3ReadMapInfoFlags(handle_t archive) {
+    handle_t file;
+    uint32_t flags = 0;
+    if (!SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file)) {
+        fprintf(stderr, "WC3 renderer: map has no war3map.w3i; shore waves are off\n");
+        return 0;
+    }
+    uint32_t const size = SFileGetFileSize(file, NULL);
+    uint8_t *bytes = size ? ri.MemAlloc(size) : NULL;
+    if (!bytes || !SFileReadFile(file, bytes, size, NULL, NULL) || !R_W3ParseMapInfoFlags(bytes, size, &flags)) {
+        fprintf(stderr, "WC3 renderer: invalid war3map.w3i; shore waves are off\n");
+        flags = 0;
+    }
+    if (bytes) ri.MemFree(bytes);
+    SFileCloseFile(file);
+    return flags;
+}
+
 void _W3M_ClearMap(void) {
     texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
@@ -583,6 +602,7 @@ void _W3M_ClearMap(void) {
     R_ResetGroundTextures();
     R_ResetCliffCache();
     R_W3ClearSpecialCutouts();
+    R_W3ClearShoreWaves();
     R_ResetBlightCache();
     R_FreeCameraHeightMap(&w3_camera_height);
     R_W3CloseTilesetArchive();
@@ -824,6 +844,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
     R_W3LoadSpecialCutouts(hMpq, map);
     MAP_LOAD_LOG("map=%s phase=renderer-world-special-cutouts ms=%.3f\n",
                      mapFilename, MAP_LOAD_NOW() - stage_start);
+    uint32_t const map_flags = R_W3ReadMapInfoFlags(hMpq);
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     stage_start = MAP_LOAD_NOW();
@@ -834,6 +855,10 @@ void _W3M_RegisterMap(char const *mapFilename) {
     R_LoadWaterStyle(map->tileset);
     MAP_LOAD_LOG("map=%s phase=renderer-world-water-style ms=%.3f\n",
                      mapFilename, MAP_LOAD_NOW() - stage_start);
+    stage_start = MAP_LOAD_NOW();
+    R_W3BuildShoreWaves(map, map_flags);
+    MAP_LOAD_LOG("map=%s phase=renderer-world-shore-waves count=%u ms=%.3f\n",
+                     mapFilename, R_W3ShoreWaveCount(), MAP_LOAD_NOW() - stage_start);
     stage_start = MAP_LOAD_NOW();
     R_W3SetMapTerrainOffsets(map);
     R_W3RebuildCameraHeightMap();
@@ -949,6 +974,7 @@ void _W3M_DrawWorld(void) {
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
+    R_W3DrawShoreWaves();
 }
 
 void _W3M_DrawAlphaSurfaces(void) {

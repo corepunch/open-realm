@@ -876,6 +876,9 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
         emscripten_webgl_init_context_attributes(&attributes);
         attributes.majorVersion = 2;
         attributes.minorVersion = 0;
+        /* Nothing reads destination alpha from the drawable, but the page composites it: opaque layers keep
+         * their texture alpha, and Base.blp's zero-alpha mips showed the canvas background as black (#660). */
+        attributes.alpha = EM_FALSE;
         attributes.depth = EM_TRUE;
         attributes.stencil = EM_FALSE;
         attributes.antialias = requested_msaa > 0;

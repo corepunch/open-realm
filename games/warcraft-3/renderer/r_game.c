@@ -67,6 +67,7 @@ typedef struct {
     uint32_t numTex;
     float texRate;
     uint32_t color[4][4]; /* Smin, Smax, Dmin, Dmax; each R, G, B, A. */
+    cstring_t shoreDir, shoreFile[W3_SHORE_COUNT];
 } w3WaterRow_t;
 
 #define WATER_COLOR_FIELDS(prefix, band) \
@@ -85,6 +86,10 @@ static slkField_t const water_schema[] = {
     WATER_COLOR_FIELDS("Smax", 1),
     WATER_COLOR_FIELDS("Dmin", 2),
     WATER_COLOR_FIELDS("Dmax", 3),
+    { "shoreDir", offsetof(w3WaterRow_t, shoreDir), STB_SLK_STR },
+    { "shoreSFile", offsetof(w3WaterRow_t, shoreFile[W3_SHORE_LINE]), STB_SLK_STR },
+    { "shoreOCFile", offsetof(w3WaterRow_t, shoreFile[W3_SHORE_OUTSIDE_CORNER]), STB_SLK_STR },
+    { "shoreICFile", offsetof(w3WaterRow_t, shoreFile[W3_SHORE_INSIDE_CORNER]), STB_SLK_STR },
     { NULL, 0, 0 },
 };
 #undef WATER_COLOR_FIELDS
@@ -448,6 +453,12 @@ void R_LoadWaterStyle(uint8_t tileset) {
     g_water_style.shallow_max = R_WaterRowColor(row->color[1]);
     g_water_style.deep_min = R_WaterRowColor(row->color[2]);
     g_water_style.deep_max = R_WaterRowColor(row->color[3]);
+    /* Each shoreline model lives in a folder of its own name: <shoreDir>\\<file>\\<file>0.mdx. */
+    FOR_LOOP(kind, W3_SHORE_COUNT) {
+        if (row->shoreDir && row->shoreDir[0] && row->shoreFile[kind] && row->shoreFile[kind][0])
+            snprintf(g_water_style.shore_models[kind], sizeof(g_water_style.shore_models[kind]), "%s\\%s\\%s0.mdx",
+                     row->shoreDir, row->shoreFile[kind], row->shoreFile[kind]);
+    }
     if (!row->texFile || !row->texFile[0] || !row->numTex) {
         fprintf(stderr, "WC3 renderer: Water.slk row %cSha has no texture frames; water is not drawn\n", tileset);
     } else {

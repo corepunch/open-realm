@@ -52,6 +52,36 @@ higher corners take `upperTile` when set. For the abyss cliff `COrd` this keeps 
 as authored) instead of the opaque-black `Oaby` abyss atlas, whose full cell has alpha 255. Test:
 `renderer_terrain.abyss_cliff_paints_low_corners_with_ground_and_high_corners_with_upper_tile`.
 
+## Water surface and shorelines (#658, #659)
+
+Renderer code: `r_war3map_water.c`, `R_WaterCornerColor` in `r_war3map_utils.c`, `r_war3map_shore.c`.
+
+- **Map edge.** W3E bit `0x4000` marks the whole unplayable margin, not only the outer vertex ring: Human03 sets it on
+  2660 vertices, including its left and bottom seas. It says nothing about water, so `IsTileWater` ignores it.
+- **Edge fade.** A tile draws when any corner has the water flag, so the outer edge of every water region has only dry
+  corners. Those corners get alpha 0. At `Smin_A` (10 in stock data) they left a faint grid-aligned line in the shallows.
+  Only 27 of Human03's dry corners on mixed tiles are below the surface, so this is a seam fix and not a depth change.
+- **Shore waves.** `war3map.w3i` flags `0x0800` (cliff shores) and `0x1000` (rolling shores) enable them. `Water.slk`
+  `shoreDir` with `shoreSFile`/`shoreOCFile`/`shoreICFile` names `<dir>\<file>\<file>0.mdx`. A wet corner is deep when it
+  is more than 25/128 tiles below the surface (`WavesDepth` in `Game.dll`; value and rotations follow Warsmash's
+  `WaveBuilder`). One deep corner places the inside-corner model, three the outside-corner model, and two adjacent ones
+  the straight model; diagonal pairs place nothing.
+- **Shore models are emitters.** `Shoreline0.mdx` has no geosets, only a `PRE2`, so `R_W3DrawShoreWaves` must submit in
+  the solid pass: `MDLX_RenderParticleEmitters` does not enqueue in the alpha pass. Its visibility track is 0 for all of
+  `Stand 2` and 1 only for 15367-15600 inside `Stand 3`, so playing sequence 0 alone shows nothing; instances cycle every
+  sequence, offset per tile. `ShorelineWave` and `ShorelineTide` models also ship in `War3.mpq`, but `Water.slk` does not
+  reference them and nothing here draws them.
+
+Capture a shore without a cutscene (`cinematic stop` leaves Human03 frozen, so `camera move` never applies):
+
+```bash
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +map 'Maps/(2)PlunderIsle.w3m' +vid_hidden 1 +screenshot 320 +com_frame_limit 380
+```
+
+Tests: `renderer_terrain.water_tiles_continue_through_the_map_edge_margin`, `water_fades_to_nothing_only_at_dry_corners`,
+`shore_wave_model_and_rotation_follow_deep_corners`, `map_info_flags_are_read_past_the_authored_strings`,
+`shore_waves_cycle_stands_so_the_emitter_pulse_is_reached`, `shore_waves_follow_map_flags_and_draw_only_in_the_solid_pass`.
+
 ## Special terrain doodad geometry (#630)
 
 Special `war3map.doo` placements store the minimum terrain cell, not a complete rigid model pose.

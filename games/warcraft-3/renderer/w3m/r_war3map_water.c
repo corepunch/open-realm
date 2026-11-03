@@ -35,10 +35,10 @@ static void R_MakeWaterTile(war3map_t const *map, uint32_t x, uint32_t y) {
 
     wc3WaterStyle_t const *style = R_WaterStyle();
     struct color32 const color[] = {
-        R_WaterDepthColor(style, (waterlevel[0] - height[0]) / TILE_SIZE),
-        R_WaterDepthColor(style, (waterlevel[1] - height[1]) / TILE_SIZE),
-        R_WaterDepthColor(style, (waterlevel[2] - height[2]) / TILE_SIZE),
-        R_WaterDepthColor(style, (waterlevel[3] - height[3]) / TILE_SIZE),
+        R_WaterCornerColor(style, &tile[3], (waterlevel[0] - height[0]) / TILE_SIZE),
+        R_WaterCornerColor(style, &tile[2], (waterlevel[1] - height[1]) / TILE_SIZE),
+        R_WaterCornerColor(style, &tile[0], (waterlevel[2] - height[2]) / TILE_SIZE),
+        R_WaterCornerColor(style, &tile[1], (waterlevel[3] - height[3]) / TILE_SIZE),
     };
     
 #define WATER_SCALE(x,y) (((x%3)+y)/3.0)

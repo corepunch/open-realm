@@ -38,6 +38,7 @@ void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
 #define WC3_MAX_WATER_FRAMES 64 // textures; Water.slk numTex is 45 for stock water, 1 for Outland's Abyss
+typedef enum { W3_SHORE_LINE, W3_SHORE_OUTSIDE_CORNER, W3_SHORE_INSIDE_CORNER, W3_SHORE_COUNT } w3ShoreKind_t;
 /* One tileset's Water.slk "<tileset>Sha" row: animated surface frames and the shallow/deep depth tint bands. */
 typedef struct {
     texture_t const *frames[WC3_MAX_WATER_FRAMES];
@@ -45,12 +46,20 @@ typedef struct {
     float frame_rate; /* frames per second (texRate) */
     color32_t shallow_min, shallow_max, deep_min, deep_max;
     float height; /* tiles below the W3E water level; see W3_WaterSurfaceHeight */
+    PATHSTR shore_models[W3_SHORE_COUNT]; /* empty when the row names no shoreline model */
 } wc3WaterStyle_t;
+bool R_W3ParseMapInfoFlags(uint8_t const *data, size_t size, uint32_t *flags);
+bool R_W3ShoreWavePlacement(float const depth[4], w3ShoreKind_t *kind, float *angle);
+void R_W3BuildShoreWaves(war3map_t const *map, uint32_t map_flags);
+void R_W3ClearShoreWaves(void);
+void R_W3DrawShoreWaves(void);
+uint32_t R_W3ShoreWaveCount(void);
 void R_LoadWaterStyle(uint8_t tileset);
 texture_t const *R_WaterFrame(wc3WaterStyle_t const *style, uint32_t time_ms);
 void R_W3OpenTilesetArchive(uint8_t tileset);
 wc3WaterStyle_t const *R_WaterStyle(void);
 color32_t R_WaterDepthColor(wc3WaterStyle_t const *style, float depth);
+color32_t R_WaterCornerColor(wc3WaterStyle_t const *style, war3mapVertex_t const *vertex, float depth);
 void R_UpdateBlightLayer(void);
 void R_InvalidateBlightLayer(void);
 void R_DrawBlightLayer(void);

@@ -1231,10 +1231,15 @@ TEST(renderer_terrain, water_style_reads_tileset_row_from_water_slk) {
     T_EQ(style->shallow_max.r, 101); T_EQ(style->shallow_max.a, 104);
     T_EQ(style->deep_min.g, 202); T_EQ(style->deep_min.a, 204);
     T_EQ(style->deep_max.b, 253); T_EQ(style->deep_max.a, 254);
+    /* Each shoreline model sits in a folder of its own name under shoreDir. */
+    T_STREQ(style->shore_models[W3_SHORE_LINE], "TestDoodads\\Water\\TestLine\\TestLine0.mdx");
+    T_STREQ(style->shore_models[W3_SHORE_OUTSIDE_CORNER], "TestDoodads\\Water\\TestOuter\\TestOuter0.mdx");
+    T_STREQ(style->shore_models[W3_SHORE_INSIDE_CORNER], "TestDoodads\\Water\\TestInner\\TestInner0.mdx");
 
     R_LoadWaterStyle('X'); /* No frames: reported, and water is not drawn; the surface height still applies. */
     T_EQ(style->num_frames, 0); T_NULL(R_WaterFrame(style, 1000));
     T_FEQ(style->height, -0.7f, 0.0001f);
+    T_STREQ(style->shore_models[W3_SHORE_LINE], ""); /* The row names no shoreline: no stale path from 'L'. */
     R_LoadWaterStyle('?'); /* No row for the tileset. */
     T_EQ(style->num_frames, 0); T_EQ(style->deep_max.a, 0);
 
