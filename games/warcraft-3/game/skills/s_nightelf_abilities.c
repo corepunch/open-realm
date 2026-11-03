@@ -181,9 +181,6 @@ static bool barkskin_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
         !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     buff = S_SpellBuffId(spell->code, level);
-#if BZ_COMPAT_WORKAROUNDS
-    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == ID_BARKSKIN) buff = "Bbar";
-#endif
     result = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
     return result == WC3_STATUS_APPLY_FREE_SLOT || result == WC3_STATUS_APPLY_REUSE;
 }
@@ -191,9 +188,6 @@ static bool barkskin_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
 static void barkskin_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
-#if BZ_COMPAT_WORKAROUNDS
-    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == ID_BARKSKIN) buff = "Bbar";
-#endif
     if (!st.entity || !buff || strlen(buff) < 4) return;
     S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                   S_SpellResistantDuration(spell->code, level, st.entity));

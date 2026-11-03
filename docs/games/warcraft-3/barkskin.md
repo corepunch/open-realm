@@ -16,10 +16,6 @@ Execution adds the authored `BuffID` as a timed status. `G_UnitArmorValue()` rea
 
 `CAbilityBarkskin` owns validation, execution, target acquisition, and the on/off orders in `skills/s_nightelf_abilities.c`. Unhandled messages delegate directly to `CAbilityModalSpell`. The `ability_t` row uses `AB_SPELL | AB_AUTOCAST`, `SPELL_TARGET_UNIT`, and the two order names; it deliberately does not use `AB_TOGGLE`.
 
-The 1.07 AbilityData schema omits `BuffID`. With `BZ_COMPAT_WORKAROUNDS`,
-stock `Abar` uses `Bbar` when the row has no usable BuffID; usable authored
-values remain authoritative.
-
 ## Verification
 
 Focused ROC/TFT fixtures are `wc3_spell.barkskin_roc_schema_uses_timed_friendly_armor_buff` and `wc3_spell.barkskin_tft_schema_uses_timed_friendly_armor_buff`. They cover registry policy, manual validation, nearest autocast acquisition, already-buffed exclusion, refresh, expiration, dead-target rejection, and restoration of unmodified base armor.
