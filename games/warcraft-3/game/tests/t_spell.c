@@ -5104,6 +5104,43 @@ TEST(wc3_spell, howl_of_terror_reduces_enemy_attack_damage_by_authored_25_percen
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, tft_1_07_howl_of_terror_falls_back_to_bnht) {
+    static char const slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Area1\"\n"
+        "C;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"ANht\"\nC;Y2;X2;K\"ANht\"\nC;Y2;X3;K\"air,ground,enemy,neutral\"\n"
+        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"300\"\nC;Y2;X6;K\"0.25\"\nC;Y2;X7;K\"10\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "ANht" };
+    slkTestData_t *rows, *old;
+    edict_t *caster, *enemy;
+    abilityitem_t howl;
+    spellTarget_t const no_target = MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    howl = S_AbilityItem(FS_SLKKey("ANht"));
+    caster = alloc_test_unit(MAKEFOURCC('N','p','l','h'), 0, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0; enemy->s.player = 1;
+    caster->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+    caster->targtype = enemy->targtype = TARG_GROUND;
+    enemy->health.value = enemy->health.max_value = 500;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    AbilityHowlOfTerror_Execute(caster, no_target, &howl);
+#if BZ_COMPAT_WORKAROUNDS
+    T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','N','h','t')));
+    T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT), -0.25f, 0.001f);
+#else
+    T_ASSERT(!S_UnitHasStatus(enemy, MAKEFOURCC('B','N','h','t')));
+#endif
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Stock BNht owns HowlTarget, with no explicit Targetattach: the status
  * attachment helper uses the origin default. Recasts must not accumulate
  * target models, and expiration/dispel must retire their identity markers. */
