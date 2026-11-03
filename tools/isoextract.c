@@ -48,6 +48,7 @@ static void usage(void) {
             "Usage:\n"
             "  isoextract ls <image.iso>\n"
             "  isoextract extract <image.iso> <output-dir>\n"
+            "  isoextract extract-file <image.iso> <filename> <output-file>\n"
             "  isoextract <image.iso> <output-dir>\n"
             "\n"
             "Notes:\n"
@@ -386,7 +387,11 @@ static bool extract_file(iso_t *iso, iso_record_t const *rec, char const *path) 
         remaining -= (uint32_t)chunk;
     }
 
-    fclose(out);
+    if (fclose(out) != 0) {
+        fprintf(stderr, "isoextract: cannot finish %s\n", path);
+        remove(path);
+        return false;
+    }
     iso->files++;
     iso->bytes += rec->size;
     return true;
@@ -454,6 +459,86 @@ static bool walk_dir(iso_t *iso, uint32_t extent, uint32_t size, char const *out
     return true;
 }
 
+/* Search by leaf filename, case-insensitively, independent of ISO directory
+ * layout. Reject duplicates instead of arbitrarily selecting a disc member.
+ * Returns false on malformed data (including excessive nesting).
+ */
+static bool name_equals(char const *a, char const *b) {
+    while (*a && *b) {
+        if (tolower((unsigned char)*a++) != tolower((unsigned char)*b++)) return false;
+    }
+    return !*a && !*b;
+}
+
+static bool find_file(iso_t *iso, uint32_t extent, uint32_t size, char const *target,
+                      unsigned depth, iso_record_t *found, unsigned *matches) {
+    unsigned char *data = NULL;
+    size_t off = 0;
+    if (depth > 16 || size > 32u * 1024u * 1024u ||
+        !read_extent(iso, extent, size, &data)) return false;
+    while (off < size) {
+        unsigned len = data[off];
+        iso_record_t rec;
+        if (!len) {
+            off = ((off / ISO_SECTOR_SIZE) + 1) * ISO_SECTOR_SIZE;
+            continue;
+        }
+        if (!parse_record(data + off, (size_t)size - off, iso->joliet, &rec)) {
+            free(data);
+            return false;
+        }
+        off += len;
+        if (rec.special || rec.associated) continue;
+        if (rec.is_dir) {
+            if (!find_file(iso, rec.extent, rec.size, target, depth + 1, found, matches)) {
+                free(data);
+                return false;
+            }
+        } else if (name_equals(rec.name, target)) {
+            ++*matches;
+            *found = rec;
+        }
+    }
+    free(data);
+    return true;
+}
+
+/* Exit 2 specifically means that this particular ISO lacks the requested file. */
+static int cmd_extract_file(char const *image, char const *filename, char const *output) {
+    iso_t iso;
+    iso_record_t found;
+    unsigned matches = 0;
+    char parent[ISO_MAX_PATH];
+    int rc = 1;
+    if (strchr(filename, '/') || strchr(filename, '\\') || !*filename) return 1;
+    if (!open_iso(image, &iso)) return 1;
+    if (!find_file(&iso, iso.root_extent, iso.root_size, filename, 0, &found, &matches)) {
+        fprintf(stderr, "isoextract: invalid directory tree in %s\n", image);
+        goto done;
+    }
+    if (!matches) { rc = 2; goto done; }
+    if (matches != 1) {
+        fprintf(stderr, "isoextract: %s occurs %u times in %s\n", filename, matches, image);
+        goto done;
+    }
+    if (strlen(output) >= sizeof(parent)) goto done;
+    strlcpy(parent, output, sizeof(parent));
+    char *slash = strrchr(parent, '/');
+    if (slash) {
+        *slash = 0;
+        if (*parent && !mkdir_p(parent)) goto done;
+    }
+    if (!extract_file(&iso, &found, output)) {
+        remove(output);
+        goto done;
+    }
+    printf("isoextract: extracted %s (%u bytes) from %s\n", filename, found.size, image);
+    rc = 0;
+done:
+    fclose(iso.file);
+    return rc;
+}
+
 static int cmd_ls(char const *image) {
     iso_t iso;
     int rc = 1;
@@ -486,6 +571,9 @@ static int cmd_extract(char const *image, char const *out_dir) {
 int main(int argc, char **argv) {
     if (argc == 3 && strcmp(argv[1], "ls") == 0) {
         return cmd_ls(argv[2]);
+    }
+    if (argc == 5 && strcmp(argv[1], "extract-file") == 0) {
+        return cmd_extract_file(argv[2], argv[3], argv[4]);
     }
     if (argc == 4 && strcmp(argv[1], "extract") == 0) {
         return cmd_extract(argv[2], argv[3]);

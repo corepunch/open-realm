@@ -288,6 +288,10 @@ $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 $(BIN_DIR)/isoextract$(EXE_EXT): tools/isoextract.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/isoextract.c
 
+# Standalone native classic-WC3 Setup.mpq importer; no renderer or game libs.
+$(BIN_DIR)/wc3setup$(EXE_EXT): tools/wc3setup.c common/mpq.c common/mpq.h vendor/blast/blast.c vendor/blast/blast.h | $(BIN_DIR)
+	@$(CC) $(CFLAGS) -o $@ tools/wc3setup.c common/mpq.c vendor/blast/blast.c -lz
+
 # imgdiff is standalone (stb only); it must NOT link the renderer, which also
 # defines STB_IMAGE_IMPLEMENTATION (duplicate symbols otherwise).
 $(BIN_DIR)/imgdiff$(EXE_EXT): tools/imgdiff.c renderer/stb/stb_image.h renderer/stb/stb_image_write.h | $(BIN_DIR)
