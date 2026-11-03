@@ -228,6 +228,16 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
             }
             return index ? 0 : MAKEFOURCC('F','O','R','K');
         }
+        /* TFT 1.07 omits the Healing Wave LightningEffect lists; retain the
+         * distinct primary and bounce ribbons authored in the later data. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','h','w')) {
+            static bool warned_healing_wave;
+            if (!warned_healing_wave) {
+                fprintf(stderr, "WC3 compatibility: TFT Healing Wave has no LightningEffect; using HWPB/HWSB rows\n");
+                warned_healing_wave = true;
+            }
+            return index ? MAKEFOURCC('H','W','S','B') : MAKEFOURCC('H','W','P','B');
+        }
 #endif
         return 0;
     }
