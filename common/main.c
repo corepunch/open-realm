@@ -282,7 +282,9 @@ static void Sys_ResolveHomeDirectory(void) {
     return;
 #endif
 #ifdef __EMSCRIPTEN__
-    FS_SetHomeDirectory("/openrealm/user");
+    /* WasmFS mounts OPFS before home-directory resolution; keep saves and
+     * user settings on the persistent backend, not the ephemeral root. */
+    FS_SetHomeDirectory("/opfs/openrealm/user");
     return;
 #endif
     PATHSTR dir;

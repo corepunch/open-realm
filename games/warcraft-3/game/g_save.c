@@ -95,7 +95,13 @@ enum {
     FIELD_RUNTIME = 1 << 0,
 };
 
+/* Browser saves deliberately have their own format: raw edict layouts are
+ * pointer-width dependent and are not portable between native and wasm32. */
+#ifdef __EMSCRIPTEN__
+static uint32_t const save_magic = MAKEFOURCC('W', '3', 'W', 'B');
+#else
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
+#endif
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 68 adds construction_t duration_ms and Tiny construction type to version 67 dialog generations. */
 /* Version 69 adds persistent Awan scheduling and internal-order ownership. */
@@ -165,10 +171,15 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 133 persists Impale airborne vulnerability and interruptibility. */
 /* Version 134 persists Locust target attack deadlines and return damage credit. */
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
+#ifdef __EMSCRIPTEN__
+/* First browser-only format: 32-bit relocation slots plus out-of-line hashes. */
+static uint32_t const save_version = 1;
+#else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
 /* Version 141 adds independent PauseUnit ownership during transformations. */
 static uint32_t const save_version = 141;
+#endif
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -179,8 +190,13 @@ static uint32_t const save_version = 141;
 /* Keep the move anchor in initialized data beside the authored moves, not beyond large pool BSS. */
 static umove_t umove_reloc = { .animation = "save anchor" };
 
+#ifdef __EMSCRIPTEN__
+_Static_assert(sizeof(umove_t *) == 4, "browser F_MMOVE stores a 32-bit offset in the pointer slot");
+_Static_assert(sizeof(void (*)(edict_t *)) == 4, "browser F_CFUNCTION stores a 32-bit roster index");
+#else
 _Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a validation hash into the pointer field");
 _Static_assert(sizeof(void (*)(edict_t *)) == 8, "F_CFUNCTION packs a roster index and a name hash into the pointer field");
+#endif
 
 typedef struct {
     cstring_t name;
@@ -1675,8 +1691,17 @@ static bool WriteField1(field_t const *field, uint8_t *base) {
             umove_t const *move = *(umove_t *const *)p;
             memset(p, 0, size);
             if (!move) break;
+#ifdef __EMSCRIPTEN__
+            intptr_t offset = (intptr_t)(uintptr_t)move - (intptr_t)(uintptr_t)&umove_reloc;
+            if (offset < -UMOVE_RELOC_RANGE || offset > UMOVE_RELOC_RANGE) {
+                fprintf(stderr, "WC3 SaveGame: field %s[%u] move is outside the module relocation range\n", field->name, i);
+                return false;
+            }
+            *(int32_t *)p = (int32_t)offset;
+#else
             *(int *)p = (int)((uint8_t const *)move - (uint8_t const *)&umove_reloc);
             *(uint32_t *)((uint8_t *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
+#endif
             break;
         }
         case F_CFUNCTION: {
@@ -1690,7 +1715,9 @@ static bool WriteField1(field_t const *field, uint8_t *base) {
                 return false;
             }
             *(int *)p = index;
+#ifndef __EMSCRIPTEN__
             *(uint32_t *)((uint8_t *)p + 4) = SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
+#endif
             break;
         }
         default: break;
@@ -1741,7 +1768,10 @@ static bool ReadFieldStrings(FILE *f, field_t const *field, uint8_t *base) {
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
-static bool ReadField(field_t const *field, uint8_t *base) {
+static bool ReadField(FILE *f, field_t const *field, uint8_t *base) {
+#ifndef __EMSCRIPTEN__
+    (void)f; /* The native relocation hash is packed in the 64-bit pointer slot. */
+#endif
     uint32_t count = field->count_ofs != UINT32_MAX ? *(uint32_t *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
@@ -1752,7 +1782,7 @@ static bool ReadField(field_t const *field, uint8_t *base) {
     if (field->type == F_STRUCT) {
         FOR_LOOP(i, count) {
             for (field_t const *child = (field_t const *)field->flags; child->name; child++)
-                if (!ReadField(child, base + field->ofs + i * size)) return false;
+                if (!ReadField(f, child, base + field->ofs + i * size)) return false;
         }
         return true;
     }
@@ -1769,7 +1799,12 @@ static bool ReadField(field_t const *field, uint8_t *base) {
             *(edict_t * *)p = index < 0 ? NULL : g_edicts + index;
             break;
         case F_MMOVE: {
+#ifdef __EMSCRIPTEN__
+            uint32_t hash;
+            if (!LoadBytes(f, &hash, sizeof(hash))) return false;
+#else
             uint32_t hash = *(uint32_t *)((uint8_t *)p + 4);
+#endif
             umove_t *move = (umove_t *)((uint8_t *)&umove_reloc + index);
             if (!index && !hash) { *(umove_t **)p = NULL; break; }
             /* Reject a save written by a different build before dereferencing the move. */
@@ -1783,7 +1818,12 @@ static bool ReadField(field_t const *field, uint8_t *base) {
             break;
         }
         case F_CFUNCTION: {
+#ifdef __EMSCRIPTEN__
+            uint32_t hash;
+            if (!LoadBytes(f, &hash, sizeof(hash))) return false;
+#else
             uint32_t hash = *(uint32_t *)((uint8_t *)p + 4);
+#endif
             int nfunctions = (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0]));
             if (!index && !hash) { *(void **)p = NULL; break; }
             if (index < 1 || index > nfunctions ||
@@ -2181,6 +2221,29 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
+#ifdef __EMSCRIPTEN__
+/* The native format packs these hashes in the high half of 64-bit pointer
+ * slots. wasm32 cannot do that: append the hashes after each raw edict, in
+ * edict_fields order, then consume them while resolving the 32-bit slots. */
+static bool WriteWebRelocationHashes(FILE *f, edict_t const *ent) {
+    for (field_t const *field = edict_fields; field->name; field++) {
+        uint32_t hash = 0;
+        if (field->type == F_MMOVE) {
+            umove_t const *move = *(umove_t *const *)((uint8_t const *)ent + field->ofs);
+            if (move) hash = SaveHash(0, move->animation, strlen(move->animation) + 1);
+        } else if (field->type == F_CFUNCTION) {
+            void *func = *(void *const *)((uint8_t const *)ent + field->ofs);
+            int index = SaveCFunctionIndex(func);
+            if (index < 0) return false;
+            if (index) hash = SaveHash(0, save_cfunctions[index - 1].name,
+                                       strlen(save_cfunctions[index - 1].name) + 1);
+        } else continue;
+        if (!SaveBytes(f, &hash, sizeof(hash))) return false;
+    }
+    return true;
+}
+#endif
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -2189,6 +2252,9 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
     if (!SaveBytes(f, &temp, sizeof(temp))) return false;
+#ifdef __EMSCRIPTEN__
+    if (!WriteWebRelocationHashes(f, ent)) return false;
+#endif
     for (field = edict_fields; field->name; field++)
         if (!WriteFieldStrings(f, field, (uint8_t *)ent)) return false;
     return true;
@@ -2344,7 +2410,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     ClearRuntimeFields(ent, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
-        if (!ReadField(field, (uint8_t *)ent)) return false;
+        if (!ReadField(f, field, (uint8_t *)ent)) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadFieldStrings(f, field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -2797,6 +2863,32 @@ failed_entities:
 
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+/* Exercise both relocation domains through the full save/load path. In the
+ * browser the identity hashes follow the 32-bit raw edict on disk. */
+static umove_t save_relocation_test_move = { .animation = "stand" };
+
+TEST(wc3_save, move_and_c_callback_relocations_round_trip) {
+    cstring_t const filename = Test_TempPath("wc3-relocation-roundtrip.bin");
+    edict_t *unit;
+    int index;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    index = (int)(unit - g_edicts);
+    unit->currentmove = &save_relocation_test_move;
+    unit->think = G_FreeEdict;
+    T_ASSERT(WriteGame(filename));
+
+    unit->currentmove = NULL;
+    unit->think = NULL;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + index;
+    T_ASSERT(unit->currentmove == &save_relocation_test_move);
+    T_ASSERT(unit->think == G_FreeEdict);
+    remove(filename);
+}
 
 TEST(wc3_save, timed_status_index_rebuilds_from_saved_unit_state) {
     cstring_t filename = Test_TempPath("wc3-timed-status-index-save.bin");

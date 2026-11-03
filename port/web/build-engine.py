@@ -81,8 +81,7 @@ def main():
         "test_harness": [ROOT / "shared/test.c"],
         "jass": sources(wc3 + "/jass"),
         "renderer": sources("renderer", wc3 + "/renderer"),
-        "game": sources(wc3 + "/game", exclude=("g_save.c",)) +
-                [ROOT / "port/web/src/web_save_unsupported.c"],
+        "game": sources(wc3 + "/game"),
         "menu": sources(wc3 + "/menu"),
         # Compiled once: data/serialization helpers used by both game and menu.
         "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),

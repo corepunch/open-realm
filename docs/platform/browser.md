@@ -64,7 +64,7 @@ gesture and may be unavailable under restrictive embedding policies.
 4. Provide a WASM filesystem bridge with random-access archive reads and
    persistent local game data.
 5. The experimental launcher, installer and AudioWorklet playback have since
-   been added. Save persistence and PWA support remain future work.
+   been added. Browser-local WC3 saves now use OPFS; PWA support remains future work.
 
 The source-only platform probe deliberately avoids browser-pthread requirements,
 proprietary retail archives, new gameplay code and modifications to existing
@@ -163,13 +163,30 @@ that the browser code links, renders or boots. Do not redistribute game data.
 
 ### Browser build compatibility (wasm32)
 
-The experimental engine build excludes `g_save.c` and links browser-only
-`web_save_unsupported.c` functions returning failure. WC3 save/load is therefore
-**unsupported** in this build: `g_save.c` encodes 64 bits of relocation data into
-a pointer-sized slot, and wasm32 pointer slots are only 32 bits wide. The native
-save format and its assertions remain unchanged. A browser save implementation
-must use explicitly sized on-disk relocation records and regression coverage
-before enabling this feature.
+The browser build compiles the normal WC3 serializer (`g_save.c`). Its
+`__EMSCRIPTEN__` branch has a **separate, browser-only save format** (`W3WB`,
+version 1). The existing native `W3SV` format remains version 122 and unchanged.
+Both still serialize the current in-memory game state, but raw records contain
+platform-specific pointer-sized slots and are deliberately not portable.
+
+On wasm32, `F_MMOVE` stores a signed 32-bit relocation offset and `F_CFUNCTION`
+stores a 32-bit roster index in each 4-byte pointer slot. The associated
+32-bit name/animation hashes follow each raw edict in `edict_fields` order;
+`ReadField()` consumes and validates them before using the reconstructed
+pointers. Native 64-bit builds continue packing the same hashes into the high
+half of each 8-byte pointer slot. Changing the relocation field roster or
+its ordering requires a new browser save version. The exact-version, raw
+edict-size, footer, and checksum guards still apply; there is no cross-platform
+migration or import/export support.
+
+`WebOPFS_Mount()` mounts persistent storage at `/opfs` before
+`FS_SetHomeDirectory("/opfs/openrealm/user")`. Normal save paths therefore
+resolve under `/opfs/openrealm/user/saves/`, separate from the user-imported
+Warcraft archives. Saving still uses the existing temp-file, flush, `fsync`,
+rename and checksum/commit transaction; verify that those operations succeed
+on the target browser's WasmFS OPFS backend. Data is scoped to the browser
+origin and may be removed by clearing that site's data. Save/Load uses the
+existing in-game menu; test a manual save, page reload and subsequent load.
 
 Browser builds also exclude `BZ_CLIENT_WORLD` from the combined game/engine
 compilation flags; server/game routing owns the WC3 pathing implementation,

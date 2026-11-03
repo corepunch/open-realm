@@ -39,6 +39,22 @@ Quest objects and items are restored in place so the running JASS VM's light han
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. Version 90 adds the inline Warcraft player-score counters to `gameClient_t`, so completed training/construction, kills, gathered resources/upkeep, food maxima, item acquisition, and mercenary hires survive save/load. The exact-version reader rejects version 89 and earlier rather than migrating their shorter client layout.
 
+### Browser-only save format
+
+The experimental Emscripten browser build uses this same serializer, with a
+separate `W3WB` version-1 header because wasm32 raw edict/client records have
+32-bit pointers rather than the native 64-bit layout. Its `F_MMOVE`/`F_CFUNCTION`
+slots contain only the 32-bit offset/index; identity hashes are appended after
+each raw edict in the exact order of `edict_fields` and consumed as the fields
+are fixed up. The native `W3SV` version-122 format, including its in-slot
+hashes, is unchanged. The existing version, size and checksum checks reject
+incompatible layouts; there is no migration and no native/web interchange.
+Browser save files live at `/opfs/openrealm/user/saves/` on the mounted WasmFS
+OPFS backend. The `wc3_save.move_and_c_callback_relocations_round_trip` test
+exercises the relocation path under either pointer width. See
+[Browser platform](../../platform/browser.md) for persistence and browser
+verification limits.
+
 ### Save compatibility policy
 
 Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
