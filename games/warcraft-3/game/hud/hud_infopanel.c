@@ -1923,7 +1923,7 @@ static void WriteInventoryTitle(void) {
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void WriteInventory(edict_t *player, edict_t *ent) {
+static void WriteInventory(edict_t *player, edict_t *ent, bool disabled) {
     gameInventoryItem_t items[MAX_INVENTORY];
     uint32_t capacity = G_InventoryCapacity(ent);
     uint8_t count;
@@ -1949,17 +1949,20 @@ static void WriteInventory(edict_t *player, edict_t *ent) {
         char tooltip[1024];
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_COMMANDBUTTON;
-        frame.color = COLOR32_WHITE;
+        frame.color = disabled ? MAKE(color32_t, 128, 128, 128, 255) : COLOR32_WHITE;
         frame.tex.index = gi.ImageIndex(items[i].art);
+        if (disabled) frame.flagsvalue |= UIFRAME_DISABLED;
         UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
         frame.tooltip = tooltip;
-        snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
-        snprintf(onrightclick, sizeof(onrightclick), "itemdrag %u", (unsigned)items[i].slot);
-        frame.onclick = onclick;
+        if (!disabled) {
+            snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
+            snprintf(onrightclick, sizeof(onrightclick), "itemdrag %u", (unsigned)items[i].slot);
+            frame.onclick = onclick;
+        }
         /* Command-button text is the existing secondary/right-click command
          * channel (also used by autocast). Inventory items use it to begin the
          * Warsmash-style hold-item cursor interaction. */
-        frame.text = onrightclick;
+        frame.text = disabled ? NULL : onrightclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
         UI_WriteProxyFrame(&frame, NULL, 0);
         WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);
@@ -1969,6 +1972,8 @@ static void WriteInventory(edict_t *player, edict_t *ent) {
 
 static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t count) {
     edict_t *focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+    bool shop_mode = focused && (G_CanUseItemShop(ent->client, focused) ||
+                                 G_CanUseUnitShop(ent->client, focused));
 
     (void)selected;
     /* Neutral shops borrow the selected patron's inventory presentation while
@@ -1978,7 +1983,7 @@ static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t co
         focused = G_FindShopPatron(ent->client, focused);
     }
     UI_WriteStart(LAYER_INVENTORY);
-    if (focused) WriteInventory(ent, focused);
+    if (focused) WriteInventory(ent, focused, shop_mode);
     UI_WriteEnd(ent);
 }
 
