@@ -566,22 +566,41 @@ BZ_ABILITY_PROC(CAbilityLevelMod) {
     return true;
 }
 
-/* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
+/* Figurine items and Book of the Dead share AIfs. Most figurines author one
+ * summoned unit in DataC; Book of the Dead authors two unit types in DataC/D
+ * with their counts in DataA/B. */
 BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
-    uint32_t unit_id = S_SpellUnitId(code, 1);
+    uint32_t first_unit = S_SpellDataId(code, 1, 3);
+    uint32_t second_unit = S_SpellDataId(code, 1, 4);
+    uint32_t first_count, second_count, total_count, summoned = 0;
+    float const duration = S_SpellDuration(code, 1, false);
 
-    if (!target || !unit_id) {
-        return false;
+    /* Later/custom figurine rows may use the dedicated UnitID field. */
+    if (!first_unit) first_unit = S_SpellUnitId(code, 1);
+    first_count = first_unit ? (uint32_t)MIN(32.0f, MAX(1.0f, S_SpellData(code, 1, 1))) : 0;
+    second_count = second_unit ? (uint32_t)MIN(32.0f, MAX(0.0f, S_SpellData(code, 1, 2))) : 0;
+    total_count = first_count + second_count;
+    if (!target || !total_count) return false;
+
+    FOR_LOOP(i, total_count) {
+        uint32_t const unit_id = i < first_count ? first_unit : second_unit;
+        uint32_t const index = i;
+        vec2_t location = target->s.origin2;
+        float angle = (2.0f * (float)M_PI * (float)index) / (float)total_count;
+        float const radius = MAX(64.0f, target->collision + 32.0f);
+        edict_t *summon;
+
+        location.x += cosf(angle) * radius;
+        location.y += sinf(angle) * radius;
+        (void)SP_FindEmptySpaceAround(target, unit_id, &location, &angle);
+        summon = S_SummonAbilityAt(target, code, unit_id, &location, duration);
+        if (!summon) continue;
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+        summoned++;
     }
-    edict_t *summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
-    if (!summon) {
-        return false;
-    }
-    G_ActivateUnitFood(summon);
-    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
-    return true;
+    return summoned != 0;
 }
 
 /* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
