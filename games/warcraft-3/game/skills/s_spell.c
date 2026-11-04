@@ -2021,11 +2021,13 @@ void spell_cmd(edict_t *clent) {
     abilityitem_t item = { .code = code, .ability = spell };
     abilityCall_t toggle_call = MAKE(abilityCall_t, .item = &item);
 
-    if (code == MAKEFOURCC('A','c','o','a') || code == MAKEFOURCC('A','c','o','h')) {
-        fprintf(stderr, "WC3_COUPLE command-enter player=%u caster=%u caster_raw=%.4s ability=%.4s spell=%p target_mode=%u\n",
+    if ((spell && (spell->proc == CAbilityCoupleHippogryph || spell->proc == CAbilityCoupleArcher)) ||
+        !memcmp(&code, "Aco", 3)) {
+        fprintf(stderr, "WC3_COUPLE command-enter player=%u caster=%u caster_raw=%.4s ability=%.4s spell=%p proc=%u target_mode=%u\n",
                 clent && clent->client ? (unsigned)clent->client->ps.number : UINT_MAX,
                 caster ? (unsigned)caster->s.number : UINT_MAX,
                 caster ? (cstring_t)&caster->class_id : "----", (cstring_t)&code, (void *)spell,
+                spell ? (unsigned)GetAbilityIndex(spell->proc) : UINT_MAX,
                 clent && clent->client ? (unsigned)(clent->client->menu.on_entity_selected != NULL) : 0u);
     }
 
