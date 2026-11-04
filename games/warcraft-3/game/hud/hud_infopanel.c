@@ -1944,6 +1944,7 @@ static void WriteInventory(edict_t *player, edict_t *ent, bool disabled) {
         float bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (float)(items[i].slot % 2) * 0.0394f;
         float by = UI_BASE_HEIGHT - 0.0971f + (float)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
+        uiCommandButton_t state = {0};
         char onclick[128];
         char onrightclick[128];
         char tooltip[1024];
@@ -1951,6 +1952,10 @@ static void WriteInventory(edict_t *player, edict_t *ent, bool disabled) {
         frame.flags.type = FT_COMMANDBUTTON;
         frame.color = disabled ? MAKE(color32_t, 128, 128, 128, 255) : COLOR32_WHITE;
         frame.tex.index = gi.ImageIndex(items[i].art);
+        frame.value = items[i].cooldown;
+        state.radialStartTime = items[i].cooldown_start_time;
+        state.radialEndTime = items[i].cooldown_end_time;
+        if (state.radialEndTime != state.radialStartTime) frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
         if (disabled) frame.flagsvalue |= UIFRAME_DISABLED;
         UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
         frame.tooltip = tooltip;
@@ -1964,7 +1969,7 @@ static void WriteInventory(edict_t *player, edict_t *ent, bool disabled) {
          * Warsmash-style hold-item cursor interaction. */
         frame.text = disabled ? NULL : onrightclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
-        UI_WriteProxyFrame(&frame, NULL, 0);
+        UI_WriteProxyFrame(&frame, &state, sizeof(state));
         WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);
     }
     if (count) UI_WriteTooltipFrame();

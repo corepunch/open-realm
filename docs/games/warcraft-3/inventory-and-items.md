@@ -338,8 +338,10 @@ The runtime charge count is copied into `gameInventoryItem_t`. `WriteInventory`
 draws a bottom-right number overlay whenever `charges > 0`, including a
 single-charge item. A zero-charge non-perishable item therefore keeps its icon
 but has no number overlay. Successful synchronous use of a perishable item now
-consumes its runtime charge and removes the item at zero; cooldown/disabled-state
-presentation remains separate active-item work.
+consumes its runtime charge and removes the item at zero. For active item
+abilities, the inventory payload also carries the same cooldown fraction and
+authoritative start/end timestamps used by command buttons; the inventory frame
+renders that timer through the shared radial cooldown overlay.
 
 For Human02 this means a carried Scroll of Protection is handled generically:
 rawcode `spro` resolves its item UI data, appears in the first free slot, and

@@ -1269,6 +1269,22 @@ bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInvento
     UI_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
     out->slot = slot;
     out->charges = G_ItemCharges(item);
+    {
+        cstring_t abilities = G_ItemAbilityList(item);
+        if (abilities) {
+            PARSE_LIST(abilities, ability_name, parse_segment) {
+                uint32_t code;
+                abilityCooldownWindow_t window;
+                if (strlen(ability_name) != 4) continue;
+                memcpy(&code, ability_name, sizeof(code));
+                if (!S_SpellCooldownWindow(ent, code, &window)) continue;
+                out->cooldown_start_time = window.start_time;
+                out->cooldown_end_time = window.end_time;
+                out->cooldown = S_SpellCooldownFraction(ent, code, 0);
+                break;
+            }
+        }
+    }
     if (!out->art[0]) {
         fprintf(stderr, "G_BuildInventoryItem: missing Art item=%.4s slot=%u\n",
                 (char *)&item->class_id, (unsigned)slot);
