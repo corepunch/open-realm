@@ -1974,6 +1974,7 @@ static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t co
     edict_t *focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
     bool shop_mode = focused && (G_CanUseItemShop(ent->client, focused) ||
                                  G_CanUseUnitShop(ent->client, focused));
+    bool can_control = focused && G_UnitCanControl(ent->client, focused);
 
     (void)selected;
     /* Neutral shops borrow the selected patron's inventory presentation while
@@ -1981,9 +1982,13 @@ static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t co
      * shop flow without granting command authority over the neutral unit. */
     if (focused && G_CanUseItemShop(ent->client, focused)) {
         focused = G_FindShopPatron(ent->client, focused);
+        can_control = focused && G_UnitCanControl(ent->client, focused);
     }
     UI_WriteStart(LAYER_INVENTORY);
-    if (focused) WriteInventory(ent, focused, shop_mode);
+    if (focused) {
+        if (can_control || shop_mode) WriteInventory(ent, focused, shop_mode);
+        else WriteInventoryCover(ent);
+    }
     UI_WriteEnd(ent);
 }
 
