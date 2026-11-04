@@ -39,11 +39,15 @@ empty; `Adec` is absent. Empty UnitID must fail the mount (do not invent
 `targs` is empty (`_`). Companion gating is ability-owned: same-owner living
 unit whose `class_id` equals authored `DataA` (via `S_SpellDataId`).
 
-### Couple Instant (out of scope)
+### Couple Instant
 
 `Aco2`/`Aco3` share `code=Acoi` (`CAbilityCoupleInstant`, parent `AAcs`):
-area auto-find, `DataB` move-to-partner flag, large range. Keep the existing
-`Acoi` stub; do not treat them as `Acoa`/`Acoh` aliases.
+area auto-find, `DataB` move-to-partner flag, and large area. Their command
+buttons now pick the nearest valid partner within authored `Area` without
+opening target mode. `Aco2` is the Archer button and searches for `DataA=ehip`;
+`Aco3` is the Hippogryph button and searches for `DataA=earc`. Both create the
+authored `UnitID=ehpr` rider. Keep them distinct from the targeted `Acoa`/`Acoh`
+abilities: the instant rows use `code=Acoi` and retain their own `DataA`.
 
 ## Data Flow
 
@@ -58,6 +62,9 @@ Adec AbilityData
   -> DataA/DataB companion fourccs
 CAbilityDecouple
   -> A_EXECUTE: spawn DataB at rider origin, place DataA nearby, G_FreeEdict rider
+Aco2/Aco3 AbilityData (code=Acoi)
+  -> Aco2/Aco3 command: nearest valid DataA partner within authored Area
+  -> normal no-target spell validation/commit, then spawn authored UnitID rider
 ```
 
 Merge consumes **two edicts** and creates a **third** (Warsmash CoupleInstant /
@@ -88,5 +95,6 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.hippogryph_couple*'
 ```
 
 Focused tests cover procedure registration, authored DataA/UnitID/DataB
-mapping with non-stock fourccs, successful mount/dismount, and rejects for
+mapping with non-stock fourccs, targeted mount, nearest-partner Acoa/Acoh and
+Aco3 command behavior, training gates, dismount placement, and rejects for
 enemy, dead, and wrong-type partners without mana spend.

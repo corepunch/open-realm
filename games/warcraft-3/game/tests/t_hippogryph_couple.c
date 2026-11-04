@@ -4,6 +4,8 @@
 
 #define BZ_ACOA MAKEFOURCC('A', 'c', 'o', 'a') // rawcode; Archer Mount Hippogryph
 #define BZ_ACOH MAKEFOURCC('A', 'c', 'o', 'h') // rawcode; Pick up Archer
+#define BZ_ACO2 MAKEFOURCC('A', 'c', 'o', '2') // rawcode; Couple Instant Archer
+#define BZ_ACO3 MAKEFOURCC('A', 'c', 'o', '3') // rawcode; Couple Instant Hippogryph
 #define BZ_ADEC MAKEFOURCC('A', 'd', 'e', 'c') // rawcode; Dismount / Decouple
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unit; fixture partner (non-stock ehip)
 #define BZ_HPEA MAKEFOURCC('h', 'p', 'e', 'a') // unit; fixture archer/companion (non-stock earc)
@@ -80,9 +82,13 @@ static uint32_t couple_count(uint32_t class_id, uint32_t player) {
 TEST(wc3_spell, hippogryph_couple_procedures_registered) {
 	T_EQ(S_AbilityItem(BZ_ACOA).ability->proc, CAbilityCoupleArcher);
 	T_EQ(S_AbilityItem(BZ_ACOH).ability->proc, CAbilityCoupleHippogryph);
+	T_EQ(S_AbilityItem(BZ_ACO2).ability->proc, CAbilityCoupleInstant);
+	T_EQ(S_AbilityItem(BZ_ACO3).ability->proc, CAbilityCoupleInstant);
 	T_EQ(S_AbilityItem(BZ_ADEC).ability->proc, CAbilityDecouple);
 	T_EQ(S_AbilityItem(BZ_ACOA).ability->target_type, SPELL_TARGET_UNIT);
 	T_EQ(S_AbilityItem(BZ_ACOH).ability->target_type, SPELL_TARGET_UNIT);
+	T_EQ(S_AbilityItem(BZ_ACO2).ability->target_type, SPELL_TARGET_NONE);
+	T_EQ(S_AbilityItem(BZ_ACO3).ability->target_type, SPELL_TARGET_NONE);
 	T_EQ(S_AbilityItem(BZ_ADEC).ability->target_type, SPELL_TARGET_NONE);
 }
 
@@ -149,7 +155,7 @@ TEST(wc3_spell, hippogryph_pickup_order_chooses_nearest_valid_archer) {
 	controller->client->ps.number = 0;
 	controller->client->menu.ability_code = BZ_ACOH;
 	G_SelectEntity(controller->client, fix.caster);
-	spell_cmd(controller);
+	S_AbilityCommand(controller, S_AbilityItem(BZ_ACO3).ability);
 	T_ASSERT(!controller->client->menu.on_entity_selected);
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
@@ -173,6 +179,43 @@ TEST(wc3_spell, archer_mount_order_chooses_nearest_valid_hippogryph) {
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
 	T_ASSERT(far_hippogryph->inuse);
+	couple_done(&fix);
+}
+
+TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
+	static const char instant_slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+		"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+		"C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"DataA1\"\n"
+		"C;Y1;X9;K\"DataB1\"\nC;Y1;X10;K\"UnitID1\"\n"
+		"C;Y2;X1;K\"Aco3\"\nC;Y2;X2;K\"Acoi\"\nC;Y2;X3;K\"1\"\n"
+		"C;Y2;X4;K\"vuln,invu\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"30\"\n"
+		"C;Y2;X7;K\"500\"\nC;Y2;X8;K\"hpea\"\nC;Y2;X9;K\"1\"\n"
+		"C;Y2;X10;K\"ogru\"\nE\n";
+	coupleFix_t fix;
+	edict_t *far_archer;
+	edict_t *controller;
+	couple_setup(&fix, instant_slk, BZ_ACO3, BZ_HFOO, BZ_HPEA);
+	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
+	far_archer->s.player = fix.caster->s.player;
+	far_archer->svflags |= SVF_MONSTER;
+	far_archer->targtype = TARG_GROUND;
+	far_archer->health.value = far_archer->health.max_value = 300;
+	controller = &g_edicts[0];
+	controller->client = &game.clients[0];
+	controller->inuse = true;
+	controller->client->connected = true;
+	controller->client->ps.number = 0;
+	controller->client->menu.ability_code = BZ_ACO3;
+	G_SelectEntity(controller->client, fix.caster);
+	spell_cmd(controller);
+	T_ASSERT(!controller->client->menu.on_entity_selected);
+	T_ASSERT(!controller->client->menu.on_location_selected);
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	T_EQ(couple_count(BZ_OGRU, 0), 2);
 	couple_done(&fix);
 }
 
