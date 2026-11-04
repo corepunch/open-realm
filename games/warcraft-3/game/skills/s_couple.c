@@ -17,15 +17,16 @@ static bool couple_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 	return true;
 }
 
-/* Pick Up Archer is a command-card action: clicking it without entering target
- * mode should select the nearest valid same-owner Archer in authored range. */
-bool S_CastNearestCoupleArcher(edict_t *caster, uint32_t code) {
+/* Couple abilities are command-card actions: execute directly on the nearest
+ * valid partner rather than entering target mode. */
+bool S_CastNearestCouplePartner(edict_t *caster, uint32_t code) {
 	edict_t *best = NULL;
 	float best_distance = FLT_MAX;
 	uint32_t level, partner;
 	float range;
 
-	if (!caster || code != MAKEFOURCC('A','c','o','h') || !G_UnitAbilityLevel(caster, code) ||
+	if (!caster || (code != MAKEFOURCC('A','c','o','h') && code != MAKEFOURCC('A','c','o','a')) ||
+	    !G_UnitAbilityLevel(caster, code) ||
 	    !G_UnitAbilityResearchAvailable(caster, code)) return false;
 	level = S_SpellLevel(caster, code);
 	partner = S_SpellDataId(code, level, 1);

@@ -2038,8 +2038,8 @@ void spell_cmd(edict_t *clent) {
         return;
     }
 
-    if (spell->proc == CAbilityCoupleHippogryph) {
-        if (S_CastNearestCoupleArcher(caster, code)) spell_order_accepted(caster, spell);
+    if (spell->proc == CAbilityCoupleHippogryph || spell->proc == CAbilityCoupleArcher) {
+        if (S_CastNearestCouplePartner(caster, code)) spell_order_accepted(caster, spell);
         return;
     }
 
