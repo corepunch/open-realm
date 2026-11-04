@@ -2049,6 +2049,26 @@ void spell_cmd(edict_t *clent) {
         return;
     }
 
+    /* Anti-Magic Potion is an inventory self-use item. Its shared AIxs spell
+     * implementation is unit-targeted for the Aami ability variant, but a
+     * carried potion applies directly to its hero on the inventory click. */
+    if (code == MAKEFOURCC('A','I','x','s') && clent->client->menu.ability_item &&
+        spell_item_source_valid(caster, clent->client->menu.ability_item,
+                                clent->client->menu.ability_item_spawn_time)) {
+        uint32_t const level = S_SpellLevel(caster, code);
+        spellTarget_t self = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = caster);
+        spellUnitTargetParams_t params;
+        if (!spell_validate(clent, caster, code, level, caster, 0.0f) ||
+            !S_SpellAllowsTarget(code, caster, caster) ||
+            !spell_message(caster, A_VALIDATE, &item, &self)) return;
+        params = MAKE(spellUnitTargetParams_t, .caster = caster, .code = code, .level = level,
+                      .spell = spell, .target = caster,
+                      .source_item = clent->client->menu.ability_item,
+                      .source_item_spawn_time = clent->client->menu.ability_item_spawn_time);
+        spell_execute_unit_target(&params, NULL);
+        return;
+    }
+
     if (spell->proc == CAbilityCoupleHippogryph || spell->proc == CAbilityCoupleArcher) {
         if (S_CastNearestCouplePartner(caster, code)) spell_order_accepted(caster, spell);
         return;
