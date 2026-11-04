@@ -79,7 +79,7 @@ CSV are not object-data verification.
 
 `games/warcraft-3/game/tests/t_retail_item_effect_regression.c` uses the game
 module's production inventory, attack, spell-damage and entity-scheduler paths.
-The latest full suite passes all six tests in both classic and TFT modes:
+The latest full suite checkpoint passed these seven listed tests in both classic and TFT modes:
 
 1. `ocor_applies_timed_corruption_status`: Equips `ocor`, lands an attack,
    checks the `BIcb` state, verifies expiry through `G_RunEntity`, and checks
@@ -105,6 +105,12 @@ The latest full suite passes all six tests in both classic and TFT modes:
    `G_RunEntity`. It verifies AIsl's area recipients tick independently,
    attack or spell damage cancels only the damaged recipient, AIpl affects only
    its user, and attack damage cancels AIpl recovery. The test runs under both classic and TFT.
+
+`wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
+also exercises the installed `ANsa` contract with non-stock `DataA=7`: the
+friendly unit relocates to a completed Town Hall, gains the `BNsa` stun state,
+heals on explicit scheduler ticks, and loses Sanctuary as soon as it reaches
+full health. This focused regression passes in classic and TFT.
 
 `games/warcraft-3/game/tests/t_retail_shop_contract.c` independently registers
 **45** shop listings with the verified gold/lumber, `stockMax`, `stockRegen`,
