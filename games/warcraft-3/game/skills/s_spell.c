@@ -852,6 +852,14 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
     S_ManaFlareOnCast(caster, code, level);
 }
 
+/* Ability handlers that defer their irreversible effect until an approach
+ * succeeds can commit resources at that point instead of when the command is
+ * first accepted. */
+void S_SpellCommitCast(edict_t *caster, uint32_t code, uint32_t level) {
+    if (!caster || !code) return;
+    spell_commit(caster, code, level, NULL);
+}
+
 /* Warcraft exposes spell response data only while dispatching the spell event.
  * Publish SPELL_EFFECT at the irreversible cast point: resources have been
  * committed, but the gameplay callback has not run yet. */
@@ -1389,7 +1397,10 @@ static void spell_no_target_execute(edict_t *clent) {
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
-    spell_commit(caster, code, level, NULL);
+    /* Couple Instant can require an approach. Its handler commits only after
+     * the rider has been created successfully. */
+    if (spell->proc != CAbilityCoupleInstant)
+        spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)

@@ -637,6 +637,7 @@ float S_SpellResistantDuration(uint32_t code, uint32_t level, edict_t const *tar
 cstring_t S_SpellBuffId(uint32_t code, uint32_t level);
 bool S_SpellCooldownReady(edict_t *caster, uint32_t code);
 bool S_SpellCanActivate(edict_t *caster, uint32_t code, uint32_t level, bool ignore_cooldown);
+void S_SpellCommitCast(edict_t *caster, uint32_t code, uint32_t level);
 float S_SpellCooldownRemaining(edict_t *caster, uint32_t code);
 float S_SpellCooldownLength(edict_t *caster, uint32_t code);
 bool S_SpellCooldownWindow(edict_t *caster, uint32_t code, abilityCooldownWindow_t *window);
