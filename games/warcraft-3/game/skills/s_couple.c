@@ -145,6 +145,13 @@ static edict_t *couple_instant_nearest(edict_t *caster, abilityitem_t const *spe
 	return best;
 }
 
+/* Couple Instant's Area is an acquisition radius, not the distance at which
+ * the two units can combine. Keep the normal collision-edge interaction
+ * distance small so the mount walks up to its partner before merging. */
+static float couple_instant_interaction_range(edict_t const *caster) {
+	return MAX(32.0f, caster ? caster->collision : 0.0f) + 32.0f;
+}
+
 static bool couple_instant_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
 	if (!caster || !spell || st.type != SPELL_TARGET_NONE ||
 	    (spell->code != MAKEFOURCC('A','c','o','2') && spell->code != MAKEFOURCC('A','c','o','3'))) return false;
@@ -160,13 +167,86 @@ static bool couple_instant_validate(edict_t *caster, spellTarget_t st, abilityit
 static void couple_instant_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
 	edict_t *target;
 	spellTarget_t target_call;
+	float distance;
 	if (!couple_instant_validate(caster, st, spell)) return;
 	target = couple_instant_nearest(caster, spell);
 	if (!target) return;
-	fprintf(stderr, "WC3_COUPLE instant-execute caster=%u ability=%.4s target=%u\n",
-	        (unsigned)caster->s.number, (cstring_t)&spell->code, (unsigned)target->s.number);
+	distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
+	if (distance > couple_instant_interaction_range(caster)) {
+		edict_t *thinker = G_Spawn();
+		if (!thinker) return;
+		/* Replacing an order cancels any older couple approach first. */
+		FILTER_EDICTS(other, other->inuse && other->think == S_CoupleInstantApproachThink &&
+		              other->owner == caster)
+			G_FreeEdict(other);
+		order_move(caster, target);
+		if (caster->goalentity != target || !move_is_active_order_walk(caster)) return;
+		thinker->owner = caster;
+		thinker->goalentity = target;
+		thinker->class_id = spell->code;
+		channel_t *cast = G_AddChannel(thinker);
+		cast->owner_spawn_time = caster->spawn_time;
+		cast->target_spawn_time = target->spawn_time;
+		thinker->think = S_CoupleInstantApproachThink;
+		fprintf(stderr, "WC3_COUPLE instant-approach caster=%u ability=%.4s target=%u distance=%.1f interaction=%.1f\n",
+		        (unsigned)caster->s.number, (cstring_t)&spell->code,
+		        (unsigned)target->s.number, distance, couple_instant_interaction_range(caster));
+		return;
+	}
+	fprintf(stderr, "WC3_COUPLE instant-execute caster=%u ability=%.4s target=%u distance=%.1f\n",
+	        (unsigned)caster->s.number, (cstring_t)&spell->code, (unsigned)target->s.number, distance);
 	target_call = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
 	couple_execute(caster, target_call, spell);
+}
+
+void S_CoupleInstantApproachThink(edict_t *thinker) {
+	edict_t *caster = S_SpellChannelOwner(thinker);
+	edict_t *target = S_SpellChannelTarget(thinker);
+	uint32_t code = thinker ? thinker->class_id : 0;
+	abilityitem_t spell = S_AbilityItem(code);
+	spellTarget_t target_call;
+	float distance;
+
+	if (!caster || !target || !spell.ability || spell.ability->proc != CAbilityCoupleInstant ||
+	    !G_UnitAbilityResearchAvailable(caster, code) ||
+	    !S_SpellIsAliveTarget(target) || !S_SpellIsFriend(caster, target) ||
+	    target->class_id != S_SpellDataId(code, S_SpellLevel(caster, code), 1) ||
+	    !S_SpellAllowsTarget(code, caster, target)) {
+		if (caster && caster->goalentity == target) {
+			caster->goalentity = NULL;
+			unit_stand(caster);
+		}
+		G_FreeEdict(thinker);
+		return;
+	}
+	if (!G_IsUnitAbilityAvailable(caster, code)) {
+		if (caster->goalentity == target) {
+			caster->goalentity = NULL;
+			unit_stand(caster);
+		}
+		G_FreeEdict(thinker);
+		return;
+	}
+	if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+		G_FreeEdict(thinker);
+		return;
+	}
+	if ((caster->movement && (caster->movement->flow_unreachable || caster->movement->flow_goal_reached)) &&
+	    Vector2_distance(&caster->s.origin2, &target->s.origin2) > couple_instant_interaction_range(caster)) {
+		caster->goalentity = NULL;
+		unit_stand(caster);
+		G_FreeEdict(thinker);
+		return;
+	}
+	distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
+	if (distance > couple_instant_interaction_range(caster)) return;
+	caster->goalentity = NULL;
+	unit_stand(caster);
+	target_call = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+	if (S_SpellCanActivate(caster, code, S_SpellLevel(caster, code), false)) {
+		couple_execute(caster, target_call, &spell);
+	}
+	G_FreeEdict(thinker);
 }
 
 static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id, bool offset_from_partner) {

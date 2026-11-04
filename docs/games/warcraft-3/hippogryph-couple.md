@@ -43,11 +43,14 @@ unit whose `class_id` equals authored `DataA` (via `S_SpellDataId`).
 
 `Aco2`/`Aco3` share `code=Acoi` (`CAbilityCoupleInstant`, parent `AAcs`):
 area auto-find, `DataB` move-to-partner flag, and large area. Their command
-buttons now pick the nearest valid partner within authored `Area` without
-opening target mode. `Aco2` is the Archer button and searches for `DataA=ehip`;
-`Aco3` is the Hippogryph button and searches for `DataA=earc`. Both create the
-authored `UnitID=ehpr` rider. Keep them distinct from the targeted `Acoa`/`Acoh`
-abilities: the instant rows use `code=Acoi` and retain their own `DataA`.
+buttons now select the nearest valid partner within authored `Area` without
+opening target mode. If the partner is farther than interaction distance, the
+caster walks to it and only creates the rider when close; replacing the Move
+order cancels the pending pickup. `Aco2` is the Archer button and searches for
+`DataA=ehip`; `Aco3` is the Hippogryph button and searches for `DataA=earc`.
+Both create the authored `UnitID=ehpr` rider. Keep them distinct from the
+targeted `Acoa`/`Acoh` abilities: the instant rows use `code=Acoi` and retain
+their own `DataA`.
 
 ## Data Flow
 
@@ -64,7 +67,7 @@ CAbilityDecouple
   -> A_EXECUTE: spawn DataB at rider origin, place DataA nearby, G_FreeEdict rider
 Aco2/Aco3 AbilityData (code=Acoi)
   -> Aco2/Aco3 command: nearest valid DataA partner within authored Area
-  -> normal no-target spell validation/commit, then spawn authored UnitID rider
+  -> Move to partner, revalidate target, then spawn authored UnitID rider at interaction distance
 ```
 
 Merge consumes **two edicts** and creates a **third** (Warsmash CoupleInstant /

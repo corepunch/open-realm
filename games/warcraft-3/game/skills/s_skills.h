@@ -651,6 +651,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code);
 bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_CastNearestCouplePartner(edict_t *caster, uint32_t code);
+void S_CoupleInstantApproachThink(edict_t *thinker);
 bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range);
 edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *target, float speed, umove_t *move);
 edict_t *S_SpellProjectileOwner(edict_t *missile);
