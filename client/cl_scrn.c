@@ -1812,9 +1812,6 @@ bool SCR_LayoutMouseEvent(layoutMouseEvent_t const *mouse_event) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 SCR_LayoutApplyOrderQueueModifier(frame, command, sizeof(command), shift_held);
-                if (!strncmp(command, "button Aco", 10))
-                    fprintf(stderr, "WC3_COUPLE client-button-send layer=%d frame=%u command=%s\n",
-                            layout_hovered_layer, (unsigned)frame->number, command);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return false;
@@ -1843,9 +1840,6 @@ bool SCR_LayoutKeyEvent(int key, bool shift_held) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 SCR_LayoutApplyOrderQueueModifier(frame, command, sizeof(command), shift_held);
-                if (!strncmp(command, "button Aco", 10))
-                    fprintf(stderr, "WC3_COUPLE client-button-send layer=%d frame=%u command=%s\n",
-                            layer, (unsigned)frame->number, command);
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
                 return true;
