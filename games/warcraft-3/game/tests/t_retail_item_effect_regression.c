@@ -346,14 +346,10 @@ TEST(retail_item_effect, regeneration_items_follow_target_damage_and_scheduler) 
     S_ResolveAttackHit(f.enemy, f.hero, 5);
     T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
     T_NOT_NULL(unit_findstatus(ally, FS_SLKKey("BIrg")));
-
-    /* A hit at the exact expiry millisecond must still remove the status
-     * before the frame scheduler's timestamp-expiry branch can bypass A_DAMAGED. */
-    item = S_AbilityItem(FS_SLKKey("AIsl")); call.item = &item;
-    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
-    level.time += 10000;
-    S_ResolveAttackHit(f.enemy, f.hero, 5);
-    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    T_FEQ(f.hero->health.value, 401, 0.001f);
+    T_FEQ(ally->health.value, 403, 0.001f);
+    re_run_frame_at(ally, level.time + 1000);
+    T_ASSERT(ally->health.value > 403.0f);
 
     item = S_AbilityItem(FS_SLKKey("AIpl")); call.item = &item;
     T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));

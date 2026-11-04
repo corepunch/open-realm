@@ -992,7 +992,8 @@ static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg,
         abilityitem_t item;
         abilityCall_t event_call;
         if (!(ability->flags & AB_ENGINE_EVENTS)) continue;
-        item = MAKE(abilityitem_t, .ability = ability);
+        item = MAKE(abilityitem_t, .code = strlen(ability->classname) == 4 ?
+                    FS_SLKKey(ability->classname) : 0, .ability = ability);
         event_call = MAKE(abilityCall_t, .item = &item);
         if (call) event_call = *call;
         event_call.item = &item;
@@ -1007,7 +1008,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     bool handled = false;
 
     if (!ent) return false;
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DAMAGED)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_DAMAGED) {
         if (ent->unit_state) {
@@ -1029,7 +1030,6 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
                 S_AbilityMessage(ent, msg, &event_call);
             }
         }
-        handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     }
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
@@ -1207,7 +1207,7 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
-    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
+    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST | AB_ITEM))) {
         uint32_t const code = call && call->item ? call->item->code : 0;
         if (S_ManaFlareActive(ent) && code != MAKEFOURCC('A', 'm', 'f', 'l')) return false;
         if ((ability->flags & AB_SPELL) && code &&
