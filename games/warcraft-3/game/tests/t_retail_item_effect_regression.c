@@ -216,6 +216,51 @@ TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     re_done(&f);
 }
 
+
+TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+        "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"Cool1\"\n"
+        "C;Y2;X1;K\"AItb\"\nC;Y2;X2;K\"AItb\"\n"
+        "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"air,ground,enemy\"\n"
+        "C;Y2;X5;K\"100\"\nC;Y2;X6;K\"20\"\n"
+        "C;Y2;X7;K\"30\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"dust\"\nC;Y2;X2;K\"AItb\"\nE\n";
+    static ItemData_t item_data = { .abilList = "AItb", .cooldownID = "A001" };
+    retailEffectFixture_t f;
+    edict_t *player, *dust;
+    gameClient_t *client;
+    uint32_t const shared_cooldown = MAKEFOURCC('A','0','0','1');
+
+    re_init(&f, ability_slk, items);
+    player = G_GetPlayerEntityByNumber(0);
+    client = player ? player->client : NULL;
+    T_NOT_NULL(client);
+    if (!client) { re_done(&f); return; }
+    f.hero->s.player = 0;
+    G_SelectEntity(client, f.hero);
+    dust = re_equip(&f, "dust", 0);
+    dust->data.ItemData = &item_data;
+
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(unit_findstatus(f.enemy, FS_SLKKey("Bdet")));
+    T_ASSERT(!S_SpellCooldownReady(f.hero, shared_cooldown));
+    unit_removestatus(f.enemy, unit_findstatus(f.enemy, FS_SLKKey("Bdet")), STATUS_REMOVE_SCRIPT);
+    G_UseItem(f.hero, 0);
+    T_NULL(unit_findstatus(f.enemy, FS_SLKKey("Bdet")));
+    T_ASSERT(!S_SpellCooldownReady(f.hero, shared_cooldown));
+
+    level.time += 30000;
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(unit_findstatus(f.enemy, FS_SLKKey("Bdet")));
+    re_done(&f);
+}
+
 /* This item is stocked as oli2 -> AIll, with parent AIsb. The legacy AIlb orb
  * is not this item. Verify the retail binding while the proc handler remains
  * unimplemented. */

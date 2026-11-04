@@ -511,10 +511,12 @@ consumes even if none qualify. The shared hostile unit-target spell guard consum
 the shield once, including for Thunder Bolt, Fire Bolt, and Death Coil missiles at impact. It does not grant the Amulet's
 `ANss` cooldown/rearming ability; physical nets and point/area/beneficial spells
 remain unaffected.
- Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`
-item cooldowns and disabled icons, held-item cursor art, slot swapping, and
-allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
-flow; unusual custom `AIso` targets and their subsystem-specific behavior still
+ Still missing are general automatic `powerup` acquisition/use beyond that
+supported family, disabled item icons, held-item cursor art, slot swapping, and
+allied-unit giving. TFT item `cooldownID` selects the shared cooldown key for
+item use and inventory display; `ignoreCD` bypasses that item cooldown. Soul
+Trap implements the stock target/capture/reveal/release flow; unusual custom
+`AIso` targets and their subsystem-specific behavior still
 need parity coverage. See [Land Mines](land-mines.md) for the point-target
 completion contract exercised by `AIpm`.
 

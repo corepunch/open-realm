@@ -22,6 +22,7 @@ typedef struct {
     uint32_t code, level;
     vec2_t const *point;
     float range;
+    edict_t *source_item;
 } spellPointValidateParams_t;
 
 /* ---- Unified Spell Pipeline ----
@@ -794,14 +795,15 @@ void spell_run_frame(edict_t *ent) {
 /* Common activation policy used by normal casting and read-only availability
  * queries. Ignoring cooldown never bypasses mana or gameplay disable states. */
 static bool spell_activation_check(edict_t *clent, edict_t *caster, uint32_t code,
-                                   uint32_t level, bool ignore_cooldown) {
+                                   uint32_t level, bool ignore_cooldown, edict_t *source_item) {
     if (!S_SpellIsAliveTarget(caster) || unit_hasstatusstate(caster, WC3_STATUS_STATE_STUNNED) || S_UnitPolymorphed(caster) ||
         S_UnitIsCycloned(caster)) return false;
     if (S_UnitIsSilenced(caster)) {
         if (clent) G_ShowCommandErrorText(clent, "Silenced.");
         return false;
     }
-    if (!ignore_cooldown && !S_SpellCooldownReady(caster, code)) {
+    uint32_t const cooldown_code = source_item ? G_ItemCooldownCode(source_item, code) : code;
+    if (!ignore_cooldown && cooldown_code && !S_SpellCooldownReady(caster, cooldown_code)) {
         if (clent) G_ShowCommandErrorKey(clent, "Cooldown", NULL);
         return false;
     }
@@ -813,18 +815,20 @@ static bool spell_activation_check(edict_t *clent, edict_t *caster, uint32_t cod
 }
 
 bool S_SpellCanActivate(edict_t *caster, uint32_t code, uint32_t level, bool ignore_cooldown) {
-    return spell_activation_check(NULL, caster, code, level, ignore_cooldown);
+    return spell_activation_check(NULL, caster, code, level, ignore_cooldown, NULL);
 }
 
 /* Shared validation for unit-target spells, retaining the normal target/range path. */
-static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint32_t level, edict_t *target, float range) {
-    if (!spell_activation_check(clent, caster, code, level, false)) return false;
+static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint32_t level,
+                           edict_t *target, float range, edict_t *source_item) {
+    if (!spell_activation_check(clent, caster, code, level, false, source_item)) return false;
     return !(range > 0 && target && !S_SpellTargetInRange(caster, target, range));
 }
 
 static bool spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point ||
-        !spell_activation_check(params->clent, params->caster, params->code, params->level, false)) return false;
+        !spell_activation_check(params->clent, params->caster, params->code, params->level,
+                                false, params->source_item)) return false;
     return !(params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range);
 }
 
@@ -841,7 +845,8 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+static void spell_commit(edict_t *caster, uint32_t code, uint32_t level,
+                         edict_t *active_approach, edict_t *source_item) {
     abilityitem_t committed = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &committed);
 
@@ -854,7 +859,8 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
         S_ShadowMeldBreak(caster);
     S_SpellSpendMana(caster, code, level);
     if (!committed.ability || !(committed.ability->flags & AB_COOLDOWN_ON_STATUS_REMOVE)) {
-        S_SpellStartCooldown(caster, code, level);
+        if (source_item) G_StartItemCooldown(caster, source_item, code, level);
+        else S_SpellStartCooldown(caster, code, level);
     }
     S_ManaFlareOnCast(caster, code, level);
 }
@@ -864,7 +870,7 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
  * first accepted. */
 void S_SpellCommitCast(edict_t *caster, uint32_t code, uint32_t level) {
     if (!caster || !code) return;
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL, NULL);
 }
 
 /* Warcraft exposes spell response data only while dispatching the spell event.
@@ -922,7 +928,7 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
-    spell_commit(params->caster, params->code, params->level, active_approach);
+    spell_commit(params->caster, params->code, params->level, active_approach, params->source_item);
     bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
         S_TryBlockSpellShield(params->caster, params->code, params->target);
     if (!blocked && (params->spell->flags & AB_CHANNEL))
@@ -951,7 +957,7 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
                               .source_item = source_item,
                               .source_item_spawn_time = source_item_spawn_time);
 
-    spell_commit(caster, code, level, active_approach);
+    spell_commit(caster, code, level, active_approach, source_item);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
@@ -1041,7 +1047,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                               .clent = clent, .caster = caster, .code = code,
                                               .level = level, .point = validate_point,
-                                              .range = 0.0f);
+                                              .range = 0.0f, .source_item = source_item);
         /* The ability owns entity eligibility, including destructables which
          * ordinary unit-target validation intentionally rejects. */
         st = (entity_point_target || tree_approach) ?
@@ -1085,7 +1091,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
 
     /* Mana/cooldown can change while walking. Do not spend or fire the ability
      * unless it is still legal at the actual cast point. */
-    if (!spell_validate(NULL, caster, code, level, target, range)) {
+    if (!spell_validate(NULL, caster, code, level, target, range, source_item)) {
         unit_stand(caster);
         G_FreeEdict(thinker);
         return;
@@ -1197,7 +1203,7 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     }
     /* Range is intentionally excluded here. An otherwise valid out-of-range
      * target is an accepted order; the caster must walk into cast range. */
-    if (!spell_validate(clent, caster, code, level, target, 0.0f)) {
+    if (!spell_validate(clent, caster, code, level, target, 0.0f, source_item)) {
         return false;
     }
     if (!S_SpellAllowsTarget(code, caster, target)) {
@@ -1289,7 +1295,7 @@ static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *
     source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
     val = MAKE(spellPointValidateParams_t,
                .clent = clent, .caster = caster, .code = code, .level = level,
-               .point = point, .range = 0.0f);
+               .point = point, .range = 0.0f, .source_item = source_item);
 
     if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) {
         return false;
@@ -1400,14 +1406,14 @@ static void spell_no_target_execute(edict_t *clent) {
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
 
     if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return;
-    if (!spell_validate(clent, caster, code, level, NULL, 0.0f)) return;
+    if (!spell_validate(clent, caster, code, level, NULL, 0.0f, source_item)) return;
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
     /* Couple Instant can require an approach. Its handler commits only after
      * the rider has been created successfully. */
     if (spell->proc != CAbilityCoupleInstant)
-        spell_commit(caster, code, level, NULL);
+        spell_commit(caster, code, level, NULL, source_item);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
@@ -1445,7 +1451,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
         return spell_message(caster, A_EXECUTE, &item, &target) != 0;
     }
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, NULL, 0)) {
+    if (!spell_validate(NULL, caster, code, level, NULL, 0, NULL)) {
         if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
             fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=spell_validate caster=%u alive=%u stunned=%u silenced=%u cooldown=%u mana_ok=%u mana=%.1f/%.1f cost=%.1f\n",
                     (unsigned)caster->s.number, (unsigned)S_SpellIsAliveTarget(caster),
@@ -1467,7 +1473,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
                 (unsigned)caster->s.number, level, caster->mana.value,
                 S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL, NULL);
     if (spell->flags & AB_CHANNEL) {
         spell_begin_channel(caster, code);
     }
@@ -1492,12 +1498,12 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     range = S_SpellRange(code, level);
     spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                           .caster = caster, .code = code, .level = level,
-                                          .point = point, .range = range);
+                                          .point = point, .range = range, .source_item = NULL);
     if (!spell_validate_point(&val)) return false;
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
@@ -1519,11 +1525,11 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (spell->target_type != SPELL_TARGET_UNIT) return false;
     if (!S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) return false;
+    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level), NULL)) return false;
     if (!S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level, NULL);
+    spell_commit(caster, code, level, NULL, NULL);
     if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
@@ -1976,7 +1982,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
             .caster = caster, .code = code, .level = level, .point = &unit->s.origin2, .range = 0.0f);
         float const cast_range = spell_tree_target_range(code, level, caster);
         bool const valid = spell->proc == CAbilityEatTree ?
-            spell_validate(NULL, caster, code, level, unit, 0.0f) : spell_validate_point(&val);
+            spell_validate(NULL, caster, code, level, unit, 0.0f, NULL) : spell_validate_point(&val);
         if (!valid || !spell_message(caster, A_VALIDATE, &item, &target)) return false;
         if (Vector2_distance(&caster->s.origin2, &unit->s.origin2) > cast_range)
             return spell_begin_target_approach(caster, code, unit, NULL, NULL, 0);
@@ -1986,7 +1992,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (spell->target_type != SPELL_TARGET_UNIT && spell->target_type != SPELL_TARGET_UNIT_OR_POINT)
         return false;
     range = S_SpellRange(code, level);
-    if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
+    if (!spell_validate(NULL, caster, code, level, unit, 0.0f, NULL) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
     if (!S_SpellTargetInRange(caster, unit, range))
@@ -2065,7 +2071,7 @@ void spell_cmd(edict_t *clent) {
         uint32_t const level = S_SpellLevel(caster, code);
         spellTarget_t self = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = caster);
         spellUnitTargetParams_t params;
-        if (!spell_validate(clent, caster, code, level, caster, 0.0f) ||
+        if (!spell_validate(clent, caster, code, level, caster, 0.0f, clent->client->menu.ability_item) ||
             !S_SpellAllowsTarget(code, caster, caster) ||
             !spell_message(caster, A_VALIDATE, &item, &self)) return;
         params = MAKE(spellUnitTargetParams_t, .caster = caster, .code = code, .level = level,

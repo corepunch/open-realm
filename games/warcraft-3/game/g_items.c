@@ -76,6 +76,22 @@ cstring_t G_ItemAbilityList(edict_t const *item) {
     return abilities && *abilities ? abilities : NULL;
 }
 
+uint32_t G_ItemCooldownCode(edict_t const *item, uint32_t ability_code) {
+    ItemData_t const *data;
+    if (!item) return ability_code;
+    data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
+    if (!data || data->ignoreCD) return 0;
+    return data->cooldownID && strlen(data->cooldownID) == 4 ?
+        FS_SLKKey(data->cooldownID) : ability_code;
+}
+
+void G_StartItemCooldown(edict_t *unit, edict_t const *item, uint32_t ability_code, uint32_t level) {
+    uint32_t const cooldown_code = G_ItemCooldownCode(item, ability_code);
+    float const duration = S_SpellNumber(ability_code, ABILITY_NUMBER_COOLDOWN, level);
+    if (unit && cooldown_code && duration > 0.0f)
+        S_SpellStartCooldownDuration(unit, cooldown_code, duration);
+}
+
 static bool G_ItemSendAbilityMessage(edict_t *unit, edict_t const *item, abilityMsg_t msg) {
     abilityCall_t call = MAKE(abilityCall_t, .source_item = (edict_t *)item,
                               .source_item_spawn_time = item ? item->spawn_time : 0);
@@ -1045,6 +1061,11 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         if (!ability) continue;
         clent->client->menu.ability_code = FS_SLKKey(ability_name);
         if (ability->flags & AB_ITEM) {
+            uint32_t const cooldown_code = G_ItemCooldownCode(item, ability_item.code);
+            if (cooldown_code && !S_SpellCooldownReady(unit, cooldown_code)) {
+                G_ShowCommandErrorKey(clent, "Cooldown", NULL);
+                return;
+            }
             succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
         } else if (S_AbilityHasCommand(ability)) {
             clent->client->menu.ability_item = item;
@@ -1059,7 +1080,11 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
             continue;
         }
 
-        if (succeeded) G_CompleteItemUse(unit, item);
+        if (succeeded) {
+            if (ability->flags & AB_ITEM)
+                G_StartItemCooldown(unit, item, ability_item.code, 1);
+            G_CompleteItemUse(unit, item);
+        }
         return;
     }
 }
