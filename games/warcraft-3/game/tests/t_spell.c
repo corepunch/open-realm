@@ -570,7 +570,7 @@ TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
     char slk[1024];
     cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
     snprintf(slk, sizeof(slk),
-        "ID;PWXL;N;EBB;Y4;X10\n"
+        "ID;PWXL;N;EBB;Y3;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
         "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
