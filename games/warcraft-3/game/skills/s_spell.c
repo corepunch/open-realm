@@ -185,10 +185,17 @@ float S_SpellDuration(uint32_t code, uint32_t level, bool hero) {
 }
 
 static void S_SpellInvalidateCooldownUI(edict_t *caster) {
+    edict_t *player;
     gameClient_t *client;
     if (!caster) return;
     client = G_GetPlayerClientByNumber(caster->s.player);
-    if (client && client->ps.number == caster->s.player) G_InvalidateCommands(client);
+    if (!client || client->ps.number != caster->s.player) return;
+    G_InvalidateCommands(client);
+    /* Inventory command buttons carry their own radial cooldown payload. The
+     * command-card dirty bit does not resend LAYER_INVENTORY, so refresh that
+     * layer whenever an ability cooldown starts, changes, or ends. */
+    player = G_GetPlayerEntityByNumber(caster->s.player);
+    if (player && player->client == client) G_RefreshInventoryLayer(player);
 }
 
 static uint32_t S_SpellCooldownCode(uint32_t code) {
