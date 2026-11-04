@@ -187,6 +187,9 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         unit->orders->creep_guard_phase == CREEP_GUARD_RETURNING)
         order_stop_cleanup(unit);
     unit->s.player = player;
+    /* Stat recomputation reads the current owner, so swap it before applying
+     * the old/new tech deltas; triggers must see the re-based unit afterward. */
+    G_RebasePlayerUpgradesOnUnit(unit, old_client, new_client);
     /* A converted creep must not carry autonomous combat/return orders across
      * ownership. New Neutral Hostile units anchor at their conversion position;
      * units leaving Neutral Hostile discard the policy. */

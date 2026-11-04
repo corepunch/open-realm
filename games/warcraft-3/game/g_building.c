@@ -93,6 +93,8 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
+#define ID_UPGRADE_EFFECT_MOVE_SPEED    MAKEFOURCC('r', 'm', 'v', 'x')
+#define ID_UPGRADE_EFFECT_MOVE_PERCENT  MAKEFOURCC('r', 'm', 'o', 'v')
 #define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
 #define ID_UPGRADE_EFFECT_HEALTH_REGEN  MAKEFOURCC('r', 'h', 'p', 'r')
 #define ID_UPGRADE_EFFECT_UNIT_TRANSFORM MAKEFOURCC('r', 't', 'm', 'a')
@@ -653,6 +655,24 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
                 G_ApplyPermanentArmorBonus(unit, delta);
                 changed = true;
             }
+        } else if (effect == ID_UPGRADE_EFFECT_MOVE_SPEED || effect == ID_UPGRADE_EFFECT_MOVE_PERCENT) {
+            float old_value = G_UpgradeEffectValue(upgrade, i, old_level);
+            float new_value = G_UpgradeEffectValue(upgrade, i, new_level);
+            /* rmov is a rounded fraction of authored BASE speed, not a
+             * percentage of the current speed (which can contain other tech). */
+            if (effect == ID_UPGRADE_EFFECT_MOVE_PERCENT) {
+                float const base_speed = unit->data.UnitBalance->speed;
+                old_value = roundf(base_speed * old_value);
+                new_value = roundf(base_speed * new_value);
+            } else {
+                /* rmvx's authored base/mod fields are integer world units. */
+                old_value = (float)(int32_t)old_value;
+                new_value = (float)(int32_t)new_value;
+            }
+            if (new_value != old_value) {
+                unit->unitinfo.MoveSpeed += new_value - old_value;
+                changed = true;
+            }
         } else if (effect == ID_UPGRADE_EFFECT_HIT_POINTS) {
             float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
@@ -738,6 +758,30 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
         G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
         if (techid == magic_sentry_upgrade && G_UnitAbilityLevel(unit, magic_sentry_ability))
             S_UpdateMagicSentryPresentation(unit);
+    }
+}
+
+/* Captures must replace the old owner's research with the new owner's
+ * researched level. Reuse the ordinary deltas for all authored effects. */
+void G_RebasePlayerUpgradesOnUnit(edict_t *unit, gameClient_t *old_owner,
+                                  gameClient_t *new_owner) {
+    char token[64];
+    cstring_t upgrades;
+
+    if (!unit || !unit->data.UnitBalance) return;
+    upgrades = unit->data.UnitBalance->upgrades;
+    for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        uint32_t id;
+        UpgradeData_t const *upgrade;
+        int32_t old_level, new_level;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&id, token, sizeof(id));
+        upgrade = G_UpgradeData(id);
+        if (!upgrade || upgrade->id != id) continue;
+        old_level = old_owner ? G_GetPlayerTechResearchedLevel(old_owner, id) : 0;
+        new_level = new_owner ? G_GetPlayerTechResearchedLevel(new_owner, id) : 0;
+        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
     }
 }
 

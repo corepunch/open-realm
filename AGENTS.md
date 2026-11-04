@@ -143,7 +143,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 persistent Hero and idle-worker HUD shortcuts, event-driven invalidation, F1-F8 cycling | [docs/games/warcraft-3/unit-shortcuts.md](docs/games/warcraft-3/unit-shortcuts.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
 | WC3 race-specific construction strategies and remaining Human/Orc/Undead/Night Elf mechanic gaps | [docs/games/warcraft-3/race-mechanics.md](docs/games/warcraft-3/race-mechanics.md) |
-| WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
+| WC3 research queues, player tech state, attack/armor/movement effects, Night Elf Nature’s Blessing | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
 | WC3 Siphon Mana overcharge, decay, Life Drain distinction, persistence and HUD saturation | [docs/games/warcraft-3/drain-channel-pulses.md](docs/games/warcraft-3/drain-channel-pulses.md) |
 | WC3 Human Barracks unit abilities: Defend toggle/animation, Long Rifles range, Animal War Training max life, remaining fidelity gaps | [docs/games/warcraft-3/human-barracks-unit-abilities.md](docs/games/warcraft-3/human-barracks-unit-abilities.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |

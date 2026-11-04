@@ -465,6 +465,39 @@ static const char building_nightelf_ranged_upgrade_slk[] =
     "C;X10;K1\n"
     "E\n";
 
+/* Synthetic upgrade values intentionally differ from stock Nature's Blessing.
+ * The same effect slots work for RoC and TFT UpgradeData column names. */
+static const char building_natures_blessing_upgrade_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X11;Y3;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\n"
+    "C;X2;K\"maxlevel\"\n"
+    "C;X3;K\"effect1\"\n"
+    "C;X4;K\"base1\"\n"
+    "C;X5;K\"mod1\"\n"
+    "C;X6;K\"effect2\"\n"
+    "C;X7;K\"base2\"\n"
+    "C;X8;K\"mod2\"\n"
+    "C;X9;K\"used\"\n"
+    "C;X10;K\"class\"\n"
+    "C;X11;K\"race\"\n"
+    "C;X1;Y2;K\"Renb\"\n"
+    "C;X2;K2\n"
+    "C;X3;K\"rarm\"\n"
+    "C;X6;K\"rmvx\"\n"
+    "C;X7;K37\n"
+    "C;X8;K11\n"
+    "C;X9;K1\n"
+    "C;X10;K\"armor\"\n"
+    "C;X11;K\"nightelf\"\n"
+    "C;X1;Y3;K\"Rmv2\"\n"
+    "C;X2;K2\n"
+    "C;X3;K\"rmov\"\n"
+    "C;X4;K0.175\n"
+    "C;X5;K0.075\n"
+    "C;X9;K1\n"
+    "E\n";
+
 static const char building_dependency_ability_slk[] =
     "ID;PWXL;N;E\n"
     "B;X4;Y3;D0\n"
@@ -1773,6 +1806,136 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
     T_FEQ(unit->unit_state->attack1.range, 400.0f, 0.001f);
     T_FEQ(unit->unit_state->attack2.range, 250.0f, 0.001f);
     building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, natures_blessing_applies_armor_and_flat_speed_to_existing_and_future_units) {
+    uint32_t const blessing = MAKEFOURCC('R','e','n','b');
+    gameClient_t *owner = &game.clients[0];
+    edict_t *ancient, *protector, *treant, *unaffected, *future;
+    UnitBalance_t ordinary = { .upgrades = "Renb", .speed = 60.0f, .armorPerUpgrade = 5.0f };
+    UnitBalance_t protector_data = { .upgrades = "Renb", .speed = 60.0f, .armorPerUpgrade = 2.0f };
+    UnitBalance_t treant_data = { .upgrades = "Renb", .speed = 220.0f, .armorPerUpgrade = 5.0f };
+    UnitBalance_t other_data = { .upgrades = "", .speed = 190.0f, .armorPerUpgrade = 1.0f };
+    slkTestData_t *rows = parse_slk_string(building_natures_blessing_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+
+    reset_entities(); setup_test_world();
+    owner->ps.number = 0;
+    memset(owner->tech, 0, sizeof(owner->tech));
+    ancient = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0, 0);
+    protector = alloc_test_unit(MAKEFOURCC('e','a','p','r'), 128, 0);
+    treant = alloc_test_unit(MAKEFOURCC('e','f','o','n'), 256, 0);
+    unaffected = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 384, 0);
+    ancient->s.player = protector->s.player = treant->s.player = unaffected->s.player = 0;
+    ancient->data.UnitBalance = &ordinary;
+    protector->data.UnitBalance = &protector_data;
+    treant->data.UnitBalance = &treant_data;
+    unaffected->data.UnitBalance = &other_data;
+    ancient->unitinfo.MoveSpeed = protector->unitinfo.MoveSpeed = 60.0f;
+    treant->unitinfo.MoveSpeed = 220.0f;
+    unaffected->unitinfo.MoveSpeed = 190.0f;
+    ancient->unit_state->armor_value = protector->unit_state->armor_value = 2.0f;
+    treant->unit_state->armor_value = unaffected->unit_state->armor_value = 0.0f;
+    /* Research must not make a rooted Ancient movable. */
+    ancient->aiflags |= AI_IMMOBILE;
+    ancient->movetype = MOVETYPE_NONE;
+
+    G_SetPlayerTechResearched(owner, blessing, 1);
+    T_FEQ(ancient->unit_state->armor_value, 7.0f, 0.001f);
+    T_FEQ(protector->unit_state->armor_value, 4.0f, 0.001f);
+    T_FEQ(treant->unit_state->armor_value, 5.0f, 0.001f);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 97.0f, 0.001f);
+    T_FEQ(protector->unitinfo.MoveSpeed, 97.0f, 0.001f);
+    T_FEQ(treant->unitinfo.MoveSpeed, 257.0f, 0.001f);
+    T_FEQ(unaffected->unitinfo.MoveSpeed, 190.0f, 0.001f);
+    T_FEQ(unaffected->unit_state->armor_value, 0.0f, 0.001f);
+    T_ASSERT(ancient->aiflags & AI_IMMOBILE);
+    T_EQ(ancient->movetype, MOVETYPE_NONE);
+    /* The Move ability must consume upgraded speed as soon as the Ancient
+     * becomes mobile; its rooted movement lock remains independent. */
+    ancient->aiflags &= ~AI_IMMOBILE;
+    ancient->movetype = MOVETYPE_STEP;
+    T_FEQ(unit_movedistance(ancient), 97.0f * 10.0f / FRAMETIME, 0.001f);
+
+    future = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 512, 0);
+    future->s.player = 0;
+    future->data.UnitBalance = &ordinary;
+    future->unitinfo.MoveSpeed = 60.0f;
+    future->unit_state->armor_value = 2.0f;
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_FEQ(future->unit_state->armor_value, 7.0f, 0.001f);
+    T_FEQ(future->unitinfo.MoveSpeed, 97.0f, 0.001f);
+
+    G_SetPlayerTechResearched(owner, blessing, 2);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 108.0f, 0.001f);
+    T_FEQ(future->unitinfo.MoveSpeed, 108.0f, 0.001f);
+    G_SetPlayerTechResearched(owner, blessing, 0);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 60.0f, 0.001f);
+    T_FEQ(protector->unit_state->armor_value, 2.0f, 0.001f);
+    T_FEQ(treant->unit_state->armor_value, 0.0f, 0.001f);
+    T_FEQ(future->unitinfo.MoveSpeed, 60.0f, 0.001f);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, movement_percent_upgrade_is_based_on_authored_speed_not_current_speed) {
+    uint32_t const research = MAKEFOURCC('R','m','v','2');
+    gameClient_t *owner = &game.clients[0];
+    UnitBalance_t balance = { .upgrades = "Rmv2", .speed = 180.0f };
+    edict_t *unit;
+    slkTestData_t *rows = parse_slk_string(building_natures_blessing_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+
+    reset_entities(); setup_test_world();
+    owner->ps.number = 0;
+    memset(owner->tech, 0, sizeof(owner->tech));
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = 0;
+    unit->data.UnitBalance = &balance;
+    unit->unitinfo.MoveSpeed = 210.0f; /* another independent 30-speed modifier */
+    G_SetPlayerTechResearched(owner, research, 1);
+    T_FEQ(unit->unitinfo.MoveSpeed, 242.0f, 0.001f); /* round(180 * .175) = 32 */
+    G_SetPlayerTechResearched(owner, research, 2);
+    T_FEQ(unit->unitinfo.MoveSpeed, 255.0f, 0.001f); /* round(180 * .25) = 45 */
+    G_SetPlayerTechResearched(owner, research, 1);
+    T_FEQ(unit->unitinfo.MoveSpeed, 242.0f, 0.001f);
+    G_SetPlayerTechResearched(owner, research, 0);
+    T_FEQ(unit->unitinfo.MoveSpeed, 210.0f, 0.001f);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, captured_ancient_exchanges_player_research_modifiers) {
+    uint32_t const blessing = MAKEFOURCC('R','e','n','b');
+    gameClient_t *first = &game.clients[0], *second = &game.clients[1];
+    UnitBalance_t balance = { .upgrades = "Renb", .speed = 60.0f, .armorPerUpgrade = 2.0f };
+    slkTestData_t *rows = parse_slk_string(building_natures_blessing_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    edict_t *ancient;
+
+    reset_entities(); setup_test_world();
+    first->ps.number = 0; second->ps.number = 1;
+    memset(first->tech, 0, sizeof(first->tech));
+    memset(second->tech, 0, sizeof(second->tech));
+    ancient = alloc_test_unit(MAKEFOURCC('e','a','p','r'), 0, 0);
+    ancient->s.player = 0;
+    ancient->data.UnitBalance = &balance;
+    ancient->unitinfo.MoveSpeed = 60.0f;
+    ancient->unit_state->armor_value = 1.0f;
+    G_SetPlayerTechResearched(first, blessing, 1);
+    G_SetPlayerTechResearched(second, blessing, 2);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 97.0f, 0.001f);
+    G_SetUnitPlayer(ancient, 1);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 108.0f, 0.001f);
+    T_FEQ(ancient->unit_state->armor_value, 5.0f, 0.001f);
+    G_SetUnitPlayer(ancient, 0);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 97.0f, 0.001f);
+    T_FEQ(ancient->unit_state->armor_value, 3.0f, 0.001f);
+    G_SetUnitPlayer(ancient, PLAYER_NEUTRAL_AGGRESSIVE);
+    T_FEQ(ancient->unitinfo.MoveSpeed, 60.0f, 0.001f);
+    T_FEQ(ancient->unit_state->armor_value, 1.0f, 0.001f);
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_building, nightelf_improved_bows_and_marksmanship_affect_only_opted_in_units) {
