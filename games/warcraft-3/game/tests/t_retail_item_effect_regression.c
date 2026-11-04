@@ -219,15 +219,16 @@ TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y2;X7\n"
+        "ID;PWXL;N;EBB;Y2;X8\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
         "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"Dur1\"\n"
-        "C;Y1;X7;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Cool1\"\nC;Y1;X8;K\"CasterArt\"\n"
         "C;Y2;X1;K\"AItb\"\nC;Y2;X2;K\"AItb\"\n"
         "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"air,ground,enemy\"\n"
         "C;Y2;X5;K\"100\"\nC;Y2;X6;K\"20\"\n"
-        "C;Y2;X7;K\"30\"\nE\n";
+        "C;Y2;X7;K\"30\"\n"
+        "C;Y2;X8;K\"Abilities\\\\Spells\\\\Items\\\\AItb\\\\AItbTarget.mdl\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"dust\"\nC;Y2;X2;K\"AItb\"\nE\n";
