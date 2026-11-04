@@ -20,7 +20,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/UnitID/Cost so mount cannot pass on retail ehip/ehpr/0. */
 #define COUPLE_MOUNT_SLK \
-	"ID;PWXL;N;EBB;Y3;X9\n" \
+	"ID;PWXL;N;EBB;Y3;X10\n" \
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"UnitID1\"\n" \
@@ -30,6 +30,13 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y3;X1;K\"Acoh\"\nC;Y3;X2;K\"Acoh\"\nC;Y3;X3;K\"1\"\n" \
 	"C;Y3;X4;K\"_\"\nC;Y3;X5;K\"17\"\nC;Y3;X6;K\"0\"\n" \
 	"C;Y3;X7;K\"500\"\nC;Y3;X8;K\"hpea\"\nC;Y3;X9;K\"ogru\"\nE\n"
+
+#define COUPLE_RESEARCH_UPGRADE_SLK \
+	"ID;PWXL;N;E\nB;X13;Y3;D0\n" \
+	"C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n" \
+	"C;X10;K\"effect1\"\nC;X13;K\"code1\"\n" \
+	"C;X1;Y2;K\"Reht\"\nC;X3;K1\nC;X10;K\"rlev\"\nC;X13;K\"Acoa\"\n" \
+	"C;X1;Y3;K\"Reht\"\nC;X3;K1\nC;X10;K\"rlev\"\nC;X13;K\"Acoh\"\nE\n"
 
 /* Non-stock DataA/DataB/Cost; companions are not retail earc/ehip. */
 #define COUPLE_DISMOUNT_SLK \
@@ -42,7 +49,7 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y2;X7;K\"0\"\nC;Y2;X8;K\"hpea\"\nC;Y2;X9;K\"hfoo\"\nE\n"
 
 typedef struct {
-	slkTestData_t *rows, *old;
+	slkTestData_t *rows, *old, *upgrade_rows, *old_upgrades;
 	edict_t *caster, *partner, *enemy, *wrong;
 } coupleFix_t;
 
@@ -52,6 +59,8 @@ static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
+	fix->upgrade_rows = parse_slk_string(COUPLE_RESEARCH_UPGRADE_SLK);
+	fix->old_upgrades = G_SetSLKRows("UpgradeData", fix->upgrade_rows);
 	fix->caster = alloc_test_unit(caster_id, 0, 0);
 	fix->partner = alloc_test_unit(partner_id, 64, 0);
 	fix->enemy = alloc_test_unit(partner_id, 96, 0);
@@ -71,6 +80,7 @@ static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_
 
 static void couple_done(coupleFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
+	G_SetSLKRows("UpgradeData", fix->old_upgrades); free_slk_rows(fix->upgrade_rows);
 }
 
 static uint32_t couple_count(uint32_t class_id, uint32_t player) {
@@ -103,19 +113,49 @@ TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
 	couple_done(&fix);
 }
 
+/* checkDep abilities use the stock research mapping; synthetic partner IDs
+ * ensure the couple validation path still uses each ability's authored data. */
+TEST(wc3_spell, hippogryph_couple_validation_requires_reht_research) {
+	coupleFix_t fix;
+	UnitBalance_t balance = MAKE(UnitBalance_t, .upgrades = "Reht");
+	uint32_t const research = MAKEFOURCC('R','e','h','t');
+	uint32_t codes[] = { BZ_ACOA, BZ_ACOH };
+
+	for (uint32_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
+		AbilityData_t *row;
+		uint32_t required_research = 0;
+		int32_t required_level = 0;
+		couple_setup(&fix, COUPLE_MOUNT_SLK, codes[i],
+		             codes[i] == BZ_ACOA ? BZ_HPEA : BZ_HFOO,
+		             codes[i] == BZ_ACOA ? BZ_HFOO : BZ_HPEA);
+		row = (AbilityData_t *)G_AbilityData(codes[i]);
+		row->checkDep = true;
+		T_EQ(row->id, codes[i]);
+		T_ASSERT(row->checkDep);
+		fix.caster->data.UnitBalance = &balance;
+		T_EQ(G_UpgradeData(research)->id, research);
+		game.clients[0].ps.number = 0;
+		G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
+		G_SetPlayerTechResearched(&game.clients[0], research, 0);
+		T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, codes[i]));
+		T_ASSERT(!S_CastUnitTargetSpell(fix.caster, codes[i], fix.partner));
+		T_ASSERT(fix.caster->inuse && fix.partner->inuse);
+		T_ASSERT(G_UnitAbilityResearchRequirement(fix.caster, codes[i],
+		                                         &required_research, &required_level));
+		T_EQ(required_research, research);
+		T_EQ(required_level, 1);
+		G_SetPlayerTechResearched(&game.clients[0], research, 1);
+		T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, codes[i]));
+		G_SetPlayerTechResearched(&game.clients[0], research, 0);
+		couple_done(&fix);
+	}
+}
+
 /* Acoa consumes caster+partner and spawns authored UnitID rider. */
 TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider;
-	uint32_t const research = MAKEFOURCC('R','e','h','t');
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
-	game.clients[0].ps.number = 0;
-	T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOA));
-	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
-	T_ASSERT(fix.caster->inuse && fix.partner->inuse);
-	G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
-	G_SetPlayerTechResearched(&game.clients[0], research, 1);
-	T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOA));
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
 	/* Execute frees both inputs; spent Cost is observed only on reject paths. */
 	T_ASSERT(!fix.caster->inuse);
@@ -132,15 +172,7 @@ TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider = NULL;
-	uint32_t const research = MAKEFOURCC('R','e','h','t');
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
-	game.clients[0].ps.number = 0;
-	T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOH));
-	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
-	T_ASSERT(fix.caster->inuse && fix.partner->inuse);
-	G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
-	G_SetPlayerTechResearched(&game.clients[0], research, 1);
-	T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOH));
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);

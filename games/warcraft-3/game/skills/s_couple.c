@@ -8,9 +8,7 @@ static bool couple_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 	edict_t *target = st.entity;
 	uint32_t level, partner, rider;
 
-	if (!caster || !spell || !target || target == caster) return false;
-	if ((spell->code == MAKEFOURCC('A','c','o','a') ||
-	     spell->code == MAKEFOURCC('A','c','o','h')) &&
+	if (!caster || !spell || !target || target == caster ||
 	    !G_UnitAbilityResearchAvailable(caster, spell->code)) return false;
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsFriend(caster, target)) return false;
 	level = S_SpellLevel(caster, spell->code);
