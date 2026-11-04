@@ -834,7 +834,7 @@ BZ_ABILITY_PROC(CAbilityItemDetectByBuff) {
         status->data = caster->s.player + 1;
         G_InvalidateUnitInfoPanel(target);
     }
-    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     return true;
 }
 
