@@ -391,7 +391,7 @@ static ability_t abilitylist[] = {
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
-    { "ANsa", CAbilityItemSanctuary, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
+    { "ANsa", CAbilityItemSanctuary, AB_SPELL | AB_STATUS_EVENTS | AB_UPDATE, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
     { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
     { "AItb", CAbilityItemDetectByBuff, AB_ITEM },  /* Dust of Appearance */
