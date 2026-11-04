@@ -24,24 +24,55 @@ bool S_CastNearestCouplePartner(edict_t *caster, uint32_t code) {
 	float best_distance = FLT_MAX;
 	uint32_t level, partner;
 	float range;
+	uint32_t candidates = 0, rejected_target = 0;
 
-	if (!caster || (code != MAKEFOURCC('A','c','o','h') && code != MAKEFOURCC('A','c','o','a')) ||
-	    !G_UnitAbilityLevel(caster, code) ||
-	    !G_UnitAbilityResearchAvailable(caster, code)) return false;
+	if (!caster || (code != MAKEFOURCC('A','c','o','h') && code != MAKEFOURCC('A','c','o','a'))) return false;
+	if (!G_UnitAbilityLevel(caster, code) || !G_UnitAbilityResearchAvailable(caster, code)) {
+		fprintf(stderr, "WC3_COUPLE command-reject unit=%u raw=%.4s reason=unavailable level=%u researched=%u\n",
+		        (unsigned)caster->s.number, (cstring_t)&code, G_UnitAbilityLevel(caster, code),
+		        (unsigned)G_UnitAbilityResearchAvailable(caster, code));
+		return false;
+	}
 	level = S_SpellLevel(caster, code);
 	partner = S_SpellDataId(code, level, 1);
 	range = S_SpellRange(code, level);
-	if (!partner || !range) return false;
+	if (!partner || !range) {
+		fprintf(stderr, "WC3_COUPLE command-reject unit=%u raw=%.4s reason=missing-data level=%u partner=%.4s range=%.1f\n",
+		        (unsigned)caster->s.number, (cstring_t)&code, level,
+		        partner ? (cstring_t)&partner : "----", range);
+		return false;
+	}
 	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
 	              target != caster && target->class_id == partner &&
 	              S_SpellIsFriend(caster, target)) {
 		float const distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
-		if (distance > range || distance >= best_distance) continue;
-		if (!S_SpellAllowsTarget(code, caster, target)) continue;
+		bool const allowed = S_SpellAllowsTarget(code, caster, target);
+		candidates++;
+		if (distance > range || !allowed) {
+			rejected_target++;
+			fprintf(stderr, "WC3_COUPLE candidate-reject caster=%u raw=%.4s target=%u target_raw=%.4s distance=%.1f range=%.1f target_allowed=%u\n",
+			        (unsigned)caster->s.number, (cstring_t)&code, (unsigned)target->s.number,
+			        (cstring_t)&target->class_id, distance, range, (unsigned)allowed);
+			continue;
+		}
+		if (distance >= best_distance) continue;
 		best = target;
 		best_distance = distance;
 	}
-	return best && S_CastUnitTargetSpell(caster, code, best);
+	if (!best) {
+		fprintf(stderr, "WC3_COUPLE no-partner caster=%u raw=%.4s partner=%.4s range=%.1f matching=%u rejected=%u\n",
+		        (unsigned)caster->s.number, (cstring_t)&code, (cstring_t)&partner,
+		        range, candidates, rejected_target);
+		return false;
+	}
+	{
+		uint32_t const caster_number = caster->s.number, target_number = best->s.number;
+		bool const accepted = S_CastUnitTargetSpell(caster, code, best);
+		fprintf(stderr, "WC3_COUPLE nearest-cast caster=%u raw=%.4s target=%u target_raw=%.4s distance=%.1f range=%.1f accepted=%u\n",
+		        (unsigned)caster_number, (cstring_t)&code, (unsigned)target_number,
+		        (cstring_t)&partner, best_distance, range, (unsigned)accepted);
+		return accepted;
+	}
 }
 
 /* Spawn the authored rider first, then remove both inputs (Warsmash CoupleInstant). */

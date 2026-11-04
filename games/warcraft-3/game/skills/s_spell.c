@@ -2021,6 +2021,14 @@ void spell_cmd(edict_t *clent) {
     abilityitem_t item = { .code = code, .ability = spell };
     abilityCall_t toggle_call = MAKE(abilityCall_t, .item = &item);
 
+    if (code == MAKEFOURCC('A','c','o','a') || code == MAKEFOURCC('A','c','o','h')) {
+        fprintf(stderr, "WC3_COUPLE command-enter player=%u caster=%u caster_raw=%.4s ability=%.4s spell=%p target_mode=%u\n",
+                clent && clent->client ? (unsigned)clent->client->ps.number : UINT_MAX,
+                caster ? (unsigned)caster->s.number : UINT_MAX,
+                caster ? (cstring_t)&caster->class_id : "----", (cstring_t)&code, (void *)spell,
+                clent && clent->client ? (unsigned)(clent->client->menu.on_entity_selected != NULL) : 0u);
+    }
+
     if (!spell) {
         fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (cstring_t)&code);
         return;
@@ -2030,15 +2038,23 @@ void spell_cmd(edict_t *clent) {
     }
 
     if (!G_UnitAbilityResearchAvailable(caster, code)) {
+        if (code == MAKEFOURCC('A','c','o','a') || code == MAKEFOURCC('A','c','o','h'))
+            fprintf(stderr, "WC3_COUPLE command-reject ability=%.4s reason=requires-training unit=%u level=%u\n",
+                    (cstring_t)&code, (unsigned)caster->s.number, G_UnitAbilityLevel(caster, code));
         G_ShowCommandErrorText(clent, "Requires training.");
         return;
     }
     if (!G_IsUnitAbilityAvailable(caster, code)) {
+        if (code == MAKEFOURCC('A','c','o','a') || code == MAKEFOURCC('A','c','o','h'))
+            fprintf(stderr, "WC3_COUPLE command-reject ability=%.4s reason=unavailable unit=%u\n",
+                    (cstring_t)&code, (unsigned)caster->s.number);
         G_ShowCommandErrorText(clent, "This ability is unavailable.");
         return;
     }
 
     if (spell->proc == CAbilityCoupleHippogryph || spell->proc == CAbilityCoupleArcher) {
+        fprintf(stderr, "WC3_COUPLE command-dispatch ability=%.4s proc=%s target_mode=auto-nearest\n",
+                (cstring_t)&code, spell->proc == CAbilityCoupleHippogryph ? "Acoh" : "Acoa");
         if (S_CastNearestCouplePartner(caster, code)) spell_order_accepted(caster, spell);
         return;
     }
