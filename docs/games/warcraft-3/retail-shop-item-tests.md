@@ -1,10 +1,9 @@
 # Retail shop item contracts — audit facts, acceptance rules and gaps
 
-**Base:** `open-realm-main-2026-10-29-23-15.zip` **plus** `openrealm-neutral-creep-ability-full-coverage(1).patch`.
-The new C suite is `t_retail_shop_contract.c`; its two generated case files have 45
-shop listings and 62 **shop-specific** gameplay effects, respectively.  It uses
-`shared/test.h` via `test.h`, not a standalone test runner. No local compilation
-or test execution was performed.
+`games/warcraft-3/game/tests/t_retail_shop_contract.c` registers 45 shop listing
+contracts and indexes 62 **shop-specific** gameplay effects in separate case
+files. It uses `shared/test.h` through the game's test harness. The latest full
+`make test` run passes the shop contract suite in both classic and TFT modes.
 
 ## Source priority
 
@@ -118,10 +117,12 @@ fixtures after extracting actual tables.
 - `Units/ItemFunc.txt` and race/neutral `UnitStrings.txt` where applicable
 - Representative `war3map.w3i`, `war3map.w3u`, `war3map.w3t`, `war3map.w3a`
 
-**Testing:** `make test-wc3-engine WC3_PATTERN='retail_shop_contract.*'`
-(or `retail_item_effect.*` after implementation). These commands were not run.
+Run the focused shop listing contracts and item effects with:
 
-**Commit message:** `test(wc3): add retail shop stock and item-effect contract regressions`
+```sh
+make test-wc3-engine WC3_PATTERN='retail_shop_contract.*'
+make test-wc3-engine WC3_PATTERN='retail_item_effect.*'
+```
 
 ## Additional source coverage
 

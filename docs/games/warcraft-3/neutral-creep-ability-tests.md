@@ -7,11 +7,11 @@ keeps the source name, page URL, paraphrased effect, and an explicit automation
 status, plus separately reported unit IDs, `abilList` and verified aliases where available. The source spreadsheet is a *secondary reference* and may omit retail
 ability-specific targeting, duration or ROC/TFT differences.
 
-## Registered, unexecuted gameplay coverage
+## Executable gameplay coverage
 
-`games/warcraft-3/game/tests/t_neutral_creep_contract.c` registers **298 independent
-headless gameplay tests**, indexed by the 1-based source rows: **94 original synthetic
-regressions** for twelve mechanics and **204 new expected-behavior tests** for
+`games/warcraft-3/game/tests/t_neutral_creep_contract.c` registers **299 independent
+headless gameplay tests**, indexed by the 1-based source rows: **95 original synthetic
+regressions** for twelve mechanics and **204 added gameplay tests** for
 80 further ability labels. They deliberately assert production outcomes even where
 the corresponding mechanics are missing; none is skipped or marked expected-failure.
 The original group is:
@@ -58,7 +58,7 @@ claims without numbers use a deliberately non-stock fixture value; do not
 interpret that value as a retail constant. The tests exercise
 ability behavior but do not exercise every final production UI/order path.
 
-## Additional 204 tests (strict, may fail)
+## Added 204 gameplay tests
 
 `t_neutral_creep_contract_extended_impl.inc` implements concise, shared fixture
 and assertion recipes. `t_neutral_creep_contract_extended_cases.inc` records
@@ -76,13 +76,15 @@ summoning paths, with observable effects. Shared negative controls include
 out-of-range hostiles, friend/foe effects, expiry, and secondary victims.
 **A successful cast or registered ability alone does not pass an extended test.**
 
-Some mechanics remain unimplemented, misclassified or incomplete. Those tests
-may fail, as intended, to give agents a concrete contract to implement. A failure
-may also expose a missing test-fixture prerequisite: **first validate the code,
-BuffID, UnitID, targeting and numeric fields against retail object data before
-changing production mechanics**. In particular, generic synthetic fixtures are
-not a verified retail substitute for every ability's `Data*`/`BuffID` fields,
-channel timing, missiles, attack profile, corpse requirements or cooldown.
+The focused `make test-wc3-engine WC3_PATTERN='wc3_creep_contract.*'` run passes
+all 299 cases (1,727 assertions) in both classic and TFT modes. That verifies
+the current synthetic gameplay contracts;
+it does not independently prove every candidate ability assignment or field
+against retail object data. Generic synthetic fixtures are not a substitute for
+the actual `Data*`/`BuffID` fields, channel timing, missiles, attack profile,
+corpse requirements or cooldown. **Before adding a retail-parity claim, validate
+the rawcode, BuffID, UnitID, targeting and numeric fields against both archive
+schemas.**
 The Makrura Summon Prawns fixture deliberately exercises the shared `AOsf`
 summoning path, **not** `ACsp`: the latter is registered as the unrelated
 *Natural creep sleep* passive. Its actual retail alias remains unverified;
@@ -94,9 +96,8 @@ new tests cover a positive gameplay outcome, not complete retail parity.
 
 | Source rows | Status | Meaning |
 |---:|---|---|
-| 94 | Existing synthetic gameplay regression | Runnable tests; pass/fail not measured here |
-| 204 | New synthetic gameplay expectation | Runnable, strict assertions; may fail pending implementation/fixture refinement |
-| 2 (rows 7, 198) | Contradicted by verified `abilList` | **No executable case** for the disputed source assignment |
+| 299 | Synthetic gameplay contract | Registered and passing in classic and TFT engine modes |
+| 2 (rows 7, 198) | Contradicted by verified `abilList` | No executable case for the disputed source assignment |
 
 ## Retail object-data priority
 
@@ -113,21 +114,19 @@ Rows labelled `Forest Troll Priest` must not silently inherit the rawcode
 `nfsp` (verified as *Forest Troll Shadow Priest*) until identity is resolved.
 `ntrd` Dragon Turtle and `nhyc` Campaign Turtle are distinct units.
 
-## Workflow to finish retail-binding
+## Remaining retail-binding gaps
 
-1. Obtain complete archive-derived unit and ability tables for ROC/TFT and
-   resolve each creep row against a verified rawcode, noting name mismatches.
-2. Replace synthetic representative codes with actual `abilList` aliases and
-   author the exact object-data cells (including summon `UnitID`, corpse and
-   duration rules) in the fixture; update expectations before fixing game code.
-3. Run the individual `wc3_creep_contract.row_N` test, fix missing production
-   behavior, then add the described negative/lifecycle assertions. A green
-   synthetic effect probe does **not** validate the retail ownership mapping.
-4. Record observed results; never suppress/redesign an assertion merely to
-   make a missing mechanic disappear. Keep rows 7 and 198 disputed until the
-   primary data justifies a different source assignment.
+- The synthetic cases prove the behavior exercised by their fixtures, not every
+  named creep's retail `abilList`. Keep the source-row mapping marked as
+  unverified unless it is backed by the archive audit.
+- Rows 7 and 198 remain excluded because the verified `abilList` contradicts
+  the reference spreadsheet's assignment.
+- The Makrura Summon Prawns fixture exercises the shared `AOsf` summon path, not
+  `ACsp`; its actual retail alias remains unverified.
+- Some shape-specific cases still need retail-bound assertions, including
+  Lightning Attack attack type, summons from trees and Devour ingestion.
 
-Run (by a developer; these files were not compiled or executed when authored):
+Run the classic and TFT variants independently with:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_creep_contract.*'
@@ -137,53 +136,8 @@ Follow [ability implementation](ability-implementation.md),
 [creep aliases](creep-ability-aliases.md), and the root `CONTRIBUTING.md` for
 ROC/TFT `Data*` columns, status lifecycle, production paths and fixture rules.
 
-## Incremental implementation on the November 2 fixture-fix patch
-
-This follow-up is designed to apply **after**
-`fix(wc3)__correct_neutral_creep_ability_test_fixtures_test(wc3)__expand_neutral_creep_game1(1).patch`.
-It retains that patch's Abolish Magic, Rejuvenation, campaign spell and other
-changes rather than replacing them. It adds:
-
-- **Reincarnation:** nonhero creeps revive their corpse instead of calling the
-  hero-only revival entry point; revive clears the Death animation override.
-  The test now exercises `unit_die` and checks living, selectable state.
-- **Critical Strike:** read chance and multiplier from the owned alias/rank,
-  including the existing campaign Drunken Brawler variant. A zero/100 percent
-  regression checks the actual on-hit damage calculation.
-- **Frost Armor:** `BUfa` derives its armor bonus from ability DataB, not DataA;
-  a non-stock fixture checks the actual armor increase.
-
-These are gameplay contract tests, not verification that all 298 creep
-assignments match retail data. `tools/WarcraftIIIFileListZezulaLadik.txt`
-contains archive paths rather than object-data row values. For rawcode and
-field-level verification export `Units\UnitAbilities.slk`,
-`Units\AbilityData.slk`, `Units\AbilityBuffData.slk` and the other
-relevant tables from both ROC and TFT archives, recording overlay provenance.
-
-No compile or test execution was performed when preparing this incremental patch.
-
-## Focused classic-shard follow-up (26 assertions, 19 cases)
-
-The reported classic run is the only executed evidence for this follow-up;
-TFT behavior remains unknown. The contract fixtures now distinguish immediate
-casts from projectile impacts (Firebolt, Hurl Boulder, Possession) and delayed
-Chain Lightning hops. Carrion Swarm/Crushing Wave/Breath of Fire use distinct
-travel/width and damage-cap cells, while Cleaving Attack uses a real melee hit
-rather than the unrelated Pulverize function. Devotion's DataB flag must be
-zero when testing a flat three-armor bonus. Disease Cloud uses the *creep*
-`Aap3` synthetic alias with `code=Aapl`, not the research-gated Abomination
-`Aap1`. These labels are still not proof of a unit's retail `abilList`.
-
-Periodic Devour tests hold their healthy ally at full HP to avoid ordinary
-regeneration invalidating a no-friendly-damage assertion. Rain of Fire is an
-exception: it **does** harm friendly units in its blast radius in the current
-retail-aligned implementation, so the contract explicitly expects friendly fire.
-
-Gameplay additions include automatic `ANpi`/`Apig` permanent immolation without
-mana upkeep and `ANpa`/`ACpa` Parasite periodic damage/minion creation through
-existing timed-status and death callbacks. Synthetic values test the field
-contract; confirmed ROC/TFT object tables remain authoritative for exact unit
-assignments and real damage/mana/summon values.
-
-This revision was checked for patch application only. It has **not** been
-compiled or test-run here; the next test results may reveal further defects.
+The tests cover source-specific fixes including creep Reincarnation, alias-aware
+Critical Strike, Frost Armor's DataB armor value, delayed projectile impacts,
+periodic status damage, permanent Immolation and Parasite minion creation.
+The fixture values establish handler behavior; archive-derived object tables
+remain authoritative for exact retail assignments and values.
