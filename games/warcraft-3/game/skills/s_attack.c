@@ -45,6 +45,7 @@ static umove_t attack_move_ranged_cooldown;
 #define LIGHTNING_ATTACK_ABILITY MAKEFOURCC('A','l','i','t')
 #define LIGHTNING_ATTACK_BOLT_MS 250u
 #define ID_ORB_OF_VENOM MAKEFOURCC('o','v','e','n')
+#define ID_POISON_ORB_ABILITY MAKEFOURCC('A','p','o','2')
 
 /* Orb of Venom grants a unit without an authored air weapon a temporary
  * poison projectile attack. The profile is derived from Attack 1 so its
@@ -68,15 +69,16 @@ static bool authored_attack_can_hit_air(edict_t const *unit) {
 
 static unitAttack_t const *venom_air_attack(edict_t const *unit) {
     static unitAttack_t profile;
-    static uint32_t projectile_model;
+    cstring_t missile_art;
     if (!unit || !unit->unit_state || authored_attack_can_hit_air(unit) || !has_orb_of_venom((edict_t *)unit) ||
         unit->unit_state->attack1.type == ATK_NONE) return NULL;
     profile = unit->unit_state->attack1;
     profile.weapon = WPN_MISSILE;
     profile.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    if (!projectile_model)
-        projectile_model = G_RegisterModel("Abilities\\Weapons\\PoisonSting\\PoisonStingMissile.mdl");
-    profile.projectile.model = projectile_model;
+    missile_art = G_AbilityEffectArt(ID_POISON_ORB_ABILITY, WC3_EFFECT_MISSILE, 0);
+    if (!missile_art || !*missile_art)
+        missile_art = "Abilities\\Spells\\Items\\OrbVenom\\OrbVenomMissile.mdl";
+    profile.projectile.model = G_RegisterModel(missile_art);
     profile.projectile.arc = 0.0f;
     if (profile.projectile.speed <= 0.0f) profile.projectile.speed = 900.0f;
     return &profile;

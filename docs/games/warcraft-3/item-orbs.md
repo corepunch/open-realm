@@ -30,8 +30,9 @@ consumer reads `Bfro`/`BIcb`/`Bfre` yet.
 
 The `oven` item (`AIpb,Apo2`) also supplies an air-target missile attack when
 the carrier has no enabled authored attack that can hit air. Its transient
-profile uses the unit's Attack 1 damage, range, and timing with the Poison
-Sting missile model; it does not overwrite the unit's authored Attack 2.
+profile uses the unit's Attack 1 damage, range, and timing with `Apo2`'s
+authored `Abilities\\Spells\\Items\\OrbVenom\\OrbVenomMissile.mdl`; it does
+not overwrite the unit's authored Attack 2.
 Dropping the item removes the capability immediately because it is derived
 from current inventory.
 
