@@ -24,55 +24,23 @@ bool S_CastNearestCouplePartner(edict_t *caster, uint32_t code) {
 	float best_distance = FLT_MAX;
 	uint32_t level, partner;
 	float range;
-	uint32_t candidates = 0, rejected_target = 0;
 
 	if (!caster || (code != MAKEFOURCC('A','c','o','h') && code != MAKEFOURCC('A','c','o','a'))) return false;
-	if (!G_UnitAbilityLevel(caster, code) || !G_UnitAbilityResearchAvailable(caster, code)) {
-		fprintf(stderr, "WC3_COUPLE command-reject unit=%u raw=%.4s reason=unavailable level=%u researched=%u\n",
-		        (unsigned)caster->s.number, (cstring_t)&code, G_UnitAbilityLevel(caster, code),
-		        (unsigned)G_UnitAbilityResearchAvailable(caster, code));
-		return false;
-	}
+	if (!G_UnitAbilityLevel(caster, code) || !G_UnitAbilityResearchAvailable(caster, code)) return false;
 	level = S_SpellLevel(caster, code);
 	partner = S_SpellDataId(code, level, 1);
 	range = S_SpellRange(code, level);
-	if (!partner || !range) {
-		fprintf(stderr, "WC3_COUPLE command-reject unit=%u raw=%.4s reason=missing-data level=%u partner=%.4s range=%.1f\n",
-		        (unsigned)caster->s.number, (cstring_t)&code, level,
-		        partner ? (cstring_t)&partner : "----", range);
-		return false;
-	}
+	if (!partner || !range) return false;
 	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
 	              target != caster && target->class_id == partner &&
 	              S_SpellIsFriend(caster, target)) {
 		float const distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
-		bool const allowed = S_SpellAllowsTarget(code, caster, target);
-		candidates++;
-		if (distance > range || !allowed) {
-			rejected_target++;
-			fprintf(stderr, "WC3_COUPLE candidate-reject caster=%u raw=%.4s target=%u target_raw=%.4s distance=%.1f range=%.1f target_allowed=%u\n",
-			        (unsigned)caster->s.number, (cstring_t)&code, (unsigned)target->s.number,
-			        (cstring_t)&target->class_id, distance, range, (unsigned)allowed);
-			continue;
-		}
+		if (distance > range || !S_SpellAllowsTarget(code, caster, target)) continue;
 		if (distance >= best_distance) continue;
 		best = target;
 		best_distance = distance;
 	}
-	if (!best) {
-		fprintf(stderr, "WC3_COUPLE no-partner caster=%u raw=%.4s partner=%.4s range=%.1f matching=%u rejected=%u\n",
-		        (unsigned)caster->s.number, (cstring_t)&code, (cstring_t)&partner,
-		        range, candidates, rejected_target);
-		return false;
-	}
-	{
-		uint32_t const caster_number = caster->s.number, target_number = best->s.number;
-		bool const accepted = S_CastUnitTargetSpell(caster, code, best);
-		fprintf(stderr, "WC3_COUPLE nearest-cast caster=%u raw=%.4s target=%u target_raw=%.4s distance=%.1f range=%.1f accepted=%u\n",
-		        (unsigned)caster_number, (cstring_t)&code, (unsigned)target_number,
-		        (cstring_t)&partner, best_distance, range, (unsigned)accepted);
-		return accepted;
-	}
+	return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
 /* Spawn the authored rider first, then remove both inputs (Warsmash CoupleInstant). */
@@ -122,9 +90,6 @@ static edict_t *couple_instant_nearest(edict_t *caster, abilityitem_t const *spe
 	partner = S_SpellDataId(spell->code, level, 1);
 	radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
 	if (!partner || radius <= 0.0f) {
-		fprintf(stderr, "WC3_COUPLE instant-reject caster=%u ability=%.4s reason=missing-data level=%u partner=%.4s area=%.1f\n",
-		        (unsigned)caster->s.number, (cstring_t)&spell->code, level,
-		        partner ? (cstring_t)&partner : "----", radius);
 		return NULL;
 	}
 	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && target != caster &&
@@ -134,15 +99,6 @@ static edict_t *couple_instant_nearest(edict_t *caster, abilityitem_t const *spe
 		    !S_SpellAllowsTarget(spell->code, caster, target)) continue;
 		best = target;
 		best_distance = distance;
-	}
-	if (!best) {
-		fprintf(stderr, "WC3_COUPLE instant-no-partner caster=%u ability=%.4s partner=%.4s area=%.1f\n",
-		        (unsigned)caster->s.number, (cstring_t)&spell->code,
-		        (cstring_t)&partner, radius);
-	} else {
-		fprintf(stderr, "WC3_COUPLE instant-partner caster=%u ability=%.4s target=%u target_raw=%.4s distance=%.1f area=%.1f\n",
-		        (unsigned)caster->s.number, (cstring_t)&spell->code,
-		        (unsigned)best->s.number, (cstring_t)&partner, best_distance, radius);
 	}
 	return best;
 }
@@ -159,9 +115,6 @@ static bool couple_instant_validate(edict_t *caster, spellTarget_t st, abilityit
 	if (!caster || !spell || st.type != SPELL_TARGET_NONE ||
 	    (spell->code != MAKEFOURCC('A','c','o','2') && spell->code != MAKEFOURCC('A','c','o','3'))) return false;
 	if (!G_UnitAbilityResearchAvailable(caster, spell->code)) {
-		fprintf(stderr, "WC3_COUPLE instant-reject caster=%u ability=%.4s reason=requires-training level=%u\n",
-		        (unsigned)caster->s.number, (cstring_t)&spell->code,
-		        G_UnitAbilityLevel(caster, spell->code));
 		return false;
 	}
 	return couple_instant_nearest(caster, spell) != NULL;
@@ -194,13 +147,8 @@ static void couple_instant_execute(edict_t *caster, spellTarget_t st, abilityite
 		cast->owner_spawn_time = caster->spawn_time;
 		cast->target_spawn_time = target->spawn_time;
 		thinker->think = S_CoupleInstantApproachThink;
-		fprintf(stderr, "WC3_COUPLE instant-approach caster=%u ability=%.4s target=%u distance=%.1f interaction=%.1f\n",
-		        (unsigned)caster->s.number, (cstring_t)&spell->code,
-		        (unsigned)target->s.number, distance, couple_instant_interaction_range(caster, target));
 		return;
 	}
-	fprintf(stderr, "WC3_COUPLE instant-execute caster=%u ability=%.4s target=%u distance=%.1f\n",
-	        (unsigned)caster->s.number, (cstring_t)&spell->code, (unsigned)target->s.number, distance);
 	target_call = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
 	couple_execute(caster, target_call, spell);
 }
