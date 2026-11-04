@@ -339,6 +339,8 @@ static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', 'h'), 1 },
     { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '2'), 1 },
     { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '3'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 's'), MAKEFOURCC('A', 's', 's', 'k'), 1 }, /* Mountain Giant Hardened Skin */
+    { MAKEFOURCC('R', 'e', 'r', 's'), MAKEFOURCC('A', 'r', 's', 'k'), 1 }, /* Mountain Giant Resistant Skin */
     { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'r', 'a', 'v'), 1 }, /* Storm Crow Form */
     { MAKEFOURCC('R', 'u', 's', 'p'), MAKEFOURCC('A', 'a', 'v', 'e'), 1 }, /* Destroyer Form */
 };
@@ -361,7 +363,8 @@ static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
         }
     }
 
-    if (ability->checkDep || ability->id == MAKEFOURCC('A', 's', 'a', 'l') ||
+    if (ability->checkDep ||
+        ability->id == MAKEFOURCC('A', 's', 'a', 'l') ||
         ability->id == MAKEFOURCC('A', 'e', 's', 'n') ||
         ability->id == MAKEFOURCC('A', 'a', 'v', 'e')) {
         FOR_LOOP(i, (uint32_t)(sizeof(stock_ability_requirements) / sizeof(stock_ability_requirements[0]))) {
@@ -546,6 +549,22 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         researchable = maximum < 0 || maximum >= 1;
         if (visible) *visible = researchable;
         return researchable && G_GetPlayerTechResearchedLevel(owner, research) >= 1;
+    }
+    /* Mountain Giant passive effect indicators use the normal skin aliases,
+     * while their availability is owned by the unit-specific research rows. */
+    if (unit && unit->class_id == MAKEFOURCC('e', 'm', 't', 'g') &&
+        (ability_id == MAKEFOURCC('A', 's', 's', 'k') ||
+         ability_id == MAKEFOURCC('A', 'r', 's', 'k'))) {
+        uint32_t const upgrade_id = ability_id == MAKEFOURCC('A', 's', 's', 'k') ?
+            MAKEFOURCC('R', 'e', 'h', 's') : MAKEFOURCC('R', 'e', 'r', 's');
+        int32_t const required = 1;
+        owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (research_id) *research_id = upgrade_id;
+        if (required_level) *required_level = required;
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        bool const eligible = G_UnitUsesUpgrade(unit, upgrade_id);
+        if (visible) *visible = eligible;
+        return !eligible || G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required;
     }
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     ability = G_AbilityData(ability_id);
