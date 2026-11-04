@@ -2058,6 +2058,34 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     T_EQ(items[0].charges, 0);
 }
 
+TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
+    static ItemData_t item_data = { .abilList = "AHtc" };
+    gameInventoryItem_t items[MAX_INVENTORY];
+    edict_t *unit, *item;
+    uint8_t count;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    SP_SpawnItem(item); gi.LinkEntity(item);
+    item->data.ItemData = &item_data;
+    T_ASSERT(G_PickupItem(unit, item));
+    S_SpellStartCooldownDuration(unit, MAKEFOURCC('A','H','t','c'), 20.0f);
+
+    count = G_GetInventory(unit, items, MAX_INVENTORY);
+    T_EQ(count, 1);
+    T_ASSERT(items[0].cooldown > 0.99f);
+    T_EQ(items[0].cooldown_start_time, G_Time());
+    T_EQ(items[0].cooldown_end_time, G_Time() + 20000);
+
+    level.time += 10000;
+    count = G_GetInventory(unit, items, MAX_INVENTORY);
+    T_EQ(count, 1);
+    T_FEQ(items[0].cooldown, 0.5f, 0.001f);
+    T_EQ(items[0].cooldown_start_time, G_Time() - 10000);
+    T_EQ(items[0].cooldown_end_time, G_Time() + 10000);
+}
+
 TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_purchase) {
     static UnitProfile_t custom_profile = { .sellItems = "spro" };
     static UnitAbilities_t shop_abilities = { .abilList = "Apit", .heroAbilList = "" };
