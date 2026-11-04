@@ -570,7 +570,7 @@ TEST(wc3_spell, invisibility_spell_breaks_on_committed_spell) {
     char slk[1024];
     cstring_t targs_column = atoi(gi.CvarString("fs_expansion", "0")) ? "targs1" : "targs";
     snprintf(slk, sizeof(slk),
-        "ID;PWXL;N;EBB;Y3;X10\n"
+        "ID;PWXL;N;EBB;Y4;X10\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
         "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
@@ -5633,6 +5633,61 @@ TEST(wc3_spell, creep_hardened_skin_uses_chance_floor_and_reduction) {
     target->data.UnitAbilities = &abilities;
     T_EQ(S_HardenedSkinDamage(target, 40), 28);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, mountain_giant_skin_research_unlocks_data_driven_effects) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y1;X7;K\"targs\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"HeroDur\"\n"
+        "C;Y2;X1;K\"Assk\"\nC;Y2;X2;K\"Assk\"\nC;Y2;X3;K100\n"
+        "C;Y2;X4;K5\nC;Y2;X5;K12\n"
+        "C;Y3;X1;K\"Arsk\"\nC;Y3;X2;K\"Arsk\"\nC;Y3;X6;K1\n"
+        "C;Y3;X7;K\"ground,enemy\"\nC;Y3;X8;K9\nC;Y3;X9;K3\nC;Y3;X10;K3\n"
+        "C;Y4;X1;K\"Aens\"\nC;Y4;X2;K\"Aens\"\nC;Y4;X3;K1\n"
+        "C;Y4;X7;K\"ground,enemy\"\nC;Y4;X8;K9\nC;Y4;X9;K3\nC;Y4;X10;K3\nE\n";
+    static char const upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X8;Y3;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\nC;X6;K\"used\"\n"
+        "C;X1;Y2;K\"Rehs\"\nC;X3;K1\nC;X6;K1\n"
+        "C;X1;Y3;K\"Rers\"\nC;X3;K1\nC;X6;K1\nE\n";
+    slkTestData_t *abilities = parse_slk_string(ability_slk), *old_abilities;
+    slkTestData_t *upgrades = parse_slk_string(upgrade_slk), *old_upgrades;
+    UnitBalance_t balance = { .upgrades = "Rehs,Rers" };
+    UnitAbilities_t giant_abilities = { .abilList = "Assk,Arsk" };
+    UnitAbilities_t caster_abilities = { .abilList = "Aens" };
+    edict_t *giant, *caster;
+
+    reset_entities(); setup_test_world();
+    old_abilities = G_SetSLKRows("AbilityData", abilities);
+    old_upgrades = G_SetSLKRows("UpgradeData", upgrades);
+    giant = alloc_test_unit(MAKEFOURCC('e','m','t','g'), 64, 0);
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    game.clients[1].ps.number = 1;
+    giant->s.player = 1; caster->s.player = 0;
+    giant->data.UnitBalance = &balance;
+    giant->data.UnitAbilities = &giant_abilities;
+    caster->data.UnitAbilities = &caster_abilities;
+    T_ASSERT(G_ActorHasSkill(giant, "Assk"));
+    T_ASSERT(G_ActorHasSkill(giant, "Arsk"));
+
+    T_ASSERT(!G_UnitAbilityResearchAvailable(giant, MAKEFOURCC('A','s','s','k')));
+    T_ASSERT(!G_UnitAbilityResearchAvailable(giant, MAKEFOURCC('A','r','s','k')));
+    /* Rehs grants the authored 12 point damage reduction, while Rers makes
+     * ordinary hostile durations use the authored 3 second Hero duration. */
+    T_EQ(S_HardenedSkinDamage(giant, 40), 40);
+    T_FEQ(S_SpellResistantDuration(MAKEFOURCC('A','e','n','s'), 1, giant), 9.0f, 0.001f);
+    G_SetPlayerTechResearched(&game.clients[1], MAKEFOURCC('R','e','h','s'), 1);
+    G_SetPlayerTechResearched(&game.clients[1], MAKEFOURCC('R','e','r','s'), 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(giant, MAKEFOURCC('A','s','s','k')));
+    T_ASSERT(G_UnitAbilityResearchAvailable(giant, MAKEFOURCC('A','r','s','k')));
+    T_EQ(S_HardenedSkinDamage(giant, 40), 28);
+    T_FEQ(S_SpellResistantDuration(MAKEFOURCC('A','e','n','s'), 1, giant), 3.0f, 0.001f);
+
+    G_SetSLKRows("UpgradeData", old_upgrades); free_slk_rows(upgrades);
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(abilities);
 }
 
 TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
