@@ -17,12 +17,14 @@ The source-link and acceptance matrices are:
 - [`hero-item-reference-contracts.csv`](hero-item-reference-contracts.csv) — **133 entries**, each with its page, behavioral promise, negative/boundary requirement, source parameters, and *only verified* rawcode/`abilList` information.
 - [`hero-item-reference-test-matrix.csv`](hero-item-reference-test-matrix.csv) — **266 distinct positive/negative acceptance scenarios**, intended for agents to convert to C headless gameplay regressions. **These matrix rows are not C tests and have not run.**
 
-The 30 shop item rawcodes and their `abilList`s come from the user's **installed
-ROC + TFT retail archive audit**. Unverified non-shop entries deliberately
-leave both rawcode fields empty: **do not infer a rawcode from the item name,
-a website label, a demo fixture, or a `code=` parent identifier.** Extract
-`Units/ItemData.slk`, `Units/ItemFunc.txt`, and the relevant `AbilityData.slk`
-rows to bind those cases before treating them as executable regressions.
+The shop item rawcodes and their `abilList`s come from the user's installed
+ROC + TFT retail archive audit. Non-shop rows with empty rawcode fields remain
+unresolved until their exact item key and ability list are matched in both
+archives; do not infer an identity from a similar web display name. The local
+archive check found naming differences (including several distinct
+Replenishment Potion entries), so names in the reference matrix must not be
+treated as item IDs. Web names and numeric values remain behavior references,
+not substitutes for retail object data.
 
 Object data is authoritative for *item and ability identity, authored values,
 max charges, target mask, level, cost, cooldown, duration, buff IDs, and slot
