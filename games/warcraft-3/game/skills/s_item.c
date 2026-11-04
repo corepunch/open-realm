@@ -692,10 +692,25 @@ static edict_t *sanctuary_highest_townhall(uint32_t player) {
     return best;
 }
 
+#define SANCTUARY_TICK_MS 1000u
+static void sanctuary_heal_tick(edict_t *target, heroabilitystatus_t *status) {
+    float const amount = S_SpellData(status->source_ability, status->rank, 1);
+    if (amount > 0.0f && target->health.value < target->health.max_value)
+        S_SpellHeal(target, MIN(amount, target->health.max_value - target->health.value));
+}
+
 /* Staff of Sanctuary sends a friendly target to the user's highest-tier
- * completed town hall, with the regular teleport presentation at both ends. */
+ * completed town hall, then owns BNsa's immobility and authored healing ticks. */
 BZ_ABILITY_PROC(CAbilityItemSanctuary) {
     abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
+            sanctuary_heal_tick(ent, status);
+        if (ent->health.value >= ent->health.max_value && status->level && status->timestamp > G_Time())
+            unit_expirestatus(ent, status);
+        return true;
+    }
     if (msg == A_VALIDATE) {
         edict_t *target = call && call->target ? call->target->entity : NULL;
         return spell && ent && target && S_SpellIsAliveTarget(target) &&
@@ -706,9 +721,23 @@ BZ_ABILITY_PROC(CAbilityItemSanctuary) {
         edict_t *hall = ent ? sanctuary_highest_townhall(ent->s.player) : NULL;
         vec2_t requested, position;
         if (!spell || !target || !hall) return false;
+        cstring_t const buff = S_SpellBuffToken(S_SpellBuffId(spell->code, S_SpellLevel(ent, spell->code)), 0);
+        float const duration = S_SpellDuration(spell->code, S_SpellLevel(ent, spell->code), false);
+        if (!buff || !(duration > 0.0f)) return false;
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, spell->code,
+            S_SpellLevel(ent, spell->code), buff, duration);
+        if (!status) return false;
         requested = hall->s.origin2;
         if (!G_FindUnitUnstuckPosition(target, &requested, &position)) position = requested;
         S_SpellRelocateUnit(target, spell->code, &position);
+        status->data = spell->code;
+        status->source_ability = spell->code;
+        status->rank = S_SpellLevel(ent, spell->code);
+        status->state_mask |= WC3_STATUS_STATE_STUNNED;
+        status->source = target;
+        status->source_spawn_time = target->spawn_time;
+        status->next_tick = G_Time() + SANCTUARY_TICK_MS;
+        sanctuary_heal_tick(target, status);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
         return true;
     }

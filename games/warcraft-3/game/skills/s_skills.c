@@ -185,7 +185,7 @@ static ability_t abilitylist[] = {
     { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Clarity Potion */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
-    { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Skeleton Summon */
+    { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Figurine Summon */
     { "AImi", CAbilityMaxLifeMod, AB_ITEM | AB_POWERUP },  /* Item Permanent Life Gain */
     { "AIab", CAbilityAttributeBonus, 0 },  /* Item Hero Stat Bonus */
     { "AIml", CAbilityMaxLifeBonus, 0 },  /* Item Life Bonus */
@@ -391,7 +391,7 @@ static ability_t abilitylist[] = {
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
-    { "ANsa", CAbilityItemSanctuary, AB_SPELL, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
+    { "ANsa", CAbilityItemSanctuary, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
     { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */

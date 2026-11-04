@@ -378,7 +378,7 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `AIde` | Item Defense Bonus | Partial | Passive item armor modifier applies on inventory acquisition and reverses on removal, using the shared temporary armor bonus preserved across Hero Agility recomputation; this matches Warsmash Ring-of-Protection-style add/remove semantics. Broader armor modifier framework remains. |
 | `AIml` | Item Life Bonus | TODO | Needs max-health modifier system. |
 | `AImm` | Item Mana Bonus | TODO | Needs max-mana modifier system. |
-| `AIfs` | Figurine Summon | TODO | Needs item summon behavior. |
+| `AIfs` | Figurine Summon | Partial | `CAbilityFigurineSkeleton` reads DataA/DataB unit counts and DataC/DataD unit IDs (or UnitID), spawns authored summons around the selected unit, and uses the ability duration. Book of the Dead rawcode identity and exact retail summon counts/lifetime still need archive verification and production-path coverage. |
 | `AImi` | Permanent Life Gain | Partial | Selected-unit max-health/current-health gain plus synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIem` | Experience Gain | Implemented | Grants Data A XP through the shared Hero progression path and plays the target effect. |
 | `AIlm` | Level Gain | Implemented | Converts Data A level gain to the target XP threshold and uses the shared Hero progression path. |
