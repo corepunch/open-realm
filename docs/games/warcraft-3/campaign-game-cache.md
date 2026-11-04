@@ -215,9 +215,10 @@ never supplied by a map. Scripted save-copy and directory operations cannot
 address the cache directory.
 
 The sidecar uses an explicit little-endian, length-prefixed format with the
-`ORGCACHE` magic and version `1`. Writes go to a temporary file and are renamed
-into place after the complete cache has been written, so a failed write does not
-silently leave a partially updated cache.
+`ORGCACHE` magic and version `2`. Version 2 stores five Hero ability slots;
+version 1 used four and is rejected rather than migrated. Writes go to a
+temporary file and are renamed into place after the complete cache has been
+written, so a failed write does not silently leave a partially updated cache.
 
 Campaign names are reduced to their basename and unsafe filename characters are
 replaced when constructing the private sidecar path. The JASS-visible campaign
