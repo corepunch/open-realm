@@ -2072,15 +2072,28 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
 }
 
 TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
-    static ItemData_t item_data = { .abilList = "AHtc" };
+    static ItemData_t item_data = { .abilList = "AHtc", .cooldownID = "Aami" };
     gameInventoryItem_t items[MAX_INVENTORY];
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     edict_t *player, *unit, *item;
     gameClient_t *client;
     uint8_t count;
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Cool1\"\n"
+        "C;Y1;X5;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K\"1\"\nC;Y2;X5;K\"6\"\n"
+        "C;Y3;X1;K\"AHtc\"\nC;Y3;X2;K\"AHtc\"\n"
+        "C;Y3;X3;K\"1\"\nC;Y3;X4;K\"20\"\nE\n";
+    slkTestData_t *ability_rows, *old_abilities;
 
     setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    T_NOT_NULL(ability_rows);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
     player = &g_edicts[0]; client = player->client;
     client->ps.number = 0; G_SetClientConnected(player, true);
     unit = make_item_test_inventory_unit(0, 0);
@@ -2092,7 +2105,7 @@ TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
     T_ASSERT(G_PickupItem(unit, item));
     reset_inventory_refresh_capture(); reset_inventory_panel_capture();
     gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
-    S_SpellStartCooldownDuration(unit, MAKEFOURCC('A','H','t','c'), 20.0f);
+    G_StartItemCooldown(unit, item, MAKEFOURCC('A','H','t','c'), 1);
     gi.Write = old_write; gi.unicast = old_unicast;
     T_ASSERT(inventory_refresh_saw_inventory_layer);
     T_ASSERT(inventory_panel_cooldown_frame_seen);
@@ -2112,6 +2125,18 @@ TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
     T_FEQ(items[0].cooldown, 0.5f, 0.001f);
     T_EQ(items[0].cooldown_start_time, G_Time() - 10000);
     T_EQ(items[0].cooldown_end_time, G_Time() + 10000);
+
+    S_SpellEndCooldown(unit, MAKEFOURCC('A','a','m','i'));
+    item_data.ignoreCD = true;
+    G_StartItemCooldown(unit, item, MAKEFOURCC('A','H','t','c'), 1);
+    T_ASSERT(S_SpellCooldownReady(unit, MAKEFOURCC('A','a','m','i')));
+    count = G_GetInventory(unit, items, MAX_INVENTORY);
+    T_EQ(count, 1);
+    T_FEQ(items[0].cooldown, 0.0f, 0.001f);
+    T_EQ(items[0].cooldown_start_time, 0);
+    T_EQ(items[0].cooldown_end_time, 0);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(ability_rows);
 }
 
 TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_purchase) {

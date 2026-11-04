@@ -1277,7 +1277,8 @@ bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInvento
                 abilityCooldownWindow_t window;
                 if (strlen(ability_name) != 4) continue;
                 memcpy(&code, ability_name, sizeof(code));
-                if (!S_SpellCooldownWindow(ent, code, &window)) continue;
+                code = G_ItemCooldownCode(item, code);
+                if (!code || !S_SpellCooldownWindow(ent, code, &window)) continue;
                 out->cooldown_start_time = window.start_time;
                 out->cooldown_end_time = window.end_time;
                 out->cooldown = S_SpellCooldownFraction(ent, code, 0);

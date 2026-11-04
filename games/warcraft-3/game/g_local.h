@@ -4345,6 +4345,8 @@ void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
+uint32_t G_ItemCooldownCode(edict_t const *item, uint32_t ability_code);
+void G_StartItemCooldown(edict_t *unit, edict_t const *item, uint32_t ability_code, uint32_t level);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
 bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
