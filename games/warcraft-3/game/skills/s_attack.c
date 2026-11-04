@@ -44,6 +44,43 @@ static umove_t attack_move_ranged_cooldown;
 #define MEAT_WAGON_PLAGUE_CLOUD_MS 10000u
 #define LIGHTNING_ATTACK_ABILITY MAKEFOURCC('A','l','i','t')
 #define LIGHTNING_ATTACK_BOLT_MS 250u
+#define ID_ORB_OF_VENOM MAKEFOURCC('o','v','e','n')
+
+/* Orb of Venom grants a unit without an authored air weapon a temporary
+ * poison projectile attack. The profile is derived from Attack 1 so its
+ * damage, cadence, and range remain unit-specific; it is never persisted. */
+static bool has_orb_of_venom(edict_t const *unit) {
+    if (!unit || !G_InventoryCanUseItems(unit)) return false;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        edict_t *item = G_InventoryItem(unit, i);
+        if (item && item->class_id == ID_ORB_OF_VENOM) return true;
+    }
+    return false;
+}
+
+static bool authored_attack_can_hit_air(edict_t const *unit) {
+    if (!unit || !unit->unit_state) return false;
+    return (S_UnitAttackSlotEnabled(unit, 0) &&
+            (unit->unit_state->attack1.targetsAllowed & WC3_TARGET_FLAG_AIR)) ||
+           (S_UnitAttackSlotEnabled(unit, 1) &&
+            (unit->unit_state->attack2.targetsAllowed & WC3_TARGET_FLAG_AIR));
+}
+
+static unitAttack_t const *venom_air_attack(edict_t const *unit) {
+    static unitAttack_t profile;
+    static uint32_t projectile_model;
+    if (!unit || !unit->unit_state || authored_attack_can_hit_air(unit) || !has_orb_of_venom((edict_t *)unit) ||
+        unit->unit_state->attack1.type == ATK_NONE) return NULL;
+    profile = unit->unit_state->attack1;
+    profile.weapon = WPN_MISSILE;
+    profile.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    if (!projectile_model)
+        projectile_model = G_RegisterModel("Abilities\\Weapons\\PoisonSting\\PoisonStingMissile.mdl");
+    profile.projectile.model = projectile_model;
+    profile.projectile.arc = 0.0f;
+    if (profile.projectile.speed <= 0.0f) profile.projectile.speed = 900.0f;
+    return &profile;
+}
 
 /* Alit is a passive attack presentation: it changes neither the attack roll
  * nor damage, but draws the authored lightning ribbon after a valid hit. */
@@ -164,6 +201,10 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
         (attacker->unit_state->attack1.targetsAllowed & flag)) return &attacker->unit_state->attack1;
     if (attacker && flag && attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
         (attacker->unit_state->attack2.targetsAllowed & flag)) return &attacker->unit_state->attack2;
+    if (attacker && flag == WC3_TARGET_FLAG_AIR && S_UnitAttackSlotEnabled(attacker, 0)) {
+        unitAttack_t const *venom = venom_air_attack(attacker);
+        if (venom) return venom;
+    }
     /* Rooted Ancients may retaliate with their weapon profile even when Root's
      * authored mask disables player-issued attacks; explicit orders are still
      * validated by S_AttackCanTarget before this profile is selected. */
@@ -353,7 +394,8 @@ static uint32_t attack_retaliation_mask(edict_t const *ent) {
 }
 
 static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
-    return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE);
+    return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE) ||
+           ((mask & 1u) && venom_air_attack(ent));
 }
 
 static bool can_attack(edict_t const *ent) {
@@ -385,7 +427,8 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
-                    ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)));
+                    ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)) ||
+                    (flag == WC3_TARGET_FLAG_AIR && (mask & 1u) && venom_air_attack(attacker)));
 }
 
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {

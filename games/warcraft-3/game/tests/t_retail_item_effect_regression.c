@@ -140,15 +140,26 @@ TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
         "C;Y2;X1;K\"oven\"\nC;Y2;X2;K\"AIpb,Apo2\"\nC;Y2;X3;K\"true\"\nE\n";
     static UnitBalance_t target_balance;
+    static UnitWeapons_t ground_only_weapons = { .attacksEnabled = 1 };
     retailEffectFixture_t f;
     memset(&target_balance, 0, sizeof(target_balance));
     re_init(&f, ability_slk, items);
     f.enemy->data.UnitBalance = &target_balance;
+    f.hero->data.UnitWeapons = &ground_only_weapons;
+    f.hero->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    memset(&f.hero->unit_state->attack2, 0, sizeof(f.hero->unit_state->attack2));
+    f.enemy->targtype = TARG_AIR;
+    T_ASSERT(!S_AttackCanTarget(f.hero, f.enemy));
     re_equip(&f, "oven", 0);
     T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 5, 0.001f);
+    T_ASSERT(S_AttackCanTarget(f.hero, f.enemy));
+    f.enemy->targtype = TARG_GROUND;
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIpb")));
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIpd")));
+    uint32_t const first_poison_tick = unit_findstatus(f.enemy, FS_SLKKey("BIpb"))->next_tick;
+    S_ResolveAttackHit(f.hero, f.enemy, 20);
+    T_EQ(unit_findstatus(f.enemy, FS_SLKKey("BIpb"))->next_tick, first_poison_tick);
     float const post_hit_hp = f.enemy->health.value;
     re_run_frame_at(f.enemy, level.time + 1000);
     T_FEQ(f.enemy->health.value, post_hit_hp - 9, 0.001f);
