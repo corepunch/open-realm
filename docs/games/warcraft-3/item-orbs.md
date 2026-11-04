@@ -28,6 +28,13 @@ ownership and held orb items (the same orb from both applies once).
 Buffs are state-only like Frost Nova's `Bfro`: no movement/armor
 consumer reads `Bfro`/`BIcb`/`Bfre` yet.
 
+The `oven` item (`AIpb,Apo2`) also supplies an air-target missile attack when
+the carrier has no enabled authored attack that can hit air. Its transient
+profile uses the unit's Attack 1 damage, range, and timing with the Poison
+Sting missile model; it does not overwrite the unit's authored Attack 2.
+Dropping the item removes the capability immediately because it is derived
+from current inventory.
+
 ## Attack Damage Bonus Aliases
 
 The passive item attack damage family is also handled by `CAbilityAttackBonus`.
