@@ -455,8 +455,7 @@ BZ_ABILITY_PROC(CAbilityItemBlight) {
 #define ITEM_REGEN_TICK_MS 1000u
 static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {
     if (!target || !status || !status->level) return;
-    if (status->timestamp > G_Time()) unit_expirestatus(target, status);
-    else unit_removestatus(target, status, STATUS_REMOVE_EXPIRE);
+    unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
 }
 static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t level) {
     float const duration = S_SpellHeroDuration(code, level, target);
@@ -483,9 +482,17 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
             return true;
         }
     }
-    if (msg == A_DAMAGED && ent && call && call->entity && call->status.slot) {
-        item_regeneration_end(ent, call->status.slot);
-        return false;
+    if (msg == A_DAMAGED && ent && call && call->entity && ent->unit_state) {
+        bool interrupted = false;
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t *status = ent->unit_state->statuses + i;
+            if (!status->level || status->code != MAKEFOURCC('B','I','r','g') ||
+                (status->source_ability != MAKEFOURCC('A','I','s','l') &&
+                 status->source_ability != MAKEFOURCC('A','I','p','l'))) continue;
+            item_regeneration_end(ent, status);
+            interrupted = true;
+        }
+        return interrupted;
     }
     if (msg == A_STATUS_TICK && call && call->status.slot) {
         heroabilitystatus_t *status = call->status.slot;
@@ -717,10 +724,12 @@ static void sanctuary_heal_tick(edict_t *target, heroabilitystatus_t *status) {
 BZ_ABILITY_PROC(CAbilityItemSanctuary) {
     abilityitem_t const *spell = call ? call->item : NULL;
     if (msg == A_UPDATE && ent && ent->unit_state) {
+        bool updated = false;
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             heroabilitystatus_t *status = ent->unit_state->statuses + i;
             if (!status->level || status->code != MAKEFOURCC('B','N','s','a') ||
                 status->source_ability != MAKEFOURCC('A','N','s','a')) continue;
+            updated = true;
             while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
                 sanctuary_heal_tick(ent, status);
             if (status->level && ent->health.value >= ent->health.max_value) {
@@ -728,7 +737,7 @@ BZ_ABILITY_PROC(CAbilityItemSanctuary) {
                 break;
             }
         }
-        return true;
+        return updated;
     }
     if (msg == A_STATUS_REMOVE && call && call->status.slot &&
         call->status.slot->code == MAKEFOURCC('B','N','s','a')) {
