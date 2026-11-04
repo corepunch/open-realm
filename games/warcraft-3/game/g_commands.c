@@ -1194,8 +1194,8 @@ CLIENTCOMMAND(Button) {
     queued = G_CommandQueueRequested(argc, argv, 2);
     producer = G_GetMainSelectedUnit(client);
     classname = argv[1];
-    if (!strcmp(classname, "Acoa") || !strcmp(classname, "Acoh") ||
-        !strcmp(classname, "loadarcher") || !strcmp(classname, "mounthippogryph")) {
+    if (!strncmp(classname, "Aco", 3) || !strcmp(classname, "loadarcher") ||
+        !strcmp(classname, "mounthippogryph")) {
         fprintf(stderr, "WC3_COUPLE button-click player=%u unit=%u unit_raw=%.4s command=%s queued=%u\n",
                 client ? (unsigned)client->ps.number : UINT_MAX,
                 producer ? (unsigned)producer->s.number : UINT_MAX,
@@ -1248,10 +1248,11 @@ CLIENTCOMMAND(Button) {
         client->menu.ability_code = *((uint32_t const *)classname);
         client->menu.ability_off = ability_off;
         client->menu.order_queued = queued;
-        if (!strcmp(classname, "Acoa") || !strcmp(classname, "Acoh"))
-            fprintf(stderr, "WC3_COUPLE button-dispatch player=%u unit=%u command=%s ability=%s\n",
+        if (!strncmp(classname, "Aco", 3))
+            fprintf(stderr, "WC3_COUPLE button-dispatch player=%u unit=%u command=%s ability=%s proc=%u\n",
                     (unsigned)client->ps.number, producer ? (unsigned)producer->s.number : UINT_MAX,
-                    classname, ability->classname ? ability->classname : "");
+                    classname, ability->classname ? ability->classname : "",
+                    (unsigned)GetAbilityIndex(ability->proc));
         S_AbilityCommand(clent, ability);
         client->menu.order_queued = old_queued;
         client->menu.ability_off = false;
