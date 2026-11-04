@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include <float.h>
 
 /* Hippogryph couple: Acoa/Acoh merge two living same-owner units into UnitID;
  * Adec splits the rider into DataA+DataB. Not Defend, not cargo, not Raven Form. */
@@ -14,6 +15,32 @@ static bool couple_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 	rider = S_SpellUnitId(spell->code, level);
 	if (!partner || !rider || target->class_id != partner) return false;
 	return true;
+}
+
+/* Pick Up Archer is a command-card action: clicking it without entering target
+ * mode should select the nearest valid same-owner Archer in authored range. */
+bool S_CastNearestCoupleArcher(edict_t *caster, uint32_t code) {
+	edict_t *best = NULL;
+	float best_distance = FLT_MAX;
+	uint32_t level, partner;
+	float range;
+
+	if (!caster || code != MAKEFOURCC('A','c','o','h') || !G_UnitAbilityLevel(caster, code) ||
+	    !G_UnitAbilityResearchAvailable(caster, code)) return false;
+	level = S_SpellLevel(caster, code);
+	partner = S_SpellDataId(code, level, 1);
+	range = S_SpellRange(code, level);
+	if (!partner || !range) return false;
+	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+	              target != caster && target->class_id == partner &&
+	              S_SpellIsFriend(caster, target)) {
+		float const distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
+		if (distance > range || distance >= best_distance) continue;
+		if (!S_SpellAllowsTarget(code, caster, target)) continue;
+		best = target;
+		best_distance = distance;
+	}
+	return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
 /* Spawn the authored rider first, then remove both inputs (Warsmash CoupleInstant). */
@@ -50,7 +77,7 @@ static bool decouple_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
 	return a && b;
 }
 
-static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id) {
+static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id, bool offset_from_partner) {
 	edict_t *ent;
 
 	if (!rider || !unit_id) return NULL;
@@ -60,6 +87,18 @@ static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id) {
 		return NULL;
 	}
 	ent->s.angle = rider->s.angle;
+	if (offset_from_partner) {
+		vec2_t const requested = { rider->s.origin2.x + 64.0f, rider->s.origin2.y };
+		vec2_t position;
+		/* Prefer the nearest collision-safe spot. If static pathing data is
+		 * unavailable, still place the Archer beside the mount instead of
+		 * leaving both companions stacked at the rider's origin. */
+		G_FindUnitUnstuckPosition(ent, &requested, &position);
+		ent->s.origin2 = position;
+		ent->s.origin.x = position.x;
+		ent->s.origin.y = position.y;
+		gi.LinkEntity(ent);
+	}
 	G_ActivateUnitFood(ent);
 	if (ent->stand) ent->stand(ent);
 	return ent;
@@ -74,8 +113,10 @@ static void decouple_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
 	level = S_SpellLevel(caster, spell->code);
 	a = S_SpellDataId(spell->code, level, 1);
 	b = S_SpellDataId(spell->code, level, 2);
-	first = decouple_spawn(caster, a);
-	second = decouple_spawn(caster, b);
+	/* Place the mount first at the rider's position, then find a free nearby
+	 * ground position for its Archer companion. */
+	second = decouple_spawn(caster, b, false);
+	first = decouple_spawn(caster, a, true);
 	if (!first || !second) {
 		if (first) G_FreeEdict(first);
 		if (second) G_FreeEdict(second);

@@ -2038,6 +2038,11 @@ void spell_cmd(edict_t *clent) {
         return;
     }
 
+    if (spell->proc == CAbilityCoupleHippogryph) {
+        if (S_CastNearestCoupleArcher(caster, code)) spell_order_accepted(caster, spell);
+        return;
+    }
+
     /* Toggle abilities bypass the normal pipeline. */
     if ((spell->flags & AB_TOGGLE) && code != MAKEFOURCC('A','f','a','k') &&
         spell->proc != CAbilityFlamingArrows &&

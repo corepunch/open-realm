@@ -14,6 +14,12 @@ Defend (`Adef`), Raven Form, or cargo load. TFT class names:
 `Acou` (`CAbilityCouple`) is an abstract parent with no AbilityData row. Do not
 register it.
 
+The trained `Acoh` command uses the authored 100-unit range to find the nearest
+living, friendly `DataA` Archer and picks it up without opening unit-target
+mode. The command remains unavailable until `Acoh` is present and research
+allows its use. Dismount places the Hippogryph at the rider's location and the
+Archer at a nearby ground position so the companions do not overlap.
+
 Orders (Hive / `OrderIds`): `mounthippogryph` (`Acoa`), `loadarcher` (`Acoh`),
 `decouple` (`Adec`).
 
@@ -46,11 +52,12 @@ Acoa/Acoh AbilityData
   -> DataA partner fourcc, UnitID rider fourcc, Rng
 CAbilityCoupleArcher / CAbilityCoupleHippogryph
   -> A_VALIDATE: friend + alive + class_id == DataA + UnitID present
+  -> Acoh command: nearest valid Archer within authored Rng, then normal cast
   -> A_EXECUTE: SP_SpawnAtLocationNoBirth(UnitID), G_FreeEdict both inputs
 Adec AbilityData
   -> DataA/DataB companion fourccs
 CAbilityDecouple
-  -> A_EXECUTE: spawn DataA + DataB at rider origin, G_FreeEdict rider
+  -> A_EXECUTE: spawn DataB at rider origin, place DataA nearby, G_FreeEdict rider
 ```
 
 Merge consumes **two edicts** and creates a **third** (Warsmash CoupleInstant /

@@ -128,6 +128,29 @@ TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	couple_done(&fix);
 }
 
+TEST(wc3_spell, hippogryph_pickup_order_chooses_nearest_valid_archer) {
+	coupleFix_t fix;
+	edict_t *far_archer, *rider = NULL;
+	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
+	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
+	far_archer->s.player = fix.caster->s.player;
+	far_archer->svflags |= SVF_MONSTER;
+	far_archer->targtype = TARG_GROUND;
+	far_archer->health.value = far_archer->health.max_value = 300;
+	fix.caster->unit_state->ranks[0].level = 0;
+	T_ASSERT(!S_CastNearestCoupleArcher(fix.caster, BZ_ACOH));
+	T_ASSERT(fix.partner->inuse && far_archer->inuse);
+	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ACOH, .level = 1);
+	T_ASSERT(S_CastNearestCoupleArcher(fix.caster, BZ_ACOH));
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_OGRU && ent->s.player == 0 && ent != fix.wrong)
+		rider = ent;
+	T_ASSERT(rider);
+	couple_done(&fix);
+}
+
 TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 	coupleFix_t fix;
 	float mana;
@@ -148,6 +171,8 @@ TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 TEST(wc3_spell, hippogryph_couple_adec_dismounts_into_companions) {
 	coupleFix_t fix;
 	uint32_t before_a, before_b;
+	edict_t *archer = NULL, *hippogryph = NULL;
+	float separation;
 	couple_setup(&fix, COUPLE_DISMOUNT_SLK, BZ_ADEC, BZ_OGRU, BZ_HFOO);
 	T_EQ((int)S_SpellDataId(BZ_ADEC, 1, 1), (int)BZ_HPEA);
 	T_EQ((int)S_SpellDataId(BZ_ADEC, 1, 2), (int)BZ_HFOO);
@@ -157,6 +182,11 @@ TEST(wc3_spell, hippogryph_couple_adec_dismounts_into_companions) {
 	T_ASSERT(!fix.caster->inuse);
 	T_EQ(couple_count(BZ_HPEA, 0), before_a + 1);
 	T_EQ(couple_count(BZ_HFOO, 0), before_b + 1);
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HPEA && ent->s.player == 0) archer = ent;
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && ent->s.player == 0) hippogryph = ent;
+	T_ASSERT(archer && hippogryph);
+	separation = archer && hippogryph ? Vector2_distance(&archer->s.origin2, &hippogryph->s.origin2) : 0.0f;
+	T_ASSERT(separation > 0.0f);
 	couple_done(&fix);
 }
 
