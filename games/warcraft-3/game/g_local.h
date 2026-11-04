@@ -3652,6 +3652,8 @@ void G_StopBuildingUpgrade(edict_t *building, bool refund);
 void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
+void G_RebasePlayerUpgradesOnUnit(edict_t *unit, gameClient_t *old_owner,
+                                  gameClient_t *new_owner);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
 bool G_UnitAbilityResearchRequirement(edict_t const *unit, uint32_t ability_id,
