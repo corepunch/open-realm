@@ -875,13 +875,18 @@ TEST(wc3_ability_lifecycle, staff_of_sanctuary_teleports_stuns_and_heals_until_f
     T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 1);
     T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_STUNNED));
     T_FEQ(target->health.value, 507, .001f);
-    level.time += 1000; G_RunEntity(target);
+    level.time += 1000; S_RunAbilityUpdates(target);
     T_FEQ(target->health.value, 514, .001f);
     target->health.value = target->health.max_value - 1;
-    level.time += 1000; G_RunEntity(target);
+    level.time += 1000; S_RunAbilityUpdates(target);
     T_FEQ(target->health.value, target->health.max_value, .001f);
     T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 0);
     T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_STUNNED));
+    target->health.value = 500;
+    T_ASSERT(S_AbilityMessage(caster, A_EXECUTE, &call));
+    target->health.value = target->health.max_value;
+    level.time += 1000; S_RunAbilityUpdates(target);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 0);
     G_SetSLKRows("UnitData", old_units); free_slk_rows(unit_rows);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

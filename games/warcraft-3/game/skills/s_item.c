@@ -703,11 +703,31 @@ static void sanctuary_heal_tick(edict_t *target, heroabilitystatus_t *status) {
  * completed town hall, then owns BNsa's immobility and authored healing ticks. */
 BZ_ABILITY_PROC(CAbilityItemSanctuary) {
     abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_UPDATE && ent && ent->unit_state) {
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t *status = ent->unit_state->statuses + i;
+            if (!status->level || status->code != MAKEFOURCC('B','N','s','a') ||
+                status->source_ability != MAKEFOURCC('A','N','s','a')) continue;
+            while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
+                sanctuary_heal_tick(ent, status);
+            if (status->level && ent->health.value >= ent->health.max_value) {
+                unit_expirestatus(ent, status);
+                break;
+            }
+        }
+        return true;
+    }
+    if (msg == A_STATUS_REMOVE && call && call->status.slot &&
+        call->status.slot->code == MAKEFOURCC('B','N','s','a')) {
+        call->status.slot->state_mask &= ~WC3_STATUS_STATE_STUNNED;
+        return true;
+    }
     if (msg == A_STATUS_TICK && call && call->status.slot) {
         heroabilitystatus_t *status = call->status.slot;
         while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
             sanctuary_heal_tick(ent, status);
-        if (ent->health.value >= ent->health.max_value && status->level && status->timestamp > G_Time())
+        /* ANsa authors Dur=0: BNsa lasts until the target is fully healed. */
+        if (ent->health.value >= ent->health.max_value && status->level)
             unit_expirestatus(ent, status);
         return true;
     }
@@ -723,7 +743,7 @@ BZ_ABILITY_PROC(CAbilityItemSanctuary) {
         if (!spell || !target || !hall) return false;
         cstring_t const buff = S_SpellBuffToken(S_SpellBuffId(spell->code, S_SpellLevel(ent, spell->code)), 0);
         float const duration = S_SpellDuration(spell->code, S_SpellLevel(ent, spell->code), false);
-        if (!buff || !(duration > 0.0f)) return false;
+        if (!buff || !isfinite(duration) || duration < 0.0f) return false;
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, spell->code,
             S_SpellLevel(ent, spell->code), buff, duration);
         if (!status) return false;
@@ -738,6 +758,8 @@ BZ_ABILITY_PROC(CAbilityItemSanctuary) {
         status->source_spawn_time = target->spawn_time;
         status->next_tick = G_Time() + SANCTUARY_TICK_MS;
         sanctuary_heal_tick(target, status);
+        if (target->health.value >= target->health.max_value)
+            unit_expirestatus(target, status);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
         return true;
     }
