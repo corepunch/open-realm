@@ -1025,7 +1025,8 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
-    } else if (burrow_occupied || armed_structure) {
+    } else if (burrow_occupied || (armed_structure &&
+               (!S_AncientIsRooted(ent) || S_AncientCanShowRootedAttackCommand(ent)))) {
         /* Immobile armed structures (including Guard Towers) still need Stop
          * to cancel their current attack/order. Burrows expose it only while
          * occupied, when their attack slot is enabled. */
