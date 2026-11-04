@@ -564,7 +564,7 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         if (!owner || owner->ps.number != unit->s.player) return false;
         bool const eligible = G_UnitUsesUpgrade(unit, upgrade_id);
         if (visible) *visible = eligible;
-        return !eligible || G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required;
+        return eligible && G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required;
     }
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     ability = G_AbilityData(ability_id);
