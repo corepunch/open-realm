@@ -1691,7 +1691,7 @@ void Get_Commands_f(edict_t *ent) {
     G_ClearBuildPlacementMode(ent);
     /* The command bar can also be rebuilt while item-owned building
      * targeting is active (selection change, Escape, interrupted order). */
-    if (ent->client->menu.on_location_selected) {
+    if (ent->client->menu.on_entity_selected || ent->client->menu.on_location_selected) {
         S_AbilityTargetModeExit(ent);
         gi.Write(PF_BYTE, &(int32_t){svc_cursor});
         gi.Write(PF_ENTITY, &(entityState_t){0});

@@ -12,7 +12,7 @@ void free_slk_rows(slkTestData_t *rows);
 /* Explicit Dev1/Dev2 values prove both the neutral-level cap and damage come
  * from the selected ability row, not fixed retail constants. */
 static char const devour_slk[] =
-    "ID;PWXL;N;EBB;Y3;X8\n"
+    "ID;PWXL;N;EBB;Y4;X8\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
     "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
@@ -21,9 +21,18 @@ static char const devour_slk[] =
     "C;Y2;X7;K\"5\"\nC;Y2;X8;K\"5\"\n"
     "C;Y3;X1;K\"ACdv\"\nC;Y3;X2;K\"ACdv\"\nC;Y3;X3;K\"ground,nonhero,enemy,organic\"\n"
     "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"100\"\n"
-    "C;Y3;X7;K\"4\"\nC;Y3;X8;K\"7\"\nE\n";
+    "C;Y3;X7;K\"4\"\nC;Y3;X8;K\"7\"\n"
+    "C;Y4;X1;K\"Aeat\"\nC;Y4;X2;K\"Aeat\"\n"
+    "C;Y4;X3;K\"tree\"\nC;Y4;X4;K\"0\"\nC;Y4;X5;K\"0\"\n"
+    "C;Y4;X6;K\"100\"\nC;Y4;X7;K\"50\"\nC;Y4;X8;K\"0\"\nE\n";
 
-static UnitAbilities_t devour_caster_abilities = { .abilList = "Adev,ACdv" };
+static UnitAbilities_t devour_caster_abilities = { .abilList = "Adev,ACdv,Aeat" };
+static bool devour_cursor_clear_seen;
+
+static void devour_cursor_capture_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE && *(int32_t const *)data == svc_cursor)
+        devour_cursor_clear_seen = true;
+}
 
 static void devour_units(edict_t **caster, edict_t **victim) {
     reset_entities();
@@ -59,6 +68,64 @@ static edict_t *devour_find_thinker(edict_t *caster) {
         if (ent->inuse && ent->owner == caster && ent->think == devour_think) return ent;
     }
     return NULL;
+}
+
+TEST(wc3_devour, escape_cancel_clears_tree_target_mode) {
+    edict_t *caster, *victim;
+    edict_t *client_ent;
+    slkTestData_t *rows = parse_slk_string(devour_slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    devour_units(&caster, &victim);
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->inuse = true;
+    client_ent->client->connected = true;
+    client_ent->client->ps.number = 0;
+    caster->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','e','a','t'), .level = 1);
+    G_SelectEntity(client_ent->client, caster);
+
+    G_ClientCommand(client_ent, 2, (cstring_t[]){ "button", "Aeat" });
+    T_EQ(client_ent->client->menu.ability_code, MAKEFOURCC('A','e','a','t'));
+    T_NOT_NULL(client_ent->client->menu.on_entity_selected);
+
+    /* Exercise the actual Cancel command-card dispatch used by Escape. */
+    G_ClientCommand(client_ent, 2, (cstring_t[]){ "button", "CmdCancel" });
+    T_NULL(client_ent->client->menu.on_entity_selected);
+    T_NULL(client_ent->client->menu.on_location_selected);
+    T_ASSERT(!S_SpellEntityTargetMode(client_ent));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_devour, command_refresh_clears_tree_target_mode) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    edict_t *caster, *victim, *client_ent;
+    slkTestData_t *rows = parse_slk_string(devour_slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    devour_units(&caster, &victim);
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    client_ent->inuse = true;
+    client_ent->client->connected = true;
+    client_ent->client->ps.number = 0;
+    caster->unit_state->ranks[0] = MAKE(heroability_t,
+        .code = MAKEFOURCC('A','e','a','t'), .level = 1);
+    G_SelectEntity(client_ent->client, caster);
+    G_ClientCommand(client_ent, 2, (cstring_t[]){ "button", "Aeat" });
+    T_NOT_NULL(client_ent->client->menu.on_entity_selected);
+
+    devour_cursor_clear_seen = false;
+    gi.Write = devour_cursor_capture_write;
+    Get_Commands_f(client_ent);
+    gi.Write = old_write;
+    T_NULL(client_ent->client->menu.on_entity_selected);
+    T_NULL(client_ent->client->menu.on_location_selected);
+    T_ASSERT(devour_cursor_clear_seen);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_devour, digest_ticks_then_caster_death_releases_living_victim) {
