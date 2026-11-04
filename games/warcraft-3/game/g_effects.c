@@ -481,6 +481,13 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
             return "Abilities\\Spells\\Undead\\UnholyFrenzy\\UnholyFrenzyTarget.mdx";
         if (type == WC3_EFFECT_TARGET && ability_id == MAKEFOURCC('B','s','p','o'))
             return "Abilities\\Weapons\\PoisonSting\\PoisonStingTarget.mdl";
+        /* Early RoC Cyclone data has no AbilityBuffData row (and its Acyc
+         * BuffID is empty), but ships CycloneTarget.mdx in War3.mpq. The
+         * status handler synthesizes Bcyc for this data generation, so keep
+         * that lifted-target visual when no authored buff art is available. */
+        if (type == WC3_EFFECT_TARGET &&
+            (ability_id == MAKEFOURCC('B','c','y','c') || ability_id == MAKEFOURCC('B','c','y','2')))
+            return "Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdx";
         return NULL;
     }
 

@@ -113,6 +113,22 @@ TEST(wc3_spell, cyclone_cast_spawns_abilitybuff_effectart_on_target) {
     free_slk_rows(buff_rows);
 }
 
+/* Early RoC data omits both Acyc.BuffID and the Bcyc AbilityBuffData row.
+ * The game still applies its Bcyc compatibility status, whose stock target
+ * model is CycloneTarget.mdx in War3.mpq. */
+TEST(wc3_spell, cyclone_early_roc_target_art_falls_back_to_stock_model) {
+    cycFix_t fix = cyc_setup(CYC_SLK_WITH_BUFF(""), BZ_ACYC);
+
+    T_STREQ(G_AbilityEffectArt(BZ_BCYC, WC3_EFFECT_TARGET, 0),
+            "Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdx");
+    T_STREQ(G_AbilityEffectArt(BZ_BCY2, WC3_EFFECT_TARGET, 0),
+            "Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdx");
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
+    T_ASSERT(S_UnitIsCycloned(fix.enemy));
+
+    cyc_done(fix);
+}
+
 /* Item AIcy reads its own Dur/DataA; status.data keeps AIcy for S_StatusIsUndispellable. */
 TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
     const char slk[] =
