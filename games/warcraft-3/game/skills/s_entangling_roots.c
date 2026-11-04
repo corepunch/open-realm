@@ -44,11 +44,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         float duration;
         heroabilitystatus_t *slot;
 
-        if (!spell || !target) {
-            fprintf(stderr, "WC3 Entangling Roots execute-rejected reason=missing-spell-or-target spell=%u target=%u\n",
-                    (unsigned)(spell != NULL), (unsigned)(target != NULL));
-            return true;
-        }
+        if (!spell || !target) return true;
         level = S_SpellLevel(ent, spell->code);
         buff = S_SpellBuffId(spell->code, level);
 #if BZ_COMPAT_WORKAROUNDS
@@ -58,21 +54,10 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
              spell->code == MAKEFOURCC('A','e','n','r') ||
              spell->code == MAKEFOURCC('A','e','n','w'))) buff = "BEer";
 #endif
-        if (!buff || strlen(buff) < 4) {
-            fprintf(stderr, "WC3 Entangling Roots execute-rejected reason=invalid-buff caster=%u target=%u code=%.4s level=%u buff=%s\n",
-                    ent ? (unsigned)ent->s.number : UINT32_MAX,
-                    (unsigned)target->s.number, (cstring_t)&spell->code, level,
-                    buff ? buff : "(missing)");
-            return true;
-        }
+        if (!buff || strlen(buff) < 4) return true;
         duration = S_SpellResistantDuration(spell->code, level, target);
         slot = S_SpellApplyTimedStatus(target, buff, level, duration);
-        if (!slot) {
-            fprintf(stderr, "WC3 Entangling Roots execute-rejected reason=status-application-failed caster=%u target=%u code=%.4s level=%u buff=%s duration=%.2f\n",
-                    ent ? (unsigned)ent->s.number : UINT32_MAX,
-                    (unsigned)target->s.number, (cstring_t)&spell->code, level, buff, duration);
-            return true;
-        }
+        if (!slot) return true;
         slot->data = spell->code;
         slot->source_ability = spell->code;
         slot->rank = level;
@@ -83,10 +68,6 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
          * victim may still issue otherwise legal spell casts afterwards. */
         S_SpellCancelChannel(target);
         unit_status_enabletargetart(target, slot, "origin");
-        fprintf(stderr, "WC3 Entangling Roots applied caster=%u target=%u code=%.4s level=%u buff=%s duration=%.2f target-owner=%u caster-owner=%u\n",
-                ent ? (unsigned)ent->s.number : UINT32_MAX, (unsigned)target->s.number,
-                (cstring_t)&spell->code, level, buff, duration,
-                (unsigned)target->s.player, ent ? (unsigned)ent->s.player : UINT32_MAX);
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);

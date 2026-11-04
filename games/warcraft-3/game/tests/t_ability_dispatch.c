@@ -131,7 +131,7 @@ TEST(wc3_ability_dispatch, shackles_locks_target_until_its_channel_ends) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_ability_dispatch, resistant_skin_rejects_aerial_shackles) {
+TEST(wc3_ability_dispatch, resistant_skin_uses_hero_duration_for_aerial_shackles) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X8\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
@@ -141,7 +141,6 @@ TEST(wc3_ability_dispatch, resistant_skin_rejects_aerial_shackles) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     UnitAbilities_t list = { .abilList = "Amls" };
     edict_t *caster, *target;
-    float mana;
 
     reset_entities(); setup_test_world(); level.time = 1000;
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
@@ -154,12 +153,13 @@ TEST(wc3_ability_dispatch, resistant_skin_rejects_aerial_shackles) {
     target->health.value = target->health.max_value = 1000;
     target->unit_state->ranks[0] = MAKE(heroability_t,
         .code = MAKEFOURCC('A','C','s','k'), .level = 1);
-    mana = caster->mana.value;
-
     T_ASSERT(S_UnitIsResistant(target));
-    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Amls"), target));
-    T_FEQ(caster->mana.value, mana, 0.001f);
-    T_NULL(unit_findstatus(target, FS_SLKKey("Bmlt")));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Amls"), target));
+    {
+        heroabilitystatus_t *status = unit_findstatus(target, FS_SLKKey("Bmlt"));
+        T_NOT_NULL(status);
+        if (status) T_FEQ((float)(status->timestamp - G_Time()) / 1000.0f, 3.0f, 0.001f);
+    }
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
