@@ -28,6 +28,7 @@ static void re_init(retailEffectFixture_t *f, char const *ability_slk, char cons
     f->old_abilities = G_SetSLKRows("AbilityData", f->ability_rows);
     f->old_items = G_SetSLKRows("ItemData", f->item_rows);
     f->hero_abilities = (UnitAbilities_t){ .abilList = "AInv" };
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     f->hero = alloc_test_unit(FS_SLKKey("Hpal"), 0, 0);
     f->enemy = alloc_test_unit(FS_SLKKey("hfoo"), 64, 0);
     f->hero->data.UnitAbilities = &f->hero_abilities;
@@ -35,6 +36,11 @@ static void re_init(retailEffectFixture_t *f, char const *ability_slk, char cons
     f->enemy->s.player = 1;
     f->hero->svflags |= SVF_MONSTER;
     f->enemy->svflags |= SVF_MONSTER;
+    /* Allocator-only test units do not go through SP_SpawnUnit, which stamps
+     * their generation time. Status source validation needs that identity. */
+    f->hero->spawn_time = f->enemy->spawn_time = level.time;
+    f->hero->unit_state->attack1.type = ATK_NORMAL;
+    f->hero->unit_state->attack1.targetsAllowed = TARG_GROUND;
     f->hero->targtype = f->enemy->targtype = TARG_GROUND;
     f->hero->health.value = f->hero->health.max_value = 500;
     f->enemy->health.value = f->enemy->health.max_value = 500;
@@ -43,6 +49,12 @@ static void re_init(retailEffectFixture_t *f, char const *ability_slk, char cons
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
+}
+/* Drive the production per-entity frame scheduler so status owners, rather
+ * than a direct update helper, process ticks and expiry. */
+static void re_run_frame_at(edict_t *unit, uint32_t time) {
+    level.time = time;
+    G_RunEntity(unit);
 }
 static edict_t *re_equip(retailEffectFixture_t *f, cstring_t item_id, uint32_t slot) {
     edict_t *item = alloc_test_unit(FS_SLKKey(item_id), 16 + slot, 0);
@@ -93,9 +105,9 @@ TEST(retail_item_effect, ocor_applies_timed_corruption_status) {
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
     T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
-    level.time += 4999; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 4999);
     T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
-    level.time += 1; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 1);
     T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
     T_FEQ(G_UnitArmorValue(f.enemy), before, 0.001f);
     T_ASSERT(G_DropItem(f.hero, 0));
@@ -127,22 +139,25 @@ TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
     char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
         "C;Y2;X1;K\"oven\"\nC;Y2;X2;K\"AIpb,Apo2\"\nC;Y2;X3;K\"true\"\nE\n";
+    static UnitBalance_t target_balance;
     retailEffectFixture_t f;
+    memset(&target_balance, 0, sizeof(target_balance));
     re_init(&f, ability_slk, items);
+    f.enemy->data.UnitBalance = &target_balance;
     re_equip(&f, "oven", 0);
     T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 5, 0.001f);
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIpb")));
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIpd")));
     float const post_hit_hp = f.enemy->health.value;
-    level.time += 1000; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 1000);
     T_FEQ(f.enemy->health.value, post_hit_hp - 9, 0.001f);
-    level.time += 1000; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 1000);
     T_FEQ(f.enemy->health.value, post_hit_hp - 18, 0.001f);
-    level.time += 4000; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 4000);
     T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("BIpb")));
     float const after = f.enemy->health.value;
-    level.time += 1000; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 1000);
     T_FEQ(f.enemy->health.value, after, 0.001f);
     T_ASSERT(G_DropItem(f.hero, 0));
     T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 0, 0.001f);
@@ -181,9 +196,9 @@ TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     T_ASSERT(S_UnitSpellImmune(f.hero));
     T_ASSERT(!S_SpellDamage(f.hero, f.enemy, 40));
     T_FEQ(f.hero->health.value, 500, 0.001f);
-    level.time += 14999; unit_updatestatuses(f.hero);
+    re_run_frame_at(f.hero, level.time + 14999);
     T_ASSERT(S_UnitSpellImmune(f.hero));
-    level.time++; unit_updatestatuses(f.hero);
+    re_run_frame_at(f.hero, level.time + 1);
     T_ASSERT(!S_UnitSpellImmune(f.hero));
     T_ASSERT(S_SpellDamage(f.hero, f.enemy, 40));
     T_ASSERT(f.hero->health.value < 500);
@@ -247,7 +262,7 @@ TEST(retail_item_effect, ocor_nonstock_data_keeps_status_without_armor_consumer)
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("BIcb")));
     T_FEQ(G_UnitArmorValue(f.enemy), base, 0.001f);
-    level.time += 3000; unit_updatestatuses(f.enemy);
+    re_run_frame_at(f.enemy, level.time + 3000);
     T_FEQ(G_UnitArmorValue(f.enemy), base, 0.001f);
     re_done(&f);
 }
