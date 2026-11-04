@@ -100,6 +100,11 @@ The latest full suite passes all six tests in both classic and TFT modes:
    no armor change is currently implemented.
 6. `oli2_AIll_does_not_purge_until_handler_exists`: Confirms the current
    unimplemented `AIsb` behavior does not silently remove a positive buff.
+7. `regeneration_items_follow_target_damage_and_scheduler`: Uses non-stock
+   `AIsl`/`AIpl` data through item-use dispatch, ordinary attack damage, and
+   `G_RunEntity`. It verifies AIsl's area recipients tick independently,
+   attack or spell damage cancels only the damaged recipient, AIpl affects only
+   its user, and attack damage cancels AIpl recovery. The test runs under both classic and TFT.
 
 `games/warcraft-3/game/tests/t_retail_shop_contract.c` independently registers
 **45** shop listings with the verified gold/lumber, `stockMax`, `stockRegen`,
@@ -111,9 +116,8 @@ The 45 purchase tests should not be misrepresented as 62 effect tests.
 The 266-row matrix above remains an inventory of positive/negative acceptance
 scenarios, not executable C coverage. The tests listed here cover only the
 behaviors named in their descriptions. `AIcb` armor reduction, `AIsb` Orb of
-Lightning behavior, item recovery interruption, and the other matrix-only
-scenarios remain open until verified from archive data and exercised through
-production gameplay paths.
+Lightning behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
+from archive data and exercised through production gameplay paths.
 
 ## Testing policy
 

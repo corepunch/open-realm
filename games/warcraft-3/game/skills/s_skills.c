@@ -181,8 +181,8 @@ static ability_t abilitylist[] = {
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
     { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
-    { "AIsl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS }, /* Scroll of Regeneration */
-    { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS }, /* Lesser Clarity Potion */
+    { "AIsl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Scroll of Regeneration */
+    { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Clarity Potion */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
     { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Skeleton Summon */
@@ -1009,6 +1009,28 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     if (!ent) return false;
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
+    if (msg == A_DAMAGED) {
+        if (ent->unit_state) {
+            abilityCall_t status_call = payload ? *payload : MAKE(abilityCall_t, 0);
+            status_call.status.slot = NULL;
+            status_call.status.ability = 0;
+            status_call.status.reason = STATUS_REMOVE_SCRIPT;
+            FOR_LOOP(i, MAX_UNIT_STATUSES) {
+                heroabilitystatus_t *status = ent->unit_state->statuses + i;
+                abilityitem_t owner;
+                abilityCall_t event_call;
+                if (!status->level || !status->data) continue;
+                owner = S_AbilityItem(status->source_ability ? status->source_ability : status->data);
+                if (!owner.ability || !(owner.ability->flags & AB_STATUS_EVENTS)) continue;
+                event_call = status_call;
+                event_call.item = &owner;
+                event_call.status.slot = status;
+                event_call.status.ability = status->source_ability ? status->source_ability : status->data;
+                S_AbilityMessage(ent, msg, &event_call);
+            }
+        }
+        handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
+    }
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
