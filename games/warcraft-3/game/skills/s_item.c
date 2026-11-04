@@ -454,8 +454,9 @@ BZ_ABILITY_PROC(CAbilityItemBlight) {
  * restore mana. Statuses keep ticking independently of the item's lifetime. */
 #define ITEM_REGEN_TICK_MS 1000u
 static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {
-    if (target && status && status->level && status->timestamp > G_Time())
-        unit_expirestatus(target, status);
+    if (!target || !status || !status->level) return;
+    if (status->timestamp > G_Time()) unit_expirestatus(target, status);
+    else unit_removestatus(target, status, STATUS_REMOVE_EXPIRE);
 }
 static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t level) {
     float const duration = S_SpellHeroDuration(code, level, target);
@@ -470,6 +471,18 @@ static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t lev
 }
 
 BZ_ABILITY_PROC(CAbilityItemRegeneration) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        uint32_t const code = status->source_ability ? status->source_ability : status->data;
+        uint32_t const rank = status->rank ? status->rank : MAX(1u, status->level);
+        /* Status expiration is processed before a final deadline in the
+         * generic sweep. Resolve that due pulse at its exact expiry first. */
+        if (status->timestamp && status->timestamp <= G_Time() &&
+            unit_status_take_due_tick(status, ITEM_REGEN_TICK_MS, status->timestamp - 1u)) {
+            item_regeneration_pulse(ent, code, rank);
+            return true;
+        }
+    }
     if (msg == A_DAMAGED && ent && call && call->entity && call->status.slot) {
         item_regeneration_end(ent, call->status.slot);
         return false;
