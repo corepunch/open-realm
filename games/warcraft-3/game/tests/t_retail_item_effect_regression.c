@@ -302,4 +302,61 @@ TEST(retail_item_effect, oli2_AIll_does_not_purge_until_handler_exists) {
     re_done(&f);
 }
 
+/* AIpl is caster-only; AIsl applies in its authored area. Both stop on damage
+ * through the ordinary attack event, and recovery ticks through G_RunEntity. */
+TEST(retail_item_effect, regeneration_items_follow_target_damage_and_scheduler) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AIsl\"\nC;Y2;X2;K\"AIsl\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"30\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"10\"\nC;Y2;X7;K\"80\"\nC;Y2;X8;K\"BIrg\"\n"
+        "C;Y3;X1;K\"AIpl\"\nC;Y3;X2;K\"AIpl\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"100\"\nC;Y3;X6;K\"10\"\nC;Y3;X7;K\"80\"\nC;Y3;X8;K\"BIrg\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X2\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"test\"\nC;Y2;X2;K\"AIsl,AIpl\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    edict_t *ally = alloc_test_unit(FS_SLKKey("hfoo"), 40, 0);
+    ally->s.player = 0; ally->svflags |= SVF_MONSTER; ally->spawn_time = level.time;
+    f.hero->health.value = 400; ally->health.value = 400;
+    f.hero->mana.value = 300; ally->mana.value = 300;
+    static UnitBalance_t hero_balance;
+    memset(&hero_balance, 0, sizeof(hero_balance));
+    hero_balance.strength = 10;
+    f.hero->data.UnitBalance = ally->data.UnitBalance = &hero_balance;
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("AIsl"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(f.hero->health.value, 403, 0.001f);
+    T_FEQ(ally->health.value, 403, 0.001f);
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.hero->health.value, 406, 0.001f);
+    S_ResolveAttackHit(f.enemy, f.hero, 5);
+    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    T_NOT_NULL(unit_findstatus(ally, FS_SLKKey("BIrg")));
+
+    item = S_AbilityItem(FS_SLKKey("AIpl")); call.item = &item;
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(f.hero->mana.value, 310, 0.001f);
+    T_FEQ(ally->mana.value, 300, 0.001f);
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.hero->mana.value, 320, 0.001f);
+    S_ResolveAttackHit(f.enemy, f.hero, 5);
+    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.hero->mana.value, 320, 0.001f);
+
+    item = S_AbilityItem(FS_SLKKey("AIsl")); call.item = &item;
+    float const before_final_regen = f.hero->health.value;
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(f.hero->health.value, before_final_regen + 3, 0.001f);
+    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 5));
+    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    float const after_spell_interrupt = f.hero->health.value;
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.hero->health.value, after_spell_interrupt, 0.001f);
+    re_done(&f);
+}
+
 #endif /* BZ_TESTS */

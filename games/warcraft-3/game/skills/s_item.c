@@ -453,6 +453,10 @@ BZ_ABILITY_PROC(CAbilityItemBlight) {
  * authored AIrg regeneration family. DataA/Duration restore life; DataB/Dur
  * restore mana. Statuses keep ticking independently of the item's lifetime. */
 #define ITEM_REGEN_TICK_MS 1000u
+static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {
+    if (target && status && status->level && status->timestamp > G_Time())
+        unit_expirestatus(target, status);
+}
 static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t level) {
     float const duration = S_SpellHeroDuration(code, level, target);
     float const health = S_SpellData(code, level, 1);
@@ -466,6 +470,10 @@ static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t lev
 }
 
 BZ_ABILITY_PROC(CAbilityItemRegeneration) {
+    if (msg == A_DAMAGED && ent && call && call->entity && call->status.slot) {
+        item_regeneration_end(ent, call->status.slot);
+        return false;
+    }
     if (msg == A_STATUS_TICK && call && call->status.slot) {
         heroabilitystatus_t *status = call->status.slot;
         uint32_t const code = status->source_ability ? status->source_ability : status->data;
@@ -478,18 +486,19 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
     edict_t *caster = item_use_caster(ent, call);
     uint32_t const code = call->item->code;
     uint32_t const rank = 1;
-    cstring_t buff = S_SpellBuffToken(S_SpellBuffId(code, rank), 0);
+    cstring_t buff = code == MAKEFOURCC('A','I','p','l') ? "BIrg" :
+        S_SpellBuffToken(S_SpellBuffId(code, rank), 0);
     float const duration = caster ? S_SpellHeroDuration(code, rank, caster) : 0.0f;
     abilityLevel_t const *row = G_AbilityLevel(code, rank);
-    /* AIrg child data can omit BuffID in older/classic datasets even though
-     * the shared regeneration buff is present. Keep valid item uses working. */
+    /* AIrg children can omit BuffID in older/classic datasets. */
     if (!buff) buff = "BIrg";
     if (!caster || !(duration > 0.0f) || !row || !(row->area >= 0.0f)) return false;
 
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  S_SpellIsFriend(caster, target) &&
-                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+                 (code == MAKEFOURCC('A','I','p','l') ? target == caster :
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area)) {
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, rank, buff, duration);
         if (!status) continue;
         status->data = code;
