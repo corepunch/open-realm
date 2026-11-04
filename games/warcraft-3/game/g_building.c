@@ -410,24 +410,6 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
     if (visible) *visible = true;
     if (research_id) *research_id = 0;
     if (required_level) *required_level = 0;
-    /* Hippogryph Taming (Reht) unlocks both directions of the Archer and
-     * Hippogryph couple action. The retail Requires entry is in
-     * NightElfAbilityFunc.txt, outside the unit/upgrade SLKs scanned below. */
-    if (ability_id == MAKEFOURCC('A','c','o','a') ||
-        ability_id == MAKEFOURCC('A','c','o','h') ||
-        ability_id == MAKEFOURCC('A','c','o','2') ||
-        ability_id == MAKEFOURCC('A','c','o','3')) {
-        uint32_t const research = MAKEFOURCC('R','e','h','t');
-        int32_t maximum;
-        if (research_id) *research_id = research;
-        if (required_level) *required_level = 1;
-        owner = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
-        if (!owner || owner->ps.number != unit->s.player) return false;
-        maximum = G_GetPlayerTechMaxAllowed(owner, research);
-        researchable = maximum < 0 || maximum >= 1;
-        if (visible) *visible = researchable;
-        return researchable && G_GetPlayerTechResearchedLevel(owner, research) >= 1;
-    }
     /* Skeletal Mastery is an rlev rank-up for the Necromancer's native Raise
      * Dead ability, not an unlock. Keep the level-one command usable from
      * the start in TFT; Rusm still raises it to level two when researched. */
