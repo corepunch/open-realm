@@ -209,6 +209,7 @@ TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
 	controller->client->ps.number = 0;
 	controller->client->menu.ability_code = BZ_ACO3;
 	G_SelectEntity(controller->client, fix.caster);
+	T_ASSERT(S_SpellCooldownReady(fix.caster, BZ_ACO3));
 	spell_cmd(controller);
 	T_ASSERT(!controller->client->menu.on_entity_selected);
 	T_ASSERT(!controller->client->menu.on_location_selected);
@@ -218,6 +219,7 @@ TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
 	T_EQ(couple_count(BZ_OGRU, 0), 1);
 	T_ASSERT(fix.caster->goalentity == fix.partner);
 	T_ASSERT(move_is_active_order_walk(fix.caster));
+	T_ASSERT(S_SpellCooldownReady(fix.caster, BZ_ACO3));
 	/* Arrival is the only point that executes the merge. */
 	FILTER_EDICTS(ent, ent->inuse && ent->think == S_CoupleInstantApproachThink && ent->owner == fix.caster)
 		approach = ent;
