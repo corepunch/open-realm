@@ -744,6 +744,29 @@ BZ_ABILITY_PROC(CAbilityItemSanctuary) {
     return CAbilitySimpleSpell(ent, msg, call);
 }
 
+/* Staff of Preservation moves one friendly unit to the user's highest-tier
+ * completed town hall. Targeting, range, mana, and cooldown use the spell path. */
+BZ_ABILITY_PROC(CAbilityItemPreservation) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_VALIDATE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        return spell && ent && S_SpellIsAliveTarget(target) &&
+               S_SpellIsFriend(ent, target) && sanctuary_highest_townhall(ent->s.player) != NULL;
+    }
+    if (msg == A_EXECUTE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        edict_t *hall = ent ? sanctuary_highest_townhall(ent->s.player) : NULL;
+        vec2_t requested, position;
+        if (!spell || !target || !S_SpellIsAliveTarget(target) || !hall ||
+            !S_SpellIsFriend(ent, target)) return false;
+        requested = hall->s.origin2;
+        if (!G_FindUnitUnstuckPosition(target, &requested, &position)) position = requested;
+        S_SpellRelocateUnit(target, spell->code, &position);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
 /* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
 BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
     edict_t *caster, *critter;

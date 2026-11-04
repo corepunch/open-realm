@@ -385,7 +385,7 @@ static ability_t abilitylist[] = {
     { "AIbh", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Altar of Kings */
     // TODO: Ashs a_spell  /* Wand of Shadowsight */
     // TODO: Aret CAbilityResurrection  /* Tome of Retraining */
-    // TODO: ANpr a_button  /* Staff of Preservation */
+    { "ANpr", CAbilityItemPreservation, AB_SPELL, SPELL_TARGET_UNIT },  /* Staff of Preservation */
     { "Amec", CAbilityMechanicalCritter, AB_ITEM },  /* Mechanical Critter */
     // TODO: ANss a_bounce  /* Spell Shield */
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
