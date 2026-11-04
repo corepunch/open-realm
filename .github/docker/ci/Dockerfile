@@ -18,6 +18,7 @@ RUN apt-get update \
         libsdl2-dev \
         libswresample-dev \
         libswscale-dev \
+        nodejs \
         patchelf \
         pkg-config \
         python3 \
