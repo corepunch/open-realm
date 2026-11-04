@@ -359,6 +359,8 @@ action stay aligned.
 
 The focused unit authors one of three states:
 
+- no command control: cover the inventory even when the unit has capacity,
+  since its items are not available to this player;
 - capacity `0`: cover the underlying six-slot console area with the local
   player's race-skin `ConsoleInventoryCoverTexture`;
 - capacity `1..5`: leave the valid slots visible and cover each slot outside

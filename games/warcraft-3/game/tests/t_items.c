@@ -1742,6 +1742,35 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
           0.425f, 0.001f);
 }
 
+TEST(wc3_items, inventory_panel_covers_inventory_of_selected_unit_without_control) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *player, *hero;
+    gameClient_t *client;
+
+    setup_test_world();
+    UI_ResetHud();
+    player = &g_edicts[0]; client = player->client;
+    hero = alloc_test_unit(MAKEFOURCC('H','m','t','m'), 0, 0);
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    hero->data.UnitBalance = &(UnitBalance_t){ .strength = 1 };
+    hero->s.player = 1;
+    client->ps.race = kPlayerRaceHuman;
+    G_SelectEntity(client, hero);
+
+    T_ASSERT(!G_UnitCanControl(client, hero));
+    T_EQ(G_InventoryCapacity(hero), MAX_INVENTORY);
+    reset_inventory_refresh_capture(); reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
+}
+
 TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_researched) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
