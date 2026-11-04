@@ -1,5 +1,6 @@
 #ifdef BZ_TESTS
 #include "test.h"
+#include "../g_local.h"
 #include "../skills/s_skills.h"
 
 #define BZ_ACOA MAKEFOURCC('A', 'c', 'o', 'a') // rawcode; Archer Mount Hippogryph
@@ -106,7 +107,15 @@ TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
 TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider;
+	uint32_t const research = MAKEFOURCC('R','e','h','t');
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
+	game.clients[0].ps.number = 0;
+	T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOA));
+	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
+	T_ASSERT(fix.caster->inuse && fix.partner->inuse);
+	G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
+	G_SetPlayerTechResearched(&game.clients[0], research, 1);
+	T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOA));
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
 	/* Execute frees both inputs; spent Cost is observed only on reject paths. */
 	T_ASSERT(!fix.caster->inuse);
@@ -123,7 +132,15 @@ TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	coupleFix_t fix;
 	edict_t *rider = NULL;
+	uint32_t const research = MAKEFOURCC('R','e','h','t');
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
+	game.clients[0].ps.number = 0;
+	T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOH));
+	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
+	T_ASSERT(fix.caster->inuse && fix.partner->inuse);
+	G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
+	G_SetPlayerTechResearched(&game.clients[0], research, 1);
+	T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, BZ_ACOH));
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
