@@ -214,6 +214,7 @@ BZ_ABILITY_PROC(CAbilityItemBlight);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityMechanicalCritter);
 BZ_ABILITY_PROC(CAbilityItemSanctuary);
+BZ_ABILITY_PROC(CAbilityItemPreservation);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
 BZ_ABILITY_PROC(CAbilityAttributeBonus);
 BZ_ABILITY_PROC(CAbilityStrengthMod);
