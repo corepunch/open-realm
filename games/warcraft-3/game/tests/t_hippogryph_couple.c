@@ -131,6 +131,7 @@ TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 TEST(wc3_spell, hippogryph_pickup_order_chooses_nearest_valid_archer) {
 	coupleFix_t fix;
 	edict_t *far_archer, *rider = NULL;
+	edict_t *controller;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
 	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
 	far_archer->s.player = fix.caster->s.player;
@@ -138,16 +139,40 @@ TEST(wc3_spell, hippogryph_pickup_order_chooses_nearest_valid_archer) {
 	far_archer->targtype = TARG_GROUND;
 	far_archer->health.value = far_archer->health.max_value = 300;
 	fix.caster->unit_state->ranks[0].level = 0;
-	T_ASSERT(!S_CastNearestCoupleArcher(fix.caster, BZ_ACOH));
+	T_ASSERT(!S_CastNearestCouplePartner(fix.caster, BZ_ACOH));
 	T_ASSERT(fix.partner->inuse && far_archer->inuse);
 	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ACOH, .level = 1);
-	T_ASSERT(S_CastNearestCoupleArcher(fix.caster, BZ_ACOH));
+	controller = &g_edicts[0];
+	controller->client = &game.clients[0];
+	controller->inuse = true;
+	controller->client->connected = true;
+	controller->client->ps.number = 0;
+	controller->client->menu.ability_code = BZ_ACOH;
+	G_SelectEntity(controller->client, fix.caster);
+	spell_cmd(controller);
+	T_ASSERT(!controller->client->menu.on_entity_selected);
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
 	T_ASSERT(far_archer->inuse);
 	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_OGRU && ent->s.player == 0 && ent != fix.wrong)
 		rider = ent;
 	T_ASSERT(rider);
+	couple_done(&fix);
+}
+
+TEST(wc3_spell, archer_mount_order_chooses_nearest_valid_hippogryph) {
+	coupleFix_t fix;
+	edict_t *far_hippogryph;
+	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
+	far_hippogryph = alloc_test_unit(BZ_HFOO, 80, 0);
+	far_hippogryph->s.player = fix.caster->s.player;
+	far_hippogryph->svflags |= SVF_MONSTER;
+	far_hippogryph->targtype = TARG_GROUND;
+	far_hippogryph->health.value = far_hippogryph->health.max_value = 300;
+	T_ASSERT(S_CastNearestCouplePartner(fix.caster, BZ_ACOA));
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_hippogryph->inuse);
 	couple_done(&fix);
 }
 
