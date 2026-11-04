@@ -109,6 +109,66 @@ static bool decouple_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
 	return a && b;
 }
 
+static edict_t *couple_instant_nearest(edict_t *caster, abilityitem_t const *spell) {
+	edict_t *best = NULL;
+	float best_distance = FLT_MAX;
+	uint32_t level, partner;
+	float radius;
+
+	if (!caster || !spell) return NULL;
+	level = S_SpellLevel(caster, spell->code);
+	partner = S_SpellDataId(spell->code, level, 1);
+	radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+	if (!partner || radius <= 0.0f) {
+		fprintf(stderr, "WC3_COUPLE instant-reject caster=%u ability=%.4s reason=missing-data level=%u partner=%.4s area=%.1f\n",
+		        (unsigned)caster->s.number, (cstring_t)&spell->code, level,
+		        partner ? (cstring_t)&partner : "----", radius);
+		return NULL;
+	}
+	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && target != caster &&
+	              target->class_id == partner && S_SpellIsFriend(caster, target)) {
+		float const distance = Vector2_distance(&caster->s.origin2, &target->s.origin2);
+		if (distance > radius || distance >= best_distance ||
+		    !S_SpellAllowsTarget(spell->code, caster, target)) continue;
+		best = target;
+		best_distance = distance;
+	}
+	if (!best) {
+		fprintf(stderr, "WC3_COUPLE instant-no-partner caster=%u ability=%.4s partner=%.4s area=%.1f\n",
+		        (unsigned)caster->s.number, (cstring_t)&spell->code,
+		        (cstring_t)&partner, radius);
+	} else {
+		fprintf(stderr, "WC3_COUPLE instant-partner caster=%u ability=%.4s target=%u target_raw=%.4s distance=%.1f area=%.1f\n",
+		        (unsigned)caster->s.number, (cstring_t)&spell->code,
+		        (unsigned)best->s.number, (cstring_t)&partner, best_distance, radius);
+	}
+	return best;
+}
+
+static bool couple_instant_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+	if (!caster || !spell || st.type != SPELL_TARGET_NONE ||
+	    (spell->code != MAKEFOURCC('A','c','o','2') && spell->code != MAKEFOURCC('A','c','o','3'))) return false;
+	if (!G_UnitAbilityResearchAvailable(caster, spell->code)) {
+		fprintf(stderr, "WC3_COUPLE instant-reject caster=%u ability=%.4s reason=requires-training level=%u\n",
+		        (unsigned)caster->s.number, (cstring_t)&spell->code,
+		        G_UnitAbilityLevel(caster, spell->code));
+		return false;
+	}
+	return couple_instant_nearest(caster, spell) != NULL;
+}
+
+static void couple_instant_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+	edict_t *target;
+	spellTarget_t target_call;
+	if (!couple_instant_validate(caster, st, spell)) return;
+	target = couple_instant_nearest(caster, spell);
+	if (!target) return;
+	fprintf(stderr, "WC3_COUPLE instant-execute caster=%u ability=%.4s target=%u\n",
+	        (unsigned)caster->s.number, (cstring_t)&spell->code, (unsigned)target->s.number);
+	target_call = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+	couple_execute(caster, target_call, spell);
+}
+
 static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id, bool offset_from_partner) {
 	edict_t *ent;
 
@@ -160,3 +220,4 @@ static void decouple_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
 BZ_VALIDATED_SPELL_PROC(AbilityCoupleArcher, couple_validate, couple_execute)
 BZ_VALIDATED_SPELL_PROC(AbilityCoupleHippogryph, couple_validate, couple_execute)
 BZ_VALIDATED_SPELL_PROC(AbilityDecouple, decouple_validate, decouple_execute)
+BZ_VALIDATED_SPELL_PROC(AbilityCoupleInstant, couple_instant_validate, couple_instant_execute)

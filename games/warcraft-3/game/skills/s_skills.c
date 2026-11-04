@@ -688,8 +688,8 @@ static ability_t abilitylist[] = {
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */
-    { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
-    { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
+    { "Aco2", CAbilityCoupleInstant, AB_SPELL, SPELL_TARGET_NONE },  /* Couple Instant (Archer) */
+    { "Aco3", CAbilityCoupleInstant, AB_SPELL, SPELL_TARGET_NONE },  /* Couple Instant (Hippogryph) */
     { "Adt1", CAbilityDetector, AB_PASSIVE },  /* Detect (Sentry Ward) */
     { "Adtg", CAbilityTrueSight, AB_PASSIVE },  /* Detect (general) */
     { "Afa2", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */

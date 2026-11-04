@@ -5,7 +5,6 @@
  * Untip="Deactivate Immolation"
  * Unubertip=""
  */
-
 /* Immolation's DataA is damage per second, DataB is mana drain per second,
  * and Area is its self-centered radius. Mana drain is distributed over seven substeps per second
  * (one point each for stock DataB=7); damage remains a one-second pulse. */
@@ -348,6 +347,3 @@ BZ_ABILITY_PROC(CAbilityPhaseShift) {
 /* Name=Invulnerable
  * Ubertip="This unit cannot be damaged."
  */
-
-/* Couple Instant remains a non-spell ability with a stub command handler. */
-BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }
