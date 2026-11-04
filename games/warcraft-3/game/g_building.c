@@ -333,6 +333,10 @@ static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'c', 'y', 'c'), 2 }, /* Cyclone: Master Training */
     { MAKEFOURCC('R', 'e', 's', 'i'), MAKEFOURCC('A', 'a', 'd', 'm'), 1 },
     { MAKEFOURCC('R', 'e', 's', 'c'), MAKEFOURCC('A', 'e', 's', 'n'), 1 }, /* Sentinel */
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', 'a'), 1 }, /* Hippogryph Taming */
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', 'h'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '2'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '3'), 1 },
     { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'r', 'a', 'v'), 1 }, /* Storm Crow Form */
     { MAKEFOURCC('R', 'u', 's', 'p'), MAKEFOURCC('A', 'a', 'v', 'e'), 1 }, /* Destroyer Form */
 };
@@ -406,6 +410,24 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
     if (visible) *visible = true;
     if (research_id) *research_id = 0;
     if (required_level) *required_level = 0;
+    /* Hippogryph Taming (Reht) unlocks both directions of the Archer and
+     * Hippogryph couple action. The retail Requires entry is in
+     * NightElfAbilityFunc.txt, outside the unit/upgrade SLKs scanned below. */
+    if (ability_id == MAKEFOURCC('A','c','o','a') ||
+        ability_id == MAKEFOURCC('A','c','o','h') ||
+        ability_id == MAKEFOURCC('A','c','o','2') ||
+        ability_id == MAKEFOURCC('A','c','o','3')) {
+        uint32_t const research = MAKEFOURCC('R','e','h','t');
+        int32_t maximum;
+        if (research_id) *research_id = research;
+        if (required_level) *required_level = 1;
+        owner = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        maximum = G_GetPlayerTechMaxAllowed(owner, research);
+        researchable = maximum < 0 || maximum >= 1;
+        if (visible) *visible = researchable;
+        return researchable && G_GetPlayerTechResearchedLevel(owner, research) >= 1;
+    }
     /* Skeletal Mastery is an rlev rank-up for the Necromancer's native Raise
      * Dead ability, not an unlock. Keep the level-one command usable from
      * the start in TFT; Rusm still raises it to level two when researched. */

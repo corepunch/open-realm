@@ -17,8 +17,13 @@ register it.
 The trained `Acoh` command uses the authored 100-unit range to find the nearest
 living, friendly `DataA` Archer and picks it up without opening unit-target
 mode. The command remains unavailable until `Acoh` is present and research
-allows its use. Dismount places the Hippogryph at the rider's location and the
-Archer at a nearby ground position so the companions do not overlap.
+allows its use. Retail ability data authors `Requires=Reht` for both `Acoa`
+(Archer mounts) and `Acoh` (Hippogryph picks up Archer); the `Aco2`/`Aco3`
+instant variants carry the same requirement. `Reht` is Hippogryph Taming.
+Execution validates the research state as well as the command card, so direct
+target casts cannot bypass it. Dismount places the Hippogryph at the rider's
+location and the Archer at a nearby ground position so the companions do not
+overlap.
 
 Orders (Hive / `OrderIds`): `mounthippogryph` (`Acoa`), `loadarcher` (`Acoh`),
 `decouple` (`Adec`).
