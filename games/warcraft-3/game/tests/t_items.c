@@ -24,6 +24,9 @@ static PATHSTR inventory_panel_images[8];
 static uint32_t inventory_panel_image_count;
 static uiFrame_t inventory_panel_frame;
 static bool inventory_panel_frame_seen;
+static bool inventory_panel_cooldown_frame_seen;
+static uiCommandButton_t inventory_panel_cooldown_state;
+static float inventory_panel_cooldown_fraction;
 
 /* Supply a valid target callback so the Cancel command exercises target-mode cleanup. */
 static bool item_test_target_callback(edict_t *clent, edict_t *target) {
@@ -108,6 +111,9 @@ static void reset_inventory_panel_capture(void) {
     inventory_panel_image_count = 0;
     memset(&inventory_panel_frame, 0, sizeof(inventory_panel_frame));
     inventory_panel_frame_seen = false;
+    inventory_panel_cooldown_frame_seen = false;
+    memset(&inventory_panel_cooldown_state, 0, sizeof(inventory_panel_cooldown_state));
+    inventory_panel_cooldown_fraction = 0.0f;
 }
 
 static void capture_inventory_refresh_write(pfWriteType_t type, void const *value) {
@@ -116,6 +122,13 @@ static void capture_inventory_refresh_write(pfWriteType_t type, void const *valu
     if (type == PF_UIFRAME && value) {
         inventory_panel_frame = *(uiFrame_t const *)value;
         inventory_panel_frame_seen = true;
+        if ((inventory_panel_frame.flagsvalue & UIFLAG_RADIAL_SHADE) &&
+            inventory_panel_frame.buffer.size == sizeof(inventory_panel_cooldown_state) &&
+            inventory_panel_frame.buffer.data) {
+            inventory_panel_cooldown_state = *(uiCommandButton_t const *)inventory_panel_frame.buffer.data;
+            inventory_panel_cooldown_fraction = inventory_panel_frame.value;
+            inventory_panel_cooldown_frame_seen = true;
+        }
         return;
     }
     if (type != PF_BYTE || !value) {
@@ -2061,16 +2074,31 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
 TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
     static ItemData_t item_data = { .abilList = "AHtc" };
     gameInventoryItem_t items[MAX_INVENTORY];
-    edict_t *unit, *item;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t *player, *unit, *item;
+    gameClient_t *client;
     uint8_t count;
 
     setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    client->ps.number = 0; G_SetClientConnected(player, true);
     unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = client->ps.number;
+    G_SelectEntity(client, unit);
     item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
     SP_SpawnItem(item); gi.LinkEntity(item);
     item->data.ItemData = &item_data;
     T_ASSERT(G_PickupItem(unit, item));
+    reset_inventory_refresh_capture(); reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
     S_SpellStartCooldownDuration(unit, MAKEFOURCC('A','H','t','c'), 20.0f);
+    gi.Write = old_write; gi.unicast = old_unicast;
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_panel_cooldown_frame_seen);
+    T_FEQ(inventory_panel_cooldown_fraction, 1.0f, 0.001f);
+    T_EQ(inventory_panel_cooldown_state.radialStartTime, G_Time());
+    T_EQ(inventory_panel_cooldown_state.radialEndTime, G_Time() + 20000);
 
     count = G_GetInventory(unit, items, MAX_INVENTORY);
     T_EQ(count, 1);
