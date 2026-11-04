@@ -394,7 +394,7 @@ static ability_t abilitylist[] = {
     { "ANsa", CAbilityItemSanctuary, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
     { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
-    // TODO: AItb a_button  /* Dust of Appearance */
+    { "AItb", CAbilityItemDetectByBuff, AB_ITEM },  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
     { "AIrb", CAbilityItemRebirth, AB_ITEM | AB_POWERUP }, /* Rune of Rebirth */

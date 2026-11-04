@@ -767,6 +767,33 @@ BZ_ABILITY_PROC(CAbilityItemPreservation) {
     return CAbilitySimpleSpell(ent, msg, call);
 }
 
+/* Dust of Appearance stamps nearby hostile/neutral units with the authored
+ * Bdet status. The status carries the detecting player through its lifetime. */
+BZ_ABILITY_PROC(CAbilityItemDetectByBuff) {
+    edict_t *caster;
+    abilityitem_t const *spell;
+    uint32_t code, level;
+    float radius, duration;
+    if (msg != A_ITEM_USE || !call || !(spell = call->item)) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    code = spell->code;
+    level = 1;
+    radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    duration = S_SpellDuration(code, level, false);
+    if (radius <= 0.0f || duration <= 0.0f) return false;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) &&
+                  S_SpellAllowsAreaTarget(code, caster, target) &&
+                  Vector2_distance(&caster->s.origin2, &target->s.origin2) <= radius) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(target, code, level, "Bdet", duration);
+        if (!status) continue;
+        status->data = caster->s.player + 1;
+        G_InvalidateUnitInfoPanel(target);
+    }
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
 /* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
 BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
     edict_t *caster, *critter;
