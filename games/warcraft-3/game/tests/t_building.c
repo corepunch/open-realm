@@ -3464,6 +3464,61 @@ TEST(wc3_building, rlev_dependency_uses_custom_upgrade_and_ability_rawcodes) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_building, mountain_giant_skin_indicators_follow_research_state) {
+    static char const upgrade_slk[] =
+        "ID;PWXL;N;E\nB;X8;Y3;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\nC;X6;K\"used\"\n"
+        "C;X1;Y2;K\"Rehs\"\nC;X3;K1\nC;X6;K1\n"
+        "C;X1;Y3;K\"Rers\"\nC;X3;K1\nC;X6;K1\nE\n";
+    static char const ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y3;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"Assk\"\nC;X2;K\"Assk\"\n"
+        "C;X1;Y3;K\"Arsk\"\nC;X2;K\"Arsk\"\nE\n";
+    static char const config[] =
+        "[Assk]\nArt=BTN\nButtonpos=0,0\nTip=Hardened Skin\n"
+        "[Arsk]\nArt=BTN\nButtonpos=1,0\nTip=Resistant Skin\n";
+    UnitBalance_t balance = { .upgrades = "Rehs,Rers" };
+    UnitAbilities_t abilities = { .abilList = "Assk,Arsk" };
+    slkTestData_t *upgrades = parse_slk_string(upgrade_slk), *old_upgrades;
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_abilities;
+    gameCommandButton_t buttons[16];
+    edict_t *giant;
+    uint8_t count;
+    bool hardened, resistant;
+
+    reset_entities(); setup_test_world();
+    old_upgrades = G_SetSLKRows("UpgradeData", upgrades);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    T_ASSERT(G_TestPushAbilityConfig(config));
+    game.clients[0].ps.number = 0;
+    memset(game.clients[0].tech, 0, sizeof(game.clients[0].tech));
+    giant = alloc_test_unit(MAKEFOURCC('e','m','t','g'), 0, 0);
+    giant->s.player = 0;
+    giant->data.UnitBalance = &balance;
+    giant->data.UnitAbilities = &abilities;
+
+    count = G_GetCommandButtons(giant, buttons, 16);
+    hardened = resistant = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "Assk")) { hardened = true; T_ASSERT(buttons[i].disabled && buttons[i].indicator_dimmed); }
+        if (!strcmp(buttons[i].command, "Arsk")) { resistant = true; T_ASSERT(buttons[i].disabled && buttons[i].indicator_dimmed); }
+    }
+    T_ASSERT(hardened && resistant);
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','e','h','s'), 1);
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','e','r','s'), 1);
+    count = G_GetCommandButtons(giant, buttons, 16);
+    hardened = resistant = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "Assk")) { hardened = true; T_ASSERT(buttons[i].disabled && !buttons[i].indicator_dimmed); }
+        if (!strcmp(buttons[i].command, "Arsk")) { resistant = true; T_ASSERT(buttons[i].disabled && !buttons[i].indicator_dimmed); }
+    }
+    T_ASSERT(hardened && resistant);
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(ability_rows);
+    G_SetSLKRows("UpgradeData", old_upgrades); free_slk_rows(upgrades);
+}
+
 TEST(wc3_building, training_research_state_does_not_leak_to_unmapped_owner) {
     buildingCasterRows_t caster_rows;
     gameClient_t *fallback;

@@ -752,6 +752,8 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
                                         uint8_t max_buttons, uint8_t *count,
                                         uint32_t owned_ability, uint32_t button_ability) {
     char code[5] = {0};
+    uint32_t research_id = 0;
+    int32_t required_level = 0;
     uint8_t index;
 
     if (!ent || !buttons || !count || *count >= max_buttons ||
@@ -759,7 +761,15 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
     memcpy(code, &button_ability, 4);
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > index) { buttons[index].disabled = 1; buttons[index].indicator = 1; }
+    if (*count > index) {
+        buttons[index].disabled = 1;
+        buttons[index].indicator = 1;
+        if (G_UnitAbilityResearchRequirement(ent, owned_ability, &research_id, &required_level)) {
+            buttons[index].indicator_dimmed = !G_UnitAbilityResearchAvailable(ent, owned_ability);
+            if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], research_id, required_level);
+        }
+    }
 }
 
 static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *buttons,
