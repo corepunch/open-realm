@@ -194,7 +194,7 @@ TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
 		"C;Y2;X7;K\"500\"\nC;Y2;X8;K\"hpea\"\nC;Y2;X9;K\"1\"\n"
 		"C;Y2;X10;K\"ogru\"\nE\n";
 	coupleFix_t fix;
-	edict_t *far_archer;
+	edict_t *far_archer, *approach = NULL;
 	edict_t *controller;
 	couple_setup(&fix, instant_slk, BZ_ACO3, BZ_HFOO, BZ_HPEA);
 	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
@@ -212,6 +212,18 @@ TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
 	spell_cmd(controller);
 	T_ASSERT(!controller->client->menu.on_entity_selected);
 	T_ASSERT(!controller->client->menu.on_location_selected);
+	T_ASSERT(fix.caster->inuse);
+	T_ASSERT(fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	T_EQ(couple_count(BZ_OGRU, 0), 1);
+	T_ASSERT(fix.caster->goalentity == fix.partner);
+	T_ASSERT(move_is_active_order_walk(fix.caster));
+	/* Arrival is the only point that executes the merge. */
+	FILTER_EDICTS(ent, ent->inuse && ent->think == S_CoupleInstantApproachThink && ent->owner == fix.caster)
+		approach = ent;
+	T_ASSERT(approach);
+	fix.caster->s.origin2 = MAKE(vec2_t, 40, 0);
+	if (approach) S_CoupleInstantApproachThink(approach);
 	T_ASSERT(!fix.caster->inuse);
 	T_ASSERT(!fix.partner->inuse);
 	T_ASSERT(far_archer->inuse);
