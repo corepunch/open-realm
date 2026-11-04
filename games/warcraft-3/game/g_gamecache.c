@@ -4,8 +4,6 @@
 
 #define GAMECACHE_FILE_MAGIC "ORGCACHE"
 #define GAMECACHE_FILE_VERSION 2
-#define GAMECACHE_FILE_VERSION_LEGACY 1
-#define GAMECACHE_LEGACY_HERO_ABILITIES 4
 #define GAMECACHE_FILE_SUFFIX ".orcgc"
 #define MAX_GAMECACHE_MEMORY_CACHES 8
 #define GAMECACHE_DEAD_HERO_RESTORE_HEALTH_FACTOR 0.25f
@@ -299,10 +297,8 @@ static bool G_GameCacheWriteUnit(FILE *f, gameCacheUnit_t const *unit) {
     return true;
 }
 
-static bool G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit, uint32_t version) {
+static bool G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit) {
     uint32_t suspend_xp;
-    uint32_t const ability_count = version == GAMECACHE_FILE_VERSION_LEGACY ?
-        GAMECACHE_LEGACY_HERO_ABILITIES : MAX_HERO_ABILITIES;
 
     memset(unit, 0, sizeof(*unit));
     if (!G_GameCacheReadU32(f, &unit->class_id) ||
@@ -316,7 +312,7 @@ static bool G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit, uint32_t version
         return false;
     }
     unit->hero.suspend_xp = suspend_xp != 0;
-    FOR_LOOP(i, ability_count) {
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
         if (!G_GameCacheReadU32(f, &unit->abilities[i].code) ||
             !G_GameCacheReadU32(f, &unit->abilities[i].level)) {
             return false;
@@ -360,7 +356,7 @@ static bool G_GameCacheWriteEntry(FILE *f, gameCacheEntry_t const *entry) {
     }
 }
 
-static bool G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry, uint32_t version) {
+static bool G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry) {
     uint8_t type;
     uint32_t value;
 
@@ -386,7 +382,7 @@ static bool G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry, uint32_t vers
     case GAMECACHE_STRING:
         return G_GameCacheReadString(f, entry->value.string, sizeof(entry->value.string));
     case GAMECACHE_UNIT:
-        return G_GameCacheReadUnit(f, &entry->value.unit, version);
+        return G_GameCacheReadUnit(f, &entry->value.unit);
     default:
         return false;
     }
@@ -411,8 +407,7 @@ static bool G_GameCacheLoadDisk(gameCache_t *cache) {
     }
     if (!G_GameCacheReadBytes(f, magic, sizeof(magic)) ||
         memcmp(magic, GAMECACHE_FILE_MAGIC, sizeof(magic)) ||
-        !G_GameCacheReadU32(f, &version) ||
-        (version != GAMECACHE_FILE_VERSION_LEGACY && version != GAMECACHE_FILE_VERSION) ||
+        !G_GameCacheReadU32(f, &version) || version != GAMECACHE_FILE_VERSION ||
         !G_GameCacheReadU32(f, &count) || count > MAX_GAMECACHE_ENTRIES) {
         fprintf(stderr, "Game cache '%s': invalid or unsupported file '%s'\n", cache->campaign, path);
         fclose(f);
@@ -421,7 +416,7 @@ static bool G_GameCacheLoadDisk(gameCache_t *cache) {
     cache->num_entries = 0;
     FOR_LOOP(i, count) {
         gameCacheEntry_t *entry = cache->entries + cache->num_entries;
-        if (!G_GameCacheReadEntry(f, entry, version)) {
+        if (!G_GameCacheReadEntry(f, entry)) {
             fprintf(stderr, "Game cache '%s': truncated/corrupt entry %u in '%s'\n",
                     cache->campaign, (unsigned)i, path);
             cache->num_entries = 0;

@@ -8189,8 +8189,17 @@ static char test_gamecache_scope[33] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 static cstring_t test_gamecache_scope_identity(void) { return test_gamecache_scope; }
 
 static int test_gamecache_read_resolutions, test_gamecache_write_resolutions;
+static int gamecache_fixture_read_count;
+static char gamecache_disk_fixture_path[1024];
 static cstring_t gamecache_disk_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "disk" : fallback;
+}
+static bool gamecache_fixture_read_path(cstring_t name, string_t out, uint32_t size) {
+    gamecache_fixture_read_count++;
+    if (!name || !strstr(name, "gamecache-")) return false;
+    if (!out || !size || strlen(gamecache_disk_fixture_path) >= size) return false;
+    strlcpy(out, gamecache_disk_fixture_path, size);
+    return true;
 }
 static bool gamecache_test_read_path(cstring_t name, string_t out, uint32_t size) {
     (void)name;
@@ -8227,6 +8236,42 @@ TEST(wc3_api, init_game_cache_never_uses_creating_cache_resolver) {
     gi.ScriptScopeIdentity = old_scope;
     gi.ScriptCacheReadPath = old_read;
     gi.ScriptCachePath = old_write;
+}
+
+TEST(wc3_api, gamecache_rejects_prior_hero_ability_layout) {
+    static uint8_t const version_one_cache[] = {
+        'O','R','G','C','A','C','H','E', 1,0,0,0, 1,0,0,0,
+        1, 7,0, 'm','i','s','s','i','o','n', 5,0, 'v','a','l','u','e', 42,0,0,0
+    };
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_scope)(void) = gi.ScriptScopeIdentity;
+    bool (*old_read)(cstring_t, string_t, uint32_t) = gi.ScriptCacheReadPath;
+    gameCache_t *cache = calloc(1, sizeof(*cache));
+    FILE *file;
+
+    T_NOT_NULL(cache);
+    if (!cache) return;
+    strlcpy(gamecache_disk_fixture_path, Test_TempPath("gamecache-v1.orcgc"),
+            sizeof(gamecache_disk_fixture_path));
+    file = fopen(gamecache_disk_fixture_path, "wb");
+    T_NOT_NULL(file);
+    if (!file) { free(cache); return; }
+    T_EQ(fwrite(version_one_cache, 1, sizeof(version_one_cache), file), sizeof(version_one_cache));
+    fclose(file);
+
+    gi.CvarString = gamecache_disk_cvar;
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    gi.ScriptCacheReadPath = gamecache_fixture_read_path;
+    gamecache_fixture_read_count = 0;
+    G_GameCacheInit(cache, "Fixture.w3v");
+    T_EQ(gamecache_fixture_read_count, 1);
+    T_EQ(cache->num_entries, 0);
+
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_scope;
+    gi.ScriptCacheReadPath = old_read;
+    remove(gamecache_disk_fixture_path);
+    free(cache);
 }
 
 TEST(wc3_api, gamecache_memory_never_crosses_engine_session_scope) {
