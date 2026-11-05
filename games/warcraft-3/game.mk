@@ -568,3 +568,7 @@ else
 test-sc2api-transport:
 	@echo "test-sc2api-transport requires SC2API=1" >&2; exit 1
 endif
+
+# Driver-level shadow filtering regression; requires a GL display (hidden window).
+.PHONY: test-renderer-shadow-pixels
+$(eval $(call test_schema,test-renderer-shadow-pixels,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_shadow_pixels$(EXE_EXT),tests/test_runner.c tests/test_renderer_shadow_pixels.c,-lrenderer -lshared -lm $(LIBS),))

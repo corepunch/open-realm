@@ -956,6 +956,7 @@ void R_Shutdown(void) {
     R_W3FreeSplatData();
     R_W3FreeUberSplatData();
     memset(event_state, 0, sizeof(event_state));
+    R_W3ShutdownShadowShader();
     R_WeatherShutdown();
     R_LightningShutdown();
     MDLX_Shutdown();
@@ -2468,11 +2469,25 @@ mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     return &wc3_model_basis;
 }
 
-bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
-    (void)entity;
+#ifndef USE_SHADOWMAPS
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin, rect_t const *footprint) {
+    texture_t const *texture = entity->shadow;
     (void)origin;
-    return false;
+    if (!texture || !tr.world) return true;
+    vec2_t uv0 = {-0.5f / texture->width, -0.5f / texture->height};
+    vec2_t uv1 = {1 - uv0.x, 1 - uv0.y};
+    /* Sample the original rectangle unchanged and add only the half-texel
+     * receiver outside it. The old 0..1 crop cut opaque tower-border texels. */
+    vec2_t mins = {footprint->x + footprint->w * uv0.x, footprint->y + footprint->h * uv0.y};
+    vec2_t maxs = {footprint->x + footprint->w * uv1.x, footprint->y + footprint->h * uv1.y};
+    box3_t bounds = { .min = {mins.x, mins.y, entity->origin.z - 32},
+        .max = {maxs.x, maxs.y, entity->origin.z + 32} };
+    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) && !Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) return true;
+    R_AddRectSplatUV(&(rectSplatParams_t){ .mins = &mins, .maxs = &maxs, .uv_mins = &uv0, .uv_maxs = &uv1,
+        .texture = texture, .shader = R_W3ShadowShader(texture), .color = {0,0,0,128} });
+    return true;
 }
+#endif
 
 float R_SelectionRadius(renderEntity_t const *entity) {
     return entity->radius;

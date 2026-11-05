@@ -393,7 +393,8 @@ bool R_GetEntityBoundsAndMatrix(renderEntity_t const *entity, box3_t *bounds, ma
     return true;
 }
 
-bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin, rect_t const *footprint) {
+    (void)footprint;
     (void)entity;
     (void)origin;
     return false;

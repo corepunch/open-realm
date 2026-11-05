@@ -45,3 +45,13 @@ TEST(orientation, named_angles_match_canonical_axes) {
     vec3_t forward = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 1, 0, 0));
     T_FEQ(forward.x, 0, 0.00001f); T_FEQ(forward.z, 1, 0.00001f);
 }
+
+TEST(bounds, include_point_expands_each_axis_without_shrinking) {
+    box3_t box = { .min = {1,-2,3}, .max = {4,5,6} };
+    Box3_IncludePoint(&box, &(vec3_t){-7,8,4});
+    T_FEQ(box.min.x, -7, 0.001f); T_FEQ(box.min.y, -2, 0.001f); T_FEQ(box.min.z, 3, 0.001f);
+    T_FEQ(box.max.x, 4, 0.001f); T_FEQ(box.max.y, 8, 0.001f); T_FEQ(box.max.z, 6, 0.001f);
+    Box3_IncludePoint(&box, &(vec3_t){9,0,-10});
+    T_FEQ(box.min.x, -7, 0.001f); T_FEQ(box.min.y, -2, 0.001f); T_FEQ(box.min.z, -10, 0.001f);
+    T_FEQ(box.max.x, 9, 0.001f); T_FEQ(box.max.y, 8, 0.001f); T_FEQ(box.max.z, 6, 0.001f);
+}

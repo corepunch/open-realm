@@ -1,4 +1,20 @@
 #include "r_war3map.h"
+#include "renderer/r_shader.h"
+
+typedef struct { spriteState_t base; vec2_t textureSize; } w3ShadowState_t;
+typedef struct { shaderProg_t prog; w3ShadowState_t state; } w3ShadowShader_t;
+static w3ShadowShader_t w3_shadow_shader;
+static shader_desc_t w3_shadow_desc;
+static char const w3_shadow_fragment[] =
+    "vec4 frag() {\n"
+    /* A virtual transparent texel, rather than CLAMP_TO_EDGE followed by a
+     * hard crop, preserves opaque edge pixels and lets them fade outside. */
+    "  vec2 edge = clamp(min(v_texcoord, vec2(1.0) - v_texcoord) * u_textureSize + vec2(0.5), 0.0, 1.0);\n"
+    "  float alpha = texture(u_texture, v_texcoord).a * v_color.a * edge.x * edge.y;\n"
+    "  vec4 col = vec4(0.0, 0.0, 0.0, alpha);\n"
+    BZ_SCENE_FOG_GLSL
+    "  return col;\n"
+    "}\n";
 
 #define MAX_MAP_LAYERS 16
 #define WATER(INDEX) \
@@ -23,6 +39,29 @@ static bool terrain_normal_cache_active, terrain_normal_cache_warned;
 #ifdef WC3_TERRAIN_NORMAL_TESTS
 static uint32_t terrain_normal_cache_hits, terrain_normal_cache_misses;
 #endif
+
+splat_shader_t *R_W3ShadowShader(texture_t const *texture) {
+    if (!w3_shadow_shader.prog.progid) {
+        uint32_t i = 0;
+        w3_shadow_desc = sd_shadow_splat;
+        w3_shadow_desc.Name = "wc3_shadow_splat";
+        w3_shadow_desc.FragmentBody = w3_shadow_fragment;
+        while (w3_shadow_desc.Uniforms[i].name) i++;
+        w3_shadow_desc.Uniforms[i] = (shaderUniform_t){ .name = "u_textureSize", .offset = offsetof(w3ShadowState_t, textureSize),
+            .type = UT_FLOAT_VEC2, .precision = PRECISION_HIGH };
+        R_LoadShader(&w3_shadow_desc, NULL, &w3_shadow_shader);
+    }
+    w3_shadow_shader.state.textureSize = (vec2_t){ texture->width, texture->height };
+    w3_shadow_shader.state.base.fogEnable = tr.viewDef.fogEnable && !(tr.viewDef.rdflags & RDF_NOWORLDMODEL);
+    w3_shadow_shader.state.base.fogColor = tr.viewDef.fogColor;
+    w3_shadow_shader.state.base.fogParams = (vec2_t){tr.viewDef.fogStart, tr.viewDef.fogEnd};
+    return R_SPLAT_SHADER(&w3_shadow_shader);
+}
+
+void R_W3ShutdownShadowShader(void) {
+    if (w3_shadow_shader.prog.progid) R_DeleteShader(&w3_shadow_shader.prog);
+    memset(&w3_shadow_shader, 0, sizeof(w3_shadow_shader));
+}
 
 static size_t R_TerrainNormalCacheSlot(size_t index, size_t capacity) {
     return (size_t)(((uint64_t)index * UINT64_C(11400714819323198485)) & (capacity - 1));
@@ -281,12 +320,41 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
+/* Clip real receiver triangles in XY while retaining their authored Z. The
+ * same operation serves base tiles and the cliff meshes replacing their cells. */
+static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const triangle[3],
+                               vec2_t const *clip_mins, vec2_t const *clip_maxs) {
+    struct splClip clips[] = {
+        { .axis = 0, .edge = clip_mins->x, .above = true },
+        { .axis = 0, .edge = clip_maxs->x, .above = false },
+        { .axis = 1, .edge = clip_mins->y, .above = true },
+        { .axis = 1, .edge = clip_maxs->y, .above = false },
+    };
+    vec3_t a[8], b[8], *poly = a, *scratch = b;
+    uint32_t n = 3;
+    memcpy(a, triangle, 3 * sizeof(*a));
+    FOR_LOOP(edge, 4) {
+        struct splClip clip = clips[edge];
+        clip.count = n;
+        n = R_ClipSplatPoly(poly, scratch, clip);
+        if (!n) return;
+        vec3_t *swap = poly; poly = scratch; scratch = swap;
+    }
+    for (uint32_t i = 1; i + 1 < n; i++) {
+        vec3_t points[] = { poly[0], poly[i], poly[i + 1] };
+        FOR_LOOP(j, 3) {
+            vec3_t const point = points[j];
+            *ground_current_vertex++ = (vertex_t){ .position = point, .normal = {0,0,1}, .color = params->color,
+                .texcoord = { LerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
+                    LerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
+        }
+    }
+}
+
 /* Emit one terrain tile with its already sampled corner positions. The
  * clipped path constructs UVs from the final vertices; a moving rectangle
  * can reuse neighbouring corners without altering clipping or draw order. */
 static void R_EmitSplatTile(splatTileParams_t const *params, vec3_t const p[4]) {
-    struct splClip clips[4];
-    uint32_t num_clips = 0;
     vec2_t const *mins = params->mins;
     vec2_t const *uv_mins = params->uv_mins;
     vec2_t const *uv_maxs = params->uv_maxs;
@@ -313,41 +381,9 @@ static void R_EmitSplatTile(splatTileParams_t const *params, vec3_t const p[4]) 
         return;
     }
 
-    /* Clip world-space triangles, as before, but do not build UVs for any
-     * original corner: clipped output reconstructs UVs from final XY. */
-    if (p[0].x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
-    if (p[1].x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
-    if (p[0].y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
-    if (p[2].y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
-    FOR_LOOP(tri, 2) {
-        vec3_t a[8], b[8];
-        vec3_t *poly = a, *scratch = b;
-        uint32_t n = 3;
-        if (tri == 0) { a[0] = p[0]; a[1] = p[1]; a[2] = p[2]; }
-        else { a[0] = p[0]; a[1] = p[2]; a[2] = p[3]; }
-        FOR_LOOP(edge, num_clips) {
-            struct splClip clip = clips[edge];
-            vec3_t *swap;
-            clip.count = n;
-            n = R_ClipSplatPoly(poly, scratch, clip);
-            if (!n) break;
-            swap = poly; poly = scratch; scratch = swap;
-        }
-        for (uint32_t i = 1; i + 1 < n; i++) {
-            vec3_t triangle[] = { poly[0], poly[i], poly[i + 1] };
-            FOR_LOOP(j, 3) {
-                vec3_t const point = triangle[j];
-                float const u = (point.x - mins->x) / width;
-                float const vcoord = 1.0f - (point.y - mins->y) / height;
-                vertex_t v = { .position = point, .normal = { 0, 0, 1 }, .color = params->color };
-                v.texcoord = (vec2_t){
-                    LerpNumber(uv_mins->x, uv_maxs->x, u),
-                    LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
-                };
-                *ground_current_vertex++ = v;
-            }
-        }
-    }
+    vec2_t maxs = { mins->x + width, mins->y + height };
+    vec3_t const triangles[][3] = { {p[0],p[1],p[2]}, {p[0],p[2],p[3]} };
+    FOR_LOOP(i, 2) R_EmitSplatTriangle(params, triangles[i], mins, &maxs);
 }
 
 static void R_MakeSplatTile(splatTileParams_t const *params) {
@@ -496,6 +532,41 @@ static void R_ReplaySplatGeometry(splatGeometryCacheEntry_t const *entry, rectSp
     }
 }
 
+/* A cliff-owned cell has no base quad. Project onto its actual replacement
+ * mesh; dropping the whole cell cut shadows through opaque source texels. */
+static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *limit) {
+    splatTileParams_t clip = { .mins = params->mins, .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+        .width = params->maxs->x - params->mins->x, .height = params->maxs->y - params->mins->y, .color = params->color };
+    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) FOR_EACH_LIST(maplayer_t, layer, segment->layers) {
+        if (IS_ARRAY_EMPTY(layer->splat_vertices) || layer->splat_bounds.max.x < params->mins->x ||
+            layer->splat_bounds.max.y < params->mins->y || layer->splat_bounds.min.x > params->maxs->x ||
+            layer->splat_bounds.min.y > params->maxs->y) continue;
+        for (uint32_t i = 0; i + 2 < ARRAY_COUNT(layer->splat_vertices); i += 3) {
+            vec3_t const *p = layer->splat_vertices + i;
+            vec2_t lo = { MAX(params->mins->x, MIN(p[0].x, MIN(p[1].x, p[2].x))),
+                MAX(params->mins->y, MIN(p[0].y, MIN(p[1].y, p[2].y))) };
+            vec2_t hi = { MIN(params->maxs->x, MAX(p[0].x, MAX(p[1].x, p[2].x))),
+                MIN(params->maxs->y, MAX(p[0].y, MAX(p[1].y, p[2].y))) };
+            if (lo.x > hi.x || lo.y > hi.y) continue;
+            int x0 = MAX(0, (int)floorf((lo.x - tr.world->center.x) / TILE_SIZE));
+            int y0 = MAX(0, (int)floorf((lo.y - tr.world->center.y) / TILE_SIZE));
+            int x1 = MIN(tr.world->width - 2, (int)floorf((hi.x - tr.world->center.x) / TILE_SIZE));
+            int y1 = MIN(tr.world->height - 2, (int)floorf((hi.y - tr.world->center.y) / TILE_SIZE));
+            for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+                if (R_TileAcceptsSplat(tr.world, x, y)) continue;
+                vec2_t cell = { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + y * TILE_SIZE };
+                vec2_t mins = { MAX(lo.x, cell.x), MAX(lo.y, cell.y) };
+                vec2_t maxs = { MIN(hi.x, cell.x + TILE_SIZE), MIN(hi.y, cell.y + TILE_SIZE) };
+                if (limit && limit - ground_current_vertex < SPLAT_TILE_MAX_VERTICES) return false;
+                if (!limit && ground_vertex_buffer + GROUND_VERTEX_BUFFER_CAPACITY - ground_current_vertex < SPLAT_TILE_MAX_VERTICES)
+                    R_FlushSplatBatch();
+                R_EmitSplatTriangle(&clip, p, &mins, &maxs);
+            }
+        }
+    }
+    return true;
+}
+
 /* Build the neutral mesh in a local vertex array without disturbing the
  * accumulated batch. Keep the original generator for large splats. */
 static bool R_BakeSplatGeometry(rectSplatParams_t const *params,
@@ -518,6 +589,12 @@ static bool R_BakeSplatGeometry(rectSplatParams_t const *params,
         R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world, .x = (uint32_t)x, .y = (uint32_t)y,
             .mins = params->mins, .uv_mins = &uv0, .uv_maxs = &uv1,
             .width = width, .height = height, .color = COLOR32_WHITE));
+    }
+    rectSplatParams_t receivers = *params;
+    receivers.uv_mins = &uv0; receivers.uv_maxs = &uv1; receivers.color = COLOR32_WHITE;
+    if (!R_GenerateCliffSplats(&receivers, scratch + SPLAT_CACHE_MAX_VERTICES)) {
+        ground_current_vertex = saved;
+        return false;
     }
     count = (uint32_t)(ground_current_vertex - scratch);
     ground_current_vertex = saved;
@@ -680,6 +757,7 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
         /* Single-tile splats cannot share corners; avoid setup overhead. */
         if (tiles > 1) {
             R_GenerateSplatTilesWithSharedCorners(params, x_start, y_start, x_end, y_end);
+            R_GenerateCliffSplats(params, NULL);
             return;
         }
     }
@@ -698,6 +776,7 @@ static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
                 .width = width, .height = height, .color = params->color));
         }
     }
+    R_GenerateCliffSplats(params, NULL);
 }
 
 void R_BeginSplatBatch(splat_shader_t *shader) {

@@ -503,6 +503,17 @@ void R_FinishCliffs(void) {
     R_CliffWeldNormals(&cliff_bake, 0.01f);
     while (cliff_layers) {
         cliffLayer_t *part = cliff_layers; cliff_layers = part->next;
+        maplayer_t *layer = part->layer;
+        layer->splat_vertices = ri.MemAlloc(layer->num_vertices * sizeof(*layer->splat_vertices));
+        if (layer->splat_vertices) {
+            ARRAY_COUNT(layer->splat_vertices) = layer->num_vertices;
+            layer->splat_bounds = (box3_t){ .min = {FLT_MAX,FLT_MAX,FLT_MAX}, .max = {-FLT_MAX,-FLT_MAX,-FLT_MAX} };
+            FOR_LOOP(i, layer->num_vertices) {
+                vec3_t p = cliff_bake.vertices[part->first + i].position;
+                layer->splat_vertices[i] = p;
+                Box3_IncludePoint(&layer->splat_bounds, &p);
+            }
+        } else fprintf(stderr, "WC3 renderer: unable to retain %u cliff receiver vertices\n", layer->num_vertices);
         part->layer->buffer = R_MakeVertexArrayObject(cliff_bake.vertices + part->first, part->layer->num_vertices);
         ri.MemFree(part);
     }

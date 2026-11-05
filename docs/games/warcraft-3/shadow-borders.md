@@ -1,58 +1,92 @@
-# Ground Shadow Borders: Issue 684 Investigation
+# Ground Shadow Cutoffs
 
-## Status and visual evidence
+## Result and visual evidence
 
-Investigation on 2026-11-05 against `6b4a2b4db21c62f971144e59963673c683b09dad`.
-[Issue 684](https://github.com/corepunch/open-realm/issues/684) was open with no comments at inspection.
-The follow-up on the same day reproduced the artifacts in the local Human08 and Human09 intros and measured the source/GPU alpha.
-This remains an investigation record, **not a verified fix or established retail border contract**.
+[Issue 684](https://github.com/corepunch/open-realm/issues/684) exposed two independent defects:
+entity shadows omitted cliff-owned terrain cells, and opaque texture-border texels were cropped without a transparent
+filtering border. Both are corrected by [PR 689](https://github.com/corepunch/open-realm/pull/689).
+Snow makes the cutoffs conspicuous; the correction does not depend on terrain colour or reduce overall shadow opacity.
 
-The issue's [retail capture](https://github.com/user-attachments/assets/e1e50b51-8f61-4727-b016-a134b6b6f7c4)
-shows soft transitions around the foreground bare trees and the tower above them.
-The [Open Realm capture](https://github.com/user-attachments/assets/322dbcf8-e4cc-48fc-b4aa-9fab1004e1c5)
-shows straight rectangular shadow boundaries below the foreground trees, behind the tower, and near the upper-right trees.
-These are different camera positions, resolutions, and simulation times; they cannot establish a quantitative opacity difference.
-Snow makes the boundary conspicuous, but is not evidence that snow requires different shadow opacity.
+The reported scene is **Human08, Chapter Eight: Dissension**. Its `war3map.wts` contains both `Ships Remaining:` and
+`Time Remaining`; Human09 is `Chapter Nine: Frostmourne`. The paired local captures below use Human08's camp camera
+at `(4373, 3695)`, after stopping the intro and allowing the black fade to finish. The baseline renderer is from
+`af888d804e2982539ba45698701831732bb0fb67`; the second capture includes the correction.
 
-## Source trace
+Before:
 
-| Path | Source and placement | Opacity and composition |
-| --- | --- | --- |
-| Authored terrain shadow | `w3m/r_war3map.c:R_FileReadShadowMap` reads `(width-1)*4` by `(height-1)*4` bytes from `war3map.shd`; `_W3M_DrawTerrainShadows` submits a whole-map rectangle | Black RGBA, alpha `sample/2`, white alpha 255 vertex multiplier |
-| Destructable shadow | `game/g_spawn.c` loads the row's `shadow` via `G_LoadShadowTexture`; sets `shadow_rect=0` | Entity path below |
-| Building shadow | `game/g_monster.c:M_SetBuildingShadow` loads `buildingShadowTexture`; sets `shadow_rect=0` | Entity path below |
-| Entity splat | `renderer/r_ents.c:R_DrawEntityShadow`; `R_RenderShadow` in WC3 returns false, so the generic decal path owns this draw | Black RGB; texture alpha multiplied by vertex alpha 128 |
+![Human08 before: tree and tower shadows have straight cutoffs](../../images/shadow-borders-human08-before.jpg)
 
-Paths without a leading directory above are relative to `games/warcraft-3/`.
-`G_LoadShadowTexture` resolves `ReplaceableTextures\\Shadows\\<name>.blp`; optional DDS fallback is enabled for units,
-but disabled for the destructable/building calls above. `client/cl_view.c` passes the registered texture and unpacked rectangle
-to the renderer. With no explicit rectangle, footprint width and height are texture dimensions times 32 world units;
-pivots are rounded `width*0.3` and `height*0.7`. Padding would therefore affect placement as well as filtering if added naively.
+After:
 
-Both paths use `sd_shadow_splat` in `renderer/r_shader.c`. `R_SetupSplatState` in
-`w3m/r_war3map_ground.c` selects `GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA`, disables depth writes,
-and enables polygon offset. The shader uses sampled alpha, not texture RGB or terrain lighting.
-Underlying terrain lighting still affects the final blended colour. Fog changes the shadow RGB contribution as described in
-[environmental fog](environmental-fog.md#ground-shadow-composition); it does not create a soft spatial border.
+![Human08 after: continuous tree shadows and filtered tower border](../../images/shadow-borders-human08-after.jpg)
 
-## What the padding hypothesis explains
+The foreground and upper-right tree cutoffs disappear, and the guard tower's outside edge fades into the snow.
+The two runs have the same camera and countdown, but unit animation, the resource tick, and the FPS counter can differ.
+These are local before/after captures, not a pixel-matched retail comparison.
+Earlier [entity-enabled](../../images/shadow-borders-human08-entities.jpg) and
+[entity-disabled](../../images/shadow-borders-human08-no-entities.jpg) intro captures isolate the entity pass.
 
-Confirmed from source:
+## Root causes
 
-- `R_LoadTextureBLP1Named` uploads every mip at its authored width and height. The decoder traverses all pixels;
-  there is no last-row/last-column trim. `R_LoadTextureMipLevel` passes those same dimensions to `glTexImage2D`.
-- `R_AddRectSplat` supplies UV bounds `(0,0)..(1,1)`. `R_EmitSplatTile` uses the complete rectangle and flips V;
-  it does not skip an existing empty row. Both the cached and uncached paths use this rectangle contract.
-- Splats select `GL_CLAMP_TO_EDGE`. Uploads select linear magnification and either linear or trilinear minification.
-- Geometry is clipped to the rectangle; the shadow fragment shader also applies a hard `crop_edges` step at UV 0/1.
-  No transparent padding is synthesized.
+### Missing cliff receivers
 
-Thus a nonzero alpha at a texture boundary remains nonzero up to the clipped geometry edge, and stops abruptly there.
-Linear filtering with `CLAMP_TO_EDGE` cannot interpolate into nonexistent transparent texels.
-Existing transparent rows would be retained and sampled. Which source edge appears at the bottom of the world rectangle
-must account for the V flip; do not assume image-bottom and world-bottom are the same edge.
+`R_GenerateSplatTiles` accepted only cells with base ground. `R_TileHasGround` correctly rejects cells whose terrain is
+replaced by a cliff/ramp mesh, but the splat generator never submitted those replacement triangles. A cliff mesh includes
+flat footing and upper terrain as well as vertical walls, so a shadow could stop on apparently flat snow a full cell
+before the visible wall.
 
-## Measured assets and runtime isolation
+Live GPU readback confirmed the tree mask still had its transparent outer rows. Replaying the submitted vertices on a
+white background reproduced the cutoff inside the texture: affected triangles stopped around U `0.5556` or V `0.4444`,
+not at the transparent texture edge. Disabling depth testing did not restore the missing coverage. This rules out a
+trimmed texture row, terrain lighting, and later draw passes as the cause of these tree cutoffs.
+
+`R_FinishCliffs` now retains final baked triangle positions and exact per-layer bounds. The splat generator clips those
+triangles in XY against the shadow rectangle and each cliff-owned cell, preserving authored Z and original UV mapping.
+It excludes ordinary ground cells to avoid applying alpha twice where a cliff mesh spills across their boundary.
+No interpolated base quad is substituted for a vertical wall or raised shelf.
+
+The CPU copy costs 12 bytes per cliff vertex, is freed with its map layer, and is rebuilt through the existing terrain
+rebuild lifecycle. Existing cache invalidation covers deformation and map changes. Bounds reject unrelated layers;
+stationary splats reuse the same bounded geometry cache as base-ground splats. A mesh that exceeds the cache budget
+falls back to streamed batches without dropping triangles. Allocation failure logs a warning and retains ordinary cliff
+rendering, while that layer cannot receive splats.
+
+### Opaque source borders
+
+`ShadowGuardTower.blp` has nonzero outer alpha. `GL_CLAMP_TO_EDGE` repeats those outer texels, and the old geometry plus
+shader `crop_edges` stopped abruptly at UV 0/1. Linear filtering alone cannot fade into nonexistent transparent texels.
+The measured tree masks already have transparent borders, so this second defect does not explain their missing cells.
+
+The WC3 entity-shadow shader now samples the unchanged source texture and multiplies alpha by a virtual transparent
+border:
+
+```glsl
+vec2 edge = clamp(min(uv, vec2(1.0) - uv) * textureSize + vec2(0.5), 0.0, 1.0);
+alpha *= edge.x * edge.y;
+```
+
+The producer expands geometry and UVs by half a source texel on all four sides. Original texel centres, source scale,
+pivot, and explicit unit rectangles stay fixed. Opaque edge texels fade outward; already transparent borders remain
+transparent. Interior texture alpha is still multiplied by vertex alpha 128, with the existing blend function.
+The source assets and their mip levels are not rewritten.
+
+## Ownership and composition
+
+`R_DrawEntityShadow` computes the authored source footprint once and passes it to the per-game `R_RenderShadow` hook.
+With no explicit rectangle, dimensions are texture dimensions times 32 world units, with rounded pivots `width*0.3`
+and `height*0.7`. WC3 owns the filtering expansion and shader. WoW and SC2 retain their existing shadow behavior.
+This is an internal renderer contract; no client export, network, or save format changes.
+
+`G_LoadShadowTexture` resolves `ReplaceableTextures\\Shadows\\<name>.blp`. Destructables use the SLK `shadow` row;
+buildings use `buildingShadowTexture`. The universal client transports the texture and rectangle unchanged.
+WC3's descriptor derives from `sd_shadow_splat`, adds source dimensions, and uses the shared `BZ_SCENE_FOG_GLSL`
+equation from `renderer/r_shader.h`. It is created lazily and released at renderer shutdown.
+
+`R_SetupSplatState` retains `GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA`, disables depth writes, and enables polygon offset.
+The separate `war3map.shd` terrain helper retains the shared shader and its sample/2 alpha. Both paths can now receive
+on cliff geometry. Fog-aware RGB composition remains as described in [environmental fog](environmental-fog.md#ground-shadow-composition).
+
+## Measured assets
 
 Local RoC data resolves `NTtw`, `WTtw`, and `WTst` through `Units/DestructableData.slk` to
 `BuildingShadowSmall`; `YTct`, `YTwt`, and `YTst` instead name `ShadowCityTree`. There is no
@@ -81,30 +115,34 @@ BuildingShadowSmall.blp 43fe15d3375d1f38ba04dee2e2300dd1b6ce7c097081d0da30344f82
 ShadowGuardTower.blp    120de0496e3c89211e600bdbe320c353d9e4fc05f5075982c6261787f552d87b
 ```
 
-Temporary desktop GL probes read back the complete 9 × 9 GPU images for those two textures, with the same alpha
-as the source planes. At setup, the actual sampler was unit 0 and the expected texture was bound. Draw-time probes
-confirmed blending enabled, `GL_FUNC_ADD`, `GL_SRC_ALPHA`, and `GL_ONE_MINUS_SRC_ALPHA`. A temporary grayscale
-shadow shader also displayed the sampled masks. All probes and shader changes were removed.
+GPU readbacks matched the source alpha and dimensions. Draw-time probes confirmed sampler unit 0, the expected texture,
+`GL_FUNC_ADD`, and normal alpha blending. Temporary probes and replay instrumentation were removed from production.
+The installed archive's executable edition was not established; these measurements do not claim an identical border
+contract for every retail edition.
 
-The issue's countdown labels identify **Human08, Chapter Eight: Dissension**, not Human09. The local
-`Maps/Campaign/Human08.w3m` contains both `Ships Remaining:` and `Time Remaining` in `war3map.wts`;
-Human09 identifies itself as `Chapter Nine: Frostmourne`. The original Human09 guess below has been corrected.
-Both maps' local intros reproduce visible cutoffs without a progressed save. A paused Human08 camera comparison
-with `r_unit_shadows` switched between captures removes the suspect shadows with the entity pass disabled:
+## Reproduction
 
-![Human08 with entity shadows](../../images/shadow-borders-human08-entities.jpg)
+Use the installed RoC data and generate a config with the exact frame waits:
 
-![Same paused Human08 camera without entity shadows](../../images/shadow-borders-human08-no-entities.jpg)
+```sh
+python3 - <<'PYCFG'
+from pathlib import Path
+lines = ['camera edge 0'] + ['wait'] * 80 + ['cinematic stop']
+lines += ['wait'] * 250 + ['camera move 4373 3695'] + ['wait'] * 20
+lines += ['pause 1'] + ['wait'] * 4 + ['screenshot']
+Path('build/share/warcraft-3/shadow-check.cfg').write_text('\n'.join(lines) + '\n')
+PYCFG
+```
 
-These captures isolate the entity contribution. MDX animation and the FPS counter still advance while simulation is paused,
-so do not treat every changed pixel as a shadow. They are not matched retail captures, daylight comparisons, or a fix.
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set sv_cheats 1 +set r_unit_shadows 1 +map Maps/Campaign/Human08.w3m +exec shadow-check.cfg +com_frame_limit 390
+```
 
-The measurements rule out a universally missing or trimmed transparent source row for the measured tree textures.
-The guard-tower edge alpha can explain a hard boundary for that texture; it does **not** establish the cause of every tree cutoff.
-The remaining questions are the affected fragment's UV/sample at the visible tree boundary, overlapping shadow composition,
-and retail's treatment of these low-resolution masks. Adding a generic border or reducing opacity is not yet justified.
+Camera coordinates must be integers. To isolate entity contribution, wait two frames after the first capture,
+set `r_unit_shadows 0`, capture again, and restore `r_unit_shadows 1`. Pausing before the intro fade finishes produces a
+black frame and is not a useful comparison. The issue attachment's exact progressed save was not available.
 
-## Repeating the measurements
+### Repeat source measurements
 
 Inspect the header and extract one small source asset with existing tools:
 
@@ -135,51 +173,34 @@ for level, offset in enumerate(header[7:23]):
 PYALPHA
 ```
 
-## Completing the reproduction
+## Regression coverage and verification
 
-1. Use Human08 for the reported scene. The attachment's exact save/camera/time were not supplied.
-   Record archive edition, map/save, camera, time, and resolved tree/building shadow paths.
-2. Capture identical frozen scene state with `r_unit_shadows 1` and `0`. This isolates entity splats, **not** the authored
-   terrain shadow helper. If needed, temporarily suppress `_W3M_DrawTerrainShadows` independently in a diagnostic build.
-   Do not infer source ownership solely from a shadow's proximity to a tree.
-3. Inspect decoded alpha on all four sides of every mip of the resolved textures, plus adjacent inner rows/columns.
-   Compare the decoded dimensions with BLP metadata and GPU uploads. Check archive overrides and missing-texture logs.
-4. Only if boundary alpha explains the cutoff, compare an experimental transparent-border/expanded-footprint implementation
-   with retail, preserving texel-to-world scale and pivot. Inspect both outer coverage and overlapping shadow opacity.
-5. Capture snow and ordinary grass/dirt with identical lighting and fog, including fog disabled, partial fog, overlapping
-   shadows, unit explicit rectangles, and existing transparent-border textures. Preserve interior alpha and normal footprints.
+The missing-receiver regression failed nine assertions before the geometry fix. It now verifies continuous UVs through
+base ground, an overlapping cliff footing, a vertical wall, and a raised shelf, including cold/baked/cached submissions.
+Summed projected area detects duplicate alpha coverage in ordinary cells. A 7,776-vertex receiver separately checks
+cache overflow and streamed batch flushing. Allocation-failure and map-layer cleanup paths are covered.
 
-Use bounded engine captures after restoring the scene; the issue attachments are references, not new runtime validation:
+The opt-in driver test failed 18 of 100 original pixel assertions before the filtering fix. Its expanded matrix now passes
+**562/562 assertions**, using production shaders and framebuffer readback on snow, grass, and dirt colours, fog on/off,
+one/two overlapping shadows, opaque/transparent source borders, and cold/cached geometry. It checks the soft edge,
+unchanged interior opacity, and untouched transparent border. It uses synthetic textures and requires an available GL
+display; it is deliberately separate from the default headless suite and reports failure if a context cannot be created.
 
 ```sh
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 1 +map Maps/Campaign/Human08.w3m +screenshot 90 +com_frame_limit 120
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 0 +map Maps/Campaign/Human08.w3m +screenshot 90 +com_frame_limit 120
+make BUILD=release test-renderer-shadow-pixels
 ```
 
-The commands capture the intro, not the attachment's progressed camp. For the paired camera captures above, an executed
-config waited 80 frames, sent `pause 1`, waited four more frames, captured with shadows enabled, then switched
-`r_unit_shadows` off and captured again two frames later. `com_frame_limit` was 110. `sv_cheats 1` was set before map load.
-A `cinematic stop` attempt followed by an early pause captured the authored black fade instead, so it is not a valid shortcut.
-Restore `r_unit_shadows 1` afterward.
+Additional tests preserve every authored BLP mip texel for BGRA/RGBA upload, non-square footprint/pivot and explicit
+rectangle mapping, shader dimension/fog refresh, shutdown/reinitialization, and cliff receiver bounds/lifetime.
 
-## Verification and limits
+Validation on macOS desktop OpenGL:
 
-The first investigation could not build because its environment lacked SDL2 headers or inspect assets because it lacked retail data.
-The local follow-up has both. `make BUILD=release -j4 build` built the WC3 binary and all three renderer libraries without compiler
-warnings. `make BUILD=release TEST_JOBS=4 test` passed, including RoC/TFT fixture suites. Restricted execution initially denied
-loopback sockets; rerunning with local socket access passed. The two renderer suites also passed independently.
+- `make BUILD=release -j4 build`: WC3 binary and all three game renderer libraries built without compiler warnings.
+- `make BUILD=release TEST_JOBS=4 test`: complete suite passed, including RoC/TFT fixtures.
+- `make BUILD=release -j4 test-renderer-model test-renderer-shadows`: both focused suites passed.
+- `make BUILD=release test-renderer-shadow-pixels`: framebuffer matrix passed.
+- `python3 tools/engine_boundary_audit.py --base origin/main`: clean.
+- Human08 camp before/after captures above verify the reported tree and guard-tower defects in the running game.
 
-Three new tests preserve the measured pipeline contracts without depending on installed archives:
-
-- `renderer_texture.blp1_preserves_shadow_borders_and_all_mip_texels`: synthetic 9 × 9 and non-square 16 × 8 BLP1 fixtures;
-  zero and nonzero outer pixels; every texel of four mips; native BGRA and converted RGBA uploads. Captures the production
-  decoder's `glTexImage2D` handoff, including dimensions and levels.
-- `renderer_terrain.shadow_rect_submission_keeps_full_uv_border_on_cache_hit`: submits through `R_BeginSplatBatch` /
-  `R_AddRectSplat` / `R_EndSplatBatch`; verifies the V flip, all four UV boundaries, alpha 128, and cold/baked/cached geometry.
-- `renderer_game.shadow_footprint_keeps_source_texel_scale_pivot_and_explicit_rect`: drives `R_DrawEntityShadow` and checks
-  non-square 32-unit texel placement, rounded pivots, and the independent explicit unit rectangle.
-
-These are passing contract tests, not a failing reproducer of the visible defect. They prevent a later proposed correction from
-silently trimming source data or changing placement. A rendering correction still needs a failing observable regression and
-snow/grass framebuffer comparisons, including fog on/off and overlapping shadows. No production rendering behavior, opacity,
-network wire format, or save format has changed.
+The correction addresses the demonstrated cutoffs. It does not claim bit-for-bit retail opacity or GPU coverage on
+platforms that were not run; the source and shader contracts remain covered by the existing portable renderer tests.

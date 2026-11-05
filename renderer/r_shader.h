@@ -4,6 +4,17 @@
 #include "renderer/r_local.h"
 #include "renderer/shader_desc.h"
 
+/* One depth/colour equation keeps terrain, models and alpha-composited shadows in the same fog. */
+#define BZ_SCENE_FOG_GLSL \
+    "  if (u_fogEnable) {\n" \
+    "    float fogRange = u_fogParams.y - u_fogParams.x;\n" \
+    "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n" \
+    "    float fogFactor = abs(fogRange) > 0.0001 ?\n" \
+    "      clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) :\n" \
+    "      (depth <= u_fogParams.x ? 1.0 : 0.0);\n" \
+    "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n" \
+    "  }\n"
+
 /* Built-in renderer programs (descriptors live in r_shader.c). */
 extern const shader_desc_t sd_unlit;        /* UI / unlit sprite */
 extern const shader_desc_t sd_minimap;      /* circular alpha mask */

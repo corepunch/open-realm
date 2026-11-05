@@ -384,7 +384,8 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 }
 
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin, rect_t const *footprint) {
+    (void)footprint;
     texture_t const *shadow;
     bool use_fast_blob;
     float shadow_z;

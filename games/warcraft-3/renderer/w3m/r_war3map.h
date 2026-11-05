@@ -6,6 +6,10 @@
 #include "games/warcraft-3/common/terrain.h"
 #include "r_terrain_layers.h"
 
+extern mapsegment_t *g_mapSegments;
+splat_shader_t *R_W3ShadowShader(texture_t const *texture);
+void R_W3ShutdownShadowShader(void);
+
 #define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; no explicit W3E corner texture; resolved from neighbouring vertices
 
 static const uint8_t r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configuration: NW,NE,SE,SW. */

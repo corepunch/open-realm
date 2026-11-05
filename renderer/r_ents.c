@@ -337,30 +337,21 @@ static void R_DrawEntityShadow(renderEntity_t const *entity, vec2_t const *origi
     texture_t const *shadow = entity->shadow;
     box3_t bounds;
 
-    if (R_RenderShadow(entity, origin)) {
-        return;
+    vec2_t mins = {0}, maxs = {0};
+    if (!shad || (entity->flags & RF_NO_SHADOW)) return;
+    if (shadow) {
+        if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
+            mins = (vec2_t){origin->x - entity->shadow_rect.x, origin->y - entity->shadow_rect.y};
+            maxs = (vec2_t){mins.x + entity->shadow_rect.w, mins.y + entity->shadow_rect.h};
+        } else {
+            int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
+            int pivot_y = (int)(shadow->height * 0.7f + 0.5f);
+            mins = (vec2_t){origin->x - pivot_x * 32.0f, origin->y - (shadow->height - pivot_y) * 32.0f};
+            maxs = (vec2_t){mins.x + shadow->width * 32.0f, mins.y + shadow->height * 32.0f};
+        }
     }
-    if (!shad || !shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
-        return;
-    }
-
-    vec2_t mins;
-    vec2_t maxs;
-    if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
-        mins.x = origin->x - entity->shadow_rect.x;
-        mins.y = origin->y - entity->shadow_rect.y;
-        maxs.x = mins.x + entity->shadow_rect.w;
-        maxs.y = mins.y + entity->shadow_rect.h;
-    } else {
-        int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
-        int pivot_y = (int)(shadow->height * 0.7f + 0.5f);
-        float width = shadow->width * 32.0f;
-        float height = shadow->height * 32.0f;
-        mins.x = origin->x - pivot_x * 32.0f;
-        mins.y = origin->y - (shadow->height - pivot_y) * 32.0f;
-        maxs.x = mins.x + width;
-        maxs.y = mins.y + height;
-    }
+    if (R_RenderShadow(entity, origin, &(rect_t){mins.x, mins.y, maxs.x-mins.x, maxs.y-mins.y})) return;
+    if (!shadow || !tr.world) return;
 
     color32_t shadowColor = {0, 0, 0, 128};
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
