@@ -10,17 +10,6 @@
  * offsets address values; R_ApplyShader submits them at the draw boundary.
  * ----------------------------------------------------------------------- */
 
-/* One depth/colour equation keeps terrain, models and alpha-composited shadows in the same fog. */
-#define BZ_SCENE_FOG_GLSL \
-    "  if (u_fogEnable) {\n" \
-    "    float fogRange = u_fogParams.y - u_fogParams.x;\n" \
-    "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n" \
-    "    float fogFactor = abs(fogRange) > 0.0001 ?\n" \
-    "      clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) :\n" \
-    "      (depth <= u_fogParams.x ? 1.0 : 0.0);\n" \
-    "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n" \
-    "  }\n"
-
 /* --- unlit / ui: texture * vertex-color, no lighting ------------------- */
 #define SHADER_TYPE spriteState_t
 const shader_desc_t sd_unlit = {

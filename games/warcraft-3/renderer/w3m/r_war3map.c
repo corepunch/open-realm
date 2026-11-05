@@ -300,6 +300,7 @@ static void R_FreeMapLayers(maplayer_t * *layers) {
         maplayer_t *layer = *layers;
         *layers = layer->next;
         if (layer->buffer) R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+        if (layer->splat_vertices) ri.MemFree(layer->splat_vertices);
         ri.MemFree(layer);
     }
 }

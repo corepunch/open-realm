@@ -88,12 +88,13 @@ branch, so `Unshaded` no longer accidentally means `Unfogged`.
 
 ## Ground Shadow Composition
 
-For the separate snowy-terrain rectangular-edge investigation and texture padding hypothesis, see
-[ground shadow borders](shadow-borders.md). Fog-aware composition does not establish that issue's cause.
+For missing cliff receivers and opaque texture-border cutoffs, see [ground shadow borders](shadow-borders.md).
+Those spatial corrections preserve the fog composition below.
 
 `R_RenderFrame` copies the current view's fog enable, colour, and range into `shader_shadowSplat`; no-world views disable it.
-Both entity shadows and the terrain-shadow helper use `sd_shadow_splat`. Terrain, models, and shadow splats share
-`BZ_SCENE_FOG_GLSL`, including the existing fragment-depth expression and zero-length-range guard.
+The terrain-shadow helper uses `sd_shadow_splat`; WC3 entity shadows use a derived descriptor with a transparent
+filtering border and refresh fog from the same view. Terrain, models, and both shadow shaders share
+`BZ_SCENE_FOG_GLSL` from `renderer/r_shader.h`, including the existing fragment-depth expression and zero-length-range guard.
 
 The shadow shader blends its black RGB toward the fog colour while retaining the authored texture/vertex alpha. With clarity
 `c`, shadow opacity `a`, terrain colour `T`, and fog colour `F`, the result is `c * (1-a) * T + (1-c) * F`: the shadow darkens

@@ -77,7 +77,9 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 /* Mandatory for every game, including identity conversions. Returns native-model -> actor basis. */
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin);
+/* Authored source footprint before filtering margins; zero when no texture is supplied.
+ * Return true when the game renderer handled the shadow, including custom fallbacks. */
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin, rect_t const *footprint);
 #endif
 /* Selection-circle radius for the shared entity path; per-game tuning (e.g. WoW's fractional-creature clamp). */
 float R_SelectionRadius(renderEntity_t const *entity);

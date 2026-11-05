@@ -32,7 +32,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Vendored Lua 5.4 and the libxml2-free XML parser (`common/tinyxml.h`) | [docs/vendored-dependencies.md](docs/vendored-dependencies.md) |
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | Test-suite performance measurement and parallel execution | [docs/test-performance.md](docs/test-performance.md) |
-| WC3 ground shadow borders, measured alpha, runtime isolation and pipeline tests | [docs/games/warcraft-3/shadow-borders.md](docs/games/warcraft-3/shadow-borders.md) |
+| WC3 ground-shadow cutoffs, cliff receivers, transparent borders and framebuffer tests | [docs/games/warcraft-3/shadow-borders.md](docs/games/warcraft-3/shadow-borders.md) |
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
 | WoW grass: active paths, wind-sway math, phase decorrelation, density formula, constants | [docs/games/world-of-warcraft/GRASS_TECH.md](docs/games/world-of-warcraft/GRASS_TECH.md) |
 | WoW magic schools, damage types, buffs/debuffs, CC, status effects | [docs/games/world-of-warcraft/magic-and-effects.md](docs/games/world-of-warcraft/magic-and-effects.md) |

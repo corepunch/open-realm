@@ -3880,6 +3880,121 @@ TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
     tr.world = saved_world;
 }
 
+TEST(renderer_shader, wc3_shadow_dimensions_fog_and_shutdown_follow_renderer_lifetime) {
+    viewDef_t saved_view = tr.viewDef;
+    texture_t texture = { .width = 9, .height = 5 };
+    reset_shader();
+    tr.viewDef.fogEnable = true; tr.viewDef.rdflags = 0;
+    tr.viewDef.fogColor = (vec3_t){0.2f,0.3f,0.4f};
+    tr.viewDef.fogStart = 100; tr.viewDef.fogEnd = 800;
+    splat_shader_t *shader = R_W3ShadowShader(&texture);
+    GLuint program = w3_shadow_shader.prog.progid;
+    T_ASSERT(program != 0); T_ASSERT(shader == R_SPLAT_SHADER(&w3_shadow_shader));
+    T_EQ(w3_shadow_shader.state.textureSize.x, 9); T_EQ(w3_shadow_shader.state.textureSize.y, 5);
+    T_ASSERT(w3_shadow_shader.state.base.fogEnable); T_EQ(w3_shadow_shader.state.base.fogParams.x, 100); T_EQ(w3_shadow_shader.state.base.fogParams.y, 800);
+    T_FEQ(w3_shadow_shader.state.base.fogColor.z, 0.4f, 0.0001f);
+    texture.width = 64; texture.height = 32; tr.viewDef.rdflags = RDF_NOWORLDMODEL;
+    T_ASSERT(R_W3ShadowShader(&texture) == shader); T_EQ(w3_shadow_shader.prog.progid, program);
+    T_EQ(w3_shadow_shader.state.textureSize.x, 64); T_EQ(w3_shadow_shader.state.textureSize.y, 32);
+    T_ASSERT(!w3_shadow_shader.state.base.fogEnable);
+    int deleted = deleted_programs;
+    R_W3ShutdownShadowShader(); T_EQ(deleted_programs, deleted + 1); T_EQ(w3_shadow_shader.prog.progid, 0);
+    R_W3ShutdownShadowShader(); T_EQ(deleted_programs, deleted + 1);
+    R_W3ShadowShader(&texture); T_ASSERT(w3_shadow_shader.prog.progid != 0);
+    R_W3ShutdownShadowShader(); T_EQ(deleted_programs, deleted + 2);
+    tr.viewDef = saved_view;
+}
+
+TEST(renderer_terrain, shadow_crosses_ground_cliff_boundary_on_actual_receiver_mesh) {
+    war3mapVertex_t corners[6] = {0};
+    war3map_t map = { .width = 3, .height = 2, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    mapsegment_t *old_segments = g_mapSegments;
+    vec3_t receivers[] = {
+        {64,0,0}, {192,0,0}, {192,128,0}, {64,0,0}, {192,128,0}, {64,128,0},
+        {192,0,128}, {256,0,128}, {256,128,128}, {192,0,128}, {256,128,128}, {192,128,128},
+        {192,0,0}, {192,128,0}, {192,128,128}, {192,0,0}, {192,128,128}, {192,0,128},
+    };
+    maplayer_t layer = { .type = MAPLAYERTYPE_CLIFF, .splat_vertices = receivers,
+        .splat_bounds = { .min = {64,0,0}, .max = {256,128,128} } };
+    ARRAY_COUNT(layer.splat_vertices) = sizeof(receivers) / sizeof(*receivers);
+    mapsegment_t segment = { .layers = &layer };
+    buffer_t temp = { .vao = 11, .vbo = 12 }, *old_buffer = tr.buffer[RBUF_TEMP1];
+    splat_shader_t shader = {0}; texture_t texture = { .width = 9, .height = 9 };
+    vec2_t mins = {64,16}, maxs = {240,112};
+    FOR_LOOP(i, 6) corners[i] = (war3mapVertex_t){ .accurate_height = 8192, .level = i % 3 == 2 ? 3 : 2 };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map; g_mapSegments = &segment; tr.buffer[RBUF_TEMP1] = &temp;
+    T_ASSERT(R_TileAcceptsSplat(&map, 0, 0)); T_ASSERT(!R_TileAcceptsSplat(&map, 1, 0));
+    R_InvalidateSplatGeometryCache();
+    FOR_LOOP(pass, 3) {
+        float right = 0, area = 0; bool high = false, wall = false;
+        memset(&splat_submit, 0, sizeof(splat_submit));
+        R_BeginSplatBatch(&shader);
+        R_AddRectSplat(&mins, &maxs, &texture, (color32_t){0,0,0,128});
+        R_EndSplatBatch();
+        T_EQ(splat_submit.draws, 1);
+        T_ASSERT(splat_submit.results[0].count <= SPLAT_TEST_VERTEX_CAPTURE);
+        FOR_LOOP(i, splat_submit.results[0].count) {
+            vertex_t const *v = splat_submit.results[0].vertices + i;
+            right = MAX(right, v->position.x);
+            high |= v->position.x > 192 && v->position.z == 128;
+            wall |= v->position.x == 192 && v->position.z > 0 && v->position.z < 128;
+            T_FEQ(v->texcoord.x, (v->position.x - mins.x) / (maxs.x - mins.x), 0.0001f);
+            T_FEQ(v->texcoord.y, 1 - (v->position.y - mins.y) / (maxs.y - mins.y), 0.0001f);
+            T_EQ(v->color.a, 128);
+            if (v->position.x < 192) T_FEQ(v->position.z, 0, 0.0001f);
+            if (v->position.x > 192) T_FEQ(v->position.z, 128, 0.0001f);
+        }
+        for (uint32_t i = 0; i + 2 < splat_submit.results[0].count; i += 3) {
+            vertex_t const *v = splat_submit.results[0].vertices + i;
+            area += fabsf((v[1].position.x-v[0].position.x)*(v[2].position.y-v[0].position.y) -
+                (v[1].position.y-v[0].position.y)*(v[2].position.x-v[0].position.x)) * 0.5f;
+        }
+        /* The cliff mesh spills into an ordinary cell; never shadow it twice. */
+        T_FEQ(area, (maxs.x-mins.x)*(maxs.y-mins.y), 0.01f);
+        T_FEQ(right, maxs.x, 0.0001f); T_ASSERT(high); T_ASSERT(wall);
+    }
+    R_InvalidateSplatGeometryCache(); ground_current_vertex = NULL;
+    tr.world = old_world; g_mapSegments = old_segments; tr.buffer[RBUF_TEMP1] = old_buffer;
+}
+
+TEST(renderer_terrain, cliff_receiver_overflow_keeps_uncached_triangles_and_flushes_batches) {
+    enum { span = 36, count = span * span * 6 };
+    vec3_t receivers[count];
+    war3mapVertex_t corners[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    mapsegment_t *old_segments = g_mapSegments;
+    maplayer_t layer = { .type = MAPLAYERTYPE_CLIFF, .splat_vertices = receivers,
+        .splat_bounds = { .min = {0,0,17}, .max = {128,128,17} } };
+    ARRAY_COUNT(layer.splat_vertices) = count;
+    mapsegment_t segment = { .layers = &layer };
+    buffer_t temp = { .vao = 11, .vbo = 12 }, *old_buffer = tr.buffer[RBUF_TEMP1];
+    splat_shader_t shader = {0}; texture_t texture = { .width = 9, .height = 9 };
+    vec2_t mins = {0,0}, maxs = {128,128}, uv0 = {0,0}, uv1 = {1,1};
+    FOR_LOOP(i, 4) corners[i] = (war3mapVertex_t){ .accurate_height = 8192, .level = i & 1 ? 3 : 2 };
+    FOR_LOOP(y, span) FOR_LOOP(x, span) {
+        float a = 128.0f*x/span, b = 128.0f*(x+1)/span, c = 128.0f*y/span, d = 128.0f*(y+1)/span;
+        vec3_t quad[] = {{a,c,17},{b,c,17},{b,d,17},{a,c,17},{b,d,17},{a,d,17}};
+        memcpy(receivers + (x+y*span)*6, quad, sizeof(quad));
+    }
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.world = &map; g_mapSegments = &segment; tr.buffer[RBUF_TEMP1] = &temp;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+    FOR_LOOP(pass, 3) {
+        memset(&splat_submit, 0, sizeof(splat_submit));
+        R_BeginSplatBatch(&shader); R_AddRectSplat(&mins, &maxs, &texture, COLOR32_WHITE); R_EndSplatBatch();
+        T_EQ(splat_submit.draws, 2);
+        T_EQ(splat_submit.results[0].count + splat_submit.results[1].count, count);
+    }
+    rectSplatParams_t rect = { .mins = &mins, .maxs = &maxs, .uv_mins = &uv0, .uv_maxs = &uv1 };
+    T_ASSERT(R_SplatCacheLookup(&rect)->unavailable); T_EQ(splat_cache_bakes, 0); T_EQ(splat_cache_hits, 0);
+    R_InvalidateSplatGeometryCache(); ground_current_vertex = NULL;
+    tr.world = old_world; g_mapSegments = old_segments; tr.buffer[RBUF_TEMP1] = old_buffer;
+}
+
 TEST(renderer_terrain, shadow_rect_submission_keeps_full_uv_border_on_cache_hit) {
     war3mapVertex_t corners[15] = {0};
     war3map_t map = { .width = 5, .height = 3, .vertices = corners };
@@ -4932,7 +5047,15 @@ TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_u
     T_NOT_NULL(layer);
     R_FinishCliffs();
     T_EQ(cliff_buffer_upload_count, 1);
-    test_free((buffer_t *)layer->buffer); test_free(layer);
+    T_NOT_NULL(layer->splat_vertices); T_EQ(ARRAY_COUNT(layer->splat_vertices), layer->num_vertices);
+    FOR_EACH_ARRAY(vec3_t, p, layer->splat_vertices) {
+        T_ASSERT(p->x >= layer->splat_bounds.min.x && p->x <= layer->splat_bounds.max.x);
+        T_ASSERT(p->y >= layer->splat_bounds.min.y && p->y <= layer->splat_bounds.max.y);
+        T_ASSERT(p->z >= layer->splat_bounds.min.z && p->z <= layer->splat_bounds.max.z);
+    }
+    uint32_t frees = free_count;
+    R_FreeMapLayers(&layer);
+    T_NULL(layer); T_EQ(free_count - frees, 3);
 
     /* Warm model/sample/texture caches above. The next four allocations are layer, bake
      * vertices, bake groups, then pending-layer node; fail only the last one. */
@@ -4946,8 +5069,14 @@ TEST(renderer_terrain, cliff_segment_allocation_failures_recover_without_stale_u
     T_NOT_NULL(layer);
     R_FinishCliffs();
     T_EQ(cliff_buffer_upload_count, 2);
-    test_free((buffer_t *)layer->buffer); test_free(layer);
+    R_FreeMapLayers(&layer);
 
+    layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+    T_NOT_NULL(layer);
+    test_alloc_fail_after = 2; /* Weld keys and normals succeed; retained receiver allocation fails. */
+    R_FinishCliffs();
+    T_NULL(layer->splat_vertices); T_EQ(ARRAY_COUNT(layer->splat_vertices), 0);
+    T_NOT_NULL(layer->buffer); R_FreeMapLayers(&layer);
     ri.FS_ReadFile = read_file; texture_load_result = saved_texture;
     cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
 }
@@ -5124,7 +5253,7 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
         T_STREQ(last_texture_load, slot ? "ReplaceableTextures\\Cliff\\Cliff0.blp" : "ReplaceableTextures\\Cliff\\Cliff1.blp");
         FOR_LOOP(y, span) FOR_LOOP(x, span)
             T_EQ(verts[x+y*span].ground, y == 1 || y == 2 ? (slot ? 0 : 3) : 4);
-        R_FinishCliffs(); test_free((buffer_t *)layer->buffer); test_free(layer);
+        R_FinishCliffs(); R_FreeMapLayers(&layer);
         R_ResetCliffCache();
     }
     ri.FS_ReadFile = read_file; texture_load_result = saved; cliff_model = NULL; tr.world = NULL;
@@ -5158,7 +5287,7 @@ TEST(renderer_terrain, abyss_cliff_paints_low_corners_with_ground_and_high_corne
         T_NOT_NULL(layer);
         FOR_LOOP(y, span) FOR_LOOP(x, span)
             T_EQ(verts[x+y*span].ground, y == 1 ? 7 : y == 2 ? (pass ? 0 : 2) : 0);
-        R_FinishCliffs(); test_free((buffer_t *)layer->buffer); test_free(layer);
+        R_FinishCliffs(); R_FreeMapLayers(&layer);
         R_ResetCliffCache();
     }
     ri.FS_ReadFile = read_file; texture_load_result = saved; cliff_model = NULL; tr.world = NULL;

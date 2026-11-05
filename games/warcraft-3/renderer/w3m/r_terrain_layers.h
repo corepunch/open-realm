@@ -28,6 +28,8 @@ struct MapLayer {
     maplayer_t *next;
     uint32_t num_vertices;
     uint32_t num_indices;
+    ARRAY(vec3_t, splat_vertices);
+    box3_t splat_bounds;
 };
 
 struct MapSegment {
