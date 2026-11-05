@@ -17,6 +17,29 @@ comparing compatibility modes against the same prepared fixtures.
 
 ## Benchmark
 
+The `renderer_perf.synthetic_mdx_pose_binding_workload` benchmark builds a
+retail-independent 48-node hierarchy with 96 animated tracks and 64 keys per
+track. It measures 9,216 binds per sample across repeated view batches in three
+modes: same-frame poses, interpolated poses advancing within one key interval,
+and single-frame poses advancing across key intervals. It reports track
+samples, binary-search calls, bounded forward advances, key-span hits, and
+bracket hits alongside elapsed time. Run it with:
+
+```sh
+make build/bin/test_renderer_model
+build/bin/test_renderer_model 'renderer_perf.synthetic_mdx_pose_binding_workload'
+```
+
+Use this focused workload to compare MDX pose/keyframe changes on the same
+machine and build. It isolates pose binding and does not model geoset rendering,
+GPU work, or campaign FPS.
+
+After removing runtime timing instrumentation, a focused local advancing-key
+sample took 39.50 ms per 9,216-bind batch, with 13,824 binary searches and
+649,728 bounded forward advances. There is no comparable pre-optimization
+timing from this clean, uninstrumented run; use subsequent focused runs as the
+timing baseline.
+
 ### Synthetic FOW cache workload
 
 `wc3_perf.synthetic_fow_repeated_spatial_workload` generates a deterministic
