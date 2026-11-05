@@ -399,6 +399,7 @@ static GLenum upload_format, upload_internal;
 static color32_t upload_pixel;
 static uint32_t upload_count;
 static void const *upload_data;
+static struct { GLsizei width, height; GLint level; color32_t pixels[128]; } upload_mips[16];
 static cstring_t test_version = "3.1", test_extension = "";
 static uint32_t alloc_count, free_count, ext_count;
 static int test_alloc_fail_after = -1;
@@ -416,7 +417,12 @@ static SDL_bool test_hasext(char const *name) { ext_count++; return !strcmp(name
 
 /* Capture the actual GL upload contract without requiring a display or a particular GL backend. */
 static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w, GLsizei h, GLint border, GLenum format, GLenum type, void const *data) {
-    (void)target; (void)level; (void)w; (void)h; (void)border;
+    (void)target; (void)border;
+    if (upload_count < 16 && data && w * h <= 128) {
+        upload_mips[upload_count].width = w; upload_mips[upload_count].height = h;
+        upload_mips[upload_count].level = level;
+        memcpy(upload_mips[upload_count].pixels, data, w * h * sizeof(color32_t));
+    }
     T_EQ(type, GL_UNSIGNED_BYTE);
     upload_format = format; upload_internal = internal; upload_data = data; upload_count++;
     if (data) upload_pixel = *(color32_t const *)data;
@@ -3308,6 +3314,47 @@ TEST(renderer_texture, blp1_palette_upload_is_rgba) {
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
 }
 
+/* Issue 684: inspect the actual decoder-to-GL handoff, including every edge
+ * and mip. Transparent source borders and nonzero borders must both survive. */
+TEST(renderer_texture, blp1_preserves_shadow_borders_and_all_mip_texels) {
+    struct { struct tBLP1Header hdr; color32_t pal[256]; uint8_t data[340]; } file = {0};
+    static uint32_t const sizes[][2] = { {9, 9}, {16, 8} };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(shape, 2) FOR_LOOP(border, 2) FOR_LOOP(format, 2) {
+        uint32_t offset = 0, levels = shape ? 4 : 1;
+        memset(&file, 0, sizeof(file));
+        file.hdr = (struct tBLP1Header){ .magic = ID_BLP1, .type = 1, .alphaBits = 8,
+            .width = sizes[shape][0], .height = sizes[shape][1], .hasMipmaps = shape };
+        file.pal[0] = (color32_t){ 9, 37, 241, 0 };
+        FOR_LOOP(level, levels) {
+            uint32_t w = file.hdr.width >> level, h = file.hdr.height >> level, count = w * h;
+            file.hdr.offsets[level] = offsetof(__typeof__(file), data) + offset;
+            file.hdr.lengths[level] = count * 2;
+            FOR_LOOP(y, h) FOR_LOOP(x, w) {
+                bool edge = !x || !y || x == w - 1 || y == h - 1;
+                file.data[offset + count + y * w + x] = edge && !border ? 0 : 17 + (x + y * w + level * 13) % 239;
+            }
+            offset += count * 2;
+        }
+        upload_count = 0; r_bgra_internal = format ? GL_RGBA : 0;
+        texture_t *texture = R_LoadTextureBLP1Named(&file, sizeof(file),
+            "ReplaceableTextures\\Shadows\\BuildingShadowSmall.blp");
+        T_EQ(texture->width, file.hdr.width); T_EQ(texture->height, file.hdr.height);
+        T_EQ(upload_count, levels);
+        FOR_LOOP(level, levels) {
+            uint32_t w = file.hdr.width >> level, h = file.hdr.height >> level;
+            uint8_t const *alpha = (uint8_t const *)&file + file.hdr.offsets[level] + w * h;
+            T_EQ(upload_mips[level].width, w); T_EQ(upload_mips[level].height, h);
+            T_EQ(upload_mips[level].level, level);
+            FOR_LOOP(i, w * h) {
+                T_EQ(upload_mips[level].pixels[i].a, alpha[i]);
+                T_EQ(upload_mips[level].pixels[i].r, format ? 9 : 241);
+            }
+        }
+        test_free(texture);
+    }
+}
+
 TEST(renderer_texture, blp1_jpeg_zero_alpha_bits_preserves_authored_alpha_band) {
     /* A 1x1 four-band baseline JPEG whose blocks are all DC 0, so every band decodes to 128. */
     static uint8_t const jpeg[] = {
@@ -3831,6 +3878,41 @@ TEST(renderer_terrain, deformation_rebuild_rebakes_blight_layer) {
     R_FreeMapSegments();
     R_W3ClearTerrainDeformations();
     tr.world = saved_world;
+}
+
+TEST(renderer_terrain, shadow_rect_submission_keeps_full_uv_border_on_cache_hit) {
+    war3mapVertex_t corners[15] = {0};
+    war3map_t map = { .width = 5, .height = 3, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    buffer_t temp = { .vao = 11, .vbo = 12 }, *old_buffer = tr.buffer[RBUF_TEMP1];
+    splat_shader_t shader = {0};
+    texture_t texture = { .width = 9, .height = 5 };
+    vec2_t mins = { 10, 12 }, maxs = { 298, 172 };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, 15) corners[i].accurate_height = 8192;
+    tr.world = &map; tr.buffer[RBUF_TEMP1] = &temp;
+    R_InvalidateSplatGeometryCache();
+    splat_cache_hits = splat_cache_bakes = 0;
+    FOR_LOOP(pass, 3) {
+        uint32_t edges = 0;
+        memset(&splat_submit, 0, sizeof(splat_submit));
+        R_BeginSplatBatch(&shader);
+        R_AddRectSplat(&mins, &maxs, &texture, (color32_t){0, 0, 0, 128});
+        R_EndSplatBatch();
+        T_EQ(splat_submit.draws, 1);
+        FOR_LOOP(i, splat_submit.results[0].count) {
+            vertex_t const *v = splat_submit.results[0].vertices + i;
+            T_FEQ(v->texcoord.x, (v->position.x - mins.x) / (maxs.x - mins.x), 0.0001f);
+            T_FEQ(v->texcoord.y, 1 - (v->position.y - mins.y) / (maxs.y - mins.y), 0.0001f);
+            T_EQ(v->color.a, 128);
+            edges |= (v->texcoord.x == 0) | ((v->texcoord.x == 1) << 1) |
+                ((v->texcoord.y == 0) << 2) | ((v->texcoord.y == 1) << 3);
+        }
+        T_EQ(edges, 15);
+    }
+    T_EQ(splat_cache_bakes, 1); T_EQ(splat_cache_hits, 2);
+    R_InvalidateSplatGeometryCache(); ground_current_vertex = NULL;
+    tr.world = old_world; tr.buffer[RBUF_TEMP1] = old_buffer;
 }
 
 TEST(renderer_terrain, consecutive_splats_batch_without_changing_atlas_color_or_texture_order) {
