@@ -3959,6 +3959,36 @@ TEST(renderer_terrain, shadow_crosses_ground_cliff_boundary_on_actual_receiver_m
     tr.world = old_world; g_mapSegments = old_segments; tr.buffer[RBUF_TEMP1] = old_buffer;
 }
 
+TEST(renderer_terrain, contained_cliff_triangle_emits_original_vertices_and_uvs) {
+    vec3_t receivers[] = {{80,24,7}, {176,32,19}, {120,104,31}};
+    maplayer_t layer = { .type = MAPLAYERTYPE_CLIFF, .splat_vertices = receivers };
+    ARRAY_COUNT(layer.splat_vertices) = 3;
+    mapsegment_t segment = { .layers = &layer };
+    war3mapVertex_t corners[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = corners };
+    war3map_t const *old_world = tr.world;
+    mapsegment_t *old_segments = g_mapSegments;
+    vec2_t const mins = {64,16}, maxs = {192,112}, uv0 = {0.125f,0.25f}, uv1 = {0.75f,0.875f};
+    color32_t const tint = {31,63,95,127};
+    splatTileParams_t const params = { .mins = &mins, .uv_mins = &uv0, .uv_maxs = &uv1,
+        .width = maxs.x - mins.x, .height = maxs.y - mins.y, .color = tint };
+    tr.world = &map; g_mapSegments = &segment;
+    ground_current_vertex = ground_vertex_buffer;
+    R_EmitSplatTriangle(&params, receivers, &mins, &maxs);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 3);
+    FOR_LOOP(i, 3) {
+        vertex_t const *v = &ground_vertex_buffer[i];
+        T_FEQ(v->position.x, receivers[i].x, 0.0f);
+        T_FEQ(v->position.y, receivers[i].y, 0.0f);
+        T_FEQ(v->position.z, receivers[i].z, 0.0f);
+        T_FEQ(v->texcoord.x, LerpNumber(uv0.x, uv1.x, (receivers[i].x-mins.x)/params.width), 0.0f);
+        T_FEQ(v->texcoord.y, LerpNumber(uv0.y, uv1.y, 1-(receivers[i].y-mins.y)/params.height), 0.0f);
+        T_EQ(v->color.r, tint.r); T_EQ(v->color.g, tint.g); T_EQ(v->color.b, tint.b); T_EQ(v->color.a, tint.a);
+        T_FEQ(v->normal.x, 0, 0.0f); T_FEQ(v->normal.y, 0, 0.0f); T_FEQ(v->normal.z, 1, 0.0f);
+    }
+    ground_current_vertex = NULL; tr.world = old_world; g_mapSegments = old_segments;
+}
+
 TEST(renderer_terrain, cliff_receiver_overflow_keeps_uncached_triangles_and_flushes_batches) {
     enum { span = 36, count = span * span * 6 };
     vec3_t receivers[count];
