@@ -338,6 +338,17 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
+enum {
+    SPLAT_CLIP_MIN_X = 1u << 0,
+    SPLAT_CLIP_MAX_X = 1u << 1,
+    SPLAT_CLIP_MIN_Y = 1u << 2,
+    SPLAT_CLIP_MAX_Y = 1u << 3,
+    SPLAT_CLIP_ALL = SPLAT_CLIP_MIN_X | SPLAT_CLIP_MAX_X | SPLAT_CLIP_MIN_Y | SPLAT_CLIP_MAX_Y,
+};
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+static bool test_splat_force_all_clip_edges;
+#endif
+
 /* Match LerpNumber's arithmetic while keeping the hot per-vertex UV mapping
  * local to this translation unit instead of calling through libshared. */
 static inline float R_SplatLerpNumber(float a, float b, float t) {
@@ -347,7 +358,8 @@ static inline float R_SplatLerpNumber(float a, float b, float t) {
 /* Clip real receiver triangles in XY while retaining their authored Z. The
  * same operation serves base tiles and the cliff meshes replacing their cells. */
 static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const triangle[3],
-                               vec2_t const *clip_mins, vec2_t const *clip_maxs) {
+                               vec2_t const *clip_mins, vec2_t const *clip_maxs,
+                               uint32_t clip_edges) {
     /* Most terrain triangles lie wholly within the current shadow rectangle.
      * Avoid four polygon-clipping passes for that common case. */
     if (triangle[0].x >= clip_mins->x && triangle[0].x <= clip_maxs->x &&
@@ -380,10 +392,14 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
             bounds_; \
         } \
     } while (0)
-    CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_mins->x, true, max_x < clip_mins->x, min_x >= clip_mins->x, min_x = clip_mins->x);
-    CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_maxs->x, false, min_x > clip_maxs->x, max_x <= clip_maxs->x, max_x = clip_maxs->x);
-    CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_mins->y, true, max_y < clip_mins->y, min_y >= clip_mins->y, min_y = clip_mins->y);
-    CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_maxs->y, false, min_y > clip_maxs->y, max_y <= clip_maxs->y, max_y = clip_maxs->y);
+    if (clip_edges & SPLAT_CLIP_MIN_X)
+        CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_mins->x, true, max_x < clip_mins->x, min_x >= clip_mins->x, min_x = clip_mins->x);
+    if (clip_edges & SPLAT_CLIP_MAX_X)
+        CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_maxs->x, false, min_x > clip_maxs->x, max_x <= clip_maxs->x, max_x = clip_maxs->x);
+    if (clip_edges & SPLAT_CLIP_MIN_Y)
+        CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_mins->y, true, max_y < clip_mins->y, min_y >= clip_mins->y, min_y = clip_mins->y);
+    if (clip_edges & SPLAT_CLIP_MAX_Y)
+        CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_maxs->y, false, min_y > clip_maxs->y, max_y <= clip_maxs->y, max_y = clip_maxs->y);
 #undef CLIP_SPLAT_EDGE
     if (!n) {
         return;
@@ -431,7 +447,15 @@ static void R_EmitSplatTile(splatTileParams_t const *params, vec3_t const p[4]) 
 
     vec2_t maxs = { mins->x + width, mins->y + height };
     vec3_t const triangles[][3] = { {p[0],p[1],p[2]}, {p[0],p[2],p[3]} };
-    FOR_LOOP(i, 2) R_EmitSplatTriangle(params, triangles[i], mins, &maxs);
+    uint32_t clip_edges = 0;
+    if (p[0].x < mins->x) clip_edges |= SPLAT_CLIP_MIN_X;
+    if (p[1].x > maxs.x) clip_edges |= SPLAT_CLIP_MAX_X;
+    if (p[0].y < mins->y) clip_edges |= SPLAT_CLIP_MIN_Y;
+    if (p[2].y > maxs.y) clip_edges |= SPLAT_CLIP_MAX_Y;
+#ifdef WC3_SPLAT_GEOMETRY_CACHE_TESTS
+    if (test_splat_force_all_clip_edges) clip_edges = SPLAT_CLIP_ALL;
+#endif
+    FOR_LOOP(i, 2) R_EmitSplatTriangle(params, triangles[i], mins, &maxs, clip_edges);
 }
 
 static void R_MakeSplatTile(splatTileParams_t const *params) {
@@ -712,7 +736,7 @@ static bool R_GenerateCliffSplatsSlow(rectSplatParams_t const *params, vertex_t 
                 if (limit && limit - ground_current_vertex < SPLAT_TILE_MAX_VERTICES) return false;
                 if (!limit && ground_vertex_buffer + GROUND_VERTEX_BUFFER_CAPACITY - ground_current_vertex < SPLAT_TILE_MAX_VERTICES)
                     R_FlushSplatBatch();
-                R_EmitSplatTriangle(&clip, p, &mins, &maxs);
+                R_EmitSplatTriangle(&clip, p, &mins, &maxs, SPLAT_CLIP_ALL);
             }
         }
     }
@@ -746,7 +770,7 @@ static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *lim
             if (limit && limit - ground_current_vertex < SPLAT_TILE_MAX_VERTICES) return false;
             if (!limit && ground_vertex_buffer + GROUND_VERTEX_BUFFER_CAPACITY - ground_current_vertex < SPLAT_TILE_MAX_VERTICES)
                 R_FlushSplatBatch();
-            R_EmitSplatTriangle(&clip, triangle, &mins, &maxs);
+            R_EmitSplatTriangle(&clip, triangle, &mins, &maxs, SPLAT_CLIP_ALL);
         }
     }
     return true;

@@ -3982,7 +3982,7 @@ TEST(renderer_terrain, contained_cliff_triangle_emits_original_vertices_and_uvs)
         .width = maxs.x - mins.x, .height = maxs.y - mins.y, .color = tint };
     tr.world = &map; g_mapSegments = &segment;
     ground_current_vertex = ground_vertex_buffer;
-    R_EmitSplatTriangle(&params, receivers, &mins, &maxs);
+    R_EmitSplatTriangle(&params, receivers, &mins, &maxs, SPLAT_CLIP_ALL);
     T_EQ(ground_current_vertex - ground_vertex_buffer, 3);
     FOR_LOOP(i, 3) {
         vertex_t const *v = &ground_vertex_buffer[i];
@@ -4229,6 +4229,50 @@ TEST(renderer_terrain, moving_splat_corners_preserve_original_clipped_vertices) 
     R_InvalidateSplatGeometryCache();
     ground_current_vertex = NULL;
     tr.world = old_world;
+}
+
+static void renderer_moving_splat_clip_benchmark(bool force_all_edges) {
+    enum { side = 32, rects = 256 };
+    static war3mapVertex_t vertices[side * side];
+    war3map_t map = { .width = side, .height = side, .vertices = vertices };
+    war3map_t const *old_world = tr.world;
+    mapsegment_t *old_segments = g_mapSegments;
+    vec2_t const uv0 = { 0.01f, 0.02f }, uv1 = { 0.99f, 0.98f };
+
+    ri.MemAlloc = test_alloc;
+    ri.MemFree = test_free;
+    test_splat_force_all_clip_edges = force_all_edges;
+    R_InvalidateSplatGeometryCache();
+    R_ResetCliffSplatIndex();
+    FOR_LOOP(i, side * side)
+        vertices[i].accurate_height = (uint16_t)(8192 + (i * 29) % 4096);
+    tr.world = &map;
+    g_mapSegments = NULL;
+    T_ASSERT(R_EnsureCliffSplatIndex(&map)); /* Keep map-index construction outside the timed batches. */
+    FOR_LOOP(i, rects) {
+        float const x = 2 * TILE_SIZE + (i * 37u) % (12 * TILE_SIZE);
+        float const y = 2 * TILE_SIZE + (i * 61u) % (12 * TILE_SIZE);
+        vec2_t const mins = { x + 17.0f, y + 29.0f };
+        vec2_t const maxs = { mins.x + 2.25f * TILE_SIZE, mins.y + 2.25f * TILE_SIZE };
+        rectSplatParams_t const params = {
+            .mins = &mins, .maxs = &maxs, .uv_mins = &uv0, .uv_maxs = &uv1,
+            .color = COLOR32_WHITE,
+        };
+        ground_current_vertex = ground_vertex_buffer;
+        R_GenerateSplatTiles(&params);
+    }
+    ground_current_vertex = NULL;
+    R_InvalidateSplatGeometryCache();
+    R_ResetCliffSplatIndex();
+    tr.world = old_world;
+    g_mapSegments = old_segments;
+}
+
+TEST(renderer_perf, moving_splat_edge_clip_masks) {
+    T_BENCH("moving splats (all four clip edges)", 3,
+            renderer_moving_splat_clip_benchmark(true));
+    T_BENCH("moving splats (cell edge mask)", 3,
+            renderer_moving_splat_clip_benchmark(false));
 }
 
 TEST(renderer_terrain, oversized_moving_splat_uses_original_corner_path) {
