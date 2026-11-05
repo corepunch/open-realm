@@ -53,7 +53,7 @@ TFT class tree; move lock and land restore treat all three as ensnare.
 AbilityData.slk (Aens / ANen)
   -> targs, Cost, Rng, Dur/HeroDur, BuffID, DataA-C
 CAbilityEnsnare
-  -> A_EXECUTE: unit_addtimedstatus(Bena | Beng | Bens fallback)
+  -> A_EXECUTE: apply Bena | Beng | Bens fallback with TargetArt
               store spell->code in status.data; begin land (DataA/B)
   -> A_UPDATE: advance land / rise FlyHeight; M_CheckGround
 m_unit status machinery (storage, iteration, timing only)
@@ -93,4 +93,5 @@ Focused tests cover alias procedure lookup, ground `Bens` move lock, flyer
 land-and-lock, gradual `DataA`/`DataB` descent, expiry restore of
 `AI_FLYING`/altitude, ground targets staying non-flying, recast refresh,
 dispel mid-land, overlapping binds, attack/move restoration, unrelated flight
-state, and save/load during land and rise.
+state, save/load during land and rise, and the Naga `ANen` alias displaying the
+fallback `Bens` target effect when its authored row omits `BuffID`.

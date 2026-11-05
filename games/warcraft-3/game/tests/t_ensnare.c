@@ -14,6 +14,10 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
+static int ens_test_model_index(cstring_t path) {
+    return path && strstr(path, "ensnare_target.mdx") ? 92 : 0;
+}
+
 /* Non-stock Dur/Cost so tests cannot pass on hardcoded retail 12/0.
  * Instant-land fixtures omit DataA/B so missing cells stay 0 (snap path). */
 #define ENS_SLK \
@@ -92,6 +96,63 @@ static void ens_done(ensFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_
 TEST(wc3_spell, ensnare_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_AENS).ability->proc, CAbilityEnsnare);
     T_EQ(S_AbilityItem(BZ_ANEN).ability->proc, CAbilityEnsnare);
+}
+
+/* Naga Myrmidon's ANen row omits BuffID. The Bens fallback still owns the
+ * standard ensnare target art and must attach it to the ensnared unit. */
+TEST(wc3_spell, naga_ensnare_shows_fallback_buff_target_effect) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"ANen\"\nC;Y2;X2;K\"Aens\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K\"ground,air,enemy,neutral\"\nC;Y2;X5;K0\nC;Y2;X6;K0\n"
+        "C;Y2;X7;K500\nC;Y2;X8;K12\nC;Y2;X9;K3\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+        "C;Y2;X1;K\"Bens\"\nC;Y2;X2;K\"Bens\"\n"
+        "C;Y2;X3;K\"TestUI\\\\Models\\\\ensnare_target.mdx\"\nE\n";
+    slkTestData_t *ability_rows, *old_ability;
+    slkTestData_t *buff_rows, *old_buff;
+    edict_t *caster, *target;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    bool found = false;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ability_rows = parse_slk_string(ability_slk);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    buff_rows = parse_slk_string(buff_slk);
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    gi.ModelIndex = ens_test_model_index;
+    caster = alloc_test_unit(MAKEFOURCC('o','r','a','i'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    caster->s.player = 0; target->s.player = 1;
+    caster->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
+    caster->targtype = target->targtype = TARG_GROUND;
+    caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_AENS, .level = 1);
+    caster->mana.value = caster->mana.max_value = 100;
+    target->health.value = target->health.max_value = 500;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ANEN, target));
+    T_EQ(G_UnitStatusLevel(target, BZ_BENS), 1);
+    heroabilitystatus_t *status = unit_findstatus(target, BZ_BENS);
+    T_NOT_NULL(status);
+    if (status) T_ASSERT(status->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
+    FILTER_EDICTS(effect, effect->status_effect_code == BZ_BENS &&
+                  effect->goalentity == target && effect->s.model == 92) {
+        found = true;
+    }
+    T_ASSERT(found);
+
+    gi.ModelIndex = old_model_index;
+    G_SetSLKRows("AbilityBuffData", old_buff); free_slk_rows(buff_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
 }
 
 /* Ground Bens keeps the order_move early-return lock used with BEer. */

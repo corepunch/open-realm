@@ -413,8 +413,8 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (!buff || strlen(buff) < 4) buff = S_SpellBuffToken(list, 0);
     /* ROC omits BuffID. Use each family's authored TFT token, preserving Web's air bind. */
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
-    slot = S_SpellApplyTimedStatus(st.entity, buff, level,
-                                     S_SpellResistantDuration(spell->code, level, st.entity));
+    slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                         S_SpellResistantDuration(spell->code, level, st.entity));
     if (!slot) return; /* A failed allocation must not start a ground-bind transition. */
     slot->data = spell->code;
     /* Ensnare/Web are physical binds, not removable by magical dispels.
