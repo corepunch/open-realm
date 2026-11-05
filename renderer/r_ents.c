@@ -180,6 +180,17 @@ int R_SolidVisibilityAt(uint32_t index) {
     return solid_visibility.slot_visible[index] != 0;
 }
 
+int R_SolidVisibilityForEntity(renderEntity_t const *entity) {
+    uintptr_t const base = (uintptr_t)solid_visibility.scene;
+    uintptr_t const address = (uintptr_t)entity;
+    size_t const bytes = (size_t)solid_visibility.count * sizeof(*solid_visibility.scene);
+    uintptr_t offset;
+    if (!entity || !R_SolidVisibilityMatchesView() || address < base) return -1;
+    offset = address - base;
+    if (offset >= bytes || offset % sizeof(*solid_visibility.scene)) return -1;
+    return R_SolidVisibilityAt((uint32_t)(offset / sizeof(*solid_visibility.scene)));
+}
+
 static void R_SolidVisibilityRecord(uint32_t index, bool visible) {
     if (!solid_visibility.active || tr.render_phase != RENDER_PHASE_SOLID ||
         index >= MAX_GAME_ENTITIES ||

@@ -1,6 +1,7 @@
 #include "r_mdx.h"
 #include "../w3m/r_war3map.h"
 #include "renderer/r_emit.h"
+#include "renderer/r_game.h"
 #include "renderer/r_local.h"
 #include "renderer/r_shader.h"
 #include <float.h>
@@ -838,7 +839,10 @@ void MDX_RenderModel(renderEntity_t const *entity,
     MDLX_UpdateEntityAnimationPause(entity);
     if (tr.render_phase == RENDER_PHASE_ALPHA && !MDLX_ModelHasAlphaWork(entity, model))
         return;
-    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
+    /* The outer WC3 entity pass already tested this exact scene entity with
+     * the resolved model bounds and transform. Keep local culling for nested,
+     * transient, or otherwise unrecorded models. */
+    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) && R_SolidVisibilityForEntity(entity) != 1) {
         vec3_t const center = Box3_Center(&model->bounds.box);
         sphere3_t const sphere = {
             .center = Matrix4_multiply_vector3(transform, &center),
