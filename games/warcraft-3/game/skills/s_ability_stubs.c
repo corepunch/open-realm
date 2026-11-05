@@ -260,7 +260,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
 #if BZ_COMPAT_WORKAROUNDS
     /* RoC AbilityData omits BuffID; the stock Frost Armor status is BUfa. */
     if ((!buff || strlen(buff) < 4) && (G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','a') ||
-                  G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','u')))
+                  G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','u') ||
+                  G_AbilityCode(spell->code) == MAKEFOURCC('A','C','f','u')))
         buff = "BUfa";
 #endif
 

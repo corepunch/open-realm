@@ -6570,6 +6570,30 @@ TEST(wc3_spell, frost_armor_enables_buff_target_art) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, naga_frost_armor_uses_authored_shield_duration_and_target_art) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"Dur1\"\n"
+        "C;Y2;X1;K\"ACfu\"\nC;Y2;X2;K\"ACfu\"\n"
+        "C;Y2;X3;K\"45\"\nC;Y2;X4;K\"3\"\nC;Y2;X5;K\"5\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(ability_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('E','s','i','r'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    heroabilitystatus_t *status;
+
+    caster->s.player = 0; target->s.player = 0;
+    T_ASSERT(test_execute_code(caster, "ACfu", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    status = unit_findstatus(target, MAKEFOURCC('B','U','f','a'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_ASSERT(status->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
+        T_EQ(status->duration_ms, 45000u);
+    }
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, entangling_roots_visual_resolves_from_buff_target_art) {
 	cstring_t art = G_AbilityEffectArt(MAKEFOURCC('B', 'E', 'e', 'r'), WC3_EFFECT_TARGET, 0);
 
