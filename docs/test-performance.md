@@ -34,6 +34,38 @@ Use this focused workload to compare MDX pose/keyframe changes on the same
 machine and build. It isolates pose binding and does not model geoset rendering,
 GPU work, or campaign FPS.
 
+`renderer_perf.synthetic_mdx_pose_capture_profiles` adds four larger model
+shapes based on the NightElf07 campaign capture: 129–214 nodes, 98–287
+animated tracks, and 3,742–8,023 keyframes per model before interpolation
+samples each track. The sample sizes match four captured high-cost node/sample/
+keyframe profiles (including 213 nodes / 574 samples / 16,046 scanned keys and
+214 nodes / 488 samples / 9,448 scanned keys). It alternates balanced and deep
+synthetic parent trees (hierarchy is not recorded by the live capture). It
+benchmarks each shape independently and prints its expected workload counts
+beside the measured keyframe-search counters. This remains a CPU pose-binding
+benchmark: it does not model authored interpolation-type mix, per-frame model
+distribution, geoset skinning, GPU work, or campaign FPS.
+
+Run both pose benchmarks with:
+
+```sh
+make build/bin/test_renderer_model
+build/bin/test_renderer_model 'renderer_perf.synthetic_mdx_pose_*'
+```
+
+`renderer_perf.synthetic_mdx_pose_capture_scene_cache` interleaves eight
+distinct captured model profiles with four instances of each per view. Its
+1,654 distinct animated tracks exceed the renderer's direct-mapped key-span
+cache, exposing whether model interleaving causes repeat span misses. The
+benchmark prints binary-search, span-hit, and bracket counters to support
+same-machine comparisons of cache-size changes.
+
+On one local run, increasing `MDLX_KEY_SPAN_SLOTS` from 1,024 to 4,096 changed
+this 2,304-bind scene sample from 107.01 ms to 87.52 ms (18.2% lower). Binary
+search calls fell from 159,105 to 131,289. The static cache grows by 144 KiB.
+This synthetic result supports keeping the larger table; validate it against a
+fresh campaign capture because actual per-view track diversity varies by map.
+
 After removing runtime timing instrumentation, a focused local advancing-key
 sample took 39.50 ms per 9,216-bind batch, with 13,824 binary searches and
 649,728 bounded forward advances. There is no comparable pre-optimization

@@ -5967,3 +5967,186 @@ TEST(renderer_perf, synthetic_mdx_pose_binding_workload) {
             mdx_perf_bench_binds_per_view);
     mdx_pose_benchmark_destroy(&bench);
 }
+
+enum { mdx_capture_bench_max_nodes = 214, mdx_capture_bench_max_tracks = 287,
+       mdx_capture_bench_keys_max = 64, mdx_capture_bench_views = 24,
+       mdx_capture_bench_binds_per_view = 24 };
+
+typedef struct {
+    mdxModel_t model;
+    mdxNode_t nodes[mdx_capture_bench_max_nodes];
+    mdxSequence_t sequence;
+    void *tracks[mdx_capture_bench_max_tracks];
+    uint32_t track_count;
+} mdxCapturedPoseBenchmark_t;
+
+typedef struct {
+    uint32_t nodes;
+    uint32_t track_samples;
+    uint32_t sampled_keys;
+    char const *name;
+} mdxCapturedPoseProfile_t;
+
+/* Build linear animated tracks whose sample/key counts match the heavy model
+ * profiles from the runtime capture. Hierarchy is synthetic because the
+ * live diagnostic records node count, not authored parent topology. */
+static bool mdx_captured_pose_benchmark_init(mdxCapturedPoseBenchmark_t *bench,
+                                              mdxCapturedPoseProfile_t const *profile,
+                                              bool deep_hierarchy) {
+    uint32_t const track_count = profile->track_samples / 2;
+    uint32_t const keys_per_track = profile->sampled_keys / 2;
+    uint32_t const remainder = keys_per_track % track_count;
+    uint32_t base_keys = keys_per_track / track_count;
+
+    memset(bench, 0, sizeof(*bench));
+    if (!profile->nodes || profile->nodes > mdx_capture_bench_max_nodes ||
+        !track_count || track_count > mdx_capture_bench_max_tracks ||
+        profile->track_samples % 2 || profile->sampled_keys % 2 ||
+        base_keys > mdx_capture_bench_keys_max ||
+        (remainder && base_keys + 1 > mdx_capture_bench_keys_max)) return false;
+    bench->sequence.interval[0] = 0;
+    bench->sequence.interval[1] = mdx_capture_bench_keys_max * 64;
+    bench->model.sequences = &bench->sequence;
+    bench->model.num_sequences = 1;
+    bench->model.num_nodes = profile->nodes;
+    bench->track_count = track_count;
+
+    FOR_LOOP(i, profile->nodes) {
+        mdxNode_t *node = bench->nodes + i;
+        node->node_id = i;
+        node->parent_id = i ? (deep_hierarchy ? i - 1 : (i - 1) / 2) : UINT32_MAX;
+        bench->model.nodes[i] = node;
+        bench->model.node_list[i] = node;
+    }
+    FOR_LOOP(i, track_count) {
+        uint32_t const node_index = i < profile->nodes ? i : i - profile->nodes;
+        uint32_t const channel = i < profile->nodes ? 0 : 1;
+        uint32_t const key_count = base_keys + (i < remainder ? 1 : 0);
+        MODELKEYTRACKDATATYPE const type = channel == 1 ? TDATA_FLOAT4 : TDATA_FLOAT3;
+        size_t const value_size = channel == 1 ? sizeof(quaternion_t) : sizeof(vec3_t);
+        size_t const stride = sizeof(int32_t) + value_size;
+        size_t const bytes = sizeof(mdxKeyTrack_t) + key_count * stride;
+        mdxKeyTrack_t *track = calloc(1, bytes);
+        if (!track) return false;
+        track->keyframeCount = key_count;
+        track->datatype = type;
+        track->linetype = TRACK_LINEAR;
+        track->globalSeqId = UINT32_MAX;
+        FOR_LOOP(key_index, key_count) {
+            mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + key_index * stride);
+            key->time = key_index * 64;
+            if (type == TDATA_FLOAT4) {
+                float const angle = key_index * .025f + node_index * .01f;
+                quaternion_t const value = {0, 0, sinf(angle * .5f), cosf(angle * .5f)};
+                memcpy(key->data, &value, sizeof(value));
+            } else {
+                vec3_t const value = {node_index * .01f, key_index * .02f, channel * .1f};
+                memcpy(key->data, &value, sizeof(value));
+            }
+        }
+        bench->tracks[i] = track;
+        mdxNode_t *node = bench->nodes + node_index;
+        if (channel == 0) node->translation = track;
+        else if (channel == 1) node->rotation = track;
+        else node->scale = track;
+    }
+    return true;
+}
+
+static void mdx_captured_pose_benchmark_destroy(mdxCapturedPoseBenchmark_t *bench) {
+    FOR_LOOP(i, bench->track_count) free(bench->tracks[i]);
+}
+
+static void mdx_captured_pose_benchmark_run(mdxCapturedPoseBenchmark_t const *bench) {
+    mat4_t const identity = { .v = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1} };
+    FOR_LOOP(view, mdx_capture_bench_views) {
+        MDLX_ViewPoseBegin();
+        FOR_LOOP(bind, mdx_capture_bench_binds_per_view) {
+            uint32_t const frame = 512 + (bind * 100) % (mdx_capture_bench_keys_max * 64 - 612);
+            MDLX_BindBoneMatrices(&bench->model, &identity, frame, frame - 100);
+        }
+        MDLX_ViewPoseEnd();
+    }
+}
+
+TEST(renderer_perf, synthetic_mdx_pose_capture_profiles) {
+    static mdxCapturedPoseProfile_t const profiles[] = {
+        {129, 196, 7484, "129 nodes 196 samples 7484 keys"},
+        {171, 396, 8362, "171 nodes 396 samples 8362 keys"},
+        {213, 574, 16046, "213 nodes 574 samples 16046 keys"},
+        {214, 488, 9448, "214 nodes 488 samples 9448 keys"},
+    };
+    FOR_LOOP(profile_index, 4) {
+        mdxCapturedPoseBenchmark_t bench;
+        bool const initialized = mdx_captured_pose_benchmark_init(&bench, profiles + profile_index,
+                                                                  (profile_index & 1) != 0);
+        T_ASSERT(initialized);
+        if (!initialized) {
+            mdx_captured_pose_benchmark_destroy(&bench);
+            continue;
+        }
+        mdx_captured_pose_benchmark_run(&bench);
+        MDLX_TestResetKeyframeSearchStats();
+        MDLX_TestResetPoseTrackSamples();
+        T_BENCH(profiles[profile_index].name, 3, mdx_captured_pose_benchmark_run(&bench));
+        T_EQ(MDLX_TestPoseTrackSamples(), 3u * mdx_capture_bench_views *
+             mdx_capture_bench_binds_per_view * profiles[profile_index].track_samples);
+        fprintf(stdout, "[BENCH DETAIL] MDX mode=captured-profile profile=%s binds=%u nodes=%u expected_track_samples_per_bind=%u expected_sampled_keys_per_bind=%u measured_track_samples=%u keyframe_bound_searches=%u forward_advances=%u span_hits=%u bracket_hits=%u hierarchy=%s\n",
+                profiles[profile_index].name,
+                3u * mdx_capture_bench_views * mdx_capture_bench_binds_per_view,
+                profiles[profile_index].nodes, profiles[profile_index].track_samples,
+                profiles[profile_index].sampled_keys, MDLX_TestPoseTrackSamples(),
+                MDLX_TestKeyframeBoundSearches(), MDLX_TestKeyframeBracketAdvances(),
+                MDLX_TestKeyframeSpanHits(), MDLX_TestKeyframeBracketHits(),
+                (profile_index & 1) ? "deep" : "balanced");
+        mdx_captured_pose_benchmark_destroy(&bench);
+    }
+}
+
+enum { mdx_capture_scene_models = 8, mdx_capture_scene_instances = 4,
+       mdx_capture_scene_views = 24 };
+
+static void mdx_captured_pose_scene_run(mdxCapturedPoseBenchmark_t models[mdx_capture_scene_models]) {
+    mat4_t const identity = { .v = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1} };
+    FOR_LOOP(view, mdx_capture_scene_views) {
+        MDLX_ViewPoseBegin();
+        FOR_LOOP(model_index, mdx_capture_scene_models) {
+            FOR_LOOP(instance, mdx_capture_scene_instances) {
+                uint32_t const frame = 900 + (view * 17 + instance * 3 + model_index) % 250;
+                MDLX_BindBoneMatrices(&models[model_index].model, &identity, frame, frame - 1);
+            }
+        }
+        MDLX_ViewPoseEnd();
+    }
+}
+
+TEST(renderer_perf, synthetic_mdx_pose_capture_scene_cache) {
+    static mdxCapturedPoseProfile_t const profiles[] = {
+        {129, 196, 7484, "129 node profile"},
+        {171, 396, 8362, "171 node profile"},
+        {213, 574, 16046, "213 node profile"},
+        {214, 488, 9448, "214 node profile"},
+    };
+    mdxCapturedPoseBenchmark_t models[mdx_capture_scene_models];
+    uint32_t initialized = 0;
+    FOR_LOOP(i, mdx_capture_scene_models) {
+        if (!mdx_captured_pose_benchmark_init(models + i, profiles + (i % 4), false)) break;
+        initialized++;
+    }
+    T_EQ(initialized, mdx_capture_scene_models);
+    if (initialized != mdx_capture_scene_models) {
+        FOR_LOOP(i, initialized) mdx_captured_pose_benchmark_destroy(models + i);
+        return;
+    }
+    mdx_captured_pose_scene_run(models);
+    MDLX_TestResetKeyframeSearchStats();
+    MDLX_TestResetPoseTrackSamples();
+    T_BENCH("captured MDX scene (8 models, 4 instances, 768 binds)", 3,
+            mdx_captured_pose_scene_run(models));
+    fprintf(stdout, "[BENCH DETAIL] MDX mode=captured-scene binds=%u models=%u instances_per_model=%u keyframe_bound_searches=%u forward_advances=%u span_hits=%u bracket_hits=%u\n",
+            3u * mdx_capture_scene_views * mdx_capture_scene_models * mdx_capture_scene_instances,
+            mdx_capture_scene_models, mdx_capture_scene_instances,
+            MDLX_TestKeyframeBoundSearches(), MDLX_TestKeyframeBracketAdvances(),
+            MDLX_TestKeyframeSpanHits(), MDLX_TestKeyframeBracketHits());
+    FOR_LOOP(i, initialized) mdx_captured_pose_benchmark_destroy(models + i);
+}

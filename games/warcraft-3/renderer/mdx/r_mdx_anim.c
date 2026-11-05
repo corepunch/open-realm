@@ -358,7 +358,7 @@ void MDLX_PopEntityAnimationTime(mdxAnimationTimeScope_t const *scope) {
  * resolved normally. A new view invalidates every entry, so model reloads do
  * not leave persistent pointers behind. Standalone keytrack consumers remain
  * uncached. Direct-mapped collisions simply take the original search path. */
-#define MDLX_KEY_SPAN_SLOTS 1024
+#define MDLX_KEY_SPAN_SLOTS 4096
 
 typedef struct {
     uint32_t epoch;
