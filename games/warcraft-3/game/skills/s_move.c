@@ -1264,8 +1264,16 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
 void M_CheckGround(edict_t *self) {
     cstring_t const movetp = M_UnitMoveTypeName(self);
     bool const floating = movetp && !strcmp(movetp, "float");
+    bool const swimming = self && movetp && !strcmp(movetp, "amph") &&
+        CM_TerrainPointIsSwimmable(&self->s.origin2) &&
+        !CM_TerrainPointIsWalkable(&self->s.origin2);
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float const cell = CM_PathCellWorldSize();
+
+    /* Amphibious units use their authored Swim animation family on water for
+     * both locomotion and idle. Keep this tag synchronized with the support
+     * surface so crossing the shoreline restores ordinary land animations. */
+    if (self && self->inuse) G_AddUnitAnimationProperties(self, "swim", swimming);
 
     if (M_UnitUsesWaterSurface(self, movetp))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));

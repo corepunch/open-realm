@@ -3794,6 +3794,31 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     T_FEQ(unit->s.origin.z, 32.0f, 0.01f);
 }
 
+TEST(wc3_movement, amphibious_units_use_swim_animations_for_water_walk_and_stand) {
+    static UnitData_t const amphibious_data = { .moveTypeName = "amph" };
+    uint8_t water[1] = { CM_PATHING_UNWALKABLE };
+    uint8_t land[1] = { CM_PATHING_UNSWIMMABLE };
+    umove_t stand = { .animation = "stand" };
+    umove_t walk = { .animation = "walk" };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+
+    unit->data.UnitData = &amphibious_data;
+    CM_SetupTestPathmap(1, 1, water);
+    unit_setmove(unit, &stand);
+    M_CheckGround(unit);
+    T_STREQ(unit->animation_props, "swim");
+    T_STREQ(unit->animation_request, "stand");
+
+    unit_setmove(unit, &walk);
+    M_CheckGround(unit);
+    T_STREQ(unit->animation_props, "swim");
+    T_STREQ(unit->animation_request, "walk");
+
+    CM_SetupTestPathmap(1, 1, land);
+    M_CheckGround(unit);
+    T_STREQ(unit->animation_props, "");
+}
+
 TEST(wc3_movement, tileset_water_slk_height_places_the_water_surface) {
     cstring_t slk =
         "ID;PWXL;N;E\n"
