@@ -160,10 +160,14 @@ void M_MoveFrame(edict_t *self) {
  * Called each game frame by G_RunEntity; drives the animation clock and
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(edict_t *self) {
-    S_RunAbilityUpdates(self);
-    /* A blocked return can leave no active Move. Still run the guard policy
-     * so its retry timer can recover when movement becomes available. */
-    G_CreepGuardTick(self);
+    bool const destructable = G_IsDestructable(self);
+    bool const static_destructable = destructable && (self->svflags & SVF_STATIC_SCENERY);
+    if (!static_destructable) {
+        S_RunAbilityUpdates(self);
+        /* A blocked return can leave no active Move. Still run the guard policy
+         * so its retry timer can recover when movement becomes available. */
+        G_CreepGuardTick(self);
+    }
     if (!self->currentmove)
         return;
     if (G_UnitHasFlag(self, UNIT_FLAG_PAUSED) || unit_hasstatusstate(self, WC3_STATUS_STATE_STUNNED)) {
@@ -176,9 +180,8 @@ void monster_think(edict_t *self) {
      * callback; otherwise a completed one-shot move leaves a null dereference. */
     if (!self->inuse || !self->currentmove)
         return;
-    if (self->currentmove->think) {
+    if (self->currentmove->think)
         self->currentmove->think(self);
-    }
 }
 
 void monster_start(edict_t *self) {
