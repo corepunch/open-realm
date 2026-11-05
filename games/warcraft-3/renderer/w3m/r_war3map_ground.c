@@ -338,6 +338,12 @@ typedef struct {
     color32_t color;
 } splatTileParams_t;
 
+/* Match LerpNumber's arithmetic while keeping the hot per-vertex UV mapping
+ * local to this translation unit instead of calling through libshared. */
+static inline float R_SplatLerpNumber(float a, float b, float t) {
+    return a * (1.0f - t) + b * t;
+}
+
 /* Clip real receiver triangles in XY while retaining their authored Z. The
  * same operation serves base tiles and the cliff meshes replacing their cells. */
 static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const triangle[3],
@@ -353,8 +359,8 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
         FOR_LOOP(i, 3) {
             vec3_t const point = triangle[i];
             *ground_current_vertex++ = (vertex_t){ .position = point, .normal = {0,0,1}, .color = params->color,
-                .texcoord = { LerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
-                    LerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
+                .texcoord = { R_SplatLerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
+                    R_SplatLerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
         }
         return;
     }
@@ -387,8 +393,8 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
         FOR_LOOP(j, 3) {
             vec3_t const point = points[j];
             *ground_current_vertex++ = (vertex_t){ .position = point, .normal = {0,0,1}, .color = params->color,
-                .texcoord = { LerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
-                    LerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
+                .texcoord = { R_SplatLerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
+                    R_SplatLerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
         }
     }
 }
