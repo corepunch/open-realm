@@ -1419,11 +1419,15 @@ TEST(renderer_game, solid_culling_handoff_is_view_local_and_uses_scene_positions
     T_EQ(R_SolidVisibilityAt(0), 0);
     T_EQ(R_SolidVisibilityAt(1), 1);
     T_EQ(R_SolidVisibilityAt(2), -1);
+    T_EQ(R_SolidVisibilityForEntity(&scene[0]), 0);
+    T_EQ(R_SolidVisibilityForEntity(&scene[1]), 1);
+    T_EQ(R_SolidVisibilityForEntity(&(renderEntity_t){ .number = 7 }), -1);
     tr.render_phase = RENDER_PHASE_ALPHA;
     R_SolidVisibilityRecord(2, true); /* alpha must not write */
     T_EQ(R_SolidVisibilityAt(2), -1);
     tr.viewDef.time++;
     T_ASSERT(!R_SolidVisibilityMatchesView());
+    T_EQ(R_SolidVisibilityForEntity(&scene[1]), -1);
     tr.viewDef.time--;
     tr.viewDef.viewProjectionMatrix.v[0] += 1.0f;
     T_ASSERT(!R_SolidVisibilityMatchesView());

@@ -52,6 +52,8 @@ void R_SolidVisibilityBegin(void);
 void R_SolidVisibilityEnd(void);
 bool R_SolidVisibilityMatchesView(void);
 int R_SolidVisibilityAt(uint32_t scene_index);
+/* Return the recorded visibility for an exact scene-entity pointer, or -1 if unknown. */
+int R_SolidVisibilityForEntity(renderEntity_t const *entity);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
 float R_GetHeightAtPoint(float x, float y);
 void R_StartTerrainDeformation(terrainDeform_t const *deformation);
