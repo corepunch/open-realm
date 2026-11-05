@@ -1,5 +1,8 @@
 # Goblin Alchemist abilities (TFT)
 
+The Goblin Alchemist was introduced after the 1.07 TFT baseline; see
+[Warcraft III data version history](data-version-history.md).
+
 The Goblin Alchemist uses four neutral hero abilities. They are implemented
 in the Warcraft III game module; the generic client only plays the models,
 animations and sounds requested by the game.

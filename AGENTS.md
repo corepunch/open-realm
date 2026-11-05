@@ -144,7 +144,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 persistent Hero and idle-worker HUD shortcuts, event-driven invalidation, F1-F8 cycling | [docs/games/warcraft-3/unit-shortcuts.md](docs/games/warcraft-3/unit-shortcuts.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
 | WC3 race-specific construction strategies and remaining Human/Orc/Undead/Night Elf mechanic gaps | [docs/games/warcraft-3/race-mechanics.md](docs/games/warcraft-3/race-mechanics.md) |
-| WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
+| WC3 research queues, player tech state, attack/armor/movement effects, Night Elf Nature’s Blessing | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
 | WC3 Siphon Mana overcharge, decay, Life Drain distinction, persistence and HUD saturation | [docs/games/warcraft-3/drain-channel-pulses.md](docs/games/warcraft-3/drain-channel-pulses.md) |
 | WC3 Human Barracks unit abilities: Defend toggle/animation, Long Rifles range, Animal War Training max life, remaining fidelity gaps | [docs/games/warcraft-3/human-barracks-unit-abilities.md](docs/games/warcraft-3/human-barracks-unit-abilities.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |
@@ -171,6 +171,9 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Blood Mage Flame Strike authored warning, landing, fire-field and damage art | [docs/games/warcraft-3/flame-strike.md](docs/games/warcraft-3/flame-strike.md) |
 | WC3 Tiny Structures, item-owned construction, shared placement cursor, racial Tiny Great Hall | [docs/games/warcraft-3/tiny-structures.md](docs/games/warcraft-3/tiny-structures.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |
+| WC3 neutral-creep ability source matrix and synthetic headless contract coverage | [docs/games/warcraft-3/neutral-creep-ability-tests.md](docs/games/warcraft-3/neutral-creep-ability-tests.md) |
+| WC3 retail shop item listing/rawcode/stock fixture and behavior regressions | [docs/games/warcraft-3/retail-shop-item-tests.md](docs/games/warcraft-3/retail-shop-item-tests.md) |
+| WC3 charged/power-up/consumed/permanent/artifact item references and retail-first regression matrix | [docs/games/warcraft-3/hero-item-reference-tests.md](docs/games/warcraft-3/hero-item-reference-tests.md) |
 <| WC3 item orb damage via `CAbilityAttackBonus` and `S_OrbOnHit` BuffID state | [docs/games/warcraft-3/item-orbs.md](docs/games/warcraft-3/item-orbs.md) |
 | WC3 poison on-hit buff state (`Aven`/`Apoi`/`Apo2`), data-driven periodic DPS | [docs/games/warcraft-3/poison-attacks.md](docs/games/warcraft-3/poison-attacks.md) |
 | WC3 Anti-Magic Shell Bams immunity vs Bam2 DataC absorption, Aam2/ACam aliases | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |

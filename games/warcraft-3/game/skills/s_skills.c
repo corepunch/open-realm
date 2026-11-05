@@ -59,7 +59,7 @@ static ability_t abilitylist[] = {
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
-    { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
+    { "ANpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
     { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
@@ -71,8 +71,8 @@ static ability_t abilitylist[] = {
     { "ANcf", CAbilityBreathOfFireCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire */
     { "Acdh", CAbilityDrunkenHazeCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "Acef", CAbilityStormEarthFire, AB_SPELL },  /* "Storm, Earth, And Fire" */
-    { "ANhw", CAbilityHealingWaveCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
-    { "ANhx", CAbilityHexCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex */
+    { "ANhw", CAbilityHealingWave, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
+    { "ANhx", CAbilityHex, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex */
     { "Arsw", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Serpent Ward */
     { "AOr2", CAbilityEnduranceAuraCampaign, AB_SPELL },  /* Endurance Aura */
     { "AOs2", CAbilityShockwaveCairne, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */
@@ -123,7 +123,7 @@ static ability_t abilitylist[] = {
     { "Amdf", CAbilityMagicDefense, AB_SPELL | AB_TOGGLE },  /* Magic Defense */
     { "Asph", CAbilityPassive, AB_PASSIVE },  /* Sphere */
     { "Asps", CAbilitySpellSteal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Spell Steal */
-    { "Aclf", CAbilityCloudOfFog, AB_SPELL, SPELL_TARGET_UNIT },  /* Cloud */
+    { "Aclf", CAbilityCloudOfFog, AB_SPELL, SPELL_TARGET_POINT },  /* Cloud */
     { "AHfs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AHbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish */
     { "AHpx", CAbilitySummonPhoenix, AB_SPELL },  /* Phoenix */
@@ -181,9 +181,11 @@ static ability_t abilitylist[] = {
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
     { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
+    { "AIsl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Scroll of Regeneration */
+    { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Clarity Potion */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
-    { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Skeleton Summon */
+    { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Figurine Summon */
     { "AImi", CAbilityMaxLifeMod, AB_ITEM | AB_POWERUP },  /* Item Permanent Life Gain */
     { "AIab", CAbilityAttributeBonus, 0 },  /* Item Hero Stat Bonus */
     { "AIml", CAbilityMaxLifeBonus, 0 },  /* Item Life Bonus */
@@ -232,7 +234,7 @@ static ability_t abilitylist[] = {
     /* NightElfAbilityStrings.txt */
     { "AEbl", CAbilityBlink, AB_SPELL, SPELL_TARGET_POINT },  /* Blink */
     { "AEfk", CAbilityFanOfKnives, AB_SPELL },  /* Fan of Knives */
-    { "AEsh", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike */
+    { "AEsh", CAbilityShadowStrike, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Shadow Strike */
     { "AEsv", CAbilitySpiritOfVengeance, AB_SPELL },  /* Vengeance */
     { "Aeat", CAbilityEatTree, AB_SPELL, SPELL_TARGET_UNIT },  /* Eat Tree */
     { "Ambt", CAbilityManaBattery, AB_SPELL | AB_AUTOCAST | AB_UPDATE, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
@@ -347,7 +349,7 @@ static ability_t abilitylist[] = {
     { "Asou", CAbilitySoulTrapped, AB_PASSIVE },  /* Item Soul Possession */
     // TODO: AIrc a_item_reincarnation  /* Item Reincarnation */
     // TODO: AIrt a_item_recall  /* Item Recall */
-    // TODO: AItp a_item_town_portal  /* Item Town Portal */
+    { "AItp", CAbilityMassTeleport, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Scroll of Town Portal */
     { "AIpm", CAbilityPlaceMine, AB_SPELL, SPELL_TARGET_POINT },  /* Item Place Goblin Land Mine */
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
@@ -369,7 +371,7 @@ static ability_t abilitylist[] = {
     // TODO: AIwb a_button  /* Item Web */
     // TODO: AImo a_item_mana_restore_aoe  /* Monster Lure */
     // TODO: AIri a_item_speed  /* Random Item */
-    // TODO: Ablp CAbilityItemHeal  /* Blight Placement */
+    { "Ablp", CAbilityItemBlight, AB_SPELL, SPELL_TARGET_POINT }, /* Sacrificial Skull / Blight Placement */
     // TODO: Aste a_figurine_rock_golem  /* Steal */
     // TODO: AIpv a_item_mana_restore_aoe  /* Vampiric Potion */
     // TODO: AIsr a_item_speed  /* Spell Damage Reduction */
@@ -383,16 +385,16 @@ static ability_t abilitylist[] = {
     { "AIbh", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Altar of Kings */
     // TODO: Ashs a_spell  /* Wand of Shadowsight */
     // TODO: Aret CAbilityResurrection  /* Tome of Retraining */
-    // TODO: ANpr a_button  /* Staff of Preservation */
-    // TODO: Amec a_button  /* Mechanical Critter */
+    { "ANpr", CAbilityItemPreservation, AB_SPELL, SPELL_TARGET_UNIT },  /* Staff of Preservation */
+    { "Amec", CAbilityMechanicalCritter, AB_ITEM },  /* Mechanical Critter */
     // TODO: ANss a_bounce  /* Spell Shield */
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
-    // TODO: ANsa a_bounce  /* Staff of Sanctuary */
+    { "ANsa", CAbilityItemSanctuary, AB_SPELL | AB_STATUS_EVENTS | AB_UPDATE, SPELL_TARGET_UNIT },  /* Staff of Sanctuary */
     { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
-    // TODO: AItb a_button  /* Dust of Appearance */
+    { "AItb", CAbilityItemDetectByBuff, AB_ITEM },  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
     { "AIrb", CAbilityItemRebirth, AB_ITEM | AB_POWERUP }, /* Rune of Rebirth */
@@ -447,8 +449,8 @@ static ability_t abilitylist[] = {
     { "Achd", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold Death */
     { "Asla", CAbilitySleepAlways, AB_PASSIVE | AB_INNATE },  /* Sleep Always */
     { "Advc", CAbilityCargoLoad, AB_COMMAND },  /* Devour Cargo */
-    { "ANpi", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
-    { "Apig", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
+    { "ANpi", CAbilityImmolation, AB_PASSIVE | AB_UPDATE },  /* Permanent Immolation */
+    { "Apig", CAbilityImmolation, AB_PASSIVE | AB_UPDATE },  /* Permanent Immolation */
     { "Andt", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Reveal */
     { "ANin", CAbilityInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
     { "Anhe", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (creep) */
@@ -636,7 +638,7 @@ static ability_t abilitylist[] = {
     { "ACmo", CAbilityMonsoon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Monsoon (creep) */
     { "ACmp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale (Creep) */
     { "ACnr", CAbilityAuraRegenLife, AB_PASSIVE },  /* Neutral Regen (health only) */
-    { "ACpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
+    { "ACpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
     { "ACpu", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (Creep) */
     { "ACpv", CAbilityPulverize, AB_PASSIVE },  /* Pulverize (Sea Giant) */
     { "ACr1", CAbilityRoar, AB_SPELL },  /* Roar (Skeletal Orc) */
@@ -653,7 +655,7 @@ static ability_t abilitylist[] = {
     { "ACsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence (Creep) */
     { "ACsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
-    { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
+    { "ACss", CAbilityShadowStrike, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
     { "ACst", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Trap) */
     { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
     { "ACt2", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap (Thunder Lizard) */
@@ -686,8 +688,8 @@ static ability_t abilitylist[] = {
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */
-    { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
-    { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
+    { "Aco2", CAbilityCoupleInstant, AB_SPELL, SPELL_TARGET_NONE },  /* Couple Instant (Archer) */
+    { "Aco3", CAbilityCoupleInstant, AB_SPELL, SPELL_TARGET_NONE },  /* Couple Instant (Hippogryph) */
     { "Adt1", CAbilityDetector, AB_PASSIVE },  /* Detect (Sentry Ward) */
     { "Adtg", CAbilityTrueSight, AB_PASSIVE },  /* Detect (general) */
     { "Afa2", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
@@ -990,7 +992,8 @@ static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg,
         abilityitem_t item;
         abilityCall_t event_call;
         if (!(ability->flags & AB_ENGINE_EVENTS)) continue;
-        item = MAKE(abilityitem_t, .ability = ability);
+        item = MAKE(abilityitem_t, .code = strlen(ability->classname) == 4 ?
+                    FS_SLKKey(ability->classname) : 0, .ability = ability);
         event_call = MAKE(abilityCall_t, .item = &item);
         if (call) event_call = *call;
         event_call.item = &item;
@@ -1005,8 +1008,29 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     bool handled = false;
 
     if (!ent) return false;
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DAMAGED)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
+    if (msg == A_DAMAGED) {
+        if (ent->unit_state) {
+            abilityCall_t status_call = payload ? *payload : MAKE(abilityCall_t, 0);
+            status_call.status.slot = NULL;
+            status_call.status.ability = 0;
+            status_call.status.reason = STATUS_REMOVE_SCRIPT;
+            FOR_LOOP(i, MAX_UNIT_STATUSES) {
+                heroabilitystatus_t *status = ent->unit_state->statuses + i;
+                abilityitem_t owner;
+                abilityCall_t event_call;
+                if (!status->level || !status->data) continue;
+                owner = S_AbilityItem(status->source_ability ? status->source_ability : status->data);
+                if (!owner.ability || !(owner.ability->flags & AB_STATUS_EVENTS)) continue;
+                event_call = status_call;
+                event_call.item = &owner;
+                event_call.status.slot = status;
+                event_call.status.ability = status->source_ability ? status->source_ability : status->data;
+                S_AbilityMessage(ent, msg, &event_call);
+            }
+        }
+    }
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
@@ -1183,7 +1207,7 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
-    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
+    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST | AB_ITEM))) {
         uint32_t const code = call && call->item ? call->item->code : 0;
         if (S_ManaFlareActive(ent) && code != MAKEFOURCC('A', 'm', 'f', 'l')) return false;
         if ((ability->flags & AB_SPELL) && code &&

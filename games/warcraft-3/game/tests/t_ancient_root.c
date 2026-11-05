@@ -301,6 +301,9 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     count = G_GetCommandButtons(unit, buttons, 12);
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
     T_ASSERT(attack_button);
+    bool rooted_stop_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdStop)) rooted_stop_button = true;
+    T_ASSERT(rooted_stop_button);
     T_EQ(unit->unit_state->attack2.type, ATK_NORMAL); /* Rooted ranged weapon. */
 
     G_GetAncientRoot(unit)->mode = ANCIENT_ROOTING;
@@ -378,6 +381,11 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     attack_button = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
     T_ASSERT(!attack_button);
+    /* Rooted ordinary Ancients have only automatic retaliation, so their
+     * command card must not expose Stop. */
+    bool stop_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdStop)) stop_button = true;
+    T_ASSERT(!stop_button);
 
     /* Damage-triggered retaliation follows the weapon profile even though
      * players cannot issue an explicit rooted Attack order. */

@@ -619,8 +619,21 @@ void reincarnation_think(edict_t *thinker) {
     if (thinker->goalentity && thinker->goalentity->inuse) G_FreeEdict(thinker->goalentity);
     thinker->goalentity = NULL;
     if (M_IsDead(owner)) {
-        G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
-        S_SpawnReincarnationReturnEffect(owner, thinker->class_id, WC3_EFFECT_EFFECT);
+        bool revived;
+        if (G_UnitIsHero(owner)) {
+            revived = G_ReviveHero(owner, thinker->s.origin2.x, thinker->s.origin2.y);
+        } else {
+            /* A neutral creep is not a hero. Revive the existing corpse so
+             * handles and the original unit's orders/ownership remain stable. */
+            G_ReviveCorpse(owner, 1.0f);
+            owner->s.origin2 = thinker->s.origin2;
+            owner->s.origin.x = thinker->s.origin2.x;
+            owner->s.origin.y = thinker->s.origin2.y;
+            owner->s.origin.z = CM_GetHeightAtPoint(owner->s.origin.x, owner->s.origin.y);
+            gi.LinkEntity(owner);
+            revived = !M_IsDead(owner);
+        }
+        if (revived) S_SpawnReincarnationReturnEffect(owner, thinker->class_id, WC3_EFFECT_EFFECT);
     }
     G_FreeEdict(thinker);
 }
@@ -683,6 +696,15 @@ static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vec2_t const *
     S_SpellRelocateUnit(unit, code, &position);
 }
 
+static bool mass_teleport_destination_valid(uint32_t code, edict_t *caster, edict_t *target) {
+    UnitData_t const *data;
+    if (!caster || !target || !S_SpellIsAliveTarget(target)) return false;
+    if (code != MAKEFOURCC('A','I','t','p')) return true;
+    data = G_UnitData(target->class_id);
+    return G_UnitIsStructure(target) && data->buffType && !strcasecmp(data->buffType, "townhall") &&
+           S_SpellIsFriend(caster, target);
+}
+
 void mass_teleport_think(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
     edict_t *target = S_SpellChannelTarget(thinker);
@@ -697,7 +719,8 @@ void mass_teleport_think(edict_t *thinker) {
         S_SpellEndChannel(thinker);
         return;
     }
-    if (!target || !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
+    if (!mass_teleport_destination_valid(thinker->class_id, caster, target) ||
+        !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
         mass_teleport_cleanup(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -740,7 +763,8 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
     if (msg == A_VALIDATE) {
         edict_t *target = call && call->target ? call->target->entity : NULL;
         if (!target || !S_SpellIsAliveTarget(target) || target == ent ||
-            !S_SpellAllowsAreaTarget(spell ? spell->code : 0, ent, target)) return false;
+            !S_SpellAllowsAreaTarget(spell ? spell->code : 0, ent, target) ||
+            !mass_teleport_destination_valid(spell ? spell->code : 0, ent, target)) return false;
 #if BZ_COMPAT_WORKAROUNDS
         /* RoC AHmt has no player/ally relationship tokens in targs, so retain
          * its retail friendly-destination rule explicitly. */
@@ -1499,6 +1523,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* TFT 1.07 omits ANht.BuffID; the stock debuff is BNht. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == MAKEFOURCC('A','N','h','t'))
+        buff = "BNht";
+#endif
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   S_SpellAllowsAreaTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {

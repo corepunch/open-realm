@@ -185,7 +185,7 @@ void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
     if (code && G_UnitIsStructure(target)) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(
             target, code, level, "Bliq", S_SpellDuration(code, level, false));
         if (status) {
             status->source = attacker;
@@ -703,7 +703,15 @@ BZ_ABILITY_PROC(CAbilityDrunkenBrawler) { return CAbilityPassive(ent, msg, call)
 BZ_ABILITY_PROC(CAbilitySellItem) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 
-bool S_UnitIsResistant(edict_t const *unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
+bool S_UnitIsResistant(edict_t const *unit) {
+    if (G_UnitIsHero(unit)) return true;
+    if (!unit_has_proc_ability(unit, CAbilityResistantSkin)) return false;
+    /* Mountain Giant's stock Resistant Skin passive is explicitly gated by
+     * Rers research; other authored resistant units remain immediately active. */
+    if (unit && unit->class_id == MAKEFOURCC('e','m','t','g') &&
+        !G_UnitAbilityResearchAvailable(unit, MAKEFOURCC('A','r','s','k'))) return false;
+    return true;
+}
 
 /* ANak is a separate passive Orb ability, not the mana-paid Afak attack
  * modifier. Afak's shot bonus is already snapshotted in missile->damage. */
@@ -737,6 +745,8 @@ int S_HardenedSkinDamage(edict_t *target, int damage) {
     if (!target || damage <= 0) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
         if ((level = G_UnitAbilityLevel(target, codes[i]))) { code = codes[i]; break; }
+    if (code && target->class_id == MAKEFOURCC('e','m','t','g') &&
+        !G_UnitAbilityResearchAvailable(target, code)) return damage;
     if (!code || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return MAX((int)S_SpellData(code, level, 2), damage - (int)S_SpellData(code, level, 3));
 }

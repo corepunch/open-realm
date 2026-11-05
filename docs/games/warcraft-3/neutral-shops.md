@@ -74,7 +74,7 @@ Warsmash's `CAbilityNeutralBuilding` retains one selected interaction unit per p
 current implementation resolves the patron deterministically when UI/purchase state is requested and attaches the authored Aneu target
 arrow above the focused shop's eligible patron. The effect is removed or retargeted when the focused shop/patron changes. It reads Aneu/Aall `DataA` for
 activation radius and `DataB` for the authored interaction type (inventory unit, non-building, or any unit), then chooses the nearest
-eligible living player-owned **unit** with entity number as a stable tie-break. Item shops without Aneu/Aall preserve their older
+eligible living **unit the local player can control**, including units with explicit shared-control authority, with entity number as a stable tie-break. Item shops without Aneu/Aall preserve their older
 inventory-carrier rule; `Sellunits` has no safe interaction fallback and therefore requires valid Aneu/Aall `DataB` data.
 
 Item purchase still requires inventory capacity even when Aneu is more permissive. Unit purchase does not incorrectly require an

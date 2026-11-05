@@ -1976,6 +1976,41 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+TEST(wc3_unit, transformed_unit_receives_target_forms_researched_movement_upgrade) {
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\n"
+        "C;Y1;X3;K\"realHP\"\nC;Y1;X4;K\"upgrades\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K60\nC;Y2;X3;K100\nC;Y2;X4;K\"\"\n"
+        "C;Y3;X1;K\"hfoo\"\nC;Y3;X2;K80\nC;Y3;X3;K100\nC;Y3;X4;K\"Renb\"\nE\n";
+    static cstring_t const upgrade_slk =
+        "ID;PWXL;N;E\nB;X9;Y2;D0\n"
+        "C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\nC;X6;K\"used\"\n"
+        "C;X7;K\"effect1\"\nC;X8;K\"base1\"\nC;X9;K\"mod1\"\n"
+        "C;X1;Y2;K\"Renb\"\nC;X3;K1\nC;X6;K1\nC;X7;K\"rmvx\"\nC;X8;K15\nC;X9;K0\nE\n";
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    slkTestData_t *balance_rows = parse_slk_string(balance_slk), *old_balance;
+    slkTestData_t *upgrade_rows = parse_slk_string(upgrade_slk), *old_upgrade;
+    edict_t *unit;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_upgrade = G_SetSLKRows("UpgradeData", upgrade_rows);
+    game.clients[0].ps.number = 0;
+    G_SetPlayerTechResearched(&game.clients[0], MAKEFOURCC('R','e','n','b'), 1);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    unit->s.player = 0;
+    T_ASSERT(G_TransformUnitType(unit, MAKEFOURCC('h','f','o','o')));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_FEQ(unit->data.UnitBalance->speed, 80.0f, 0.001f);
+    T_FEQ(unit->unitinfo.MoveSpeed, 95.0f, 0.001f);
+
+    G_SetSLKRows("UpgradeData", old_upgrade); free_slk_rows(upgrade_rows);
+    G_SetSLKRows("UnitBalance", old_balance); free_slk_rows(balance_rows);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 
 /* Each authored Spirit Walker form starts in the state its unit row names.
  * Acpf returns immediately; Aetf enters Ethereal with its authored cooldown. */

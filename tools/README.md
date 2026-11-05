@@ -14,11 +14,14 @@ make build/bin/ability_audit
 build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
 build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Aams
 build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aam2
+build/bin/ability_audit -data 'data/Warcraft III' -tft -statuses
 ```
 
 `-raw` prints class/parent, targs, cost, durations, DataA–I, BuffID tokens,
 strings, and `code=` aliases. `-roc` opens War3.mpq only; `-tft` searches
 War3x.mpq first. Without either flag, `-raw` prints both sections.
+`-statuses` exports every AbilityData row and rank as CSV
+(`id,code,level,buffID`), including aliases and blank BuffID fields.
 
 ## `extract_wc3_ability_classes.py`
 

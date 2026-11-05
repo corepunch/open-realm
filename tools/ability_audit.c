@@ -446,7 +446,7 @@ int main(int argc, char **argv) {
     handle_t archives[8] = {0};
     size_t archive_count = 0;
     cstring_t data_dir = NULL;
-    bool tft = false, roc_only = false, dump_all = false, have_mpq = false;
+    bool tft = false, roc_only = false, dump_all = false, dump_statuses = false, have_mpq = false;
     uint32_t raw = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -461,16 +461,19 @@ int main(int argc, char **argv) {
             roc_only = true;
         } else if (!strcmp(argv[i], "-all")) {
             dump_all = true;
+        } else if (!strcmp(argv[i], "-statuses")) {
+            dump_statuses = true;
         } else if (!strcmp(argv[i], "-raw") && i + 1 < argc && strlen(argv[i + 1]) == 4) {
             cstring_t id = argv[++i];
             raw = RK(id);
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
-            fprintf(stderr, "Usage: %s [-data <dir>] [-mpq <file>] [-tft] [-roc] [-all] [-raw <id>]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-data <dir>] [-mpq <file>] [-tft] [-roc] [-all] [-statuses] [-raw <id>]\n", argv[0]);
             fprintf(stderr, "  -data <dir>  Data directory containing MPQ archives\n");
             fprintf(stderr, "  -mpq <file>  Open a specific MPQ archive\n");
             fprintf(stderr, "  -tft         TFT overlay (War3.mpq + War3x.mpq)\n");
             fprintf(stderr, "  -roc         ROC archives only (no War3x overlay)\n");
             fprintf(stderr, "  -all         Dump all abilities, not just missing ones\n");
+            fprintf(stderr, "  -statuses    CSV of every AbilityData row/rank and its BuffID\n");
             fprintf(stderr, "  -raw <id>    Agent brief: row, strings, buffs, aliases, class\n");
             fprintf(stderr, "               Without -roc/-tft, -raw prints ROC then TFT.\n");
             return 0;
@@ -507,6 +510,23 @@ int main(int argc, char **argv) {
     if (!count || !rows) {
         fprintf(stderr, "Failed to load Units\\AbilityData.slk\n");
         return 1;
+    }
+
+    if (dump_statuses) {
+        printf("id,code,level,buffID\n");
+        FOR_LOOP(i, count) {
+            AbilityData_t const *row = rows + i;
+            uint32_t code = row->code ? row->code : row->id;
+            uint32_t levels = MIN(row->levels > 0 ? row->levels : 1, 4);
+            if (!row->id) continue;
+            FOR_LOOP(level, levels) {
+                printf("%.4s,%.4s,%u,%s\n", (char const *)&row->id, (char const *)&code,
+                       level + 1, row->buffID[level] ? row->buffID[level] : "");
+            }
+        }
+        FS_SLKFreeRows(ability_schema, rows, count, sizeof(AbilityData_t));
+        Tool_CloseArchives(archives, 8);
+        return 0;
     }
 
     /* Load ability string files for tooltip lookups. */

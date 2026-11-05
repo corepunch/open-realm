@@ -1100,6 +1100,14 @@ static cstring_t TimedStatusLabel(heroabilitystatus_t const *status) {
     return UI_GetString(tip);
 }
 
+/* Hex's duration is visible on the affected unit's selected status panel,
+ * including when the selected target belongs to an opponent or neutral. */
+static bool TimedStatusVisibleToViewer(edict_t const *unit, gameClient_t const *viewer,
+                                       heroabilitystatus_t const *status) {
+    return unit && viewer && status &&
+        (unit->s.player == viewer->ps.number || status->code == MAKEFOURCC('B','O','h','x'));
+}
+
 static cstring_t StatusBuffArt(uint32_t code) {
     cstring_t art;
 
@@ -1369,11 +1377,11 @@ static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_
     UI_SetText(hud.simple.SimpleNameValue, "%s", display_name ? display_name : "");
     unit_name = G_UnitName(ent->class_id);
 
-    /* Warsmash shows this timer only for a single unit owned by the local
-     * player. UI_SendInfoPanel already guarantees single-selection here; keep
-     * ownership explicit rather than leaking an enemy/allied timer. */
-    if (viewer && ent->s.player == viewer->ps.number) {
+    /* UI_SendInfoPanel guarantees single-selection. Most timed statuses remain
+     * owner-only; Hex is visible on the affected unit's selected panel too. */
+    if (viewer) {
         timed_status = unit_findtimedbarstatus(ent);
+        if (!TimedStatusVisibleToViewer(ent, viewer, timed_status)) timed_status = NULL;
         timed_label = TimedStatusLabel(timed_status);
     }
 
@@ -1683,7 +1691,7 @@ void Get_Commands_f(edict_t *ent) {
     G_ClearBuildPlacementMode(ent);
     /* The command bar can also be rebuilt while item-owned building
      * targeting is active (selection change, Escape, interrupted order). */
-    if (ent->client->menu.on_location_selected) {
+    if (ent->client->menu.on_entity_selected || ent->client->menu.on_location_selected) {
         S_AbilityTargetModeExit(ent);
         gi.Write(PF_BYTE, &(int32_t){svc_cursor});
         gi.Write(PF_ENTITY, &(entityState_t){0});
@@ -1915,7 +1923,7 @@ static void WriteInventoryTitle(void) {
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void WriteInventory(edict_t *player, edict_t *ent) {
+static void WriteInventory(edict_t *player, edict_t *ent, bool disabled) {
     gameInventoryItem_t items[MAX_INVENTORY];
     uint32_t capacity = G_InventoryCapacity(ent);
     uint8_t count;
@@ -1936,24 +1944,32 @@ static void WriteInventory(edict_t *player, edict_t *ent) {
         float bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (float)(items[i].slot % 2) * 0.0394f;
         float by = UI_BASE_HEIGHT - 0.0971f + (float)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
+        uiCommandButton_t state = {0};
         char onclick[128];
         char onrightclick[128];
         char tooltip[1024];
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_COMMANDBUTTON;
-        frame.color = COLOR32_WHITE;
+        frame.color = disabled ? MAKE(color32_t, 128, 128, 128, 255) : COLOR32_WHITE;
         frame.tex.index = gi.ImageIndex(items[i].art);
+        frame.value = items[i].cooldown;
+        state.radialStartTime = items[i].cooldown_start_time;
+        state.radialEndTime = items[i].cooldown_end_time;
+        if (state.radialEndTime != state.radialStartTime) frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
+        if (disabled) frame.flagsvalue |= UIFRAME_DISABLED;
         UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
         frame.tooltip = tooltip;
-        snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
-        snprintf(onrightclick, sizeof(onrightclick), "itemdrag %u", (unsigned)items[i].slot);
-        frame.onclick = onclick;
+        if (!disabled) {
+            snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
+            snprintf(onrightclick, sizeof(onrightclick), "itemdrag %u", (unsigned)items[i].slot);
+            frame.onclick = onclick;
+        }
         /* Command-button text is the existing secondary/right-click command
          * channel (also used by autocast). Inventory items use it to begin the
          * Warsmash-style hold-item cursor interaction. */
-        frame.text = onrightclick;
+        frame.text = disabled ? NULL : onrightclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
-        UI_WriteProxyFrame(&frame, NULL, 0);
+        UI_WriteProxyFrame(&frame, &state, sizeof(state));
         WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);
     }
     if (count) UI_WriteTooltipFrame();
@@ -1961,6 +1977,9 @@ static void WriteInventory(edict_t *player, edict_t *ent) {
 
 static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t count) {
     edict_t *focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+    bool shop_mode = focused && (G_CanUseItemShop(ent->client, focused) ||
+                                 G_CanUseUnitShop(ent->client, focused));
+    bool can_control = focused && G_UnitCanControl(ent->client, focused);
 
     (void)selected;
     /* Neutral shops borrow the selected patron's inventory presentation while
@@ -1968,9 +1987,13 @@ static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t co
      * shop flow without granting command authority over the neutral unit. */
     if (focused && G_CanUseItemShop(ent->client, focused)) {
         focused = G_FindShopPatron(ent->client, focused);
+        can_control = focused && G_UnitCanControl(ent->client, focused);
     }
     UI_WriteStart(LAYER_INVENTORY);
-    if (focused) WriteInventory(ent, focused);
+    if (focused) {
+        if (can_control || shop_mode) WriteInventory(ent, focused, shop_mode);
+        else WriteInventoryCover(ent);
+    }
     UI_WriteEnd(ent);
 }
 
@@ -2042,9 +2065,9 @@ static uint16_t SelectedTimedStatusStat(gameClient_t *client, edict_t *selected)
     heroabilitystatus_t const *status;
     float fraction;
 
-    if (!client || !selected || selected->s.player != client->ps.number) return 0;
+    if (!client || !selected) return 0;
     status = unit_findtimedbarstatus(selected);
-    if (!status) return 0;
+    if (!TimedStatusVisibleToViewer(selected, client, status)) return 0;
     fraction = unit_statusremainingfraction(status);
     return (uint16_t)MIN((uint32_t)(fraction * (float)USHRT_MAX + 0.5f), (uint32_t)USHRT_MAX);
 }

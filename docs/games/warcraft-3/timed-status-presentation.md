@@ -12,13 +12,15 @@ OpenRealm currently opts these statuses into the timed bar:
 | `BTLF` | summoned-unit timed life | unit dies when the status expires; Dispel/Purge/Devour Magic cannot remove this lifecycle status |
 | `BHav` | Mountain King `AHav` Avatar | restores Avatar's stats, scale, and alternate model animation |
 | `BEme` | Demon Hunter `AEme` Metamorphosis | restores the original unit form and removes the temporary health bonus |
+| `BOhx` | Shadow Hunter `ANhx` Hex | removes the Hex morph and restores the original unit form |
 
 Other timed statuses such as `Bstu` remain ordinary simulation statuses and do not claim the selected-unit countdown bar. `BTLF` is also
 classified as undispellable by `S_StatusIsUndispellable()`: removing it early would erase the simulation-owned expiration and turn a
 temporary unit into a permanent one. Extend `unit_statusshowstimedbar()` only when the corresponding Warcraft/Warsmash buff is known to
 use the timed-life presentation.
 
-The presentation matches Warsmash's important policy rules:
+The presentation matches Warsmash's important policy rules, with `BOhx` also
+published for the selected Hex target so its transformation countdown is visible:
 
 - one `SimpleProgressIndicator` slot, not one bar per buff;
 - only a single selected unit can expose the bar;
@@ -96,13 +98,16 @@ When no qualifying timer is active, the ordinary class behavior returns:
 
 ## Selection And Ownership
 
-The timer is exposed only when:
+For ordinary timed statuses, the timer is exposed only when:
 
 ```text
 selection count == 1
 selected unit owner == local player's player number
 qualifying status exists and has not expired
 ```
+
+`BOhx` is the exception: its countdown is exposed for the selected affected
+unit even when the unit is owned by another player or is neutral.
 
 Multi-selection uses `UI_WriteMultiselect()` and never serializes the single-unit progress indicator. Foreign/allied/enemy selections receive a zero timer player stat and no progress-indicator frame. `G_SetUnitPlayer()` invalidates the info panel so an ownership transfer cannot leave a stale timer label visible.
 

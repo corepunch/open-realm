@@ -1,5 +1,8 @@
 # Firelord: Lava Spawn, Incinerate and Volcano
 
+The Firelord and Lava Spawn were introduced after the 1.07 TFT baseline; see
+[Warcraft III data version history](data-version-history.md).
+
 ## Data source and implementation scope
 
 Active TFT `AbilityData.slk` and the 2026-11-01 read-only Firelord research report

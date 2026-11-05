@@ -163,8 +163,8 @@ research ownership and remaining projectile-presentation limitations.
 
 ## Runtime stat effects
 
-This implementation intentionally enables only the upgrade effect codes whose
-current Warsmash behavior is sufficiently unambiguous. Effects remain driven by
+This implementation enables the upgrade effect codes whose behavior is
+supported by the verified Warsmash effect implementations. Effects remain driven by
 `UpgradeData.slk` plus each unit type's `Upgrades Used` list; Human Barracks
 research such as Long Rifles and Animal War Training does not use unit-rawcode
 special cases.
@@ -203,6 +203,47 @@ upgrade armor = armorPerUpgrade * researched level
 
 Changing level applies the delta between old and new levels to both
 `edict_t.permanent_armor_bonus` and `edict_t.armor_value`. Hero Agility recomputation rebuilds base armor plus this persistent ledger, so researched armor is not lost when attributes change.
+
+### `rmvx` / `rmov` — movement speed (Nature's Blessing, `Renb`)
+
+These are UpgradeData effects, not ability status/buff multipliers. A unit only
+receives the effect when its own `UnitBalance.upgrades` (Upgrades Used) includes
+the researched rawcode. The stock Night Elf `Renb` upgrade can therefore affect
+Ancients and Force of Nature Treants without special-casing their unit IDs.
+The data controls the amount; `rmvx` is an integer flat speed delta and `rmov`
+is a rounded percentage of the *authored unit type's base speed*:
+
+```text
+rmvx(level) = int(base + mod * (level - 1))
+rmov(level) = round(UnitBalance.speed * (base + mod * (level - 1)))
+```
+
+Research-level zero contributes zero. Tech level changes apply only the
+new-minus-old contribution to `unitinfo.MoveSpeed`. This is the mutable stat
+consumed by `skills/s_move.c::unit_effective_speed()` and displayed in unit
+information; it is **not** the same as a timed slow/haste status modifier.
+Root/Uproot does not change the authored base speed or reinitialize this field:
+rooted Ancients still cannot move (`AI_IMMOBILE` / `MOVETYPE_NONE`), while
+uprooted Ancients retain the researched movement bonus. Each unit's authored
+`armorPerUpgrade` continues to determine the `rarm` armor bonus (including the
+Ancient Protector's smaller gain).
+
+`G_ApplyPlayerUpgradesToUnit` applies completed research to freshly spawned or
+transformed units. `G_RebasePlayerUpgradesOnUnit` exchanges old/new owner tech
+contributions during `G_SetUnitPlayer`, so captured units do not keep the
+previous owner's upgrade. The same delta path covers JASS tech changes and
+research completion. Speed stays in the existing saved `unitinfo` structure;
+no new save field or wire field is needed.
+
+**Fixture verification**: `wc3_building.natures_blessing_applies_armor_and_flat_speed_to_existing_and_future_units`,
+`wc3_building.movement_percent_upgrade_is_based_on_authored_speed_not_current_speed`,
+and `wc3_building.captured_ancient_exchanges_player_research_modifiers` exercise
+non-stock data, level transitions, eligible/non-eligible units, root immobility
+and captures. The existing `G_TransformUnitType` path calls `SP_SpawnUnit`,
+which applies the target type's researched upgrades. Both codes consume the
+standard UpgradeData effect/base/mod columns, common to RoC and TFT; this patch
+does not add data schema columns. The focused fixtures passed during review;
+run `make test` for the required full-suite verification.
 
 ### `ratr` — attack range
 
@@ -430,10 +471,9 @@ stock Peasant list, keep those level holders hidden.
 
 ## Intentionally unresolved
 
-This patch does **not** guess at the remaining Warcraft upgrade effect codes.
-Movement, attack speed, hit-point regeneration and other upgrade
-effect families still need clean data-driven implementations before they should
-mutate runtime units.
+The flat and percentage movement-speed codes (`rmvx`, `rmov`) are now handled.
+Other effect families, including attack speed and hit-point regeneration,
+remain unresolved and must not mutate units without an authoritative contract.
 
 The following compatibility work also remains:
 
@@ -444,8 +484,9 @@ The following compatibility work also remains:
 - Attack 2 runtime stats are initialized and receive `ratx`/`ratd`, but combat
   order selection still attacks through Attack 1; full WC3 Attack 1/Attack 2
   selection remains unresolved;
-- ownership-transfer semantics for upgrades whose `inherit` flag controls
-  transfer are not changed here;
+- transfer of researched technology itself through UpgradeData `inherit`
+  remains unresolved; captured units already rebase their own modifiers to
+  the new owner's existing tech level;
 - UpgradeData `global` semantics and any timing/game-speed adjustment beyond the
   authoritative SLK base/increment values are not introduced speculatively here.
 

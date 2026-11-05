@@ -30,6 +30,7 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
     /* ROC omits BuffID for these stock statuses. */
     switch (G_AbilityCode(spell->code)) {
     case BZ_POLYMORPH: return "Bply"; /* Aply/ACpy share the TFT token. */
+    case MAKEFOURCC('A','c','l','f'): return "Bclf";
     case MAKEFOURCC('A','i','n','f'): return "Binf";
     case MAKEFOURCC('A','s','l','o'): return "Bslo";
     case MAKEFOURCC('A','i','v','s'): return "Bivs";
@@ -162,6 +163,11 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
 static uint32_t shackles_buff(uint32_t code, uint32_t rank) {
     cstring_t buffs = G_AbilityLevel(code, rank)->buffID;
     char source[5], target[5];
+#if BZ_COMPAT_WORKAROUNDS
+    /* TFT 1.07 omits Amls.BuffID; the stock caster/target pair is Bmlc,Bmlt. */
+    if ((!buffs || strlen(buffs) < 9) && G_AbilityCode(code) == MAKEFOURCC('A','m','l','s'))
+        buffs = "Bmlc,Bmlt";
+#endif
     if (buffs && sscanf(buffs, "%4[^,],%4s", source, target) == 2) return FS_SLKKey(target);
     fprintf(stderr, "WC3 Shackles: missing caster/target buff pair for %08x\n", code);
     return 0;
@@ -180,8 +186,7 @@ static bool aerial_shackles_validate(edict_t *caster, spellTarget_t st, abilityi
     uint32_t level, buff;
     wc3_status_apply_check_t check;
     if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
-        S_UnitIsResistant(st.entity) || st.entity->targtype != TARG_AIR ||
-        !S_SpellIsEnemy(caster, st.entity)) return false;
+        st.entity->targtype != TARG_AIR || !S_SpellIsEnemy(caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     buff = shackles_buff(spell->code, level);
     if (!buff) return false;
@@ -205,9 +210,57 @@ static void control_magic_execute(edict_t *caster, spellTarget_t st, abilityitem
 }
 
 static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)caster;
     (void)spell;
-    return st.entity && G_UnitIsStructure(st.entity) && st.entity->unit_state->attack1.type != ATK_NONE &&
-           S_SpellIsEnemy(caster, st.entity);
+    /* Cloud is ground targeted. It remains a valid cast on empty ground. */
+    return st.type == SPELL_TARGET_POINT;
+}
+
+static void cloud_think(edict_t *cloud) {
+    edict_t *caster = cloud->owner;
+    uint32_t code = cloud->class_id, level = (uint32_t)cloud->wait;
+    if (G_Time() >= cloud->freetime) {
+        G_DestroyOwnedEffects(cloud);
+        G_FreeEdict(cloud);
+        return;
+    }
+    if (!caster || !caster->inuse || !level) return;
+    cstring_t buff = human_buff(&(abilityitem_t){ .code = code }, level);
+    if (!buff) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && G_UnitIsStructure(target) &&
+                  target->unit_state && target->unit_state->attack1.type != ATK_NONE &&
+                  S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, &cloud->s.origin2) <= cloud->collision) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(
+            target, code, level, buff, MAX(0.1f, (cloud->freetime - G_Time()) * 0.001f));
+        if (status) {
+            status->source = caster;
+            status->source_spawn_time = caster->spawn_time;
+        }
+    }
+}
+
+static void cloud_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t effect_code = G_AbilityEffectCode(spell->code, level);
+    float duration = S_SpellDuration(spell->code, level, false);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    edict_t *cloud;
+    if (!caster || st.type != SPELL_TARGET_POINT || duration <= 0.0f) return;
+    cloud = G_Spawn();
+    if (!cloud) return;
+    cloud->owner = caster;
+    cloud->class_id = spell->code;
+    cloud->wait = (float)level;
+    cloud->collision = area;
+    cloud->s.origin2 = st.point;
+    cloud->freetime = G_Time() + (uint32_t)(duration * 1000.0f);
+    cloud->think = cloud_think;
+    edict_t *effect = G_SpawnOwnedAbilityEffectAtPoint(cloud, effect_code, WC3_EFFECT_EFFECT, 0, &st.point);
+    int loop_sound = G_AbilityEffectSoundIndex(effect_code, true);
+    if (effect && loop_sound) effect->s.sound = (uint16_t)loop_sound;
+    else if (!loop_sound) G_PlayAbilityEffectSound(effect_code, &st.point);
+    cloud_think(cloud);
 }
 
 static bool inner_fire_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -468,14 +521,23 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
      * discard it before it can begin a channel or deal its first damage tick. */
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     if (!thinker) return;
-    slot = S_SpellApplyTimedStatus(st.entity, GetClassName(buff), level, duration);
+    slot = S_SpellApplyTimedStatusFromAbility(st.entity, spell->code, level, GetClassName(buff), duration);
     if (!slot) {
         G_FreeEdict(thinker);
         return;
     }
+    /* The stock Aerial Shackles target model is authored on Bmlt, not Amls.
+     * Let the status own it so dispel/expiry removes the attached model. */
+    unit_status_enabletargetart(st.entity, slot, "origin");
     thinker->variation = slot->instance_id;
     thinker->resources = buff;
-    thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1);
+    {
+        gLightning_t *lightning = G_SpawnAbilityLightning(&(abilityLightningParams_t){
+            .ability_id = spell->code, .index = 0, .source = caster, .target = st.entity,
+            .duration_ms = 0,
+        });
+        thinker->damage = lightning ? lightning->state.handle : 0;
+    }
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->think = human_ability_think;
     human_ability_think(thinker);
@@ -485,6 +547,17 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
 static void shackles_end(edict_t *thinker) {
     edict_t *target = S_SpellChannelTarget(thinker);
     bool retained = false;
+    uint32_t lightning_handle = thinker ? thinker->damage : 0;
+    if (thinker) thinker->damage = 0;
+    if (lightning_handle) {
+        FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+            gLightning_t *lightning = &level.lightning_effects[i];
+            if (G_LightningValid(lightning) && lightning->state.handle == lightning_handle) {
+                G_LightningRemove(lightning);
+                break;
+            }
+        }
+    }
     if (target) {
         heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
         /* Never remove a replacement or independently owned status. */
@@ -503,6 +576,7 @@ static void shackles_end(edict_t *thinker) {
 void human_ability_think(edict_t *thinker) {
     uint32_t now = G_Time();
     edict_t *target;
+    heroabilitystatus_t *slot;
     if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
         edict_t *owner = S_SpellChannelOwner(thinker);
         if (now >= thinker->spawn_time || !owner) { G_FreeEdict(thinker); return; }
@@ -515,14 +589,14 @@ void human_ability_think(edict_t *thinker) {
         shackles_end(thinker); return;
     }
     /* A dispel or replacement ends this cast; rawcode alone is not ownership. */
-    {
-        heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
-        if (!slot || (slot->timestamp && slot->timestamp <= now)) {
-            shackles_end(thinker); return;
-        }
+    slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
+    if (!slot || (slot->timestamp && slot->timestamp <= now)) {
+        shackles_end(thinker); return;
     }
     if (!thinker->freetime || now >= thinker->freetime) {
-        S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
+        uint32_t const rank = slot->rank ? slot->rank : slot->level;
+        uint32_t const damage = (uint32_t)S_SpellData(thinker->class_id, rank, 1);
+        S_SpellDamage(target, thinker->owner, damage); thinker->freetime = now + 1000;
     }
 }
 
@@ -637,7 +711,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spe
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_validate(ent, target, call ? call->item : NULL), spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
-BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
+BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, cloud_execute)
 /* Name=Defend; Untip=Stop Defend */
 BZ_ABILITY_PROC(CAbilityDefend) {
     spellTarget_t target = msg == A_EXECUTE && call && call->target ?
@@ -839,11 +913,14 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 
 BZ_ABILITY_PROC(CAbilityHex) {
-    spellTarget_t target = call && call->target ? *call->target :
-        MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    /* spell_approach_range shares a union with target. This query is sent
+     * with ent == NULL, so only read target for target-bearing messages. */
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
     case A_VALIDATE: return polymorph_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: polymorph_execute(ent, target, call ? call->item : NULL); return true;
+    case A_SPELL_APPROACH_RANGE: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }

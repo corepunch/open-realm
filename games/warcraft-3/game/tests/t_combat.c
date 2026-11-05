@@ -524,6 +524,30 @@ TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
     T_ASSERT(tauren->goalentity == cairne);
 }
 
+TEST(wc3_combat, polymorphed_unit_cannot_start_or_continue_attacks) {
+    edict_t *attacker, *target;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 48.0f, 0.0f);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->targtype = target->targtype = TARG_GROUND;
+    attacker->unit_state->attack1.type = ATK_NORMAL;
+    attacker->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+
+    T_ASSERT(S_AttackCanTarget(attacker, target));
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_ASSERT(attacker->goalentity == target);
+
+    G_AddPolymorph(attacker);
+    T_ASSERT(S_UnitPolymorphed(attacker));
+    T_ASSERT(!S_AttackCanTarget(attacker, target));
+    if (attacker->currentmove && attacker->currentmove->think)
+        attacker->currentmove->think(attacker);
+    T_NULL(attacker->goalentity);
+    T_ASSERT(!S_OrderAttack(attacker, target));
+}
+
 TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
     edict_t *attacker, *target;
 
@@ -3849,6 +3873,38 @@ TEST(wc3_combat, demon_hunter_evasion_prevents_attack_damage_at_authored_100_per
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+TEST(wc3_combat, lightning_attack_passive_emits_short_bolt_only_after_valid_hit) {
+    static UnitAbilities_t const lightning_abilities = { .abilList = "Alit" };
+    edict_t *attacker, *target;
+    gLightning_t *bolt = NULL;
+
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('n','t','h','l'), 500.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 96.0f, 0.0f);
+    attacker->data.UnitAbilities = &lightning_abilities;
+    target->s.player = 1;
+    S_ResolveAttackHit(attacker, target, 20);
+
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+        if (level.lightning_effects[i].inuse) { bolt = &level.lightning_effects[i]; break; }
+    }
+    T_NOT_NULL(bolt);
+    T_EQ(bolt->state.effect_id, MAKEFOURCC('C','L','P','B'));
+    T_EQ(bolt->state.source.x, attacker->s.origin.x);
+    T_EQ(bolt->state.target.x, target->s.origin.x);
+    T_EQ(bolt->state.end_time - bolt->state.start_time, 250u);
+
+    G_LightningRemove(bolt);
+    bolt = NULL;
+    attacker->data.UnitAbilities = NULL;
+    S_ResolveAttackHit(attacker, target, 20);
+    T_NULL(bolt);
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+        if (level.lightning_effects[i].inuse) { bolt = &level.lightning_effects[i]; break; }
+    }
+    T_NULL(bolt);
 }
 
 /* Normal vs medium = 1.5× (footmen effective vs soldiers). */

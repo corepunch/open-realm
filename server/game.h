@@ -166,6 +166,9 @@ typedef struct {
     char ubertip[512];
     uint8_t slot;
     uint32_t charges;
+    float cooldown; /* remaining fraction, matching gameCommandButton_t */
+    uint32_t cooldown_start_time; /* authoritative server milliseconds; zero when ready */
+    uint32_t cooldown_end_time;
 } gameInventoryItem_t;
 
 typedef struct {

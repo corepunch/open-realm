@@ -1413,6 +1413,10 @@ cstring_t S_SearingArrowsMissileArt(edict_t *attacker) {
 
 static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
     cstring_t buff = S_SpellBuffId(code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC/TFT 1.07 omits ANms.BuffID; Mana Shield's stock active marker is BNms. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(code) == ID_MANA_SHIELD) buff = "BNms";
+#endif
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 
@@ -1516,13 +1520,19 @@ bool S_EvasionRoll(edict_t *target) {
 }
 
 int S_CriticalStrikeDamage(edict_t *attacker, int damage) {
-    uint32_t level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
-    uint32_t code = ID_CRITICAL_STRIKE;
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
-    if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER_CAMPAIGN); code = ID_DRUNKEN_BRAWLER_CAMPAIGN; }
-    if (!level || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
-    return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
+    /* Resolve the owned alias/rank, not only the inherited parent: creep and
+     * campaign variants can author distinct chance and damage multipliers. */
+    static uint32_t const bases[] = {
+        ID_CRITICAL_STRIKE, ID_CREEP_CRITICAL_STRIKE,
+        ID_DRUNKEN_BRAWLER, ID_DRUNKEN_BRAWLER_CAMPAIGN
+    };
+    FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
+        abilityAliasRef_t const own = S_ResolveAbilityAlias(attacker, bases[i]);
+        if (!own.level) continue;
+        if ((float)(rand() % 100) >= S_SpellData(own.alias, own.level, 1)) return damage;
+        return (int)((float)damage * MAX(1.0f, S_SpellData(own.alias, own.level, 2)));
+    }
+    return damage;
 }
 
 float S_SpikedArmorBonus(edict_t const *unit) {

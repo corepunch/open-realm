@@ -341,6 +341,8 @@ static void revive_corpse_state(edict_t *ent, float life_fraction, bool temporar
     if (!ent) return;
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
+    /* The death animation may be held independently of the corpse state. */
+    G_SetUnitFlag(ent, UNIT_FLAG_ANIMATION_OVERRIDE, false);
     ent->combatentity = ent->goalentity = ent->orders->resource_goal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
     ent->aiflags &= ~(AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
@@ -1736,7 +1738,8 @@ bool unit_statusshowstimedbar(uint32_t code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F') ||
            code == MAKEFOURCC('B', 'm', 'i', 'l') ||
            code == MAKEFOURCC('B', 'H', 'a', 'v') ||
-           code == MAKEFOURCC('B', 'E', 'm', 'e');
+           code == MAKEFOURCC('B', 'E', 'm', 'e') ||
+           code == MAKEFOURCC('B', 'O', 'h', 'x');
 }
 
 float unit_statusremainingfraction(heroabilitystatus_t const *status) {
@@ -1878,6 +1881,7 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
     case MAKEFOURCC('B','e','n','g'):
     case MAKEFOURCC('B','w','e','a'):
     case MAKEFOURCC('B','w','e','b'):
+    case MAKEFOURCC('B','m','l','t'): /* Aerial Shackles: movement and attack lock */
         return WC3_STATUS_STATE_ROOTED;
     case MAKEFOURCC('B','H','b','n'):
         return WC3_STATUS_STATE_ETHEREAL;

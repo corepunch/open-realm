@@ -205,7 +205,8 @@ TEST(wc3_spell, dryad_abolish_magic_dispels_buffs_and_debuffs_and_damages_summon
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	T_ASSERT(S_UnitHasStatus(fix.caster, BZ_BINF));
 	T_ASSERT(!S_UnitHasStatus(ally, BZ_BSLO));
-	T_ASSERT(!S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f')));
+	/* Abolish Magic removes allied debuffs, not friendly positive Inner Fire. */
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f')));
 	T_FEQ(fix.summon->health.value, 377, 0.001f); /* hostile summon takes DataB=123 */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
 	G_SetSLKRows("AbilityData", old);

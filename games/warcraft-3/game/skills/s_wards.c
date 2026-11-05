@@ -474,6 +474,16 @@ static bool detector_shared_with_player(edict_t const *detector, uint32_t player
  * receives the reveal; the hidden entity itself is never globally unhidden. */
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
+	/* Dust of Appearance's Bdet is attached to each affected unit. Its payload
+	 * records the player who used the item; shared-vision allies inherit it. */
+	FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0) {
+		heroabilitystatus_t const *status = unit->unit_state->statuses + i;
+		uint32_t const buff = MAKEFOURCC('B', 'd', 'e', 't');
+		if (status->level && status->code == buff && status->data > 0 &&
+		    status->data <= MAX_PLAYERS &&
+		    (!status->timestamp || G_Time() < status->timestamp) &&
+		    G_FowPlayersShareVision(player, status->data - 1)) return true;
+	}
 
 	/* Far Sight owns an independent timed thinker after the caster is gone. */
 	FILTER_EDICTS(sight, sight->inuse && sight->think == far_sight_think &&

@@ -5,19 +5,70 @@
  * Untip="Deactivate Immolation"
  * Unubertip=""
  */
-
 /* Immolation's DataA is damage per second, DataB is mana drain per second,
  * and Area is its self-centered radius. Mana drain is distributed over seven substeps per second
  * (one point each for stock DataB=7); damage remains a one-second pulse. */
 #define IMMOLATION_TICK_MS 1000 // milliseconds; authored damage is per second
 #define IMMOLATION_MANA_RATE 7 // substeps/second; preserves stock one-point mana drain cadence
 #define ID_IMMOLATION_STATUS MAKEFOURCC('B','E','i','m')
+#define ID_PERMANENT_IMMOLATION MAKEFOURCC('A','N','p','i')
+#define ID_PIG_IMMOLATION MAKEFOURCC('A','p','i','g')
+
+/* Passive permanent immolation is enabled by owning the ability: no click,
+ * upkeep mana, or toggled stance. The same saveable BEim status provides a
+ * one-second deadline without introducing a new edict field. */
+static bool immolation_update_passive(edict_t *ent) {
+    abilityAliasRef_t passive;
+    heroabilitystatus_t *status;
+    abilityLevel_t const *row;
+    if (!ent || !ent->unit_state || !S_AuraUnitActive(ent)) return false;
+    passive = S_ResolveAbilityAlias(ent, ID_PERMANENT_IMMOLATION);
+    if (!passive.alias) passive = S_ResolveAbilityAlias(ent, ID_PIG_IMMOLATION);
+    /* Permanent Immolation rows can be authored as standalone passive IDs
+     * whose code= points to themselves. The shared alias resolver correctly
+     * treats those as their own family, so query concrete ownership too. */
+    if (!passive.alias && G_ActorHasSkill(ent, "ANpi"))
+        passive = (abilityAliasRef_t){ .alias = ID_PERMANENT_IMMOLATION, .level = 1 };
+    if (!passive.alias && G_ActorHasSkill(ent, "Apig"))
+        passive = (abilityAliasRef_t){ .alias = ID_PIG_IMMOLATION, .level = 1 };
+    if (!passive.alias) return false;
+    status = unit_findstatus(ent, ID_IMMOLATION_STATUS);
+    if (!status) {
+        status_application_t const app = {
+            .buff = "BEim", .level = passive.level, .source_ability = passive.alias,
+            .data = passive.alias, .source = ent, .rank = passive.level,
+            .buff_flags = WC3_STATUS_BUFF_TARGET_ART
+        };
+        status = unit_applystatus(ent, &app);
+        if (!status) return true;
+        status->next_tick = G_Time() + IMMOLATION_TICK_MS;
+    }
+    /* A custom map may change ability rank while the passive is running. */
+    status->data = passive.alias;
+    status->source_ability = passive.alias;
+    status->rank = passive.level;
+    row = G_AbilityLevel(passive.alias, passive.level);
+    if (!status->next_tick) status->next_tick = G_Time() + IMMOLATION_TICK_MS;
+    while ((int32_t)(G_Time() - status->next_tick) >= 0) {
+        float const damage = MAX(0.0f, row->data[0].number);
+        float const area = MAX(0.0f, row->area);
+        /* Advance before damage: target deaths may dispatch status callbacks. */
+        status->next_tick += IMMOLATION_TICK_MS;
+        if (damage <= 0.0f || area <= 0.0f) continue;
+        FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) &&
+                      S_SpellIsEnemy(ent, target) && G_UnitTargetType(target) == TARG_GROUND &&
+                      Vector2_distance(&target->s.origin2, &ent->s.origin2) <= area)
+            S_SpellDamage(target, ent, (int)damage);
+    }
+    return true;
+}
 BZ_ABILITY_PROC(CAbilityImmolation) {
     heroabilitystatus_t *status;
     uint32_t code;
     if (msg == A_TOGGLE_ON)
         return ent && unit_findstatus(ent, ID_IMMOLATION_STATUS) != NULL;
     if (msg == A_UPDATE) {
+        if (immolation_update_passive(ent)) return true;
         if (!ent || !ent->unit_state) return true;
         status = unit_findstatus(ent, ID_IMMOLATION_STATUS);
         if (!status || !status->level || !status->data) return true;
@@ -206,6 +257,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC AbilityData omits BuffID; the stock Frost Armor status is BUfa. */
+    if ((!buff || strlen(buff) < 4) && (G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','a') ||
+                  G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','u')))
+        buff = "BUfa";
+#endif
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
@@ -246,9 +303,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     if (!thinker) return;
 #if BZ_COMPAT_WORKAROUNDS
     /* RoC AbilityData has no BuffID column; the HumanAbilityFunc contract
-     * still authors Divine Shield's TargetArt under BHds. */
+     * still authors Divine Shield's TargetArt under BHds. Phase Shift has
+     * the same missing-column issue in 1.07; its status is Bpsh. */
     if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
         spell->code == MAKEFOURCC('A','H','d','s')) buff = "BHds";
+    else if ((!buff || !*buff || !strcmp(buff, "-") || !strcmp(buff, "_")) &&
+             spell->code == MAKEFOURCC('A','p','s','h')) buff = "Bpsh";
 #endif
     thinker->resources = G_UnitHasFlag(caster, UNIT_FLAG_INVULNERABLE);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
@@ -287,6 +347,3 @@ BZ_ABILITY_PROC(CAbilityPhaseShift) {
 /* Name=Invulnerable
  * Ubertip="This unit cannot be damaged."
  */
-
-/* Couple Instant remains a non-spell ability with a stub command handler. */
-BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }

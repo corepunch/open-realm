@@ -1194,6 +1194,13 @@ CLIENTCOMMAND(Button) {
     queued = G_CommandQueueRequested(argc, argv, 2);
     producer = G_GetMainSelectedUnit(client);
     classname = argv[1];
+    /* Cancel is an engine command, not a unit ability. Route it before the
+     * generic ability availability/ownership gate so it can always tear down
+     * the client's active target mode (including rooted Ancient targeting). */
+    if (!strcmp(classname, STR_CmdCancel) || !strcmp(classname, STR_CmdCancelBuild)) {
+        CMD_CancelCommand(clent);
+        return;
+    }
     /* A neutral shop remains neutral selection state; buying from it must not
      * weaken G_UnitCanControl() for ordinary enemy/neutral units. Merchandise
      * commands are raw object IDs and the authoritative stock path decides

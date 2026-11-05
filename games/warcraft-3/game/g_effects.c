@@ -204,6 +204,16 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
 
     if (!list || !*list) {
 #if BZ_COMPAT_WORKAROUNDS
+        /* TFT 1.07 omits Amls.LightningEffect, but both classic and current
+         * data sets contain the authored Magic Leash (LEAS) ribbon row. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','m','l','s')) {
+            static bool warned_aerial_shackles;
+            if (!warned_aerial_shackles) {
+                fprintf(stderr, "WC3 compatibility: Amls has no LightningEffect; using LEAS row\n");
+                warned_aerial_shackles = true;
+            }
+            return index ? 0 : MAKEFOURCC('L','E','A','S');
+        }
         /* RoC 1.0 omits AOcl's LightningEffect list; its data still has both
          * primary and secondary Chain Lightning ribbon rows. */
         if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','c','l')) {
@@ -218,6 +228,26 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
          * include the authored green Mana Burn ribbon row. */
         if (G_AbilityCode(ability_id) == MAKEFOURCC('A','E','m','b'))
             return index ? 0 : MAKEFOURCC('M','B','U','R');
+        /* TFT 1.07 omits ANfl's LightningEffect field; both data sets have
+         * the authored Forked Lightning ribbon in LightningData.slk. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','N','f','l')) {
+            static bool warned_forked_lightning;
+            if (!warned_forked_lightning) {
+                fprintf(stderr, "WC3 compatibility: TFT ANfl has no LightningEffect; using FORK row\n");
+                warned_forked_lightning = true;
+            }
+            return index ? 0 : MAKEFOURCC('F','O','R','K');
+        }
+        /* TFT 1.07 omits the Healing Wave LightningEffect lists; retain the
+         * distinct primary and bounce ribbons authored in the later data. */
+        if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','h','w')) {
+            static bool warned_healing_wave;
+            if (!warned_healing_wave) {
+                fprintf(stderr, "WC3 compatibility: TFT Healing Wave has no LightningEffect; using HWPB/HWSB rows\n");
+                warned_healing_wave = true;
+            }
+            return index ? MAKEFOURCC('H','W','S','B') : MAKEFOURCC('H','W','P','B');
+        }
 #endif
         return 0;
     }
@@ -234,6 +264,26 @@ uint32_t G_AbilityEffectCode(uint32_t ability_id, uint32_t level) {
     cstring_t effect_id = G_AbilityLevel(ability_id, level)->efctID;
     if (effect_id && strlen(effect_id) >= 4) return FS_SLKKey(effect_id);
 #if BZ_COMPAT_WORKAROUNDS
+    /* TFT 1.07's ANrf row omits EfctID, while NeutralAbilityFunc still
+     * authors the impact art and sounds on XErf. */
+    if (G_AbilityCode(ability_id) == MAKEFOURCC('A','N','r','f')) {
+        static bool warned_classic_rain_of_fire;
+        if (!warned_classic_rain_of_fire) {
+            fprintf(stderr, "WC3 compatibility: 1.07 ANrf has no EfctID; using XErf impact art\n");
+            warned_classic_rain_of_fire = true;
+        }
+        return MAKEFOURCC('X','E','r','f');
+    }
+    /* TFT 1.07's Aclf row omits EfctID; HumanAbilityFunc still authors the
+     * persistent Cloud of Fog model and loop sound on Xclf. */
+    if (G_AbilityCode(ability_id) == MAKEFOURCC('A','c','l','f')) {
+        static bool warned_classic_cloud_of_fog;
+        if (!warned_classic_cloud_of_fog) {
+            fprintf(stderr, "WC3 compatibility: TFT Aclf has no EfctID; using Xclf cloud art\n");
+            warned_classic_cloud_of_fog = true;
+        }
+        return MAKEFOURCC('X','c','l','f');
+    }
     /* HACK: RoC 1.0's AOeq AbilityData row has no EfctID column; its effect
      * art is authored by the XOeq class in OrcAbilityFunc.txt. */
     if (G_AbilityCode(ability_id) == MAKEFOURCC('A','O','e','q')) {
@@ -431,6 +481,13 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
             return "Abilities\\Spells\\Undead\\UnholyFrenzy\\UnholyFrenzyTarget.mdx";
         if (type == WC3_EFFECT_TARGET && ability_id == MAKEFOURCC('B','s','p','o'))
             return "Abilities\\Weapons\\PoisonSting\\PoisonStingTarget.mdl";
+        /* Early RoC Cyclone data has no AbilityBuffData row (and its Acyc
+         * BuffID is empty), but ships CycloneTarget.mdx in War3.mpq. The
+         * status handler synthesizes Bcyc for this data generation, so keep
+         * that lifted-target visual when no authored buff art is available. */
+        if (type == WC3_EFFECT_TARGET &&
+            (ability_id == MAKEFOURCC('B','c','y','c') || ability_id == MAKEFOURCC('B','c','y','2')))
+            return "Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdx";
         return NULL;
     }
 
@@ -465,6 +522,11 @@ cstring_t G_AbilityBuffArt(uint32_t buff_id) {
         return "ReplaceableTextures\\CommandButtons\\BTNTrueshotAura.blp";
     if (buff_id == MAKEFOURCC('B','s','p','o'))
         return "ReplaceableTextures\\CommandButtons\\BTNSlowPoison.blp";
+    /* Aerial Shackles' target buff is Bmlt. Some classic data sets omit the
+     * HumanAbilityFunc row from the HUD config lookup, despite the stock icon
+     * being present in the game archives. */
+    if (buff_id == MAKEFOURCC('B','m','l','t'))
+        return "ReplaceableTextures\\CommandButtons\\BTNMagicLariet.blp";
     /* Bfro's Buffart is authored in CommonAbilityFunc.txt rather than the
      * AbilityBuffData row. Keep its status icon available in data sets where
      * the common function table is not exposed to the HUD lookup. */

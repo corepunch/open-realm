@@ -29,6 +29,8 @@ need visual in-game verification.
   `S_SpellAllowsAreaTarget`. Status application uses
   `S_SpellApplyTimedTargetStatus` so `BNht.TargetArt` belongs to the status,
   not to the cast. It also respects `HeroDur` when a target is a Hero.
+- TFT 1.07 omits `ANht.BuffID`; with `BZ_COMPAT_WORKAROUNDS`, the stock status
+  rawcode `BNht` is used when no usable BuffID is authored.
 - The incoming master series already installed `BNht` attack damage reduction
   through `WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT` and spawned `ANht.CasterArt`.
   Those remain untouched. Refresh/recast reuses a single attached visual per
@@ -55,6 +57,8 @@ need visual in-game verification.
   incoming-series damage modifier, now with grounded test targets.
 - `pit_lord_howl_target_art_tracks_status_refresh_and_expiry` — one status
   visual, authored area filtering, fresh/recast duration, dispel and expiry.
+- `tft_1_07_howl_of_terror_falls_back_to_bnht` — 1.07-shaped ability data with
+  no BuffID still applies the damage-reduction status under compatibility mode.
 - `pit_lord_cleave_hits_only_eligible_ground_secondaries_with_chest_art` —
   ground-only physical splash, no duplicate primary art, no allied/air/structure
   or distant victim, socket metadata, and absence of splash from ranged hits.
@@ -125,6 +129,12 @@ through the existing `AbilitySounds` table and server-side sound registration;
 no ability-specific path is hardcoded. The MPQ report confirms the aliases,
 but one-sound-per-wave versus one-per-shard cadence and exact scatter pattern
 remain retail-observation questions.
+
+The 1.07 TFT `ANrf` row has no `EfctID`, although `NeutralAbilityFunc.txt`
+still defines the impact model and sounds on `XErf`. With
+`BZ_COMPAT_WORKAROUNDS`, `G_AbilityEffectCode()` supplies that `XErf` link when
+the row omits it; later data with an authored `EfctID` continues to take
+precedence.
 
 `BNrd`/`BNrf` are the authored `BuffID` values but the supplied asset report
 identifies **no target model mapping for either**. The presentation patch does

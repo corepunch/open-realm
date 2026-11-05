@@ -338,8 +338,10 @@ The runtime charge count is copied into `gameInventoryItem_t`. `WriteInventory`
 draws a bottom-right number overlay whenever `charges > 0`, including a
 single-charge item. A zero-charge non-perishable item therefore keeps its icon
 but has no number overlay. Successful synchronous use of a perishable item now
-consumes its runtime charge and removes the item at zero; cooldown/disabled-state
-presentation remains separate active-item work.
+consumes its runtime charge and removes the item at zero. For active item
+abilities, the inventory payload also carries the same cooldown fraction and
+authoritative start/end timestamps used by command buttons; the inventory frame
+renders that timer through the shared radial cooldown overlay.
 
 For Human02 this means a carried Scroll of Protection is handled generically:
 rawcode `spro` resolves its item UI data, appears in the first free slot, and
@@ -359,6 +361,8 @@ action stay aligned.
 
 The focused unit authors one of three states:
 
+- no command control: cover the inventory even when the unit has capacity,
+  since its items are not available to this player;
 - capacity `0`: cover the underlying six-slot console area with the local
   player's race-skin `ConsoleInventoryCoverTexture`;
 - capacity `1..5`: leave the valid slots visible and cover each slot outside
@@ -507,10 +511,12 @@ consumes even if none qualify. The shared hostile unit-target spell guard consum
 the shield once, including for Thunder Bolt, Fire Bolt, and Death Coil missiles at impact. It does not grant the Amulet's
 `ANss` cooldown/rearming ability; physical nets and point/area/beneficial spells
 remain unaffected.
- Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`
-item cooldowns and disabled icons, held-item cursor art, slot swapping, and
-allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
-flow; unusual custom `AIso` targets and their subsystem-specific behavior still
+ Still missing are general automatic `powerup` acquisition/use beyond that
+supported family, disabled item icons, held-item cursor art, slot swapping, and
+allied-unit giving. TFT item `cooldownID` selects the shared cooldown key for
+item use and inventory display; `ignoreCD` bypasses that item cooldown. Soul
+Trap implements the stock target/capture/reveal/release flow; unusual custom
+`AIso` targets and their subsystem-specific behavior still
 need parity coverage. See [Land Mines](land-mines.md) for the point-target
 completion contract exercised by `AIpm`.
 

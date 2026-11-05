@@ -99,6 +99,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 ### Implementation Notes
 
+- [Warcraft III Data Version History](data-version-history.md): selected units and ability changes added after the 1.07 TFT baseline.
 - [Terrain Deformation](terrain-deformation.md)
 - [Economy And Unit Presentation](economy-and-unit-presentation.md)
 - [Call to Arms And Militia](call-to-arms-and-militia.md)
@@ -178,3 +179,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
 
 - [Ability message procedures](ability-procedures.md): registry, payload/result contracts, default delegation, and lifecycle.
+
+- [Neutral Creep Ability Tests](neutral-creep-ability-tests.md) — source matrix and executable gameplay contracts.
+- [Retail Shop Item Tests](retail-shop-item-tests.md) — verified item/shop rawcodes and transactional stock tests.
+- [Hero Item Reference Tests](hero-item-reference-tests.md) — all five Blizzard item category references, rawcode status, and behavior acceptance matrix.

@@ -902,14 +902,19 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     cstring_t buff = S_SpellBuffId(spell->code, rank);
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC AbilityData omits BuffID; stock Frost Nova uses Bfro. */
+    if ((!buff || strlen(buff) < 4) && G_AbilityCode(spell->code) == MAKEFOURCC('A','U','f','n')) buff = "Bfro";
+#endif
     vec2_t center = st.entity->s.origin2;
+    /* The cast impact is a presentation event. Spell immunity or full damage
+     * absorption must not suppress Frost Nova's visible burst. */
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_EFFECT, 0, st.entity, NULL, true);
     FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &center) <= radius) {
         float damage = S_SpellData(spell->code, rank, 1);
         if (target == st.entity) damage += S_SpellData(spell->code, rank, 2);
         if (S_SpellDamage(target, caster, (int)damage) && !M_IsDead(target)) {
-            if (target == st.entity)
-                G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_EFFECT, 0, target, NULL, true);
             if (buff && strlen(buff) >= 4) {
                 heroabilitystatus_t *status = S_SpellApplyTimedStatus(
                     target, buff, rank, S_SpellHeroDuration(spell->code, rank, target));

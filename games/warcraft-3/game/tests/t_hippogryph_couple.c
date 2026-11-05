@@ -1,9 +1,12 @@
 #ifdef BZ_TESTS
 #include "test.h"
+#include "../g_local.h"
 #include "../skills/s_skills.h"
 
 #define BZ_ACOA MAKEFOURCC('A', 'c', 'o', 'a') // rawcode; Archer Mount Hippogryph
 #define BZ_ACOH MAKEFOURCC('A', 'c', 'o', 'h') // rawcode; Pick up Archer
+#define BZ_ACO2 MAKEFOURCC('A', 'c', 'o', '2') // rawcode; Couple Instant Archer
+#define BZ_ACO3 MAKEFOURCC('A', 'c', 'o', '3') // rawcode; Couple Instant Hippogryph
 #define BZ_ADEC MAKEFOURCC('A', 'd', 'e', 'c') // rawcode; Dismount / Decouple
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unit; fixture partner (non-stock ehip)
 #define BZ_HPEA MAKEFOURCC('h', 'p', 'e', 'a') // unit; fixture archer/companion (non-stock earc)
@@ -17,7 +20,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/UnitID/Cost so mount cannot pass on retail ehip/ehpr/0. */
 #define COUPLE_MOUNT_SLK \
-	"ID;PWXL;N;EBB;Y3;X9\n" \
+	"ID;PWXL;N;EBB;Y3;X10\n" \
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"UnitID1\"\n" \
@@ -27,6 +30,13 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y3;X1;K\"Acoh\"\nC;Y3;X2;K\"Acoh\"\nC;Y3;X3;K\"1\"\n" \
 	"C;Y3;X4;K\"_\"\nC;Y3;X5;K\"17\"\nC;Y3;X6;K\"0\"\n" \
 	"C;Y3;X7;K\"500\"\nC;Y3;X8;K\"hpea\"\nC;Y3;X9;K\"ogru\"\nE\n"
+
+#define COUPLE_RESEARCH_UPGRADE_SLK \
+	"ID;PWXL;N;E\nB;X13;Y3;D0\n" \
+	"C;X1;Y1;K\"upgradeid\"\nC;X3;K\"maxlevel\"\n" \
+	"C;X10;K\"effect1\"\nC;X13;K\"code1\"\n" \
+	"C;X1;Y2;K\"Reht\"\nC;X3;K1\nC;X10;K\"rlev\"\nC;X13;K\"Acoa\"\n" \
+	"C;X1;Y3;K\"Reht\"\nC;X3;K1\nC;X10;K\"rlev\"\nC;X13;K\"Acoh\"\nE\n"
 
 /* Non-stock DataA/DataB/Cost; companions are not retail earc/ehip. */
 #define COUPLE_DISMOUNT_SLK \
@@ -39,7 +49,7 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y2;X7;K\"0\"\nC;Y2;X8;K\"hpea\"\nC;Y2;X9;K\"hfoo\"\nE\n"
 
 typedef struct {
-	slkTestData_t *rows, *old;
+	slkTestData_t *rows, *old, *upgrade_rows, *old_upgrades;
 	edict_t *caster, *partner, *enemy, *wrong;
 } coupleFix_t;
 
@@ -49,6 +59,8 @@ static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
+	fix->upgrade_rows = parse_slk_string(COUPLE_RESEARCH_UPGRADE_SLK);
+	fix->old_upgrades = G_SetSLKRows("UpgradeData", fix->upgrade_rows);
 	fix->caster = alloc_test_unit(caster_id, 0, 0);
 	fix->partner = alloc_test_unit(partner_id, 64, 0);
 	fix->enemy = alloc_test_unit(partner_id, 96, 0);
@@ -68,6 +80,7 @@ static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_
 
 static void couple_done(coupleFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
+	G_SetSLKRows("UpgradeData", fix->old_upgrades); free_slk_rows(fix->upgrade_rows);
 }
 
 static uint32_t couple_count(uint32_t class_id, uint32_t player) {
@@ -80,9 +93,13 @@ static uint32_t couple_count(uint32_t class_id, uint32_t player) {
 TEST(wc3_spell, hippogryph_couple_procedures_registered) {
 	T_EQ(S_AbilityItem(BZ_ACOA).ability->proc, CAbilityCoupleArcher);
 	T_EQ(S_AbilityItem(BZ_ACOH).ability->proc, CAbilityCoupleHippogryph);
+	T_EQ(S_AbilityItem(BZ_ACO2).ability->proc, CAbilityCoupleInstant);
+	T_EQ(S_AbilityItem(BZ_ACO3).ability->proc, CAbilityCoupleInstant);
 	T_EQ(S_AbilityItem(BZ_ADEC).ability->proc, CAbilityDecouple);
 	T_EQ(S_AbilityItem(BZ_ACOA).ability->target_type, SPELL_TARGET_UNIT);
 	T_EQ(S_AbilityItem(BZ_ACOH).ability->target_type, SPELL_TARGET_UNIT);
+	T_EQ(S_AbilityItem(BZ_ACO2).ability->target_type, SPELL_TARGET_NONE);
+	T_EQ(S_AbilityItem(BZ_ACO3).ability->target_type, SPELL_TARGET_NONE);
 	T_EQ(S_AbilityItem(BZ_ADEC).ability->target_type, SPELL_TARGET_NONE);
 }
 
@@ -94,6 +111,44 @@ TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
 	T_EQ((int)S_SpellDataId(BZ_ACOH, 1, 1), (int)BZ_HPEA);
 	T_EQ((int)S_SpellUnitId(BZ_ACOH, 1), (int)BZ_OGRU);
 	couple_done(&fix);
+}
+
+/* checkDep abilities use the stock research mapping; synthetic partner IDs
+ * ensure the couple validation path still uses each ability's authored data. */
+TEST(wc3_spell, hippogryph_couple_validation_requires_reht_research) {
+	coupleFix_t fix;
+	UnitBalance_t balance = MAKE(UnitBalance_t, .upgrades = "Reht");
+	uint32_t const research = MAKEFOURCC('R','e','h','t');
+	uint32_t codes[] = { BZ_ACOA, BZ_ACOH };
+
+	for (uint32_t i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
+		AbilityData_t *row;
+		uint32_t required_research = 0;
+		int32_t required_level = 0;
+		couple_setup(&fix, COUPLE_MOUNT_SLK, codes[i],
+		             codes[i] == BZ_ACOA ? BZ_HPEA : BZ_HFOO,
+		             codes[i] == BZ_ACOA ? BZ_HFOO : BZ_HPEA);
+		row = (AbilityData_t *)G_AbilityData(codes[i]);
+		row->checkDep = true;
+		T_EQ(row->id, codes[i]);
+		T_ASSERT(row->checkDep);
+		fix.caster->data.UnitBalance = &balance;
+		T_EQ(G_UpgradeData(research)->id, research);
+		game.clients[0].ps.number = 0;
+		G_SetPlayerTechMaxAllowed(&game.clients[0], research, 1);
+		G_SetPlayerTechResearched(&game.clients[0], research, 0);
+		T_ASSERT(!G_UnitAbilityResearchAvailable(fix.caster, codes[i]));
+		T_ASSERT(!S_CastUnitTargetSpell(fix.caster, codes[i], fix.partner));
+		T_ASSERT(fix.caster->inuse && fix.partner->inuse);
+		T_ASSERT(G_UnitAbilityResearchRequirement(fix.caster, codes[i],
+		                                         &required_research, &required_level));
+		T_EQ(required_research, research);
+		T_EQ(required_level, 1);
+		G_SetPlayerTechResearched(&game.clients[0], research, 1);
+		T_ASSERT(G_UnitAbilityResearchAvailable(fix.caster, codes[i]));
+		G_SetPlayerTechResearched(&game.clients[0], research, 0);
+		couple_done(&fix);
+	}
 }
 
 /* Acoa consumes caster+partner and spawns authored UnitID rider. */
@@ -128,6 +183,105 @@ TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	couple_done(&fix);
 }
 
+TEST(wc3_spell, hippogryph_pickup_order_chooses_nearest_valid_archer) {
+	coupleFix_t fix;
+	edict_t *far_archer, *rider = NULL;
+	edict_t *controller;
+	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
+	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
+	far_archer->s.player = fix.caster->s.player;
+	far_archer->svflags |= SVF_MONSTER;
+	far_archer->targtype = TARG_GROUND;
+	far_archer->health.value = far_archer->health.max_value = 300;
+	fix.caster->unit_state->ranks[0].level = 0;
+	T_ASSERT(!S_CastNearestCouplePartner(fix.caster, BZ_ACOH));
+	T_ASSERT(fix.partner->inuse && far_archer->inuse);
+	fix.caster->unit_state->ranks[0] = MAKE(heroability_t, .code = BZ_ACOH, .level = 1);
+	controller = &g_edicts[0];
+	controller->client = &game.clients[0];
+	controller->inuse = true;
+	controller->client->connected = true;
+	controller->client->ps.number = 0;
+	controller->client->menu.ability_code = BZ_ACOH;
+	G_SelectEntity(controller->client, fix.caster);
+	S_AbilityCommand(controller, S_AbilityItem(BZ_ACO3).ability);
+	T_ASSERT(!controller->client->menu.on_entity_selected);
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_OGRU && ent->s.player == 0 && ent != fix.wrong)
+		rider = ent;
+	T_ASSERT(rider);
+	couple_done(&fix);
+}
+
+TEST(wc3_spell, archer_mount_order_chooses_nearest_valid_hippogryph) {
+	coupleFix_t fix;
+	edict_t *far_hippogryph;
+	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
+	far_hippogryph = alloc_test_unit(BZ_HFOO, 80, 0);
+	far_hippogryph->s.player = fix.caster->s.player;
+	far_hippogryph->svflags |= SVF_MONSTER;
+	far_hippogryph->targtype = TARG_GROUND;
+	far_hippogryph->health.value = far_hippogryph->health.max_value = 300;
+	T_ASSERT(S_CastNearestCouplePartner(fix.caster, BZ_ACOA));
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_hippogryph->inuse);
+	couple_done(&fix);
+}
+
+TEST(wc3_spell, couple_instant_hippogryph_command_picks_nearest_archer) {
+	static const char instant_slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+		"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+		"C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"DataA1\"\n"
+		"C;Y1;X9;K\"DataB1\"\nC;Y1;X10;K\"UnitID1\"\n"
+		"C;Y2;X1;K\"Aco3\"\nC;Y2;X2;K\"Acoi\"\nC;Y2;X3;K\"1\"\n"
+		"C;Y2;X4;K\"vuln,invu\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"30\"\n"
+		"C;Y2;X7;K\"500\"\nC;Y2;X8;K\"hpea\"\nC;Y2;X9;K\"1\"\n"
+		"C;Y2;X10;K\"ogru\"\nE\n";
+	coupleFix_t fix;
+	edict_t *far_archer, *approach = NULL;
+	edict_t *controller;
+	couple_setup(&fix, instant_slk, BZ_ACO3, BZ_HFOO, BZ_HPEA);
+	far_archer = alloc_test_unit(BZ_HPEA, 80, 0);
+	far_archer->s.player = fix.caster->s.player;
+	far_archer->svflags |= SVF_MONSTER;
+	far_archer->targtype = TARG_GROUND;
+	far_archer->health.value = far_archer->health.max_value = 300;
+	controller = &g_edicts[0];
+	controller->client = &game.clients[0];
+	controller->inuse = true;
+	controller->client->connected = true;
+	controller->client->ps.number = 0;
+	controller->client->menu.ability_code = BZ_ACO3;
+	G_SelectEntity(controller->client, fix.caster);
+	T_ASSERT(S_SpellCooldownReady(fix.caster, BZ_ACO3));
+	spell_cmd(controller);
+	T_ASSERT(!controller->client->menu.on_entity_selected);
+	T_ASSERT(!controller->client->menu.on_location_selected);
+	T_ASSERT(fix.caster->inuse);
+	T_ASSERT(fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	T_EQ(couple_count(BZ_OGRU, 0), 1);
+	T_ASSERT(fix.caster->goalentity == fix.partner);
+	T_ASSERT(move_is_active_order_walk(fix.caster));
+	T_ASSERT(S_SpellCooldownReady(fix.caster, BZ_ACO3));
+	/* Arrival is the only point that executes the merge. */
+	FILTER_EDICTS(ent, ent->inuse && ent->think == S_CoupleInstantApproachThink && ent->owner == fix.caster)
+		approach = ent;
+	T_ASSERT(approach);
+	fix.caster->s.origin2 = MAKE(vec2_t, 40, 0);
+	if (approach) S_CoupleInstantApproachThink(approach);
+	T_ASSERT(!fix.caster->inuse);
+	T_ASSERT(!fix.partner->inuse);
+	T_ASSERT(far_archer->inuse);
+	T_EQ(couple_count(BZ_OGRU, 0), 2);
+	couple_done(&fix);
+}
+
 TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 	coupleFix_t fix;
 	float mana;
@@ -148,6 +302,8 @@ TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 TEST(wc3_spell, hippogryph_couple_adec_dismounts_into_companions) {
 	coupleFix_t fix;
 	uint32_t before_a, before_b;
+	edict_t *archer = NULL, *hippogryph = NULL;
+	float separation;
 	couple_setup(&fix, COUPLE_DISMOUNT_SLK, BZ_ADEC, BZ_OGRU, BZ_HFOO);
 	T_EQ((int)S_SpellDataId(BZ_ADEC, 1, 1), (int)BZ_HPEA);
 	T_EQ((int)S_SpellDataId(BZ_ADEC, 1, 2), (int)BZ_HFOO);
@@ -157,6 +313,11 @@ TEST(wc3_spell, hippogryph_couple_adec_dismounts_into_companions) {
 	T_ASSERT(!fix.caster->inuse);
 	T_EQ(couple_count(BZ_HPEA, 0), before_a + 1);
 	T_EQ(couple_count(BZ_HFOO, 0), before_b + 1);
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HPEA && ent->s.player == 0) archer = ent;
+	FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && ent->s.player == 0) hippogryph = ent;
+	T_ASSERT(archer && hippogryph);
+	separation = archer && hippogryph ? Vector2_distance(&archer->s.origin2, &hippogryph->s.origin2) : 0.0f;
+	T_ASSERT(separation > 0.0f);
 	couple_done(&fix);
 }
 

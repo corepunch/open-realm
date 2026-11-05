@@ -23,6 +23,13 @@ The persistent visual is authored on the `Bcyc` buff: `Effectart` points to
 both use this `EffectArt` field. The status effect stays until Cyclone ends,
 including when Tornado applies the same `Bcyc` lift status.
 
+Early RoC data such as the original CD archive has no `AbilityBuffData.slk` row
+for `Bcyc`, and its `Acyc.BuffID` is empty. The handler synthesizes `Bcyc` in
+that case. `G_AbilityEffectArt` supplies the stock
+`Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdx` for `Bcyc` and
+`Bcy2` when no authored target art is available; explicit map clears (`-` or
+`_`) remain honored. The model is present in the RoC archive.
+
 ## ROC vs TFT
 
 | Field | ROC `Acyc` | TFT `Acyc` | ROC `AIcy` | TFT `AIcy` |

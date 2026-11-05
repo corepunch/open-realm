@@ -42,6 +42,68 @@ static umove_t attack_move_ranged_cooldown;
 #define ID_PLAGUE_TOSS MAKEFOURCC('A','p','t','s')
 #define ID_DISEASE_CLOUD_RESEARCH MAKEFOURCC('R','u','p','c')
 #define MEAT_WAGON_PLAGUE_CLOUD_MS 10000u
+#define LIGHTNING_ATTACK_ABILITY MAKEFOURCC('A','l','i','t')
+#define LIGHTNING_ATTACK_BOLT_MS 250u
+#define ID_ORB_OF_VENOM MAKEFOURCC('o','v','e','n')
+#define ID_POISON_ORB_ABILITY MAKEFOURCC('A','p','o','2')
+
+/* Orb of Venom grants a unit without an authored air weapon a temporary
+ * poison projectile attack. The profile is derived from Attack 1 so its
+ * damage, cadence, and range remain unit-specific; it is never persisted. */
+static bool has_orb_of_venom(edict_t const *unit) {
+    if (!unit || !G_InventoryCanUseItems(unit)) return false;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        edict_t *item = G_InventoryItem(unit, i);
+        if (item && item->class_id == ID_ORB_OF_VENOM) return true;
+    }
+    return false;
+}
+
+static bool authored_attack_can_hit_air(edict_t const *unit) {
+    if (!unit || !unit->unit_state) return false;
+    return (S_UnitAttackSlotEnabled(unit, 0) &&
+            (unit->unit_state->attack1.targetsAllowed & WC3_TARGET_FLAG_AIR)) ||
+           (S_UnitAttackSlotEnabled(unit, 1) &&
+            (unit->unit_state->attack2.targetsAllowed & WC3_TARGET_FLAG_AIR));
+}
+
+static unitAttack_t const *venom_air_attack(edict_t const *unit) {
+    static unitAttack_t profile;
+    cstring_t missile_art;
+    if (!unit || !unit->unit_state || authored_attack_can_hit_air(unit) || !has_orb_of_venom((edict_t *)unit) ||
+        unit->unit_state->attack1.type == ATK_NONE) return NULL;
+    profile = unit->unit_state->attack1;
+    profile.weapon = WPN_MISSILE;
+    profile.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    missile_art = G_AbilityEffectArt(ID_POISON_ORB_ABILITY, WC3_EFFECT_MISSILE, 0);
+    if (!missile_art || !*missile_art)
+        missile_art = "Abilities\\Spells\\Items\\OrbVenom\\OrbVenomMissile.mdl";
+    profile.projectile.model = G_RegisterModel(missile_art);
+    profile.projectile.arc = 0.0f;
+    if (profile.projectile.speed <= 0.0f) profile.projectile.speed = 900.0f;
+    return &profile;
+}
+
+/* Alit is a passive attack presentation: it changes neither the attack roll
+ * nor damage, but draws the authored lightning ribbon after a valid hit. */
+static void attack_lightning_effect(edict_t *attacker, edict_t *target) {
+    uint32_t effect;
+    if (!attacker || !target || !G_UnitAbilityLevel(attacker, LIGHTNING_ATTACK_ABILITY)) return;
+    effect = G_AbilityLightningId(LIGHTNING_ATTACK_ABILITY, 0);
+#if BZ_COMPAT_WORKAROUNDS
+    /* Stock RoC/TFT neutral attack-passive rows do not author a LightningEffect
+     * list. Use the stock primary lightning ribbon for those rows. */
+    if (!effect) effect = MAKEFOURCC('C','L','P','B');
+#endif
+    if (!effect) return;
+    (void)G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = effect,
+        .source = &attacker->s.origin,
+        .target = &target->s.origin,
+        .color = COLOR32_WHITE,
+        .duration_ms = LIGHTNING_ATTACK_BOLT_MS,
+    });
+}
 
 static void artillery_spawn_meat_wagon_impact(edict_t *attacker, vec2_t const *impact) {
     UnitProfile_t const *profile;
@@ -102,6 +164,7 @@ typedef struct {
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || !attacker->unit_state || slot >= 2) return false;
+    if (G_UnitStatusLevel(attacker, MAKEFOURCC('B','c','l','f'))) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
     /* War Club is a per-unit switch, never a mutation of UnitWeapons. The
      * alternate weapon is authored as Attack 2 even when the stock unit enables
@@ -140,6 +203,10 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
         (attacker->unit_state->attack1.targetsAllowed & flag)) return &attacker->unit_state->attack1;
     if (attacker && flag && attacker->unit_state->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
         (attacker->unit_state->attack2.targetsAllowed & flag)) return &attacker->unit_state->attack2;
+    if (attacker && flag == WC3_TARGET_FLAG_AIR && S_UnitAttackSlotEnabled(attacker, 0)) {
+        unitAttack_t const *venom = venom_air_attack(attacker);
+        if (venom) return venom;
+    }
     /* Rooted Ancients may retaliate with their weapon profile even when Root's
      * authored mask disables player-issued attacks; explicit orders are still
      * validated by S_AttackCanTarget before this profile is selected. */
@@ -329,12 +396,13 @@ static uint32_t attack_retaliation_mask(edict_t const *ent) {
 }
 
 static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
-    return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE);
+    return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE) ||
+           ((mask & 1u) && venom_air_attack(ent));
 }
 
 static bool can_attack(edict_t const *ent) {
     if (S_LavaSpawnIsSplitting(ent) || S_UnitIsFreezingBreathFrozen(ent) || unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
-        S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
+        S_UnitIsCycloned(ent) || S_UnitIsDisarmed(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
     return !ent->currentmove || ent->currentmove->proc != CAbilityAttack;
@@ -345,7 +413,9 @@ static bool can_attack(edict_t const *ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-    if (!attacker || S_LavaSpawnIsSplitting(attacker) || S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
+    if (!attacker || S_UnitPolymorphed(attacker) || S_LavaSpawnIsSplitting(attacker) ||
+        S_UnitIsFreezingBreathFrozen(attacker) || G_BuildingIsUnsummoning(attacker) ||
+        !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         (S_ImpaleIsAirborne(target) && !S_ImpaleAirborneVulnerable(target)) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
@@ -359,7 +429,8 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
-                    ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)));
+                    ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)) ||
+                    (flag == WC3_TARGET_FLAG_AIR && (mask & 1u) && venom_air_attack(attacker)));
 }
 
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
@@ -646,6 +717,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     G_PlayCombatImpactSound(attacker, target);
     /* No procs or Lava Spawn replication on invulnerable/fully shielded hits. */
     if (!T_DamageInternal(target, attacker, damage, true, arrow_code, arrow_level)) return;
+    attack_lightning_effect(attacker, target);
     if (attacker->inuse && !M_IsDead(attacker)) S_LavaSpawnAttackHit(attacker);
     if (!attacker->inuse || !target->inuse) return;
     if (target->inuse && G_UnitIsStructure(target) && S_SpellIsEnemy(attacker, target) &&
@@ -898,7 +970,7 @@ static float attack_backswing_remaining(edict_t const *ent) {
 }
 
 static void damage_target(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) return;
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
@@ -925,7 +997,7 @@ static void damage_target(edict_t *ent) {
 }
 
 static void throw_missile(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -990,7 +1062,7 @@ static void throw_missile(edict_t *ent) {
 }
 
 static void ai_melee(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1007,7 +1079,7 @@ static void ai_melee(edict_t *ent) {
 }
 
 static void ai_ranged(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1119,7 +1191,7 @@ static bool attack_target_out_of_base_range(edict_t *ent) {
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
-    if (S_UnitIsEntanglingRooted(attacker) || !S_AttackCanTarget(attacker, target)) return false;
+    if (S_UnitIsDisarmed(attacker) || !S_AttackCanTarget(attacker, target)) return false;
     if ((attacker->aiflags & AI_IMMOBILE) &&
         (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
         return false;
@@ -1135,7 +1207,7 @@ static bool attack_cooldown_elapsed(edict_t *ent) {
 
 static void ai_melee_cooldown(edict_t *ent) {
     bool ready;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1155,7 +1227,7 @@ static void ai_melee_cooldown(edict_t *ent) {
 
 static void ai_ranged_cooldown(edict_t *ent) {
     bool ready;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1172,7 +1244,7 @@ static void ai_ranged_cooldown(edict_t *ent) {
 
 static void ai_attack_walk(edict_t *ent) {
     bool cooldown_ready = false;
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -1403,7 +1475,7 @@ static void attack_ground_stop(edict_t *ent) {
 }
 
 static void throw_artillery_ground(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     int damage;
     mat4_t matrix;
     vec3_t origin;
@@ -1429,21 +1501,21 @@ static void throw_artillery_ground(edict_t *ent) {
 }
 
 static void ai_attack_ground_ranged(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     unit_facegoal(ent);
     unit_runwait(ent, throw_artillery_ground);
 }
 
 static void ai_attack_ground_cooldown(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
     else unit_runwait(ent, attack_ground_ranged);
 }
 
 static void ai_attack_ground_walk(edict_t *ent) {
-    if (S_UnitIsEntanglingRooted(ent)) return;
+    if (S_UnitIsDisarmed(ent)) return;
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
@@ -1485,7 +1557,7 @@ static void attack_ground_ranged(edict_t *ent) {
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     edict_t *waypoint;
 
-    if (!unit || !point || S_UnitIsEntanglingRooted(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
+    if (!unit || !point || S_UnitIsDisarmed(unit) || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
         S_UnitPolymorphed(unit)) return false;
     waypoint = Waypoint_add(point);
     if (!waypoint) return false;

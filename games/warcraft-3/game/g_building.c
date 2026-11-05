@@ -93,6 +93,8 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
+#define ID_UPGRADE_EFFECT_MOVE_SPEED    MAKEFOURCC('r', 'm', 'v', 'x')
+#define ID_UPGRADE_EFFECT_MOVE_PERCENT  MAKEFOURCC('r', 'm', 'o', 'v')
 #define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
 #define ID_UPGRADE_EFFECT_HEALTH_REGEN  MAKEFOURCC('r', 'h', 'p', 'r')
 #define ID_UPGRADE_EFFECT_UNIT_TRANSFORM MAKEFOURCC('r', 't', 'm', 'a')
@@ -333,6 +335,12 @@ static stockAbilityUpgradeRequirement_t const stock_ability_requirements[] = {
     { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'c', 'y', 'c'), 2 }, /* Cyclone: Master Training */
     { MAKEFOURCC('R', 'e', 's', 'i'), MAKEFOURCC('A', 'a', 'd', 'm'), 1 },
     { MAKEFOURCC('R', 'e', 's', 'c'), MAKEFOURCC('A', 'e', 's', 'n'), 1 }, /* Sentinel */
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', 'a'), 1 }, /* Hippogryph Taming */
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', 'h'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '2'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 't'), MAKEFOURCC('A', 'c', 'o', '3'), 1 },
+    { MAKEFOURCC('R', 'e', 'h', 's'), MAKEFOURCC('A', 's', 's', 'k'), 1 }, /* Mountain Giant Hardened Skin */
+    { MAKEFOURCC('R', 'e', 'r', 's'), MAKEFOURCC('A', 'r', 's', 'k'), 1 }, /* Mountain Giant Resistant Skin */
     { MAKEFOURCC('R', 'e', 'd', 't'), MAKEFOURCC('A', 'r', 'a', 'v'), 1 }, /* Storm Crow Form */
     { MAKEFOURCC('R', 'u', 's', 'p'), MAKEFOURCC('A', 'a', 'v', 'e'), 1 }, /* Destroyer Form */
 };
@@ -355,7 +363,8 @@ static abilityUpgradeRequirement_t G_GetAbilityUpgradeRequirement(
         }
     }
 
-    if (ability->checkDep || ability->id == MAKEFOURCC('A', 's', 'a', 'l') ||
+    if (ability->checkDep ||
+        ability->id == MAKEFOURCC('A', 's', 'a', 'l') ||
         ability->id == MAKEFOURCC('A', 'e', 's', 'n') ||
         ability->id == MAKEFOURCC('A', 'a', 'v', 'e')) {
         FOR_LOOP(i, (uint32_t)(sizeof(stock_ability_requirements) / sizeof(stock_ability_requirements[0]))) {
@@ -541,6 +550,22 @@ static bool G_UnitAbilityResearchState(edict_t const *unit, uint32_t ability_id,
         if (visible) *visible = researchable;
         return researchable && G_GetPlayerTechResearchedLevel(owner, research) >= 1;
     }
+    /* Mountain Giant passive effect indicators use the normal skin aliases,
+     * while their availability is owned by the unit-specific research rows. */
+    if (unit && unit->class_id == MAKEFOURCC('e', 'm', 't', 'g') &&
+        (ability_id == MAKEFOURCC('A', 's', 's', 'k') ||
+         ability_id == MAKEFOURCC('A', 'r', 's', 'k'))) {
+        uint32_t const upgrade_id = ability_id == MAKEFOURCC('A', 's', 's', 'k') ?
+            MAKEFOURCC('R', 'e', 'h', 's') : MAKEFOURCC('R', 'e', 'r', 's');
+        int32_t const required = 1;
+        owner = G_GetPlayerClientByNumber(unit->s.player);
+        if (research_id) *research_id = upgrade_id;
+        if (required_level) *required_level = required;
+        if (!owner || owner->ps.number != unit->s.player) return false;
+        bool const eligible = G_UnitUsesUpgrade(unit, upgrade_id);
+        if (visible) *visible = eligible;
+        return eligible && G_GetPlayerTechResearchedLevel(owner, upgrade_id) >= required;
+    }
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     ability = G_AbilityData(ability_id);
     if (!ability || ability->id != ability_id) return true;
@@ -649,6 +674,24 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
                 G_ApplyPermanentArmorBonus(unit, delta);
                 changed = true;
             }
+        } else if (effect == ID_UPGRADE_EFFECT_MOVE_SPEED || effect == ID_UPGRADE_EFFECT_MOVE_PERCENT) {
+            float old_value = G_UpgradeEffectValue(upgrade, i, old_level);
+            float new_value = G_UpgradeEffectValue(upgrade, i, new_level);
+            /* rmov is a rounded fraction of authored BASE speed, not a
+             * percentage of the current speed (which can contain other tech). */
+            if (effect == ID_UPGRADE_EFFECT_MOVE_PERCENT) {
+                float const base_speed = unit->data.UnitBalance->speed;
+                old_value = roundf(base_speed * old_value);
+                new_value = roundf(base_speed * new_value);
+            } else {
+                /* rmvx's authored base/mod fields are integer world units. */
+                old_value = (float)(int32_t)old_value;
+                new_value = (float)(int32_t)new_value;
+            }
+            if (new_value != old_value) {
+                unit->unitinfo.MoveSpeed += new_value - old_value;
+                changed = true;
+            }
         } else if (effect == ID_UPGRADE_EFFECT_HIT_POINTS) {
             float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
@@ -734,6 +777,30 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
         G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
         if (techid == magic_sentry_upgrade && G_UnitAbilityLevel(unit, magic_sentry_ability))
             S_UpdateMagicSentryPresentation(unit);
+    }
+}
+
+/* Captures must replace the old owner's research with the new owner's
+ * researched level. Reuse the ordinary deltas for all authored effects. */
+void G_RebasePlayerUpgradesOnUnit(edict_t *unit, gameClient_t *old_owner,
+                                  gameClient_t *new_owner) {
+    char token[64];
+    cstring_t upgrades;
+
+    if (!unit || !unit->data.UnitBalance) return;
+    upgrades = unit->data.UnitBalance->upgrades;
+    for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        uint32_t id;
+        UpgradeData_t const *upgrade;
+        int32_t old_level, new_level;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&id, token, sizeof(id));
+        upgrade = G_UpgradeData(id);
+        if (!upgrade || upgrade->id != id) continue;
+        old_level = old_owner ? G_GetPlayerTechResearchedLevel(old_owner, id) : 0;
+        new_level = new_owner ? G_GetPlayerTechResearchedLevel(new_owner, id) : 0;
+        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
     }
 }
 

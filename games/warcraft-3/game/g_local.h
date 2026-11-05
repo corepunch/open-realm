@@ -80,7 +80,7 @@ typedef struct {
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
-#define MAX_HERO_ABILITIES 4
+#define MAX_HERO_ABILITIES 5 // Three standard skills, ultimate, and the Hero Attribute Bonus ability.
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
 #define MAX_UNIT_STATUSES 16
@@ -3652,6 +3652,8 @@ void G_StopBuildingUpgrade(edict_t *building, bool refund);
 void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
+void G_RebasePlayerUpgradesOnUnit(edict_t *unit, gameClient_t *old_owner,
+                                  gameClient_t *new_owner);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
 bool G_UnitAbilityResearchRequirement(edict_t const *unit, uint32_t ability_id,
@@ -4345,6 +4347,8 @@ void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
+uint32_t G_ItemCooldownCode(edict_t const *item, uint32_t ability_code);
+void G_StartItemCooldown(edict_t *unit, edict_t const *item, uint32_t ability_code, uint32_t level);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
 bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);

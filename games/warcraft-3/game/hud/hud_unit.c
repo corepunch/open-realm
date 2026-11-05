@@ -752,6 +752,8 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
                                         uint8_t max_buttons, uint8_t *count,
                                         uint32_t owned_ability, uint32_t button_ability) {
     char code[5] = {0};
+    uint32_t research_id = 0;
+    int32_t required_level = 0;
     uint8_t index;
 
     if (!ent || !buttons || !count || *count >= max_buttons ||
@@ -759,7 +761,15 @@ static void G_AddPassiveEffectIndicator(edict_t *ent, gameCommandButton_t *butto
     memcpy(code, &button_ability, 4);
     index = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > index) { buttons[index].disabled = 1; buttons[index].indicator = 1; }
+    if (*count > index) {
+        buttons[index].disabled = 1;
+        buttons[index].indicator = 1;
+        if (G_UnitAbilityResearchRequirement(ent, owned_ability, &research_id, &required_level)) {
+            buttons[index].indicator_dimmed = !G_UnitAbilityResearchAvailable(ent, owned_ability);
+            if (buttons[index].indicator_dimmed)
+            G_AddResearchRequirementTooltip(&buttons[index], research_id, required_level);
+        }
+    }
 }
 
 static void G_AddPassiveEffectIndicators(edict_t *ent, gameCommandButton_t *buttons,
@@ -1025,13 +1035,14 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
-    } else if (burrow_occupied || armed_structure) {
+    } else if (burrow_occupied || (armed_structure &&
+               (!S_AncientIsRooted(ent) || S_AncientCanShowRootedAttackCommand(ent)))) {
         /* Immobile armed structures (including Guard Towers) still need Stop
          * to cancel their current attack/order. Burrows expose it only while
          * occupied, when their attack slot is enabled. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (S_AncientCanShowRootedAttackCommand(ent) &&
+    if (!S_UnitPolymorphed(ent) && S_AncientCanShowRootedAttackCommand(ent) &&
         ((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
          (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
@@ -1268,6 +1279,23 @@ bool G_BuildInventoryItem(edict_t *ent, edict_t *item, uint8_t slot, gameInvento
     UI_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
     out->slot = slot;
     out->charges = G_ItemCharges(item);
+    {
+        cstring_t abilities = G_ItemAbilityList(item);
+        if (abilities) {
+            PARSE_LIST(abilities, ability_name, parse_segment) {
+                uint32_t code;
+                abilityCooldownWindow_t window;
+                if (strlen(ability_name) != 4) continue;
+                memcpy(&code, ability_name, sizeof(code));
+                code = G_ItemCooldownCode(item, code);
+                if (!code || !S_SpellCooldownWindow(ent, code, &window)) continue;
+                out->cooldown_start_time = window.start_time;
+                out->cooldown_end_time = window.end_time;
+                out->cooldown = S_SpellCooldownFraction(ent, code, 0);
+                break;
+            }
+        }
+    }
     if (!out->art[0]) {
         fprintf(stderr, "G_BuildInventoryItem: missing Art item=%.4s slot=%u\n",
                 (char *)&item->class_id, (unsigned)slot);

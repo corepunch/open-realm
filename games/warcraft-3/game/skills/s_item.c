@@ -16,6 +16,8 @@
 #define ID_SOUL_POSSESSION     MAKEFOURCC('A', 's', 'o', 'u')
 #define ID_FILLED_SOUL         MAKEFOURCC('s', 'o', 'u', 'l')
 
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call);
+
 /* ---- Active items (consume on use) -------------------------------------- */
 
 /* A unit may carry souls and itself be trapped; retire only after both roles finish. */
@@ -428,6 +430,111 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     return true;
 }
 
+/* Sacrificial Skull (Ablp) adds authored loose Blight at a selected point. */
+BZ_ABILITY_PROC(CAbilityItemBlight) {
+    if (msg == A_VALIDATE) {
+        spellTarget_t const *target = call ? call->target : NULL;
+        return call && call->item && target && target->type == SPELL_TARGET_POINT &&
+               S_SpellNumber(call->item->code, ABILITY_NUMBER_AREA, 1) > 0.0f;
+    }
+    if (msg == A_EXECUTE) {
+        spellTarget_t const *target = call ? call->target : NULL;
+        float const radius = call && call->item ?
+            S_SpellNumber(call->item->code, ABILITY_NUMBER_AREA, 1) : 0.0f;
+        bool const creates_blight = call && call->item && S_SpellData(call->item->code, 1, 2) != 0.0f;
+        if (!target || target->type != SPELL_TARGET_POINT || !(radius > 0.0f) || !creates_blight) return false;
+        G_SetBlightRadius(&target->point, radius, creates_blight);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
+/* Scroll of Life Regen (AIsl) and Lesser Clarity Potion (AIpl) share the
+ * authored AIrg regeneration family. DataA/Duration restore life; DataB/Dur
+ * restore mana. Statuses keep ticking independently of the item's lifetime. */
+#define ITEM_REGEN_TICK_MS 1000u
+static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {
+    if (!target || !status || !status->level) return;
+    unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
+}
+static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t level) {
+    float const duration = S_SpellHeroDuration(code, level, target);
+    float const health = S_SpellData(code, level, 1);
+    float const mana = S_SpellData(code, level, 2);
+    if (!(duration > 0.0f)) return;
+    if (health > 0.0f) S_SpellHeal(target, health / duration);
+    if (mana > 0.0f) {
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + mana / duration);
+        G_InvalidateUnitInfoPanel(target);
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityItemRegeneration) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        uint32_t const code = status->source_ability ? status->source_ability : status->data;
+        uint32_t const rank = status->rank ? status->rank : MAX(1u, status->level);
+        /* Status expiration is processed before a final deadline in the
+         * generic sweep. Resolve that due pulse at its exact expiry first. */
+        if (status->timestamp && status->timestamp <= G_Time() &&
+            unit_status_take_due_tick(status, ITEM_REGEN_TICK_MS, status->timestamp - 1u)) {
+            item_regeneration_pulse(ent, code, rank);
+            return true;
+        }
+    }
+    if (msg == A_DAMAGED && ent && call && call->entity && ent->unit_state) {
+        bool interrupted = false;
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t *status = ent->unit_state->statuses + i;
+            if (!status->level || status->code != MAKEFOURCC('B','I','r','g') ||
+                (status->source_ability != MAKEFOURCC('A','I','s','l') &&
+                 status->source_ability != MAKEFOURCC('A','I','p','l'))) continue;
+            item_regeneration_end(ent, status);
+            interrupted = true;
+        }
+        return interrupted;
+    }
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        uint32_t const code = status->source_ability ? status->source_ability : status->data;
+        uint32_t const rank = status->rank ? status->rank : MAX(1u, status->level);
+        while (unit_status_take_due_tick(status, ITEM_REGEN_TICK_MS, G_Time()))
+            item_regeneration_pulse(ent, code, rank);
+        return true;
+    }
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    edict_t *caster = item_use_caster(ent, call);
+    uint32_t const code = call->item->code;
+    uint32_t const rank = 1;
+    cstring_t buff = code == MAKEFOURCC('A','I','p','l') ? "BIrg" :
+        S_SpellBuffToken(S_SpellBuffId(code, rank), 0);
+    float const duration = caster ? S_SpellHeroDuration(code, rank, caster) : 0.0f;
+    abilityLevel_t const *row = G_AbilityLevel(code, rank);
+    /* AIrg children can omit BuffID in older/classic datasets. */
+    if (!buff) buff = "BIrg";
+    if (!caster || !(duration > 0.0f) || !row || !(row->area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 (code == MAKEFOURCC('A','I','p','l') ? target == caster :
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area)) {
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, rank, buff, duration);
+        if (!status) continue;
+        status->data = code;
+        status->source_ability = code;
+        status->rank = rank;
+        /* The regeneration outlives the consumed item and its carrier. */
+        status->source = target;
+        status->source_spawn_time = target->spawn_time;
+        status->next_tick = G_Time() + ITEM_REGEN_TICK_MS;
+        /* Apply the first authored fraction now; the remaining pulses cover
+         * the rest of the duration, including the final second before expiry. */
+        item_regeneration_pulse(target, code, rank);
+    }
+    return true;
+}
+
 /* World powerups target the collecting unit; ordinary carried item use keeps
  * the existing selected-unit client contract. Never read a client from a
  * server-side collector. */
@@ -507,22 +614,41 @@ BZ_ABILITY_PROC(CAbilityLevelMod) {
     return true;
 }
 
-/* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
+/* Figurine items and Book of the Dead share AIfs. Most figurines author one
+ * summoned unit in DataC; Book of the Dead authors two unit types in DataC/D
+ * with their counts in DataA/B. */
 BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
-    uint32_t unit_id = S_SpellUnitId(code, 1);
+    uint32_t first_unit = S_SpellDataId(code, 1, 3);
+    uint32_t second_unit = S_SpellDataId(code, 1, 4);
+    uint32_t first_count, second_count, total_count, summoned = 0;
+    float const duration = S_SpellDuration(code, 1, false);
 
-    if (!target || !unit_id) {
-        return false;
+    /* Later/custom figurine rows may use the dedicated UnitID field. */
+    if (!first_unit) first_unit = S_SpellUnitId(code, 1);
+    first_count = first_unit ? (uint32_t)MIN(32.0f, MAX(1.0f, S_SpellData(code, 1, 1))) : 0;
+    second_count = second_unit ? (uint32_t)MIN(32.0f, MAX(0.0f, S_SpellData(code, 1, 2))) : 0;
+    total_count = first_count + second_count;
+    if (!target || !total_count) return false;
+
+    FOR_LOOP(i, total_count) {
+        uint32_t const unit_id = i < first_count ? first_unit : second_unit;
+        uint32_t const index = i;
+        vec2_t location = target->s.origin2;
+        float angle = (2.0f * (float)M_PI * (float)index) / (float)total_count;
+        float const radius = MAX(64.0f, target->collision + 32.0f);
+        edict_t *summon;
+
+        location.x += cosf(angle) * radius;
+        location.y += sinf(angle) * radius;
+        (void)SP_FindEmptySpaceAround(target, unit_id, &location, &angle);
+        summon = S_SummonAbilityAt(target, code, unit_id, &location, duration);
+        if (!summon) continue;
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+        summoned++;
     }
-    edict_t *summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
-    if (!summon) {
-        return false;
-    }
-    G_ActivateUnitFood(summon);
-    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
-    return true;
+    return summoned != 0;
 }
 
 /* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
@@ -531,6 +657,210 @@ static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
     item_t const *rec = G_ItemState(call ? call->source_item : NULL);
     return rec ? rec->carrier : NULL;
+}
+
+/* Choose uniformly from valid critters authored for the map's main tileset.
+ * Tileset-specific membership comes from UnitBalance.tilesets; '*' means all. */
+static uint32_t item_random_tileset_critter(char tileset) {
+    uint32_t selected = 0, count = 0;
+    if (!tileset) return 0;
+    FOR_LOOP(i, g_UnitDataCount) {
+        UnitData_t const *unit = g_UnitData + i;
+        UnitBalance_t const *balance;
+        cstring_t tilesets;
+        if (!unit->id || !unit->valid || !unit->race || strcasecmp(unit->race, "critters")) continue;
+        balance = G_UnitBalance(unit->id);
+        if (balance->id != unit->id || !(tilesets = balance->tilesets) || !*tilesets ||
+            (!strchr(tilesets, tileset) && !strchr(tilesets, '*'))) continue;
+        if ((uint32_t)rand() % ++count == 0) selected = unit->id;
+    }
+    return selected;
+}
+
+static bool sanctuary_is_townhall(uint32_t unit_id) {
+    UnitData_t const *data = G_UnitData(unit_id);
+    return data->id == unit_id && data->buffType && !strcasecmp(data->buffType, "townhall");
+}
+
+/* Town hall profile upgrade chains provide an authored tier order. Return the
+ * number of remaining TownHall forms so the terminal form wins selection. */
+static uint32_t sanctuary_townhall_upgrade_depth(uint32_t unit_id, uint32_t depth) {
+    cstring_t upgrades;
+    uint32_t remaining = 0;
+    if (!unit_id || depth >= 8 || !(upgrades = G_UnitProfile(unit_id)->upgrade) || !*upgrades) return 0;
+    PARSE_LIST(upgrades, token, parse_segment) {
+        uint32_t next = FS_SLKKey(token);
+        if (sanctuary_is_townhall(next))
+            remaining = MAX(remaining, 1u + sanctuary_townhall_upgrade_depth(next, depth + 1));
+    }
+    return remaining;
+}
+
+static edict_t *sanctuary_highest_townhall(uint32_t player) {
+    edict_t *best = NULL;
+    uint32_t best_depth = UINT32_MAX;
+    FILTER_EDICTS(hall, hall->s.player == player && S_SpellIsAliveTarget(hall) &&
+                  G_UnitIsStructure(hall) && sanctuary_is_townhall(hall->class_id) &&
+                  !G_GetConstruction(hall) && !G_UnitHasFlag(hall, UNIT_FLAG_TRAINING)) {
+        uint32_t const remaining = sanctuary_townhall_upgrade_depth(hall->class_id, 0);
+        if (!best || remaining < best_depth ||
+            (remaining == best_depth && hall->s.number < best->s.number)) {
+            best = hall;
+            best_depth = remaining;
+        }
+    }
+    return best;
+}
+
+#define SANCTUARY_TICK_MS 1000u
+static void sanctuary_heal_tick(edict_t *target, heroabilitystatus_t *status) {
+    float const amount = S_SpellData(status->source_ability, status->rank, 1);
+    if (amount > 0.0f && target->health.value < target->health.max_value)
+        S_SpellHeal(target, MIN(amount, target->health.max_value - target->health.value));
+}
+
+/* Staff of Sanctuary sends a friendly target to the user's highest-tier
+ * completed town hall, then owns BNsa's immobility and authored healing ticks. */
+BZ_ABILITY_PROC(CAbilityItemSanctuary) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_UPDATE && ent && ent->unit_state) {
+        bool updated = false;
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            heroabilitystatus_t *status = ent->unit_state->statuses + i;
+            if (!status->level || status->code != MAKEFOURCC('B','N','s','a') ||
+                status->source_ability != MAKEFOURCC('A','N','s','a')) continue;
+            updated = true;
+            while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
+                sanctuary_heal_tick(ent, status);
+            if (status->level && ent->health.value >= ent->health.max_value) {
+                unit_expirestatus(ent, status);
+                break;
+            }
+        }
+        return updated;
+    }
+    if (msg == A_STATUS_REMOVE && call && call->status.slot &&
+        call->status.slot->code == MAKEFOURCC('B','N','s','a')) {
+        call->status.slot->state_mask &= ~WC3_STATUS_STATE_STUNNED;
+        return true;
+    }
+    if (msg == A_STATUS_TICK && call && call->status.slot) {
+        heroabilitystatus_t *status = call->status.slot;
+        while (unit_status_take_due_tick(status, SANCTUARY_TICK_MS, G_Time()))
+            sanctuary_heal_tick(ent, status);
+        /* ANsa authors Dur=0: BNsa lasts until the target is fully healed. */
+        if (ent->health.value >= ent->health.max_value && status->level)
+            unit_expirestatus(ent, status);
+        return true;
+    }
+    if (msg == A_VALIDATE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        return spell && ent && target && S_SpellIsAliveTarget(target) &&
+               S_SpellIsFriend(ent, target) && sanctuary_highest_townhall(ent->s.player) != NULL;
+    }
+    if (msg == A_EXECUTE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        edict_t *hall = ent ? sanctuary_highest_townhall(ent->s.player) : NULL;
+        vec2_t requested, position;
+        if (!spell || !target || !hall) return false;
+        cstring_t const buff = S_SpellBuffToken(S_SpellBuffId(spell->code, S_SpellLevel(ent, spell->code)), 0);
+        float const duration = S_SpellDuration(spell->code, S_SpellLevel(ent, spell->code), false);
+        if (!buff || !isfinite(duration) || duration < 0.0f) return false;
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, spell->code,
+            S_SpellLevel(ent, spell->code), buff, duration);
+        if (!status) return false;
+        requested = hall->s.origin2;
+        if (!G_FindUnitUnstuckPosition(target, &requested, &position)) position = requested;
+        S_SpellRelocateUnit(target, spell->code, &position);
+        status->data = spell->code;
+        status->source_ability = spell->code;
+        status->rank = S_SpellLevel(ent, spell->code);
+        status->state_mask |= WC3_STATUS_STATE_STUNNED;
+        status->source = target;
+        status->source_spawn_time = target->spawn_time;
+        status->next_tick = G_Time() + SANCTUARY_TICK_MS;
+        sanctuary_heal_tick(target, status);
+        if (target->health.value >= target->health.max_value)
+            unit_expirestatus(target, status);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
+/* Staff of Preservation moves one friendly unit to the user's highest-tier
+ * completed town hall. Targeting, range, mana, and cooldown use the spell path. */
+BZ_ABILITY_PROC(CAbilityItemPreservation) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    if (msg == A_VALIDATE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        return spell && ent && S_SpellIsAliveTarget(target) &&
+               S_SpellIsFriend(ent, target) && sanctuary_highest_townhall(ent->s.player) != NULL;
+    }
+    if (msg == A_EXECUTE) {
+        edict_t *target = call && call->target ? call->target->entity : NULL;
+        edict_t *hall = ent ? sanctuary_highest_townhall(ent->s.player) : NULL;
+        vec2_t requested, position;
+        if (!spell || !target || !S_SpellIsAliveTarget(target) || !hall ||
+            !S_SpellIsFriend(ent, target)) return false;
+        requested = hall->s.origin2;
+        if (!G_FindUnitUnstuckPosition(target, &requested, &position)) position = requested;
+        S_SpellRelocateUnit(target, spell->code, &position);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
+/* Dust of Appearance stamps nearby hostile/neutral units with the authored
+ * Bdet status. The status carries the detecting player through its lifetime. */
+BZ_ABILITY_PROC(CAbilityItemDetectByBuff) {
+    edict_t *caster;
+    abilityitem_t const *spell;
+    uint32_t code, level;
+    float radius, duration;
+    if (msg != A_ITEM_USE || !call || !(spell = call->item)) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    code = spell->code;
+    level = 1;
+    radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    duration = S_SpellDuration(code, level, false);
+    if (radius <= 0.0f || duration <= 0.0f) return false;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) &&
+                  S_SpellAllowsAreaTarget(code, caster, target) &&
+                  Vector2_distance(&caster->s.origin2, &target->s.origin2) <= radius) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(target, code, level, "Bdet", duration);
+        if (!status) continue;
+        status->data = caster->s.player + 1;
+        G_InvalidateUnitInfoPanel(target);
+    }
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    return true;
+}
+
+/* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
+BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
+    edict_t *caster, *critter;
+    uint32_t code, unit_id;
+    vec2_t spawn;
+    float facing = 0.0f;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || !level.mapinfo) return false;
+    code = call->item->code;
+    unit_id = item_random_tileset_critter(level.mapinfo->mainGroundType);
+    if (!unit_id) {
+        fprintf(stderr, "WC3 Mechanical Critter: no valid critter for tileset '%c'\n",
+                level.mapinfo->mainGroundType ? level.mapinfo->mainGroundType : '?');
+        return false;
+    }
+    spawn = caster->s.origin2;
+    if (!SP_FindEmptySpaceAround(caster, unit_id, &spawn, &facing)) return false;
+    critter = S_SummonAbilityAt(caster, code, unit_id, &spawn, 0.0f);
+    if (!critter) return false;
+    critter->s.angle = facing;
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, critter, NULL, true);
+    return true;
 }
 
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.

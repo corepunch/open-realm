@@ -846,6 +846,51 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Staff of Sanctuary uses the audited BNsa data for its stun and recovery. */
+TEST(wc3_ability_lifecycle, staff_of_sanctuary_teleports_stuns_and_heals_until_full) {
+    static char const sanctuary_slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"levels\"\nC;Y1;X9;K\"Rng1\"\n"
+        "C;Y2;X1;K\"ANsa\"\nC;Y2;X2;K\"ANsa\"\nC;Y2;X3;K\"ground,air,vuln,invu,player,neutral\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"45\"\nC;Y2;X6;K\"7\"\n"
+        "C;Y2;X7;K\"BNsa\"\nC;Y2;X8;K1\nC;Y2;X9;K\"700\"\nE\n";
+    static char const units_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"buffType\"\nC;Y1;X3;K\"upgrade1\"\n"
+        "C;Y2;X1;K\"hall\"\nC;Y2;X2;K\"townhall\"\nC;Y2;X3;K\"\"\nE\n";
+    edict_t *caster = review_setup(), *target = review_unit(0, 100), *hall = review_unit(0, 1000);
+    slkTestData_t *rows = parse_slk_string(sanctuary_slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *unit_rows = parse_slk_string(units_slk), *old_units = G_SetSLKRows("UnitData", unit_rows);
+    abilityitem_t const item = S_AbilityItem(FS_SLKKey("ANsa"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    spellTarget_t spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+    hall->class_id = FS_SLKKey("hall"); hall->s.flags |= EF_BUILDING;
+    target->health.value = 500;
+    call.target = &spell_target;
+    T_ASSERT(S_AbilityMessage(caster, A_VALIDATE, &call));
+    T_ASSERT(S_AbilityMessage(caster, A_EXECUTE, &call));
+    T_FEQ(target->s.origin2.x, hall->s.origin2.x, .001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 1);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_STUNNED));
+    T_FEQ(target->health.value, 507, .001f);
+    level.time += 1000; S_RunAbilityUpdates(target);
+    T_FEQ(target->health.value, 514, .001f);
+    target->health.value = target->health.max_value - 1;
+    level.time += 1000; S_RunAbilityUpdates(target);
+    T_FEQ(target->health.value, target->health.max_value, .001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 0);
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_STUNNED));
+    target->health.value = 500;
+    T_ASSERT(S_AbilityMessage(caster, A_EXECUTE, &call));
+    target->health.value = target->health.max_value;
+    level.time += 1000; S_RunAbilityUpdates(target);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("BNsa")), 0);
+    G_SetSLKRows("UnitData", old_units); free_slk_rows(unit_rows);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Structure is a first-class target-mask token; cancelling the channel must
  * also undo Mass Teleport's temporary destination pause. */
 TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_cancel) {
@@ -2323,6 +2368,29 @@ static edict_t *rain_of_fire_test_setup(slkTestData_t **rows, slkTestData_t **ol
     return caster;
 }
 static void rain_of_fire_test_done(slkTestData_t *rows, slkTestData_t *old) {
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_ability_lifecycle, tft_1_07_rain_of_fire_resolves_missing_effect_id_to_xerf) {
+    static char const roc_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"ANrf\"\nC;Y2;X2;K\"ANrf\"\nE\n";
+    static char const effect_config[] =
+        "[XErf]\nEffectArt=TestUI\\Models\\rain-fire.mdx\n";
+    slkTestData_t *rows = parse_slk_string(roc_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(G_TestPushAbilityConfig(effect_config));
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), FS_SLKKey("XErf"));
+    T_STREQ(G_AbilityEffectArt(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), WC3_EFFECT_EFFECT, 0),
+            "TestUI\\Models\\rain-fire.mdx");
+#else
+    T_EQ(G_AbilityEffectCode(FS_SLKKey("ANrf"), 1), FS_SLKKey("ANrf"));
+    T_NULL(G_AbilityEffectArt(FS_SLKKey("ANrf"), WC3_EFFECT_EFFECT, 0));
+#endif
+    G_TestPopAbilityConfig();
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

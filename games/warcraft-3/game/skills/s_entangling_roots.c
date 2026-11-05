@@ -47,6 +47,13 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         if (!spell || !target) return true;
         level = S_SpellLevel(ent, spell->code);
         buff = S_SpellBuffId(spell->code, level);
+#if BZ_COMPAT_WORKAROUNDS
+        /* RoC 1.0 omits AEer.BuffID; the stock root status is BEer. */
+        if ((!buff || strlen(buff) < 4) &&
+            (spell->code == MAKEFOURCC('A','E','e','r') ||
+             spell->code == MAKEFOURCC('A','e','n','r') ||
+             spell->code == MAKEFOURCC('A','e','n','w'))) buff = "BEer";
+#endif
         if (!buff || strlen(buff) < 4) return true;
         duration = S_SpellResistantDuration(spell->code, level, target);
         slot = S_SpellApplyTimedStatus(target, buff, level, duration);
