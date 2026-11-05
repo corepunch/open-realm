@@ -356,21 +356,30 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
         }
         return;
     }
-    struct splClip clips[] = {
-        { .axis = 0, .edge = clip_mins->x, .above = true },
-        { .axis = 0, .edge = clip_maxs->x, .above = false },
-        { .axis = 1, .edge = clip_mins->y, .above = true },
-        { .axis = 1, .edge = clip_maxs->y, .above = false },
-    };
     vec3_t a[8], b[8], *poly = a, *scratch = b;
+    float min_x = MIN(triangle[0].x, MIN(triangle[1].x, triangle[2].x));
+    float max_x = MAX(triangle[0].x, MAX(triangle[1].x, triangle[2].x));
+    float min_y = MIN(triangle[0].y, MIN(triangle[1].y, triangle[2].y));
+    float max_y = MAX(triangle[0].y, MAX(triangle[1].y, triangle[2].y));
     uint32_t n = 3;
     memcpy(a, triangle, 3 * sizeof(*a));
-    FOR_LOOP(edge, 4) {
-        struct splClip clip = clips[edge];
-        clip.count = n;
-        n = R_ClipSplatPoly(poly, scratch, clip);
-        if (!n) return;
-        vec3_t *swap = poly; poly = scratch; scratch = swap;
+#define CLIP_SPLAT_EDGE(axis_, edge_, above_, reject_, skip_, bounds_) do { \
+        float const edge_value = (edge_); \
+        if (n && (reject_)) { n = 0; } \
+        else if (n && !(skip_)) { \
+            n = R_ClipSplatPoly(poly, scratch, (struct splClip){ .count = n, .axis = (axis_), \
+                .edge = edge_value, .above = (above_) }); \
+            vec3_t *swap = poly; poly = scratch; scratch = swap; \
+            bounds_; \
+        } \
+    } while (0)
+    CLIP_SPLAT_EDGE(0, clip_mins->x, true, max_x < clip_mins->x, min_x >= clip_mins->x, min_x = clip_mins->x);
+    CLIP_SPLAT_EDGE(0, clip_maxs->x, false, min_x > clip_maxs->x, max_x <= clip_maxs->x, max_x = clip_maxs->x);
+    CLIP_SPLAT_EDGE(1, clip_mins->y, true, max_y < clip_mins->y, min_y >= clip_mins->y, min_y = clip_mins->y);
+    CLIP_SPLAT_EDGE(1, clip_maxs->y, false, min_y > clip_maxs->y, max_y <= clip_maxs->y, max_y = clip_maxs->y);
+#undef CLIP_SPLAT_EDGE
+    if (!n) {
+        return;
     }
     for (uint32_t i = 1; i + 1 < n; i++) {
         vec3_t points[] = { poly[0], poly[i], poly[i + 1] };
