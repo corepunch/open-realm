@@ -17,6 +17,33 @@ comparing compatibility modes against the same prepared fixtures.
 
 ## Benchmark
 
+### Synthetic FOW cache workload
+
+`wc3_perf.synthetic_fow_repeated_spatial_workload` generates a deterministic
+synthetic scene in memory: 1,024 blockers arranged on a perturbed grid and 128
+revealers at repeated sites and radii. It contains no extracted campaign map
+coordinates or retail object placement. Each sample compares 50 uncached FOW
+updates with 50 cached updates for the same scene. The benchmark prints FOW
+phase totals and cache hit/miss counts; the uncached run measures shadowcast
+work, while the cached run measures repeated reuse after an explicit warmup.
+The cache is cleared before each path so prior samples cannot affect its
+results. Five paired samples support same-machine comparisons, and there is no
+timing threshold because elapsed time varies by machine.
+
+Run it with:
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_perf.synthetic_fow_repeated_spatial_workload'
+```
+
+Use the same machine, build mode, and command when comparing changes. The
+generated scene fixes positions, blocker density, and overlap between sight
+ranges so the uncached and cached paths receive the same workload. It uses one
+viewer and omits map terrain/pathing textures. Its absolute timings do not
+predict campaign FPS; compare paired timings and cache counters from this
+benchmark itself.
+
 ### macOS SDL event test dependency
 
 On macOS arm64, SDL2-compat 2.32.72 can crash inside SDL3's `SDL_PushEvent_REAL`

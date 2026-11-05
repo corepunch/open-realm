@@ -4639,6 +4639,96 @@ TEST(wc3_perf, fow_update_large_map) {
     G_FowShutdown();
 }
 
+enum { synthetic_fow_blocker_count = 1024, synthetic_fow_revealer_count = 128 };
+static edict_t *synthetic_fow_blockers[synthetic_fow_blocker_count];
+static umove_t synthetic_fow_stand = { .animation = "stand", .think = ai_idle };
+static animation_t const synthetic_fow_animation = { .interval = { 0, 100 } };
+
+void G_FowTestPerfBegin(void);
+void G_FowTestPerfEnd(void);
+void G_FowTestSetRevealCacheEnabled(bool enabled);
+void G_FowTestResetRevealCache(void);
+
+static void synthetic_fow_benchmark_50_frames(void) {
+    G_FowTestPerfBegin();
+    FOR_LOOP(frame, 50) G_FowUpdate();
+    G_FowTestPerfEnd();
+}
+
+TEST(wc3_perf, synthetic_fow_repeated_spatial_workload) {
+    uint8_t *fog_baseline = NULL;
+
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, synthetic_fow_blocker_count) {
+        /* A regular synthetic orchard with a small deterministic offset avoids
+         * depending on extracted map coordinates while preserving blocker
+         * overlap and repeated source-cell/radius combinations. */
+        uint32_t const col = i % 32, row = i / 32;
+        edict_t *tree = G_Spawn();
+        tree->class_id = MAKEFOURCC('B', 'l', 'o', 'k');
+        tree->s.origin.x = tree->s.origin2.x = 512.0f + col * 256.0f + (row % 3) * 16.0f;
+        tree->s.origin.y = tree->s.origin2.y = 512.0f + row * 256.0f + (col % 3) * 16.0f;
+        tree->s.flags |= EF_FOW_BLOCKER;
+        tree->s.player = 15;
+        tree->targtype = TARG_TREE;
+        tree->health.value = tree->health.max_value = 100.0f;
+        tree->svflags |= SVF_MONSTER | SVF_STATIC_SCENERY;
+        tree->think = monster_think;
+        tree->currentmove = &synthetic_fow_stand;
+        tree->animation = &synthetic_fow_animation;
+        tree->animation_speed = 1.0f;
+        G_AddDestructable(tree);
+        synthetic_fow_blockers[i] = tree;
+    }
+    FOR_LOOP(i, synthetic_fow_revealer_count) {
+        /* Sixteen positions repeated at eight radius values ensure a warmed
+         * cache is exercised across frames, with enough unique keys to include
+         * genuine initial shadowcasts. */
+        uint32_t const site = i % 16, ring = i / 16;
+        edict_t *unit = G_Spawn();
+        unit->class_id = MAKEFOURCC('S', 'y', 'n', 'U');
+        unit->s.origin.x = unit->s.origin2.x = 768.0f + (site % 4) * 1792.0f + ring * 32.0f;
+        unit->s.origin.y = unit->s.origin2.y = 768.0f + (site / 4) * 1792.0f + ring * 32.0f;
+        unit->s.player = 0;
+        unit->health.value = unit->health.max_value = 100.0f;
+        unit->runtime.sight_radius.day = 512.0f + (ring % 4) * 128.0f;
+        unit->runtime.sight_radius.night = unit->runtime.sight_radius.day;
+    }
+    /* Keep the full generated layout in bounds with a one-cell FOW rim. */
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = { 0.0f, 0.0f }, .max = { 8192.0f, 8192.0f }));
+
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    G_FowTestSetRevealCacheEnabled(false);
+    G_FowUpdate();
+    uint32_t const fog_cells = level.fow.width * level.fow.height;
+    fog_baseline = malloc((size_t)fog_cells * 2);
+    T_NOT_NULL(fog_baseline);
+    if (fog_baseline) {
+        memcpy(fog_baseline, level.fow.players[0].visible, fog_cells);
+        memcpy(fog_baseline + fog_cells, level.fow.players[0].explored, fog_cells);
+        G_FowTestSetRevealCacheEnabled(true);
+        G_FowUpdate();
+        T_ASSERT(!memcmp(fog_baseline, level.fow.players[0].visible, fog_cells));
+        T_ASSERT(!memcmp(fog_baseline + fog_cells, level.fow.players[0].explored, fog_cells));
+        free(fog_baseline);
+    }
+    FOR_LOOP(sample, 5) {
+        G_FowTestSetRevealCacheEnabled(false);
+        G_FowTestResetRevealCache();
+        T_BENCH("synthetic FOW uncached (50 frames, 1024 blockers, 128 revealers)", 1,
+                synthetic_fow_benchmark_50_frames());
+        G_FowTestResetRevealCache();
+        G_FowTestSetRevealCacheEnabled(true);
+        G_FowUpdate(); /* Warm only this sample's fresh cache. */
+        T_BENCH("synthetic FOW cached (50 frames, 1024 blockers, 128 revealers)", 1,
+                synthetic_fow_benchmark_50_frames());
+    }
+    G_FowShutdown();
+}
+
 /* 1900 active units — matches the entity count seen in the perf profile.
  * Each entity goes through spell_run_frame + unit_updatestatuses + physics
  * every call, which is the dominant cost even before think fires. */

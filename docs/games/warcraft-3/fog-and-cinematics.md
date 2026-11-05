@@ -64,6 +64,19 @@ request both actions explicitly.
 
 The server's existing `G_FowPlayerCanSeeEntity()` remains the foreign-entity visibility gate. Known gameplay invisibility is evaluated there per viewer: owners/shared-vision allies keep access to their invisible units, while hostile viewers need a detector covering the target. Permanent Invisibility (`Apiv`) and Shadow Meld (`Ashm`/`Ahid`) have dedicated saved state; Sorceress Invisibility/Wind Walk and hidden wards retain `RF_HIDDEN`, but only those recognized invisibility states participate in this visibility policy. Snapshot customization clears `RF_HIDDEN` only for a viewer who is allowed to see that invisible entity, leaving the authoritative entity flag untouched. This deliberately avoids treating cargo, mine workers, revival/training placeholders, and other non-invisibility uses of `RF_HIDDEN` as revealable. The same viewer-specific predicate gates selection, automatic hostile acquisition, attack continuation, and unit-target spell validation. Far Sight's saved timed thinker and passive detector abilities contribute true sight through the shared query.
 
+### Shadowcast visibility cache
+
+When blockers are present, `G_FowRevealCircle()` caches the shadowcast-visible
+cell list by source cell, quantized sight radius, and blocker generation. Sources
+that remain in the same fog cell can replay those cells without repeating the
+recursive shadowcast. A blocker rebuild changes the generation, and map FOW
+shutdown clears the cache. The LRU cache is bounded to 256 entries and 262,144
+cell indices (1 MiB), with 8 bytes of capture scratch per FOW cell;
+allocation failure falls back to the normal shadowcast. The blocker rim is
+still evaluated each update because it depends on the combined visible grid
+from all current sources. `wc3_perf_log 1` reports cache hits and misses for
+live workloads.
+
 The client receives current and explored fog as separate planes, so world fog and minimap fog consume the same authoritative state while the minimap camera box continues to derive from camera state independently.
 
 The WC3 model renderer applies gameplay fog after the shaded/unshaded material branch. This is required for unshaded doodad and model layers: their lighting bypass must not bypass fog of war. A zero fog texture sample discards the fragment, hiding it in unexplored terrain; nonzero samples attenuate its RGB according to the fog texture. Entities authored with `RF_NO_FOGOFWAR` use the renderer's white fog texture and remain unaffected by this mask. The fog sampler is declared third in the model shader, so the shader loader assigns it texture unit 2, where the world frame binds the fog texture; no explicit sampler assignment is needed.

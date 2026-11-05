@@ -4,6 +4,8 @@
 #define FOW_PATHING_PIXEL_SIZE 32.0f
 #define FOW_TREE_DILATION_CELLS 1
 #define FOW_BLOCKER_LIGHT_MARGIN_CELLS 1
+#define FOW_REVEAL_CACHE_ENTRIES 256
+#define FOW_REVEAL_CACHE_CELL_BUDGET 262144
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
     uint32_t fow_index_ = G_FOW_CELL_INDEX((uint32_t)(x), (uint32_t)(y)); \
@@ -26,6 +28,84 @@ static uint32_t g_fow_blocker_hash;
 static uint32_t g_fow_blocker_count;
 static bool g_fow_blockers_valid;
 static bool g_fow_blockers_dirty = true;
+static uint32_t g_fow_blocker_generation;
+typedef struct {
+    uint32_t cx, cy, radius, blocker_generation;
+    uint32_t count;
+    uint64_t last_used;
+    uint32_t *cells;
+} fowRevealCacheEntry_t;
+static fowRevealCacheEntry_t g_fow_reveal_cache[FOW_REVEAL_CACHE_ENTRIES];
+static uint32_t g_fow_reveal_cache_cell_count;
+static uint64_t g_fow_reveal_cache_clock, g_fow_reveal_cache_hits, g_fow_reveal_cache_misses;
+static uint32_t *g_fow_capture_cells, *g_fow_capture_stamps;
+static uint32_t g_fow_capture_count, g_fow_capture_generation;
+static bool g_fow_capture_active, g_fow_reveal_cache_enabled = true;
+/* Optional counters aggregate fog workload into five-second windows. */
+static bool g_fow_perf_enabled;
+static uint32_t g_fow_perf_start, g_fow_perf_frames;
+static uint64_t g_fow_perf_reveals, g_fow_perf_casts, g_fow_perf_cells;
+static double g_fow_perf_update_ms, g_fow_perf_update_max_ms;
+enum { FOW_PERF_SIGHT, FOW_PERF_FAERIE, FOW_PERF_TYPES = 256, FOW_PERF_TOP = 12 };
+typedef struct {
+    uint32_t code;
+    uint8_t kind;
+    uint32_t radius_max;
+    uint64_t sources, radius_sum, casts, cells;
+} fowPerfType_t;
+static fowPerfType_t g_fow_perf_types[FOW_PERF_TYPES];
+static uint32_t g_fow_perf_active_type = UINT32_MAX;
+static uint8_t g_fow_perf_kind;
+#ifdef BZ_TESTS
+static bool g_fow_test_perf_enabled;
+static double g_fow_test_perf_blockers_ms, g_fow_test_perf_clear_ms;
+static double g_fow_test_perf_sources_ms, g_fow_test_perf_blocked_check_ms;
+static double g_fow_test_perf_shadowcast_ms, g_fow_test_perf_blocker_rim_ms;
+static double g_fow_test_perf_disk_ms;
+static double g_fow_test_perf_other_reveals_ms, g_fow_test_perf_modifiers_ms;
+static double g_fow_test_perf_cache_apply_ms;
+static uint32_t g_fow_test_perf_frames;
+
+void G_FowTestPerfBegin(void) {
+    g_fow_test_perf_enabled = true;
+    g_fow_test_perf_blockers_ms = g_fow_test_perf_clear_ms = 0.0;
+    g_fow_test_perf_sources_ms = g_fow_test_perf_blocked_check_ms = 0.0;
+    g_fow_test_perf_shadowcast_ms = g_fow_test_perf_blocker_rim_ms = 0.0;
+    g_fow_test_perf_disk_ms = 0.0;
+    g_fow_test_perf_cache_apply_ms = 0.0;
+    g_fow_test_perf_other_reveals_ms = g_fow_test_perf_modifiers_ms = 0.0;
+    g_fow_reveal_cache_hits = g_fow_reveal_cache_misses = 0;
+    g_fow_test_perf_frames = 0;
+}
+
+void G_FowTestPerfEnd(void) {
+    g_fow_test_perf_enabled = false;
+    fprintf(stdout, "[BENCH DETAIL] FOW %u frames: blockers=%.3fms clear=%.3fms source_scan_inclusive=%.3fms blocked_check=%.3fms shadowcast=%.3fms cache_apply=%.3fms blocker_rim=%.3fms disk_reveals=%.3fms other_reveals=%.3fms modifiers=%.3fms cache_hits=%llu cache_misses=%llu\n",
+            g_fow_test_perf_frames,
+            g_fow_test_perf_blockers_ms, g_fow_test_perf_clear_ms,
+            g_fow_test_perf_sources_ms, g_fow_test_perf_blocked_check_ms,
+            g_fow_test_perf_shadowcast_ms, g_fow_test_perf_cache_apply_ms,
+            g_fow_test_perf_blocker_rim_ms,
+            g_fow_test_perf_disk_ms,
+            g_fow_test_perf_other_reveals_ms, g_fow_test_perf_modifiers_ms,
+            (unsigned long long)g_fow_reveal_cache_hits,
+            (unsigned long long)g_fow_reveal_cache_misses);
+}
+
+void G_FowTestSetRevealCacheEnabled(bool enabled) {
+    g_fow_reveal_cache_enabled = enabled;
+}
+
+void G_FowTestResetRevealCache(void) {
+    FOR_LOOP(i, FOW_REVEAL_CACHE_ENTRIES) {
+        SAFE_DELETE(g_fow_reveal_cache[i].cells, gi.MemFree);
+        memset(g_fow_reveal_cache + i, 0, sizeof(g_fow_reveal_cache[i]));
+    }
+    g_fow_reveal_cache_cell_count = 0;
+    g_fow_reveal_cache_clock = 0;
+    g_fow_reveal_cache_hits = g_fow_reveal_cache_misses = 0;
+}
+#endif
 /* One bit per blocker cell, grouped by row. Rebuilt together with blocked;
  * this is only a traversal accelerator, not authoritative fog state. */
 static uint32_t *g_fow_blocker_words;
@@ -42,6 +122,139 @@ static uint32_t G_FowCellIndex(uint32_t x, uint32_t y) {
     return G_FOW_CELL_INDEX(x, y);
 }
 
+static void G_FowRevealCacheReset(void) {
+    FOR_LOOP(i, FOW_REVEAL_CACHE_ENTRIES) {
+        SAFE_DELETE(g_fow_reveal_cache[i].cells, gi.MemFree);
+        memset(g_fow_reveal_cache + i, 0, sizeof(g_fow_reveal_cache[i]));
+    }
+    g_fow_reveal_cache_cell_count = 0;
+    g_fow_reveal_cache_clock = 0;
+    g_fow_reveal_cache_hits = g_fow_reveal_cache_misses = 0;
+    g_fow_reveal_cache_enabled = true;
+    SAFE_DELETE(g_fow_capture_cells, gi.MemFree);
+    SAFE_DELETE(g_fow_capture_stamps, gi.MemFree);
+    g_fow_capture_count = g_fow_capture_generation = 0;
+    g_fow_capture_active = false;
+}
+
+static inline void G_FowCaptureCell(uint32_t index) {
+    if (!g_fow_capture_active || !g_fow_capture_stamps || !g_fow_capture_cells ||
+        index >= G_FowCellCount() || g_fow_capture_stamps[index] == g_fow_capture_generation)
+        return;
+    g_fow_capture_stamps[index] = g_fow_capture_generation;
+    if (g_fow_capture_count < G_FowCellCount())
+        g_fow_capture_cells[g_fow_capture_count++] = index;
+}
+
+static void G_FowCaptureBegin(void) {
+    g_fow_capture_count = 0;
+    if (!g_fow_capture_cells || !g_fow_capture_stamps) return;
+    if (++g_fow_capture_generation == 0) {
+        memset(g_fow_capture_stamps, 0, G_FowCellCount() * sizeof(*g_fow_capture_stamps));
+        g_fow_capture_generation = 1;
+    }
+    g_fow_capture_count = 0;
+    g_fow_capture_active = true;
+}
+
+static void G_FowCaptureEnd(void) {
+    g_fow_capture_active = false;
+}
+
+static fowRevealCacheEntry_t *G_FowRevealCacheFind(uint32_t cx, uint32_t cy, uint32_t radius) {
+    FOR_LOOP(i, FOW_REVEAL_CACHE_ENTRIES) {
+        fowRevealCacheEntry_t *const entry = g_fow_reveal_cache + i;
+        if (!entry->cells || entry->cx != cx || entry->cy != cy || entry->radius != radius ||
+            entry->blocker_generation != g_fow_blocker_generation)
+            continue;
+        entry->last_used = ++g_fow_reveal_cache_clock;
+        if (g_fow_perf_enabled
+#ifdef BZ_TESTS
+            || g_fow_test_perf_enabled
+#endif
+            ) g_fow_reveal_cache_hits++;
+        return entry;
+    }
+    if (g_fow_perf_enabled
+#ifdef BZ_TESTS
+        || g_fow_test_perf_enabled
+#endif
+        ) g_fow_reveal_cache_misses++;
+    return NULL;
+}
+
+static void G_FowRevealCacheEvict(uint32_t slot) {
+    fowRevealCacheEntry_t *const entry = g_fow_reveal_cache + slot;
+    if (entry->cells) {
+        g_fow_reveal_cache_cell_count -= entry->count;
+        gi.MemFree(entry->cells);
+    }
+    memset(entry, 0, sizeof(*entry));
+}
+
+static uint32_t G_FowRevealCacheLeastRecent(uint32_t exclude) {
+    uint32_t oldest = UINT32_MAX;
+    FOR_LOOP(i, FOW_REVEAL_CACHE_ENTRIES) {
+        if (i == exclude || !g_fow_reveal_cache[i].cells) continue;
+        if (oldest == UINT32_MAX ||
+            g_fow_reveal_cache[i].last_used < g_fow_reveal_cache[oldest].last_used)
+            oldest = i;
+    }
+    return oldest;
+}
+
+static void G_FowRevealCacheStore(uint32_t cx, uint32_t cy, uint32_t radius) {
+    uint32_t slot = UINT32_MAX;
+    uint32_t *cells;
+    if (!g_fow_capture_count || g_fow_capture_count > FOW_REVEAL_CACHE_CELL_BUDGET)
+        return;
+    FOR_LOOP(i, FOW_REVEAL_CACHE_ENTRIES) {
+        if (!g_fow_reveal_cache[i].cells) { slot = i; break; }
+    }
+    if (slot == UINT32_MAX) slot = G_FowRevealCacheLeastRecent(UINT32_MAX);
+    if (slot == UINT32_MAX) return;
+    cells = gi.MemAlloc(g_fow_capture_count * sizeof(*cells));
+    if (!cells) return;
+    memcpy(cells, g_fow_capture_cells, g_fow_capture_count * sizeof(*cells));
+    G_FowRevealCacheEvict(slot);
+    while (g_fow_reveal_cache_cell_count + g_fow_capture_count > FOW_REVEAL_CACHE_CELL_BUDGET) {
+        uint32_t const oldest = G_FowRevealCacheLeastRecent(slot);
+        if (oldest == UINT32_MAX) {
+            gi.MemFree(cells);
+            return;
+        }
+        G_FowRevealCacheEvict(oldest);
+    }
+    g_fow_reveal_cache[slot] = (fowRevealCacheEntry_t){
+        .cx = cx,
+        .cy = cy,
+        .radius = radius,
+        .blocker_generation = g_fow_blocker_generation,
+        .count = g_fow_capture_count,
+        .last_used = ++g_fow_reveal_cache_clock,
+        .cells = cells,
+    };
+    g_fow_reveal_cache_cell_count += g_fow_capture_count;
+}
+
+static void G_FowRevealCacheApply(fowPlayerGrid_t *grid, fowRevealCacheEntry_t const *entry) {
+    FOR_LOOP(i, entry->count) {
+        uint32_t const index = entry->cells[i];
+        uint32_t const y = index / level.fow.width;
+        if (!grid->visible[index]) {
+            grid->visible[index] = 1;
+            grid->visible_rows[y] = 1;
+            if (grid->dirty_visible_rows) grid->dirty_visible_rows[y] = 1;
+        }
+        if (!grid->explored[index]) {
+            grid->explored[index] = 1;
+            if (grid->dirty_explored_rows) grid->dirty_explored_rows[y] = 1;
+        }
+    }
+}
+
+/* Shadowcast slopes depend only on integer distance and delta_x. Cache the
+ * common Warcraft sight radii so each visible candidate avoids two divisions. */
 static bool G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
@@ -274,6 +487,21 @@ static int G_FowRadiusCells(float radius) {
     return MAX(1, (int)ceilf(radius / (float)FOW_CELL_SIZE));
 }
 
+static uint32_t G_FowPerfTypeSlot(uint32_t code, uint8_t kind) {
+    uint32_t empty = FOW_PERF_TYPES - 1;
+    FOR_LOOP(i, FOW_PERF_TYPES - 1) {
+        if (g_fow_perf_types[i].sources && g_fow_perf_types[i].code == code &&
+            g_fow_perf_types[i].kind == kind) return i;
+        if (!g_fow_perf_types[i].sources && empty == FOW_PERF_TYPES - 1) empty = i;
+    }
+    if (empty != FOW_PERF_TYPES - 1) {
+        g_fow_perf_types[empty].code = code;
+        g_fow_perf_types[empty].kind = kind;
+        return empty;
+    }
+    return FOW_PERF_TYPES - 1; /* bounded overflow bucket */
+}
+
 /* Circular trigger/modifier state writes reuse the ordinary fog-grid rasterization. */
 static void G_FowSetDiskState(fowPlayerGrid_t *grid, fogDisk_t const *disk) {
     int radius_sq = disk->cells * disk->cells;
@@ -372,6 +600,11 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
                            int yy)
 {
     int radius_sq = radius * radius;
+    if (g_fow_perf_enabled) {
+        g_fow_perf_casts++;
+        if (g_fow_perf_active_type < FOW_PERF_TYPES)
+            g_fow_perf_types[g_fow_perf_active_type].casts++;
+    }
 
     if (start < end) {
         return;
@@ -404,12 +637,18 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
 
             x = row_x + delta_x * xx;
             y = row_y + delta_x * yx;
+            if (g_fow_perf_enabled) {
+                g_fow_perf_cells++;
+                if (g_fow_perf_active_type < FOW_PERF_TYPES)
+                    g_fow_perf_types[g_fow_perf_active_type].cells++;
+            }
             in_bounds = x >= 0 && y >= 0 &&
                         x < (int)level.fow.width && y < (int)level.fow.height;
             cell_blocked = in_bounds &&
                            level.fow.blocked[G_FOW_CELL_INDEX((uint32_t)x, (uint32_t)y)] != 0;
             if (in_bounds && delta_x * delta_x + delta_y * delta_y <= radius_sq)
             {
+                G_FowCaptureCell(G_FOW_CELL_INDEX((uint32_t)x, (uint32_t)y));
                 G_FOW_SET_VISIBLE_CELL(grid, x, y);
             }
 
@@ -454,6 +693,7 @@ static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, uint32_t cx, uint32_t c
         { 1,  0,  0, -1 },
     };
 
+    G_FowCaptureCell(G_FOW_CELL_INDEX(cx, cy));
     G_FowSetVisible(grid, cx, cy);
     FOR_LOOP(octant, 8) {
         G_FowCastLight(grid,
@@ -584,6 +824,7 @@ void G_FowTestRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy,
 
 static void G_FowRevealCircle(uint32_t player, edict_t const *ent, float radius) {
     fowPlayerGrid_t *grid;
+    fowRevealCacheEntry_t *cache_entry;
     uint32_t cx, cy;
     int radius_cells;
 
@@ -607,15 +848,64 @@ static void G_FowRevealCircle(uint32_t player, edict_t const *ent, float radius)
         return;
     }
 #endif
-    if (G_FowAnyBlockedInBox((int)cx - radius_cells,
+#ifdef BZ_TESTS
+    double const blocked_check_start = g_fow_test_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
+#endif
+    bool const any_blocked = G_FowAnyBlockedInBox((int)cx - radius_cells,
                              (int)cy - radius_cells,
                              (int)cx + radius_cells,
-                             (int)cy + radius_cells))
-    {
-        G_FowRevealShadowcast(grid, cx, cy, radius_cells);
+                             (int)cy + radius_cells);
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled)
+        g_fow_test_perf_blocked_check_ms += gi.MonotonicMilliseconds() - blocked_check_start;
+#endif
+    if (any_blocked) {
+        cache_entry = g_fow_reveal_cache_enabled
+            ? G_FowRevealCacheFind(cx, cy, (uint32_t)radius_cells) : NULL;
+        if (cache_entry) {
+#ifdef BZ_TESTS
+            double const cache_apply_start = g_fow_test_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
+#endif
+            G_FowRevealCacheApply(grid, cache_entry);
+#ifdef BZ_TESTS
+            if (g_fow_test_perf_enabled)
+                g_fow_test_perf_cache_apply_ms += gi.MonotonicMilliseconds() - cache_apply_start;
+#endif
+        } else {
+            bool const capture = g_fow_reveal_cache_enabled &&
+                                 g_fow_capture_cells && g_fow_capture_stamps;
+            if (capture) G_FowCaptureBegin();
+#ifdef BZ_TESTS
+            double const shadowcast_start = g_fow_test_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
+#endif
+            G_FowRevealShadowcast(grid, cx, cy, radius_cells);
+            if (capture) {
+                G_FowCaptureEnd();
+                G_FowRevealCacheStore(cx, cy, (uint32_t)radius_cells);
+            }
+#ifdef BZ_TESTS
+            if (g_fow_test_perf_enabled) {
+                g_fow_test_perf_shadowcast_ms += gi.MonotonicMilliseconds() - shadowcast_start;
+            }
+#endif
+        }
+#ifdef BZ_TESTS
+        double const blocker_rim_start = g_fow_test_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
+#endif
         G_FowRevealBlockerRim(grid, cx, cy, radius_cells);
+#ifdef BZ_TESTS
+        if (g_fow_test_perf_enabled)
+            g_fow_test_perf_blocker_rim_ms += gi.MonotonicMilliseconds() - blocker_rim_start;
+#endif
     } else {
+#ifdef BZ_TESTS
+        double const disk_start = g_fow_test_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
+#endif
         G_FowRevealDisk(grid, cx, cy, radius_cells);
+#ifdef BZ_TESTS
+        if (g_fow_test_perf_enabled)
+            g_fow_test_perf_disk_ms += gi.MonotonicMilliseconds() - disk_start;
+#endif
     }
 }
 
@@ -870,8 +1160,20 @@ static void G_FowRebuildBlockers(void) {
 
 /* Reveal directly into connected viewer grids; source-owner grids are irrelevant when nobody consumes them. */
 static void G_FowRevealForViewers(edict_t const *ent, float radius, uint32_t viewers) {
+    uint32_t perf_type = UINT32_MAX;
+    uint32_t radius_cells = (uint32_t)G_FowRadiusCells(radius);
+    if (g_fow_perf_enabled) {
+        fowPerfType_t *stats;
+        perf_type = G_FowPerfTypeSlot(ent->class_id, g_fow_perf_kind);
+        stats = &g_fow_perf_types[perf_type];
+        g_fow_perf_reveals++;
+        stats->sources++;
+        stats->radius_sum += radius_cells;
+        stats->radius_max = MAX(stats->radius_max, radius_cells);
+    }
     FOR_LOOP(viewer, MAX_PLAYERS) {
         if (!(viewers & (1u << viewer))) continue;
+        if (g_fow_perf_enabled) g_fow_perf_active_type = perf_type;
         /* Sentinel's hovering owl provides an authored remote sight disk. Its
          * perch is attached to a tree, but that tree must not occlude the
          * owl's own sight around the source point. */
@@ -884,6 +1186,7 @@ static void G_FowRevealForViewers(edict_t const *ent, float radius, uint32_t vie
         } else {
             G_FowRevealCircle(viewer, ent, radius);
         }
+        if (g_fow_perf_enabled) g_fow_perf_active_type = UINT32_MAX;
     }
 }
 
@@ -1032,6 +1335,7 @@ static void G_FowApplyModifiers(uint32_t viewers) {
 }
 
 void G_FowShutdown(void) {
+    G_FowRevealCacheReset();
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         SAFE_DELETE(grid->visible, gi.MemFree);
@@ -1064,6 +1368,7 @@ void G_FowInit(void) {
     G_FowShutdown();
     g_fow_blockers_valid = false;
     g_fow_blockers_dirty = true;
+    if (++g_fow_blocker_generation == 0) g_fow_blocker_generation = 1;
     level.fow.bounds = CM_GetWorldBounds();
     level.fow.width = (uint32_t)ceilf((level.fow.bounds.max.x - level.fow.bounds.min.x) / (float)FOW_CELL_SIZE);
     level.fow.height = (uint32_t)ceilf((level.fow.bounds.max.y - level.fow.bounds.min.y) / (float)FOW_CELL_SIZE);
@@ -1077,6 +1382,14 @@ void G_FowInit(void) {
         fprintf(stderr, "G_FowInit: failed to allocate %u-cell blocker grid and rim list\n", cells);
         G_FowShutdown();
         return;
+    }
+    g_fow_capture_cells = gi.MemAlloc((size_t)cells * sizeof(*g_fow_capture_cells));
+    g_fow_capture_stamps = gi.MemAlloc((size_t)cells * sizeof(*g_fow_capture_stamps));
+    if (g_fow_capture_cells && g_fow_capture_stamps) {
+        memset(g_fow_capture_stamps, 0, (size_t)cells * sizeof(*g_fow_capture_stamps));
+    } else {
+        SAFE_DELETE(g_fow_capture_cells, gi.MemFree);
+        SAFE_DELETE(g_fow_capture_stamps, gi.MemFree);
     }
     memset(level.fow.blocked, 0, cells);
     g_fow_blocker_word_stride = (level.fow.width + 31) >> 5;
@@ -1127,13 +1440,56 @@ void G_FowConnectPlayer(uint32_t player) {
         level.fow.players[player].client_connected = true;
 }
 
+static void G_FowPerfPrintTypes(void) {
+    bool printed[FOW_PERF_TYPES] = { false };
+    FOR_LOOP(rank, FOW_PERF_TOP) {
+        uint32_t best = UINT32_MAX;
+        FOR_LOOP(i, FOW_PERF_TYPES) {
+            if (printed[i] || !g_fow_perf_types[i].sources) continue;
+            if (best == UINT32_MAX || g_fow_perf_types[i].cells > g_fow_perf_types[best].cells)
+                best = i;
+        }
+        if (best == UINT32_MAX || !g_fow_perf_types[best].cells) break;
+        printed[best] = true;
+        fowPerfType_t const *stats = &g_fow_perf_types[best];
+        char type_name[5];
+        FOR_LOOP(c, 4) {
+            unsigned char ch = (unsigned char)(stats->code >> (c * 8));
+            type_name[c] = ch >= 32 && ch <= 126 ? (char)ch : '.';
+        }
+        type_name[4] = '\0';
+        fprintf(stderr, "[WC3 PERF FOW TYPE] code=%08x type=%.4s kind=%s sources=%llu radius_cells_avg=%.1f radius_cells_max=%u cast_calls=%llu candidate_cells=%llu\n",
+                stats->code, type_name, best == FOW_PERF_TYPES - 1 ? "other" :
+                    (stats->kind == FOW_PERF_FAERIE ? "faerie" : "sight"),
+                (unsigned long long)stats->sources,
+                stats->sources ? (double)stats->radius_sum / stats->sources : 0.0,
+                stats->radius_max, (unsigned long long)stats->casts,
+                (unsigned long long)stats->cells);
+    }
+    FOR_LOOP(i, FOW_PERF_TYPES) {
+        g_fow_perf_types[i].sources = g_fow_perf_types[i].radius_sum = 0;
+        g_fow_perf_types[i].radius_max = 0;
+        g_fow_perf_types[i].casts = g_fow_perf_types[i].cells = 0;
+    }
+}
+
 void G_FowUpdate(void) {
     uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
     uint32_t viewers = 0;
 
+    g_fow_perf_enabled = gi.CvarString && atoi(gi.CvarString("wc3_perf_log", "0"));
+    if (!g_fow_perf_enabled) {
+        g_fow_perf_start = g_fow_perf_frames = 0;
+        g_fow_perf_reveals = g_fow_perf_casts = g_fow_perf_cells = 0;
+        memset(g_fow_perf_types, 0, sizeof(g_fow_perf_types));
+        g_fow_perf_active_type = UINT32_MAX;
+        g_fow_perf_update_ms = g_fow_perf_update_max_ms = 0.0;
+    }
+
     if (!G_FowReady()) {
         return;
     }
+    double const perf_update_start = g_fow_perf_enabled ? gi.MonotonicMilliseconds() : 0.0;
 
     FOR_LOOP(player, MAX_PLAYERS)
         if (level.fow.players[player].client_connected)
@@ -1148,9 +1504,20 @@ void G_FowUpdate(void) {
             if ((viewers & (1u << viewer)) && G_FowPlayersShareVision(viewer, owner))
                 owner_viewers[owner] |= 1u << viewer;
 
+#ifdef BZ_TESTS
+    double test_phase_start = 0.0;
+    if (g_fow_test_perf_enabled) test_phase_start = gi.MonotonicMilliseconds();
+#endif
     if (G_FowBlockersChanged()) {
+        if (++g_fow_blocker_generation == 0) g_fow_blocker_generation = 1;
         G_FowRebuildBlockers();
     }
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled) {
+        g_fow_test_perf_blockers_ms += gi.MonotonicMilliseconds() - test_phase_start;
+        test_phase_start = gi.MonotonicMilliseconds();
+    }
+#endif
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         if (!(viewers & (1u << player))) {
@@ -1158,6 +1525,12 @@ void G_FowUpdate(void) {
         }
         G_FowClearVisible(grid);
     }
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled) {
+        g_fow_test_perf_clear_ms += gi.MonotonicMilliseconds() - test_phase_start;
+        test_phase_start = gi.MonotonicMilliseconds();
+    }
+#endif
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *ent = &g_edicts[i];
@@ -1168,6 +1541,7 @@ void G_FowUpdate(void) {
             unit_viewers = owner_viewers[ent->s.player] | (ent->vision ? ent->vision->shared & viewers : 0);
             if (unit_viewers) {
                 radius = G_FowEntitySightRadius(ent);
+                g_fow_perf_kind = FOW_PERF_SIGHT;
                 G_FowRevealForViewers(ent, radius, unit_viewers);
             }
         }
@@ -1196,9 +1570,18 @@ void G_FowUpdate(void) {
                 if ((viewers & (1u << viewer)) && G_FowPlayersShareVision(viewer, caster))
                     faerie_viewers |= 1u << viewer;
             }
-            if (faerie_viewers) G_FowRevealForViewers(ent, radius, faerie_viewers);
+            if (faerie_viewers) {
+                g_fow_perf_kind = FOW_PERF_FAERIE;
+                G_FowRevealForViewers(ent, radius, faerie_viewers);
+            }
         }
     }
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled) {
+        g_fow_test_perf_sources_ms += gi.MonotonicMilliseconds() - test_phase_start;
+        test_phase_start = gi.MonotonicMilliseconds();
+    }
+#endif
 
     /* Timed spell reveals are not ordinary sight sources: Far Sight ignores
      * terrain line-of-sight blockers and must survive this frame's visible-grid
@@ -1221,7 +1604,45 @@ void G_FowUpdate(void) {
             G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
                               &level.fow.bounds);
     }
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled) {
+        g_fow_test_perf_other_reveals_ms += gi.MonotonicMilliseconds() - test_phase_start;
+        test_phase_start = gi.MonotonicMilliseconds();
+    }
+#endif
     G_FowApplyModifiers(viewers);
+#ifdef BZ_TESTS
+    if (g_fow_test_perf_enabled) {
+        g_fow_test_perf_modifiers_ms += gi.MonotonicMilliseconds() - test_phase_start;
+        g_fow_test_perf_frames++;
+    }
+#endif
+    if (g_fow_perf_enabled) {
+        double const update_ms = gi.MonotonicMilliseconds() - perf_update_start;
+        g_fow_perf_update_ms += update_ms;
+        g_fow_perf_update_max_ms = MAX(g_fow_perf_update_max_ms, update_ms);
+        if (!g_fow_perf_start) g_fow_perf_start = level.time;
+        g_fow_perf_frames++;
+        if ((uint32_t)(level.time - g_fow_perf_start) >= 5000) {
+            fprintf(stderr, "[WC3 PERF] fow frames=%u viewers=%u reveal_sources=%llu cast_calls=%llu candidate_cells=%llu blockers=%u cache_hits=%llu cache_misses=%llu time_ms=%u\n",
+                    g_fow_perf_frames, (unsigned)__builtin_popcount(viewers),
+                    (unsigned long long)g_fow_perf_reveals,
+                    (unsigned long long)g_fow_perf_casts,
+                    (unsigned long long)g_fow_perf_cells, g_fow_blocker_count,
+                    (unsigned long long)g_fow_reveal_cache_hits,
+                    (unsigned long long)g_fow_reveal_cache_misses,
+                    level.time - g_fow_perf_start);
+            fprintf(stderr, "[WC3 PERF] fow_update_ms_avg=%.3f fow_update_ms_max=%.3f window_ms=%.3f\n",
+                    g_fow_perf_frames ? g_fow_perf_update_ms / g_fow_perf_frames : 0.0,
+                    g_fow_perf_update_max_ms, g_fow_perf_update_ms);
+            G_FowPerfPrintTypes();
+            g_fow_perf_start = level.time;
+            g_fow_perf_frames = 0;
+            g_fow_perf_reveals = g_fow_perf_casts = g_fow_perf_cells = 0;
+            g_fow_reveal_cache_hits = g_fow_reveal_cache_misses = 0;
+            g_fow_perf_update_ms = g_fow_perf_update_max_ms = 0.0;
+        }
+    }
 }
 
 /* FogEnable(false) reveals the whole map for this player, ordinary units
