@@ -45,6 +45,7 @@ void MDLX_TestResetKeyframeSearchStats(void);
 uint32_t MDLX_TestKeyframeBoundSearches(void);
 uint32_t MDLX_TestKeyframeSpanHits(void);
 uint32_t MDLX_TestKeyframeBracketHits(void);
+uint32_t MDLX_TestKeyframeBracketAdvances(void);
 void MDLX_TestResetPoseTrackSamples(void);
 uint32_t MDLX_TestPoseTrackSamples(void);
 
@@ -891,6 +892,10 @@ TEST(renderer_model, mdx_view_key_span_reuses_sequence_bounds_and_nearby_bracket
                 T_EQ(MDLX_TestKeyframeBoundSearches(), 0u);
                 T_ASSERT(MDLX_TestKeyframeSpanHits() >= 1);
                 T_ASSERT(MDLX_TestKeyframeBracketHits() >= 1);
+            }
+            if (i == 3) {
+                T_EQ(MDLX_TestKeyframeBoundSearches(), 0u);
+                T_ASSERT(MDLX_TestKeyframeBracketAdvances() > 0);
             }
         }
         MDLX_ViewPoseEnd();
@@ -5836,4 +5841,129 @@ TEST(renderer_model, mdx_billboard_faces_actual_camera_and_preserves_pivot) {
         T_FEQ(actual.z, before.z, .001f);
     }
     tr.viewDef = saved;
+}
+
+enum { mdx_perf_bench_nodes = 48, mdx_perf_bench_keys = 64,
+       mdx_perf_bench_views = 48, mdx_perf_bench_binds_per_view = 64 };
+
+typedef struct {
+    mdxModel_t model;
+    mdxNode_t nodes[mdx_perf_bench_nodes];
+    mdxSequence_t sequence;
+    void *track_storage[mdx_perf_bench_nodes * 2];
+} mdxPoseBenchmark_t;
+
+static mdxKeyTrack_t *mdx_benchmark_track(MODELKEYTRACKDATATYPE type, size_t value_size,
+                                           uint32_t node, uint32_t track_index) {
+    size_t const stride = sizeof(int32_t) + value_size;
+    size_t const bytes = sizeof(mdxKeyTrack_t) + mdx_perf_bench_keys * stride;
+    mdxKeyTrack_t *track = calloc(1, bytes);
+    if (!track) return NULL;
+    track->keyframeCount = mdx_perf_bench_keys;
+    track->datatype = type;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = UINT32_MAX;
+    FOR_LOOP(i, mdx_perf_bench_keys) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * stride);
+        key->time = i * 32;
+        if (type == TDATA_FLOAT3) {
+            vec3_t const value = {
+                (float)(node % 7) * 0.1f + i * 0.025f,
+                (float)(node % 5) * 0.07f + i * 0.01f,
+                (float)(track_index) * 0.03f,
+            };
+            memcpy(key->data, &value, sizeof(value));
+        } else {
+            float const angle = (i * 0.025f) + node * 0.01f;
+            quaternion_t const value = { 0, 0, sinf(angle * 0.5f), cosf(angle * 0.5f) };
+            memcpy(key->data, &value, sizeof(value));
+        }
+    }
+    return track;
+}
+
+static bool mdx_pose_benchmark_init(mdxPoseBenchmark_t *bench) {
+    memset(bench, 0, sizeof(*bench));
+    bench->sequence.interval[0] = 0;
+    bench->sequence.interval[1] = (mdx_perf_bench_keys - 1) * 32;
+    bench->model.sequences = &bench->sequence;
+    bench->model.num_sequences = 1;
+    bench->model.num_nodes = 0;
+    FOR_LOOP(i, mdx_perf_bench_nodes) {
+        mdxNode_t *node = bench->nodes + i;
+        node->node_id = i;
+        node->parent_id = i ? (i - 1) / 2 : UINT32_MAX;
+        node->translation = mdx_benchmark_track(TDATA_FLOAT3, sizeof(vec3_t), i, 0);
+        bench->track_storage[i * 2] = node->translation;
+        node->rotation = mdx_benchmark_track(TDATA_FLOAT4, sizeof(quaternion_t), i, 1);
+        bench->track_storage[i * 2 + 1] = node->rotation;
+        if (!node->translation || !node->rotation) return false;
+        bench->model.nodes[i] = bench->model.node_list[i] = node;
+        bench->model.num_nodes++;
+    }
+    return true;
+}
+
+static void mdx_pose_benchmark_destroy(mdxPoseBenchmark_t *bench) {
+    FOR_LOOP(i, mdx_perf_bench_nodes * 2) free(bench->track_storage[i]);
+}
+
+static void mdx_pose_benchmark_views(mdxPoseBenchmark_t const *bench, bool interpolate,
+                                    bool advance_across_keys) {
+    mat4_t const identity = { .v = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1} };
+    FOR_LOOP(view, mdx_perf_bench_views) {
+        MDLX_ViewPoseBegin();
+        FOR_LOOP(bind, mdx_perf_bench_binds_per_view) {
+            uint32_t const frame = advance_across_keys
+                ? (bind * 24) % ((mdx_perf_bench_keys - 1) * 32)
+                : 700 + (bind % 4);
+            MDLX_BindBoneMatrices(&bench->model, &identity, frame,
+                                  interpolate ? frame - 1 : frame);
+        }
+        MDLX_ViewPoseEnd();
+    }
+}
+
+TEST(renderer_perf, synthetic_mdx_pose_binding_workload) {
+    mdxPoseBenchmark_t bench;
+    bool const initialized = mdx_pose_benchmark_init(&bench);
+    T_ASSERT(initialized);
+    if (!initialized) {
+        mdx_pose_benchmark_destroy(&bench);
+        return;
+    }
+
+    /* One warmup exercises allocations/caches before the measured batches. */
+    mdx_pose_benchmark_views(&bench, true, false);
+    MDLX_TestResetKeyframeSearchStats();
+    MDLX_TestResetPoseTrackSamples();
+    T_BENCH("synthetic MDX pose (same frame, 48 nodes, 96 tracks, 64 keys)", 3,
+            mdx_pose_benchmark_views(&bench, false, false));
+    fprintf(stdout, "[BENCH DETAIL] MDX mode=same-frame binds=%u nodes_per_bind=%u track_samples=%u keyframe_bound_searches=%u forward_advances=%u span_hits=%u bracket_hits=%u views_per_batch=%u binds_per_view=%u\n",
+            3u * mdx_perf_bench_views * mdx_perf_bench_binds_per_view,
+            mdx_perf_bench_nodes, MDLX_TestPoseTrackSamples(),
+            MDLX_TestKeyframeBoundSearches(), MDLX_TestKeyframeBracketAdvances(), MDLX_TestKeyframeSpanHits(),
+            MDLX_TestKeyframeBracketHits(), mdx_perf_bench_views,
+            mdx_perf_bench_binds_per_view);
+    MDLX_TestResetKeyframeSearchStats();
+    MDLX_TestResetPoseTrackSamples();
+    T_BENCH("synthetic MDX pose (interpolated, 48 nodes, 96 tracks, 64 keys)", 3,
+            mdx_pose_benchmark_views(&bench, true, false));
+    fprintf(stdout, "[BENCH DETAIL] MDX mode=interpolated binds=%u nodes_per_bind=%u track_samples=%u keyframe_bound_searches=%u forward_advances=%u span_hits=%u bracket_hits=%u views_per_batch=%u binds_per_view=%u\n",
+            3u * mdx_perf_bench_views * mdx_perf_bench_binds_per_view,
+            mdx_perf_bench_nodes, MDLX_TestPoseTrackSamples(),
+            MDLX_TestKeyframeBoundSearches(), MDLX_TestKeyframeBracketAdvances(), MDLX_TestKeyframeSpanHits(),
+            MDLX_TestKeyframeBracketHits(), mdx_perf_bench_views,
+            mdx_perf_bench_binds_per_view);
+    MDLX_TestResetKeyframeSearchStats();
+    MDLX_TestResetPoseTrackSamples();
+    T_BENCH("synthetic MDX pose (advancing keys, 48 nodes, 96 tracks, 64 keys)", 3,
+            mdx_pose_benchmark_views(&bench, false, true));
+    fprintf(stdout, "[BENCH DETAIL] MDX mode=advancing-keys binds=%u nodes_per_bind=%u track_samples=%u keyframe_bound_searches=%u forward_advances=%u span_hits=%u bracket_hits=%u views_per_batch=%u binds_per_view=%u\n",
+            3u * mdx_perf_bench_views * mdx_perf_bench_binds_per_view,
+            mdx_perf_bench_nodes, MDLX_TestPoseTrackSamples(),
+            MDLX_TestKeyframeBoundSearches(), MDLX_TestKeyframeBracketAdvances(), MDLX_TestKeyframeSpanHits(),
+            MDLX_TestKeyframeBracketHits(), mdx_perf_bench_views,
+            mdx_perf_bench_binds_per_view);
+    mdx_pose_benchmark_destroy(&bench);
 }

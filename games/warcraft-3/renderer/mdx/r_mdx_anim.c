@@ -403,14 +403,17 @@ static mdxKeySpanEntry_t *MDLX_KeySpanSlot(mdxKeyTrack_t const *track, uint32_t 
 static uint32_t test_mdx_keyframe_bound_searches;
 static uint32_t test_mdx_keyframe_span_hits;
 static uint32_t test_mdx_keyframe_bracket_hits;
+static uint32_t test_mdx_keyframe_bracket_advances;
 void MDLX_TestResetKeyframeSearchStats(void) {
     test_mdx_keyframe_bound_searches = 0;
     test_mdx_keyframe_span_hits = 0;
     test_mdx_keyframe_bracket_hits = 0;
+    test_mdx_keyframe_bracket_advances = 0;
 }
 uint32_t MDLX_TestKeyframeBoundSearches(void) { return test_mdx_keyframe_bound_searches; }
 uint32_t MDLX_TestKeyframeSpanHits(void) { return test_mdx_keyframe_span_hits; }
 uint32_t MDLX_TestKeyframeBracketHits(void) { return test_mdx_keyframe_bracket_hits; }
+uint32_t MDLX_TestKeyframeBracketAdvances(void) { return test_mdx_keyframe_bracket_advances; }
 #endif
 
 /* MDX key times are authored in ascending order. Restrict binary searches
@@ -538,18 +541,44 @@ static void MDLX_GetModelKeytrackValueResolved(mdxModel_t const *model, mdxKeyTr
         return;
     }
     uint32_t right_index;
+    bool bracket_resolved = false;
     if (end_index - first_index == 2) {
         right_index = first_index + 1;
+        bracket_resolved = true;
     } else if (cached && cached->right_valid &&
                cached->right_index > first_index && cached->right_index < end_index &&
                R_KeyFrameAt(keytrack, stride, cached->right_index - 1)->time < (int32_t)time &&
                R_KeyFrameAt(keytrack, stride, cached->right_index)->time >= (int32_t)time) {
         /* Exact lower_bound semantics, including duplicate authored times. */
         right_index = cached->right_index;
+        bracket_resolved = true;
 #ifdef BZ_TESTS
         test_mdx_keyframe_bracket_hits++;
 #endif
-    } else {
+    } else if (cached && cached->right_valid &&
+               cached->right_index > first_index && cached->right_index < end_index &&
+               R_KeyFrameAt(keytrack, stride, cached->right_index)->time < (int32_t)time) {
+        /* Forward animation usually advances by one key at a time. Probe a
+         * few successors from the previous lower_bound before paying for a
+         * full binary search. Large jumps remain bounded by this small cap. */
+        uint32_t probe = cached->right_index;
+        FOR_LOOP(step, 4) {
+            if (probe >= end_index ||
+                R_KeyFrameAt(keytrack, stride, probe)->time >= (int32_t)time)
+                break;
+            probe++;
+        }
+        if (probe < end_index &&
+            R_KeyFrameAt(keytrack, stride, probe)->time >= (int32_t)time) {
+            right_index = probe;
+            cached->right_index = probe;
+            bracket_resolved = true;
+#ifdef BZ_TESTS
+            test_mdx_keyframe_bracket_advances++;
+#endif
+        }
+    }
+    if (!bracket_resolved) {
         right_index = R_KeyFrameBound(keytrack, stride, time, false, first_index + 1, end_index);
         if (cached) {
             cached->right_index = right_index;
