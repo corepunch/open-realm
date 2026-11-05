@@ -35,6 +35,16 @@ static size_t terrain_normal_cache_capacity, terrain_normal_cache_count;
 static uint32_t terrain_normal_cache_generation;
 static war3map_t const *terrain_normal_cache_map;
 static bool terrain_normal_cache_active, terrain_normal_cache_warned;
+typedef struct {
+    war3map_t const *map;
+    mapsegment_t const *segments;
+    size_t cell_count;
+    size_t *offsets;
+    vec3_t const **triangles;
+    size_t triangle_count;
+    bool ready, failed;
+} cliffSplatIndex_t;
+static cliffSplatIndex_t cliff_splat_index;
 
 #ifdef WC3_TERRAIN_NORMAL_TESTS
 static uint32_t terrain_normal_cache_hits, terrain_normal_cache_misses;
@@ -251,6 +261,12 @@ static void R_MakeTile(war3map_t const *map, uint32_t x, uint32_t y, uint32_t gr
 static bool R_TileAcceptsSplat(war3map_t const *map, uint32_t x, uint32_t y) {
     /* Splats follow the same ground ownership as base tiles. */
     return R_TileHasGround(map, x, y);
+}
+
+void R_ResetCliffSplatIndex(void) {
+    SAFE_DELETE(cliff_splat_index.offsets, ri.MemFree);
+    SAFE_DELETE(cliff_splat_index.triangles, ri.MemFree);
+    memset(&cliff_splat_index, 0, sizeof(cliff_splat_index));
 }
 
 /* Share the original UV/triangle layout with Blight and the unclipped splat
@@ -532,9 +548,113 @@ static void R_ReplaySplatGeometry(splatGeometryCacheEntry_t const *entry, rectSp
     }
 }
 
-/* A cliff-owned cell has no base quad. Project onto its actual replacement
- * mesh; dropping the whole cell cut shadows through opaque source texels. */
-static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *limit) {
+static bool R_CliffTriangleCellRange(war3map_t const *map, vec3_t const *p,
+                                     int *x0, int *y0, int *x1, int *y1) {
+    float const lo_x = MIN(p[0].x, MIN(p[1].x, p[2].x));
+    float const lo_y = MIN(p[0].y, MIN(p[1].y, p[2].y));
+    float const hi_x = MAX(p[0].x, MAX(p[1].x, p[2].x));
+    float const hi_y = MAX(p[0].y, MAX(p[1].y, p[2].y));
+    *x0 = MAX(0, (int)floorf((lo_x - map->center.x) / TILE_SIZE));
+    *y0 = MAX(0, (int)floorf((lo_y - map->center.y) / TILE_SIZE));
+    *x1 = MIN((int)map->width - 2, (int)floorf((hi_x - map->center.x) / TILE_SIZE));
+    *y1 = MIN((int)map->height - 2, (int)floorf((hi_y - map->center.y) / TILE_SIZE));
+    return *x0 <= *x1 && *y0 <= *y1;
+}
+
+static bool R_BuildCliffSplatIndex(war3map_t const *map) {
+    if (map->width > 1 && map->height > 1 &&
+        (size_t)(map->width - 1) > SIZE_MAX / (map->height - 1)) return false;
+    size_t const cell_count = map->width > 1 && map->height > 1 ?
+        (size_t)(map->width - 1) * (map->height - 1) : 0;
+    uint32_t *counts = NULL;
+    size_t *cursor = NULL;
+    size_t refs = 0;
+    if (!cell_count) {
+        cliff_splat_index.map = map;
+        cliff_splat_index.segments = g_mapSegments;
+        cliff_splat_index.ready = true;
+        return true;
+    }
+    if (cell_count > SIZE_MAX / sizeof(*cliff_splat_index.offsets) - 1 ||
+        cell_count > SIZE_MAX / sizeof(*counts)) return false;
+    counts = ri.MemAlloc(cell_count * sizeof(*counts));
+    cliff_splat_index.offsets = ri.MemAlloc((cell_count + 1) * sizeof(*cliff_splat_index.offsets));
+    if (!counts || !cliff_splat_index.offsets) goto fail;
+    memset(counts, 0, cell_count * sizeof(*counts));
+
+    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments)
+    FOR_EACH_LIST(maplayer_t, layer, segment->layers) {
+        if (IS_ARRAY_EMPTY(layer->splat_vertices)) continue;
+        for (uint32_t i = 0; i + 2 < ARRAY_COUNT(layer->splat_vertices); i += 3) {
+            vec3_t const *p = layer->splat_vertices + i;
+            int x0, y0, x1, y1;
+            if (!R_CliffTriangleCellRange(map, p, &x0, &y0, &x1, &y1)) continue;
+            for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+                size_t const cell = (size_t)x + (size_t)y * (map->width - 1);
+                if (R_TileAcceptsSplat(map, (uint32_t)x, (uint32_t)y)) continue;
+                if (counts[cell] == UINT32_MAX) goto fail;
+                counts[cell]++;
+            }
+        }
+    }
+    cliff_splat_index.offsets[0] = 0;
+    for (size_t cell = 0; cell < cell_count; cell++) {
+        refs += counts[cell];
+        if (refs < cliff_splat_index.offsets[cell] || refs > SIZE_MAX / sizeof(*cliff_splat_index.triangles)) goto fail;
+        cliff_splat_index.offsets[cell + 1] = refs;
+    }
+    cliff_splat_index.triangle_count = refs;
+    if (refs) {
+        cliff_splat_index.triangles = ri.MemAlloc(refs * sizeof(*cliff_splat_index.triangles));
+        cursor = ri.MemAlloc(cell_count * sizeof(*cursor));
+        if (!cliff_splat_index.triangles || !cursor) goto fail;
+        memcpy(cursor, cliff_splat_index.offsets, cell_count * sizeof(*cursor));
+        FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments)
+        FOR_EACH_LIST(maplayer_t, layer, segment->layers) {
+            if (IS_ARRAY_EMPTY(layer->splat_vertices)) continue;
+            for (uint32_t i = 0; i + 2 < ARRAY_COUNT(layer->splat_vertices); i += 3) {
+                vec3_t const *p = layer->splat_vertices + i;
+                int x0, y0, x1, y1;
+                if (!R_CliffTriangleCellRange(map, p, &x0, &y0, &x1, &y1)) continue;
+                for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+                    size_t const cell = (size_t)x + (size_t)y * (map->width - 1);
+                    if (R_TileAcceptsSplat(map, (uint32_t)x, (uint32_t)y)) continue;
+                    cliff_splat_index.triangles[cursor[cell]++] = p;
+                }
+            }
+        }
+        ri.MemFree(cursor);
+    }
+    ri.MemFree(counts);
+    cliff_splat_index.cell_count = cell_count;
+    cliff_splat_index.map = map;
+    cliff_splat_index.segments = g_mapSegments;
+    cliff_splat_index.ready = true;
+    return true;
+
+fail:
+    if (cursor) ri.MemFree(cursor);
+    if (counts) ri.MemFree(counts);
+    SAFE_DELETE(cliff_splat_index.offsets, ri.MemFree);
+    SAFE_DELETE(cliff_splat_index.triangles, ri.MemFree);
+    return false;
+}
+
+static bool R_EnsureCliffSplatIndex(war3map_t const *map) {
+    if (cliff_splat_index.map == map && cliff_splat_index.segments == g_mapSegments && cliff_splat_index.ready) return true;
+    if (cliff_splat_index.map == map && cliff_splat_index.segments == g_mapSegments && cliff_splat_index.failed) return false;
+    R_ResetCliffSplatIndex();
+    if (!R_BuildCliffSplatIndex(map)) {
+        cliff_splat_index.map = map;
+        cliff_splat_index.segments = g_mapSegments;
+        cliff_splat_index.failed = true;
+        return false;
+    }
+    return true;
+}
+
+/* Fallback for allocation failure: preserve the cliff projection behavior. */
+static bool R_GenerateCliffSplatsSlow(rectSplatParams_t const *params, vertex_t *limit) {
     splatTileParams_t clip = { .mins = params->mins, .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
         .width = params->maxs->x - params->mins->x, .height = params->maxs->y - params->mins->y, .color = params->color };
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) FOR_EACH_LIST(maplayer_t, layer, segment->layers) {
@@ -550,8 +670,8 @@ static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *lim
             if (lo.x > hi.x || lo.y > hi.y) continue;
             int x0 = MAX(0, (int)floorf((lo.x - tr.world->center.x) / TILE_SIZE));
             int y0 = MAX(0, (int)floorf((lo.y - tr.world->center.y) / TILE_SIZE));
-            int x1 = MIN(tr.world->width - 2, (int)floorf((hi.x - tr.world->center.x) / TILE_SIZE));
-            int y1 = MIN(tr.world->height - 2, (int)floorf((hi.y - tr.world->center.y) / TILE_SIZE));
+            int x1 = MIN((int)tr.world->width - 2, (int)floorf((hi.x - tr.world->center.x) / TILE_SIZE));
+            int y1 = MIN((int)tr.world->height - 2, (int)floorf((hi.y - tr.world->center.y) / TILE_SIZE));
             for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
                 if (R_TileAcceptsSplat(tr.world, x, y)) continue;
                 vec2_t cell = { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + y * TILE_SIZE };
@@ -562,6 +682,39 @@ static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *lim
                     R_FlushSplatBatch();
                 R_EmitSplatTriangle(&clip, p, &mins, &maxs);
             }
+        }
+    }
+    return true;
+}
+
+/* A cliff-owned cell has no base quad. Project onto its actual replacement
+ * mesh; the spatial index prevents rescanning every map triangle per shadow. */
+static bool R_GenerateCliffSplats(rectSplatParams_t const *params, vertex_t *limit) {
+    war3map_t const *map = tr.world;
+    if (!R_EnsureCliffSplatIndex(map)) return R_GenerateCliffSplatsSlow(params, limit);
+    splatTileParams_t clip = { .mins = params->mins, .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+        .width = params->maxs->x - params->mins->x, .height = params->maxs->y - params->mins->y, .color = params->color };
+    int x0 = MAX(0, (int)floorf((params->mins->x - map->center.x) / TILE_SIZE));
+    int y0 = MAX(0, (int)floorf((params->mins->y - map->center.y) / TILE_SIZE));
+    int x1 = MIN((int)map->width - 2, (int)floorf((params->maxs->x - map->center.x) / TILE_SIZE));
+    int y1 = MIN((int)map->height - 2, (int)floorf((params->maxs->y - map->center.y) / TILE_SIZE));
+    for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+        size_t const cell_index = (size_t)x + (size_t)y * (map->width - 1);
+        vec2_t const cell = { map->center.x + x * TILE_SIZE, map->center.y + y * TILE_SIZE };
+        vec2_t const mins = { MAX(params->mins->x, cell.x), MAX(params->mins->y, cell.y) };
+        vec2_t const maxs = { MIN(params->maxs->x, cell.x + TILE_SIZE), MIN(params->maxs->y, cell.y + TILE_SIZE) };
+        for (size_t i = cliff_splat_index.offsets[cell_index]; i < cliff_splat_index.offsets[cell_index + 1]; i++) {
+            vec3_t const *triangle = cliff_splat_index.triangles[i];
+            float const triangle_min_x = MIN(triangle[0].x, MIN(triangle[1].x, triangle[2].x));
+            float const triangle_min_y = MIN(triangle[0].y, MIN(triangle[1].y, triangle[2].y));
+            float const triangle_max_x = MAX(triangle[0].x, MAX(triangle[1].x, triangle[2].x));
+            float const triangle_max_y = MAX(triangle[0].y, MAX(triangle[1].y, triangle[2].y));
+            if (triangle_max_x < mins.x || triangle_max_y < mins.y ||
+                triangle_min_x > maxs.x || triangle_min_y > maxs.y) continue;
+            if (limit && limit - ground_current_vertex < SPLAT_TILE_MAX_VERTICES) return false;
+            if (!limit && ground_vertex_buffer + GROUND_VERTEX_BUFFER_CAPACITY - ground_current_vertex < SPLAT_TILE_MAX_VERTICES)
+                R_FlushSplatBatch();
+            R_EmitSplatTriangle(&clip, triangle, &mins, &maxs);
         }
     }
     return true;
