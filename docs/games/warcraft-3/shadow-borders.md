@@ -4,7 +4,7 @@
 
 Investigation on 2026-11-05 against `6b4a2b4db21c62f971144e59963673c683b09dad`.
 [Issue 684](https://github.com/corepunch/open-realm/issues/684) was open with no comments at inspection.
-The follow-up on the same day reproduced the artifacts in the local Human09 intro and measured the source/GPU alpha.
+The follow-up on the same day reproduced the artifacts in the local Human08 and Human09 intros and measured the source/GPU alpha.
 This remains an investigation record, **not a verified fix or established retail border contract**.
 
 The issue's [retail capture](https://github.com/user-attachments/assets/e1e50b51-8f61-4727-b016-a134b6b6f7c4)
@@ -86,12 +86,15 @@ as the source planes. At setup, the actual sampler was unit 0 and the expected t
 confirmed blending enabled, `GL_FUNC_ADD`, `GL_SRC_ALPHA`, and `GL_ONE_MINUS_SRC_ALPHA`. A temporary grayscale
 shadow shader also displayed the sampled masks. All probes and shader changes were removed.
 
-The local Human09 intro reproduces visible straight cutoffs without a progressed save. A paused camera comparison
+The issue's countdown labels identify **Human08, Chapter Eight: Dissension**, not Human09. The local
+`Maps/Campaign/Human08.w3m` contains both `Ships Remaining:` and `Time Remaining` in `war3map.wts`;
+Human09 identifies itself as `Chapter Nine: Frostmourne`. The original Human09 guess below has been corrected.
+Both maps' local intros reproduce visible cutoffs without a progressed save. A paused Human08 camera comparison
 with `r_unit_shadows` switched between captures removes the suspect shadows with the entity pass disabled:
 
-![Human09 with entity shadows](../../images/shadow-borders-human09-entities.jpg)
+![Human08 with entity shadows](../../images/shadow-borders-human08-entities.jpg)
 
-![Same paused Human09 camera without entity shadows](../../images/shadow-borders-human09-no-entities.jpg)
+![Same paused Human08 camera without entity shadows](../../images/shadow-borders-human08-no-entities.jpg)
 
 These captures isolate the entity contribution. MDX animation and the FPS counter still advance while simulation is paused,
 so do not treat every changed pixel as a shadow. They are not matched retail captures, daylight comparisons, or a fix.
@@ -134,8 +137,8 @@ PYALPHA
 
 ## Completing the reproduction
 
-1. Use the reported scene (the Human09 campaign scene is suggested by the ship countdown, but the exact map/save
-   was not supplied in the issue text). Record archive edition, map/save, camera, time, and resolved tree/building shadow paths.
+1. Use Human08 for the reported scene. The attachment's exact save/camera/time were not supplied.
+   Record archive edition, map/save, camera, time, and resolved tree/building shadow paths.
 2. Capture identical frozen scene state with `r_unit_shadows 1` and `0`. This isolates entity splats, **not** the authored
    terrain shadow helper. If needed, temporarily suppress `_W3M_DrawTerrainShadows` independently in a diagnostic build.
    Do not infer source ownership solely from a shadow's proximity to a tree.
@@ -149,12 +152,15 @@ PYALPHA
 Use bounded engine captures after restoring the scene; the issue attachments are references, not new runtime validation:
 
 ```sh
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 1 +map Maps/Campaign/Human09.w3m +screenshot 90 +com_frame_limit 120
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 0 +map Maps/Campaign/Human09.w3m +screenshot 90 +com_frame_limit 120
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 1 +map Maps/Campaign/Human08.w3m +screenshot 90 +com_frame_limit 120
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 0 +map Maps/Campaign/Human08.w3m +screenshot 90 +com_frame_limit 120
 ```
 
-The commands alone do not restore the attachment's progressed gameplay state. Confirm the map and reproduce that state
-before treating the output as a comparison. Restore `r_unit_shadows 1` afterward.
+The commands capture the intro, not the attachment's progressed camp. For the paired camera captures above, an executed
+config waited 80 frames, sent `pause 1`, waited four more frames, captured with shadows enabled, then switched
+`r_unit_shadows` off and captured again two frames later. `com_frame_limit` was 110. `sv_cheats 1` was set before map load.
+A `cinematic stop` attempt followed by an early pause captured the authored black fade instead, so it is not a valid shortcut.
+Restore `r_unit_shadows 1` afterward.
 
 ## Verification and limits
 
