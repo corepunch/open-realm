@@ -304,29 +304,31 @@ static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y,
     };
     R_BuildSplatQuadFromCorners(p, mins, width, height, color, geom);
 }
-/* Clip in world XY while interpolating Z on each original terrain triangle. */
-struct splClip { uint32_t count, axis; float edge; bool above; };
-static uint32_t R_ClipSplatPoly(vec3_t const *src, vec3_t *dst, struct splClip clip) {
-    vec3_t const *prev = &src[clip.count - 1];
-    float pv = clip.axis ? prev->y : prev->x;
-    bool pin = clip.above ? pv >= clip.edge : pv <= clip.edge;
-    uint32_t out = 0;
-    FOR_LOOP(i, clip.count) {
-        vec3_t const *cur = &src[i];
-        float cv = clip.axis ? cur->y : cur->x;
-        bool cin = clip.above ? cv >= clip.edge : cv <= clip.edge;
-        if (pin != cin && pv != clip.edge && cv != clip.edge) {
-            float t = (clip.edge - pv) / (cv - pv);
-            vec3_t hit = clip.axis
-                ? (vec3_t){ prev->x + (cur->x - prev->x) * t, clip.edge, prev->z + (cur->z - prev->z) * t }
-                : (vec3_t){ clip.edge, prev->y + (cur->y - prev->y) * t, prev->z + (cur->z - prev->z) * t };
-            dst[out++] = hit;
-        }
-        if (cin) dst[out++] = *cur;
-        prev = cur; pv = cv; pin = cin;
-    }
-    return out;
+/* Clip in world XY while interpolating Z on each original terrain triangle.
+ * Keep axis selection outside the vertex loop; this runs for every edge of
+ * the many moving-shadow triangles that need clipping. */
+#define DEFINE_SPLAT_CLIP(axis_, coord_, hit_) \
+static uint32_t R_ClipSplatPoly##axis_(vec3_t const *src, vec3_t *dst, uint32_t count, float edge, bool above) { \
+    vec3_t const *prev = &src[count - 1]; \
+    float pv = prev->coord_; \
+    bool pin = above ? pv >= edge : pv <= edge; \
+    uint32_t out = 0; \
+    FOR_LOOP(i, count) { \
+        vec3_t const *cur = &src[i]; \
+        float cv = cur->coord_; \
+        bool cin = above ? cv >= edge : cv <= edge; \
+        if (pin != cin && pv != edge && cv != edge) { \
+            float t = (edge - pv) / (cv - pv); \
+            dst[out++] = (hit_); \
+        } \
+        if (cin) dst[out++] = *cur; \
+        prev = cur; pv = cv; pin = cin; \
+    } \
+    return out; \
 }
+DEFINE_SPLAT_CLIP(X, x, ((vec3_t){edge, prev->y + (cur->y - prev->y) * t, prev->z + (cur->z - prev->z) * t}))
+DEFINE_SPLAT_CLIP(Y, y, ((vec3_t){prev->x + (cur->x - prev->x) * t, edge, prev->z + (cur->z - prev->z) * t}))
+#undef DEFINE_SPLAT_CLIP
 
 typedef struct {
     war3map_t const *map;
@@ -363,20 +365,19 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
     float max_y = MAX(triangle[0].y, MAX(triangle[1].y, triangle[2].y));
     uint32_t n = 3;
     memcpy(a, triangle, 3 * sizeof(*a));
-#define CLIP_SPLAT_EDGE(axis_, edge_, above_, reject_, skip_, bounds_) do { \
+#define CLIP_SPLAT_EDGE(clip_fn_, edge_, above_, reject_, skip_, bounds_) do { \
         float const edge_value = (edge_); \
         if (n && (reject_)) { n = 0; } \
         else if (n && !(skip_)) { \
-            n = R_ClipSplatPoly(poly, scratch, (struct splClip){ .count = n, .axis = (axis_), \
-                .edge = edge_value, .above = (above_) }); \
+            n = clip_fn_(poly, scratch, n, edge_value, (above_)); \
             vec3_t *swap = poly; poly = scratch; scratch = swap; \
             bounds_; \
         } \
     } while (0)
-    CLIP_SPLAT_EDGE(0, clip_mins->x, true, max_x < clip_mins->x, min_x >= clip_mins->x, min_x = clip_mins->x);
-    CLIP_SPLAT_EDGE(0, clip_maxs->x, false, min_x > clip_maxs->x, max_x <= clip_maxs->x, max_x = clip_maxs->x);
-    CLIP_SPLAT_EDGE(1, clip_mins->y, true, max_y < clip_mins->y, min_y >= clip_mins->y, min_y = clip_mins->y);
-    CLIP_SPLAT_EDGE(1, clip_maxs->y, false, min_y > clip_maxs->y, max_y <= clip_maxs->y, max_y = clip_maxs->y);
+    CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_mins->x, true, max_x < clip_mins->x, min_x >= clip_mins->x, min_x = clip_mins->x);
+    CLIP_SPLAT_EDGE(R_ClipSplatPolyX, clip_maxs->x, false, min_x > clip_maxs->x, max_x <= clip_maxs->x, max_x = clip_maxs->x);
+    CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_mins->y, true, max_y < clip_mins->y, min_y >= clip_mins->y, min_y = clip_mins->y);
+    CLIP_SPLAT_EDGE(R_ClipSplatPolyY, clip_maxs->y, false, min_y > clip_maxs->y, max_y <= clip_maxs->y, max_y = clip_maxs->y);
 #undef CLIP_SPLAT_EDGE
     if (!n) {
         return;

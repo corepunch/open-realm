@@ -3847,7 +3847,10 @@ TEST(renderer_terrain, deformation_updates_and_expires_height_offsets) {
     R_W3StartTerrainDeformation(&deform);
     tr.viewDef.time = 600;
     R_W3UpdateTerrainDeformations();
-    T_ASSERT(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE) < -20.0f);
+    float const center = R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE);
+    float const right = R_W3TerrainOffsetAtPoint(17 * TILE_SIZE, 16 * TILE_SIZE);
+    T_ASSERT(center < -20.0f);
+    T_FEQ(R_W3TerrainOffsetAtPoint(16.5f * TILE_SIZE, 16 * TILE_SIZE), LerpNumber(center, right, 0.5f), 0.001f);
     tr.viewDef.time = 1200;
     R_W3UpdateTerrainDeformations();
     T_FEQ(R_W3TerrainOffsetAtPoint(16 * TILE_SIZE, 16 * TILE_SIZE), 0.0f, 0.001f);
@@ -4463,9 +4466,30 @@ TEST(renderer_terrain, splat_cache_allocation_failure_preserves_original_geometr
 /* Keep the original tile generator as a regression oracle. The optimized
  * path must produce the same vertex count, triangle order, Z, UV, tint and
  * skinning defaults for fully contained and partially clipped tiles. */
+struct referenceSplatClip { uint32_t count, axis; float edge; bool above; };
+static uint32_t R_ReferenceClipSplatPoly(vec3_t const *src, vec3_t *dst, struct referenceSplatClip clip) {
+    vec3_t const *prev = &src[clip.count - 1];
+    float pv = clip.axis ? prev->y : prev->x;
+    bool pin = clip.above ? pv >= clip.edge : pv <= clip.edge;
+    uint32_t out = 0;
+    FOR_LOOP(i, clip.count) {
+        vec3_t const *cur = &src[i];
+        float cv = clip.axis ? cur->y : cur->x;
+        bool cin = clip.above ? cv >= clip.edge : cv <= clip.edge;
+        if (pin != cin && pv != clip.edge && cv != clip.edge) {
+            float t = (clip.edge - pv) / (cv - pv);
+            dst[out++] = clip.axis
+                ? (vec3_t){ prev->x + (cur->x - prev->x) * t, clip.edge, prev->z + (cur->z - prev->z) * t }
+                : (vec3_t){ clip.edge, prev->y + (cur->y - prev->y) * t, prev->z + (cur->z - prev->z) * t };
+        }
+        if (cin) dst[out++] = *cur;
+        prev = cur; pv = cv; pin = cin;
+    }
+    return out;
+}
 static void R_ReferenceMakeSplatTile(splatTileParams_t const *params) {
     vertex_t geom[6];
-    struct splClip clips[4];
+    struct referenceSplatClip clips[4];
     uint32_t num_clips = 0;
     war3map_t const *map = params->map;
     vec2_t const *mins = params->mins;
@@ -4485,20 +4509,20 @@ static void R_ReferenceMakeSplatTile(splatTileParams_t const *params) {
         return;
     }
     /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
-    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct splClip){ 0, 0, mins->x, true };
-    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct splClip){ 0, 0, mins->x + width, false };
-    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct splClip){ 0, 1, mins->y, true };
-    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
+    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct referenceSplatClip){ 0, 0, mins->x, true };
+    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct referenceSplatClip){ 0, 0, mins->x + width, false };
+    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct referenceSplatClip){ 0, 1, mins->y, true };
+    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct referenceSplatClip){ 0, 1, mins->y + height, false };
     FOR_LOOP(tri, 2) {
         vec3_t a[8], b[8];
         vec3_t *poly = a, *scratch = b;
         uint32_t n = 3;
         FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
         FOR_LOOP(edge, num_clips) {
-            struct splClip clip = clips[edge];
+            struct referenceSplatClip clip = clips[edge];
             vec3_t *swap;
             clip.count = n;
-            n = R_ClipSplatPoly(poly, scratch, clip);
+            n = R_ReferenceClipSplatPoly(poly, scratch, clip);
             if (!n) break;
             swap = poly; poly = scratch; scratch = swap;
         }
