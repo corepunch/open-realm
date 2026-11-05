@@ -129,6 +129,7 @@ static cstring_t give_resources_cheat_cvar(cstring_t name, cstring_t fallback) {
 
 static uint32_t multiselect_capture_count;
 static uint16_t multiselect_capture_flags[MAX_SELECTED_ENTITIES];
+static uint32_t multiselect_capture_images[MAX_SELECTED_ENTITIES];
 static uint32_t multiselect_capture_columns;
 static vec2_t multiselect_capture_offset;
 static float multiselect_capture_item_width, multiselect_capture_item_height;
@@ -146,6 +147,12 @@ static bool portrait_capture_root_widescreen;
 static bool portrait_capture_child_relative;
 static bool portrait_capture_text_relative;
 static char portrait_capture_animation[32];
+
+static int multiselect_test_image_index(cstring_t path) {
+    if (path && strstr(path, "EliteAssassinIcon")) return 101;
+    if (path && strstr(path, "SaboteurIcon")) return 102;
+    return 1;
+}
 
 static void portrait_test_write(pfWriteType_t type, void const *data) {
     uiFrame_t const *frame;
@@ -196,7 +203,10 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
             multiselect_capture_item_width = frame->size.width;
             multiselect_capture_item_height = frame->size.height;
             FOR_LOOP(i, multiselect_capture_count)
+            {
                 multiselect_capture_flags[i] = multi->items[i].flags;
+                multiselect_capture_images[i] = multi->items[i].image;
+            }
         }
         return;
     }
@@ -1966,6 +1976,33 @@ TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
     T_ASSERT(!(multiselect_capture_flags[0] & UI_MULTISELECT_ITEM_FOCUSED));
     T_ASSERT(!(multiselect_capture_flags[1] & UI_MULTISELECT_ITEM_FOCUSED));
     T_ASSERT(multiselect_capture_flags[2] & UI_MULTISELECT_ITEM_FOCUSED);
+}
+
+TEST(wc3_game, multiselect_icons_use_unit_profile_art) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    gameClient_t *client = &game.clients[0];
+    edict_t *selected[2];
+    UnitProfile_t elite_assassin_profile = { .art = "TestUI\\Textures\\EliteAssassinIcon.blp" };
+    UnitProfile_t saboteur_profile = { .art = "TestUI\\Textures\\SaboteurIcon.blp" };
+
+    reset_entities();
+    setup_test_world();
+    client->ps.number = 0;
+    selected[0] = alloc_test_unit(MAKEFOURCC('n','a','s','s'), 0, 0);
+    selected[1] = alloc_test_unit(MAKEFOURCC('n','s','a','b'), 32, 0);
+    selected[0]->data.UnitProfile = &elite_assassin_profile;
+    selected[1]->data.UnitProfile = &saboteur_profile;
+    multiselect_capture_count = 0;
+    gi.Write = selection_test_write;
+    gi.ImageIndex = multiselect_test_image_index;
+    UI_WriteMultiselect(selected, 2, client);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+
+    T_EQ(multiselect_capture_count, 2);
+    T_EQ(multiselect_capture_images[0], 101);
+    T_EQ(multiselect_capture_images[1], 102);
 }
 
 TEST(wc3_game, multiselect_payload_switches_to_compact_grid_above_twelve_units) {

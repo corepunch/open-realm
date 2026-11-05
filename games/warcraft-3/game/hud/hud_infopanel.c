@@ -1600,9 +1600,10 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     multi->numcolumns = compact ? 8 : 6;
     multi->numitems = count;
     FOR_LOOP(i, count) {
+        cstring_t art = ents[i]->data.UnitProfile ? ents[i]->data.UnitProfile->art : NULL;
+        if (!art || !*art) art = FindConfigValue(GetClassName(ents[i]->class_id), STR_ART);
         multi->items[i].entity = ents[i]->s.number;
-        multi->items[i].image = gi.ImageIndex(
-            G_UIArtPath(FindConfigValue(GetClassName(ents[i]->class_id), STR_ART)));
+        multi->items[i].image = gi.ImageIndex(G_UIArtPath(art));
         /* Warsmash highlights the whole selected subgroup: units group by
          * unit type, even though clicking one icon chooses a concrete focus. */
         if (focused && ents[i]->class_id == focused->class_id)
