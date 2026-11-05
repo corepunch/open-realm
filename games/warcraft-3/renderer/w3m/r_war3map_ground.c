@@ -340,6 +340,22 @@ typedef struct {
  * same operation serves base tiles and the cliff meshes replacing their cells. */
 static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const triangle[3],
                                vec2_t const *clip_mins, vec2_t const *clip_maxs) {
+    /* Most terrain triangles lie wholly within the current shadow rectangle.
+     * Avoid four polygon-clipping passes for that common case. */
+    if (triangle[0].x >= clip_mins->x && triangle[0].x <= clip_maxs->x &&
+        triangle[1].x >= clip_mins->x && triangle[1].x <= clip_maxs->x &&
+        triangle[2].x >= clip_mins->x && triangle[2].x <= clip_maxs->x &&
+        triangle[0].y >= clip_mins->y && triangle[0].y <= clip_maxs->y &&
+        triangle[1].y >= clip_mins->y && triangle[1].y <= clip_maxs->y &&
+        triangle[2].y >= clip_mins->y && triangle[2].y <= clip_maxs->y) {
+        FOR_LOOP(i, 3) {
+            vec3_t const point = triangle[i];
+            *ground_current_vertex++ = (vertex_t){ .position = point, .normal = {0,0,1}, .color = params->color,
+                .texcoord = { LerpNumber(params->uv_mins->x, params->uv_maxs->x, (point.x - params->mins->x) / params->width),
+                    LerpNumber(params->uv_mins->y, params->uv_maxs->y, 1 - (point.y - params->mins->y) / params->height) } };
+        }
+        return;
+    }
     struct splClip clips[] = {
         { .axis = 0, .edge = clip_mins->x, .above = true },
         { .axis = 0, .edge = clip_maxs->x, .above = false },
