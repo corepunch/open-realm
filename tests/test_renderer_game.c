@@ -52,7 +52,7 @@ static vec3_t test_sound_origin;
 static uint32_t test_sound_count;
 static uint32_t test_splat_count;
 static uint32_t test_splat_batch_begins, test_splat_batch_ends, test_splat_batch_adds;
-static vec2_t test_splat_origin;
+static vec2_t test_splat_origin, test_splat_mins, test_splat_maxs;
 static float test_splat_radius;
 static uint32_t test_flat_splat_count;
 static float test_flat_splat_z;
@@ -347,9 +347,30 @@ void R_TestEventAddRectSplat(vec2_t const *mins, vec2_t const *maxs,
     test_splat_batch_adds++;
     test_splat_count++;
     test_splat_origin = center;
+    test_splat_mins = *mins; test_splat_maxs = *maxs;
     test_splat_radius = (maxs->x - mins->x) * 0.5f;
     test_splat_color = color;
 }
+
+#ifndef USE_SHADOWMAPS
+TEST(renderer_game, shadow_footprint_keeps_source_texel_scale_pivot_and_explicit_rect) {
+    struct render_globals saved = tr;
+    war3map_t map = {0};
+    texture_t texture = { .width = 9, .height = 5 };
+    renderEntity_t entity = { .shadow = &texture, .origin = {1000, 2000, 0} };
+    vec2_t origin = {1000, 2000};
+    tr.world = &map; tr.viewDef.rdflags = RDF_NOFRUSTUMCULL;
+    R_DrawEntityShadow(&entity, &origin, true);
+    T_FEQ(test_splat_mins.x, 904, 0.001f); T_FEQ(test_splat_maxs.x, 1192, 0.001f);
+    T_FEQ(test_splat_mins.y, 1968, 0.001f); T_FEQ(test_splat_maxs.y, 2128, 0.001f);
+    T_EQ(test_splat_color.a, 128);
+    entity.shadow_rect = (rect_t){ 13, 17, 96, 48 };
+    R_DrawEntityShadow(&entity, &origin, true);
+    T_FEQ(test_splat_mins.x, 987, 0.001f); T_FEQ(test_splat_maxs.x, 1083, 0.001f);
+    T_FEQ(test_splat_mins.y, 1983, 0.001f); T_FEQ(test_splat_maxs.y, 2031, 0.001f);
+    tr = saved;
+}
+#endif
 
 void R_RenderRectSplatUV(rectSplatParams_t const *params) {
     test_splat_count++;

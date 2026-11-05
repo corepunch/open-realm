@@ -4,7 +4,8 @@
 
 Investigation on 2026-11-05 against `6b4a2b4db21c62f971144e59963673c683b09dad`.
 [Issue 684](https://github.com/corepunch/open-realm/issues/684) was open with no comments at inspection.
-This is an investigation record, **not a verified fix or established retail border contract**.
+The follow-up on the same day reproduced the artifacts in the local Human09 intro and measured the source/GPU alpha.
+This remains an investigation record, **not a verified fix or established retail border contract**.
 
 The issue's [retail capture](https://github.com/user-attachments/assets/e1e50b51-8f61-4727-b016-a134b6b6f7c4)
 shows soft transitions around the foreground bare trees and the tower above them.
@@ -51,13 +52,85 @@ Linear filtering with `CLAMP_TO_EDGE` cannot interpolate into nonexistent transp
 Existing transparent rows would be retained and sampled. Which source edge appears at the bottom of the world rectangle
 must account for the V flip; do not assume image-bottom and world-bottom are the same edge.
 
-Unverified: the affected assets' actual border alpha at each mip; whether retail adds transparent pixels,
-uses a transparent sampler border, expands the footprint, or uses another shadow representation. The screenshots alone
-cannot distinguish these. The rectangular footprints make entity splats the leading candidate, but no runtime toggle
-isolation has yet excluded authored terrain shadows or overlapping contributions.
+## Measured assets and runtime isolation
 
-Do not lower global opacity, zero existing boundary pixels, or add padding until the source asset and footprint contract
-have been measured. Do not change shared terrain/selection/decal sampling to compensate for one map.
+Local RoC data resolves `NTtw`, `WTtw`, and `WTst` through `Units/DestructableData.slk` to
+`BuildingShadowSmall`; `YTct`, `YTwt`, and `YTst` instead name `ShadowCityTree`. There is no
+`NorthrendTree.blp` shadow asset: the model name is not the shadow lookup key.
+
+The following files were read from the installed `War3.mpq`, under `ReplaceableTextures/Shadows/`.
+All five are BLP1 direct-paletted images with 8-bit separated alpha and **one mip only**.
+The archive's executable version has not been established; these are measurements of the local data, not all editions.
+Values are inclusive minimum–maximum alpha in source image order, before the splat V flip.
+
+| File | Dimensions | Top | Bottom | Left | Right |
+| --- | --- | --- | --- | --- | --- |
+| `BuildingShadowSmall.blp` | 9 × 9 | 0 | 0 | 0 | 0 |
+| `ShadowCityTree.blp` | 9 × 9 | 0 | 0 | 0 | 0 |
+| `ShadowGuardTower.blp` | 9 × 9 | 0–255 | 0 | 0 | 0–255 |
+| `ShadowCannonTower.blp` | 9 × 9 | 0 | 0 | 0 | 0 |
+| `Shadow.blp` | 64 × 64 | 0 | 0 | 0 | 0 |
+
+`BuildingShadowSmall` has only 0/255 source alpha. Its inner row next to the bottom border is
+`0 0 0 255 255 255 0 0 0`; the outside row is entirely zero. The tower differs: its top row is
+`0 0 0 0 0 0 255 255 0`, and its right column is `0 255 255 255 0 0 0 0 0`.
+The two files' SHA-256 values are:
+
+```text
+BuildingShadowSmall.blp 43fe15d3375d1f38ba04dee2e2300dd1b6ce7c097081d0da30344f82bd31f6f8
+ShadowGuardTower.blp    120de0496e3c89211e600bdbe320c353d9e4fc05f5075982c6261787f552d87b
+```
+
+Temporary desktop GL probes read back the complete 9 × 9 GPU images for those two textures, with the same alpha
+as the source planes. At setup, the actual sampler was unit 0 and the expected texture was bound. Draw-time probes
+confirmed blending enabled, `GL_FUNC_ADD`, `GL_SRC_ALPHA`, and `GL_ONE_MINUS_SRC_ALPHA`. A temporary grayscale
+shadow shader also displayed the sampled masks. All probes and shader changes were removed.
+
+The local Human09 intro reproduces visible straight cutoffs without a progressed save. A paused camera comparison
+with `r_unit_shadows` switched between captures removes the suspect shadows with the entity pass disabled:
+
+![Human09 with entity shadows](../../images/shadow-borders-human09-entities.jpg)
+
+![Same paused Human09 camera without entity shadows](../../images/shadow-borders-human09-no-entities.jpg)
+
+These captures isolate the entity contribution. MDX animation and the FPS counter still advance while simulation is paused,
+so do not treat every changed pixel as a shadow. They are not matched retail captures, daylight comparisons, or a fix.
+
+The measurements rule out a universally missing or trimmed transparent source row for the measured tree textures.
+The guard-tower edge alpha can explain a hard boundary for that texture; it does **not** establish the cause of every tree cutoff.
+The remaining questions are the affected fragment's UV/sample at the visible tree boundary, overlapping shadow composition,
+and retail's treatment of these low-resolution masks. Adding a generic border or reducing opacity is not yet justified.
+
+## Repeating the measurements
+
+Inspect the header and extract one small source asset with existing tools:
+
+```sh
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' imginfo ReplaceableTextures/Shadows/BuildingShadowSmall.blp
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat ReplaceableTextures/Shadows/BuildingShadowSmall.blp > /tmp/BuildingShadowSmall.blp
+```
+
+For this confirmed BLP1/paletted/8-bit-alpha layout, the alpha plane follows `width*height` index bytes at each mip offset.
+This bounded script prints every stored mip's four edges; reject other formats rather than interpreting their bytes this way:
+
+```sh
+python3 - <<'PYALPHA'
+import struct
+from pathlib import Path
+blob = Path('/tmp/BuildingShadowSmall.blp').read_bytes()
+header = struct.unpack_from('<39I', blob)
+assert blob[:4] == b'BLP1' and header[1:3] == (1, 8)
+for level, offset in enumerate(header[7:23]):
+    if not offset:
+        continue
+    width, height = header[3] >> level, header[4] >> level
+    assert width > 0 and height > 0
+    alpha = blob[offset + width*height:offset + 2*width*height]
+    assert len(alpha) == width*height
+    edges = (alpha[:width], alpha[-width:], alpha[::width], alpha[width-1::width])
+    print(level, width, height, [(min(edge), max(edge)) for edge in edges])
+PYALPHA
+```
 
 ## Completing the reproduction
 
@@ -85,13 +158,22 @@ before treating the output as a comparison. Restore `r_unit_shadows 1` afterward
 
 ## Verification and limits
 
-Both original attachments were downloaded and visually inspected. No retail archives or map/save were available in this
-environment, so no decoded retail border measurements, engine reproduction, or before/after rendering was possible.
-Baseline `make test` failed during compilation with missing `SDL2/SDL.h` and `SDL2/SDL_keycode.h`; no test pass is claimed.
-No renderer behavior, opacity, wire format, or save format was changed.
+The first investigation could not build because its environment lacked SDL2 headers or inspect assets because it lacked retail data.
+The local follow-up has both. `make BUILD=release -j4 build` built the WC3 binary and all three renderer libraries without compiler
+warnings. `make BUILD=release TEST_JOBS=4 test` passed, including RoC/TFT fixture suites. Restricted execution initially denied
+loopback sockets; rerunning with local socket access passed. The two renderer suites also passed independently.
 
-When a correction is established, add a failing regression through the production decoder/upload and splat submission paths
-in `tests/test_renderer_model.c` before fixing it. Cover a non-square texture with nonzero outer alpha, authored zero outer rows,
-all relevant mips, pivot/32-unit placement, explicit unit rectangles, and unchanged interior opacity. A snow/grass framebuffer
-comparison is also required: shader-source assertions alone cannot verify edge appearance. Run `make test`,
-`make test-renderer-model`, and `make test-renderer-shadows`; build all games if the shared renderer changes.
+Three new tests preserve the measured pipeline contracts without depending on installed archives:
+
+- `renderer_texture.blp1_preserves_shadow_borders_and_all_mip_texels`: synthetic 9 × 9 and non-square 16 × 8 BLP1 fixtures;
+  zero and nonzero outer pixels; every texel of four mips; native BGRA and converted RGBA uploads. Captures the production
+  decoder's `glTexImage2D` handoff, including dimensions and levels.
+- `renderer_terrain.shadow_rect_submission_keeps_full_uv_border_on_cache_hit`: submits through `R_BeginSplatBatch` /
+  `R_AddRectSplat` / `R_EndSplatBatch`; verifies the V flip, all four UV boundaries, alpha 128, and cold/baked/cached geometry.
+- `renderer_game.shadow_footprint_keeps_source_texel_scale_pivot_and_explicit_rect`: drives `R_DrawEntityShadow` and checks
+  non-square 32-unit texel placement, rounded pivots, and the independent explicit unit rectangle.
+
+These are passing contract tests, not a failing reproducer of the visible defect. They prevent a later proposed correction from
+silently trimming source data or changing placement. A rendering correction still needs a failing observable regression and
+snow/grass framebuffer comparisons, including fog on/off and overlapping shadows. No production rendering behavior, opacity,
+network wire format, or save format has changed.
