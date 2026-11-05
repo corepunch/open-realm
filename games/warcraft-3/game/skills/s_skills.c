@@ -58,7 +58,7 @@ static ability_t abilitylist[] = {
     { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
-    { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
+    { "ACfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
