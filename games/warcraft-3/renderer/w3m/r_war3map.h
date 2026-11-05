@@ -9,6 +9,7 @@
 extern mapsegment_t *g_mapSegments;
 splat_shader_t *R_W3ShadowShader(texture_t const *texture);
 void R_W3ShutdownShadowShader(void);
+void R_ResetCliffSplatIndex(void);
 
 #define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; no explicit W3E corner texture; resolved from neighbouring vertices
 

@@ -494,6 +494,7 @@ static void R_W3EmitChangedTerrain(void) {
     R_BeginTerrainNormalCache(map);
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
         if (!w3_terrain_dirty_segments[segment->sx + segment->sy * columns]) continue;
+        if (!rebuilt) R_ResetCliffSplatIndex();
         R_W3RebuildSegmentGeometry(segment);
         rebuilt = true;
     }
@@ -596,6 +597,7 @@ static uint32_t R_W3ReadMapInfoFlags(handle_t archive) {
 void _W3M_ClearMap(void) {
     texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
+    R_ResetCliffSplatIndex();
     R_FreeMapSegments();
     R_FreeMapLayers(&g_groundLayers);
     R_W3ClearTerrainDeformations();
