@@ -2286,11 +2286,13 @@ TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
     T_ASSERT(S_UnitIsSubmerged(unit));
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(unit));
+    T_STREQ(unit->animation_props, "alternate");
 
     T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
     T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
     T_ASSERT(!S_UnitIsSubmerged(unit));
     T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
+    T_STREQ(unit->animation_props, "");
 
     restore_submerge_test_data(rows, old, ui_rows, old_ui);
 }

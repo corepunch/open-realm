@@ -90,6 +90,31 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
 }
 cstring_t const submerge_orders[] = { "submerge", "unsubmerge", NULL };
 
+static void submerge_morph_end(edict_t *unit) {
+    if (!unit) return;
+    if (!S_UnitIsSubmerged(unit)) G_AddUnitAnimationProperties(unit, "alternate", false);
+    unit_stand(unit);
+}
+
+static umove_t submerge_morph = { "morph", NULL, submerge_morph_end, CAbilitySubmergeMyrmidon };
+static umove_t surface_morph = { "morph alternate", NULL, submerge_morph_end, CAbilitySubmergeMyrmidon };
+
+static void submerge_play_morph(edict_t *unit, bool entering) {
+    animation_t const *morph;
+    /* Submerged Naga forms use the Alternate family for their submerged idle.
+     * Keep the transition clip selected as that tag changes across the morph. */
+    if (entering) G_AddUnitAnimationProperties(unit, "alternate", false);
+    unit_setmove(unit, entering ? &submerge_morph : &surface_morph);
+    morph = unit->animation;
+    G_AddUnitAnimationProperties(unit, "alternate", entering);
+    if (morph) {
+        unit->animation = morph;
+        unit->s.frame = morph->interval[0];
+    } else {
+        submerge_morph_end(unit);
+    }
+}
+
 #define ID_ASB1 MAKEFOURCC('A','s','b','1')
 #define ID_ASB2 MAKEFOURCC('A','s','b','2')
 #define ID_ASB3 MAKEFOURCC('A','s','b','3')
@@ -185,7 +210,7 @@ static bool submerge_execute(edict_t *unit, uint32_t code) {
     unit->goalentity = NULL;
     unit->orders->resource_goal = NULL;
     move_reset_progress(unit);
-    unit_stand(unit);
+    submerge_play_morph(unit, !active);
     gi.LinkEntity(unit);
     return true;
 }
