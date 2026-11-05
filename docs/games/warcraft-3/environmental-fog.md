@@ -88,6 +88,9 @@ branch, so `Unshaded` no longer accidentally means `Unfogged`.
 
 ## Ground Shadow Composition
 
+For the separate snowy-terrain rectangular-edge investigation and texture padding hypothesis, see
+[ground shadow borders](shadow-borders.md). Fog-aware composition does not establish that issue's cause.
+
 `R_RenderFrame` copies the current view's fog enable, colour, and range into `shader_shadowSplat`; no-world views disable it.
 Both entity shadows and the terrain-shadow helper use `sd_shadow_splat`. Terrain, models, and shadow splats share
 `BZ_SCENE_FOG_GLSL`, including the existing fragment-depth expression and zero-length-range guard.
