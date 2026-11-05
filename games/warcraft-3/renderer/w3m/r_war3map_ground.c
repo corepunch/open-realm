@@ -364,15 +364,11 @@ static void R_EmitSplatTriangle(splatTileParams_t const *params, vec3_t const tr
         }
         return;
     }
-    float const triangle_min_x = MIN(triangle[0].x, MIN(triangle[1].x, triangle[2].x));
-    float const triangle_max_x = MAX(triangle[0].x, MAX(triangle[1].x, triangle[2].x));
-    float const triangle_min_y = MIN(triangle[0].y, MIN(triangle[1].y, triangle[2].y));
-    float const triangle_max_y = MAX(triangle[0].y, MAX(triangle[1].y, triangle[2].y));
-    if (triangle_max_x < clip_mins->x || triangle_min_x > clip_maxs->x ||
-        triangle_max_y < clip_mins->y || triangle_min_y > clip_maxs->y) return;
     vec3_t a[8], b[8], *poly = a, *scratch = b;
-    float min_x = triangle_min_x, max_x = triangle_max_x;
-    float min_y = triangle_min_y, max_y = triangle_max_y;
+    float min_x = MIN(triangle[0].x, MIN(triangle[1].x, triangle[2].x));
+    float max_x = MAX(triangle[0].x, MAX(triangle[1].x, triangle[2].x));
+    float min_y = MIN(triangle[0].y, MIN(triangle[1].y, triangle[2].y));
+    float max_y = MAX(triangle[0].y, MAX(triangle[1].y, triangle[2].y));
     uint32_t n = 3;
     memcpy(a, triangle, 3 * sizeof(*a));
 #define CLIP_SPLAT_EDGE(clip_fn_, edge_, above_, reject_, skip_, bounds_) do { \

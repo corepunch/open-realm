@@ -4608,27 +4608,6 @@ TEST(renderer_terrain, splat_tile_deferred_uv_matches_original_across_clipping) 
     tr.world = old_world;
 }
 
-TEST(renderer_terrain, splat_triangle_aabb_miss_emits_nothing) {
-    war3mapVertex_t corners[9] = {0};
-    war3map_t map = { .width = 3, .height = 3, .vertices = corners,
-                      .center = {-64.0f, 80.0f} };
-    war3map_t const *old_world = tr.world;
-    vertex_t *old_ground_vertex = ground_current_vertex;
-    vec2_t const uv_min = {0, 0}, uv_max = {1, 1};
-    vec2_t const mins = {80, 224}, maxs = {96, 240};
-    splatTileParams_t const params = { .map = &map, .x = 1, .y = 1, .mins = &mins,
-        .uv_mins = &uv_min, .uv_maxs = &uv_max, .width = 16, .height = 16,
-        .color = COLOR32_WHITE };
-    /* Its AABB ends below the rectangle, so no clipping work is needed. */
-    vec3_t const triangle[3] = { {64, 208, 0}, {96, 208, 0}, {64, 216, 0} };
-    tr.world = NULL;
-    ground_current_vertex = ground_vertex_buffer;
-    R_EmitSplatTriangle(&params, triangle, &mins, &maxs);
-    T_EQ(ground_current_vertex, ground_vertex_buffer);
-    ground_current_vertex = old_ground_vertex;
-    tr.world = old_world;
-}
-
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };
