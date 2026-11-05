@@ -282,6 +282,13 @@ float R_W3TerrainOffsetAtPoint(float x, float y) {
         w3_terrain_offset_count != (size_t)map->width * map->height) return 0.0f;
     gx = MAX(0.0f, MIN((float)map->width - 1.0f, (x - map->center.x) / TILE_SIZE));
     gy = MAX(0.0f, MIN((float)map->height - 1.0f, (y - map->center.y) / TILE_SIZE));
+    /* Terrain vertex callers land exactly on grid points. Avoid four loads,
+     * two floor operations, and bilinear lerps for that common case. */
+    if (isfinite(gx) && isfinite(gy) && gx < (float)UINT32_MAX && gy < (float)UINT32_MAX) {
+        uint32_t const ix = (uint32_t)gx, iy = (uint32_t)gy;
+        if (gx == (float)ix && gy == (float)iy)
+            return w3_terrain_offsets[ix + (size_t)iy * map->width];
+    }
     fx = floorf(gx); fy = floorf(gy); x0 = (uint32_t)fx; y0 = (uint32_t)fy;
     x1 = MIN(map->width - 1, x0 + 1); y1 = MIN(map->height - 1, y0 + 1);
     a = w3_terrain_offsets[x0 + y0 * map->width]; b = w3_terrain_offsets[x1 + y0 * map->width];
