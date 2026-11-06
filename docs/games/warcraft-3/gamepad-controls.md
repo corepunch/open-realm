@@ -114,10 +114,11 @@ should not be interpreted as evidence that the feature is wired up.
 The ten sectors are numbered **0–9 clockwise**, with sector 0 at 12 o'clock,
 sector 5 at 6 o'clock, and the left-stick vector selecting the nearest sector.
 Only *enabled, actually clickable* game command buttons are placed in the menu.
-Passive command indicators and disabled buttons are excluded. Opening the radial draws an
-opaque black bottom-right overlay covering the existing command-card HUD. The
-ring radius and each sector's square icon are scaled from the actual HUD button
-size (and fitted to small windows); icons sit at the outer edge of their sectors,
+Passive command indicators and disabled buttons are excluded. While the radial
+is open, the ordinary square command-button grid is hidden. The radial uses
+translucent black sector backgrounds, with the focused sector filled in the
+player's team colour. The ring radius and each sector's square icon are scaled
+from the actual HUD button size (and fitted to small windows); icons sit at the outer edge of their sectors,
 with their outer edges aligned to the radial ring. All ten sectors have enough
 separation for a complete icon. Each sector draws its **own command button's** original texture
 coordinates, tint, active glow, and cooldown shade, not a placeholder icon.
