@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 
 bool scr_initialized;
+static void SCR_GamepadDrawOverlay(void);
 
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
@@ -177,6 +178,7 @@ void SCR_SetupViewBlend(viewDef_t *view, player_t const *ps, texture_t const *co
 }
 
 void SCR_DrawScreenField(uint32_t msec) {
+    SCR_GamepadBeginUIFrame();
     re.BeginFrame();
     if (CL_MovieActive()) {
         SCR_UpdateSystemCursor(true);
@@ -219,6 +221,8 @@ void SCR_DrawScreenField(uint32_t msec) {
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
+
+    SCR_GamepadDrawOverlay();
 
     /* Cursor is deliberately last so it stays above world, HUD, menus and debug text. */
     SCR_DrawCursor();
@@ -286,7 +290,80 @@ void SCR_UpdateScreen(uint32_t msec) {
 
 #define MAX_LISTBOX_TEXT 2048
 
+static void SCR_GamepadDrawOverlay(void);
 static cstring_t active_tooltip = NULL;
+
+#define GAMEPAD_RADIAL_SLOTS 10
+#define GAMEPAD_RADIAL_PAGES 6
+#define GAMEPAD_NAV_MAX 256
+/* Presentation caches are rebuilt from the game's real clickable frames each
+ * draw. The client does not invent abilities, prices, or enabled state. */
+typedef struct {
+    uiFrame_t frame;
+    char command[CMDARG_LEN * 2];
+    uiCommandButton_t command_state;
+    bool present;
+} gamepadRadialItem_t;
+static gamepadRadialItem_t gamepad_radial[GAMEPAD_RADIAL_PAGES][GAMEPAD_RADIAL_SLOTS];
+static struct { vec2_t center; bool modal; } gamepad_nav[GAMEPAD_NAV_MAX];
+static uint32_t gamepad_nav_count;
+static bool gamepad_radial_open, gamepad_selection_visible;
+static int gamepad_radial_page, gamepad_radial_sector = -1;
+static vec2_t gamepad_selection_center;
+static float gamepad_selection_radius;
+
+void SCR_GamepadBeginUIFrame(void) {
+    gamepad_nav_count = 0;
+    memset(gamepad_radial, 0, sizeof(gamepad_radial));
+}
+void SCR_GamepadRadialOpen(void) {
+    gamepad_radial_open = true;
+    gamepad_radial_page = 0;
+    gamepad_radial_sector = -1;
+}
+void SCR_GamepadRadialCancel(void) { gamepad_radial_open = false; gamepad_radial_sector = -1; }
+bool SCR_GamepadRadialActive(void) { return gamepad_radial_open; }
+void SCR_GamepadRadialNextPage(void) {
+    if (!gamepad_radial_open) return;
+    int pages = 1;
+    FOR_LOOP(i, GAMEPAD_RADIAL_PAGES) FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS)
+        if (gamepad_radial[i][slot].present) pages = MAX(pages, (int)i + 1);
+    gamepad_radial_page = (gamepad_radial_page + 1) % pages;
+}
+void SCR_GamepadRadialSetAxis(float x, float y) {
+    if (!gamepad_radial_open) return;
+    float magnitude = x * x + y * y;
+    if (magnitude < 0.09f) { gamepad_radial_sector = -1; return; }
+    /* 0=12 o'clock, 1=one step clockwise, ..., 9=one step anticlockwise. */
+    float angle = atan2f(x, -y);
+    if (angle < 0) angle += 2.0f * (float)M_PI;
+    gamepad_radial_sector = ((int)floorf(angle * GAMEPAD_RADIAL_SLOTS /
+                         (2.0f * (float)M_PI) + 0.5f)) % GAMEPAD_RADIAL_SLOTS;
+}
+void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible) {
+    gamepad_selection_center = center;
+    gamepad_selection_radius = radius;
+    gamepad_selection_visible = visible;
+}
+
+bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
+    bool found = false;
+    float best = 1e30f;
+    bool modal = CL_WindowModalActive() || SCR_LayoutModalActive();
+    FOR_LOOP(i, gamepad_nav_count) {
+        float dx = gamepad_nav[i].center.x - from.x;
+        float dy = gamepad_nav[i].center.y - from.y;
+        float parallel = direction == 0 ? -dy : direction == 1 ? dx :
+                         direction == 2 ? dy : -dx;
+        float orthogonal = (direction & 1) ? dy : dx;
+        if (modal && !gamepad_nav[i].modal) continue;
+        if (parallel < 2.0f) continue;
+        float score = parallel + 2.5f * fabsf(orthogonal);
+        if (score < best) { best = score; *to = gamepad_nav[i].center; found = true; }
+    }
+    return found;
+}
+
 static handle_t layout_layers[MAX_LAYOUT_LAYERS];
 static texture_t *layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
@@ -1569,6 +1646,125 @@ void SCR_LayoutUpdateFrame(uiFrame_t const *frame) {
     }
 }
 
+static void SCR_GamepadRadialDraw(void);
+static void SCR_GamepadDrawOverlay(void) {
+    SCR_GamepadRadialDraw();
+    if (gamepad_selection_visible && re.DrawSelectionCircle)
+        re.DrawSelectionCircle(gamepad_selection_center, gamepad_selection_radius,
+                               MAKE(color32_t, 255, 255, 255, 245));
+}
+
+/* Only actionable server-owned frames are eligible. The game's authored
+ * 4x3 command grid is mapped to the requested ten-clock layout, while build
+ * submenu buttons use ordinary clockwise order and overflow onto RT pages. */
+static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
+    if (!SCR_LayoutFrameHasClickCommand(frame)) return;
+    rect_t const *rect = SCR_LayoutRect(frame);
+    if (!rect || rect->w < 2 || rect->h < 2) return;
+    if (gamepad_nav_count < GAMEPAD_NAV_MAX) {
+        gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
+            { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, layout_current_window };
+    }
+    if (frame->flags.type != FT_COMMANDBUTTON || !frame->tex.index ||
+        frame->tex.index >= MAX_IMAGES || !cl.pics[frame->tex.index]) return;
+    cstring_t command = frame->onclick;
+    bool inventory = !strncmp(command, "inventory ", 10);
+    bool action = !strncmp(command, "button ", 7) ||
+                  !strncmp(command, "research ", 9) || !strncmp(command, "upgrade ", 8);
+    if (!inventory && !action) return;
+    int page = 0, sector = 0;
+    if (inventory) {
+        char *end = NULL;
+        long slot = strtol(command + 10, &end, 10);
+        static int const item_sectors[6] = {8, 9, 1, 2, 7, 4};
+        if (!end || end == command + 10 || *end || slot < 0 || slot >= 6) return;
+        page = 1; sector = item_sectors[slot];
+    } else {
+        vec2_t pos = SCR_ScreenToUI((int)rect->x, (int)rect->y);
+        int col = (int)lroundf((pos.x - 0.6175f) / 0.0434f);
+        int row = (int)lroundf((pos.y - 0.4660f) / 0.0440f);
+        static int const standard_page[3][4] = { {0,0,0,0}, {1,1,0,0}, {0,0,0,0} };
+        static int const standard_sector[3][4] = { {8,9,1,2}, {0,5,5,0}, {7,6,4,3} };
+        if (col < 0 || col >= 4 || row < 0 || row >= 3) return;
+        if (frame->flagsvalue & UIFLAG_GAMEPAD_BUILD_MENU) {
+            int ordinal = row * 4 + col;
+            page = ordinal / GAMEPAD_RADIAL_SLOTS;
+            sector = ordinal % GAMEPAD_RADIAL_SLOTS;
+        } else {
+            page = standard_page[row][col];
+            sector = standard_sector[row][col];
+        }
+    }
+    if (page >= GAMEPAD_RADIAL_PAGES || gamepad_radial[page][sector].present) return;
+    gamepadRadialItem_t *item = &gamepad_radial[page][sector];
+    item->frame = *frame;
+    strlcpy(item->command, command, sizeof(item->command));
+    item->frame.onclick = item->command;
+    item->frame.buffer.data = NULL;
+    item->frame.buffer.size = 0;
+    /* The click command serializer consumes the command-button proxy for its
+     * cooldown payload. Capture it into the radial-owned copy. */
+    if ((item->frame.flagsvalue & UIFLAG_RADIAL_SHADE) && frame->buffer.data &&
+        frame->buffer.size >= sizeof(uiCommandButton_t)) {
+        item->frame.buffer.data = &item->command_state;
+        memcpy(&item->command_state, frame->buffer.data, sizeof(item->command_state));
+        item->frame.buffer.size = sizeof(item->command_state);
+    }
+    item->frame.flagsvalue &= ~UIFLAG_RADIAL_SHADE;
+    item->present = true;
+}
+
+void SCR_GamepadRadialRelease(void) {
+    if (!gamepad_radial_open) return;
+    if (gamepad_radial_sector >= 0 && gamepad_radial_page < GAMEPAD_RADIAL_PAGES) {
+        gamepadRadialItem_t *item = &gamepad_radial[gamepad_radial_page][gamepad_radial_sector];
+        if (item->present) {
+            /* The copied command remains the same one authored by the game,
+             * and uses the ordinary command-button execution path. */
+            item->frame.onclick = item->command;
+            SCR_LayoutSendFrameCommand(&item->frame);
+        }
+    }
+    SCR_GamepadRadialCancel();
+}
+
+static void SCR_GamepadRadialDraw(void) {
+    if (!gamepad_radial_open || !re.DrawSelectionCircle) return;
+    size2_t window = re.GetWindowSize();
+    float const scale = MIN(1.0f, MIN(window.width / 800.0f, window.height / 600.0f));
+    float const radius = 118.0f * scale;
+    vec2_t const center = { window.width - radius - 42.0f * scale,
+                            window.height - radius - 70.0f * scale };
+    int page = gamepad_radial_page;
+    if (page >= GAMEPAD_RADIAL_PAGES) return;
+    re.DrawSelectionCircle(center, radius, MAKE(color32_t, 255, 235, 155, 180));
+    if (re.DrawRadialSpokes)
+        re.DrawRadialSpokes(center, radius, MAKE(color32_t, 255, 235, 155, 100));
+    FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS) {
+        float angle = (float)slot * (2.0f * (float)M_PI / GAMEPAD_RADIAL_SLOTS);
+        float const icon = 36.0f * scale;
+        vec2_t p = { center.x + radius * 0.74f * sinf(angle), center.y - radius * 0.74f * cosf(angle) };
+        rect_t const image = { p.x - icon * 0.5f, p.y - icon * 0.5f, icon, icon };
+        gamepadRadialItem_t const *entry = &gamepad_radial[page][slot];
+        if (slot == (uint32_t)gamepad_radial_sector)
+            re.DrawSelectionCircle(p, icon * 0.70f, MAKE(color32_t, 255, 255, 255, 255));
+        if (!entry->present || entry->frame.tex.index >= MAX_IMAGES ||
+            !cl.pics[entry->frame.tex.index]) continue;
+        re.DrawImage(cl.pics[entry->frame.tex.index], &image,
+                     &(rect_t){ 0,0,1,1 }, COLOR32_WHITE);
+        if (entry->frame.flagsvalue & UIFLAG_RADIAL_SHADE) {
+            float const progress = SCR_CommandButtonRadialShade(&entry->frame);
+            if (progress > 0.0f && re.DrawFill) {
+                rect_t shade = { image.x, image.y, image.w, image.h * progress };
+                re.DrawFill(&shade, MAKE(color32_t, 0, 0, 0, 150));
+            }
+        }
+    }
+    char page_text[32];
+    snprintf(page_text, sizeof(page_text), "Commands %d", page + 1);
+    re.DrawString((int)(center.x - 48 * scale), (int)center.y, page_text);
+}
+
 static void SCR_LayoutRunFrames(handle_t layout, void (*fn)(uiFrame_t const *)) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *frame = SCR_Frame(i);
@@ -1583,6 +1779,7 @@ void SCR_LayoutUpdateTooltip(handle_t layout) {
 void SCR_LayoutDrawOverlay(handle_t layout) {
     SCR_BeginSelectedEntityDraw();
     layout_current = layout;
+    FOR_LOOP(i, SCR_NumFrames()) SCR_GamepadCaptureFrame(SCR_Frame(i));
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);

@@ -686,6 +686,7 @@ void ui_builds(gameClient_t *client) {
     if (!G_UnitCanSpendResources(client, ent) || !owner ||
         owner->ps.number != ent->s.player || !builds)
         return;
+    UI_SetGamepadBuildMenu(true);
     PARSE_LIST(builds, build, parse_segment) {
         uint32_t building_id = 0;
         gameCommandButton_t button;
@@ -706,6 +707,7 @@ void ui_builds(gameClient_t *client) {
         }
         UI_WriteCommandButtonFrame(&button);
     }
+    UI_SetGamepadBuildMenu(false);
     UI_AddCommandButton(STR_CmdCancel);
     UI_WriteTooltipFrame();
 }

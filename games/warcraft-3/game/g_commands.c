@@ -2981,6 +2981,127 @@ static void CMD_PortraitCameraDown(edict_t *clent, uint32_t argc, cstring_t argv
     clent->client->camera.target_mode = CAMERA_TARGET_FOLLOW;
 }
 
+/* Gamepad shortcuts are server commands, not client-side selection/order hacks.
+ * This keeps shared-control, visibility, and rally permissions authoritative. */
+CLIENTCOMMAND(GamepadRally) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    vec2_t destination;
+    bool issued = false;
+    if (!client || argc != 3 || !G_DebugIsNumber(argv[1]) || !G_DebugIsNumber(argv[2]) ||
+        client->no_control) return;
+    destination = (vec2_t){ (float)atoi(argv[1]), (float)atoi(argv[2]) };
+    destination = G_ClampCameraPosition(client, &destination);
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *producer = &globals.edicts[i];
+        if (!producer->inuse || !G_UnitCanControl(client, producer) ||
+            !G_UnitHasRally(producer) || !G_UnitIsStructure(producer)) continue;
+        if (G_IssueUnitPointOrder(producer, "setrally", &destination, false, client->ps.number, 0.0f))
+            issued = true;
+    }
+    if (issued) {
+        G_SendPointConfirmation(clent, &destination, false);
+        G_PlayUISoundForPlayer(clent, "RallyPointPlace");
+    }
+}
+
+/* TownHall is authored as UnitData.buffType across all WC3 races. Follow its
+ * upgrade chain rather than assuming Human rawcodes or a fixed three-tier set. */
+static bool gamepad_is_town_hall(uint32_t code) {
+    UnitData_t const *data = G_UnitData(code);
+    return data && data->id == code && data->buffType &&
+        !strcasecmp(data->buffType, "townhall");
+}
+
+static uint32_t gamepad_town_hall_remaining(uint32_t code, uint32_t depth) {
+    uint32_t remaining = 0;
+    cstring_t upgrades;
+    UnitProfile_t const *profile = code ? G_UnitProfile(code) : NULL;
+    if (!profile || depth >= 8 || !(upgrades = profile->upgrade) || !*upgrades) return 0;
+    PARSE_LIST(upgrades, token, parse_segment) {
+        uint32_t next = FS_SLKKey(token);
+        if (gamepad_is_town_hall(next))
+            remaining = MAX(remaining, 1u + gamepad_town_hall_remaining(next, depth + 1));
+    }
+    return remaining;
+}
+
+typedef struct {
+    edict_t *unit;
+    uint32_t tier_remaining;
+} gamepadHall_t;
+
+/* Higher town halls first, then longest-lived. The tie breaker is the entity
+ * number so two halls created in one tick cycle deterministically. */
+static bool gamepad_hall_before(gamepadHall_t a, gamepadHall_t b) {
+    if (a.tier_remaining != b.tier_remaining) return a.tier_remaining < b.tier_remaining;
+    if (a.unit->spawn_time != b.unit->spawn_time) return a.unit->spawn_time < b.unit->spawn_time;
+    return a.unit->s.number < b.unit->s.number;
+}
+
+static uint32_t gamepad_hall_cycle[MAX_CLIENTS];
+CLIENTCOMMAND(GamepadBase) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    gamepadHall_t halls[64];
+    uint32_t halls_count = ARRAY_COUNT(halls);
+    uint32_t count = 0;
+    uint32_t index;
+    (void)argc; (void)argv;
+    if (!client || client->no_control) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = &globals.edicts[i];
+        if (!ent->inuse || !G_UnitCanControl(client, ent) ||
+            !G_UnitIsStructure(ent) || !gamepad_is_town_hall(ent->class_id) ||
+            M_IsDead(ent) || count >= halls_count) continue;
+        gamepadHall_t item = { ent, gamepad_town_hall_remaining(ent->class_id, 0) };
+        uint32_t pos = count++;
+        while (pos && gamepad_hall_before(item, halls[pos - 1])) {
+            halls[pos] = halls[pos - 1];
+            pos--;
+        }
+        halls[pos] = item;
+    }
+    if (!count) return;
+    index = client->ps.number % MAX_CLIENTS;
+    uint32_t slot = gamepad_hall_cycle[index]++ % count;
+    G_ClientSetCameraPosition(clent, &halls[slot].unit->s.origin2);
+}
+
+/* Active combat groups are clustered by proximity and visited in stable
+ * entity order. No full-world per-frame scanning is required. */
+static uint32_t gamepad_army_cycle[MAX_CLIENTS];
+CLIENTCOMMAND(GamepadArmy) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    enum { MAX_GROUPS = 32 };
+    struct { vec2_t center; uint32_t count; } groups[MAX_GROUPS] = {0};
+    uint32_t count = 0, index;
+    (void)argc; (void)argv;
+    if (!client || client->no_control) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = &globals.edicts[i];
+        uint32_t group;
+        if (!ent->inuse || !G_UnitCanControl(client, ent) || M_IsDead(ent) ||
+            G_UnitIsStructure(ent) || !ent->unit_state ||
+            !ent->unit_state->attack_target_spawn_time) continue;
+        for (group = 0; group < count; ++group) {
+            float dx = groups[group].center.x - ent->s.origin2.x;
+            float dy = groups[group].center.y - ent->s.origin2.y;
+            if (dx * dx + dy * dy <= 650.0f * 650.0f) break;
+        }
+        if (group == count) {
+            if (count >= MAX_GROUPS) continue;
+            groups[count++].center = ent->s.origin2;
+        } else {
+            uint32_t n = groups[group].count;
+            groups[group].center.x = (groups[group].center.x * n + ent->s.origin2.x) / (n + 1);
+            groups[group].center.y = (groups[group].center.y * n + ent->s.origin2.y) / (n + 1);
+        }
+        groups[group].count++;
+    }
+    if (!count) return;
+    index = client->ps.number % MAX_CLIENTS;
+    G_ClientSetCameraPosition(clent, &groups[gamepad_army_cycle[index]++ % count].center);
+}
+
 static void CMD_QuickCamera(edict_t *clent, uint32_t argc, cstring_t argv[]) {
     (void)argc;
     (void)argv;
@@ -3234,6 +3355,9 @@ clientCommand_t clientCommands[] = {
     { "+portraitcamera", CMD_PortraitCameraDown },
     { "-portraitcamera", CMD_PortraitCameraUp },
     { "quickcamera", CMD_QuickCamera },
+    { "gamepadrally", CMD_GamepadRally },
+    { "gamepadbase", CMD_GamepadBase },
+    { "gamepadarmy", CMD_GamepadArmy },
     { "herobutton", CMD_HeroButton },
     { "herokey", CMD_HeroKey },
     { "idleworker", CMD_IdleWorker },

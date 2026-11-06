@@ -574,6 +574,70 @@ void R_DrawWireRect(rect_t const *rect, color32_t color) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
+/* Pixel-space selection paint circle. Its line uses the same UI shader/scissor
+ * as the existing marquee; no new textures or game-specific renderer state. */
+void R_DrawSelectionCircle(vec2_t center, float radius, color32_t color) {
+    enum { SEGMENTS = 64 };
+    vertex_t vertices[SEGMENTS + 1] = {0};
+    mat4_t projection;
+    size2_t const window = R_GetWindowSize();
+    if (!(radius > 0.0f)) return;
+    FOR_LOOP(i, SEGMENTS + 1) {
+        float theta = (float)i * (2.0f * (float)M_PI / SEGMENTS);
+        vertices[i].position = (vec3_t){ center.x + sinf(theta) * radius,
+                                         center.y - cosf(theta) * radius, 0 };
+        vertices[i].color = color;
+    }
+    Matrix4_ortho(&projection, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    tr.shader_ui.state.viewProjection = projection;
+    R_SetupScissor(&(rect_t){0, 0, 1, 1});
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_LINE_STRIP, SEGMENTS + 1, 1);
+    R_ApplyShader(&tr.shader_ui);
+    R_Call(glDrawArrays, GL_LINE_STRIP, 0, SEGMENTS + 1);
+    R_SetupScissor(&(rect_t){0, 0, 1, 1});
+}
+
+/* Ten pie wedges for the controller command menu. Separator rays lie
+ * midway between icon slots, preserving 12 and 6 o'clock as slot centres. */
+void R_DrawRadialSpokes(vec2_t center, float radius, color32_t color) {
+    enum { SPOKES = 10 };
+    vertex_t vertices[SPOKES * 2] = {0};
+    mat4_t projection;
+    size2_t const window = R_GetWindowSize();
+    if (!(radius > 0.0f)) return;
+    FOR_LOOP(i, SPOKES) {
+        float a = ((float)i + 0.5f) * 2.0f * (float)M_PI / SPOKES;
+        float dx = sinf(a), dy = -cosf(a);
+        vertices[2*i].position = (vec3_t){ center.x + dx * radius * 0.17f,
+                                          center.y + dy * radius * 0.17f, 0 };
+        vertices[2*i+1].position = (vec3_t){ center.x + dx * radius,
+                                            center.y + dy * radius, 0 };
+        vertices[2*i].color = vertices[2*i+1].color = color;
+    }
+    Matrix4_ortho(&projection, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    tr.shader_ui.state.viewProjection = projection;
+    R_SetupScissor(&(rect_t){0,0,1,1});
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_LINES, SPOKES * 2, 1);
+    R_ApplyShader(&tr.shader_ui);
+    R_Call(glDrawArrays, GL_LINES, 0, SPOKES * 2);
+}
+
 void R_DrawSelectionRect(rect_t const *rect, color32_t color) {
     /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
     R_SetupScissor(&tr.viewDef.scissor);

@@ -1343,6 +1343,8 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawMinimap = R_DrawMinimapScene,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
+        .DrawSelectionCircle = R_DrawSelectionCircle,
+        .DrawRadialSpokes = R_DrawRadialSpokes,
         .DrawChar = R_DrawChar,
         .DrawString = R_DrawString,
         .DrawCharScaled = R_DrawCharScaled,

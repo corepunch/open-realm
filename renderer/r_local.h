@@ -495,6 +495,8 @@ void R_DrawMinimapBorder(rect_t const *screen, color32_t color);
 void R_DrawLoadingIndicator(rect_t const *rect, uint32_t time, color32_t color);
 void R_DrawPic(texture_t const *texture, float x, float y);
 void R_DrawSelectionRect(rect_t const *rect, color32_t color);
+void R_DrawSelectionCircle(vec2_t center, float radius, color32_t color);
+void R_DrawRadialSpokes(vec2_t center, float radius, color32_t color);
 void R_DrawBoundingBox(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
 void R_DrawWireRect(rect_t const *rect, color32_t color);
 bool R_GetModelInfo(model_t *model, modelInfo_t *info);

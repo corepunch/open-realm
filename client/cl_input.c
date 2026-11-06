@@ -18,6 +18,11 @@ static bool cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
 static bool CL_MouseOverGameplayUIAt(int x, int y);
+static void CL_UpdateHover(float x, float y);
+static void CL_ZoomSteps(float steps, bool block_over_ui);
+static void CL_InputKeyEvent(keyCode_t key, uint32_t mods, bool down, uint32_t time);
+static void CL_GamepadDispatchPointer(uint32_t type, uint8_t button, int x, int y);
+
 
 static struct {
     uint32_t buttons, sent, last_ms;
@@ -26,6 +31,489 @@ static struct {
     uint32_t last_select_entity, last_select_ms;
     SDL_Cursor *arrow, *cross, *hand;
 } input = { .focus = true };
+
+/* SDL's controller abstraction reports logical Xbox-labelled buttons even on
+ * Switch-style hardware. cl_gamepad_nintendo swaps face-button *semantics*,
+ * without depending on OS-specific button names or GUID databases. */
+typedef struct {
+    SDL_GameController *controller;
+    bool a, b, x, y, rt, rt_used, lt, lb, rb, start, paint;
+    bool down_dpad[4];
+    uint32_t dpad_pressed[4];
+    uint32_t a_pressed, last_a_released, last_b_released;
+    float lx, ly, rx, ry, zoom_accumulator;
+    uint32_t painted[CL_SELECTION_CANDIDATE_LIMIT];
+    uint32_t painted_count;
+} gamepadState_t;
+static gamepadState_t gamepad;
+
+static bool CL_GamepadModal(void) {
+    return (CL_MenuActive() && cls.key_dest == key_menu) ||
+           CL_WindowModalActive() || SCR_LayoutModalActive() || CL_WindowPresentationActive() ||
+           (cls.key_dest == key_game && SCR_GamepadRadialActive());
+}
+
+static void CL_GamepadReset(void) {
+    if (gamepad.x)
+        CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
+                                  (int)mouse.origin.x, (int)mouse.origin.y);
+    gamepad.a = gamepad.b = gamepad.x = gamepad.y = gamepad.paint = false;
+    gamepad.painted_count = 0;
+    memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
+    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
+    SCR_GamepadRadialCancel();
+    SCR_GamepadSelectionCircle(mouse.origin, 0, false);
+}
+
+static void CL_GamepadResetHeld(void) {
+    if (gamepad.x)
+        CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
+                                  (int)mouse.origin.x, (int)mouse.origin.y);
+    gamepad.a = gamepad.b = gamepad.x = gamepad.paint = false;
+    gamepad.painted_count = 0;
+    memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
+    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
+    SCR_GamepadSelectionCircle(mouse.origin, 0, false);
+    SCR_GamepadRadialCancel();
+}
+
+static void CL_GamepadOpen(int device_index) {
+    if (gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
+        !SDL_IsGameController(device_index)) return;
+    gamepad.controller = SDL_GameControllerOpen(device_index);
+}
+
+static void CL_GamepadDetach(void) {
+    SDL_GameController *controller = gamepad.controller;
+    CL_GamepadReset();
+    memset(&gamepad, 0, sizeof(gamepad));
+    if (controller) SDL_GameControllerClose(controller);
+}
+
+static float CL_GamepadAxis(int16_t raw) {
+    float const value = raw < 0 ? raw / 32768.0f : raw / 32767.0f;
+    float deadzone = Cvar_Value("cl_gamepad_deadzone", 0.2f);
+    deadzone = MIN(0.9f, MAX(0.0f, deadzone));
+    if (fabsf(value) <= deadzone) return 0.0f;
+    return copysignf((fabsf(value) - deadzone) / (1.0f - deadzone), value);
+}
+
+static void CL_GamepadCenterCursor(void) {
+    if (CL_GamepadModal()) return;
+    size2_t const win = re.GetWindowSize();
+    if (win.width <= 0 || win.height <= 0) return;
+    mouse.origin = (vec2_t){ win.width * 0.5f, win.height * 0.5f };
+    CL_UpdateHover(mouse.origin.x, mouse.origin.y);
+}
+
+/* Use the same SDL mouse-event path as real clicks. The window manager, HUD
+ * hit testing, minimap and normal world selection all retain their precedence. */
+static void CL_GamepadDispatchPointer(uint32_t type, uint8_t button, int x, int y) {
+    SDL_Event event = {0};
+    event.type = type;
+    if (type == SDL_MOUSEMOTION) {
+        event.motion.which = 0;
+        event.motion.x = x;
+        event.motion.y = y;
+    } else {
+        event.button.which = 0;
+        event.button.button = button;
+        event.button.state = type == SDL_MOUSEBUTTONDOWN ? SDL_PRESSED : SDL_RELEASED;
+        event.button.x = x;
+        event.button.y = y;
+    }
+    SDL_PushEvent(&event);
+}
+
+static void CL_GamepadClick(uint8_t button) {
+    int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
+    CL_GamepadDispatchPointer(SDL_MOUSEBUTTONDOWN, button, x, y);
+    CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, button, x, y);
+}
+
+static void CL_GamepadFaceX(bool down) {
+    if (gamepad.x == down) return;
+    gamepad.x = down;
+    CL_GamepadDispatchPointer(down ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP,
+                             SDL_BUTTON_RIGHT, (int)mouse.origin.x, (int)mouse.origin.y);
+}
+
+static void CL_GamepadSendCommand(cstring_t command) {
+    if (!CL_GameplayInputReady() || !command) return;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", command);
+}
+
+/* The client only sends candidates. The server's existing Select command
+ * remains responsible for ownership, visibility and legal membership. */
+static void CL_GamepadSelectChange(uint32_t const *ids, uint32_t count, int mode) {
+    uint32_t result[CL_SELECTION_CANDIDATE_LIMIT];
+    uint32_t n = 0;
+    count = MIN(count, CL_SELECTION_CANDIDATE_LIMIT);
+    if (mode != 0) FOR_LOOP(i, MIN(cl.selection.num_selected, MAX_SELECTED_ENTITIES)) {
+        uint32_t id = cl.selection.entity_nums[i];
+        bool remove = false;
+        if (mode == -1) FOR_LOOP(j, count) if (ids[j] == id) { remove = true; break; }
+        if (!remove && n < sizeof(result) / sizeof(result[0])) result[n++] = id;
+    }
+    if (mode >= 0) FOR_LOOP(i, count) {
+        bool exists = false;
+        FOR_LOOP(j, n) if (result[j] == ids[i]) { exists = true; break; }
+        if (!exists && n < sizeof(result) / sizeof(result[0])) result[n++] = ids[i];
+    }
+    CL_ApplySelectionCandidates(result, n);
+}
+
+static void CL_GamepadSelectVisible(void) {
+    uint32_t visible[MAX_CLIENT_ENTITIES];
+    size2_t const win = re.GetWindowSize();
+    rect_t const view = { cl.viewDef.viewport.x * win.width,
+        (1.0f - cl.viewDef.viewport.y - cl.viewDef.viewport.h) * win.height,
+        cl.viewDef.viewport.w * win.width, cl.viewDef.viewport.h * win.height };
+    uint32_t n = re.EntitiesInRect(&cl.viewDef, &view, sizeof(visible) / sizeof(visible[0]), visible);
+    CL_ApplySelectionCandidates(visible, n);
+}
+
+static void CL_GamepadQuickAction(int direction) {
+    if (direction == 0) {
+        vec3_t point;
+        if (re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &point)) {
+            char command[64];
+            snprintf(command, sizeof(command), "gamepadrally %d %d", (int)point.x, (int)point.y);
+            CL_GamepadSendCommand(command);
+        }
+    } else if (direction == 1) {
+        CL_GamepadSendCommand("quickcamera");
+    } else if (direction == 2) {
+        CL_GamepadSendCommand("gamepadarmy");
+    } else {
+        CL_GamepadSendCommand("gamepadbase");
+    }
+}
+
+static void CL_GamepadSameType(int mode) {
+    uint32_t anchor;
+    static uint32_t candidates[MAX_CLIENT_ENTITIES];
+    uint32_t result[CL_SELECTION_CANDIDATE_LIMIT];
+    uint32_t n, found = 0, target_type;
+    size2_t const win = re.GetWindowSize();
+    rect_t const view = { cl.viewDef.viewport.x * win.width,
+        (1.0f - cl.viewDef.viewport.y - cl.viewDef.viewport.h) * win.height,
+        cl.viewDef.viewport.w * win.width, cl.viewDef.viewport.h * win.height };
+    if (!re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &anchor) ||
+        !anchor || anchor >= MAX_CLIENT_ENTITIES) return;
+    target_type = cl.ents[anchor].current.class_id;
+    if (!target_type) return;
+    n = MIN(re.EntitiesInRect(&cl.viewDef, &view, sizeof(candidates) / sizeof(candidates[0]), candidates),
+            sizeof(candidates) / sizeof(candidates[0]));
+    FOR_LOOP(i, n) {
+        uint32_t id = candidates[i];
+        if (id && id < MAX_CLIENT_ENTITIES && cl.ents[id].current.class_id == target_type &&
+            found < sizeof(result) / sizeof(result[0]))
+            result[found++] = id;
+    }
+    CL_GamepadSelectChange(result, found, mode);
+}
+
+static bool CL_GamepadProjectedPoint(vec3_t point, vec2_t *out) {
+    float const *m = cl.viewDef.viewProjectionMatrix.v;
+    size2_t const win = re.GetWindowSize();
+    float cx = m[0] * point.x + m[4] * point.y + m[8] * point.z + m[12];
+    float cy = m[1] * point.x + m[5] * point.y + m[9] * point.z + m[13];
+    float cw = m[3] * point.x + m[7] * point.y + m[11] * point.z + m[15];
+    if (cw <= 0.0001f) return false;
+    out->x = (cl.viewDef.viewport.x + (cx / cw * 0.5f + 0.5f) * cl.viewDef.viewport.w) * win.width;
+    out->y = (1.0f - cl.viewDef.viewport.y - (cy / cw * 0.5f + 0.5f) * cl.viewDef.viewport.h) * win.height;
+    return true;
+}
+
+/* A held A paints units through a circular *screen-space* brush. Only when
+ * held do we scan nearby rendered candidates; idle scanning is event-driven. */
+static void CL_GamepadPaintFrame(void) {
+    size2_t win;
+    rect_t box;
+    float radius;
+    uint32_t visible[MAX_CLIENT_ENTITIES];
+    uint32_t count;
+    if (!gamepad.a || !CL_GameplayInputReady() || SCR_GamepadRadialActive() ||
+        (uint32_t)(SDL_GetTicks() - gamepad.a_pressed) <
+                 (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_hold_ms", 180))) return;
+    gamepad.paint = true;
+    radius = MAX(24.0f, MIN(200.0f, Cvar_Value("cl_gamepad_paint_radius", 72)));
+    SCR_GamepadSelectionCircle(mouse.origin, radius, true);
+    win = re.GetWindowSize();
+    if (win.width <= 0 || win.height <= 0) return;
+    box = (rect_t){ mouse.origin.x - radius, mouse.origin.y - radius, radius * 2, radius * 2 };
+    count = re.EntitiesInRect(&cl.viewDef, &box, sizeof(visible) / sizeof(visible[0]), visible);
+    FOR_LOOP(i, count) {
+        uint32_t id = visible[i];
+        vec2_t screen;
+        bool exists = false;
+        if (!id || id >= MAX_CLIENT_ENTITIES || !cl.ents[id].current.model ||
+            !CL_GamepadProjectedPoint(cl.ents[id].current.origin, &screen)) continue;
+        float dx = screen.x - mouse.origin.x, dy = screen.y - mouse.origin.y;
+        if (dx * dx + dy * dy > radius * radius) continue;
+        FOR_LOOP(j, gamepad.painted_count) if (gamepad.painted[j] == id) { exists = true; break; }
+        if (!exists && gamepad.painted_count < sizeof(gamepad.painted) / sizeof(gamepad.painted[0]))
+            gamepad.painted[gamepad.painted_count++] = id;
+    }
+}
+
+static void CL_GamepadOpenMenu(cstring_t command) {
+    if (cls.state == ca_active) CL_GamepadSendCommand(command);
+}
+
+static void CL_GamepadFaceA(bool down, uint32_t time) {
+    if (down) {
+        if (gamepad.a) return;
+        if (gamepad.rt) gamepad.rt_used = true;
+        gamepad.a = true; gamepad.a_pressed = time;
+        gamepad.painted_count = 0; gamepad.paint = false;
+        if (SCR_GamepadRadialActive()) return;
+        if (CL_GamepadModal()) CL_GamepadDispatchPointer(SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT,
+                (int)mouse.origin.x, (int)mouse.origin.y);
+        return;
+    }
+    if (!gamepad.a) return;
+    gamepad.a = false;
+    if (SCR_GamepadRadialActive()) return;
+    SCR_GamepadSelectionCircle(mouse.origin, 0, false);
+    if (CL_GamepadModal()) {
+        gamepad.last_a_released = 0;
+        CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT,
+                               (int)mouse.origin.x, (int)mouse.origin.y);
+        return;
+    }
+    if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
+    if (gamepad.paint) {
+        CL_GamepadSelectChange(gamepad.painted, gamepad.painted_count, 1);
+        gamepad.last_a_released = 0;
+        return;
+    } else if (gamepad.last_a_released && time - gamepad.last_a_released <=
+                                     (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350))) {
+        CL_GamepadSameType(gamepad.rt ? 1 : 0);
+        gamepad.last_a_released = 0;
+    } else if (gamepad.rt) {
+        uint32_t ent;
+        if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent))
+            CL_GamepadSelectChange(&ent, 1, 1);
+        gamepad.last_a_released = 0;
+    } else {
+        CL_GamepadClick(SDL_BUTTON_LEFT);
+    }
+    if (!gamepad.rt) gamepad.last_a_released = time;
+}
+
+static void CL_GamepadFaceB(bool down, uint32_t time) {
+    if (down) { if (gamepad.b) return; gamepad.b = true; if (gamepad.rt) gamepad.rt_used = true; return; }
+    if (!gamepad.b) return;
+    gamepad.b = false;
+    if (SCR_GamepadRadialActive()) { SCR_GamepadRadialCancel(); return; }
+    if (gamepad.rt && CL_GameplayInputReady()) {
+        if (gamepad.last_b_released && time - gamepad.last_b_released <=
+            (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350))) {
+            CL_GamepadSameType(-1);
+            gamepad.last_b_released = 0;
+        } else {
+            uint32_t ent;
+            if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent))
+                CL_GamepadSelectChange(&ent, 1, -1);
+        }
+        gamepad.last_b_released = time;
+    } else {
+        /* Escape goes through normal key dispatch, including modal windows. */
+        CL_InputKeyEvent(K_ESCAPE, 0, true, time);
+        CL_InputKeyEvent(K_ESCAPE, 0, false, time);
+    }
+}
+
+static void CL_GamepadDpad(int d, bool down, uint32_t time) {
+    /* Up=0, right=1, down=2, left=3. Groups occupy 1..4 in this order. */
+    if (down) {
+        if (gamepad.down_dpad[d]) return;
+        gamepad.down_dpad[d] = true; gamepad.dpad_pressed[d] = time;
+        if (gamepad.rt) gamepad.rt_used = true;
+        if (gamepad.start) {
+            if (d == 0) Cmd_ExecuteString("save quick");
+            else if (d == 2) Cmd_ExecuteString("load quick");
+            return;
+        }
+        if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
+            vec2_t dest;
+            if (SCR_GamepadNavigate(d, mouse.origin, &dest)) {
+                mouse.origin = dest;
+                CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0, (int)dest.x, (int)dest.y);
+            } else if (CL_MenuActive() && cls.key_dest == key_menu) {
+                /* Native menus expose keyboard focus but not server-authored
+                 * layout frames; forward their ordinary arrow navigation. */
+                keyCode_t key = d == 0 ? K_UPARROW : d == 1 ? K_RIGHTARROW :
+                                d == 2 ? K_DOWNARROW : K_LEFTARROW;
+                CL_InputKeyEvent(key, 0, true, time);
+                CL_InputKeyEvent(key, 0, false, time);
+            }
+            return;
+        }
+        if (gamepad.rt) return; /* decide tap vs hold at release */
+        if (!CL_GameplayInputReady()) return;
+        CL_GamepadQuickAction(d);
+        return;
+    }
+    if (!gamepad.down_dpad[d]) return;
+    gamepad.down_dpad[d] = false;
+    if (gamepad.start || !gamepad.rt || !CL_GameplayInputReady() || CL_GamepadModal()) return;
+    char command[40];
+    bool assign = time - gamepad.dpad_pressed[d] >=
+        (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_group_hold_ms", 550));
+    snprintf(command, sizeof(command), assign ? "group assign %d" : "group %d", d + 1);
+    Cmd_ExecuteString(command);
+}
+
+static SDL_GameControllerButton CL_GamepadFace(SDL_GameControllerButton button) {
+    if (!Cvar_Integer("cl_gamepad_nintendo", 0)) return button;
+    if (button == SDL_CONTROLLER_BUTTON_A) return SDL_CONTROLLER_BUTTON_B;
+    if (button == SDL_CONTROLLER_BUTTON_B) return SDL_CONTROLLER_BUTTON_A;
+    if (button == SDL_CONTROLLER_BUTTON_X) return SDL_CONTROLLER_BUTTON_Y;
+    if (button == SDL_CONTROLLER_BUTTON_Y) return SDL_CONTROLLER_BUTTON_X;
+    return button;
+}
+
+/* Controller events are consumed before the mouse/touch dispatch loop. */
+static bool CL_GamepadEvent(SDL_Event const *event) {
+    bool down;
+    SDL_GameControllerButton button;
+    if (event->type == SDL_CONTROLLERDEVICEADDED) {
+        CL_GamepadOpen(event->cdevice.which);
+        return true;
+    }
+    if (event->type == SDL_CONTROLLERDEVICEREMOVED) {
+        if (gamepad.controller && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) ==
+                                   event->cdevice.which) CL_GamepadDetach();
+        return true;
+    }
+    if (event->type != SDL_CONTROLLERBUTTONDOWN && event->type != SDL_CONTROLLERBUTTONUP &&
+        event->type != SDL_CONTROLLERAXISMOTION) return false;
+    if (!gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
+        SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) !=
+                (event->type == SDL_CONTROLLERAXISMOTION ? event->caxis.which : event->cbutton.which))
+        return true;
+    if (event->type == SDL_CONTROLLERAXISMOTION) {
+        float axis = CL_GamepadAxis(event->caxis.value);
+        switch (event->caxis.axis) {
+            case SDL_CONTROLLER_AXIS_LEFTX: gamepad.lx = axis; break;
+            case SDL_CONTROLLER_AXIS_LEFTY: gamepad.ly = axis; break;
+            case SDL_CONTROLLER_AXIS_RIGHTX: gamepad.rx = axis; break;
+            case SDL_CONTROLLER_AXIS_RIGHTY: gamepad.ry = axis; break;
+            case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+                if (axis > 0.5f && !gamepad.lt && gamepad.start)
+                    CL_GamepadOpenMenu("allies");
+                gamepad.lt = axis > 0.5f;
+                break;
+            case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+                if (axis > 0.5f && !gamepad.rt) {
+                    gamepad.rt_used = gamepad.start || gamepad.y || SCR_GamepadRadialActive();
+                    if (gamepad.start) CL_GamepadOpenMenu("chat");
+                    else if (SCR_GamepadRadialActive()) SCR_GamepadRadialNextPage();
+                }
+                if (axis <= 0.5f && gamepad.rt) {
+                    if (!gamepad.rt_used && CL_GameplayInputReady())
+                        CL_GamepadSendCommand("cyclesubgroup");
+                    gamepad.rt_used = false;
+                }
+                gamepad.rt = axis > 0.5f;
+                break;
+            default: break;
+        }
+        if (axis != 0 && !CL_GamepadModal()) CL_GamepadCenterCursor();
+        if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
+        return true;
+    }
+    down = event->type == SDL_CONTROLLERBUTTONDOWN;
+    button = (SDL_GameControllerButton)event->cbutton.button;
+    if (button != SDL_CONTROLLER_BUTTON_DPAD_UP && button != SDL_CONTROLLER_BUTTON_DPAD_DOWN &&
+        button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        button = CL_GamepadFace(button);
+    if (down) CL_GamepadCenterCursor();
+    if (button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
+        button == SDL_CONTROLLER_BUTTON_DPAD_LEFT || button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) {
+        int const dir = button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 0 :
+                        button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT ? 1 :
+                        button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ? 2 : 3;
+        CL_GamepadDpad(dir, down, event->cbutton.timestamp);
+        return true;
+    }
+    switch (button) {
+        case SDL_CONTROLLER_BUTTON_A: CL_GamepadFaceA(down, event->cbutton.timestamp); break;
+        case SDL_CONTROLLER_BUTTON_B: CL_GamepadFaceB(down, event->cbutton.timestamp); break;
+        case SDL_CONTROLLER_BUTTON_X: CL_GamepadFaceX(down); break;
+        case SDL_CONTROLLER_BUTTON_Y:
+            if (gamepad.y == down) break;
+            if (down && gamepad.rt) gamepad.rt_used = true;
+            gamepad.y = down;
+            if (down && CL_GameplayInputReady() && cl.selection.num_selected)
+                SCR_GamepadRadialOpen();
+            if (!down) SCR_GamepadRadialRelease();
+            break;
+        case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+            if (gamepad.rb == down) break;
+            gamepad.rb = down;
+            if (down && gamepad.start) CL_GamepadOpenMenu("menu");
+            else if (down && !gamepad.start && CL_GameplayInputReady()) CL_GamepadSelectVisible();
+            break;
+        case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+            if (gamepad.lb == down) break;
+            gamepad.lb = down;
+            if (down && gamepad.start) CL_GamepadOpenMenu("quests");
+            break;
+        case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+            if (down && !gamepad.down_dpad[0]) Cmd_ExecuteString("zoomdefault");
+            break;
+        case SDL_CONTROLLER_BUTTON_LEFTSTICK: break;
+        case SDL_CONTROLLER_BUTTON_START:
+            if (gamepad.start == down) break;
+            gamepad.start = down;
+            if (down && gamepad.rt) gamepad.rt_used = true;
+            break;
+        case SDL_CONTROLLER_BUTTON_GUIDE: break;
+        default: break;
+    }
+    return true;
+}
+
+static void CL_GamepadFrame(float dt) {
+    if (!gamepad.controller && Cvar_Integer("cl_gamepad", 0) &&
+        (SDL_WasInit(SDL_INIT_GAMECONTROLLER) & SDL_INIT_GAMECONTROLLER))
+        FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
+    if (!Cvar_Integer("cl_gamepad", 0)) {
+        if (gamepad.controller) CL_GamepadDetach();
+        return;
+    }
+    if (!gamepad.controller) return;
+    if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
+    if (CL_GamepadModal()) {
+        float speed = Cvar_Value("cl_gamepad_menu_cursor_speed", 600);
+        if ((gamepad.lx || gamepad.ly) && dt > 0.0f) {
+            size2_t const win = re.GetWindowSize();
+            mouse.origin.x = MIN(win.width - 1.0f, MAX(0.0f, mouse.origin.x + gamepad.lx * dt * speed));
+            mouse.origin.y = MIN(win.height - 1.0f, MAX(0.0f, mouse.origin.y + gamepad.ly * dt * speed));
+            CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0, (int)mouse.origin.x, (int)mouse.origin.y);
+        }
+        return;
+    }
+    if (!CL_GameplayInputReady() && !SCR_GamepadRadialActive()) return;
+    CL_GamepadPaintFrame();
+    if (dt > 0) {
+        /* Coalesce analog zoom changes; avoid sending one tiny camera packet
+         * every display frame while the stick is held off centre. */
+        if (!SCR_GamepadRadialActive())
+            gamepad.zoom_accumulator -= gamepad.ry * Cvar_Value("cl_gamepad_zoom_rate", 3.0f) * dt;
+        if (fabsf(gamepad.zoom_accumulator) >= 0.15f) {
+            CL_ZoomSteps(gamepad.zoom_accumulator, false);
+            gamepad.zoom_accumulator = 0.0f;
+        }
+    }
+}
 
 /* Commands share a typed controller contract; each game decides how its player can move. */
 static void CL_SendInput(inputCmd_t const *cmd) {
@@ -137,6 +625,8 @@ void CL_ResetInput(void) {
     input.select = input.look = camera_drag.active = smart_click_active = false;
     input.last_select_entity = input.last_select_ms = 0;
     cam_west = cam_east = cam_north = cam_south = false;
+    CL_GamepadResetHeld();
+
     cl.selection.in_progress = false;
     cl.hover_entity = 0;
     CL_EndMinimapDrag();
@@ -147,11 +637,12 @@ void CL_ResetInput(void) {
 static void CL_InputFrame(void) {
     uint32_t now = SDL_GetTicks(), msec = input.last_ms ? MIN(now - input.last_ms, BZ_INPUT_MAX_MSEC) : 0;
     input.last_ms = now;
-    if (!CL_GameplayInputReady()) { CL_ResetInput(); return; }
+    if (!CL_GameplayInputReady()) { CL_GamepadFrame(msec / 1000.0f); CL_ResetInput(); return; }
     uint32_t bits = input.buttons;
     if (Cvar_Integer("cl_move_mouse", 0) && input.select && input.look) bits |= BZ_MOVE_FORWARD;
     if (bits || input.sent) CL_SendInput(&(inputCmd_t){ .action = BZ_INPUT_MOVE, .move = { bits, msec } });
     input.sent = bits;
+    CL_GamepadFrame(msec / 1000.0f);
     CL_ScrollFrame();
 }
 
@@ -729,6 +1220,11 @@ static void CL_ScrollFrame(void) {
     if (cam_east) dx += 1.0f;
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
+    if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y) {
+        dx += gamepad.lx;
+        dy -= gamepad.ly; /* SDL positive Y is down; game north is positive Y. */
+    }
+
 
     vec2_t edge = CL_MouseScroll();
     dx += edge.x; dy += edge.y;
@@ -862,6 +1358,7 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
     mouse.event = UI_EVENT_NONE;
     mouse.wheel = 0;
     while(poll_event(&event)) {
+        if (CL_GamepadEvent(&event)) continue;
         if (loading_input) {
             if (event.type == SDL_FINGERDOWN || event.type == SDL_MOUSEBUTTONDOWN ||
                 (event.type == SDL_KEYDOWN && !event.key.repeat))
@@ -1360,7 +1857,7 @@ static void CL_ZoomDefault_f(void) {
     gameCamera_t camera;
     float dist;
 
-    if (!CL_GameplayInputReady()) return;
+    if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
     if (CL_GameCameraZoomPolicy(&policy,
             Cvar_Value("wc3_camera_default_distance", 1650.0f),
             Cvar_Value("wc3_camera_max_distance", 3000.0f))) dist = policy.default_distance;
@@ -1381,6 +1878,20 @@ void CL_InitInput(void) {
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
     fprintf(stderr, "Input initialization.\n");
+    Cvar_Get("cl_gamepad", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_nintendo", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_deadzone", "0.2", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_hold_ms", "180", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_double_ms", "350", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_group_hold_ms", "550", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_paint_radius", "72", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_zoom_rate", "3.0", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_menu_cursor_speed", "600", CVAR_ARCHIVE);
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0) {
+        SDL_GameControllerEventState(SDL_ENABLE);
+        FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
+    }
     fprintf(stderr, "%d joysticks were found.\n", SDL_NumJoysticks());
     fprintf(stderr, "Input initialized.\n\n");
 
