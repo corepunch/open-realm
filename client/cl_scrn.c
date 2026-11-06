@@ -1,6 +1,7 @@
 #include "client.h"
 #include "menu_text_input.h"
 #include "ui_layout.h"
+#include "games/warcraft-3/common/player_colors.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
@@ -345,7 +346,8 @@ void SCR_GamepadRadialSetAxis(float x, float y) {
     if (!gamepad_radial_open) return;
     float magnitude = x * x + y * y;
     if (magnitude < 0.09f) { gamepad_radial_sector = -1; return; }
-    /* 0=12 o'clock, 1=one step clockwise, ..., 9=one step anticlockwise. */
+    /* Cardinal directions select sector centers: up=0 (12 o'clock), down=5
+     * (6 o'clock), right=2/3 and left=7/8. Diagonals choose nearest center. */
     float angle = atan2f(x, -y);
     if (angle < 0) angle += 2.0f * (float)M_PI;
     gamepad_radial_sector = ((int)floorf(angle * GAMEPAD_RADIAL_SLOTS /
@@ -1797,6 +1799,12 @@ static void SCR_GamepadRadialDraw(void) {
     /* Opaque background hides the original bottom-right command card. Drawing
      * it before the spokes/icons means their clickable presentation stays clear. */
     re.DrawFill(&background, MAKE(color32_t, 0, 0, 0, 255));
+    if (gamepad_radial_sector >= 0 && re.DrawRadialSector) {
+        uint32_t const rgb = WC3_PlayerColorRGB(cl.playerstate.color);
+        color32_t const team = MAKE(color32_t, (rgb >> 16) & 0xff, (rgb >> 8) & 0xff,
+                                    rgb & 0xff, 145);
+        re.DrawRadialSector(center, radius, gamepad_radial_sector, team);
+    }
     if (re.DrawSelectionCircle)
         re.DrawSelectionCircle(center, radius, MAKE(color32_t, 255, 235, 155, 210));
     if (re.DrawRadialSpokes)
@@ -1807,10 +1815,6 @@ static void SCR_GamepadRadialDraw(void) {
         vec2_t const p = { center.x + orbit * sinf(angle), center.y - orbit * cosf(angle) };
         rect_t const image = { p.x - icon * 0.5f, p.y - icon * 0.5f, icon, icon };
         gamepadRadialItem_t const *entry = &gamepad_radial[page][slot];
-        if ((int)slot == gamepad_radial_sector) {
-            rect_t const focus = Rect_inset(&image, -5.0f * scale);
-            re.DrawFill(&focus, MAKE(color32_t, 130, 115, 65, 210));
-        }
         if (!entry->present || entry->frame.tex.index >= MAX_IMAGES ||
             !cl.pics[entry->frame.tex.index]) continue;
         /* Match the command card's real texture coordinates, tint, active glow,
