@@ -350,6 +350,7 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
             return;
         }
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
+            if (gamepad.y) return;
             vec2_t dest;
             if (SCR_GamepadNavigate(d, mouse.origin, &dest)) {
                 mouse.origin = dest;
@@ -453,6 +454,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         return true;
     }
     switch (button) {
+        case SDL_CONTROLLER_BUTTON_BACK:
+            if (down) {
+                CL_InputKeyEvent(K_ESCAPE, 0, true, event->cbutton.timestamp);
+                CL_InputKeyEvent(K_ESCAPE, 0, false, event->cbutton.timestamp);
+            }
+            break;
         case SDL_CONTROLLER_BUTTON_A: CL_GamepadFaceA(down, event->cbutton.timestamp); break;
         case SDL_CONTROLLER_BUTTON_B: CL_GamepadFaceB(down, event->cbutton.timestamp); break;
         case SDL_CONTROLLER_BUTTON_X: CL_GamepadFaceX(down); break;
@@ -502,7 +509,7 @@ static void CL_GamepadFrame(float dt) {
     if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
     if (CL_GamepadModal()) {
         float speed = Cvar_Value("cl_gamepad_menu_cursor_speed", 600);
-        if ((gamepad.lx || gamepad.ly) && dt > 0.0f) {
+        if (!gamepad.y && (gamepad.lx || gamepad.ly) && dt > 0.0f) {
             size2_t const win = re.GetWindowSize();
             mouse.origin.x = MIN(win.width - 1.0f, MAX(0.0f, mouse.origin.x + gamepad.lx * dt * speed));
             mouse.origin.y = MIN(win.height - 1.0f, MAX(0.0f, mouse.origin.y + gamepad.ly * dt * speed));
@@ -1368,6 +1375,9 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
     mouse.wheel = 0;
     while(poll_event(&event)) {
         if (CL_GamepadEvent(&event)) continue;
+        /* Y owns the radial-menu interaction. Ignore physical mouse movement
+         * until release so it cannot move the cursor beneath the overlay. */
+        if (gamepad.y && event.type == SDL_MOUSEMOTION) continue;
         if (loading_input) {
             if (event.type == SDL_FINGERDOWN || event.type == SDL_MOUSEBUTTONDOWN ||
                 (event.type == SDL_KEYDOWN && !event.key.repeat))
