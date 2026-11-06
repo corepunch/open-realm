@@ -35,14 +35,14 @@ The option does **not** modify the OS/SDL button mapping database.
 | Left stick | Pan camera like the arrow keys (camera-relative) |
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
 | Right-stick click | Reset camera to the game-selected default zoom |
-| A, tap | Normal left-click selection / HUD click |
+| A, tap | Normal left-click selection / HUD click; accept the focused radial command when it is open |
 | A, hold | Draw a white circular paint ring over the middle of the view; add units touched by the brush to the selection on release |
 | A, double-tap | Select all visible selectable units of the same type as the unit under the cursor |
-| B | Cancel current command, selection mode, or menu (Esc) |
+| B | Cancel the radial menu when open; otherwise cancel the current command, selection mode, or menu (Esc) |
 | X | Contextual right click (move, interact, attack, rally, etc.) |
-| Y, hold | Show the bottom-right ten-sector radial menu from real clickable command-card icons |
-| Y + left stick | Choose a radial-menu sector; release Y to activate the command |
-| Y + RT | Advance to the next populated radial page |
+| Y | Open the bottom-right ten-sector radial menu from real clickable command-card icons |
+| Left stick while radial is open | Choose a radial-menu sector |
+| RT while radial is open | Advance to the next populated radial page |
 | Select / Back | Escape (cancel the current command or close the active menu) |
 | RB | Select units in the current camera viewport |
 | RT (tap and release) | Cycle the focused unit subgroup, like Tab (not when used with another control) |
@@ -92,6 +92,9 @@ the very same local numbered groups as Ctrl+1–4 and 1–4 on the keyboard.
 In a modal menu, left stick moves the mouse cursor instead of the camera. D-pad
 moves to the nearest clickable server-authored button in that direction; native
 client menus fall back to their keyboard arrow navigation. A clicks, B cancels.
+The radial menu remains open after Y is released. A activates the focused
+command and closes it; B closes it without issuing the command. Mouse movement
+is ignored while the radial menu is open.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat
@@ -104,7 +107,7 @@ should not be interpreted as evidence that the feature is wired up.
 The ten sectors are numbered **0–9 clockwise**, with sector 0 at 12 o'clock,
 sector 5 at 6 o'clock, and the left-stick vector selecting the nearest sector.
 Only *enabled, actually clickable* game command buttons are placed in the menu.
-Passive command indicators and disabled buttons are excluded. Holding Y draws an
+Passive command indicators and disabled buttons are excluded. Opening the radial draws an
 opaque black bottom-right overlay covering the existing command-card HUD. The
 ring radius and each sector's square icon are scaled from the actual HUD button
 size (and fitted to small windows); icons sit at the outer edge of their sectors,
@@ -150,8 +153,8 @@ therefore on page 2. The six inventory slots share that second page.
 Construction commands are flagged by the WC3 HUD authoring code, without
 requiring the client to guess from an ability rawcode. They appear sequentially
 starting at noon, then clockwise. Items 1–10 occupy page 1, 11–12 page 2.
-Hold Y and press RT to change page, then release Y to confirm the highlighted
-sector. Selecting a command still uses the original server-authored command
+Press Y to open the radial, then RT to change page and A to confirm the
+highlighted sector. Selecting a command still uses the original server-authored command
 string and ordinary validation/targeting logic.
 
 ## Implementation ownership

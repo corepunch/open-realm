@@ -176,6 +176,38 @@ void R_DrawImageBatchEx(drawImageBatchParams_t const *params)
     R_StatsDraw(GL_TRIANGLES, params->vertexCount, 1);
     R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, params->vertexCount);
+    /* The WC3 gamepad radial submits command-button icons through this same
+     * renderer path. Log one real GL submission per second so we can tell
+     * whether a valid client draw reached the GPU with the expected viewport,
+     * texture, shader and scissor state. */
+    if (params->shader == SHADER_COMMANDBUTTON) {
+        static uint32_t last_commandbutton_report_ms;
+        uint32_t const now = SDL_GetTicks();
+        if (now - last_commandbutton_report_ms >= 1000) {
+            GLint viewport[4] = {0}, scissor[4] = {0}, bound_texture = 0,
+                  current_program = 0;
+            GLboolean scissor_enabled = glIsEnabled(GL_SCISSOR_TEST);
+            GLenum const gl_error = glGetError();
+            R_Call(glGetIntegerv, GL_VIEWPORT, viewport);
+            R_Call(glGetIntegerv, GL_SCISSOR_BOX, scissor);
+            R_Call(glGetIntegerv, GL_TEXTURE_BINDING_2D, &bound_texture);
+            R_Call(glGetIntegerv, GL_CURRENT_PROGRAM, &current_program);
+            fprintf(stderr,
+                    "[GAMEPAD_RADIAL_RENDER] submit vertices=%u tex=%p texid=%u texsize=%ux%u shader=%u program=%d viewport=%d,%d,%d,%d drawable=%ux%u scene=%.1f,%.1f,%.1f,%.1f scissor=%d:%d,%d,%d,%d blend=%d error=0x%x\n",
+                    params->vertexCount, (void *)params->texture,
+                    params->texture ? params->texture->texid : 0,
+                    params->texture ? params->texture->width : 0,
+                    params->texture ? params->texture->height : 0,
+                    params->shader, current_program,
+                    viewport[0], viewport[1], viewport[2], viewport[3],
+                    tr.drawableSize.width, tr.drawableSize.height,
+                    R_UISceneRect().x, R_UISceneRect().y,
+                    R_UISceneRect().w, R_UISceneRect().h,
+                    scissor_enabled, scissor[0], scissor[1], scissor[2], scissor[3],
+                    glIsEnabled(GL_BLEND), gl_error);
+            last_commandbutton_report_ms = now;
+        }
+    }
     if (params->hasClip) {
         R_ResetUIScissor();
     }

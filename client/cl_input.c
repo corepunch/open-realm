@@ -287,7 +287,11 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     }
     if (!gamepad.a) return;
     gamepad.a = false;
-    if (SCR_GamepadRadialActive()) return;
+    if (SCR_GamepadRadialActive()) {
+        SCR_GamepadRadialRelease();
+        gamepad.last_a_released = 0;
+        return;
+    }
     SCR_GamepadSelectionCircle(mouse.origin, 0, false);
     if (CL_GamepadModal()) {
         gamepad.last_a_released = 0;
@@ -350,7 +354,7 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
             return;
         }
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
-            if (gamepad.y) return;
+            if (gamepad.y || SCR_GamepadRadialActive()) return;
             vec2_t dest;
             if (SCR_GamepadNavigate(d, mouse.origin, &dest)) {
                 mouse.origin = dest;
@@ -467,9 +471,8 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.y == down) break;
             if (down && gamepad.rt) gamepad.rt_used = true;
             gamepad.y = down;
-            if (down && CL_GameplayInputReady() && cl.selection.num_selected)
+            if (down && !SCR_GamepadRadialActive() && CL_GameplayInputReady() && cl.selection.num_selected)
                 SCR_GamepadRadialOpen();
-            if (!down) SCR_GamepadRadialRelease();
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
             if (gamepad.rb == down) break;
@@ -509,7 +512,7 @@ static void CL_GamepadFrame(float dt) {
     if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
     if (CL_GamepadModal()) {
         float speed = Cvar_Value("cl_gamepad_menu_cursor_speed", 600);
-        if (!gamepad.y && (gamepad.lx || gamepad.ly) && dt > 0.0f) {
+        if (!gamepad.y && !SCR_GamepadRadialActive() && (gamepad.lx || gamepad.ly) && dt > 0.0f) {
             size2_t const win = re.GetWindowSize();
             mouse.origin.x = MIN(win.width - 1.0f, MAX(0.0f, mouse.origin.x + gamepad.lx * dt * speed));
             mouse.origin.y = MIN(win.height - 1.0f, MAX(0.0f, mouse.origin.y + gamepad.ly * dt * speed));
@@ -1236,7 +1239,8 @@ static void CL_ScrollFrame(void) {
     if (cam_east) dx += 1.0f;
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
-    if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y) {
+    if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
+        !SCR_GamepadRadialActive()) {
         dx += gamepad.lx;
         dy -= gamepad.ly; /* SDL positive Y is down; game north is positive Y. */
     }
@@ -1377,7 +1381,7 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
         if (CL_GamepadEvent(&event)) continue;
         /* Y owns the radial-menu interaction. Ignore physical mouse movement
          * until release so it cannot move the cursor beneath the overlay. */
-        if (gamepad.y && event.type == SDL_MOUSEMOTION) continue;
+        if ((gamepad.y || SCR_GamepadRadialActive()) && event.type == SDL_MOUSEMOTION) continue;
         if (loading_input) {
             if (event.type == SDL_FINGERDOWN || event.type == SDL_MOUSEBUTTONDOWN ||
                 (event.type == SDL_KEYDOWN && !event.key.repeat))
