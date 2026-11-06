@@ -199,7 +199,20 @@ static void G_ActivateHeroShortcut(edict_t *clent, edict_t *hero) {
 }
 
 void G_ActivateHeroButton(edict_t *clent, uint32_t number) {
+    gameClient_t *client = clent ? clent->client : NULL;
+
     if (!clent || !clent->client || number >= globals.num_edicts) return;
+    if (client->menu.on_entity_selected) {
+        int32_t const client_index = (int32_t)(client - game.clients);
+        edict_t *hero = &globals.edicts[number];
+
+        if (!G_UnitShowsHeroShortcut(client, hero)) return;
+        /* A target click is not part of the select/double-click sequence. */
+        if (client_index >= 0 && client_index < game.max_clients && client_index < MAX_CLIENTS)
+            hero_shortcut_clicks[client_index] = (heroShortcutClick_t){0};
+        if (client->menu.on_entity_selected(clent, hero)) Get_Commands_f(clent);
+        return;
+    }
     G_ActivateHeroShortcut(clent, &globals.edicts[number]);
 }
 

@@ -22,6 +22,7 @@ static uint32_t shortcut_vital_counts[2];
 static uint32_t shortcut_vital_backdrop_count;
 static int16_t shortcut_hero_y[8];
 static int16_t shortcut_bar_y[2][8];
+static edict_t *shortcut_targeted_hero;
 
 /* Record the actual game-written HUD vital wire contract without a server
  * or renderer mock: snapshots and fog should never be consulted. */
@@ -59,6 +60,14 @@ static int shortcut_test_font(cstring_t name, uint32_t size) {
 }
 
 static void shortcut_test_unicast(edict_t *ent) { (void)ent; }
+
+static bool shortcut_test_entity_target(edict_t *clent, edict_t *target) {
+    T_NOT_NULL(clent);
+    T_NOT_NULL(target);
+    shortcut_targeted_hero = target;
+    if (clent && clent->client) clent->client->menu.on_entity_selected = NULL;
+    return true;
+}
 
 static void shortcut_test_write(pfWriteType_t type, void const *value) {
     uiFrame_t const *frame;
@@ -260,6 +269,45 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
     G_ActivateHeroButton(clent, hero->s.number);
     T_FEQ(client->camera.state.position.x, 80.0f, 0.001f);
     T_FEQ(client->camera.state.position.y, 112.0f, 0.001f);
+}
+
+TEST(wc3_shortcuts, hero_button_targets_visible_hero_during_entity_targeting) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent;
+    edict_t *hero;
+    edict_t *nonhero;
+    char number[16];
+    cstring_t command[] = { "herobutton", number };
+
+    reset_entities();
+    setup_test_world();
+    client->ps.number = 0;
+    clent = &g_edicts[0];
+    clent->client = client;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 320.0f, 448.0f);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    shortcut_targeted_hero = NULL;
+    client->menu.on_entity_selected = shortcut_test_entity_target;
+    snprintf(number, sizeof(number), "%u", (unsigned)hero->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_ASSERT(shortcut_targeted_hero == hero);
+    T_ASSERT(!G_IsEntitySelected(client, hero));
+    T_NULL(client->menu.on_entity_selected);
+    T_FEQ(client->camera.state.position.x, 0.0f, 0.001f);
+    T_FEQ(client->camera.state.position.y, 0.0f, 0.001f);
+
+    nonhero = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 128.0f);
+    nonhero->svflags |= SVF_MONSTER;
+    nonhero->s.player = 0;
+    client->menu.on_entity_selected = shortcut_test_entity_target;
+    snprintf(number, sizeof(number), "%u", (unsigned)nonhero->s.number);
+    G_ClientCommand(clent, 2, command);
+    T_ASSERT(shortcut_targeted_hero == hero);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_ASSERT(!G_IsEntitySelected(client, nonhero));
 }
 
 TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
