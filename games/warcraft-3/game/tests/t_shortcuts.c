@@ -28,8 +28,12 @@ static edict_t *shortcut_targeted_hero;
  * or renderer mock: snapshots and fog should never be consulted. */
 static int32_t shortcut_wire[128];
 static uint32_t shortcut_wire_count, shortcut_wire_packets;
+static bool shortcut_capture_vitals_only, shortcut_vital_capture_active;
+static uint8_t shortcut_simulated_vital_hp;
+static uint32_t shortcut_simulated_vital_entity;
 static handle_t (*shortcut_original_memalloc)(long size);
 static bool shortcut_fail_vital_alloc;
+bool run_test_jass(cstring_t src);
 static handle_t shortcut_test_memalloc(long size) {
     if (shortcut_fail_vital_alloc && size == (long)sizeof(unitShortcutVital_t)) {
         shortcut_fail_vital_alloc = false;
@@ -39,13 +43,38 @@ static handle_t shortcut_test_memalloc(long size) {
 }
 
 static void shortcut_vital_write(pfWriteType_t type, void const *value) {
+    int32_t written = 0;
+    if (value && (type == PF_BYTE || type == PF_SHORT)) written = *(int32_t const *)value;
+    if (shortcut_capture_vitals_only) {
+        if (type != PF_BYTE && type != PF_SHORT) return;
+        if (type == PF_BYTE && written == svc_ui_entity_stats) {
+            shortcut_vital_capture_active = true;
+            shortcut_wire_count = 0;
+        }
+        if (!shortcut_vital_capture_active) return;
+    }
     T_ASSERT(type == PF_BYTE || type == PF_SHORT);
     T_ASSERT(shortcut_wire_count < 128);
-    if (shortcut_wire_count < 128) shortcut_wire[shortcut_wire_count++] = *(int32_t const *)value;
+    if (shortcut_wire_count < 128) shortcut_wire[shortcut_wire_count++] = written;
 }
 static void shortcut_vital_unicast(edict_t *ent) {
     T_NOT_NULL(ent);
     shortcut_wire_packets++;
+}
+
+/* Model the recipient dropping the first datagram and applying the later
+ * sweep band to its HUD mirror. */
+static void shortcut_vital_loss_unicast(edict_t *ent) {
+    T_NOT_NULL(ent);
+    if (!shortcut_vital_capture_active) return;
+    shortcut_wire_packets++;
+    T_EQ(shortcut_wire[0], svc_ui_entity_stats);
+    T_EQ(shortcut_wire_count, 3u + (uint32_t)shortcut_wire[2] * 4u);
+    if (shortcut_wire_packets > 1 && shortcut_wire_count >= 7 &&
+        (uint32_t)shortcut_wire[3] == shortcut_simulated_vital_entity) {
+        shortcut_simulated_vital_hp = (uint8_t)shortcut_wire[4];
+    }
+    shortcut_vital_capture_active = false;
 }
 
 static int shortcut_test_image(cstring_t name) {
@@ -615,7 +644,10 @@ TEST(wc3_shortcuts, hero_vital_sweep_recovers_a_dropped_changed_update) {
     edict_t *clent, *hero;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
+    bool const old_started = level.started, old_scripts_started = level.scriptsStarted;
+    uint32_t const old_time = level.time;
     UnitProfile_t profile = { .art = "TestUI\\Textures\\solid_white.blp" };
+    uint8_t old_hp;
 
     reset_entities(); setup_test_world();
     client->ps.number = 0;
@@ -635,18 +667,35 @@ TEST(wc3_shortcuts, hero_vital_sweep_recovers_a_dropped_changed_update) {
         .hp = compress_stat(&hero->health), .mana = compress_stat(&hero->mana),
         .has_mana = 0,
     };
+    client->shortcuts.dirty = false;
+    old_hp = client->shortcuts.vitals[0].hp;
 
     gi.Write = shortcut_vital_write;
-    gi.unicast = shortcut_vital_unicast;
+    gi.unicast = shortcut_vital_loss_unicast;
     shortcut_wire_count = shortcut_wire_packets = 0;
+    shortcut_capture_vitals_only = true;
+    shortcut_vital_capture_active = false;
+    shortcut_simulated_vital_entity = hero->s.number;
+    shortcut_simulated_vital_hp = client->shortcuts.vitals[0].hp;
     hero->health.value *= 0.5f;
-    G_UpdateClientUnitShortcuts();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsStarted = true;
+    level.time = 1000;
+    level.time += FRAMETIME;
+    globals.RunFrame();
     T_EQ(shortcut_wire_packets, 1); /* This changed packet is treated as lost. */
-    T_EQ(shortcut_wire[4], compress_stat(&hero->health));
-    FOR_LOOP(i, 9) G_UpdateClientUnitShortcuts();
+    T_EQ(shortcut_simulated_vital_hp, old_hp);
+    FOR_LOOP(i, 9) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+    }
     T_EQ(shortcut_wire_packets, 2);
-    T_EQ(shortcut_wire[11], compress_stat(&hero->health));
+    T_EQ(shortcut_simulated_vital_hp, compress_stat(&hero->health));
 
+    level.started = old_started;
+    level.scriptsStarted = old_scripts_started;
+    level.time = old_time;
+    shortcut_capture_vitals_only = false;
     gi.Write = old_write;
     gi.unicast = old_unicast;
     G_ClearUnitShortcutVitals(client);
