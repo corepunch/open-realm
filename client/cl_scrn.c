@@ -301,10 +301,12 @@ static cstring_t active_tooltip = NULL;
  * draw. The client does not invent abilities, prices, or enabled state. */
 typedef struct {
     uiFrame_t frame;
+    uiFrame_t autocast_sparkle;
     char command[CMDARG_LEN * 2];
     uiCommandButton_t command_state;
     float authored_icon_px;
-    bool active_glow, present;
+    uint32_t sparkle_layer;
+    bool active_glow, present, sparkle_present;
 } gamepadRadialItem_t;
 /* Keep the exact WC3 tooltip presenter (backdrop, font, wrapping) associated
  * with the command bar so radial focus can render the same authored tooltip. */
@@ -358,6 +360,14 @@ void SCR_GamepadRadialSetAxis(float x, float y) {
     if (angle < 0) angle += 2.0f * (float)M_PI;
     gamepad_radial_sector = ((int)floorf(angle * GAMEPAD_RADIAL_SLOTS /
                          (2.0f * (float)M_PI) + 0.5f)) % GAMEPAD_RADIAL_SLOTS;
+}
+
+static bool SCR_GamepadRadialOwnsSparkle(uint32_t frame_number) {
+    FOR_LOOP(page, GAMEPAD_RADIAL_PAGES) FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS) {
+        gamepadRadialItem_t const *item = &gamepad_radial[page][slot];
+        if (item->sparkle_present && item->autocast_sparkle.number == frame_number) return true;
+    }
+    return false;
 }
 void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible) {
     gamepad_selection_center = center;
@@ -1183,7 +1193,8 @@ void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen) {
     re.DrawImage(SCR_LayoutPic(frame->tex.index), &fill, &suv, frame->color);
 }
 
-void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
+static void SCR_LayoutDrawSpriteWithScope(uiFrame_t const *frame, rect_t const *screen,
+                                         void const *scope) {
     model_t const *model = cl.models[frame->tex.index];
     cstring_t anim = (frame->text && *frame->text) ? frame->text : "Stand";
     char sequence_anim[96];
@@ -1222,7 +1233,13 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
         anim = phased_anim;
     }
     re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y,
-        .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
+        .id = frame, .scope = scope));
+}
+
+void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
+    if (gamepad_radial_open && frame && SCR_GamepadRadialOwnsSparkle(frame->number)) return;
+    SCR_LayoutDrawSpriteWithScope(frame, screen,
+        layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1));
 }
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
@@ -1898,6 +1915,14 @@ static void SCR_GamepadRadialDraw(void) {
             .shader = SHADER_COMMANDBUTTON,
             .uActiveGlow = entry->active_glow,
             .uRadialShade = SCR_CommandButtonRadialShade(&entry->frame)));
+        if (entry->sparkle_present) {
+            rect_t sparkle_screen = ui_image;
+            /* The authored sprite is anchored to the command button's top
+             * edge; the radial icon needs the same anchor one icon lower. */
+            sparkle_screen.y += ui_image.h;
+            SCR_LayoutDrawSpriteWithScope(&entry->autocast_sparkle, &sparkle_screen,
+                (void const *)(uintptr_t)(entry->sparkle_layer + 1));
+        }
         drawn++;
         if (report_draws)
             fprintf(stderr, "[GAMEPAD_RADIAL] draw page=%u sector=%u frame=%u image=%u texture=%p pixel_rect=%.1f,%.1f,%.1f,%.1f ui_rect=%.4f,%.4f,%.4f,%.4f uv=%.3f,%.3f,%.3f,%.3f glow=%d command=\"%s\"\n",
@@ -1958,6 +1983,18 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     SCR_BeginSelectedEntityDraw();
     layout_current = layout;
     FOR_LOOP(i, SCR_NumFrames()) SCR_GamepadCaptureFrame(SCR_Frame(i));
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *frame = SCR_Frame(i);
+        if (!frame || frame->flags.type != FT_SPRITE || !(frame->flagsvalue & UIFLAG_SPRITE_OVERLAY))
+            continue;
+        FOR_LOOP(page, GAMEPAD_RADIAL_PAGES) FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS) {
+            gamepadRadialItem_t *item = &gamepad_radial[page][slot];
+            if (!item->present || item->frame.number != frame->parent) continue;
+            item->autocast_sparkle = *frame;
+            item->sparkle_layer = layout_current_layer;
+            item->sparkle_present = true;
+        }
+    }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
