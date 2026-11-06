@@ -302,8 +302,18 @@ typedef struct {
     uiFrame_t frame;
     char command[CMDARG_LEN * 2];
     uiCommandButton_t command_state;
-    bool present;
+    float authored_icon_px;
+    bool active_glow, present;
 } gamepadRadialItem_t;
+/* Keep the exact WC3 tooltip presenter (backdrop, font, wrapping) associated
+ * with the command bar so radial focus can render the same authored tooltip. */
+typedef struct {
+    uiFrame_t frame;
+    uiTooltip_t payload;
+    rect_t rect;
+    bool present;
+} gamepadRadialTooltip_t;
+static gamepadRadialTooltip_t gamepad_radial_tooltip;
 static gamepadRadialItem_t gamepad_radial[GAMEPAD_RADIAL_PAGES][GAMEPAD_RADIAL_SLOTS];
 static struct { vec2_t center; bool modal; } gamepad_nav[GAMEPAD_NAV_MAX];
 static uint32_t gamepad_nav_count;
@@ -315,6 +325,7 @@ static float gamepad_selection_radius;
 void SCR_GamepadBeginUIFrame(void) {
     gamepad_nav_count = 0;
     memset(gamepad_radial, 0, sizeof(gamepad_radial));
+    memset(&gamepad_radial_tooltip, 0, sizeof(gamepad_radial_tooltip));
 }
 void SCR_GamepadRadialOpen(void) {
     gamepad_radial_open = true;
@@ -1544,8 +1555,30 @@ void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen) {
     }
 }
 
+/* Same renderer for ordinary mouse hover and focused radial-menu commands.
+ * The tooltip's image/font/layout still originate from WC3's authored frame. */
+static void SCR_DrawAuthoredTooltip(uiFrame_t const *frame, rect_t const *scrn, cstring_t tooltip) {
+    if (!tooltip || !*tooltip || !frame || !frame->buffer.data ||
+        frame->buffer.size < sizeof(uiTooltip_t)) return;
+    uiTooltip_t const *tt = frame->buffer.data;
+    float const PAD = 0.005f;
+    rect_t screen = *scrn;
+    drawText_t dt = SCR_GetDrawText(frame, screen.w - PAD*2, tooltip, &tt->text);
+    dt.flags |= DRAW_WORD_WRAP;
+    vec2_t tsz = re.GetTextSize(&dt);
+    tsz.y    += PAD * 2;
+    screen.y += screen.h - tsz.y;
+    screen.h  = tsz.y;
+    rect_t text = Rect_inset(&screen, PAD);
+    SCR_LayoutDrawBackdrop(frame, &screen);
+    dt = SCR_GetDrawText(frame, text.w, tooltip, &tt->text);
+    dt.rect = text;
+    dt.flags |= DRAW_WORD_WRAP;
+    re.DrawText(&dt);
+}
+
 void SCR_LayoutDrawTooltip(uiFrame_t const *frame, rect_t const *scrn) {
-    if (!active_tooltip) return;
+    if (!active_tooltip || gamepad_radial_open) return;
     /* Several HUD layers may carry the shared tooltip presentation frame.
      * Draw it only in the layer/window that owns the hovered source frame so a
      * passive resource tooltip is not overdrawn again by command-card layers. */
@@ -1554,21 +1587,7 @@ void SCR_LayoutDrawTooltip(uiFrame_t const *frame, rect_t const *scrn) {
     } else if (layout_current_window || layout_current_layer != layout_hovered_layer) {
         return;
     }
-    uiTooltip_t const *tt = frame->buffer.data;
-    float const PAD = 0.005f;
-    rect_t screen = *scrn;
-    drawText_t dt = SCR_GetDrawText(frame, screen.w - PAD*2, active_tooltip, &tt->text);
-    dt.flags |= DRAW_WORD_WRAP;
-    vec2_t tsz = re.GetTextSize(&dt);
-    tsz.y    += PAD * 2;
-    screen.y += screen.h - tsz.y;
-    screen.h  = tsz.y;
-    rect_t text  = Rect_inset(&screen, PAD);
-    SCR_LayoutDrawBackdrop(frame, &screen);
-    dt = SCR_GetDrawText(frame, text.w, active_tooltip, &tt->text);
-    dt.rect   = text;
-    dt.flags |= DRAW_WORD_WRAP;
-    re.DrawText(&dt);
+    SCR_DrawAuthoredTooltip(frame, scrn, active_tooltip);
 }
 
 typedef struct { FRAMETYPE type; void (*func)(uiFrame_t const *, rect_t const *); } drawer_t;
@@ -1658,6 +1677,17 @@ static void SCR_GamepadDrawOverlay(void) {
  * 4x3 command grid is mapped to the requested ten-clock layout, while build
  * submenu buttons use ordinary clockwise order and overflow onto RT pages. */
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
+    if (!frame) return;
+    if (frame->flags.type == FT_TOOLTIPTEXT && !layout_current_window &&
+        layout_current_layer == LAYER_COMMANDBAR && frame->buffer.data &&
+        frame->buffer.size >= sizeof(uiTooltip_t) && SCR_LayoutRect(frame)) {
+        gamepad_radial_tooltip.frame = *frame;
+        memcpy(&gamepad_radial_tooltip.payload, frame->buffer.data, sizeof(uiTooltip_t));
+        gamepad_radial_tooltip.frame.buffer.data = &gamepad_radial_tooltip.payload;
+        gamepad_radial_tooltip.frame.buffer.size = sizeof(uiTooltip_t);
+        gamepad_radial_tooltip.rect = *SCR_LayoutRect(frame);
+        gamepad_radial_tooltip.present = true;
+    }
     if (!SCR_LayoutFrameHasClickCommand(frame)) return;
     rect_t const *rect = SCR_LayoutRect(frame);
     if (!rect || rect->w < 2 || rect->h < 2) return;
@@ -1698,6 +1728,10 @@ static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     if (page >= GAMEPAD_RADIAL_PAGES || gamepad_radial[page][sector].present) return;
     gamepadRadialItem_t *item = &gamepad_radial[page][sector];
     item->frame = *frame;
+    item->authored_icon_px = MIN(rect->w, rect->h);
+    entityState_t const *sel = SCR_LayoutSelectedEntity();
+    item->active_glow = (frame->flagsvalue & (UIFLAG_ALTERNATE_ACTIVE | UIFLAG_ABILITY_ENGAGED)) != 0 ||
+                        (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat);
     strlcpy(item->command, command, sizeof(item->command));
     item->frame.onclick = item->command;
     item->frame.buffer.data = NULL;
@@ -1710,7 +1744,7 @@ static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
         memcpy(&item->command_state, frame->buffer.data, sizeof(item->command_state));
         item->frame.buffer.size = sizeof(item->command_state);
     }
-    item->frame.flagsvalue &= ~UIFLAG_RADIAL_SHADE;
+    /* Preserve the real command button's cooldown and highlight data. */
     item->present = true;
 }
 
@@ -1728,41 +1762,88 @@ void SCR_GamepadRadialRelease(void) {
     SCR_GamepadRadialCancel();
 }
 
+/* Fit a complete command-button texture inside each 36-degree sector. The
+ * circumference between adjacent icon centres must exceed the icon width;
+ * unlike the old 118px ring, this menu is sized from the authored HUD icons. */
 static void SCR_GamepadRadialDraw(void) {
-    if (!gamepad_radial_open || !re.DrawSelectionCircle) return;
-    size2_t window = re.GetWindowSize();
-    float const scale = MIN(1.0f, MIN(window.width / 800.0f, window.height / 600.0f));
-    float const radius = 118.0f * scale;
-    vec2_t const center = { window.width - radius - 42.0f * scale,
-                            window.height - radius - 70.0f * scale };
-    int page = gamepad_radial_page;
-    if (page >= GAMEPAD_RADIAL_PAGES) return;
-    re.DrawSelectionCircle(center, radius, MAKE(color32_t, 255, 235, 155, 180));
-    if (re.DrawRadialSpokes)
-        re.DrawRadialSpokes(center, radius, MAKE(color32_t, 255, 235, 155, 100));
+    if (!gamepad_radial_open || !re.DrawFill || !re.DrawImageEx) return;
+    size2_t const window = re.GetWindowSize();
+    int const page = gamepad_radial_page;
+    if (window.width <= 0 || window.height <= 0 || page >= GAMEPAD_RADIAL_PAGES) return;
+
+    float const scale = MIN(window.width / 1280.0f, window.height / 800.0f);
+    float icon = 56.0f * scale;
     FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS) {
-        float angle = (float)slot * (2.0f * (float)M_PI / GAMEPAD_RADIAL_SLOTS);
-        float const icon = 36.0f * scale;
-        vec2_t p = { center.x + radius * 0.74f * sinf(angle), center.y - radius * 0.74f * cosf(angle) };
+        gamepadRadialItem_t const *entry = &gamepad_radial[page][slot];
+        if (entry->present) icon = MAX(icon, entry->authored_icon_px);
+    }
+    icon = MAX(22.0f, MIN(icon, MIN(window.width * 0.11f, window.height * 0.13f)));
+    float const padding = MAX(4.0f, 8.0f * scale);
+    float radius = 3.45f * icon;
+    radius = MIN(radius, MIN(window.width * 0.5f - padding * 2.0f,
+                             window.height * 0.5f - padding * 2.0f));
+    if (radius <= 0) return;
+    /* If the window is tiny, shrink the icons along with the ring rather than
+     * let the 10 sectors overlap or escape the black background. */
+    icon = MIN(icon, radius / 3.45f);
+    float const orbit = radius * 0.73f;
+    vec2_t const center = { window.width - radius - padding,
+                            window.height - radius - padding };
+    rect_t const background = { center.x - radius - padding, center.y - radius - padding,
+                                window.width - (center.x - radius - padding),
+                                window.height - (center.y - radius - padding) };
+    /* Opaque background hides the original bottom-right command card. Drawing
+     * it before the spokes/icons means their clickable presentation stays clear. */
+    re.DrawFill(&background, MAKE(color32_t, 0, 0, 0, 255));
+    if (re.DrawSelectionCircle)
+        re.DrawSelectionCircle(center, radius, MAKE(color32_t, 255, 235, 155, 210));
+    if (re.DrawRadialSpokes)
+        re.DrawRadialSpokes(center, radius, MAKE(color32_t, 255, 235, 155, 125));
+
+    FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS) {
+        float const angle = (float)slot * (2.0f * (float)M_PI / GAMEPAD_RADIAL_SLOTS);
+        vec2_t const p = { center.x + orbit * sinf(angle), center.y - orbit * cosf(angle) };
         rect_t const image = { p.x - icon * 0.5f, p.y - icon * 0.5f, icon, icon };
         gamepadRadialItem_t const *entry = &gamepad_radial[page][slot];
-        if (slot == (uint32_t)gamepad_radial_sector)
-            re.DrawSelectionCircle(p, icon * 0.70f, MAKE(color32_t, 255, 255, 255, 255));
+        if ((int)slot == gamepad_radial_sector) {
+            rect_t const focus = Rect_inset(&image, -5.0f * scale);
+            re.DrawFill(&focus, MAKE(color32_t, 130, 115, 65, 210));
+        }
         if (!entry->present || entry->frame.tex.index >= MAX_IMAGES ||
             !cl.pics[entry->frame.tex.index]) continue;
-        re.DrawImage(cl.pics[entry->frame.tex.index], &image,
-                     &(rect_t){ 0,0,1,1 }, COLOR32_WHITE);
-        if (entry->frame.flagsvalue & UIFLAG_RADIAL_SHADE) {
-            float const progress = SCR_CommandButtonRadialShade(&entry->frame);
-            if (progress > 0.0f && re.DrawFill) {
-                rect_t shade = { image.x, image.y, image.w, image.h * progress };
-                re.DrawFill(&shade, MAKE(color32_t, 0, 0, 0, 150));
-            }
-        }
+        /* Match the command card's real texture coordinates, tint, active glow,
+         * and cooldown shader, instead of drawing a generic full-UV picture. */
+        rect_t const authored_uv = get_uvrect(entry->frame.tex.coord);
+        rect_t const uv = Rect_div(&authored_uv, 0xff);
+        re.DrawImageEx(&MAKE(drawImage_t,
+            .texture = cl.pics[entry->frame.tex.index],
+            .screen = image,
+            .uv = uv,
+            .color = SCR_CommandButtonColor(&entry->frame),
+            .shader = SHADER_COMMANDBUTTON,
+            .uActiveGlow = entry->active_glow,
+            .uRadialShade = SCR_CommandButtonRadialShade(&entry->frame)));
     }
     char page_text[32];
     snprintf(page_text, sizeof(page_text), "Commands %d", page + 1);
-    re.DrawString((int)(center.x - 48 * scale), (int)center.y, page_text);
+    re.DrawString((int)(center.x - 48.0f * scale), (int)center.y, page_text);
+
+    /* Left-stick sector focus is equivalent to hovering the underlying WC3
+     * command button. Resolve its real authored tooltip (including dynamic
+     * substitutions), and paint it with the same tooltip frame/font/backdrop
+     * as mouse hovering. Keep it outside the black command surface. */
+    if (gamepad_radial_sector >= 0 && gamepad_radial_sector < GAMEPAD_RADIAL_SLOTS &&
+        gamepad_radial_tooltip.present) {
+        gamepadRadialItem_t const *entry = &gamepad_radial[page][gamepad_radial_sector];
+        cstring_t tooltip = entry->present ? SCR_GetTooltipText(&entry->frame) : NULL;
+        if (tooltip && *tooltip) {
+            rect_t tip = gamepad_radial_tooltip.rect;
+            tip.w = MIN(tip.w, MAX(100.0f, background.x - 24.0f));
+            tip.x = MAX(8.0f, background.x - tip.w - 12.0f);
+            tip.y = MAX(8.0f, MIN(window.height - tip.h - 8.0f, center.y - tip.h * 0.5f));
+            SCR_DrawAuthoredTooltip(&gamepad_radial_tooltip.frame, &tip, tooltip);
+        }
+    }
 }
 
 static void SCR_LayoutRunFrames(handle_t layout, void (*fn)(uiFrame_t const *)) {
