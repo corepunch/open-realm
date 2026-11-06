@@ -1469,7 +1469,7 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
     memset(client->tech, 0, sizeof(client->tech));
 
-    FOR_LOOP(i, ARRAY_COUNT(units)) {
+    FOR_LOOP(i, 4) {
         units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), positions[i].x, positions[i].y);
         units[i]->s.player = client->ps.number;
         units[i]->svflags |= SVF_MONSTER;
@@ -1485,7 +1485,7 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
     G_GetResearch(building)->progress = G_GetResearch(building)->duration;
     G_RunBuildingUpgradeFrame(building);
     T_EQ(building->class_id, target_id);
-    FOR_LOOP(i, ARRAY_COUNT(units)) {
+    FOR_LOOP(i, 4) {
         T_ASSERT(CM_DistanceToPathingFootprint(building, &units[i]->s.origin2) >= units[i]->collision);
         FOR_LOOP(j, i) {
             T_ASSERT(Vector2_distance(&units[i]->s.origin2, &units[j]->s.origin2) >=
