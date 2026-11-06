@@ -8,6 +8,7 @@ void attack_ranged(edict_t *self);
 void whirlwind_think(edict_t *ent);
 void morph_end(edict_t *thinker);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 static cstring_t spell_tft_expansion_cvar(cstring_t name, cstring_t fallback);
 
 uint32_t S_TestHeroAuraAliasResolves(void);
@@ -6451,6 +6452,10 @@ TEST(wc3_spell, force_of_nature_consumes_required_area_trees_for_treants) {
 
 	reset_entities();
 	setup_test_world();
+	/* The rank fixtures are spaced across a large coordinate range. Include all
+	 * of them in the synthetic pathmap so Treants can legally spawn at trees. */
+	CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -8192.0f, -8192.0f },
+	                              .max = { 8192.0f, 8192.0f }));
 	ability_rows = parse_slk_string(ability_slk); old_ability = G_SetSLKRows("AbilityData", ability_rows);
 	ui_rows = parse_slk_string(unit_ui_slk); old_ui = G_SetSLKRows("UnitUI", ui_rows);
 	data_rows = parse_slk_string(unit_data_slk); old_data = G_SetSLKRows("UnitData", data_rows);

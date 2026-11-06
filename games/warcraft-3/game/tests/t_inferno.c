@@ -18,6 +18,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
@@ -129,6 +130,10 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     bool accepted, saved;
 
     inferno_setup(&fix, code);
+    /* This round-trip deliberately approaches a distant point; keep it within
+     * the synthetic pathmap so the spawned Infernal has legal ground there. */
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
     caster_slot = (uint32_t)(fix.caster - g_edicts);
     fix.caster->think = monster_think; fix.caster->movetype = MOVETYPE_STEP;
     fix.caster->collision = 16.0f; fix.caster->unitinfo.MoveSpeed = 300.0f;
