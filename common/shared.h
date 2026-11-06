@@ -234,6 +234,7 @@ enum {
     FLAG(EF_MDX_EMISSION_PAUSED, 19), /* suppress new MDX particles while authored entity animation is held */
     FLAG(EF_MDX_ANIMATION_PAUSED, 20), /* hold MDX global-sequence tracks while authored entity animation is held */
     FLAG(EF_NAMED_ATTACHMENT, 21), /* entity uses name/hover payload for parent and attachment socket */
+    FLAG(EF_GATHERING, 22), /* WC3 unit currently has an active resource-gather order */
 };
 
 enum {

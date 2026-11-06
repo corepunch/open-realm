@@ -45,8 +45,10 @@ The option does **not** modify the OS/SDL button mapping database.
 | Left stick while radial is open | Choose a radial-menu sector |
 | RT while radial is open | Advance to the next populated radial page |
 | Select / Back | Escape (cancel the current command or close the active menu) |
-| RB | Select units in the current camera viewport |
+| RB, tap | Select visible on-screen units except units currently gathering resources |
+| RB, double-tap | Select all visible units on-screen, including gatherers |
 | RT (tap and release) | Cycle the focused unit subgroup, like Tab (not when used with another control) |
+| LT (tap and release) | Cycle the focused unit subgroup backward |
 | D-pad up | Set global rally for controllable unit-producing buildings at cursor world position |
 | D-pad left | Jump camera through owned/controlled town halls; highest upgrade tier first, then oldest instance |
 | D-pad down | Jump through nearby clusters of *currently attacking* controllable units |
@@ -94,7 +96,9 @@ In a modal menu, left stick moves the mouse cursor instead of the camera. D-pad
 moves to the nearest clickable server-authored button in that direction; native
 client menus fall back to their keyboard arrow navigation. A clicks, B cancels.
 The radial menu remains open after Y is released. A activates the focused
-command and closes it; B closes it without issuing the command. Hold-to-confirm
+command and closes it; B closes it without issuing the command. Pressing Y
+while the radial is open closes it without issuing the focused command.
+Hold-to-confirm
 is enabled by default through the archived `cl_gamepad_radial_hold_confirm`
 cvar. Holding Y opens the menu after 250 ms, and releasing Y activates the
 focused command. Set the cvar to `0` to use only tap-to-open and A-to-confirm.

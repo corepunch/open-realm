@@ -38,11 +38,12 @@ static struct {
  * without depending on OS-specific button names or GUID databases. */
 typedef struct {
     SDL_GameController *controller;
-    bool a, b, x, y, y_radial_hold, rt, rt_used, lt, lb, rb, start, paint;
+    bool a, b, x, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
+         lb, rb, rb_used, start, paint;
     bool left_stick_neutral_required;
     bool down_dpad[4];
     uint32_t dpad_pressed[4];
-    uint32_t a_pressed, y_pressed, last_a_released, last_b_released;
+    uint32_t a_pressed, y_pressed, last_a_released, last_b_released, last_rb_released;
     float lx, ly, rx, ry, zoom_accumulator;
     uint32_t painted[CL_SELECTION_CANDIDATE_LIMIT];
     uint32_t painted_count;
@@ -61,9 +62,12 @@ static void CL_GamepadReset(void) {
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.y = gamepad.paint = false;
     gamepad.y_radial_hold = false;
+    gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
-    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
+    gamepad.rb = gamepad.rb_used = false;
+    gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
     SCR_GamepadRadialCancel();
@@ -76,9 +80,12 @@ static void CL_GamepadResetHeld(void) {
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.paint = false;
     gamepad.y_radial_hold = false;
+    gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
-    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
+    gamepad.rb = gamepad.rb_used = false;
+    gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
     SCR_GamepadSelectionCircle(mouse.origin, 0, false);
@@ -181,14 +188,27 @@ static void CL_GamepadSelectChange(uint32_t const *ids, uint32_t count, int mode
     CL_ApplySelectionCandidates(result, n);
 }
 
-static void CL_GamepadSelectVisible(void) {
+static void CL_GamepadSelectVisible(bool include_gatherers) {
     uint32_t visible[MAX_CLIENT_ENTITIES];
+    uint32_t selected[MAX_CLIENT_ENTITIES];
     size2_t const win = re.GetWindowSize();
     rect_t const view = { cl.viewDef.viewport.x * win.width,
         (1.0f - cl.viewDef.viewport.y - cl.viewDef.viewport.h) * win.height,
         cl.viewDef.viewport.w * win.width, cl.viewDef.viewport.h * win.height };
     uint32_t n = re.EntitiesInRect(&cl.viewDef, &view, sizeof(visible) / sizeof(visible[0]), visible);
-    CL_ApplySelectionCandidates(visible, n);
+    if (include_gatherers) {
+        CL_ApplySelectionCandidates(visible, n);
+        return;
+    }
+    uint32_t selected_count = 0;
+    FOR_LOOP(i, n) {
+        uint32_t const id = visible[i];
+        if (!id || id >= MAX_CLIENT_ENTITIES) continue;
+        entityState_t const *state = &cl.ents[id].current;
+        if (!(state->flags & EF_UNIT) || (state->flags & (EF_BUILDING | EF_GATHERING))) continue;
+        selected[selected_count++] = id;
+    }
+    CL_ApplySelectionCandidates(selected, selected_count);
 }
 
 static void CL_GamepadQuickAction(int direction) {
@@ -431,8 +451,16 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             case SDL_CONTROLLER_AXIS_RIGHTX: gamepad.rx = axis; break;
             case SDL_CONTROLLER_AXIS_RIGHTY: gamepad.ry = axis; break;
             case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
-                if (axis > 0.5f && !gamepad.lt && gamepad.start)
-                    CL_GamepadOpenMenu("allies");
+                if (axis > 0.5f && !gamepad.lt) {
+                    gamepad.lt_used = gamepad.start || gamepad.rt || gamepad.y || SCR_GamepadRadialActive();
+                    if (gamepad.start) CL_GamepadOpenMenu("allies");
+                    if (gamepad.rt) gamepad.rt_used = true;
+                }
+                if (axis <= 0.5f && gamepad.lt) {
+                    if (!gamepad.lt_used && CL_GameplayInputReady())
+                        CL_GamepadSendCommand("cyclesubgroupback");
+                    gamepad.lt_used = false;
+                }
                 gamepad.lt = axis > 0.5f;
                 break;
             case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
@@ -461,6 +489,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
     if (button != SDL_CONTROLLER_BUTTON_DPAD_UP && button != SDL_CONTROLLER_BUTTON_DPAD_DOWN &&
         button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
         button = CL_GamepadFace(button);
+    if (down && gamepad.lt) gamepad.lt_used = true;
     if (down) CL_GamepadCenterCursor();
     if (button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
         button == SDL_CONTROLLER_BUTTON_DPAD_LEFT || button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) {
@@ -487,7 +516,18 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (down) {
                 gamepad.y_pressed = event->cbutton.timestamp;
                 gamepad.y_radial_hold = false;
+                gamepad.y_radial_closed = SCR_GamepadRadialActive();
+                if (gamepad.y_radial_closed) {
+                    gamepad.left_stick_neutral_required = gamepad.lx != 0.0f || gamepad.ly != 0.0f;
+                    gamepad.y_radial_hold = true;
+                    SCR_GamepadRadialCancel();
+                }
             } else {
+                if (gamepad.y_radial_closed) {
+                    gamepad.y_radial_closed = false;
+                    gamepad.y_radial_hold = false;
+                    break;
+                }
                 bool const held = Cvar_Integer("cl_gamepad_radial_hold_confirm", 1) &&
                     (gamepad.y_radial_hold ||
                      event->cbutton.timestamp - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS);
@@ -503,13 +543,29 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     SCR_GamepadRadialOpen();
                 }
                 gamepad.y_radial_hold = false;
+                gamepad.y_radial_closed = false;
             }
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
             if (gamepad.rb == down) break;
             gamepad.rb = down;
-            if (down && gamepad.start) CL_GamepadOpenMenu("menu");
-            else if (down && !gamepad.start && CL_GameplayInputReady()) CL_GamepadSelectVisible();
+            if (down) {
+                gamepad.rb_used = gamepad.start;
+                if (gamepad.start) CL_GamepadOpenMenu("menu");
+            } else {
+                if (!gamepad.rb_used && !gamepad.start && CL_GameplayInputReady()) {
+                    uint32_t const double_ms = (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350));
+                    if (gamepad.last_rb_released &&
+                        event->cbutton.timestamp - gamepad.last_rb_released <= double_ms) {
+                        CL_GamepadSelectVisible(true);
+                        gamepad.last_rb_released = 0;
+                    } else {
+                        CL_GamepadSelectVisible(false);
+                        gamepad.last_rb_released = event->cbutton.timestamp;
+                    }
+                }
+                gamepad.rb_used = false;
+            }
             break;
         case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
             if (gamepad.lb == down) break;
@@ -524,6 +580,8 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.start == down) break;
             gamepad.start = down;
             if (down && gamepad.rt) gamepad.rt_used = true;
+            if (down && gamepad.lt) gamepad.lt_used = true;
+            if (down && gamepad.rb) gamepad.rb_used = true;
             break;
         case SDL_CONTROLLER_BUTTON_GUIDE: break;
         default: break;

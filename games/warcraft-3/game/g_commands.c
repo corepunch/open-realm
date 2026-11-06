@@ -295,6 +295,37 @@ bool G_CycleSelectionSubgroup(gameClient_t *client) {
     return G_FocusSelectedUnit(client, ordered[next_index]);
 }
 
+bool G_CycleSelectionSubgroupBackward(gameClient_t *client) {
+    edict_t *ordered[WC3_SELECTION_MAX];
+    edict_t *main;
+    uint32_t count;
+    uint32_t main_index = 0;
+    uint32_t previous_index, first_index;
+
+    if (!client) return false;
+    count = G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX);
+    if (count < 2) return false;
+
+    main = G_GetMainSelectedUnit(client);
+    if (!main) return false;
+    while (main_index < count && ordered[main_index] != main) main_index++;
+    if (main_index >= count) main_index = 0;
+
+    previous_index = main_index ? main_index - 1 : count - 1;
+    while (previous_index != main_index &&
+           ordered[previous_index]->class_id == ordered[main_index]->class_id)
+        previous_index = previous_index ? previous_index - 1 : count - 1;
+    if (ordered[previous_index]->class_id == ordered[main_index]->class_id) return false;
+
+    /* Focus the first selected unit of the preceding subgroup, matching the
+     * forward-cycle command's representative selection behavior. */
+    first_index = previous_index;
+    while (first_index > 0 &&
+           ordered[first_index - 1]->class_id == ordered[previous_index]->class_id)
+        first_index--;
+    return G_FocusSelectedUnit(client, ordered[first_index]);
+}
+
 void G_ResetSelectionFocus(gameClient_t *client) {
     uint32_t *focus = G_SelectionFocusSlot(client);
     if (focus) *focus = 0;
@@ -982,6 +1013,16 @@ CLIENTCOMMAND(CycleSubgroup) {
 
     /* Match portrait-click focus changes: selection membership is unchanged,
      * but every focused-subgroup presentation consumer must move together. */
+    Get_Portrait_f(clent);
+    Get_Commands_f(clent);
+    G_PlayUISoundForPlayer(clent, "SubGroupSelectionChange");
+}
+
+CLIENTCOMMAND(CycleSubgroupBack) {
+    gameClient_t *client = clent ? clent->client : NULL;
+
+    if (!client || G_TargetModeActive(client)) return;
+    if (!G_CycleSelectionSubgroupBackward(client)) return;
     Get_Portrait_f(clent);
     Get_Commands_f(clent);
     G_PlayUISoundForPlayer(clent, "SubGroupSelectionChange");
@@ -3352,6 +3393,7 @@ clientCommand_t clientCommands[] = {
     { "select", CMD_Select },
     { "focus", CMD_Focus },
     { "cyclesubgroup", CMD_CycleSubgroup },
+    { "cyclesubgroupback", CMD_CycleSubgroupBack },
     { "+portraitcamera", CMD_PortraitCameraDown },
     { "-portraitcamera", CMD_PortraitCameraUp },
     { "quickcamera", CMD_QuickCamera },
