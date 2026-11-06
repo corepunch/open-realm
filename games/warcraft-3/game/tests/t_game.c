@@ -4330,6 +4330,7 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
 
 bool G_FowTestReindexBlockers(void);
 void G_FowTestRevealBlockerRim(fowPlayerGrid_t *, uint32_t, uint32_t, int, bool);
+void G_FowTestSetRevealCacheEnabled(bool enabled);
 
 /* A compact row-bit index must visit the same blockers, in the same order, as
  * the original rectangular scan: a marker with value 2 can reveal a later
@@ -4420,7 +4421,7 @@ TEST(wc3_game, fow_blocker_rim_bit_index_matches_rectangular_reference) {
  * transient rim markers and deterministic traversal/commit ordering. */
 TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
     edict_t *revealer, *blocker;
-    uint8_t *original;
+    uint8_t *original, *moved;
     uint32_t width, height, cx, original_blocker, moved_blocker;
 
     reset_entities();
@@ -4455,12 +4456,28 @@ TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
         return;
     }
     memcpy(original, level.fow.players[0].visible, width * height);
+    moved = gi.MemAlloc(width * height);
+    T_NOT_NULL(moved);
+    if (!moved) {
+        gi.MemFree(original);
+        G_FowShutdown();
+        return;
+    }
 
     blocker->s.origin.x = blocker->s.origin2.x = 128.0f;
     G_FowMarkBlockersDirty();
     G_FowUpdate();
     T_ASSERT(!level.fow.blocked[original_blocker]);
     T_ASSERT(level.fow.blocked[moved_blocker]);
+    memcpy(moved, level.fow.players[0].visible, width * height);
+    T_ASSERT(memcmp(original, moved, width * height) != 0);
+
+    /* The moved blocker has a new generation. Its cached visibility must
+     * match a fresh cast rather than replaying the first generation's cells. */
+    G_FowTestSetRevealCacheEnabled(false);
+    G_FowUpdate();
+    T_ASSERT(!memcmp(moved, level.fow.players[0].visible, width * height));
+    G_FowTestSetRevealCacheEnabled(true);
 
     blocker->s.origin.x = blocker->s.origin2.x = 384.0f;
     G_FowMarkBlockersDirty();
@@ -4470,6 +4487,7 @@ TEST(wc3_game, fow_shadowcast_blocker_rim_rebuild_is_stable) {
         T_EQ(original[i], level.fow.players[0].visible[i]);
         T_ASSERT(level.fow.players[0].visible[i] <= 1); /* no leaked rim markers */
     }
+    gi.MemFree(moved);
     gi.MemFree(original);
     G_FowShutdown();
 }
