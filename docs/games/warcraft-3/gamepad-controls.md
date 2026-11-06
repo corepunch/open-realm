@@ -43,6 +43,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | Y, hold | Show the bottom-right ten-sector radial menu from real clickable command-card icons |
 | Y + left stick | Choose a radial-menu sector; release Y to activate the command |
 | Y + RT | Advance to the next populated radial page |
+| Select / Back | Escape (cancel the current command or close the active menu) |
 | RB | Select units in the current camera viewport |
 | RT (tap and release) | Cycle the focused unit subgroup, like Tab (not when used with another control) |
 | D-pad up | Set global rally for controllable unit-producing buildings at cursor world position |
