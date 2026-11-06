@@ -70,6 +70,15 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
 static void UI_WriteHeroShortcutBar(uint32_t parent, float x, float y, edict_t const *hero, uint32_t vital) {
     uiFrame_t frame = {0};
 
+    /* Match the hover bars: a black backing gives the colored fill a clear
+     * border and keeps the empty portion legible over the world. */
+    frame.flags.type = FT_TEXTURE;
+    frame.tex.index = gi.ImageIndex("Textures\\Black32.blp");
+    frame.color = MAKE(color32_t, 0, 0, 0, 220);
+    UI_SetShortcutRect(&frame, parent, x - 0.001f, y - 0.001f, 0.0360f, 0.0060f);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+
+    memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_SIMPLESTATUSBAR;
     frame.flagsvalue |= UIFLAG_ENTITY_STATUSBAR;
     frame.stat = vital;

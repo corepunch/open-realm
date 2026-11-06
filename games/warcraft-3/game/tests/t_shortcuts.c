@@ -19,6 +19,7 @@ static uint32_t shortcut_hero_entities[8];
 static uint32_t shortcut_hero_entity_count;
 static uint32_t shortcut_vital_entities[2][8];
 static uint32_t shortcut_vital_counts[2];
+static uint32_t shortcut_vital_backdrop_count;
 static int16_t shortcut_hero_y[8];
 static int16_t shortcut_bar_y[2][8];
 
@@ -75,7 +76,15 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
     if (!shortcut_root_number || frame->parent != shortcut_root_number) return;
     T_EQ(frame->points.x[FPP_MIN].relativeTo, UI_PARENT);
     T_EQ(frame->points.y[FPP_MIN].relativeTo, UI_PARENT);
-    if (frame->flags.type == FT_COMMANDBUTTON && frame->onclick) {
+    if (frame->flags.type == FT_TEXTURE && frame->tex.index) {
+        shortcut_vital_backdrop_count++;
+        T_EQ(frame->color.r, 0);
+        T_EQ(frame->color.g, 0);
+        T_EQ(frame->color.b, 0);
+        T_EQ(frame->color.a, 220);
+        T_FEQ(frame->size.width, 0.0360f, 0.0001f);
+        T_FEQ(frame->size.height, 0.0060f, 0.0001f);
+    } else if (frame->flags.type == FT_COMMANDBUTTON && frame->onclick) {
         if (!strncmp(frame->onclick, "herobutton ", 11)) {
             unsigned number;
 
@@ -332,6 +341,7 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
     shortcut_hero_entity_count = 0;
     memset(shortcut_hero_entities, 0, sizeof(shortcut_hero_entities));
     memset(shortcut_vital_counts, 0, sizeof(shortcut_vital_counts));
+    shortcut_vital_backdrop_count = 0;
     gi.Write = shortcut_test_write;
     gi.unicast = shortcut_test_unicast;
     gi.ImageIndex = shortcut_test_image;
@@ -346,6 +356,7 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
     T_EQ(shortcut_hero_entity_count, 3);
     T_EQ(shortcut_vital_counts[0], 3);
     T_EQ(shortcut_vital_counts[1], 3);
+    T_EQ(shortcut_vital_backdrop_count, 6);
     FOR_LOOP(i, 3) {
         T_EQ(shortcut_hero_entities[i], ordered[i]->s.number);
         T_EQ(shortcut_vital_entities[0][i], ordered[i]->s.number);
@@ -420,6 +431,7 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     shortcut_hero_entity_count = 0;
     memset(shortcut_hero_entities, 0, sizeof(shortcut_hero_entities));
     memset(shortcut_vital_counts, 0, sizeof(shortcut_vital_counts));
+    shortcut_vital_backdrop_count = 0;
     gi.Write = shortcut_test_write;
     gi.unicast = shortcut_test_unicast;
     gi.ImageIndex = shortcut_test_image;
@@ -441,6 +453,7 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     T_FEQ(shortcut_hero_alert_deadline, 6000.0f, 0.01f);
     T_EQ(shortcut_vital_counts[0], 1);
     T_EQ(shortcut_vital_counts[1], 1);
+    T_EQ(shortcut_vital_backdrop_count, 2);
     T_EQ(shortcut_vital_entities[0][0], hero->s.number);
     T_EQ(shortcut_vital_entities[1][0], hero->s.number);
     G_ClearUnitShortcutVitals(client);
