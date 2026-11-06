@@ -114,16 +114,20 @@ No `entityState_t` or `playerState_t` network fields are added.
 - The idle-worker button keeps its authored vertical position immediately above the minimap on 4:3, but on widescreen its horizontal offset is measured from the physical left edge rather than from the centered 4:3 HUD safe area.
 - The idle-worker count is a bottom-right text overlay on the worker icon.
 - A Hero with unspent skill points uses the same bottom-right number overlay, showing the current `hero.skillpoints` value and omitting the number at zero.
-- Each Hero icon has a green health bar beneath it, followed by a cyan mana bar when the Hero has a mana pool. The vertical slot spacing accommodates both without overlapping the next portrait. Dead Heroes keep their icon and display an empty health fill.
+- Each Hero icon has a health bar coloured by its life fraction (red at 0%, yellow at 50%, green at 100%), followed by a cyan mana bar when the Hero has a mana pool. The vertical slot spacing accommodates both without overlapping the next portrait. Dead Heroes keep their icon and display an empty health fill.
 - Real damage to an owned Hero refreshes a transient red pulse on that Hero shortcut. The server rebuilds the shortcut once with an absolute expiry timestamp; the client animates the tint locally until expiry, so there is no per-frame shortcut serialization.
 
 The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons and their passive bars, the idle-worker button, and its count are parented to that root. On 4:3 the root is still `0.8 x 0.6`; the Hero slot stride is now `0.046` (formerly `0.037`) to make space for the two bars, while the first Hero's top-left anchor and the idle-worker button are unchanged. On a wider display only the root expands to the full UI canvas, putting the shortcuts against the physical left edge while ConsoleUI remains centered in its 4:3 safe area.
 
 Both buttons use `FT_COMMANDBUTTON`, so they share the existing server-authored click/tooltip path rather than adding client-specific gameplay widgets.
 
+### Shared Health Bar Colouring
+
+The Hero shortcut fills, world-hover health bars and multi-unit status-panel health bars all use the same smooth health fraction tint: 0% red, 25% orange, 50% yellow, 75% yellow-green, 100% green. The client derives the tint from the same current fraction used to clip the fill. WC3 authoring marks hover and Hero bars with `UIFLAG_HEALTH_GRADIENT`; multiselect HP fills use the shared helper directly. Mana, cargo and unrelated status bars retain their existing colours. The black backings remain independent of this fill tint.
+
 ### Live Hero Health And Mana Bars
 
-`hud_shortcuts.c` emits *both* passive `FT_SIMPLESTATUSBAR` frames for each Hero. Art/tint reuse the multiselect status panel's `SimpleHpBarConsole` (green) and `SimpleManaBarConsole` (cyan). The client hides mana bars for Heroes without a mana pool, including when max mana changes to zero, without resending the layout. Portrait commands retain selection, tooltips, skill-point badges, and damage alerts. The native-frame geometry uses inline normalized UI coordinates and stays entirely in the WC3 game module.
+`hud_shortcuts.c` emits *both* passive `FT_SIMPLESTATUSBAR` frames for each Hero. Art uses the multiselect status panel's `SimpleHpBarConsole` and `SimpleManaBarConsole`. Health fill uses the shared continuous red-to-yellow-to-green life gradient, whereas mana remains cyan. The client hides mana bars for Heroes without a mana pool, including when max mana changes to zero, without resending the layout. Portrait commands retain selection, tooltips, skill-point badges, and damage alerts. The native-frame geometry uses inline normalized UI coordinates and stays entirely in the WC3 game module.
 
 The generic renderer in `client/cl_scrn.c` interprets `UIFLAG_ENTITY_STATUSBAR` as a binding: `uiFrame_t.value` is the integral entity number and `uiFrame_t.stat` is `ENT_HEALTH` or `ENT_MANA`. `svc_ui_entity_stats` supplies only `(entity number, compressed HP, compressed mana, has_mana)` to the recipient's HUD cache, not the unit's world position. The client clips the statusbar image/UV by the live normalized fraction. Invalid bindings or missing cache entries are not drawn. This does not change the ordinary statusbar/playerstate/context bindings.
 

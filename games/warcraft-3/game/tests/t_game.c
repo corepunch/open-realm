@@ -860,6 +860,7 @@ static edict_t *make_test_unit(void) {
 }
 
 static bool hover_layout_pending, hover_layer_seen, hover_infopanel_layer_seen, hover_name_seen, hover_hp_seen,
+            hover_hp_gradient_seen,
             hover_mana_seen, hover_cargo_seen, hover_name_sized, hover_name_centered, hover_name_short,
             hover_resource_label_seen, hover_infopanel_tooltip_seen, hover_cargo_empty_art,
             hover_mana_row_chained, hover_health_row_chained, hover_name_chained;
@@ -926,7 +927,10 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
                 frame->points.y[FPP_MAX].targetPos == FPP_MIN &&
                 frame->points.y[FPP_MAX].relativeTo == hover_mana_row_frame;
         }
-        hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
+        if (frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH) {
+            hover_hp_seen = true;
+            hover_hp_gradient_seen = !!(frame->flagsvalue & UIFLAG_HEALTH_GRADIENT);
+        }
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
         hover_infopanel_tooltip_seen |= frame->flags.type == FT_TOOLTIPTEXT;
     }
@@ -3580,7 +3584,8 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
 
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
     player->mana.max_value = 100.0f; player->mana.value = 50.0f;
-    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_cargo_seen = hover_name_sized = false;
+    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_hp_gradient_seen = false;
+    hover_mana_seen = hover_cargo_seen = hover_name_sized = false;
     hover_name_centered = hover_name_short = hover_resource_label_seen = hover_cargo_empty_art = false;
     hover_mana_row_chained = hover_health_row_chained = hover_name_chained = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0;
@@ -3593,7 +3598,8 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 8);
     T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
     T_ASSERT(hover_resource_label_seen); T_ASSERT(hover_name_chained);
-    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen); T_ASSERT(hover_cargo_seen); T_ASSERT(hover_cargo_empty_art);
+    T_ASSERT(hover_hp_seen); T_ASSERT(hover_hp_gradient_seen);
+    T_ASSERT(hover_mana_seen); T_ASSERT(hover_cargo_seen); T_ASSERT(hover_cargo_empty_art);
     T_ASSERT(hover_mana_row_chained); T_ASSERT(hover_health_row_chained);
     T_EQ(hover_image_count, 8); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);

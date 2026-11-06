@@ -1069,6 +1069,7 @@ typedef enum {
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork
 #define UIFLAG_TEXT_OVERLAY (1u << 21) // FT_TEXT: late caption pass after overlay sprites
 #define UIFLAG_ENTITY_STATUSBAR (1u << 24) // flag bit; FT_SIMPLESTATUSBAR binds entity number and health/mana kind
+#define UIFLAG_HEALTH_GRADIENT (1u << 25) // FT_SIMPLESTATUSBAR: tint fill red/yellow/green from health fraction
 #define BZ_UI_ENTITY_STAT_BATCH 32 // entries; caps svc_ui_entity_stats payload at 163 bytes
 /* Only FT_TEXT with UIFLAG_TEXT_OVERLAY interprets these bits as paint rank.
  * Do not use frame.stat: it binds live player stats and replaces authored text. */
@@ -1087,7 +1088,7 @@ typedef enum {
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
      UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
-     UIFLAG_TEXT_RANK_MASK op UIFLAG_ENTITY_STATUSBAR op UIFRAME_DISABLED)
+     UIFLAG_TEXT_RANK_MASK op UIFLAG_ENTITY_STATUSBAR op UIFLAG_HEALTH_GRADIENT op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

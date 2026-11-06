@@ -23,6 +23,7 @@ static void UI_WriteHoverBar(uint32_t parent, float y, float w, float h, cstring
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
+    if (stat == UI_STAT_CONTEXT_HEALTH) frame.flagsvalue |= UIFLAG_HEALTH_GRADIENT;
     frame.size.width = w; frame.size.height = h;
     UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, UI_PARENT, 0.0f, false);
     UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, y, true);

@@ -470,11 +470,22 @@ static bool SCR_LayoutStatusbarValue(uiFrame_t const *frame, float *value) {
     return true;
 }
 
+/* Common health tint used by Warcraft III's percentage-driven life displays.
+ * 0% red, 50% yellow, 100% green; interpolate in both halves. */
+static color32_t SCR_HealthFractionColor(float fraction) {
+    float const ratio = MAX(0.0f, MIN(1.0f, fraction));
+    float const red = MIN(1.0f, (1.0f - ratio) * 2.0f);
+    float const green = MIN(1.0f, ratio * 2.0f);
+    return MAKE(color32_t, (uint8_t)(red * 255.0f + 0.5f),
+                (uint8_t)(green * 255.0f + 0.5f), 0, 255);
+}
 void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen) {
     rect_t const uv = { 0, 0, 255, 255 };
     rect_t screen2 = *screen, uv2 = uv;
     float value;
     if (!SCR_LayoutStatusbarValue(frame, &value)) return;
+    color32_t const tint = (frame->flagsvalue & UIFLAG_HEALTH_GRADIENT)
+        ? SCR_HealthFractionColor(value) : frame->color;
     if (frame->stat == UI_STAT_SELECTION_TIMED_STATUS && Cvar_Integer("ui_layout_debug", 0) >= 3) {
         static int last_bucket = -1;
         int const bucket = (int)(MAX(0.0f, MIN(1.0f, value)) * 20.0f);
@@ -491,7 +502,7 @@ void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen) {
     screen2.w *= value;
     uv2.w    *= value;
     rect_t const suv2 = Rect_div(&uv2, 0xff);
-    re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, frame->color);
+    re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, tint);
     if (frame->tex.index2 > 0) {
         rect_t const suv = Rect_div(&uv, 0xff);
         re.DrawImage(cl.pics[frame->tex.index2], screen, &suv, COLOR32_WHITE);
@@ -1004,7 +1015,7 @@ void SCR_LayoutDrawMultiSelect(uiFrame_t const *frame, rect_t const *scrn) {
             rect_t rect  = { screen.x, screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
                            screen.w * hp, screen.h * HP_BAR_HEIGHT_RATIO };
             uv.w = hp;
-            re.DrawImage(cl.pics[ms->hp_bar],   &rect, &uv, MAKE(color32_t,0,255,0,255));
+            re.DrawImage(cl.pics[ms->hp_bar], &rect, &uv, SCR_HealthFractionColor(hp));
             uv.w  = mana; rect.w  = screen.w * mana;
             rect.y += screen.h * (HP_BAR_HEIGHT_RATIO + HP_BAR_SPACING_RATIO);
             re.DrawImage(cl.pics[ms->mana_bar], &rect, &uv, MAKE(color32_t,0,255,255,255));
@@ -2005,6 +2016,24 @@ void CL_ParseUnitUI(sizeBuf_t *msg) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+
+TEST(client_layout, health_fraction_gradient_follows_portrait_colour) {
+    color32_t color;
+    color = SCR_HealthFractionColor(0.0f);
+    T_EQ(color.r, 255); T_EQ(color.g, 0); T_EQ(color.b, 0);
+    color = SCR_HealthFractionColor(0.25f);
+    T_EQ(color.r, 255); T_EQ(color.g, 128); T_EQ(color.b, 0);
+    color = SCR_HealthFractionColor(0.5f);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 0);
+    color = SCR_HealthFractionColor(0.75f);
+    T_EQ(color.r, 128); T_EQ(color.g, 255); T_EQ(color.b, 0);
+    color = SCR_HealthFractionColor(1.0f);
+    T_EQ(color.r, 0); T_EQ(color.g, 255); T_EQ(color.b, 0);
+    color = SCR_HealthFractionColor(-1.0f);
+    T_EQ(color.r, 255); T_EQ(color.g, 0);
+    color = SCR_HealthFractionColor(2.0f);
+    T_EQ(color.r, 0); T_EQ(color.g, 255);
+}
 
 /* Exercise transport decoding and actual renderer fraction binding together.
  * Deliberately leave the world snapshot missing: these are HUD-only values. */

@@ -81,6 +81,7 @@ static void UI_WriteHeroShortcutBar(uint32_t parent, float x, float y, edict_t c
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_SIMPLESTATUSBAR;
     frame.flagsvalue |= UIFLAG_ENTITY_STATUSBAR;
+    if (vital == ENT_HEALTH) frame.flagsvalue |= UIFLAG_HEALTH_GRADIENT;
     frame.stat = vital;
     frame.value = (float)hero->s.number;
     frame.tex.index = gi.ImageIndex(vital == ENT_HEALTH ? "SimpleHpBarConsole" : "SimpleManaBarConsole");
