@@ -40,7 +40,8 @@ The option does **not** modify the OS/SDL button mapping database.
 | A, double-tap | Select all visible selectable units of the same type as the unit under the cursor |
 | B | Cancel the radial menu when open; otherwise cancel the current command, selection mode, or menu (Esc) |
 | X | Contextual right click (move, interact, attack, rally, etc.) |
-| Y | Open the bottom-right ten-sector radial menu from real clickable command-card icons |
+| Y, tap and release | Open the bottom-right ten-sector radial menu from real clickable command-card icons |
+| Y, hold | Choose a radial-menu sector; release Y to activate the focused command |
 | Left stick while radial is open | Choose a radial-menu sector |
 | RT while radial is open | Advance to the next populated radial page |
 | Select / Back | Escape (cancel the current command or close the active menu) |
@@ -93,9 +94,12 @@ In a modal menu, left stick moves the mouse cursor instead of the camera. D-pad
 moves to the nearest clickable server-authored button in that direction; native
 client menus fall back to their keyboard arrow navigation. A clicks, B cancels.
 The radial menu remains open after Y is released. A activates the focused
-command and closes it; B closes it without issuing the command. Mouse movement
-is ignored while the radial menu is open. After closing it, return the left stick
-to its deadzone before it resumes camera movement; this prevents the selection
+command and closes it; B closes it without issuing the command. An optional
+hold-to-confirm mode is available to builds defining
+`WC3_GAMEPAD_RADIAL_HOLD_CONFIRM`: holding Y opens the menu after 250 ms, and
+releasing Y activates the focused command. Mouse movement is ignored while the
+radial menu is open. After confirming or cancelling, return the left stick to
+its deadzone before it resumes camera movement; this prevents the selection
 direction from panning the camera as soon as the menu closes.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
@@ -155,8 +159,10 @@ therefore on page 2. The six inventory slots share that second page.
 Construction commands are flagged by the WC3 HUD authoring code, without
 requiring the client to guess from an ability rawcode. They appear sequentially
 starting at noon, then clockwise. Items 1–10 occupy page 1, 11–12 page 2.
-Press Y to open the radial, then RT to change page and A to confirm the
-highlighted sector. Selecting a command still uses the original server-authored command
+Tap and release Y to open the radial, then RT to change page and A to confirm
+the highlighted sector. In builds with `WC3_GAMEPAD_RADIAL_HOLD_CONFIRM`, holding
+Y also opens it and confirms the highlighted command when released. Selecting a
+command still uses the original server-authored command
 string and ordinary validation/targeting logic.
 
 ## Implementation ownership
