@@ -1098,7 +1098,10 @@ static void G_ShutdownGame(void) {
     G_BlightShutdown();
     G_FreeModels();
     G_FreeAnimationNames();
-    if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
+    if (game.clients) FOR_LOOP(i, game.max_clients) {
+        G_ClearPlayerAbilityAvailability(game.clients + i);
+        G_ClearUnitShortcutVitals(game.clients + i);
+    }
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -2053,7 +2056,12 @@ void G_SetQuestDialogOpen(edict_t *player, bool open) {
 void G_SetClientConnected(edict_t *player, bool connected) {
     if (!player || !player->client) return;
     player->client->connected = connected;
-    if (!connected) player->client->quest_dialog_open = false, player->client->modal_flags = 0;
+    if (!connected) {
+        player->client->quest_dialog_open = false;
+        player->client->modal_flags = 0;
+        G_ClearUnitShortcutVitals(player->client);
+        G_InvalidateUnitShortcuts(player->client);
+    }
     G_RefreshQuestPause();
 }
 
@@ -2138,6 +2146,7 @@ static void G_ClientBegin(edict_t *edict) {
     client->shortcuts.last_idle_worker = 0;
     client->shortcuts.dirty = false;
     UI_WriteUnitShortcutLayer(edict);
+    G_SendUnitShortcutVitals(edict, true);
 
     G_FowConnectPlayer(client->ps.number);
     G_FowUpdate();

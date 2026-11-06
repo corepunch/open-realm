@@ -1012,6 +1012,36 @@ static void CL_ParseLobbySetup(sizeBuf_t *msg) {
     if (CL_MenuActive()) menu.UpdateLobbySetup(&state);
 }
 
+/* HUD-only entity vitals are independent of world snapshots: a game can
+ * report controlled Heroes behind fog without exposing their coordinates.
+ * Check the whole packet before mutating the active cache. */
+void CL_ParseUIEntityStats(sizeBuf_t *msg) {
+    int const clear = MSG_ReadByte(msg);
+    int const count = MSG_ReadByte(msg);
+    uint32_t const bytes = count > 0 ? (uint32_t)count * 5u : 0u;
+    if ((clear != 0 && clear != 1) || count < 0 || count > BZ_UI_ENTITY_STAT_BATCH ||
+        msg->readcount > msg->cursize || bytes > msg->cursize - msg->readcount) {
+        fprintf(stderr, "CL_ParseUIEntityStats: malformed HUD vital packet\n");
+        msg->readcount = msg->cursize;
+        return;
+    }
+    if (clear) memset(cl.ui_entity_stats, 0, sizeof(cl.ui_entity_stats));
+    FOR_LOOP(i, count) {
+        uint32_t const entity = (uint16_t)MSG_ReadShort(msg);
+        uint8_t const hp = (uint8_t)MSG_ReadByte(msg);
+        uint8_t const mana = (uint8_t)MSG_ReadByte(msg);
+        uint8_t const pool = (uint8_t)MSG_ReadByte(msg);
+        if (!entity || entity >= MAX_CLIENT_ENTITIES || pool > 1) {
+            fprintf(stderr, "CL_ParseUIEntityStats: invalid vital entry %u\n", (unsigned)entity);
+            continue;
+        }
+        cl.ui_entity_stats[entity].hp = hp;
+        cl.ui_entity_stats[entity].mana = mana;
+        cl.ui_entity_stats[entity].has_mana = pool;
+        cl.ui_entity_stats[entity].valid = 1;
+    }
+}
+
 static void CL_ParseConsolePrint(sizeBuf_t *msg) {
     char text[MAX_CONSOLE_MESSAGE_LEN] = { 0 };
 
@@ -1394,6 +1424,9 @@ void CL_ParseServerMessage(sizeBuf_t *msg) {
             // Phase 8: Unit UI data
             case svc_unit_ui:
                 CL_ParseUnitUI(msg);
+                break;
+            case svc_ui_entity_stats:
+                CL_ParseUIEntityStats(msg);
                 break;
             case svc_window:
                 CL_ParseWindow(msg);

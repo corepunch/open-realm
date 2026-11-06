@@ -172,13 +172,14 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 134 persists Locust target attack deadlines and return damage credit. */
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
-/* First browser-only format: 32-bit relocation slots plus out-of-line hashes. */
-static uint32_t const save_version = 1;
+/* Browser version 2 expands gameClient_t with runtime-only Hero HUD cache fields. */
+static uint32_t const save_version = 2;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
 /* Version 141 adds independent PauseUnit ownership during transformations. */
-static uint32_t const save_version = 141;
+/* Version 142 expands gameClient_t with runtime-only Hero HUD vital cache fields. */
+static uint32_t const save_version = 142;
 #endif
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -1208,6 +1209,8 @@ static field_t const client_fields[] = {
     F(client_s, menu, F_STRUCT, 1, client_menu_fields),
     F(client_s, camera, F_STRUCT, 1, client_camera_fields),
     F(client_s, rally_indicator, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, shortcuts.vitals, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, shortcuts.vital_count, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -2318,7 +2321,9 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     }
 
     G_ClearPlayerAbilityAvailability(client);
+    G_ClearUnitShortcutVitals(client);
     *client = *temp;
+    client->shortcuts.dirty = true; /* Rebuild runtime roster after load; no serialized pointer survives. */
     client->jass.disabled_abilities = disabled_abilities;
     client->jass.disabled_ability_count = disabled_count;
     client->jass.disabled_ability_capacity = disabled_count;

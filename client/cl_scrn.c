@@ -2,6 +2,7 @@
 #include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
+#include <stdlib.h>
 #include <SDL2/SDL.h>
 
 bool scr_initialized;
@@ -450,11 +451,30 @@ void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const *frame, rect_t const *scre
     }
 }
 
+/* The game sends compact, authorized HUD vitals independently of world
+ * snapshots. A controlled Hero can be out of sight without disappearing from
+ * the shortcut HUD or revealing its world coordinates. */
+static bool SCR_LayoutStatusbarValue(uiFrame_t const *frame, float *value) {
+    if (!(frame->flagsvalue & UIFLAG_ENTITY_STATUSBAR)) {
+        *value = frame->value;
+        SCR_LayoutContextValue(frame->stat, value);
+        return true;
+    }
+    if (frame->stat != ENT_HEALTH && frame->stat != ENT_MANA) return false;
+    if (frame->value < 1.0f || frame->value >= MAX_CLIENT_ENTITIES) return false;
+    uint32_t const number = (uint32_t)frame->value;
+    if ((float)number != frame->value) return false;
+    if (!cl.ui_entity_stats[number].valid) return false;
+    if (frame->stat == ENT_MANA && !cl.ui_entity_stats[number].has_mana) return false;
+    *value = BYTE2FLOAT(frame->stat == ENT_HEALTH ? cl.ui_entity_stats[number].hp : cl.ui_entity_stats[number].mana);
+    return true;
+}
+
 void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen) {
     rect_t const uv = { 0, 0, 255, 255 };
     rect_t screen2 = *screen, uv2 = uv;
-    float value = frame->value;
-    SCR_LayoutContextValue(frame->stat, &value);
+    float value;
+    if (!SCR_LayoutStatusbarValue(frame, &value)) return;
     if (frame->stat == UI_STAT_SELECTION_TIMED_STATUS && Cvar_Integer("ui_layout_debug", 0) >= 3) {
         static int last_bucket = -1;
         int const bucket = (int)(MAX(0.0f, MIN(1.0f, value)) * 20.0f);
@@ -1985,6 +2005,96 @@ void CL_ParseUnitUI(sizeBuf_t *msg) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+
+/* Exercise transport decoding and actual renderer fraction binding together.
+ * Deliberately leave the world snapshot missing: these are HUD-only values. */
+TEST(client_layout, hero_statusbars_decode_out_of_view_vitals_and_mana_pool_changes) {
+    uint32_t const number = 17;
+    __typeof__(cl.ui_entity_stats[number]) const saved = cl.ui_entity_stats[number];
+    entityState_t const world = cl.ents[number].current;
+    uint8_t data[64];
+    sizeBuf_t msg;
+    uiFrame_t frame = { .flags = { .type = FT_SIMPLESTATUSBAR }, .stat = ENT_HEALTH, .value = 17.0f };
+    float value = -1.0f;
+
+    frame.flagsvalue |= UIFLAG_ENTITY_STATUSBAR;
+    cl.ents[number].current = (entityState_t){0};
+    cl.ui_entity_stats[number].valid = 0;
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 1);
+    MSG_WriteShort(&msg, 17); MSG_WriteByte(&msg, 128); MSG_WriteByte(&msg, 64); MSG_WriteByte(&msg, 1);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    T_EQ(msg.readcount, msg.cursize);
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, BYTE2FLOAT(128), 0.0001f);
+    frame.stat = ENT_MANA;
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, BYTE2FLOAT(64), 0.0001f);
+
+    /* Mana bar exists in layout, but is hidden until its pool becomes available. */
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 1);
+    MSG_WriteShort(&msg, 17); MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 0);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+    frame.stat = ENT_HEALTH;
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, 0.0f, 0.0001f);
+
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 1);
+    MSG_WriteShort(&msg, 17); MSG_WriteByte(&msg, 100); MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 1);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    frame.stat = ENT_MANA;
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, 0.0f, 0.0001f);
+    frame.value = 17.5f;
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+    frame.value = (float)MAX_CLIENT_ENTITIES;
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+    frame.value = 17.0f;
+    frame.stat = ENT_CARGO;
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+    cl.ui_entity_stats[number] = saved;
+    cl.ents[number].current = world;
+}
+
+/* A new roster/owner change must discard stale values before new updates. */
+TEST(client_layout, hero_statusbars_clear_roster_on_reuse_and_ignore_malformed_packets) {
+    void *saved = malloc(sizeof(cl.ui_entity_stats));
+    uint8_t data[64];
+    sizeBuf_t msg;
+    uiFrame_t frame = { .flags = { .type = FT_SIMPLESTATUSBAR }, .stat = ENT_HEALTH, .value = 17.0f };
+    float value;
+
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    memcpy(saved, cl.ui_entity_stats, sizeof(cl.ui_entity_stats));
+    frame.flagsvalue |= UIFLAG_ENTITY_STATUSBAR;
+    cl.ui_entity_stats[17].hp = 255;
+    cl.ui_entity_stats[17].valid = 1;
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 1); MSG_WriteByte(&msg, 0);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    T_ASSERT(!SCR_LayoutStatusbarValue(&frame, &value));
+
+    /* Truncation must not mutate cached values, even with clear=true. */
+    cl.ui_entity_stats[17].hp = 128;
+    cl.ui_entity_stats[17].valid = 1;
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 1); MSG_WriteByte(&msg, 1); MSG_WriteShort(&msg, 17);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, BYTE2FLOAT(128), 0.0001f);
+    memcpy(cl.ui_entity_stats, saved, sizeof(cl.ui_entity_stats));
+    free(saved);
+}
 
 /* Change only the fields used by selection resolution, so these tests do not
  * disrupt unrelated renderer and client fixtures. Every test restores them. */

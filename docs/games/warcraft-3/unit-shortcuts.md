@@ -59,14 +59,7 @@ This excludes workers that are harvesting, waiting for a mine slot, returning re
 
 The subsystem does **not** scan all entities each rendered/server frame.
 
-Each connected player on the game server owns only:
-
-```c
-struct {
-    BOOL dirty;
-    DWORD last_idle_worker;
-} shortcuts;
-```
+Each connected player owns an invalidation flag, an idle-worker cycle cursor, and a runtime-only cached Hero roster. Each cached entry records the Hero's entity ID, spawn identity and last transmitted compressed vitals. The cache is cleared on disconnect and discarded on load.
 
 Relevant gameplay transitions mark `dirty`:
 
@@ -85,7 +78,7 @@ Relevant gameplay transitions mark `dirty`:
 
 The generic free path calls the invalidation hook, but the hook rejects non-monsters and ordinary non-Hero/non-worker units before touching the player's server-side dirty state. Projectiles, spell effects, destructables, and routine combat-unit destruction therefore do not cause shortcut-roster rescans.
 
-`G_UpdateClientUnitShortcuts()` itself is only an O(number-of-clients) dirty check. It scans entities and serializes `LAYER_UNIT_SHORTCUTS` only for a dirty connected client. This avoids adding another per-frame entity scan on handheld targets such as the RG40XX-H.
+`G_UpdateClientUnitShortcuts()` checks connected clients each server tick. It scans all entities and serializes `LAYER_UNIT_SHORTCUTS` only for a dirty client; otherwise it validates and examines only that client's cached Hero roster and unicasts compressed vitals only when values change. This avoids an additional per-frame **world-entity scan** on handheld targets such as the RG40XX-H.
 
 Shortcut activations may perform bounded entity scans because those happen only in response to user input. Hero HUD clicks and F1-F7 then enter the same-Hero 500 ms activation tracker, so input source does not change single-vs-double activation semantics:
 
@@ -115,17 +108,26 @@ No `entityState_t` or `playerState_t` network fields are added.
 
 ## HUD Placement
 
-`games/warcraft-3/game/hud/hud_shortcuts.c` owns the layout constants.
+`games/warcraft-3/game/hud/hud_shortcuts.c` owns the shortcut frame geometry.
 
 - Hero buttons start at the top-left edge of the rendered world immediately below the upper menu and stack vertically.
 - The idle-worker button keeps its authored vertical position immediately above the minimap on 4:3, but on widescreen its horizontal offset is measured from the physical left edge rather than from the centered 4:3 HUD safe area.
 - The idle-worker count is a bottom-right text overlay on the worker icon.
 - A Hero with unspent skill points uses the same bottom-right number overlay, showing the current `hero.skillpoints` value and omitting the number at zero.
+- Each Hero icon has a green health bar beneath it, followed by a cyan mana bar when the Hero has a mana pool. The vertical slot spacing accommodates both without overlapping the next portrait. Dead Heroes keep their icon and display an empty health fill.
 - Real damage to an owned Hero refreshes a transient red pulse on that Hero shortcut. The server rebuilds the shortcut once with an absolute expiry timestamp; the client animates the tint locally until expiry, so there is no per-frame shortcut serialization.
 
-The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons, the idle-worker button, and its count are parented to that root using the same authored offsets and sizes as before. On 4:3 the root is still `0.8 x 0.6`, so placement is unchanged; on a wider display only the root expands to the full UI canvas, putting the shortcut controls against the physical left edge while the normal ConsoleUI remains centered in its 4:3 safe area.
+The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons and their passive bars, the idle-worker button, and its count are parented to that root. On 4:3 the root is still `0.8 x 0.6`; the Hero slot stride is now `0.046` (formerly `0.037`) to make space for the two bars, while the first Hero's top-left anchor and the idle-worker button are unchanged. On a wider display only the root expands to the full UI canvas, putting the shortcuts against the physical left edge while ConsoleUI remains centered in its 4:3 safe area.
 
 Both buttons use `FT_COMMANDBUTTON`, so they share the existing server-authored click/tooltip path rather than adding client-specific gameplay widgets.
+
+### Live Hero Health And Mana Bars
+
+`hud_shortcuts.c` emits *both* passive `FT_SIMPLESTATUSBAR` frames for each Hero. Art/tint reuse the multiselect status panel's `SimpleHpBarConsole` (green) and `SimpleManaBarConsole` (cyan). The client hides mana bars for Heroes without a mana pool, including when max mana changes to zero, without resending the layout. Portrait commands retain selection, tooltips, skill-point badges, and damage alerts. The native-frame geometry uses inline normalized UI coordinates and stays entirely in the WC3 game module.
+
+The generic renderer in `client/cl_scrn.c` interprets `UIFLAG_ENTITY_STATUSBAR` as a binding: `uiFrame_t.value` is the integral entity number and `uiFrame_t.stat` is `ENT_HEALTH` or `ENT_MANA`. `svc_ui_entity_stats` supplies only `(entity number, compressed HP, compressed mana, has_mana)` to the recipient's HUD cache, not the unit's world position. The client clips the statusbar image/UV by the live normalized fraction. Invalid bindings or missing cache entries are not drawn. This does not change the ordinary statusbar/playerstate/context bindings.
+
+**Fog and control:** a shared-control Hero can be present in the recipient's shortcut roster despite missing from their world snapshots (shared control does not grant shared vision). The server therefore sends small recipient-filtered HUD vital updates independently of world-entity snapshot admission; it never forces that Hero into `sv_ents.c` or reveals fog. The game caches the roster during each existing dirty-layer rebuild, validates entity incarnation and control rights, and checks only those Hero entries at each subsequent simulation tick. It unicasts only changed compressed vitals/pool-presence bytes; it does not rescan the world or rebuild the layout on regeneration. Each rebuilt roster emits a clear-and-full update, and connection termination and load/reconnect clear the runtime cache. The save version is incremented because `gameClient_t`'s in-memory layout changed, even though the runtime cache fields are excluded from serialization.
 
 ## Lifecycle And Visibility
 
@@ -143,7 +145,7 @@ The server stores only a transient deadline on the Hero edict and marks the owne
 
 The first implementation intentionally does not guess at retail behavior that is not already represented by reliable OpenRealm state:
 
-- no health/mana overlays or low-health flashing on Hero shortcut buttons;
+- no additional low-health flashing tied to the Hero bars (the existing real-damage red pulse remains on the portrait);
 - no dedicated dead/reviving visual treatment beyond retaining the Hero icon;
 - no `SetReservedLocalHeroButtons` JASS/native implementation;
 - no backtick idle-worker binding while that key owns the developer console;
@@ -152,7 +154,7 @@ These are presentation/compatibility additions and should not be implemented by 
 
 ## Verification
 
-Unit tests cover the idle-worker predicate, shortcut dirty invalidation, and that Hero HUD/F-key ordering matches the multiselect status-panel ordering. The implementation also needs runtime verification after building:
+Unit tests cover the idle-worker predicate, shortcut dirty invalidation, Hero bar ordering/relative positions, the visibility of mana bars with dynamically acquired pools, recipient-authorized value updates, and the client packet-to-render statusbar binding. The implementation also needs runtime visual verification after building:
 
 1. Start a map with one Hero and several Peasants.
 2. Confirm the Hero icon is below the upper menu and the worker icon/count is above the minimap.
@@ -167,9 +169,11 @@ Unit tests cover the idle-worker predicate, shortcut dirty invalidation, and tha
 11. Give a Hero one or more unspent skill points and confirm the number appears in the lower-right of its shortcut; spend the final point and confirm the number disappears.
 12. Damage the owned Hero and confirm its shortcut pulses red for several flashes without affecting the portrait art or selection behavior. Repeated damage should refresh the warning window.
 13. Hide a Hero with `ShowUnit(hero, false)` and confirm its shortcut disappears; show it again and confirm the shortcut returns.
-13. Kill and revive a Hero and confirm its persistent shortcut remains available.
+14. Kill and revive a Hero and confirm its persistent shortcut remains available.
+15. Damage/heal a Hero and spend/regenerate mana while it is not selected; confirm the green/cyan bars update directly underneath its top-left icon without requiring a selection or shortcut rebuild.
+16. Confirm multiple Hero bars do not overlap adjacent icons at both 4:3 and widescreen resolutions; verify a Hero without mana shows only the green bar, and a dead Hero shows an empty health bar until revived.
 
-No local compile or test execution is required to update this document; use the repository test commands in `CONTRIBUTING.md` when validating a built tree.
+The dedicated headless regressions include `wc3_shortcuts.hero_buttons_match_multiselect_order`, `wc3_shortcuts.hud_buttons_share_full_canvas_left_root`, `wc3_shortcuts.controlled_hero_vitals_are_delta_sent_without_vision_and_follow_mana_pool`, `client_layout.hero_statusbars_decode_out_of_view_vitals_and_mana_pool_changes`, and `client_layout.hero_statusbars_clear_roster_on_reuse_and_ignore_malformed_packets`. Static checks cannot verify framebuffer pixels, real network behaviour or ROC/TFT art availability; verify the bars in both game variants at 4:3 and widescreen after building.
 
 ## See Also
 

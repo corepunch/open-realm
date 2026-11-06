@@ -723,10 +723,20 @@ typedef struct {
     UICANVASCLASS canvas; /* class the console chrome was last authored for */
 } resourceBarCache_t;
 
-/* Hero/idle-worker HUD invalidation and the last worker used by shortcut cycling. */
+/* Game-authored HUD vitals: no world position or fog state crosses this channel.
+ * A roster entry is retained only until its owner's next dirty HUD rebuild. */
+typedef struct {
+    uint32_t entity, spawn_time;
+    uint8_t hp, mana, has_mana;
+} unitShortcutVital_t;
+
+/* Client-specific visible shortcut roster, cached between event-driven rebuilds.
+ * The pointer/count are runtime-only and must not be saved. */
 typedef struct {
     bool dirty;
     uint32_t last_idle_worker;
+    unitShortcutVital_t *vitals;
+    uint32_t vital_count;
 } unitShortcutState_t;
 
 /* Timed per-player dialogue text retained until its simulation deadline. */
@@ -3745,6 +3755,8 @@ void G_ActivateHeroButton(edict_t *clent, uint32_t number);
 void G_ActivateHeroKey(edict_t *clent, uint32_t slot);
 void G_ActivateIdleWorkerShortcut(edict_t *clent, uint32_t hinted_number);
 void G_UpdateClientUnitShortcuts(void);
+void G_ClearUnitShortcutVitals(gameClient_t *client);
+void G_SendUnitShortcutVitals(edict_t *clent, bool clear);
 void UI_WriteUnitShortcutLayer(edict_t *ent);
 void UI_AddCancelButton(edict_t *);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
