@@ -173,6 +173,24 @@ static bool summon_magical_death(uint32_t code) {
            code == MAKEFOURCC('A','r','s','q');   /* Campaign Quilbeast */
 }
 
+/* Summon call sites often request the caster, a corpse, or a target's exact
+ * location. Preserve that point when it is clear; otherwise move the spawned
+ * unit to a legal point using the same bounded pathing and unit-collision
+ * search as SetUnitPosition. Since each accepted summon is linked before the
+ * next one is created, repeated summons naturally get separate positions. */
+static bool summon_move_to_clear_position(edict_t *summon, vec2_t const *requested) {
+    vec2_t clear;
+    if (!summon || !requested || !G_FindUnitUnstuckPosition(summon, requested, &clear)) return false;
+    if (clear.x != summon->s.origin2.x || clear.y != summon->s.origin2.y) {
+        summon->s.origin2 = clear;
+        summon->s.origin.x = clear.x;
+        summon->s.origin.y = clear.y;
+        summon->s.origin.z = CM_GetHeightAtPoint(clear.x, clear.y);
+        gi.LinkEntity(summon);
+    }
+    return true;
+}
+
 static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
     float angle;
@@ -187,16 +205,9 @@ static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, u
     loc.y += sinf(angle) * MAX(64.0f, caster->collision + 32.0f);
     SP_FindEmptySpaceAround(caster, unit_id, &loc, &angle);
 
-    summon = SP_SpawnAtLocation(unit_id, caster->s.player, &loc);
+    summon = S_SummonAt(caster, unit_id, &loc, duration);
     if (!summon)
         return NULL;
-    summon->owner = caster;
-    G_ActivateUnitFood(summon);
-    if (summon->stand)
-        summon->stand(summon);
-    if (duration > 0)
-        S_SpellApplyTimedLife(summon, 1, duration);
-    G_PublishSummonEvents(caster, summon);
     return summon;
 }
 
@@ -234,6 +245,10 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
     if (!caster || !unit_id || !loc) return NULL;
     summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
     if (!summon) return NULL;
+    if (!summon_move_to_clear_position(summon, loc)) {
+        G_FreeEdict(summon);
+        return NULL;
+    }
     summon->owner = caster; G_ActivateUnitFood(summon);
     if (summon->stand) summon->stand(summon);
     if (duration > 0.0f) S_SpellApplyTimedLife(summon, 1, duration);

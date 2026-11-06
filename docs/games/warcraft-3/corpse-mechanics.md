@@ -90,7 +90,8 @@ DataB times DataD unit type
 This supports the stock two-Skeleton layout and data/upgrade variants without unit-ID
 special cases. Each result:
 
-- spawns at the consumed corpse location and facing;
+- uses the consumed corpse location and facing, moving each summon to a distinct
+  pathable position if the corpse location overlaps a building or another unit;
 - belongs to the caster's player;
 - records `summon_ability` so `UNIT_TYPE_SUMMONED` and shared summon consumers identify it;
 - uses the common `BTLF` timed-life clock for engine lifetime semantics;
