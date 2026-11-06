@@ -1916,9 +1916,15 @@ static void SCR_GamepadRadialDraw(void) {
         cstring_t tooltip = entry->present ? SCR_GetTooltipText(&entry->frame) : NULL;
         if (tooltip && *tooltip) {
             rect_t tip = gamepad_radial_tooltip.rect;
-            tip.w = MIN(tip.w, MAX(100.0f, center.x - radius - padding - 24.0f));
-            tip.x = MAX(8.0f, center.x - radius - padding - tip.w - 12.0f);
-            tip.y = MAX(8.0f, MIN(window.height - tip.h - 8.0f, center.y - tip.h * 0.5f));
+            float const left = canvas->scene.x + (center.x - radius - padding) * ui_scale_x;
+            float const gap = 12.0f * ui_scale_x;
+            float const margin_x = 8.0f * ui_scale_x;
+            float const margin_y = 8.0f * ui_scale_y;
+            tip.w = MIN(tip.w, MAX(0.08f, left - canvas->scene.x - gap - margin_x));
+            tip.x = MAX(canvas->scene.x + margin_x, left - gap - tip.w);
+            tip.y = canvas->scene.y + center.y * ui_scale_y - tip.h * 0.5f;
+            tip.y = MAX(canvas->scene.y + margin_y,
+                        MIN(canvas->scene.y + canvas->scene.h - tip.h - margin_y, tip.y));
             SCR_DrawAuthoredTooltip(&gamepad_radial_tooltip.frame, &tip, tooltip);
         }
     }
