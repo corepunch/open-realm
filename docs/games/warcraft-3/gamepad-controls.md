@@ -106,8 +106,9 @@ Only *enabled, actually clickable* game command buttons are placed in the menu.
 Passive command indicators and disabled buttons are excluded. Holding Y draws an
 opaque black bottom-right overlay covering the existing command-card HUD. The
 ring radius and each sector's square icon are scaled from the actual HUD button
-size (and fitted to small windows); all ten sectors have enough separation for
-a complete icon. Each sector draws its **own command button's** original texture
+size (and fitted to small windows); icons sit at the outer edge of their sectors,
+with their outer edges aligned to the radial ring. All ten sectors have enough
+separation for a complete icon. Each sector draws its **own command button's** original texture
 coordinates, tint, active glow, and cooldown shade, not a placeholder icon.
 
 Moving the left stick into an occupied sector highlights that command. The
