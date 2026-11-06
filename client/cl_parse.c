@@ -1015,31 +1015,38 @@ static void CL_ParseLobbySetup(sizeBuf_t *msg) {
 /* HUD-only entity vitals are independent of world snapshots: a game can
  * report controlled Heroes behind fog without exposing their coordinates.
  * Check the whole packet before mutating the active cache. */
-void CL_ParseUIEntityStats(sizeBuf_t *msg) {
-    int const clear = MSG_ReadByte(msg);
-    int const count = MSG_ReadByte(msg);
-    uint32_t const bytes = count > 0 ? (uint32_t)count * 5u : 0u;
+bool CL_ParseUIEntityStats(sizeBuf_t *msg) {
+    uint32_t const start = msg->readcount;
+    uint32_t entities[BZ_UI_ENTITY_STAT_BATCH];
+    uint8_t hp[BZ_UI_ENTITY_STAT_BATCH], mana[BZ_UI_ENTITY_STAT_BATCH], pools[BZ_UI_ENTITY_STAT_BATCH];
+    int clear, count;
+
+    if (start > msg->cursize || msg->cursize - start < 2u) goto malformed;
+    clear = MSG_ReadByte(msg);
+    count = MSG_ReadByte(msg);
     if ((clear != 0 && clear != 1) || count < 0 || count > BZ_UI_ENTITY_STAT_BATCH ||
-        msg->readcount > msg->cursize || bytes > msg->cursize - msg->readcount) {
-        fprintf(stderr, "CL_ParseUIEntityStats: malformed HUD vital packet\n");
-        msg->readcount = msg->cursize;
-        return;
+        (uint32_t)count * 5u > msg->cursize - msg->readcount) goto malformed;
+    FOR_LOOP(i, count) {
+        entities[i] = (uint16_t)MSG_ReadShort(msg);
+        hp[i] = (uint8_t)MSG_ReadByte(msg);
+        mana[i] = (uint8_t)MSG_ReadByte(msg);
+        pools[i] = (uint8_t)MSG_ReadByte(msg);
+        if (!entities[i] || entities[i] >= MAX_CLIENT_ENTITIES || pools[i] > 1) goto malformed;
     }
+
     if (clear) memset(cl.ui_entity_stats, 0, sizeof(cl.ui_entity_stats));
     FOR_LOOP(i, count) {
-        uint32_t const entity = (uint16_t)MSG_ReadShort(msg);
-        uint8_t const hp = (uint8_t)MSG_ReadByte(msg);
-        uint8_t const mana = (uint8_t)MSG_ReadByte(msg);
-        uint8_t const pool = (uint8_t)MSG_ReadByte(msg);
-        if (!entity || entity >= MAX_CLIENT_ENTITIES || pool > 1) {
-            fprintf(stderr, "CL_ParseUIEntityStats: invalid vital entry %u\n", (unsigned)entity);
-            continue;
-        }
-        cl.ui_entity_stats[entity].hp = hp;
-        cl.ui_entity_stats[entity].mana = mana;
-        cl.ui_entity_stats[entity].has_mana = pool;
-        cl.ui_entity_stats[entity].valid = 1;
+        cl.ui_entity_stats[entities[i]].hp = hp[i];
+        cl.ui_entity_stats[entities[i]].mana = mana[i];
+        cl.ui_entity_stats[entities[i]].has_mana = pools[i];
+        cl.ui_entity_stats[entities[i]].valid = 1;
     }
+    return true;
+
+malformed:
+    msg->readcount = start;
+    fprintf(stderr, "CL_ParseUIEntityStats: malformed HUD vital packet\n");
+    return false;
 }
 
 static void CL_ParseConsolePrint(sizeBuf_t *msg) {
@@ -1426,7 +1433,12 @@ void CL_ParseServerMessage(sizeBuf_t *msg) {
                 CL_ParseUnitUI(msg);
                 break;
             case svc_ui_entity_stats:
-                CL_ParseUIEntityStats(msg);
+                if (!CL_ParseUIEntityStats(msg)) {
+                    /* The helper leaves the cursor at the packet body start;
+                     * only this complete-message dispatcher discards the rest. */
+                    msg->readcount = msg->cursize;
+                    goto done;
+                }
                 break;
             case svc_window:
                 CL_ParseWindow(msg);

@@ -2053,9 +2053,10 @@ TEST(client_layout, hero_statusbars_decode_out_of_view_vitals_and_mana_pool_chan
     SZ_Init(&msg, data, sizeof(data));
     MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 1);
     MSG_WriteShort(&msg, 17); MSG_WriteByte(&msg, 128); MSG_WriteByte(&msg, 64); MSG_WriteByte(&msg, 1);
+    MSG_WriteByte(&msg, svc_nop); /* Other server messages can follow in the same datagram. */
     msg.readcount = 0;
-    CL_ParseUIEntityStats(&msg);
-    T_EQ(msg.readcount, msg.cursize);
+    T_ASSERT(CL_ParseUIEntityStats(&msg));
+    T_EQ(msg.readcount, msg.cursize - 1);
     T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
     T_FEQ(value, BYTE2FLOAT(128), 0.0001f);
     frame.stat = ENT_MANA;
@@ -2119,6 +2120,18 @@ TEST(client_layout, hero_statusbars_clear_roster_on_reuse_and_ignore_malformed_p
     MSG_WriteByte(&msg, 1); MSG_WriteByte(&msg, 1); MSG_WriteShort(&msg, 17);
     msg.readcount = 0;
     CL_ParseUIEntityStats(&msg);
+    T_EQ(msg.readcount, 0); /* A failed parser leaves cursor ownership to dispatch. */
+    T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
+    T_FEQ(value, BYTE2FLOAT(128), 0.0001f);
+
+    /* A complete packet with an invalid row must also be rejected atomically,
+     * including its clear bit. */
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, 1); MSG_WriteByte(&msg, 1);
+    MSG_WriteShort(&msg, 0); MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 0); MSG_WriteByte(&msg, 0);
+    msg.readcount = 0;
+    CL_ParseUIEntityStats(&msg);
+    T_EQ(msg.readcount, 0);
     T_ASSERT(SCR_LayoutStatusbarValue(&frame, &value));
     T_FEQ(value, BYTE2FLOAT(128), 0.0001f);
     memcpy(cl.ui_entity_stats, saved, sizeof(cl.ui_entity_stats));
