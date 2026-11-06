@@ -39,7 +39,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | A, hold | Draw a white circular paint ring over the middle of the view; add units touched by the brush to the selection on release |
 | A, double-tap | Select all visible selectable units of the same type as the unit under the cursor |
 | B | Cancel the radial menu when open; otherwise cancel the current command, selection mode, or menu (Esc) |
-| X | Contextual right click (move, interact, attack, rally, etc.) |
+| X | Contextual right click (move, interact, attack, rally, etc.); toggle autocast for a focused autocast command while the radial is open |
 | Y, tap and release | Open the bottom-right ten-sector radial menu from real clickable command-card icons |
 | Y, hold | Choose a radial-menu sector; release Y to activate the focused command |
 | Left stick while radial is open | Choose a radial-menu sector |

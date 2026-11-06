@@ -1803,6 +1803,19 @@ void SCR_GamepadRadialRelease(void) {
     SCR_GamepadRadialCancel();
 }
 
+bool SCR_GamepadRadialToggleAutocast(void) {
+    if (!gamepad_radial_open) return false;
+    if (gamepad_radial_sector < 0 || gamepad_radial_page >= GAMEPAD_RADIAL_PAGES) return true;
+    gamepadRadialItem_t const *item = &gamepad_radial[gamepad_radial_page][gamepad_radial_sector];
+    if (item->present && item->frame.flags.type == FT_COMMANDBUTTON && item->frame.text &&
+        !strncmp(item->frame.text, "autocast ", 9)) {
+        uiFrame_t command_frame = item->frame;
+        command_frame.onclick = command_frame.text;
+        SCR_LayoutSendFrameCommand(&command_frame);
+    }
+    return true;
+}
+
 /* Fit a complete command-button texture inside each 36-degree sector. The
  * circumference between adjacent icon centres must exceed the icon width;
  * unlike the old 118px ring, this menu is sized from the authored HUD icons. */
