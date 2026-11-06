@@ -1081,14 +1081,16 @@ typedef enum {
 /* Generic disabled-control state carried in the high bits of uiFrame_t.flagsvalue.
  * Low bits overlap the frame type/alpha-mode union and cannot carry control state. */
 #define UIFRAME_DISABLED (1u << 20)
-/* Shared uiFrame_t.flagsvalue bits 9..20; low bits overlap the frame type/alpha-mode
+#define UIFLAG_GAMEPAD_BUILD_MENU (1u << 26) // WC3 construction commands use ordered radial pages
+/* Shared uiFrame_t.flagsvalue bits; low bits overlap the frame type/alpha-mode
  * union. Distinct bits add up to exactly their bitwise union, so any overlap fails the build. */
 #define UIFLAG_SHARED_BITS(op) \
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
      UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
-     UIFLAG_TEXT_RANK_MASK op UIFLAG_ENTITY_STATUSBAR op UIFLAG_HEALTH_GRADIENT op UIFRAME_DISABLED)
+     UIFLAG_TEXT_RANK_MASK op UIFLAG_ENTITY_STATUSBAR op UIFLAG_HEALTH_GRADIENT op \
+     UIFRAME_DISABLED op UIFLAG_GAMEPAD_BUILD_MENU)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

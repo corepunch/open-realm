@@ -53,4 +53,16 @@ bool SCR_LayoutScrollTextAreaAt(handle_t layout, vec2_t const *point, int wheel_
 float SCR_LayoutTextAreaMaxScroll(uiFrame_t const *frame);
 bool SCR_LayoutKeyEvent(int key, bool shift_held);
 
+/* Gamepad presentation reuses server-authored command frames and modal hit targets. */
+void SCR_GamepadBeginUIFrame(void);
+void SCR_GamepadRadialOpen(void);
+void SCR_GamepadRadialSetAxis(float x, float y);
+void SCR_GamepadRadialNextPage(void);
+void SCR_GamepadRadialRelease(void);
+void SCR_GamepadRadialCancel(void);
+bool SCR_GamepadRadialActive(void);
+bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
+void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible);
+
+
 #endif /* ui_layout_h */

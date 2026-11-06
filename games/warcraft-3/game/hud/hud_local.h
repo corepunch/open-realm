@@ -209,6 +209,7 @@ void UI_WriteHoverLayout(edict_t *ent);
 /* Command buttons (hud_commands.c) */
 void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
+void UI_SetGamepadBuildMenu(bool active);
 cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggle_on);
 cstring_t G_UIArtPath(cstring_t art);
 bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state);
