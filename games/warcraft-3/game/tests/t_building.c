@@ -1,5 +1,6 @@
 #ifdef BZ_TESTS
 #include "test.h"
+#include <stdlib.h>
 #include "../g_local.h"
 #include "../hud/hud_local.h"
 #include "../skills/s_skills.h"
@@ -646,6 +647,31 @@ static buildingMorphRows_t building_install_morph_data(void) {
     rows.old_balance = G_SetSLKRows("UnitBalance", rows.balance_rows);
     rows.old_ui = G_SetSLKRows("UnitUI", rows.ui_rows);
     return rows;
+}
+
+/* The upgrade footprint fixture is served through the normal game-file API so
+ * G_TransformUnitType loads it through SP_SpawnUnit just like a retail row. */
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t id_length, colormap_type, image_type;
+    uint16_t colormap_index, colormap_length;
+    uint8_t colormap_size;
+    uint16_t x_origin, y_origin, width, height;
+    uint8_t pixel_size, attributes;
+} building_test_tga_header_t;
+#pragma pack(pop)
+
+static handle_t building_upgrade_footprint_read(cstring_t path, uint32_t *size) {
+    building_test_tga_header_t header = { .image_type = 3, .width = 16, .height = 16, .pixel_size = 8 };
+    size_t const bytes = sizeof(header) + 16 * 16;
+    uint8_t *data;
+    if (!path || strcmp(path, "test-townhall-large.tga")) return NULL;
+    data = malloc(bytes);
+    if (!data) return NULL;
+    memcpy(data, &header, sizeof(header));
+    memset(data + sizeof(header), 0xff, 16 * 16);
+    *size = (uint32_t)bytes;
+    return data;
 }
 
 static void building_restore_morph_data(buildingMorphRows_t rows) {
@@ -1403,6 +1429,74 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
     T_EQ(level.events.queue[3].type, EVENT_UNIT_UPGRADE_FINISH);
 
     building_restore_morph_data(rows);
+}
+
+/* When an upgrade grows the authored pathing footprint, multiple adjacent
+ * units must get distinct legal exits after the in-place morph. */
+TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
+    gameClient_t *client = &game.clients[0];
+    uint32_t const source_id = MAKEFOURCC('h','b','a','r');
+    uint32_t const target_id = MAKEFOURCC('o','t','r','b');
+    static UnitProfile_t const profile = { .upgrade = "otrb" };
+    static uint8_t pathmap[128 * 128];
+    static const char unit_data_slk[] =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"pathTex\"\n"
+        "C;Y2;X1;K\"otrb\"\nC;Y2;X2;K\"test-townhall-large.tga\"\n"
+        "C;Y3;X1;K\"hfoo\"\nE\n";
+    __typeof__(gi.ReadFile) old_read_file = gi.ReadFile;
+    buildingMorphRows_t morph_rows;
+    slkTestData_t *unit_rows, *old_unit_rows;
+    edict_t *building, *units[4];
+    vec2_t const positions[4] = { { 40, 0 }, { -40, 0 }, { 0, 40 }, { 0, -40 } };
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(128, 128, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    morph_rows = building_install_morph_data();
+    unit_rows = parse_slk_string(unit_data_slk);
+    old_unit_rows = G_SetSLKRows("UnitData", unit_rows);
+    gi.ReadFile = building_upgrade_footprint_read;
+
+    building = alloc_test_unit(source_id, 0, 0);
+    building->data.UnitProfile = &profile;
+    building->s.player = client->ps.number;
+    building->health.value = building->health.max_value = 1000.0f;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    memset(client->tech, 0, sizeof(client->tech));
+
+    FOR_LOOP(i, ARRAY_COUNT(units)) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), positions[i].x, positions[i].y);
+        units[i]->s.player = client->ps.number;
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->s.model = 1;
+        units[i]->movetype = MOVETYPE_STEP;
+        units[i]->collision = 16.0f;
+        gi.LinkEntity(units[i]);
+    }
+    gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(G_StartBuildingUpgrade(building, target_id));
+    G_GetResearch(building)->progress = G_GetResearch(building)->duration;
+    G_RunBuildingUpgradeFrame(building);
+    T_EQ(building->class_id, target_id);
+    FOR_LOOP(i, ARRAY_COUNT(units)) {
+        T_ASSERT(CM_DistanceToPathingFootprint(building, &units[i]->s.origin2) >= units[i]->collision);
+        FOR_LOOP(j, i) {
+            T_ASSERT(Vector2_distance(&units[i]->s.origin2, &units[j]->s.origin2) >=
+                     units[i]->collision + units[j]->collision);
+        }
+    }
+
+    gi.ReadFile = old_read_file;
+    G_SetSLKRows("UnitData", old_unit_rows);
+    free_slk_rows(unit_rows);
+    building_restore_morph_data(morph_rows);
 }
 
 TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock) {
