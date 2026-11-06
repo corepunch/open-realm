@@ -288,6 +288,42 @@ TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, unit_enemy_transfers_selected_unit_and_unit_sleep_applies_long_status) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t enemy[] = { "unit", "enemy" };
+    cstring_t own[] = { "unit", "own" };
+    cstring_t sleep[] = { "unit", "sleep" };
+    edict_t *unit, *clent;
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    G_SelectEntity(clent->client, unit);
+
+    G_ClientCommand(clent, 2, enemy);
+    T_EQ(unit->s.player, 1u);
+    T_ASSERT(G_SelectionRelation(0, unit) == SELECT_RELATION_ENEMY);
+    T_ASSERT(unit->selected & 1);
+
+    /* The cheat can sleep an explicitly selected enemy without taking control. */
+    G_ClientCommand(clent, 2, sleep);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_SLEEPING));
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
+    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','U','s','l')));
+    T_ASSERT(unit_findstatus(unit, MAKEFOURCC('B','U','s','l'))->duration_ms >= 3599000u);
+
+    G_ClientCommand(clent, 2, own);
+    T_EQ(unit->s.player, 0u);
+    T_ASSERT(G_SelectionRelation(0, unit) == SELECT_RELATION_FRIEND);
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     gameClient_t *client = &game.clients[0];
