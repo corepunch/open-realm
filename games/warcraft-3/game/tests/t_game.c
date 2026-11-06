@@ -294,6 +294,7 @@ TEST(wc3_game, unit_enemy_transfers_selected_unit_and_unit_sleep_applies_long_st
     cstring_t own[] = { "unit", "own" };
     cstring_t sleep[] = { "unit", "sleep" };
     edict_t *unit, *clent;
+    heroabilitystatus_t *status;
 
     setup_test_world();
     clent = &g_edicts[0];
@@ -314,8 +315,9 @@ TEST(wc3_game, unit_enemy_transfers_selected_unit_and_unit_sleep_applies_long_st
     G_ClientCommand(clent, 2, sleep);
     T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_SLEEPING));
     T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_STUNNED));
-    T_NOT_NULL(unit_findstatus(unit, MAKEFOURCC('B','U','s','l')));
-    T_ASSERT(unit_findstatus(unit, MAKEFOURCC('B','U','s','l'))->duration_ms >= 3599000u);
+    status = unit_findstatus(unit, MAKEFOURCC('B','U','s','l'));
+    T_NOT_NULL(status);
+    if (status) T_ASSERT(status->duration_ms >= 3599000u);
 
     G_ClientCommand(clent, 2, own);
     T_EQ(unit->s.player, 0u);

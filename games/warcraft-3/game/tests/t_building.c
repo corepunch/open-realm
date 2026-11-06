@@ -1493,6 +1493,10 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
         }
     }
 
+    if (building->pathtex) {
+        gi.MemFree(building->pathtex);
+        building->pathtex = NULL;
+    }
     gi.ReadFile = old_read_file;
     G_SetSLKRows("UnitData", old_unit_rows);
     free_slk_rows(unit_rows);
