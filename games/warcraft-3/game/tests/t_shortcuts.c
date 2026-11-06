@@ -608,6 +608,50 @@ TEST(wc3_shortcuts, controlled_hero_vitals_are_delta_sent_without_vision_and_fol
     gi.ImageIndex = old_image; gi.FontIndex = old_font;
 }
 
+/* Changed-only HUD values can be lost after the server advances its cache.
+ * The scheduled roster sweep must resend the value through the real updater. */
+TEST(wc3_shortcuts, hero_vital_sweep_recovers_a_dropped_changed_update) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent, *hero;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    UnitProfile_t profile = { .art = "TestUI\\Textures\\solid_white.blp" };
+
+    reset_entities(); setup_test_world();
+    client->ps.number = 0;
+    client->connected = true;
+    clent = g_edicts;
+    clent->client = client;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 400.0f, 600.0f);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    hero->data.UnitProfile = &profile;
+    client->shortcuts.vitals = gi.MemAlloc(sizeof(unitShortcutVital_t));
+    T_NOT_NULL(client->shortcuts.vitals);
+    if (!client->shortcuts.vitals) return;
+    client->shortcuts.vital_count = 1;
+    client->shortcuts.vitals[0] = (unitShortcutVital_t){
+        .entity = hero->s.number, .spawn_time = hero->spawn_time,
+        .hp = compress_stat(&hero->health), .mana = compress_stat(&hero->mana),
+        .has_mana = 0,
+    };
+
+    gi.Write = shortcut_vital_write;
+    gi.unicast = shortcut_vital_unicast;
+    shortcut_wire_count = shortcut_wire_packets = 0;
+    hero->health.value *= 0.5f;
+    G_UpdateClientUnitShortcuts();
+    T_EQ(shortcut_wire_packets, 1); /* This changed packet is treated as lost. */
+    T_EQ(shortcut_wire[4], compress_stat(&hero->health));
+    FOR_LOOP(i, 9) G_UpdateClientUnitShortcuts();
+    T_EQ(shortcut_wire_packets, 2);
+    T_EQ(shortcut_wire[11], compress_stat(&hero->health));
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_ClearUnitShortcutVitals(client);
+}
+
 TEST(wc3_shortcuts, vital_cache_allocation_failure_preserves_shortcut_controls) {
     gameClient_t *client = &game.clients[0];
     edict_t *clent, *hero;

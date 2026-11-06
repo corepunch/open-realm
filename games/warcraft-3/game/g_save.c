@@ -172,14 +172,15 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 134 persists Locust target attack deadlines and return damage credit. */
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
-/* Browser version 2 expands gameClient_t with runtime-only Hero HUD cache fields. */
-static uint32_t const save_version = 2;
+/* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
+static uint32_t const save_version = 3;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
 /* Version 141 adds independent PauseUnit ownership during transformations. */
 /* Version 142 expands gameClient_t with runtime-only Hero HUD vital cache fields. */
-static uint32_t const save_version = 142;
+/* Version 143 adds runtime-only Hero HUD vital sweep state. */
+static uint32_t const save_version = 143;
 #endif
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -1211,6 +1212,8 @@ static field_t const client_fields[] = {
     F(client_s, rally_indicator, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, shortcuts.vitals, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, shortcuts.vital_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, shortcuts.vital_sweep_cursor, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, shortcuts.vital_sweep_frame, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
