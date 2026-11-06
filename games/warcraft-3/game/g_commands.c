@@ -729,7 +729,11 @@ static void G_PrepareUnitShortcut(edict_t *clent) {
 
 CLIENTCOMMAND(HeroButton) {
     if (argc < 2) return;
-    G_PrepareUnitShortcut(clent);
+    /* G_ActivateHeroButton routes an active entity-target callback before its
+     * normal select/camera shortcut. Only cancel placement/targeting for the
+     * ordinary shortcut action. */
+    if (!clent || !clent->client || !clent->client->menu.on_entity_selected)
+        G_PrepareUnitShortcut(clent);
     G_ActivateHeroButton(clent, (uint32_t)atoi(argv[1]));
 }
 

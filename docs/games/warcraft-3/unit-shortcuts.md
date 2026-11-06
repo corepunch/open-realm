@@ -10,7 +10,7 @@ The current behavior is:
 
 | Control | Action |
 |---|---|
-| Hero HUD button | A single click selects the Hero. A second click on the same Hero within the 500 ms double-click window centers the camera. |
+| Hero HUD button | A single click selects the Hero. A second click on the same Hero within the 500 ms double-click window centers the camera. While an entity-target command is active, clicking the Hero sends it to that command's target validation callback instead of cancelling targeting or changing selection. |
 | Default F1-F7 | A single press selects the corresponding controlled Hero. A second press on the same Hero within the same 500 ms double-activation window centers the camera. |
 | Idle-worker HUD button | Select and center the next idle worker, then advance the cycle cursor. |
 | Default F8 | Same cycle operation as the idle-worker HUD button. |
@@ -115,6 +115,7 @@ No `entityState_t` or `playerState_t` network fields are added.
 - The idle-worker count is a bottom-right text overlay on the worker icon.
 - A Hero with unspent skill points uses the same bottom-right number overlay, showing the current `hero.skillpoints` value and omitting the number at zero.
 - Each Hero icon has a health bar coloured by its life fraction (red at 0%, yellow at 50%, green at 100%), followed by a cyan mana bar when the Hero has a mana pool. The vertical slot spacing accommodates both without overlapping the next portrait. Dead Heroes keep their icon and display an empty health fill.
+- During an active unit-target command, a Hero icon can be clicked as a target even when that Hero is not in the current selection. The server validates it through the active game target callback; rejected targets leave targeting active. A target click does not count toward Hero select/double-click camera activation.
 - Real damage to an owned Hero refreshes a transient red pulse on that Hero shortcut. The server rebuilds the shortcut once with an absolute expiry timestamp; the client animates the tint locally until expiry, so there is no per-frame shortcut serialization.
 
 The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons and their passive bars, the idle-worker button, and its count are parented to that root. On 4:3 the root is still `0.8 x 0.6`; the Hero slot stride is now `0.046` (formerly `0.037`) to make space for the two bars, while the first Hero's top-left anchor and the idle-worker button are unchanged. On a wider display only the root expands to the full UI canvas, putting the shortcuts against the physical left edge while ConsoleUI remains centered in its 4:3 safe area.
@@ -162,7 +163,7 @@ Unit tests cover the idle-worker predicate, shortcut dirty invalidation, Hero ba
 
 1. Start a map with one Hero and several Peasants.
 2. Confirm the Hero icon is below the upper menu and the worker icon/count is above the minimap.
-3. Click the Hero icon once from another selection; only selection should move to that Hero. Double-click the Hero icon; the second click should center the camera. A later isolated click must not center it.
+3. Click the Hero icon once from another selection; only selection should move to that Hero. Double-click the Hero icon; the second click should center the camera. A later isolated click must not center it. Arm a unit-target healing or positive-buff ability and click a top-left Hero icon, including one outside the current selection; confirm the ability targets that Hero and rejected targets leave targeting active.
 4. With multiple Heroes, select them together and confirm the persistent Hero icons appear in the same order as those Heroes in the status-panel multiselect grid; F1-F7 must address that same order.
 5. Press F1 once from another selection; only selection should change. Press F1 again within 500 ms to center. After waiting longer than 500 ms, another isolated F1 press must not move the camera even though the Hero is already selected.
 6. Leave three Peasants idle; confirm count `3`.
@@ -177,7 +178,7 @@ Unit tests cover the idle-worker predicate, shortcut dirty invalidation, Hero ba
 15. Damage/heal a Hero and spend/regenerate mana while it is not selected; confirm the green/cyan bars update directly underneath its top-left icon without requiring a selection or shortcut rebuild.
 16. Confirm multiple Hero bars do not overlap adjacent icons at both 4:3 and widescreen resolutions; verify a Hero without mana shows only the green bar, and a dead Hero shows an empty health bar until revived.
 
-The dedicated headless regressions include `wc3_shortcuts.hero_buttons_match_multiselect_order`, `wc3_shortcuts.hud_buttons_share_full_canvas_left_root`, `wc3_shortcuts.controlled_hero_vitals_are_delta_sent_without_vision_and_follow_mana_pool`, `client_layout.hero_statusbars_decode_out_of_view_vitals_and_mana_pool_changes`, and `client_layout.hero_statusbars_clear_roster_on_reuse_and_ignore_malformed_packets`. Static checks cannot verify framebuffer pixels, real network behaviour or ROC/TFT art availability; verify the bars in both game variants at 4:3 and widescreen after building.
+The dedicated headless regressions include `wc3_shortcuts.hero_button_targets_visible_hero_during_entity_targeting`, `wc3_shortcuts.hero_buttons_match_multiselect_order`, `wc3_shortcuts.hud_buttons_share_full_canvas_left_root`, `wc3_shortcuts.controlled_hero_vitals_are_delta_sent_without_vision_and_follow_mana_pool`, `client_layout.hero_statusbars_decode_out_of_view_vitals_and_mana_pool_changes`, and `client_layout.hero_statusbars_clear_roster_on_reuse_and_ignore_malformed_packets`. Static checks cannot verify framebuffer pixels, real network behaviour or ROC/TFT art availability; verify the bars in both game variants at 4:3 and widescreen after building.
 
 ## See Also
 
