@@ -25,6 +25,7 @@
  */
 #include "common/common.h"
 #include "g_local.h"
+#include "skills/s_skills.h"
 #ifdef WC3_SC2API
 #include "sc2api/sc2api_server.h"
 #endif
@@ -1783,6 +1784,25 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+
+    /* The client needs only this recipient-safe activity bit for the gamepad
+     * bulk-select filter; do not replicate a unit's target or order details. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = g_edicts + i;
+        edict_t *goal;
+        bool gathering = false;
+        if (!unit->inuse || !(unit->s.flags & EF_UNIT)) continue;
+        unit->s.flags &= ~EF_GATHERING;
+        goal = unit->orders ? unit->orders->resource_goal : NULL;
+        if (goal && goal->inuse &&
+            (!(goal->s.flags & EF_UNIT) || (goal->s.flags & EF_RESOURCE_SOURCE)))
+            gathering = true;
+        /* Wisps remain attached to a tree and intentionally have no
+         * resource_goal; their move procedure is the authoritative work state. */
+        if (unit->currentmove && unit->currentmove->proc == CAbilityWispHarvest)
+            gathering = true;
+        if (gathering) unit->s.flags |= EF_GATHERING;
+    }
 
     /* Flow-field cache misses are resumable so arbitrary reachable move orders
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep

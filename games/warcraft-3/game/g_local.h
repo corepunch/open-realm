@@ -4002,6 +4002,7 @@ void G_DeselectEntity(gameClient_t *, edict_t *);
 bool G_IsEntitySelected(gameClient_t *, edict_t *);
 bool G_FocusSelectedUnit(gameClient_t *, edict_t *);
 bool G_CycleSelectionSubgroup(gameClient_t *);
+bool G_CycleSelectionSubgroupBackward(gameClient_t *);
 void G_ResetSelectionFocus(gameClient_t *);
 bool G_UnitCanBeSelected(gameClient_t *, edict_t const *);
 bool G_UnitCanControl(gameClient_t *, edict_t const *);
