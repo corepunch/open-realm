@@ -1827,14 +1827,13 @@ static void SCR_GamepadRadialDraw(void) {
         if (entry->present) icon = MAX(icon, entry->authored_icon_px);
     }
     icon = MAX(22.0f, MIN(icon, MIN(window.width * 0.11f, window.height * 0.13f)));
-    float const padding = MAX(4.0f, 8.0f * scale);
-    float radius = 3.45f * icon;
+    //icon *= 0.9f;
+    float const padding = MAX(4.0f, 8.0f * scale) * 0.6f;
+    float radius = 2.76f * icon;
     radius = MIN(radius, MIN(window.width * 0.5f - padding * 2.0f,
                              window.height * 0.5f - padding * 2.0f));
     if (radius <= 0) return;
-    /* If the window is tiny, shrink the icons along with the ring rather than
-     * let the 10 sectors overlap or escape the screen. */
-    icon = MIN(icon, radius / 3.45f);
+    /* Keep authored icon dimensions and fit the radial ring within the screen. */
     /* Put icon centers at the outer edge of their sectors. The square's outer
      * edge aligns with the circle, so sectors remain separated tangentially. */
     float const orbit = radius - icon * 0.5f;
