@@ -2268,6 +2268,7 @@ TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
     uint8_t water[1] = { CM_PATHING_UNWALKABLE };
     uint32_t const asb1 = MAKEFOURCC('A','s','b','1');
     edict_t *unit;
+    animation_t transition = { .interval = { 10, 20 } };
 
     reset_test_entities(); setup_test_world();
     install_submerge_test_data(&rows, &old, &ui_rows, &old_ui);
@@ -2287,11 +2288,28 @@ TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(unit));
     T_STREQ(unit->animation_props, "alternate");
+    T_STREQ(unit->animation_request, "morph");
+
+    /* Complete the transition through the production animation end callback.
+     * The submerged unit must settle on its alternate idle family. */
+    unit->animation = &transition;
+    unit->s.frame = transition.interval[1] - 1;
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
+    T_STREQ(unit->animation_props, "alternate");
 
     T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
     T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
     T_ASSERT(!S_UnitIsSubmerged(unit));
     T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
+    T_STREQ(unit->animation_request, "morph alternate");
+
+    /* Surfacing completes through the same callback, then drops the alternate
+     * tag before selecting the ordinary surface idle sequence. */
+    unit->animation = &transition;
+    unit->s.frame = transition.interval[1] - 1;
+    monster_think(unit);
+    T_STREQ(unit->animation_request, "stand");
     T_STREQ(unit->animation_props, "");
 
     restore_submerge_test_data(rows, old, ui_rows, old_ui);
