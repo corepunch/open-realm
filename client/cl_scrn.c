@@ -1255,6 +1255,8 @@ static float SCR_CommandButtonRadialShade(uiFrame_t const *frame) {
 }
 
 void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
+    /* The radial overlay replaces the square command-card grid while open. */
+    if (gamepad_radial_open) return;
     entityState_t const *sel = SCR_LayoutSelectedEntity();
     bool const alternate_active = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) != 0;
     bool const ability_match = sel && frame->stat != UINT8_MAX && sel->ability == frame->stat;
@@ -1805,7 +1807,7 @@ void SCR_GamepadRadialRelease(void) {
  * circumference between adjacent icon centres must exceed the icon width;
  * unlike the old 118px ring, this menu is sized from the authored HUD icons. */
 static void SCR_GamepadRadialDraw(void) {
-    if (!gamepad_radial_open || !re.DrawFill || !re.DrawImageEx) return;
+    if (!gamepad_radial_open || !re.DrawImageEx) return;
     size2_t const window = re.GetWindowSize();
     uiCanvas_t const *canvas = CL_Canvas();
     int const page = gamepad_radial_page;
@@ -1831,25 +1833,20 @@ static void SCR_GamepadRadialDraw(void) {
                              window.height * 0.5f - padding * 2.0f));
     if (radius <= 0) return;
     /* If the window is tiny, shrink the icons along with the ring rather than
-     * let the 10 sectors overlap or escape the black background. */
+     * let the 10 sectors overlap or escape the screen. */
     icon = MIN(icon, radius / 3.45f);
     /* Put icon centers at the outer edge of their sectors. The square's outer
      * edge aligns with the circle, so sectors remain separated tangentially. */
     float const orbit = radius - icon * 0.5f;
     vec2_t const center = { window.width - radius - padding,
                             window.height - radius - padding };
-    rect_t const background = { center.x - radius - padding, center.y - radius - padding,
-                                window.width - (center.x - radius - padding),
-                                window.height - (center.y - radius - padding) };
-    /* Opaque background hides the original bottom-right command card. Drawing
-     * it before the spokes/icons means their clickable presentation stays clear. */
-    rect_t const ui_background = {
-        canvas->scene.x + background.x * ui_scale_x,
-        canvas->scene.y + background.y * ui_scale_y,
-        background.w * ui_scale_x,
-        background.h * ui_scale_y,
-    };
-    re.DrawFill(&ui_background, MAKE(color32_t, 0, 0, 0, 255));
+    /* Separate translucent black wedges replace the command-card square and
+     * leave the scene visible through both the sectors and their gaps. */
+    if (re.DrawRadialSector) {
+        color32_t const shade = MAKE(color32_t, 0, 0, 0, 135);
+        FOR_LOOP(slot, GAMEPAD_RADIAL_SLOTS)
+            re.DrawRadialSector(center, radius, slot, shade);
+    }
     if (gamepad_radial_sector >= 0 && re.DrawRadialSector) {
         uint32_t const rgb = WC3_PlayerColorRGB(cl.playerstate.color);
         color32_t const team = MAKE(color32_t, (rgb >> 16) & 0xff, (rgb >> 8) & 0xff,
@@ -1920,8 +1917,8 @@ static void SCR_GamepadRadialDraw(void) {
         cstring_t tooltip = entry->present ? SCR_GetTooltipText(&entry->frame) : NULL;
         if (tooltip && *tooltip) {
             rect_t tip = gamepad_radial_tooltip.rect;
-            tip.w = MIN(tip.w, MAX(100.0f, background.x - 24.0f));
-            tip.x = MAX(8.0f, background.x - tip.w - 12.0f);
+            tip.w = MIN(tip.w, MAX(100.0f, center.x - radius - padding - 24.0f));
+            tip.x = MAX(8.0f, center.x - radius - padding - tip.w - 12.0f);
             tip.y = MAX(8.0f, MIN(window.height - tip.h - 8.0f, center.y - tip.h * 0.5f));
             SCR_DrawAuthoredTooltip(&gamepad_radial_tooltip.frame, &tip, tooltip);
         }
