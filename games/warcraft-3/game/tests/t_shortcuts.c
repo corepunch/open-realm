@@ -103,6 +103,7 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
 
         T_ASSERT(frame->flagsvalue & UIFLAG_ENTITY_STATUSBAR);
         T_ASSERT(frame->stat == ENT_HEALTH || frame->stat == ENT_MANA);
+        T_EQ(!!(frame->flagsvalue & UIFLAG_HEALTH_GRADIENT), frame->stat == ENT_HEALTH);
         T_ASSERT(frame->tex.index);
         T_FEQ(frame->size.width, 0.0340f, 0.0001f);
         T_FEQ(frame->size.height, 0.0040f, 0.0001f);
