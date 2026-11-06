@@ -11,6 +11,8 @@
 #define WC3_HERO_FUNCTION_KEYS 7
 #define WC3_HERO_BUTTON_DOUBLE_CLICK_MS 500 // milliseconds; matches the existing Hero shortcut double-activation window
 #define WC3_HERO_DAMAGE_ALERT_MS 3000 // milliseconds; keeps a damaged Hero conspicuous through several red pulses without rebuilding on expiry
+#define WC3_SHORTCUT_VITAL_SWEEP_INTERVAL_FRAMES 10u
+#define WC3_SHORTCUT_VITAL_SWEEP_MAX_BYTES (3u + BZ_UI_ENTITY_STAT_BATCH * 5u) // bytes; opcode/header plus fixed-size entries
 
 typedef struct {
     uint32_t entity;
@@ -261,6 +263,8 @@ void G_ClearUnitShortcutVitals(gameClient_t *client) {
     if (client->shortcuts.vitals) gi.MemFree(client->shortcuts.vitals);
     client->shortcuts.vitals = NULL;
     client->shortcuts.vital_count = 0;
+    client->shortcuts.vital_sweep_cursor = 0;
+    client->shortcuts.vital_sweep_frame = 0;
 }
 
 /* Each unicast contains only authorized, normalized HUD stats: never world
@@ -290,6 +294,10 @@ void G_SendUnitShortcutVitals(edict_t *clent, bool clear) {
 
     if (!client || !client->connected) return;
     shortcuts = &client->shortcuts;
+    if (clear) {
+        shortcuts->vital_sweep_cursor = 0;
+        shortcuts->vital_sweep_frame = 0;
+    }
     FOR_LOOP(i, shortcuts->vital_count) {
         unitShortcutVital_t const *entry = shortcuts->vitals + i;
         if (entry->entity >= globals.num_edicts ||
@@ -299,6 +307,8 @@ void G_SendUnitShortcutVitals(edict_t *clent, bool clear) {
              * shortcuts and their authorized vital channel. Clear immediately
              * so the client cannot display stale data until the next rebuild. */
             G_WriteShortcutVitalBatch(clent, NULL, 0, true);
+            shortcuts->vital_sweep_cursor = 0;
+            shortcuts->vital_sweep_frame = 0;
             G_InvalidateUnitShortcuts(client);
             return;
         }
@@ -323,6 +333,29 @@ void G_SendUnitShortcutVitals(edict_t *clent, bool clear) {
     if (count || clear) G_WriteShortcutVitalBatch(clent, batch, count, clear);
 }
 
+/* A changed-only update can be lost after its cached value advances. Periodic
+ * bounded full-value bands make the recipient mirror converge; changed rows
+ * are always sent first by G_SendUnitShortcutVitals(). */
+static void G_SendUnitShortcutVitalSweep(edict_t *clent) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    unitShortcutState_t *shortcuts;
+    unitShortcutVital_t batch[BZ_UI_ENTITY_STAT_BATCH];
+    uint32_t const max_entries = (WC3_SHORTCUT_VITAL_SWEEP_MAX_BYTES - 3u) / 5u;
+    uint32_t count;
+
+    if (!client || !client->connected) return;
+    shortcuts = &client->shortcuts;
+    if (!shortcuts->vital_count) return;
+    if (++shortcuts->vital_sweep_frame < WC3_SHORTCUT_VITAL_SWEEP_INTERVAL_FRAMES) return;
+    shortcuts->vital_sweep_frame = 0;
+    if (shortcuts->vital_sweep_cursor >= shortcuts->vital_count) shortcuts->vital_sweep_cursor = 0;
+    count = MIN(max_entries, shortcuts->vital_count - shortcuts->vital_sweep_cursor);
+    FOR_LOOP(i, count) batch[i] = shortcuts->vitals[shortcuts->vital_sweep_cursor + i];
+    shortcuts->vital_sweep_cursor += count;
+    if (shortcuts->vital_sweep_cursor >= shortcuts->vital_count) shortcuts->vital_sweep_cursor = 0;
+    G_WriteShortcutVitalBatch(clent, batch, count, false);
+}
+
 void G_UpdateClientUnitShortcuts(void) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
@@ -337,6 +370,7 @@ void G_UpdateClientUnitShortcuts(void) {
             G_SendUnitShortcutVitals(clent, true);
         } else {
             G_SendUnitShortcutVitals(clent, false);
+            G_SendUnitShortcutVitalSweep(clent);
         }
     }
 }

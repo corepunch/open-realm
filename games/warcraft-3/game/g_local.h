@@ -737,6 +737,8 @@ typedef struct {
     uint32_t last_idle_worker;
     unitShortcutVital_t *vitals;
     uint32_t vital_count;
+    uint32_t vital_sweep_cursor;
+    uint32_t vital_sweep_frame;
 } unitShortcutState_t;
 
 /* Timed per-player dialogue text retained until its simulation deadline. */
