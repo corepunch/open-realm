@@ -38,7 +38,7 @@ static struct {
  * without depending on OS-specific button names or GUID databases. */
 typedef struct {
     SDL_GameController *controller;
-    bool a, b, x, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
+    bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
          lb, rb, rb_used, start, paint;
     bool left_stick_neutral_required;
     bool down_dpad[4];
@@ -57,10 +57,11 @@ static bool CL_GamepadModal(void) {
 }
 
 static void CL_GamepadReset(void) {
-    if (gamepad.x)
+    if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.y = gamepad.paint = false;
+    gamepad.x_radial = false;
     gamepad.y_radial_hold = false;
     gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
@@ -75,10 +76,11 @@ static void CL_GamepadReset(void) {
 }
 
 static void CL_GamepadResetHeld(void) {
-    if (gamepad.x)
+    if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.paint = false;
+    gamepad.x_radial = false;
     gamepad.y_radial_hold = false;
     gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
@@ -158,6 +160,14 @@ static void CL_GamepadClick(uint8_t button) {
 static void CL_GamepadFaceX(bool down) {
     if (gamepad.x == down) return;
     gamepad.x = down;
+    if (down) {
+        gamepad.x_radial = SCR_GamepadRadialActive();
+        if (gamepad.x_radial) return;
+    } else if (gamepad.x_radial) {
+        gamepad.x_radial = false;
+        SCR_GamepadRadialToggleAutocast();
+        return;
+    }
     CL_GamepadDispatchPointer(down ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP,
                              SDL_BUTTON_RIGHT, (int)mouse.origin.x, (int)mouse.origin.y);
 }
