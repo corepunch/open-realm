@@ -94,7 +94,9 @@ moves to the nearest clickable server-authored button in that direction; native
 client menus fall back to their keyboard arrow navigation. A clicks, B cancels.
 The radial menu remains open after Y is released. A activates the focused
 command and closes it; B closes it without issuing the command. Mouse movement
-is ignored while the radial menu is open.
+is ignored while the radial menu is open. After closing it, return the left stick
+to its deadzone before it resumes camera movement; this prevents the selection
+direction from panning the camera as soon as the menu closes.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat

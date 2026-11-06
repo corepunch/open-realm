@@ -38,6 +38,7 @@ static struct {
 typedef struct {
     SDL_GameController *controller;
     bool a, b, x, y, rt, rt_used, lt, lb, rb, start, paint;
+    bool left_stick_neutral_required;
     bool down_dpad[4];
     uint32_t dpad_pressed[4];
     uint32_t a_pressed, last_a_released, last_b_released;
@@ -61,6 +62,7 @@ static void CL_GamepadReset(void) {
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
     SCR_GamepadRadialCancel();
     SCR_GamepadSelectionCircle(mouse.origin, 0, false);
@@ -74,6 +76,7 @@ static void CL_GamepadResetHeld(void) {
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.start = false;
+    gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
     SCR_GamepadSelectionCircle(mouse.origin, 0, false);
     SCR_GamepadRadialCancel();
@@ -288,6 +291,7 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     if (!gamepad.a) return;
     gamepad.a = false;
     if (SCR_GamepadRadialActive()) {
+        gamepad.left_stick_neutral_required = gamepad.lx != 0.0f || gamepad.ly != 0.0f;
         SCR_GamepadRadialRelease();
         gamepad.last_a_released = 0;
         return;
@@ -323,7 +327,11 @@ static void CL_GamepadFaceB(bool down, uint32_t time) {
     if (down) { if (gamepad.b) return; gamepad.b = true; if (gamepad.rt) gamepad.rt_used = true; return; }
     if (!gamepad.b) return;
     gamepad.b = false;
-    if (SCR_GamepadRadialActive()) { SCR_GamepadRadialCancel(); return; }
+    if (SCR_GamepadRadialActive()) {
+        gamepad.left_stick_neutral_required = gamepad.lx != 0.0f || gamepad.ly != 0.0f;
+        SCR_GamepadRadialCancel();
+        return;
+    }
     if (gamepad.rt && CL_GameplayInputReady()) {
         if (gamepad.last_b_released && time - gamepad.last_b_released <=
             (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350))) {
@@ -439,6 +447,8 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 break;
             default: break;
         }
+        if (gamepad.left_stick_neutral_required && gamepad.lx == 0.0f && gamepad.ly == 0.0f)
+            gamepad.left_stick_neutral_required = false;
         if (axis != 0 && !CL_GamepadModal()) CL_GamepadCenterCursor();
         if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
         return true;
@@ -512,7 +522,8 @@ static void CL_GamepadFrame(float dt) {
     if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
     if (CL_GamepadModal()) {
         float speed = Cvar_Value("cl_gamepad_menu_cursor_speed", 600);
-        if (!gamepad.y && !SCR_GamepadRadialActive() && (gamepad.lx || gamepad.ly) && dt > 0.0f) {
+        if (!gamepad.y && !SCR_GamepadRadialActive() && !gamepad.left_stick_neutral_required &&
+            (gamepad.lx || gamepad.ly) && dt > 0.0f) {
             size2_t const win = re.GetWindowSize();
             mouse.origin.x = MIN(win.width - 1.0f, MAX(0.0f, mouse.origin.x + gamepad.lx * dt * speed));
             mouse.origin.y = MIN(win.height - 1.0f, MAX(0.0f, mouse.origin.y + gamepad.ly * dt * speed));
@@ -1240,6 +1251,7 @@ static void CL_ScrollFrame(void) {
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
     if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
+        !gamepad.left_stick_neutral_required &&
         !SCR_GamepadRadialActive()) {
         dx += gamepad.lx;
         dy -= gamepad.ly; /* SDL positive Y is down; game north is positive Y. */
