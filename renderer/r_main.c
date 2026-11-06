@@ -1345,6 +1345,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawSelectionRect = R_DrawSelectionRect,
         .DrawSelectionCircle = R_DrawSelectionCircle,
         .DrawRadialSpokes = R_DrawRadialSpokes,
+        .DrawRadialSector = R_DrawRadialSector,
         .DrawChar = R_DrawChar,
         .DrawString = R_DrawString,
         .DrawCharScaled = R_DrawCharScaled,

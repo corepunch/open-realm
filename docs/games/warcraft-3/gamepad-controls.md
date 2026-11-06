@@ -118,6 +118,9 @@ existing Warcraft tooltip font, border, backdrop and text wrapping. The tooltip
 is positioned to the left of the radial menu to keep command icons visible.
 Releasing the stick to neutral clears focus and its tooltip; releasing Y over a
 focused command activates it through the existing validated command path.
+Stick up selects the 12 o'clock sector, down selects 6 o'clock, and left/right
+select the nearest corresponding sectors. The selected sector is filled with
+the local player's configured Warcraft III team color.
 
 ### Ordinary unit/building command cards
 

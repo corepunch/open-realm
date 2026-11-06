@@ -638,6 +638,40 @@ void R_DrawRadialSpokes(vec2_t center, float radius, color32_t color) {
     R_Call(glDrawArrays, GL_LINES, 0, SPOKES * 2);
 }
 
+/* Filled ten-sector highlight. Sector 0 is centered at twelve o'clock and
+ * sector 5 at six o'clock, matching the controller's stick quantization. */
+void R_DrawRadialSector(vec2_t center, float radius, int sector, color32_t color) {
+    enum { ARC_STEPS = 12 };
+    vertex_t vertices[ARC_STEPS + 2] = {0};
+    mat4_t projection;
+    size2_t const window = R_GetWindowSize();
+    if (!(radius > 0.0f) || sector < 0 || sector >= 10) return;
+    vertices[0].position = (vec3_t){ center.x, center.y, 0 };
+    vertices[0].color = color;
+    float const half_width = (float)M_PI / 10.0f;
+    float const middle = (float)sector * 2.0f * (float)M_PI / 10.0f;
+    FOR_LOOP(i, ARC_STEPS + 1) {
+        float const angle = middle - half_width + (2.0f * half_width * i / ARC_STEPS);
+        vertices[i + 1].position = (vec3_t){ center.x + sinf(angle) * radius,
+                                             center.y - cosf(angle) * radius, 0 };
+        vertices[i + 1].color = color;
+    }
+    Matrix4_ortho(&projection, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    tr.shader_ui.state.viewProjection = projection;
+    R_SetupScissor(&(rect_t){0, 0, 1, 1});
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_TRIANGLE_FAN, ARC_STEPS + 2, 1);
+    R_ApplyShader(&tr.shader_ui);
+    R_Call(glDrawArrays, GL_TRIANGLE_FAN, 0, ARC_STEPS + 2);
+}
+
 void R_DrawSelectionRect(rect_t const *rect, color32_t color) {
     /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
     R_SetupScissor(&tr.viewDef.scissor);

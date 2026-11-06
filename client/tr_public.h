@@ -313,6 +313,7 @@ typedef struct {
     void (*DrawSelectionRect)(rect_t const *rect, color32_t color);
     void (*DrawSelectionCircle)(vec2_t center, float radius, color32_t color);
     void (*DrawRadialSpokes)(vec2_t center, float radius, color32_t color);
+    void (*DrawRadialSector)(vec2_t center, float radius, int sector, color32_t color);
     void (*DrawPic)(texture_t const *texture, float x, float y);
     void (*DrawImage)(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color);
     void (*DrawImageEx)(drawImage_t const *drawImage);
