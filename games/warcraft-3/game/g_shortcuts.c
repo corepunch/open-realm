@@ -241,15 +241,89 @@ void G_ActivateIdleWorkerShortcut(edict_t *clent, uint32_t hinted_number) {
     G_InvalidateUnitShortcuts(client);
 }
 
+/* The roster cache is runtime-only; clearing it on disconnect, load and
+ * rebuild prevents a recycled edict from inheriting another Hero's vitals. */
+void G_ClearUnitShortcutVitals(gameClient_t *client) {
+    if (!client) return;
+    if (client->shortcuts.vitals) gi.MemFree(client->shortcuts.vitals);
+    client->shortcuts.vitals = NULL;
+    client->shortcuts.vital_count = 0;
+}
+
+/* Each unicast contains only authorized, normalized HUD stats: never world
+ * position, model or vision. Batch changed values instead of serializing the
+ * entire Hero layout for every health/mana regeneration tick. */
+static void G_WriteShortcutVitalBatch(edict_t *clent, unitShortcutVital_t const *items, uint32_t count, bool clear) {
+    gi.Write(PF_BYTE, &(int32_t){svc_ui_entity_stats});
+    gi.Write(PF_BYTE, &(int32_t){clear});
+    gi.Write(PF_BYTE, &(int32_t){count});
+    FOR_LOOP(i, count) {
+        gi.Write(PF_SHORT, &(int32_t){items[i].entity});
+        gi.Write(PF_BYTE, &(int32_t){items[i].hp});
+        gi.Write(PF_BYTE, &(int32_t){items[i].mana});
+        gi.Write(PF_BYTE, &(int32_t){items[i].has_mana});
+    }
+    gi.unicast(clent);
+}
+
+/* Only O(shortcut-roster Heroes) work per client per tick. This path is
+ * independent of world snapshot admission, including shared control without
+ * shared vision. Validate the whole roster before emitting any HUD values. */
+void G_SendUnitShortcutVitals(edict_t *clent, bool clear) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    unitShortcutState_t *shortcuts;
+    unitShortcutVital_t batch[BZ_UI_ENTITY_STAT_BATCH];
+    uint32_t count = 0;
+
+    if (!client || !client->connected) return;
+    shortcuts = &client->shortcuts;
+    FOR_LOOP(i, shortcuts->vital_count) {
+        unitShortcutVital_t const *entry = shortcuts->vitals + i;
+        if (entry->entity >= globals.num_edicts ||
+            !G_UnitShowsHeroShortcut(client, globals.edicts + entry->entity) ||
+            globals.edicts[entry->entity].spawn_time != entry->spawn_time) {
+            /* Free, owner change or eligibility changes invalidate both the
+             * shortcuts and their authorized vital channel. Clear immediately
+             * so the client cannot display stale data until the next rebuild. */
+            G_WriteShortcutVitalBatch(clent, NULL, 0, true);
+            G_InvalidateUnitShortcuts(client);
+            return;
+        }
+    }
+    FOR_LOOP(i, shortcuts->vital_count) {
+        unitShortcutVital_t *entry = shortcuts->vitals + i;
+        edict_t const *hero = globals.edicts + entry->entity;
+        uint8_t const hp = compress_stat(&hero->health);
+        uint8_t const mana = compress_stat(&hero->mana);
+        uint8_t const pool = hero->mana.max_value > 0.0f;
+        if (!clear && hp == entry->hp && mana == entry->mana && pool == entry->has_mana) continue;
+        entry->hp = hp;
+        entry->mana = mana;
+        entry->has_mana = pool;
+        batch[count++] = *entry;
+        if (count == BZ_UI_ENTITY_STAT_BATCH) {
+            G_WriteShortcutVitalBatch(clent, batch, count, clear);
+            count = 0;
+            clear = false;
+        }
+    }
+    if (count || clear) G_WriteShortcutVitalBatch(clent, batch, count, clear);
+}
+
 void G_UpdateClientUnitShortcuts(void) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         edict_t *clent;
 
-        if (!client->shortcuts.dirty || !client->connected) continue;
+        if (!client->connected) continue;
         clent = G_GetPlayerEntityByNumber(client->ps.number);
         if (!clent || clent->client != client) continue;
-        client->shortcuts.dirty = false;
-        UI_WriteUnitShortcutLayer(clent);
+        if (client->shortcuts.dirty) {
+            client->shortcuts.dirty = false;
+            UI_WriteUnitShortcutLayer(clent);
+            G_SendUnitShortcutVitals(clent, true);
+        } else {
+            G_SendUnitShortcutVitals(clent, false);
+        }
     }
 }

@@ -3,8 +3,6 @@
  */
 #include "hud_local.h"
 
-#define HERO_SHORTCUT_SIZE    0.0340f
-#define HERO_SHORTCUT_GAP     0.0030f
 static uint32_t UI_WriteShortcutRoot(void) {
     uiFrame_t frame;
     uint32_t number = ui_next_frame_number;
@@ -67,6 +65,21 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+/* Bars bind to the client's HUD-only vital cache, independent of world
+ * snapshots. Keep the art and tint identical to multiselect status bars. */
+static void UI_WriteHeroShortcutBar(uint32_t parent, float x, float y, edict_t const *hero, uint32_t vital) {
+    uiFrame_t frame = {0};
+
+    frame.flags.type = FT_SIMPLESTATUSBAR;
+    frame.flagsvalue |= UIFLAG_ENTITY_STATUSBAR;
+    frame.stat = vital;
+    frame.value = (float)hero->s.number;
+    frame.tex.index = gi.ImageIndex(vital == ENT_HEALTH ? "SimpleHpBarConsole" : "SimpleManaBarConsole");
+    frame.color = vital == ENT_HEALTH ? MAKE(color32_t, 0, 255, 0, 255) : MAKE(color32_t, 0, 255, 255, 255);
+    UI_SetShortcutRect(&frame, parent, x, y, 0.0340f, 0.0040f);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
 void UI_WriteUnitShortcutLayer(edict_t *clent) {
     gameClient_t *client;
     edict_t *next_idle = NULL;
@@ -111,20 +124,34 @@ void UI_WriteUnitShortcutLayer(edict_t *clent) {
         }
     }
 
+    /* Replace the whole cached roster on an invalidation, not on each tick.
+     * The game sends small vital deltas from these entries independently of
+     * world-visibility snapshots; shared control never grants extra vision. */
+    G_ClearUnitShortcutVitals(client);
+    if (hero_count) client->shortcuts.vitals = gi.MemAlloc(hero_count * sizeof(*client->shortcuts.vitals));
+    /* Keep the buttons and their existing interactions available if only the
+     * optional HUD cache allocation fails. The bars stay unbound until the
+     * next dirty rebuild can create a cache. */
+    client->shortcuts.vital_count = client->shortcuts.vitals ? hero_count : 0;
     FOR_LOOP(hero_slot, hero_count) {
         edict_t *unit = heroes[hero_slot];
-        uint32_t number = (uint32_t)(unit - globals.edicts);
+        uint32_t const number = (uint32_t)(unit - globals.edicts);
+        float const y = HUD_HERO_SHORTCUT_TOP_Y + hero_slot * 0.0460f;
+        float const x = HUD_HERO_SHORTCUT_EDGE_X;
+        bool const owned = unit->s.player == client->ps.number;
         cstring_t name = unit->data.UnitProfile && unit->data.UnitProfile->name
             ? G_LevelString(unit->data.UnitProfile->name) : "Hero";
 
+        if (client->shortcuts.vitals)
+            client->shortcuts.vitals[hero_slot] = (unitShortcutVital_t){ .entity = number, .spawn_time = unit->spawn_time };
         snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
         snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-        UI_WriteUnitShortcutButton(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
-                                   HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                                   HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
-        UI_WriteShortcutNumber(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
-                               HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                               HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->unit_state->hero.skillpoints);
+        UI_WriteUnitShortcutButton(shortcut_root, x, y, 0.0340f, unit, command, tooltip, owned);
+        UI_WriteShortcutNumber(shortcut_root, x, y, 0.0340f, 0.0340f, unit->unit_state->hero.skillpoints);
+        /* Two passive bars always exist; a zero-max-mana Hero hides its mana
+         * bar at render time, so a later acquired mana pool needs no rebuild. */
+        UI_WriteHeroShortcutBar(shortcut_root, x, y + 0.0350f, unit, ENT_HEALTH);
+        UI_WriteHeroShortcutBar(shortcut_root, x, y + 0.0400f, unit, ENT_MANA);
     }
 
     if (!next_idle) next_idle = wrap_idle;

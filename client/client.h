@@ -84,6 +84,8 @@ struct client_state {
     font_t const *fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
+    /* Game-authored HUD-only stats; no spatial or world-visibility information. */
+    struct { uint8_t hp, mana, has_mana, valid; } ui_entity_stats[MAX_CLIENT_ENTITIES];
     handle_t layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
@@ -366,6 +368,7 @@ void CL_EntityEvent(entityState_t const *ent);
 /* Unit UI data parsing (Phase 8) */
 void CL_ParseUnitUI(sizeBuf_t *msg);
 
+void CL_ParseUIEntityStats(sizeBuf_t *msg);
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
