@@ -14,9 +14,7 @@ static struct {
 
 static bool smart_click_active;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
-#ifdef WC3_GAMEPAD_RADIAL_HOLD_CONFIRM
 #define CL_GAMEPAD_RADIAL_HOLD_MS 250 // milliseconds; Y taps open, holds confirm the focused radial command
-#endif
 static bool cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
@@ -487,14 +485,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (down && gamepad.rt) gamepad.rt_used = true;
             gamepad.y = down;
             if (down) {
-#ifdef WC3_GAMEPAD_RADIAL_HOLD_CONFIRM
                 gamepad.y_pressed = event->cbutton.timestamp;
                 gamepad.y_radial_hold = false;
-#endif
             } else {
-#ifdef WC3_GAMEPAD_RADIAL_HOLD_CONFIRM
-                bool const held = gamepad.y_radial_hold ||
-                    event->cbutton.timestamp - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS;
+                bool const held = Cvar_Integer("cl_gamepad_radial_hold_confirm", 1) &&
+                    (gamepad.y_radial_hold ||
+                     event->cbutton.timestamp - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS);
                 if (held) {
                     if (!SCR_GamepadRadialActive() && CL_GameplayInputReady() && cl.selection.num_selected)
                         SCR_GamepadRadialOpen();
@@ -507,10 +503,6 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     SCR_GamepadRadialOpen();
                 }
                 gamepad.y_radial_hold = false;
-#else
-                if (!SCR_GamepadRadialActive() && CL_GameplayInputReady() && cl.selection.num_selected)
-                    SCR_GamepadRadialOpen();
-#endif
             }
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
@@ -548,14 +540,12 @@ static void CL_GamepadFrame(float dt) {
         return;
     }
     if (!gamepad.controller) return;
-#ifdef WC3_GAMEPAD_RADIAL_HOLD_CONFIRM
-    if (gamepad.y && !gamepad.y_radial_hold &&
+    if (Cvar_Integer("cl_gamepad_radial_hold_confirm", 1) && gamepad.y && !gamepad.y_radial_hold &&
         SDL_GetTicks() - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS) {
         gamepad.y_radial_hold = true;
         if (!SCR_GamepadRadialActive() && CL_GameplayInputReady() && cl.selection.num_selected)
             SCR_GamepadRadialOpen();
     }
-#endif
     if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
     if (CL_GamepadModal()) {
         float speed = Cvar_Value("cl_gamepad_menu_cursor_speed", 600);
@@ -1952,6 +1942,7 @@ void CL_InitInput(void) {
     fprintf(stderr, "Input initialization.\n");
     Cvar_Get("cl_gamepad", "0", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_nintendo", "0", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_radial_hold_confirm", "1", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_deadzone", "0.2", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_hold_ms", "180", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_double_ms", "350", CVAR_ARCHIVE);

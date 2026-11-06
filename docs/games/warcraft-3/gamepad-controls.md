@@ -94,13 +94,14 @@ In a modal menu, left stick moves the mouse cursor instead of the camera. D-pad
 moves to the nearest clickable server-authored button in that direction; native
 client menus fall back to their keyboard arrow navigation. A clicks, B cancels.
 The radial menu remains open after Y is released. A activates the focused
-command and closes it; B closes it without issuing the command. An optional
-hold-to-confirm mode is available to builds defining
-`WC3_GAMEPAD_RADIAL_HOLD_CONFIRM`: holding Y opens the menu after 250 ms, and
-releasing Y activates the focused command. Mouse movement is ignored while the
-radial menu is open. After confirming or cancelling, return the left stick to
-its deadzone before it resumes camera movement; this prevents the selection
-direction from panning the camera as soon as the menu closes.
+command and closes it; B closes it without issuing the command. Hold-to-confirm
+is enabled by default through the archived `cl_gamepad_radial_hold_confirm`
+cvar. Holding Y opens the menu after 250 ms, and releasing Y activates the
+focused command. Set the cvar to `0` to use only tap-to-open and A-to-confirm.
+Mouse movement is ignored while the radial menu is open. After confirming or
+cancelling, return the left stick to its deadzone before it resumes camera
+movement; this prevents the selection direction from panning the camera as soon
+as the menu closes.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat
@@ -160,8 +161,8 @@ Construction commands are flagged by the WC3 HUD authoring code, without
 requiring the client to guess from an ability rawcode. They appear sequentially
 starting at noon, then clockwise. Items 1–10 occupy page 1, 11–12 page 2.
 Tap and release Y to open the radial, then RT to change page and A to confirm
-the highlighted sector. In builds with `WC3_GAMEPAD_RADIAL_HOLD_CONFIRM`, holding
-Y also opens it and confirms the highlighted command when released. Selecting a
+the highlighted sector. With `cl_gamepad_radial_hold_confirm` enabled, holding Y
+also opens it and confirms the highlighted command when released. Selecting a
 command still uses the original server-authored command
 string and ordinary validation/targeting logic.
 
