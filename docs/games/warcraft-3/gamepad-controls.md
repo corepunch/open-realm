@@ -54,8 +54,11 @@ The option does **not** modify the OS/SDL button mapping database.
 | RT + A, double-tap | Add same-type units visible on camera to selection |
 | RT + B, double-tap | Remove same-type units visible on camera from selection |
 
-The cursor recentres on gamepad activity during gameplay. Moving the physical
-mouse keeps the normal mouse cursor behaviour. The left stick pans the terrain
+The cursor recentres on gamepad activity to the **centre of the rendered camera
+viewport**, not the whole window (the bottom HUD occupies non-gameplay space).
+The normalized viewport rectangle is converted to top-left-origin SDL pixels.
+Moving the physical mouse keeps the normal mouse cursor behaviour. The left
+stick pans the terrain
 *under* this centred cursor; holding A paints as new units move through its
 visible circular ring. Unit ownership, fog of war, selected-unit capacity,
 order validation and other selection restrictions remain enforced by existing
@@ -100,7 +103,20 @@ should not be interpreted as evidence that the feature is wired up.
 The ten sectors are numbered **0–9 clockwise**, with sector 0 at 12 o'clock,
 sector 5 at 6 o'clock, and the left-stick vector selecting the nearest sector.
 Only *enabled, actually clickable* game command buttons are placed in the menu.
-Passive command indicators and disabled buttons are excluded.
+Passive command indicators and disabled buttons are excluded. Holding Y draws an
+opaque black bottom-right overlay covering the existing command-card HUD. The
+ring radius and each sector's square icon are scaled from the actual HUD button
+size (and fitted to small windows); all ten sectors have enough separation for
+a complete icon. Each sector draws its **own command button's** original texture
+coordinates, tint, active glow, and cooldown shade, not a placeholder icon.
+
+Moving the left stick into an occupied sector highlights that command. The
+focused command shows **the same localized/dynamic tooltip** that hovering the
+corresponding ordinary command button with a mouse would show, using the
+existing Warcraft tooltip font, border, backdrop and text wrapping. The tooltip
+is positioned to the left of the radial menu to keep command icons visible.
+Releasing the stick to neutral clears focus and its tooltip; releasing Y over a
+focused command activates it through the existing validated command path.
 
 ### Ordinary unit/building command cards
 
@@ -137,8 +153,9 @@ string and ordinary validation/targeting logic.
 
 * `client/cl_input.c`: SDL controller lifecycle, bindings, tap/hold timing,
   client-side candidate selection, camera input, menu pointer events.
-* `client/cl_scrn.c`: paints circular brush and collects server-authored
-  clickable UI frames for the ten-slot radial / directional menu navigation.
+* `client/cl_scrn.c`: paints circular brush, collects server-authored
+  clickable UI frames for the ten-slot radial / directional menu navigation,
+  and reuses the authored command icon and tooltip presentation when radial-focused.
 * `renderer/r_draw.c`: pixel-space selection circle and radial-sector outlines.
 * `games/warcraft-3/game/hud/hud_commands.c` and `skills/s_build.c`: explicit
   construction-command metadata, sent in a shared UI flag.
@@ -152,8 +169,10 @@ does not add gameplay-specific save fields or change map/JASS logic.
 ## Suggested manual verification (not performed for this patch)
 
 Verify on an Xbox-labelled pad and a Nintendo-layout pad: mouse/gamepad cursor
-handoff; both camera sticks and reset; single click, hold-paint and double tap;
+handoff and viewport-centred positioning (especially with bottom HUD); both
+camera sticks and reset; single click, hold-paint and double tap;
 all four RT add/remove variants; 12-slot unit/build menus and inventory page;
+black corner coverage, correct per-sector icons and stick-hover tooltip parity;
 no display of command indicators/disabled commands; radial targeting and
 spell orders; all four D-pad quick actions; control-group assign/recall/centre;
 Start combinations; both native and server-authored modals; save/load;

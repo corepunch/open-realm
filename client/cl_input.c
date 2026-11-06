@@ -104,7 +104,16 @@ static void CL_GamepadCenterCursor(void) {
     if (CL_GamepadModal()) return;
     size2_t const win = re.GetWindowSize();
     if (win.width <= 0 || win.height <= 0) return;
-    mouse.origin = (vec2_t){ win.width * 0.5f, win.height * 0.5f };
+    /* The viewport is bottom-left-origin in normalized render coordinates,
+     * whereas SDL cursor positions are top-left-origin window pixels. The WC3
+     * command console occupies the bottom of the window, so window centre is
+     * not the centre of the playable camera image. */
+    rect_t const view = cl.viewDef.viewport;
+    if (view.w <= 0.0f || view.h <= 0.0f) return;
+    mouse.origin = (vec2_t){
+        (view.x + view.w * 0.5f) * win.width,
+        (1.0f - view.y - view.h * 0.5f) * win.height,
+    };
     CL_UpdateHover(mouse.origin.x, mouse.origin.y);
 }
 
