@@ -1786,7 +1786,9 @@ static void SCR_GamepadRadialDraw(void) {
     /* If the window is tiny, shrink the icons along with the ring rather than
      * let the 10 sectors overlap or escape the black background. */
     icon = MIN(icon, radius / 3.45f);
-    float const orbit = radius * 0.73f;
+    /* Put icon centers at the outer edge of their sectors. The square's outer
+     * edge aligns with the circle, so sectors remain separated tangentially. */
+    float const orbit = radius - icon * 0.5f;
     vec2_t const center = { window.width - radius - padding,
                             window.height - radius - padding };
     rect_t const background = { center.x - radius - padding, center.y - radius - padding,
