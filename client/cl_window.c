@@ -1029,6 +1029,17 @@ void CL_WindowClear(void) {
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
 
+/* Rebuild gamepad navigation from the currently active modal window on demand.
+ * Input events run before the draw pass, so the renderer's previous-frame
+ * capture list can be empty or stale when the first D-pad press arrives. */
+bool CL_WindowGamepadNavigate(int direction, vec2_t from, vec2_t *to) {
+    clientWindow_t *window = CL_WindowModal();
+    if (!window || !to || window->blackout) return false;
+    rect_t const root = CL_WindowRoot(window);
+    CL_WindowPrepareState(window, &root);
+    return SCR_GamepadNavigate(direction, from, to);
+}
+
 /* A presentation window owns the entire gameplay surface until it is closed.
  * No WC3-specific window IDs or rendering policy belong in the generic client. */
 bool CL_WindowPresentationActive(void) {

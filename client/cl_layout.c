@@ -639,6 +639,23 @@ uiFrame_t const *SCR_ClearWindow(handle_t data) {
     cstring_t text;
 
     SCR_Clear(NULL);
+    /* Transient windows share the UI frame arena but have their own roots and
+     * visibility context. Restore that context whenever one is re-prepared. */
+    layout_runtime_layer = MAX_LAYOUT_LAYERS;
+    if (data) {
+        /* Window navigation asks for the current frame arena more than once
+         * in a frame. Recreate layout geometry each time the window is
+         * prepared, just as SCR_ClearLayer does for persistent layouts. */
+        memset(runtimes, 0, sizeof(runtimes));
+        memset(frames, 0, sizeof(frames));
+        num_frames = 0;
+        rect_t scene = SCR_LayoutSceneRect();
+        frames[0].size.width = scene.w;
+        frames[0].size.height = scene.h;
+        frames[0].flags.type = FT_SCREEN;
+        runtimes[0].rect = scene;
+        runtimes[0].calculated = true;
+    }
     if (!layout_data) return frames;
     memcpy(&layout_size, layout_data, sizeof(layout_size));
     msg = MAKE(sizeBuf_t, .data = layout_data + sizeof(layout_size), .cursize = layout_size);
