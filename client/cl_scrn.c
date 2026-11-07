@@ -329,8 +329,8 @@ static struct {
     bool focused;
 } gamepad_status_cells[MAX_SELECTED_ENTITIES];
 static uint32_t gamepad_status_cell_count, gamepad_status_entity;
-static struct { vec2_t center; uint32_t entity, row; } gamepad_hero_cells[MAX_LAYOUT_OBJECTS];
-static uint32_t gamepad_hero_cell_count, gamepad_hero_entity;
+static struct { vec2_t center; uint32_t row; } gamepad_hero_cells[MAX_LAYOUT_OBJECTS];
+static uint32_t gamepad_hero_cell_count, gamepad_hero_index;
 static bool gamepad_panel_cursor_hero;
 static struct {
     uint32_t clickable, command_buttons, missing_art, unsupported, invalid_position;
@@ -385,17 +385,12 @@ bool SCR_GamepadStatusPanelCursor(vec2_t *position) {
 bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
     if (direction < 0 || direction > 3) return false;
     if (gamepad_panel_cursor_hero) {
-        uint32_t index = 0;
-        bool found = false;
-        FOR_LOOP(i, gamepad_hero_cell_count) {
-            if (gamepad_hero_cells[i].entity == gamepad_hero_entity) {
-                index = i;
-                found = true;
-                break;
-            }
+        uint32_t index = gamepad_hero_index;
+        if (!gamepad_hero_cell_count) gamepad_panel_cursor_hero = false;
+        else {
+            index = MIN(index, gamepad_hero_cell_count - 1);
         }
-        if (!found || !gamepad_hero_cell_count) gamepad_panel_cursor_hero = false;
-        else if (direction == 0 || direction == 2) {
+        if (gamepad_panel_cursor_hero && (direction == 0 || direction == 2)) {
             if (direction == 0 && index > 0) index--;
             else if (direction == 2 && index + 1 < gamepad_hero_cell_count) index++;
             else if (gamepad_status_cell_count) {
@@ -413,9 +408,11 @@ bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
                 gamepad_panel_cursor_hero = false;
                 return SCR_GamepadStatusCellScreenPosition(next, position);
             }
-        } else return SCR_GamepadHeroCellScreenPosition(index, position);
-        gamepad_hero_entity = gamepad_hero_cells[index].entity;
-        return SCR_GamepadHeroCellScreenPosition(index, position);
+        }
+        if (gamepad_panel_cursor_hero) {
+            gamepad_hero_index = index;
+            return SCR_GamepadHeroCellScreenPosition(index, position);
+        }
     }
     if (!gamepad_status_cell_count) return false;
     uint32_t index = 0;
@@ -450,12 +447,12 @@ bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
         uint32_t last_row = (gamepad_status_cell_count - 1) / columns;
         if (direction == 0 && row == 0 && gamepad_hero_cell_count) {
             uint32_t hero = gamepad_hero_cell_count - 1;
-            gamepad_hero_entity = gamepad_hero_cells[hero].entity;
+            gamepad_hero_index = hero;
             gamepad_panel_cursor_hero = true;
             return SCR_GamepadHeroCellScreenPosition(hero, position);
         }
         if (direction == 2 && row == last_row && gamepad_hero_cell_count) {
-            gamepad_hero_entity = gamepad_hero_cells[0].entity;
+            gamepad_hero_index = 0;
             gamepad_panel_cursor_hero = true;
             return SCR_GamepadHeroCellScreenPosition(0, position);
         }
@@ -469,18 +466,6 @@ bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
     return SCR_GamepadStatusCellScreenPosition(next, position);
 }
 
-uint32_t SCR_GamepadStatusPanelEntity(void) {
-    if (gamepad_panel_cursor_hero) {
-        FOR_LOOP(i, gamepad_hero_cell_count)
-            if (gamepad_hero_cells[i].entity == gamepad_hero_entity)
-                return gamepad_hero_entity;
-        return 0;
-    }
-    FOR_LOOP(i, gamepad_status_cell_count)
-        if (gamepad_status_cells[i].entity == gamepad_status_entity)
-            return gamepad_status_entity;
-    return 0;
-}
 void SCR_GamepadRadialOpen(void) {
     gamepad_radial_open = true;
     gamepad_radial_page = 0;
@@ -1876,17 +1861,13 @@ static void SCR_GamepadDrawOverlay(void) {
  * submenu buttons use ordinary clockwise order and overflow onto RT pages. */
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     if (!frame) return;
-    if (layout_current_layer == LAYER_UNIT_SHORTCUTS && frame->flags.type == FT_COMMANDBUTTON &&
-        frame->onclick && !strncmp(frame->onclick, "herobutton ", 11) &&
-        gamepad_hero_cell_count < MAX_LAYOUT_OBJECTS) {
-        char *end = NULL;
-        unsigned long entity = strtoul(frame->onclick + 11, &end, 10);
+    if ((frame->flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON) &&
+        frame->flags.type == FT_COMMANDBUTTON && gamepad_hero_cell_count < MAX_LAYOUT_OBJECTS) {
         rect_t const *rect = SCR_LayoutRect(frame);
-        if (rect && end && !*end && entity && entity < MAX_CLIENT_ENTITIES) {
+        if (rect) {
             uint32_t index = gamepad_hero_cell_count++;
             gamepad_hero_cells[index] = (typeof(*gamepad_hero_cells)) {
                 .center = { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f },
-                .entity = (uint32_t)entity,
                 .row = index,
             };
         }
@@ -1972,7 +1953,7 @@ static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
             gamepad_radial_diag.invalid_position++;
             return;
         }
-        if (frame->flagsvalue & UIFLAG_GAMEPAD_BUILD_MENU) {
+        if (frame->flagsvalue & UIFLAG_GAMEPAD_RADIAL_ORDERED) {
             int ordinal = row * 4 + col;
             page = ordinal / GAMEPAD_RADIAL_SLOTS;
             sector = ordinal % GAMEPAD_RADIAL_SLOTS;
