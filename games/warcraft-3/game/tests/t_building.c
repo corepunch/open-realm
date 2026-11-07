@@ -4420,8 +4420,8 @@ static void shared_capture_write(pfWriteType_t type, void const *value) {
         snprintf(shared_button_onclick[shared_button_count], sizeof(shared_button_onclick[0]),
                  "%s", frame->onclick ? frame->onclick : "");
         shared_button_count++;
-    } else if (frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
-               !strncmp(frame->onclick, "canceltrain ", 12)) {
+    } else if (frame->flags.type == FT_SIMPLEFRAME &&
+               (frame->flagsvalue & UIFLAG_GAMEPAD_QUEUE_ITEM)) {
         shared_cancel_train_targets++;
     }
 }

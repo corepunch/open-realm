@@ -1084,6 +1084,7 @@ typedef enum {
 #define UIFRAME_DISABLED (1u << 20)
 #define UIFLAG_GAMEPAD_RADIAL_ORDERED (1u << 26) // menu items use authored order in the radial menu
 #define UIFLAG_GAMEPAD_STATUS_ICON (1u << 27) // clickable shortcut is included in gamepad status-panel navigation
+#define UIFLAG_GAMEPAD_QUEUE_ITEM (1u << 28) // clickable queue entry is included in gamepad queue navigation
 /* Shared uiFrame_t.flagsvalue bits; low bits overlap the frame type/alpha-mode
  * union. Distinct bits add up to exactly their bitwise union, so any overlap fails the build. */
 #define UIFLAG_SHARED_BITS(op) \
@@ -1092,7 +1093,8 @@ typedef enum {
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
      UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
      UIFLAG_TEXT_RANK_MASK op UIFLAG_ENTITY_STATUSBAR op UIFLAG_HEALTH_GRADIENT op \
-     UIFRAME_DISABLED op UIFLAG_GAMEPAD_RADIAL_ORDERED op UIFLAG_GAMEPAD_STATUS_ICON)
+     UIFRAME_DISABLED op UIFLAG_GAMEPAD_RADIAL_ORDERED op UIFLAG_GAMEPAD_STATUS_ICON op \
+     UIFLAG_GAMEPAD_QUEUE_ITEM)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

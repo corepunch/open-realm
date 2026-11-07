@@ -1844,16 +1844,19 @@ TEST(client_layout, build_queue_navigation_captures_only_training_cancel_targets
     test_client_stubs_set_window_size(1024, 768);
     CL_CanvasInit();
     SCR_GamepadBeginUIFrame();
-    vec2_t targets[] = { { 0.22f, 0.22f }, { 0.32f, 0.22f } };
-    SCR_SetGamepadBuildQueueTargets(targets, 2);
+    vec2_t targets[] = { { UI_BASE_WIDTH * 0.3205f, UI_BASE_HEIGHT * 0.5269f },
+                         { UI_BASE_WIDTH * 0.3191f, UI_BASE_HEIGHT * 0.5627f },
+                         { UI_BASE_WIDTH * 0.3473f, UI_BASE_HEIGHT * 0.5627f } };
+    SCR_SetGamepadBuildQueueTargets(targets, 3);
     T_EQ((int)CL_Canvas()->window.width, 1024);
 
     T_ASSERT(SCR_GamepadBuildQueueCursor(&position));
-    T_FEQ(position.x, (0.2f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
+    T_FEQ(position.x, 0.3205f * 1024.0f, 0.01f);
     T_ASSERT(SCR_GamepadBuildQueueMove(1, &position));
-    T_FEQ(position.x, (0.3f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
-    T_ASSERT(SCR_GamepadBuildQueueMove(3, &position));
-    T_FEQ(position.x, (0.2f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
+    T_FEQ(position.x, 0.3473f * 1024.0f, 0.01f);
+    T_ASSERT(SCR_GamepadBuildQueueCursor(&position));
+    T_ASSERT(SCR_GamepadBuildQueueMove(2, &position));
+    T_FEQ(position.x, 0.3191f * 1024.0f, 0.01f);
 }
 
 TEST(net, window_edit_text_does_not_leak_into_same_number_hud_frame) {

@@ -334,18 +334,6 @@ static struct { vec2_t center; uint32_t row; } gamepad_hero_cells[MAX_LAYOUT_OBJ
 static uint32_t gamepad_hero_cell_count, gamepad_hero_index;
 static vec2_t gamepad_queue_cells[GAMEPAD_QUEUE_MAX];
 static uint32_t gamepad_queue_cell_count, gamepad_queue_index;
-#ifdef BZ_TESTS
-void SCR_TestCaptureBuildQueueFrame(uiFrame_t const *frame, rect_t const *rect) {
-    if (frame && rect && frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
-        !strncmp(frame->onclick, "canceltrain ", 12) && rect->w > 0.001f && rect->h > 0.001f &&
-        gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
-        uiCanvas_t const *canvas = CL_Canvas();
-        gamepad_queue_cells[gamepad_queue_cell_count++] =
-            (vec2_t){ (rect->x + rect->w * 0.5f) / canvas->scene.w,
-                      (rect->y + rect->h * 0.5f) / canvas->scene.h };
-    }
-}
-#endif
 void SCR_SetGamepadBuildQueueTargets(vec2_t const *targets, uint32_t count) {
     gamepad_queue_cell_count = MIN(count, GAMEPAD_QUEUE_MAX);
     if (targets && gamepad_queue_cell_count)
@@ -419,8 +407,22 @@ bool SCR_GamepadBuildQueueMove(int direction, vec2_t *position) {
     if (!position || !gamepad_queue_cell_count || direction < 0 || direction > 3 ||
         canvas->scene.w <= 0.0f || canvas->scene.h <= 0.0f ||
         canvas->window.width <= 0.0f || canvas->window.height <= 0.0f) return false;
-    if (direction == 1 && gamepad_queue_index + 1 < gamepad_queue_cell_count) gamepad_queue_index++;
-    if (direction == 3 && gamepad_queue_index > 0) gamepad_queue_index--;
+    float best = 1e30f;
+    uint32_t next = gamepad_queue_index;
+    FOR_LOOP(i, gamepad_queue_cell_count) {
+        if (i == gamepad_queue_index) continue;
+        float const dx = gamepad_queue_cells[i].x - gamepad_queue_cells[gamepad_queue_index].x;
+        float const dy = gamepad_queue_cells[i].y - gamepad_queue_cells[gamepad_queue_index].y;
+        float const parallel = direction == 0 ? -dy : direction == 1 ? dx :
+                               direction == 2 ? dy : -dx;
+        if (parallel <= 0.001f) continue;
+        float const orthogonal = (direction & 1) ? dy : dx;
+        /* Prefer targets on the same visual row/column, but allow crossing
+         * between the raised active slot and the waiting row. */
+        float const score = parallel + 2.5f * fabsf(orthogonal);
+        if (score < best) { best = score; next = i; }
+    }
+    gamepad_queue_index = next;
     position->x = gamepad_queue_cells[gamepad_queue_index].x * canvas->window.width / canvas->scene.w;
     position->y = gamepad_queue_cells[gamepad_queue_index].y * canvas->window.height / canvas->scene.h;
     return true;
@@ -1906,15 +1908,13 @@ static void SCR_GamepadDrawOverlay(void) {
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     if (!frame) return;
     if (!layout_current_window && layout_current_layer == LAYER_INFOPANEL &&
-        frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
-        !strncmp(frame->onclick, "canceltrain ", 12) &&
+        frame->flags.type == FT_SIMPLEFRAME && (frame->flagsvalue & UIFLAG_GAMEPAD_QUEUE_ITEM) &&
         gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
         rect_t const *rect = SCR_LayoutRect(frame);
         if (rect && rect->w > 0.001f && rect->h > 0.001f &&
             gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
             gamepad_queue_cells[gamepad_queue_cell_count++] =
-                (vec2_t){ rect->x + rect->w * 0.5f,
-                          rect->y + rect->h * 0.5f };
+                (vec2_t){ rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f };
         }
     }
     if ((frame->flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON) &&

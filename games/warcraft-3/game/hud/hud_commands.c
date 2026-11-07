@@ -346,6 +346,7 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
 
             memset(&cancel, 0, sizeof(cancel));
             cancel.flags.type = FT_SIMPLEFRAME;
+            cancel.flagsvalue |= UIFLAG_GAMEPAD_QUEUE_ITEM;
             if (constructing || upgrading)
                 snprintf(onclick, sizeof(onclick), "button %s", STR_CmdCancelBuild);
             else

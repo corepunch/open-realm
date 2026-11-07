@@ -410,6 +410,7 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     if (gamepad.build_queue_mode) {
         gamepad.last_a_released = 0;
         CL_GamepadClick(SDL_BUTTON_LEFT);
+        CL_GamepadExitBuildQueueMode();
         return;
     }
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
