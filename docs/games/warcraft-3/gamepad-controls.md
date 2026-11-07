@@ -117,7 +117,8 @@ as the menu closes.
 Tap LB (press and release within 250 ms) to enter status-panel cursor mode.
 The cursor starts on the currently focused selected-unit icon. D-pad left/right
 moves between icons in the current row; up/down moves one row while preserving
-the column where possible. A clicks the icon through the ordinary multiselect
+the column where possible. The left stick also moves one icon per tilt, then
+repeats every 180 ms while held. A clicks the icon through the ordinary multiselect
 path, so selecting a unit or completing an active unit-target spell remains
 server-authoritative. Tap LB again or press B to leave the mode. Holding LB
 instead keeps its fast camera-pan modifier active.
