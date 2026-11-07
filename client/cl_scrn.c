@@ -2045,6 +2045,37 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     }
     SCR_EndSelectedEntityDraw();
 }
+
+/* The server marks the focused subgroup in the multiselect HUD payload. Reuse
+ * that authored identity for the gamepad chord instead of duplicating WC3's
+ * subgroup rules in the universal client. */
+uint32_t SCR_GamepadFocusedSubgroup(uint32_t *entities, uint32_t capacity) {
+    uint32_t count = 0;
+    if (!entities || !capacity) return 0;
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        handle_t layout = layout_layers[layer];
+        if (!layout || layer == LAYER_WORLD_HOVER ||
+            ((1u << layer) & cl.playerstate.uiflags)) continue;
+        SCR_Clear(layout);
+        FOR_LOOP(i, SCR_NumFrames()) {
+            uiFrame_t const *frame = SCR_Frame(i);
+            if (!frame || frame->flags.type != FT_MULTISELECT || !frame->buffer.data ||
+                frame->buffer.size < sizeof(uiMultiselect_t)) continue;
+            uiMultiselect_t const *multi = frame->buffer.data;
+            uint32_t available = (frame->buffer.size - sizeof(uiMultiselect_t)) /
+                                 sizeof(uiMultiselectItem_t);
+            uint32_t items = MIN((uint32_t)multi->numitems, available);
+            FOR_LOOP(j, items) {
+                uiMultiselectItem_t const *item = &multi->items[j];
+                if (!(item->flags & UI_MULTISELECT_ITEM_FOCUSED) || !item->entity) continue;
+                bool duplicate = false;
+                FOR_LOOP(k, count) if (entities[k] == item->entity) { duplicate = true; break; }
+                if (!duplicate && count < capacity) entities[count++] = item->entity;
+            }
+        }
+    }
+    return count;
+}
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
     SCR_BeginSelectedEntityDraw();

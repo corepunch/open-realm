@@ -64,6 +64,7 @@ void SCR_GamepadRadialCancel(void);
 bool SCR_GamepadRadialActive(void);
 bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
 void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible);
+uint32_t SCR_GamepadFocusedSubgroup(uint32_t *entities, uint32_t capacity);
 
 
 #endif /* ui_layout_h */
