@@ -281,7 +281,8 @@ static void CL_GamepadPaintFrame(void) {
     rect_t box;
     float radius;
     uint32_t visible[MAX_CLIENT_ENTITIES];
-    uint32_t count;
+    uint32_t count, previous_painted_count;
+    bool const was_painting = gamepad.paint;
     if (!gamepad.a || !CL_GameplayInputReady() || SCR_GamepadRadialActive() ||
         (uint32_t)(SDL_GetTicks() - gamepad.a_pressed) <
                  (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_hold_ms", 180))) return;
@@ -292,6 +293,8 @@ static void CL_GamepadPaintFrame(void) {
     if (win.width <= 0 || win.height <= 0) return;
     box = (rect_t){ mouse.origin.x - radius, mouse.origin.y - radius, radius * 2, radius * 2 };
     count = re.EntitiesInRect(&cl.viewDef, &box, sizeof(visible) / sizeof(visible[0]), visible);
+    count = MIN(count, sizeof(visible) / sizeof(visible[0]));
+    previous_painted_count = gamepad.painted_count;
     FOR_LOOP(i, count) {
         uint32_t id = visible[i];
         vec2_t screen;
@@ -304,6 +307,11 @@ static void CL_GamepadPaintFrame(void) {
         if (!exists && gamepad.painted_count < sizeof(gamepad.painted) / sizeof(gamepad.painted[0]))
             gamepad.painted[gamepad.painted_count++] = id;
     }
+    /* Preserve the current selection until the brush first touches a unit.
+     * That first hit replaces it; each later hit adds to the live painted set. */
+    if (gamepad.painted_count > 0 &&
+        (!was_painting || gamepad.painted_count != previous_painted_count))
+        CL_ApplySelectionCandidates(gamepad.painted, gamepad.painted_count);
 }
 
 static void CL_GamepadOpenMenu(cstring_t command) {
@@ -338,7 +346,7 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     }
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
     if (gamepad.paint) {
-        CL_GamepadSelectChange(gamepad.painted, gamepad.painted_count, 1);
+        /* The paint path already replaced selection continuously while A was held. */
         gamepad.last_a_released = 0;
         return;
     } else if (gamepad.last_a_released && time - gamepad.last_a_released <=
