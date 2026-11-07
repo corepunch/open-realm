@@ -25,6 +25,12 @@ picked up when the input loop next runs.
 | `cl_gamepad_menu_cursor_speed` | `600` | Left-stick cursor speed in modal windows, pixels/second |
 | `cl_gamepad_fast_pan_multiplier` | `5.0` | Left-stick camera pan multiplier while LB is held |
 
+Game-specific command actions are supplied by the Warcraft III config through
+`cl_gamepad_*_action` cvars. The shared client dispatches the configured action
+and does not name Warcraft III commands. `cl_gamepad_dpad_up_cursor_point` tells
+the generic D-pad action to append the cursor's world point, which the WC3
+config uses for the global rally command.
+
 For example `seta cl_gamepad_nintendo "1"` in the user console or config
 makes the physical Nintendo A/B and X/Y functions follow their Nintendo labels.
 The option does **not** modify the OS/SDL button mapping database.

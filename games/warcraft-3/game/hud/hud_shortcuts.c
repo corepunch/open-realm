@@ -43,7 +43,8 @@ static void UI_WriteShortcutNumber(uint32_t parent, float x, float y, float w, f
 }
 
 static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float size, edict_t const *unit,
-                                       cstring_t command, cstring_t tooltip, bool damage_alert) {
+                                       cstring_t command, cstring_t tooltip, bool damage_alert,
+                                       bool gamepad_status_icon) {
     uiFrame_t frame;
     cstring_t art;
 
@@ -57,6 +58,7 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;
+    if (gamepad_status_icon) frame.flagsvalue |= UIFLAG_GAMEPAD_STATUS_ICON;
     if (damage_alert && unit->unit_state->shortcut_alert_until > G_Time()) {
         frame.flagsvalue |= UIFLAG_ALERT_RED_PULSE;
         frame.value = (float)unit->unit_state->shortcut_alert_until;
@@ -156,7 +158,7 @@ void UI_WriteUnitShortcutLayer(edict_t *clent) {
             client->shortcuts.vitals[hero_slot] = (unitShortcutVital_t){ .entity = number, .spawn_time = unit->spawn_time };
         snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
         snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-        UI_WriteUnitShortcutButton(shortcut_root, x, y, 0.0340f, unit, command, tooltip, owned);
+        UI_WriteUnitShortcutButton(shortcut_root, x, y, 0.0340f, unit, command, tooltip, owned, true);
         UI_WriteShortcutNumber(shortcut_root, x, y, 0.0340f, 0.0340f, unit->unit_state->hero.skillpoints);
         /* Two passive bars always exist; a zero-max-mana Hero hides its mana
          * bar at render time, so a later acquired mana pool needs no rebuild. */
@@ -169,7 +171,7 @@ void UI_WriteUnitShortcutLayer(edict_t *clent) {
         uint32_t number = (uint32_t)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
         UI_WriteUnitShortcutButton(shortcut_root, WC3_HUD_IDLE_WORKER_X, WC3_HUD_IDLE_WORKER_Y, WC3_HUD_IDLE_WORKER_SIZE,
-                                   next_idle, command, "Select Idle Worker", false);
+                                   next_idle, command, "Select Idle Worker", false, false);
         UI_WriteShortcutNumber(shortcut_root, WC3_HUD_IDLE_WORKER_X, WC3_HUD_IDLE_WORKER_Y,
                                WC3_HUD_IDLE_WORKER_SIZE, WC3_HUD_IDLE_WORKER_SIZE, idle_count);
     }

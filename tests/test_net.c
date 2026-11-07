@@ -1810,6 +1810,7 @@ TEST(net, screen_layout_draws_client_windows) {
 
 TEST(client_layout, gamepad_navigation_uses_current_modal_buttons_before_draw) {
     vec2_t destination = {0};
+    vec2_t next = {0};
     test_client_stubs_init(); CL_WindowClear();
     SCR_GamepadBeginUIFrame();
     test_send_two_button_window(70, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE);
@@ -1822,6 +1823,12 @@ TEST(client_layout, gamepad_navigation_uses_current_modal_buttons_before_draw) {
     SCR_GamepadBeginUIFrame();
     T_ASSERT(CL_WindowGamepadNavigate(2, (vec2_t){ 0.3f, -0.25f }, &destination));
     T_FEQ(destination.y, -0.15f, 0.001f);
+
+    /* SDL pixel conversion can leave the pointer fractionally below the
+     * current button center. That rounding must not select the same button. */
+    T_ASSERT(CL_WindowGamepadNavigate(2,
+        (vec2_t){ destination.x, destination.y + 0.0004f }, &next));
+    T_FEQ(next.y, -0.35f, 0.001f);
 
     CL_WindowClear();
 }
@@ -2118,7 +2125,7 @@ TEST(net, ui_frame_delta_preserves_text_length) {
     T_EQ(out.textLength, 19);
 }
 
-TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
+TEST(net, ui_frame_delta_preserves_extension_and_gamepad_flags) {
     uint8_t buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t from = {0}, to = { .number = 8 }, out = {0};
@@ -2126,7 +2133,8 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     int number;
 
     to.flags.type = FT_BACKDROP;
-    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X | UIFRAME_DISABLED;
+    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X | UIFRAME_DISABLED |
+                     UIFLAG_GAMEPAD_RADIAL_ORDERED | UIFLAG_GAMEPAD_STATUS_ICON;
     MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
     sb.readcount = 0;
     number = MSG_ReadEntityBits(&sb, &bits);
@@ -2136,6 +2144,8 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     T_EQ(out.flags.type, FT_BACKDROP);
     T_ASSERT(out.flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X);
     T_ASSERT(out.flagsvalue & UIFRAME_DISABLED);
+    T_ASSERT(out.flagsvalue & UIFLAG_GAMEPAD_RADIAL_ORDERED);
+    T_ASSERT(out.flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON);
 }
 
 TEST(client_layout, disabled_control_cannot_issue_click_command) {

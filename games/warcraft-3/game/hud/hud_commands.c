@@ -205,7 +205,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     /* Passive/research indicators are non-interactive images, not buttons.
      * Preserve disabled-art shading for locked research without the button bevel. */
     frame.flags.type = button->indicator ? FT_TEXTURE : FT_COMMANDBUTTON;
-    if (ui_gamepad_build_menu) frame.flagsvalue |= UIFLAG_GAMEPAD_BUILD_MENU;
+    if (ui_gamepad_build_menu) frame.flagsvalue |= UIFLAG_GAMEPAD_RADIAL_ORDERED;
     frame.color = COLOR32_WHITE;
     frame.tex.index = UI_CommandButtonImage(button);
     if (button->indicator) {
