@@ -2187,9 +2187,12 @@ static void SCR_GamepadRadialDraw(void) {
                 gamepad_radial_diag.unsupported, gamepad_radial_diag.invalid_position,
                 gamepad_radial_diag.duplicate);
     }
-    char page_text[32];
-    snprintf(page_text, sizeof(page_text), "Commands %d", page + 1);
-    re.DrawString((int)(center.x - 48.0f * scale), (int)center.y, page_text);
+    if (re.DrawCharScaled) {
+        float const page_scale = 2.0f * scale;
+        int const digit = '1' + page;
+        re.DrawCharScaled(center.x - 4.0f * page_scale,
+                          center.y - 4.0f * page_scale, digit, page_scale);
+    }
 
     /* Left-stick sector focus is equivalent to hovering the underlying WC3
      * command button. Resolve its real authored tooltip (including dynamic
