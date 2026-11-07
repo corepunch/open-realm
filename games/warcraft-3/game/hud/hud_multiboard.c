@@ -201,6 +201,16 @@ void UI_WriteMultiboard(edict_t *ent) {
         rows = MIN(board->rows, (uint32_t)MAX_MULTIBOARD_ROWS);
         cols = MIN(board->cols, (uint32_t)MAX_MULTIBOARD_COLS);
         minimized = (board->minimized_clients & (1u << client_index)) != 0;
+        /* Maps size columns through MultiboardSetItemWidth; the panel follows the widest row. */
+        {
+            float widest = 0.0f;
+            FOR_LOOP(r, rows) {
+                float row_width = 0.0f;
+                FOR_LOOP(c, cols) row_width += board->cells[r * MAX_MULTIBOARD_COLS + c].width;
+                if (row_width > widest) widest = row_width;
+            }
+            if (widest > 0.0f) width = widest + 0.014f;
+        }
     }
     if (team) {
         name_width = MultiboardTeamNameWidth(viewer);
@@ -246,7 +256,7 @@ void UI_WriteMultiboard(edict_t *ent) {
     } else {
         body_y = y;
         MultiboardPanel(root, x, y, width, height);
-        MultiboardText(root, x + 0.007f, y + height - WC3_MB_HEADER_HEIGHT,
+        MultiboardText(root, x + 0.007f, y,
                        width - 0.014f, WC3_MB_HEADER_HEIGHT, board->title,
                        hud.leaderboard_default_title_color, FONT_JUSTIFYLEFT);
     }
@@ -291,9 +301,14 @@ void UI_WriteMultiboard(edict_t *ent) {
             FOR_LOOP(r, rows) FOR_LOOP(c, cols) {
                 struct gmultiboardcell_s const *cell =
                     &board->cells[r * MAX_MULTIBOARD_COLS + c];
-                float cw = (width - 0.014f) / cols;
-                float xx = x + 0.007f + c * cw;
-                float yy = y + height - WC3_MB_HEADER_HEIGHT - (r + 1) * WC3_MB_ROW_HEIGHT;
+                float cw = cell->width > 0.0f ? cell->width : (width - 0.014f) / cols;
+                float xx = x + 0.007f;
+                /* HUD Y grows downward: title on top, first row right below it. */
+                float yy = y + WC3_MB_HEADER_HEIGHT + r * WC3_MB_ROW_HEIGHT;
+                FOR_LOOP(prev, c) {
+                    float const pw = board->cells[r * MAX_MULTIBOARD_COLS + prev].width;
+                    xx += pw > 0.0f ? pw : (width - 0.014f) / cols;
+                }
                 if (cell->show_icon && cell->icon[0]) {
                     uiFrame_t icon = { 0 };
                     icon.flags.type = FT_TEXTURE;

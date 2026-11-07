@@ -549,7 +549,7 @@ void CL_ParsePlayerInfo(sizeBuf_t *msg) {
         }
     }
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
-        cls.key_dest != key_console && cls.key_dest != key_menu) {
+        cls.key_dest != key_console && cls.key_dest != key_menu && cls.key_dest != key_message) {
         CL_SetGameplayInput();
     }
 

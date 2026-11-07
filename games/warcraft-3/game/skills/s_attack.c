@@ -618,6 +618,11 @@ static bool T_DamageInternal(edict_t *target, edict_t *attacker, int damage, boo
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
     G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
+    if (target->health.value <= damage) {
+        G_RunDamagedHandlersNow(target);
+        if (!target->inuse || M_IsDead(target)) return true;
+        if (attacker && !attacker->inuse) attacker = NULL;
+    }
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, target->unit_state ? MAX_UNIT_STATUSES : 0)
@@ -771,8 +776,10 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     S_PoisonOnHit(attacker, target);
     {
         unitAttack_t const *profile = attack_profile(attacker, target);
-        if (S_AttackProfileIsMelee(profile))
+        if (S_AttackProfileIsMelee(profile)) {
             G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
+            S_FrostArmorOnAttacked(attacker, target);
+        }
     }
     if (target->inuse && attacker->inuse && !M_IsDead(attacker) &&
         S_SpellIsEnemy(target, attacker)) {
@@ -1405,10 +1412,19 @@ void attack_melee_cooldown(edict_t *self) {
     if (self->wait <= 0.0f) attack_melee(self);
 }
 
+/* A swing starting is what JASS calls "attacked"; GetAttacker() reads the event source. */
+static void attack_publish_attacked(edict_t *self) {
+    edict_t *target = self->goalentity;
+    if (!target || !target->inuse || !(target->svflags & SVF_MONSTER)) return;
+    G_PublishEventWithSource(target, EVENT_UNIT_ATTACKED, self);
+    G_PublishEventWithSource(target, EVENT_PLAYER_UNIT_ATTACKED, self);
+}
+
 void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
+    attack_publish_attacked(self);
     unit_setmove(self, &attack_move_melee);
     /* unit_setmove selects the new animation but M_MoveFrame would otherwise
      * spend its first simulation tick snapping a stale frame from the prior
@@ -1434,6 +1450,7 @@ void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
+    attack_publish_attacked(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }

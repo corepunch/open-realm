@@ -265,3 +265,5 @@ void FS_SavePath(cstring_t name, string_t out, uint32_t size) {
     snprintf(out, size, "%s.sav", Test_TempPath(name ? name : "save"));
 }
 #endif
+
+bool CL_AltHeld(void) { return false; }

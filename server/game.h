@@ -72,6 +72,7 @@ struct game_import {
     /* VFS existence probe; follows the same map/import/archive precedence as ReadFile. */
     bool (*FileExists)(cstring_t filename);
     handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
+    handle_t (*ReadPriorityFile)(cstring_t filename, uint32_t *size);
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
     void (*ReadFileAll)(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);

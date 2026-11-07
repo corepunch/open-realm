@@ -750,6 +750,13 @@ uint32_t RemoveAllGuardPositions(jass_t *j) {
     if (player) G_BotRemoveAllGuardPositions(player);
     return 0;
 }
+/* Terrain repainting is not implemented. Accept the call so the rest of the calling thread still runs. */
+uint32_t SetTerrainType(jass_t *j) {
+    static bool warned;
+    (void)j;
+    if (!warned) { warned = true; fprintf(stderr, "WC3: SetTerrainType is not implemented; ignoring\n"); }
+    return 0;
+}
 uint32_t SetBlight(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     vec2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };

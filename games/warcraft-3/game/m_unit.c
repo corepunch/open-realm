@@ -532,7 +532,11 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->selected = 0;
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
-    unit_setmove(self, (summon_explodes || script_explodes || phoenix_to_egg) ? &unit_move_decay_remove : &unit_move_death);
+    /* Effect dummies (a spell model on a unit) have no Death clip: the retail unit vanishes. Here the
+     * last Stand frame froze for the whole corpse lifetime, leaving static lightning on the ground. */
+    bool const no_death_clip = !summon_explodes && !script_explodes && !G_UnitIsHero(self) &&
+        G_GetAnimation(self->s.model, "stand") && !G_GetAnimation(self->s.model, "death");
+    unit_setmove(self, (summon_explodes || script_explodes || phoenix_to_egg || no_death_clip) ? &unit_move_decay_remove : &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame
      * override active until the death move reaches its decay transition. */
@@ -591,6 +595,11 @@ void unit_die(edict_t *self, edict_t *attacker) {
          !(selected_mask & (1u << owner->ps.number))))
         G_InvalidateCommands(owner);
 
+    if (no_death_clip) {
+        self->s.renderfx |= RF_HIDDEN;
+        self->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
+        self->wait = FRAMETIME / 1000.0f;
+    }
     if (summon_explodes || script_explodes) {
         /* Keep ordinary death events/resources intact, but suppress the corpse
          * and death animation. Script explosion renders unit SpecialArt; the
@@ -1676,6 +1685,9 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     G_ActivateUnitFood(unit);
     G_PlayerScoreUnitTrained(unit); /* immediately entered play, not queued */
     G_BotUnitReady(unit);
+    /* Maps send heroes from -ar/-st to their base with "enters playable area" triggers. Units made by
+     * the map's own start-up code stay out, like the preload dummies it removes right away. */
+    if (level.started) G_UnitEnteredWorld(unit);
     return unit;
 }
 
@@ -2707,6 +2719,9 @@ bool G_HeroLearnSkill(edict_t *ent, uint32_t abilcode) {
     }
     if (G_AbilityCode(abilcode) == MAKEFOURCC('A','N','e','g'))
         S_TinkerOnEngineeringLearned(ent, old_level);
+    /* GetLearnedSkill() reads the value; maps set up skill behaviour from these two events. */
+    G_PublishEventWithValue(ent, EVENT_PLAYER_HERO_SKILL, NULL, (int32_t)abilcode);
+    G_PublishEventWithValue(ent, EVENT_UNIT_HERO_SKILL, NULL, (int32_t)abilcode);
     return true;
 }
 
@@ -2726,15 +2741,25 @@ void G_RecomputeHeroStats(edict_t *ent) {
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
-    float const newMaxHP = balance->maxHealth + ((int32_t)ent->unit_state->hero.str - baseStr) * 25.0f +
+    bool const loaded = game.constants.combatConstantsLoaded;
+    float const hpPerStr = loaded ? game.constants.strHitPointBonus : 25.0f;
+    float const manaPerInt = loaded ? game.constants.intManaBonus : 15.0f;
+    float const agiDefenseBonus = loaded ? game.constants.agiDefenseBonus : 0.3f;
+    float const agiDefenseBase = loaded ? game.constants.agiDefenseBase : -2.0f;
+    /* WC3 derives hero stats from the base columns (HP, manaN, def) and the
+     * active Misc constants. realHP/realM/realdef are editor previews made
+     * with stock constants, so they are only a fallback for rows without HP. */
+    bool const base_columns = balance->baseHealth > 0;
+    float const hpBase = base_columns ? balance->baseHealth + baseStr * hpPerStr : balance->maxHealth;
+    float const manaBase = base_columns ? balance->baseMana + baseInt * manaPerInt : balance->maxMana;
+    float const armorBase = base_columns ? balance->baseArmor + baseAgi * agiDefenseBonus + agiDefenseBase
+                                         : balance->armor;
+    float const newMaxHP = hpBase + ((int32_t)ent->unit_state->hero.str - baseStr) * hpPerStr +
                            ent->unit_state->permanent_health_bonus + ent->unit_state->temporary_health_bonus;
-    float const newMaxMana = balance->maxMana + ((int32_t)ent->unit_state->hero.intel - baseInt) * 15.0f +
+    float const newMaxMana = manaBase + ((int32_t)ent->unit_state->hero.intel - baseInt) * manaPerInt +
                              G_UnitUpgradeEffectBonus(ent, ID_UPGRADE_EFFECT_MAX_MANA) +
                              ent->unit_state->temporary_mana_bonus;
-    float const agiDefenseBonus = game.constants.combatConstantsLoaded
-                                ? game.constants.agiDefenseBonus
-                                : 0.3f;
-    float const newArmor = balance->armor + ((int32_t)ent->unit_state->hero.agi - baseAgi) * agiDefenseBonus + S_TinkerRoboArmor(ent);
+    float const newArmor = armorBase + ((int32_t)ent->unit_state->hero.agi - baseAgi) * agiDefenseBonus + S_TinkerRoboArmor(ent);
 
     bool const alive = ent->health.value > 0.0f;
     float const dHP = newMaxHP - ent->health.max_value;
@@ -2905,9 +2930,9 @@ void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
 
     float const steps = (float)(level - 1);
     ent->unit_state->hero.level = level;
-    ent->unit_state->hero.str = (uint32_t)MAX(0, baseStr + (int32_t)(steps * balance->strengthPerLevel));
-    ent->unit_state->hero.agi = (uint32_t)MAX(0, baseAgi + (int32_t)(steps * balance->agilityPerLevel));
-    ent->unit_state->hero.intel = (uint32_t)MAX(0, baseInt + (int32_t)(steps * balance->intelligencePerLevel));
+    ent->unit_state->hero.str = (uint32_t)MAX(0, ent->unit_state->hero.bonus_str + baseStr + (int32_t)(steps * balance->strengthPerLevel));
+    ent->unit_state->hero.agi = (uint32_t)MAX(0, ent->unit_state->hero.bonus_agi + baseAgi + (int32_t)(steps * balance->agilityPerLevel));
+    ent->unit_state->hero.intel = (uint32_t)MAX(0, ent->unit_state->hero.bonus_intel + baseInt + (int32_t)(steps * balance->intelligencePerLevel));
     G_RecomputeHeroStats(ent);
 }
 

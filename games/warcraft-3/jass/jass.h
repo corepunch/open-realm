@@ -75,9 +75,11 @@ struct jass_context {
     edict_t *unit;
     edict_t *enumunit;
     edict_t *source;
+    edict_t *filter_unit; /* GetFilterUnit; GetTriggerUnit keeps the trigger's unit */
     edict_t *soldUnit;
     uint32_t soldUnitSpawnTime;
     int32_t eventValue;
+    int32_t eventType;
     uint32_t dialog_id, dialog_button_id;
     vec2_t point;
     uint8_t hasPoint;
@@ -95,6 +97,7 @@ float jass_checknumber(jass_t *j, int index);
 bool jass_checkboolean(jass_t *j, int index);
 cstring_t jass_checkstring(jass_t *j, int index);
 jassFunc_t const *jass_checkcode(jass_t *j, int index);
+jassFunc_t const *jass_makeboolexpr(char op, jassFunc_t const *a, jassFunc_t const *b);
 handle_t jass_checkhandle(jass_t *j, int index, cstring_t type);
 bool jass_toboolean(jass_t *j, int index);
 uint32_t jass_call(jass_t *j, uint32_t args);

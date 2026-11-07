@@ -83,6 +83,20 @@ uint32_t MultiboardSetTitleText(jass_t *j) {
     return 0;
 }
 
+/* Multiboards have one fixed title color for now; accept the call so the calling thread keeps running. */
+uint32_t MultiboardSetTitleTextColor(jass_t *j) {
+    (void)j;
+    return 0;
+}
+/* Every Blizzard.j MultiboardSetItem*BJ reads these; a missing native aborted the calling thread. */
+uint32_t MultiboardGetRowCount(jass_t *j) {
+    multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
+    return jass_pushinteger(j, board && board->inuse ? (int32_t)board->rows : 0);
+}
+uint32_t MultiboardGetColumnCount(jass_t *j) {
+    multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
+    return jass_pushinteger(j, board && board->inuse ? (int32_t)board->cols : 0);
+}
 uint32_t MultiboardSetRowCount(jass_t *j) {
     G_MultiboardSetRowCount(jass_checkhandle(j, 1, "multiboard"), jass_checkinteger(j, 2));
     return 0;

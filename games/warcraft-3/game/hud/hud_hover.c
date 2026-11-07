@@ -107,6 +107,8 @@ void UI_WriteHoverLayout(edict_t *ent) {
     frame.size.width = 0.0f;
     frame.size.height = 0.0f;
     frame.text = UI_HoverResourceLabel();
+    { cstring_t level = UI_GetString("LEVEL");
+      frame.tooltip = level && strcmp(level, "LEVEL") ? level : "Level"; }
     uiNameTag_t data = MAKE(uiNameTag_t,
         .background = MAKE(uiBackdrop_t,
             .Background = gi.ImageIndex("ToolTipBackground"),

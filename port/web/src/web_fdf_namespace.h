@@ -41,6 +41,7 @@
 #define CM_ReadAbilities BZ_WEB_FDF_NAME(CM_ReadAbilities)
 #define CM_ReadAbilityModification BZ_WEB_FDF_NAME(CM_ReadAbilityModification)
 #define CM_ReadDestructables BZ_WEB_FDF_NAME(CM_ReadDestructables)
+#define CM_ReadBuffs BZ_WEB_FDF_NAME(CM_ReadBuffs)
 #define CM_ReadDoodadOverrides BZ_WEB_FDF_NAME(CM_ReadDoodadOverrides)
 #define CM_ReadItems BZ_WEB_FDF_NAME(CM_ReadItems)
 #define CM_ReadMapInfo BZ_WEB_FDF_NAME(CM_ReadMapInfo)

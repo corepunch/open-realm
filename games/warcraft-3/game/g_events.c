@@ -1,3 +1,4 @@
+#include <float.h>
 #include "g_local.h"
 
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
@@ -432,13 +433,43 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     ent->old_origin = *old_position;
     G_TouchTriggers(ent);
     ent->old_origin = ent->s.origin2;
+    if (ent->inuse) ent->reposition_pending = true;
+}
+
+/* Scripts set X and Y separately and may land on a doodad. Retail units walk out of that; here they
+ * could not path at all, so once the script is done move them to the nearest legal point. */
+static void G_SettleRepositionedUnit(edict_t *ent) {
+    vec2_t position;
+    ent->reposition_pending = false;
+    if (!(ent->svflags & SVF_MONSTER) || (ent->svflags & SVF_DEADMONSTER) ||
+        G_UnitHasFlag(ent, UNIT_FLAG_NO_PATHING) || !G_UnitIsWorldActive(ent)) return;
+    if (!G_FindUnitUnstuckPosition(ent, &ent->s.origin2, &position) ||
+        !memcmp(&position, &ent->s.origin2, sizeof(position))) return;
+    ent->s.origin2 = position;
+    ent->s.origin.x = position.x;
+    ent->s.origin.y = position.y;
+    M_CheckGround(ent);
+    gi.LinkEntity(ent);
+}
+
+/* A new unit counts as entering the regions it appears in, so map-wide "unit enters playable area"
+ * triggers see units created during play. old_origin starts at the map centre, which hid
+ * the crossing. Evaluated on the next simulation step, after the sale events are queued. */
+void G_UnitEnteredWorld(edict_t *ent) {
+    if (ent && ent->inuse) ent->enter_world_pending = true;
 }
 
 void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
-        ent->old_origin = ent->s.origin2;
+        if (ent->reposition_pending) G_SettleRepositionedUnit(ent);
+        if (ent->enter_world_pending) {
+            ent->enter_world_pending = false;
+            ent->old_origin = (vec2_t){ FLT_MAX, FLT_MAX };
+        } else {
+            ent->old_origin = ent->s.origin2;
+        }
         if (ent->sound && ent->sound->pending) {
             G_PlaySound(NULL, ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound->pending,
                      G_SoundIndexVolume(ent->sound->pending), 0.0f, 0.0f);
@@ -481,11 +512,26 @@ bool G_HasPendingDeathEvent(edict_t const *ent) {
     return false;
 }
 
+static bool events_running;
+
 void G_RunEvents(void) {
+    if (events_running) return; /* a handler's damage stays queued for this same pass */
+    events_running = true;
     for (levelEvents_t *e = &level.events; e->read < e->write; e->read++) {
         gameEvent_t *evt = &e->queue[e->read % MAX_EVENT_QUEUE];
         G_ExecuteEvent(evt);
     }
+    events_running = false;
+}
+
+/* Retail runs EVENT_UNIT_DAMAGED before the damage lands, and maps rely on it to save a unit from a
+ * lethal hit. Only a handler bound to this very unit needs that order; everything else stays queued. */
+void G_RunDamagedHandlersNow(edict_t *target) {
+    bool direct = false;
+    FOR_EACH_EVENT(evt) {
+        if (evt->type == EVENT_UNIT_DAMAGED && evt->subject == target) { direct = true; break; }
+    }
+    if (direct) G_RunEvents();
 }
 
 /* Warcraft's stock CustomVictoryDialogBJ/CustomDefeatDialogBJ pauses a

@@ -91,6 +91,39 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
     R_EmitParticles(EmissionRate, &emitter->accumulator, tr.viewDef.deltaTime, mdx_spawn_particle, &ctx);
 }
 
+/* Squirt emitters: EmissionRate is a particle COUNT fired once when its key is reached, not a rate
+ * (ThunderClapCaster's ring is 109 particles at one key; as a rate it gave about 20 sparks). Models
+ * are shared, so the last sampled frame is remembered per entity+emitter. */
+typedef struct { uintptr_t key; float frame; uint32_t time; } mdxSquirtSlot_t;
+static mdxSquirtSlot_t squirt_slots[1024];
+
+static float MDLX_SquirtCount(renderEntity_t const *entity, mdxParticleEmitter_t const *emitter, float frame) {
+    mdxKeyTrack_t const *track = emitter->keytracks.EmissionRate;
+    uintptr_t const key = ((uintptr_t)emitter) ^ ((uintptr_t)entity->number * 2654435761u);
+    mdxSquirtSlot_t *slot = squirt_slots + (key >> 4) % (sizeof(squirt_slots) / sizeof(*squirt_slots));
+    uint32_t const now = tr.viewDef.time;
+    bool const fresh = slot->key != key || now - slot->time > 1000u;
+    float const previous = fresh ? frame : slot->frame;
+    float count = 0.0f;
+    uint32_t stride;
+
+    slot->key = key; slot->frame = frame; slot->time = now;
+    if (!track || !track->keyframeCount || track->datatype != TDATA_FLOAT1) return 0.0f;
+    stride = sizeof(int) + sizeof(float) * (track->linetype > TRACK_LINEAR ? 3 : 1);
+    FOR_LOOP(i, track->keyframeCount) {
+        mdxKeyFrame_t const *k = (mdxKeyFrame_t const *)((uint8_t const *)track->values + i * stride);
+        float const value = *(float const *)k->data;
+        float const t = (float)k->time;
+        bool crossed;
+        if (value <= 0.0f) continue;
+        if (fresh) crossed = frame >= t && frame - t < 250.0f; /* first sample of a new unit lags its key */
+        else if (frame >= previous) crossed = t > previous && t <= frame;
+        else crossed = t <= frame && frame - t < 200.0f; /* loop restart */
+        if (crossed) count += value;
+    }
+    return count;
+}
+
 /* Only one-shot animations stop emitting when held on their final frame.
  * Still emit from idle/Stand loops with equal snapshot frames (e.g. waterfalls
  * and persistent auras), and during the transition into a final frame. */
@@ -121,6 +154,23 @@ void MDLX_RenderParticleEmitters(renderEntity_t const *entity, mdxModel_t const 
             MDLX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &visibility);
             if (visibility < EPSILON)
                 continue;
+        }
+        if (emitter->Squirt && emitter->keytracks.EmissionRate) {
+            float const count = MDLX_SquirtCount(entity, emitter, frame);
+            if (count > 0.0f && emitter->node.node_id < MDX_MAX_NODES) {
+                mat4_t matrix;
+                Matrix4_multiply(model_matrix, &node_matrices[emitter->node.node_id], &matrix);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Speed);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Variation);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Latitude);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Gravity);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Width);
+                GET_PARTICLE_ANIM_PARAM(model, emitter, Length);
+                mdx_pctx_t ctx = { model, emitter, &matrix, entity->team&TEAM_MASK,
+                    Speed, Variation, Latitude, Gravity, emitter->LifeSpan, Length, Width };
+                for (uint32_t n = (uint32_t)MIN(count, 512.0f); n > 0; n--) mdx_spawn_particle(&ctx);
+            }
+            continue;
         }
         if (emitter->keytracks.EmissionRate)
             MDLX_GetModelKeytrackValue(model, emitter->keytracks.EmissionRate, frame, &rate);

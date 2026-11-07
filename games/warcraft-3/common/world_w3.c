@@ -185,6 +185,7 @@ static struct {
     { CM_ReadItems, "items" },
     { CM_ReadAbilities, "abilities" },
     { CM_ReadDestructables, "destructables" },
+    { CM_ReadBuffs, "buffs" },
     { CM_ReadDoodadOverrides, "doodad-overrides" },
     { CM_ReadStrings, "strings" },
     { CM_ReadMapScript, "map-script" },
@@ -547,6 +548,8 @@ static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
     CM_W3FreeUnitOverrides(world.info.num_originalDoodads, &world.info.originalDoodads);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedDoodads, &world.info.userCreatedDoodads);
+    CM_W3FreeUnitOverrides(world.info.num_originalBuffs, &world.info.originalBuffs);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedBuffs, &world.info.userCreatedBuffs);
     CM_ReleaseModel();
     while (world.doodads) {
         doodad_t *doodad = world.doodads;

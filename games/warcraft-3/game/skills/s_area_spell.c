@@ -988,8 +988,23 @@ BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
     starfall_think(thinker);
 }
 
-/* CAbilityChannel remains a non-spell ability for ad-hoc testing. */
-BZ_COMMAND_PROC(AbilityChannel) {
-    UI_AddCancelButton(clent);
-    S_SpellCursorSplat(clent, 200.0f);
+static void channel_think(edict_t *ent) {
+    if (!S_SpellChannelActive(ent) || G_Time() >= ent->spawn_time) S_SpellEndChannel(ent);
+}
+
+/* Name=Channel
+ * The generic base maps build custom spells on: DataB is the target type
+ * (S_SpellTargetTypeForCode), DataA the follow-through time the caster keeps
+ * channeling, DataC bit 1 makes the button visible. The effect itself comes
+ * from the map's SPELL_* triggers, which the shared cast pipeline fires. */
+BZ_SIMPLE_SPELL_PROC(AbilityChannel) {
+    uint32_t const level = S_SpellLevel(caster, spell->code);
+    float const follow_through = S_SpellData(spell->code, level, 1);
+    edict_t *thinker;
+
+    /* Zero follow-through still ends the channel on the next think. */
+    thinker = S_SpellChannelThinker(caster, spell->code);
+    if (!thinker) return;
+    thinker->spawn_time = G_Time() + (uint32_t)(MAX(0.0f, follow_through) * 1000.0f);
+    thinker->think = channel_think;
 }

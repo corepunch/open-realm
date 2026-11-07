@@ -20,6 +20,16 @@ cstring_t parse_token(wordExtractor_t *p) {
         char quote = *p->buffer;
         cstring_t closingQuote = strchr(p->buffer + 1, quote);
         size_t stringLength;
+        if (quote == '"') {
+            /* JASS string literals may contain \" and \\ escapes. */
+            cstring_t c = p->buffer + 1;
+            closingQuote = NULL;
+            while (*c) {
+                if (*c == '\\' && c[1]) { c += 2; continue; }
+                if (*c == '"') { closingQuote = c; break; }
+                ++c;
+            }
+        }
         if (!closingQuote) {
             strlcpy(word, p->buffer, MAX_SEGMENT_SIZE);
             p->buffer += strlen(p->buffer);

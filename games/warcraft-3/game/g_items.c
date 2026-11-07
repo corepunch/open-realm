@@ -127,6 +127,11 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &entry);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
     }
+    /* The info panel shows the new stats right away, not at the next selection. */
+    FOR_LOOP(i, game.max_clients) {
+        if (game.clients[i].connected && G_IsEntitySelected(game.clients + i, unit))
+            game.clients[i].selection_dirty = true;
+    }
 }
 
 void SP_SpawnItem(edict_t *self) {

@@ -5,6 +5,21 @@ static uint32_t SV_ClientPlayerNumber(client_t *cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
 
+/* A lobby stores the W3I map player, but the game permutes client slots so that slot 0 is the first
+ * human map player: on maps whose players start at 2 edict 2 belongs to player 1, an unused player
+ * (no resources, no units, camera at the origin). Resolve the owner of that map player instead.
+ * Non-lobby clients have playernum 0 and keep slot 0, which the game binds to the local player. */
+static edict_t *SV_ClientEdict(client_t *cl) {
+    uint32_t const playernum = SV_ClientPlayerNumber(cl);
+    if (playernum) {
+        FOR_LOOP(i, MAX_PLAYERS) {
+            edict_t *ent = EDICT_NUM(i);
+            if (ent->client && ent->client->ps.number == playernum) return ent;
+        }
+    }
+    return EDICT_NUM(playernum);
+}
+
 /* Continuation indexes come from the peer; reject malformed requests before indexing server tables. */
 static int SV_SignonStart(int argc, cstring_t *argv, uint32_t count) {
     if (argc == 1) return 0;
@@ -22,7 +37,7 @@ void SV_Configstrings_f(client_t *cl, int argc, cstring_t *argv) {
     int start = SV_SignonStart(argc, argv, MAX_CONFIGSTRINGS);
     uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
-    if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
+    if (!cl->edict) cl->edict = SV_ClientEdict(cl);
     for (; start < MAX_CONFIGSTRINGS; start++) {
         if (!*sv.configstrings[start]) continue;
         /* The engine buffer is much larger than a UDP datagram; reserve room for the next request too. */
@@ -76,7 +91,7 @@ void SV_Begin_f(client_t *cl, int argc, cstring_t *argv) {
 
     if (!cl->edict) {
         playernum = SV_ClientPlayerNumber(cl);
-        cl->edict = EDICT_NUM(playernum);
+        cl->edict = SV_ClientEdict(cl);
         fprintf(stderr,
                 "SV_Begin_f: assigned missing edict for client=%ld player=%u\n",
                 (long)(cl - svs.clients),
@@ -96,14 +111,11 @@ static void SV_NoDelta_f(client_t *cl, int argc, cstring_t *argv) {
 }
 
 void SV_PlayerInfo_f(client_t *cl, int argc, cstring_t *argv) {
-    uint32_t playernum;
-
     (void)argc;
     (void)argv;
 
     /* Assign the client's game edict (Quake 2/3 pattern) */
-    playernum = SV_ClientPlayerNumber(cl);
-    cl->edict = EDICT_NUM(playernum);
+    cl->edict = SV_ClientEdict(cl);
 }
 
 void SV_New_f(client_t *cl, int argc, cstring_t *argv) {

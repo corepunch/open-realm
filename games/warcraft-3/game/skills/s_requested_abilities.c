@@ -1301,9 +1301,15 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
             }
         }
         if (rank_slot < MAX_HERO_ABILITIES) caster->unit_state->ranks[rank_slot] = saved_rank;
-        FOR_LOOP(i, sizeof(metamorphosis_abilities) / sizeof(metamorphosis_abilities[0])) {
-            if (!G_ActorHasSkill(caster, GetClassName(metamorphosis_abilities[i])))
-                G_ActorAddSkill(caster, metamorphosis_abilities[i]);
+        /* These belong to the stock Demon Hunter forms only. Custom heroes can
+         * morph through an AEme alias into their own form, which authors its
+         * own hero list. overrides.added also outlives the
+         * morph, so granting them here would leak them to the base unit. */
+        if (form == MAKEFOURCC('E','d','m','m') || form == MAKEFOURCC('E','e','v','m')) {
+            FOR_LOOP(i, sizeof(metamorphosis_abilities) / sizeof(metamorphosis_abilities[0])) {
+                if (!G_ActorHasSkill(caster, GetClassName(metamorphosis_abilities[i])))
+                    G_ActorAddSkill(caster, metamorphosis_abilities[i]);
+            }
         }
         /* Edmm reuses the Demon Hunter model; its alternate geosets and
          * attack/walk sequences are selected by the Required Animation Name. */

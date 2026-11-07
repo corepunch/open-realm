@@ -239,6 +239,7 @@ bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted);
 bool FS_FileExists(cstring_t fileName);
 bool FS_ResolveLoosePath(cstring_t fileName, string_t out, uint32_t out_size);
 handle_t FS_ReadFile(cstring_t filename, uint32_t *size);
+handle_t FS_ReadPriorityFile(cstring_t filename, uint32_t *size);
 void FS_ReadFileAll(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
 
 // Quake 3-style file API (returns file size, allocates buffer)

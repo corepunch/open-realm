@@ -185,7 +185,9 @@ uint32_t GetTriggeringTrigger(jass_t *j) {
     return jass_pushlighthandle(j, ctx ? ctx->trigger : NULL, "trigger");
 }
 uint32_t GetTriggerEventId(jass_t *j) {
-    return jass_pushnullhandle(j, "eventid");
+    int32_t *handle = jass_newhandle(j, sizeof(*handle), "eventid");
+    *handle = jass_getcontext(j)->eventType;
+    return 1;
 }
 uint32_t GetTriggerEvalCount(jass_t *j) {
     //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -373,11 +375,24 @@ uint32_t TriggerRegisterPlayerStateEvent(jass_t *j) {
     return jass_pushnullhandle(j, "event");
 }
 uint32_t TriggerRegisterPlayerChatEvent(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //player_t *whichPlayer = jass_checkhandle(j, 2, "player");
-    //cstring_t chatMessageToDetect = jass_checkstring(j, 3);
-    //bool exactMatchOnly = jass_checkboolean(j, 4);
-    return jass_pushnullhandle(j, "event");
+    trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
+    player_t *whichPlayer = jass_checkhandle(j, 2, "player");
+    cstring_t chatMessageToDetect = jass_checkstring(j, 3);
+    bool exactMatchOnly = jass_checkboolean(j, 4);
+    event_t *evt;
+    if (!whichTrigger || !whichPlayer) return jass_pushnullhandle(j, "event");
+    if (!(evt = G_MakeEvent(EVENT_PLAYER_CHAT))) return jass_pushnullhandle(j, "event");
+    G_SetPlayerEventSubject(evt, PLAYER_ENT(whichPlayer));
+    evt->trigger = whichTrigger;
+    evt->state = exactMatchOnly;
+    {
+        /* G_RetireEvent releases `variable` through gi.MemFree. */
+        size_t const size = strlen(chatMessageToDetect ? chatMessageToDetect : "") + 1;
+        string_t pattern = gi.MemAlloc(size);
+        memcpy(pattern, chatMessageToDetect ? chatMessageToDetect : "", size);
+        evt->variable = pattern;
+    }
+    return jass_pushlighthandle(j, evt, "event");
 }
 uint32_t TriggerRegisterDeathEvent(jass_t *j) {
     /* Fire whichTrigger when whichWidget dies.  "widget" is the base type of

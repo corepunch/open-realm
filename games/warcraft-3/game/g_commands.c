@@ -3406,7 +3406,50 @@ static void CMD_JassDialogChoice(edict_t *ent, uint32_t argc, cstring_t argv[]) 
     G_JassDialogClick(ent, (uint32_t)dialog, (uint32_t)button);
 }
 
+char g_chat_text[256], g_chat_match[256];
+
+/* Retail chat matching ignores case; a non-exact pattern matches anywhere and "" matches every line. */
+static bool G_ChatMatches(event_t const *evt, cstring_t text) {
+    cstring_t const pattern = evt->variable ? evt->variable : "";
+    if (evt->state) return !strcasecmp(text, pattern);
+    if (!*pattern) return true;
+    return strcasestr(text, pattern) != NULL;
+}
+
+/* A chat line is visible to everyone and drives the sender's EVENT_PLAYER_CHAT triggers. */
+void G_PlayerChat(edict_t *ent, cstring_t text) {
+    char line[320];
+    uint32_t number;
+
+    if (!ent || !ent->client || !text || !*text) return;
+    number = ent->client->ps.number;
+    snprintf(line, sizeof(line), "%s: %s", ent->client->ps.name ? ent->client->ps.name : "Player", text);
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *other = game.clients + i;
+        if (other->connected) UI_ShowText(G_GetPlayerEntityByNumber(other->ps.number), &MAKE(vec2_t, 0, 0), line, -1.0f);
+    }
+    strlcpy(g_chat_text, text, sizeof(g_chat_text));
+    FOR_LOOP(i, MAX_EVENTS) {
+        event_t *evt = level.events.handlers + i;
+        if (!evt->inuse || evt->type != EVENT_PLAYER_CHAT || !evt->trigger || !level.vm) continue;
+        if (!evt->subject || !evt->subject->client || evt->subject->client->ps.number != number) continue;
+        if (!G_ChatMatches(evt, text)) continue;
+        strlcpy(g_chat_match, evt->variable ? evt->variable : "", sizeof(g_chat_match));
+        jass_calltriggerevent(level.vm, evt->trigger, &(gameEvent_t){ .dialog_player = number + 1 });
+    }
+}
+
+static void CMD_Say(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    char text[256] = "";
+    for (uint32_t i = 1; i < argc; i++) {
+        if (i > 1) strlcat(text, " ", sizeof(text));
+        strlcat(text, argv[i], sizeof(text));
+    }
+    G_PlayerChat(ent, text);
+}
+
 clientCommand_t clientCommands[] = {
+    { "say", CMD_Say },
     { "give", CMD_Give },
     { "god", CMD_God },
     { "kill", CMD_Kill },

@@ -295,6 +295,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     ability_t const *ability;
     abilityitem_t item;
     uint32_t ability_code = 0;
+    uint32_t text_level = level;
     bool toggle_on = false;
     bool upgrade_research = false;
     uint32_t x = UINT_MAX;
@@ -324,7 +325,8 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     if (!ability && strlen(code) == 4) {
         ItemData_t const *stock_item = G_ItemData(ability_code);
         uint32_t const base_item_id = G_ItemBaseID(ability_code);
-        if (stock_item->id == ability_code && base_item_id != ability_code) {
+        if (stock_item->id == ability_code && base_item_id != ability_code &&
+            !G_MapItemText(code, STR_ART)) {
             memcpy(item_art_code, &base_item_id, 4);
             item_art_code[4] = '\0';
             art_code = item_art_code;
@@ -404,8 +406,14 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     }
 
     UI_CopyString(button->art, sizeof(button->art), art_path);
-    UI_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
-    UI_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
+    /* Tip and Ubertip are per-level lists. Live commands are built with level
+     * 0, which would print the whole list, so hero skills show their learned
+     * rank, or the first entry until one is learned. */
+    if (!research && !text_level && ability_code && G_UnitIsHero(ent)) {
+        text_level = MAX(1u, G_UnitAbilityLevel(ent, ability_code));
+    }
+    UI_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, text_level));
+    UI_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, text_level));
     UI_CopyString(button->command, sizeof(button->command), code);
     if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
@@ -438,7 +446,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
         button->engaged = ent->orders->holding_position ? 1 : 0;
     }
     if (ability_code) {
-        button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
+        button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, text_level);
     }
     if (!button->art[0]) {
         fprintf(stderr,
@@ -880,6 +888,8 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
         ((ability->proc == CAbilityRoar && strcmp(code, "Aroa")) ||
          ability->proc == CAbilityRejuvination)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    /* Channel's DataC option bit 1 is "Visible"; maps hide dummy-cast channels. */
+    if (ability->proc == CAbilityChannel && !((int)S_SpellData(rawcode, 1, 3) & 1)) return;
     if (!G_AbilityCommandMatchesMorphSource(ent, rawcode, ability)) return;
     if (!G_IsUnitAbilityAvailable(ent, rawcode)) {
         if (G_IsRepairDiagnosticRawcode(code)) G_RepairCommandTrace(ent, code, "filtered-unavailable", ability, false, false);

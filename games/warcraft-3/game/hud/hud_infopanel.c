@@ -1207,6 +1207,13 @@ static void WriteBuffStatusFrames(edict_t *ent) {
     WriteVirtualBuffStatusFrame(S_TrueshotAuraBuff(ent), shown, &slot);
 }
 
+static void HeroAttributeText(frameDef_t *frame, uint32_t total, int32_t bonus) {
+    if (bonus > 0 && (int32_t)total >= bonus)
+        UI_SetText(frame, "%lu |cff00ff00+ %ld|r", (unsigned long)(total - (uint32_t)bonus), (long)bonus);
+    else
+        UI_SetText(frame, "%lu", (unsigned long)total);
+}
+
 static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *weapons,
                                           bool has_attack1, bool has_attack2,
                                           int32_t min_damage, int32_t max_damage,
@@ -1305,9 +1312,9 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
         SetHeroPrimaryAttributeIcon(ent->data.UnitBalance->primaryAttribute);
         SetHeroAttributesTooltip(hud.simple.InfoPanelIconHeroIcon,
                                  ent->data.UnitBalance->primaryAttribute);
-        UI_SetText(hud.simple.InfoPanelIconHeroStrengthValue, "%lu", (unsigned long)ent->unit_state->hero.str);
-        UI_SetText(hud.simple.InfoPanelIconHeroAgilityValue, "%lu", (unsigned long)ent->unit_state->hero.agi);
-        UI_SetText(hud.simple.InfoPanelIconHeroIntellectValue, "%lu", (unsigned long)ent->unit_state->hero.intel);
+        HeroAttributeText(hud.simple.InfoPanelIconHeroStrengthValue, ent->unit_state->hero.str, ent->unit_state->hero.bonus_str);
+        HeroAttributeText(hud.simple.InfoPanelIconHeroAgilityValue, ent->unit_state->hero.agi, ent->unit_state->hero.bonus_agi);
+        HeroAttributeText(hud.simple.InfoPanelIconHeroIntellectValue, ent->unit_state->hero.intel, ent->unit_state->hero.bonus_intel);
         UI_WriteFrame(&hud.hero);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconHero, &hud.hero);
     }

@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 9 // format version; v9 persists unit-sale callback context
+#define BZ_JASS_SNAPSHOT_VERSION 10 // format version; v10 persists event type and filter unit
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -33,6 +33,7 @@ typedef struct {
     edict_t *sold_unit;
     uint32_t sold_unit_spawn_time;
     int32_t value;
+    int32_t event_type;
     uint32_t dialog_id, dialog_button_id;
     player_t *event_player;
     vec2_t const *point;
@@ -239,10 +240,22 @@ static bool jass_valuehandle(cstring_t type) {
     return false;
 }
 
+static bool jass_eventid_family(cstring_t type) {
+    static cstring_t const names[] = { "eventid", "gameevent", "playerevent", "playerunitevent", "unitevent", "widgetevent", "dialogevent" };
+    FOR_LOOP(i, sizeof(names) / sizeof(*names)) if (!strcmp(type, names[i])) return true;
+    return false;
+}
+
 static bool var_eq(jassVar_t const *a, jassVar_t const *b) {
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
-        case 1: return false;
+        case 1: {
+            /* false == null: optimized maps wrap conditions as `return (cond) != null`, and always
+             * answering "not equal" turned each of those conditions into true. */
+            jassVar_t const *set = a->value ? a : b;
+            if (set->type && jass_getvarbasetype(set) == jasstype_boolean) return !*(bool const *)set->value;
+            return false;
+        }
     }
     if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) return false;
     switch (jass_getvarbasetype(a)) {
@@ -254,6 +267,9 @@ static bool var_eq(jassVar_t const *a, jassVar_t const *b) {
         case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(handle_t));
         case jasstype_handle:
             if (a->value == b->value) return true;
+            /* GetTriggerEventId() returns eventid; the constants it is compared with are its subtypes. */
+            if (a->type && b->type && jass_eventid_family(a->type->name) && jass_eventid_family(b->type->name))
+                return !memcmp(a->value, b->value, sizeof(uint32_t));
             if (a->type != b->type) return false;
             /* Galaxy opaque types have no JASS declaration; unequal identities must not dereference a null type. */
             return a->type && jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(uint32_t));
@@ -328,6 +344,11 @@ void removeDoubleBackslashes(string_t str) {
     size_t len = strlen(str);
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
+        if (str[i] == '\\' && str[i + 1] == '"') {
+            str[j++] = '"';
+            i++;
+            continue;
+        }
         str[j++] = str[i];
         if (str[i] == '\\' && str[i + 1] == '\\') {
             i++;
@@ -1111,6 +1132,10 @@ void jass_runevents(jass_t *j) {
  * ========================================================================= */
 
 static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    if (!params->trigger) {
+        /* Retail treats a null trigger as a no-op; maps with optional systems rely on it. */
+        return false;
+    }
     player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
     jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
     if (!tmp_state) return false;
@@ -1124,6 +1149,7 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state->context.soldUnit = params->sold_unit;
         tmp_state->context.soldUnitSpawnTime = params->sold_unit_spawn_time;
         tmp_state->context.eventValue = params->value;
+        tmp_state->context.eventType = params->event_type;
         tmp_state->context.dialog_id = params->dialog_id;
         tmp_state->context.dialog_button_id = params->dialog_button_id;
         tmp_state->context.point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f };
@@ -1132,6 +1158,7 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state->context.localPlayerState = currentplayer;
         tmp_state->context.timer = currenttimer;
         tmp_state->context.region = params->region ? params->region : jass_getcontext(j)->region;
+        if (!cond->expr) continue; /* a null condition passes, as in retail */
         jass_pushfunction(tmp_state, cond->expr);
         edict_t *previous_unit = currentunit;
         currentunit = params->unit;
@@ -1158,6 +1185,40 @@ bool jass_evaluatetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
  * function in a scratch state with the unit bound as the context/current unit
  * so GetFilterUnit()/GetEnumUnit() inside the filter resolve to it.  Returns
  * the filter's boolean result; a null filter passes (matches "no filter"). */
+typedef struct {
+    jassFunc_t func; /* first: the VM calls composites through this header */
+    char op;
+    jassFunc_t const *a, *b;
+} jassBoolExpr_t;
+
+bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
+
+static uint32_t jass_boolexpr_native(jass_t *j) {
+    jassBoolExpr_t const *expr = jass_stackvalue(j, 0)->value;
+    edict_t *unit = jass_getcontext(j)->filter_unit ? jass_getcontext(j)->filter_unit : jass_getcontext(j)->unit;
+    bool result;
+    switch (expr->op) {
+        case '&': result = jass_evaluateboolexpr(j, expr->a, unit) && jass_evaluateboolexpr(j, expr->b, unit); break;
+        case '|': result = jass_evaluateboolexpr(j, expr->a, unit) || jass_evaluateboolexpr(j, expr->b, unit); break;
+        default: result = !jass_evaluateboolexpr(j, expr->a, unit); break;
+    }
+    return jass_pushboolean(j, result);
+}
+
+/* And/Or/Not: a function object evaluating its operands in the caller's event context. */
+jassFunc_t const *jass_makeboolexpr(char op, jassFunc_t const *a, jassFunc_t const *b) {
+    jassBoolExpr_t *expr = jass_alloc(sizeof(*expr));
+    if (!expr) return NULL;
+    memset(expr, 0, sizeof(*expr));
+    expr->func.name = "boolexpr";
+    expr->func.nativefunc = jass_boolexpr_native;
+    expr->func.native = true;
+    expr->op = op;
+    expr->a = a;
+    expr->b = b;
+    return &expr->func;
+}
+
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit) {
     if (!expr) return true;
     jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
@@ -1165,7 +1226,10 @@ bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit) {
     memcpy(tmp_state, j, sizeof(*tmp_state));
     memset(tmp_state->stack, 0, sizeof(tmp_state->stack));
     tmp_state->num_stack = 0;
-    tmp_state->context.unit = unit;
+    /* A filter inside a trigger action still sees that trigger's unit from
+     * GetTriggerUnit, so GetFilterUnit() != GetTriggerUnit() can exclude it. */
+    tmp_state->context.filter_unit = unit;
+    if (!tmp_state->context.unit) tmp_state->context.unit = unit;
     jass_pushfunction(tmp_state, expr);
     edict_t *previous_unit = currentunit;
     currentunit = unit;
@@ -1221,6 +1285,9 @@ bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *pla
 
 static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
     jasscoroutine_t *first = NULL, *last = NULL;
+    if (!params->trigger) {
+        return;
+    }
     FOR_EACH_LIST(gTriggerAction_t, action, params->trigger->actions) {
         player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
         jasscoroutine_t *co = jass_startcoroutine(j, &MAKE(jassContext_t,
@@ -1231,6 +1298,7 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .soldUnit = params->sold_unit,
                                   .soldUnitSpawnTime = params->sold_unit_spawn_time,
                                   .eventValue = params->value,
+                                  .eventType = params->event_type,
                                   .dialog_id = params->dialog_id,
                                   .dialog_button_id = params->dialog_button_id,
                                   .point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f },
@@ -1296,6 +1364,7 @@ bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *eve
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
+        .event_type = (int32_t)event->type,
         .dialog_id = event->dialog_id, .dialog_button_id = event->button_id,
         .event_player = event->dialog_player
             ? jass_getplayerbyindex(event->dialog_player - 1) : NULL,
@@ -1828,9 +1897,10 @@ uint32_t VM_EvalIdentifier(jass_t *j, token_t const *token) {
         } else {
             return jass_pushnull(j);
         }
-    } else if ((v = find_global(j, token->primary))) {
-        return jass_pushvalue(j, v);
+    /* Locals shadow globals: optimized maps have globals like "mb" that collide with Blizzard.j parameters. */
     } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
+        return jass_pushvalue(j, v);
+    } else if ((v = find_global(j, token->primary))) {
         return jass_pushvalue(j, v);
     } else {
         return jass_pushnull(j);
@@ -1853,8 +1923,8 @@ uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
     uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     uint32_t index_val = jass_popinteger(j);
-    jassVar_t *var = find_global(j, token->primary);
-    if (!var) var = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary);
+    jassVar_t *var = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary);
+    if (!var) var = find_global(j, token->primary);
     if (!var) return jass_pushnull(j);
     jassVar_t null_value = { .type = var->type };
     jassVar_t const *item = find_array_value(var, index_val);
@@ -1870,6 +1940,14 @@ uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
 }
 
 uint32_t VM_EvalFourCC(jass_t *j, token_t const *token) {
+    size_t const len = strlen(token->primary);
+    if (len < 4) {
+        /* 'd' / 'ab' are plain base-256 integers ('d' == 100); reading 4 bytes
+         * picked up the NUL and whatever followed it. */
+        uint32_t value = 0;
+        for (size_t i = 0; i < len; i++) value = value * 256u + (unsigned char)token->primary[i];
+        return jass_pushinteger(j, value);
+    }
     return jass_pushinteger(j, *(uint32_t *)token->primary);
 }
 
@@ -2070,17 +2148,18 @@ TOKENFUNC(IF) {
 
 TOKENFUNC(SET) {
     jassVar_t *v = NULL;
-    if ((v = find_global(j, token->secondary))) {
-        if (token->index) {
-            return jass_set_array_value(j, v, token, token->init);
-        } else {
-            return jass_set_value(j, v, token->init, token->secondary, token->primary);
-        }
-    } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->secondary))) {
+    /* Locals first, matching VM_EvalIdentifier. */
+    if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->secondary))) {
         if (token->index) {
             return jass_set_array_value(j, v, token, token->init);
         } else {
             return jass_set_value(j, v, token->init, NULL, token->primary);
+        }
+    } else if ((v = find_global(j, token->secondary))) {
+        if (token->index) {
+            return jass_set_array_value(j, v, token, token->init);
+        } else {
+            return jass_set_value(j, v, token->init, token->secondary, token->primary);
         }
     } else {
         fprintf(stderr, "Can't find variable %s\n",
@@ -2771,12 +2850,13 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
     struct { cstring_t type; handle_t value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->enumunit },
         { "unit", context->source },
-        { "unit", context->soldUnit },
+        { "unit", context->soldUnit }, { "unit", context->filter_unit },
         { "player", context->playerState }, { "player", context->localPlayerState },
         { "timer", context->timer }, { "region", context->region },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->eventType, sizeof(context->eventType)) ||
         !jass_snapshot_io(snapshot, (void *)&context->soldUnitSpawnTime, sizeof(context->soldUnitSpawnTime)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_button_id, sizeof(context->dialog_button_id)) ||
@@ -2793,7 +2873,7 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     struct { cstring_t type; handle_t *value; } handles[] = {
         { "trigger", (handle_t *)&context->trigger }, { "unit", (handle_t *)&context->unit },
         { "unit", (handle_t *)&context->enumunit }, { "unit", (handle_t *)&context->source },
-        { "unit", (handle_t *)&context->soldUnit },
+        { "unit", (handle_t *)&context->soldUnit }, { "unit", (handle_t *)&context->filter_unit },
         { "player", (handle_t *)&context->playerState },
         { "player", (handle_t *)&context->localPlayerState }, { "timer", &context->timer },
         { "region", &context->region },
@@ -2806,6 +2886,7 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
     if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, &context->eventType, sizeof(context->eventType)) ||
         !jass_snapshot_io(snapshot, &context->soldUnitSpawnTime, sizeof(context->soldUnitSpawnTime)) ||
         !jass_snapshot_io(snapshot, &context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, &context->dialog_button_id, sizeof(context->dialog_button_id)) ||

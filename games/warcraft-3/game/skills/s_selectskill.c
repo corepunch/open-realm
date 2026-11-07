@@ -39,6 +39,8 @@ void ui_selectskill(gameClient_t *client) {
             continue;
         }
         button.number = next_level;
+        /* Researchbuttonpos defaults to 0,0 when the ability omits it. */
+        if (button.x == 255 || button.y == 255) button.x = button.y = 0;
         if (state != HERO_SKILL_AVAILABLE) {
             button.disabled = 1;
         }

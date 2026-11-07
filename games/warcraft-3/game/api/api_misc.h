@@ -61,10 +61,25 @@ CONVERT_FUNC(PlayerGameResult, playergameresult);
 CONVERT_FUNC(UnitState, unitstate);
 CONVERT_FUNC(GameEvent, gameevent);
 CONVERT_FUNC(PlayerEvent, playerevent);
-CONVERT_FUNC(PlayerUnitEvent, playerunitevent);
+/* The event enums use the numbering of common.j after the player mouse events were added. Older
+ * data (1.27 War3x/War3Patch: EVENT_PLAYER_UNIT_SELL = 269) numbers the sell/owner/spell/pawn events
+ * three lower, which silently bound those triggers to the wrong event. */
+bool g_common_events_legacy;
+static int32_t JassEventFromCommonJ(int32_t value) {
+    if (g_common_events_legacy && ((value >= 269 && value <= 277) || (value >= 286 && value <= 294)))
+        return value + 3;
+    return value;
+}
+static uint32_t JassPushPlayerUnitEventHandle(jass_t *j, int32_t value) { return JassPushEnumHandle(j, "playerunitevent", value); }
+uint32_t ConvertPlayerUnitEvent(jass_t *j) {
+    return JassPushPlayerUnitEventHandle(j, JassEventFromCommonJ(jass_checkinteger(j, 1)));
+}
 CONVERT_FUNC(WidgetEvent, widgetevent);
 CONVERT_FUNC(DialogEvent, dialogevent);
-CONVERT_FUNC(UnitEvent, unitevent);
+static uint32_t JassPushUnitEventHandle(jass_t *j, int32_t value) { return JassPushEnumHandle(j, "unitevent", value); }
+uint32_t ConvertUnitEvent(jass_t *j) {
+    return JassPushUnitEventHandle(j, JassEventFromCommonJ(jass_checkinteger(j, 1)));
+}
 CONVERT_FUNC(LimitOp, limitop);
 CONVERT_FUNC(UnitType, unittype);
 CONVERT_FUNC(GameSpeed, gamespeed);
@@ -485,7 +500,8 @@ uint32_t GetWorldBounds(jass_t *j) {
     return 1;
 }
 uint32_t GetFilterUnit(jass_t *j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    jassContext_t const *context = jass_getcontext(j);
+    return jass_pushlighthandle(j, context->filter_unit ? context->filter_unit : context->unit, "unit");
 }
 uint32_t GetEnumUnit(jass_t *j) {
     extern edict_t *currentenumunit;
@@ -508,7 +524,10 @@ uint32_t GetEnumPlayer(jass_t *j) {
 }
 uint32_t ExecuteFunc(jass_t *j) {
     cstring_t funcName = jass_checkstring(j, 1);
-    (void)jass_startcoroutinebyname(j, funcName);
+    /* Retail runs the new thread right away, up to its first wait: scripts create state
+     * in ExecuteFunc and use it on the next line of the caller. */
+    jasscoroutine_t *co = jass_startcoroutinebyname(j, funcName);
+    if (co) jass_resume(j, co);
     return 0;
 }
 uint32_t newthread(jass_t *j) {
@@ -519,18 +538,13 @@ uint32_t newthread(jass_t *j) {
     return 0;
 }
 uint32_t And(jass_t *j) {
-    //handle_t operandA = jass_checkhandle(j, 1, "boolexpr");
-    //handle_t operandB = jass_checkhandle(j, 2, "boolexpr");
-    return jass_pushnullhandle(j, "boolexpr");
+    return jass_pushlighthandle(j, (handle_t)jass_makeboolexpr('&', jass_checkhandle(j, 1, "boolexpr"), jass_checkhandle(j, 2, "boolexpr")), "boolexpr");
 }
 uint32_t Or(jass_t *j) {
-    //handle_t operandA = jass_checkhandle(j, 1, "boolexpr");
-    //handle_t operandB = jass_checkhandle(j, 2, "boolexpr");
-    return jass_pushnullhandle(j, "boolexpr");
+    return jass_pushlighthandle(j, (handle_t)jass_makeboolexpr('|', jass_checkhandle(j, 1, "boolexpr"), jass_checkhandle(j, 2, "boolexpr")), "boolexpr");
 }
 uint32_t Not(jass_t *j) {
-    //handle_t operand = jass_checkhandle(j, 1, "boolexpr");
-    return jass_pushnullhandle(j, "boolexpr");
+    return jass_pushlighthandle(j, (handle_t)jass_makeboolexpr('!', jass_checkhandle(j, 1, "boolexpr"), NULL), "boolexpr");
 }
 uint32_t Condition(jass_t *j) {
     jassFunc_t const *func = jass_checkcode(j, 1);
@@ -585,10 +599,11 @@ uint32_t GetLearningUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetLearnedSkill(jass_t *j) {
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
 uint32_t GetLearnedSkillLevel(jass_t *j) {
-    return jass_pushinteger(j, 0);
+    jassContext_t const *context = jass_getcontext(j);
+    return jass_pushinteger(j, context->unit ? (int32_t)G_UnitAbilityLevel(context->unit, (uint32_t)context->eventValue) : 0);
 }
 uint32_t GetRevivableUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -597,7 +612,7 @@ uint32_t GetRevivingUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetAttacker(jass_t *j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
 uint32_t GetRescuer(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -740,10 +755,10 @@ uint32_t GetEventPlayerState(jass_t *j) {
     return jass_pushnullhandle(j, "playerstate");
 }
 uint32_t GetEventPlayerChatString(jass_t *j) {
-    return jass_pushstring(j, 0);
+    return jass_pushstring(j, g_chat_text);
 }
 uint32_t GetEventPlayerChatStringMatched(jass_t *j) {
-    return jass_pushstring(j, 0);
+    return jass_pushstring(j, g_chat_match);
 }
 uint32_t GetEventUnitState(jass_t *j) {
     return jass_pushnullhandle(j, "unitstate");

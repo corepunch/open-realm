@@ -32,14 +32,23 @@ BOMStatus PF_TextRemoveBom(string_t buffer);
 uint32_t SFileReadStringLength(handle_t file) {
     uint32_t filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
     uint32_t stringLength = 1;
+    /* Scan in blocks: a 1-byte SFileReadFile re-inflates the whole sector, which made
+     * maps with large object data (e.g. 500 KB of w3a strings) load for many minutes. */
     while (true) {
-        uint8_t ch = 0;
-        SFileReadFile(file, &ch, 1, NULL, NULL);
-        if (ch == 0) {
+        char chunk[512];
+        uint32_t got = 0;
+        if (!SFileReadFile(file, chunk, sizeof(chunk), &got, NULL) && got == 0) {
             break;
-        } else {
-            stringLength++;
         }
+        if (got == 0) {
+            break;
+        }
+        char const *nul = memchr(chunk, 0, got);
+        if (nul) {
+            stringLength += (uint32_t)(nul - chunk);
+            break;
+        }
+        stringLength += got;
     }
     SFileSetFilePointer(file, filePosition, 0, FILE_BEGIN);
     return stringLength;
@@ -889,6 +898,12 @@ void CM_ReadAbilities(handle_t archive) {
     world.info.originalAbilities = CM_ReadAbilityOverrides(file, &world.info.num_originalAbilities);
     world.info.userCreatedAbilities = CM_ReadAbilityOverrides(file, &world.info.num_userCreatedAbilities);
     SFileCloseFile(file);
+}
+
+void CM_ReadBuffs(handle_t archive) {
+    CM_ReadObjectData(archive, "war3map.w3h",
+                      &world.info.num_originalBuffs, &world.info.originalBuffs,
+                      &world.info.num_userCreatedBuffs, &world.info.userCreatedBuffs);
 }
 
 void CM_ReadDestructables(handle_t archive) {

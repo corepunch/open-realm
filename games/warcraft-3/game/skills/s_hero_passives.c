@@ -477,6 +477,8 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     if (aura_target_has_token(targets, "dead", NULL)) return false;
     if (aura_target_has_token(targets, "notself", "nots") && is_self) return false;
     if (aura_target_has_token(targets, "hero", NULL) && !G_UnitIsHero(target)) return false;
+    /* "player": only units owned by the aura source's player. */
+    if (aura_target_has_token(targets, "player", "play") && target->s.player != source->s.player) return false;
     if (aura_target_has_token(targets, "nonhero", "nonh") && G_UnitIsHero(target)) return false;
     if (aura_target_has_token(targets, "mechanical", "mech") && target->targtype != TARG_MECHANICAL) return false;
     if (aura_target_has_token(targets, "organic", "orga") && target->targtype == TARG_MECHANICAL) return false;

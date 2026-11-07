@@ -20,6 +20,12 @@ static void apply_mana(edict_t *unit, float amount) {
     G_ApplyTemporaryMaxManaBonus(unit, amount);
 }
 
+/* Arel: DataA hit points per second (Ring of Regeneration). */
+static void apply_life_regen(edict_t *unit, float amount) {
+    G_InitUnitState(unit);
+    unit->unit_state->health_regen_bonus += amount;
+}
+
 /* Attribute aliases share the authored Agility/Intelligence/Strength field order used by tomes. */
 static void apply_stat(edict_t *unit, uint32_t code, float sign) {
     float str = sign * S_SpellData(code, 1, 3);
@@ -28,18 +34,27 @@ static void apply_stat(edict_t *unit, uint32_t code, float sign) {
     if (!G_UnitIsHero(unit)) {
         return;
     }
+    unit->unit_state->hero.bonus_str += (int32_t)str;
+    unit->unit_state->hero.bonus_agi += (int32_t)agi;
+    unit->unit_state->hero.bonus_intel += (int32_t)intel;
     unit->unit_state->hero.str = (uint32_t)MAX(0, (int32_t)unit->unit_state->hero.str + (int32_t)str);
     unit->unit_state->hero.agi = (uint32_t)MAX(0, (int32_t)unit->unit_state->hero.agi + (int32_t)agi);
     unit->unit_state->hero.intel = (uint32_t)MAX(0, (int32_t)unit->unit_state->hero.intel + (int32_t)intel);
     G_RecomputeHeroStats(unit);
 }
 
+/* Item bonus abilities also work on a unit directly: UnitAddAbility sends
+ * A_ENABLE and UnitRemoveAbility A_DISABLE. */
+static bool S_ItemBonusMessage(abilityMsg_t msg) {
+    return msg == A_ITEM_ADD || msg == A_ITEM_REMOVE || msg == A_ENABLE || msg == A_DISABLE;
+}
+
 /* Inventory messages retain the authored alias, including distinct values on stacked items. */
 #define BZ_ITEM_BONUS_PROC(NAME, APPLY) \
     BZ_ABILITY_PROC(C##NAME) { \
-        if (msg != A_ITEM_ADD && msg != A_ITEM_REMOVE) return CAbilityPassive(ent, msg, call); \
+        if (!S_ItemBonusMessage(msg)) return CAbilityPassive(ent, msg, call); \
         if (!ent || !call || !call->item) return false; \
-        float sign = msg == A_ITEM_ADD ? 1.0f : -1.0f; \
+        float sign = msg == A_ITEM_ADD || msg == A_ENABLE ? 1.0f : -1.0f; \
         APPLY(ent, sign * S_SpellData(call->item->code, 1, 1)); \
         return true; \
     }
@@ -48,12 +63,13 @@ BZ_ITEM_BONUS_PROC(AbilityAttackBonus, apply_attack)
 BZ_ITEM_BONUS_PROC(AbilityDefenseBonus, apply_defense)
 BZ_ITEM_BONUS_PROC(AbilityMaxLifeBonus, apply_life)
 BZ_ITEM_BONUS_PROC(AbilityMaxManaBonus, apply_mana)
+BZ_ITEM_BONUS_PROC(AbilityLifeRegenBonus, apply_life_regen)
 
 /* Read every attribute from the same alias on acquisition and removal. */
 BZ_ABILITY_PROC(CAbilityAttributeBonus) {
-    if (msg != A_ITEM_ADD && msg != A_ITEM_REMOVE) return CAbilityPassive(ent, msg, call);
+    if (!S_ItemBonusMessage(msg)) return CAbilityPassive(ent, msg, call);
     if (!ent || !call || !call->item) return false;
-    float sign = msg == A_ITEM_ADD ? 1.0f : -1.0f;
+    float sign = msg == A_ITEM_ADD || msg == A_ENABLE ? 1.0f : -1.0f;
     apply_stat(ent, call->item->code, sign);
     return true;
 }
@@ -84,7 +100,7 @@ static cstring_t orb_buff(uint32_t code) {
     cstring_t buff = S_SpellBuffId(code, 1);
     if (buff && strlen(buff) >= 4) return buff;
     FOR_LOOP(i, sizeof(fallback) / sizeof(fallback[0]))
-        if (fallback[i].code == code) return fallback[i].buff;
+        if (fallback[i].code == G_AbilityCode(code)) return fallback[i].buff;
     return NULL;
 }
 
@@ -106,8 +122,12 @@ void S_OrbOnHit(edict_t *attacker, edict_t *target) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
-    FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
-        if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
+    FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0])) {
+        /* Owned map aliases carry their own BuffID and duration. */
+        abilityAliasRef_t const ref = S_ResolveAbilityAlias(attacker, orb_codes[o]);
+        uint32_t const code = ref.alias ? ref.alias : orb_codes[o];
+        if (G_UnitAbilityLevel(attacker, code)) orb_apply(attacker, target, code, seen, &count);
+    }
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = G_InventoryItem(attacker, i);

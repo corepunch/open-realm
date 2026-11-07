@@ -1792,6 +1792,205 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, player_chat_fires_matching_triggers) {
+    gameClient_t *human = &game.clients[0];
+    edict_t *ent;
+    human->ps.number = 0;
+    human->connected = true;
+    T_ASSERT(run_test_jass(
+        "function exact takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, StringLength(GetEventPlayerChatString()))\n"
+        "endfunction\n"
+        "function partial takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER, StringLength(GetEventPlayerChatStringMatched()))\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger a = CreateTrigger()\n"
+        "  local trigger b = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerChatEvent(a, Player(0), \"-ar\", true)\n"
+        "  call TriggerAddAction(a, function exact)\n"
+        "  call TriggerRegisterPlayerChatEvent(b, Player(0), \"-lvl \", false)\n"
+        "  call TriggerAddAction(b, function partial)\n"
+        "endfunction\n"));
+    jass_runevents(level.vm);
+    ent = G_GetPlayerEntityByNumber(0);
+    T_ASSERT(ent != NULL);
+    G_PlayerChat(ent, "-arx");
+    jass_runevents(level.vm);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    G_PlayerChat(ent, "-AR");
+    jass_runevents(level.vm);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 3);
+    G_PlayerChat(ent, "-lvl max");
+    jass_runevents(level.vm);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
+}
+
+TEST(wc3_api, boolexpr_composites_and_event_id) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer passed = 0\n"
+        "endglobals\n"
+        "function yes takes nothing returns boolean\n  return true\nendfunction\n"
+        "function no takes nothing returns boolean\n  return false\nendfunction\n"
+        "function action takes nothing returns nothing\n  set passed = passed + 1\nendfunction\n"
+        "function run takes boolexpr e returns boolean\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerAddCondition(t, e)\n"
+        "  return TriggerEvaluate(t)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(run(And(Condition(function yes), Condition(function yes))), \"and tt\")\n"
+        "  call BJassAssert(not run(And(Condition(function yes), Condition(function no))), \"and tf\")\n"
+        "  call BJassAssert(run(Or(Condition(function no), Condition(function yes))), \"or ft\")\n"
+        "  call BJassAssert(not run(Or(Condition(function no), Condition(function no))), \"or ff\")\n"
+        "  call BJassAssert(run(Not(Condition(function no))), \"not f\")\n"
+        "  call BJassAssert(run(And(Not(Condition(function no)), Or(Condition(function no), Condition(function yes)))), \"nested\")\n"
+        "  call BJassAssert(GetUnitPointValueByType('hpea') >= 0, \"points native\")\n"
+        "endfunction\n"));
+}
+
+/* A filter run from a trigger action keeps GetTriggerUnit, e.g. a splash
+ * trigger that hits everyone around the damaged unit except that unit. */
+TEST(wc3_api, group_filter_keeps_trigger_unit_separate_from_filter_unit) {
+    edict_t *victim = NULL, *attacker = NULL;
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit victim = null\n"
+        "  integer hits = 0\n"
+        "  boolean trigger_unit_ok = true\n"
+        "endglobals\n"
+        "function others takes nothing returns boolean\n"
+        "  if GetTriggerUnit() != victim then\n"
+        "    set trigger_unit_ok = false\n"
+        "  endif\n"
+        "  return GetFilterUnit() != GetTriggerUnit()\n"
+        "endfunction\n"
+        "function on_damaged takes nothing returns nothing\n"
+        "  local group g = CreateGroup()\n"
+        "  local unit u = null\n"
+        "  call GroupEnumUnitsInRange(g, 0, 0, 500, Condition(function others))\n"
+        "  loop\n"
+        "    set u = FirstOfGroup(g)\n"
+        "    exitwhen u == null\n"
+        "    set hits = hits + 1\n"
+        "    call GroupRemoveUnit(g, u)\n"
+        "  endloop\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set victim = CreateUnit(Player(1), 'hpea', 0, 0, 0)\n"
+        "  call CreateUnit(Player(1), 'hpea', 50, 0, 0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', -50, 0, 0)\n"
+        "  call TriggerRegisterUnitEvent(t, victim, EVENT_UNIT_DAMAGED)\n"
+        "  call TriggerAddAction(t, function on_damaged)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(trigger_unit_ok, \"GetTriggerUnit inside the filter\")\n"
+        "  call BJassAssert(hits == 2, \"filter must exclude only the damaged unit\")\n"
+        "endfunction\n"));
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','p','e','a') && ent->s.origin2.x == 0.0f) victim = ent;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o')) attacker = ent;
+    T_NOT_NULL(victim);
+    T_NOT_NULL(attacker);
+    victim->health.value = victim->health.max_value = 250.0f;
+    T_Damage(victim, attacker, 10);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* Scripts test and clear buffs by rawcode through the ability natives. */
+TEST(wc3_api, ability_natives_read_and_remove_buff_rawcodes) {
+    edict_t *unit = NULL;
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit target = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set target = CreateUnit(Player(0), 'hfoo', 0, 0, 0)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(GetUnitAbilityLevel(target, 'B03F') == 2, \"buff level\")\n"
+        "  call BJassAssert(UnitRemoveAbility(target, 'B03F'), \"buff removal\")\n"
+        "  call BJassAssert(GetUnitAbilityLevel(target, 'B03F') == 0, \"buff gone\")\n"
+        "endfunction\n"));
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o')) unit = ent;
+    T_NOT_NULL(unit);
+    T_NOT_NULL(S_SpellApplyTimedStatus(unit, "B03F", 2, 10.0f));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','0','3','F')));
+}
+
+/* war3map.w3h: a custom buff's own fields win, unset ones come from its base. */
+TEST(wc3_api, map_buff_text_inherits_unset_fields_from_base_buff) {
+    static char const tip[] = "Custom Phase";
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('f','t','i','p'), .type = mod_string, .data = (handle_t)tip },
+    };
+    unitData_t buff = { .originalUnitID = MAKEFOURCC('B','N','b','r'), .newUnitID = MAKEFOURCC('B','0','3','H'),
+                        .numbeOfModifications = 1, .modifications = mods };
+    mapInfo_t *info;
+    cstring_t base_art;
+
+    reset_entities(); setup_test_world();
+    info = (mapInfo_t *)level.mapinfo;
+    T_ASSERT(G_TestPushAbilityConfig("[BNbr]\nBuffart=ReplaceableTextures\\CommandButtons\\BTNBattleRoar.blp\nBufftip=Battle Roar\n"));
+    info->userCreatedBuffs = &buff;
+    info->num_userCreatedBuffs = 1;
+    T_STREQ(FindConfigValue("B03H", "Bufftip"), "Custom Phase");
+    base_art = FindConfigValue("B03H", "Buffart");
+    T_NOT_NULL(base_art);
+    T_STREQ(base_art, "ReplaceableTextures\\CommandButtons\\BTNBattleRoar.blp");
+    info->userCreatedBuffs = NULL;
+    info->num_userCreatedBuffs = 0;
+    G_TestPopAbilityConfig();
+}
+
+TEST(wc3_api, unit_apply_timed_life_native_marks_script_unit) {
+    edict_t *found = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call UnitApplyTimedLife(CreateUnit(Player(0), 'hpea', 0, 0, 0), 'BTLF', 2)\n"
+        "endfunction\n"));
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','p','e','a')) found = ent;
+    T_NOT_NULL(found);
+    T_ASSERT(S_UnitHasStatus(found, MAKEFOURCC('B','T','L','F')));
+}
+
+/* JASS semantics custom maps rely on. */
+TEST(wc3_api, custom_map_jass_semantics) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  constant real mb = 6\n"
+        "  integer executed = 0\n"
+        "endglobals\n"
+        "function shadow takes integer mb returns integer\n"
+        "  local integer copy = mb\n"
+        "  set mb = copy + 1\n"
+        "  return mb\n"
+        "endfunction\n"
+        "function setter takes nothing returns nothing\n"
+        "  set executed = 7\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local string quoted = \"say \\\"hi\\\"\"\n"
+        "  call BJassAssert(shadow(41) == 42, \"local must shadow global\")\n"
+        "  call BJassAssert('d' == 100, \"one-character rawcode is its byte value\")\n"
+        "  call BJassAssert(quoted == \"say \\\"hi\\\"\", \"escaped quote keeps the literal open\")\n"
+        "  call ExecuteFunc(\"setter\")\n"
+        "  call BJassAssert(executed == 7, \"ExecuteFunc must run before returning\")\n"
+        "  call BJassAssert(not TriggerEvaluate(null), \"null trigger is a no-op\")\n"
+        "  call BJassAssert(not ((1 == 2) != null), \"false != null is false\")\n"
+        "  call BJassAssert((1 == 1) != null, \"true != null is true\")\n"
+        "  call BJassAssert((1 == 2) == null, \"false == null is true\")\n"
+        "endfunction\n"));
+}
+
 /* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().
  * Human02's victory chain starts from the Blademaster (player 4) dying, then
  * TriggerExecute()s nested cinematic triggers whose local UI branch targets
@@ -5518,7 +5717,8 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     T_EQ(state.hover_value, 4501);
 }
 
-TEST(wc3_api, customize_entity_hides_invulnerable_health_but_keeps_mana) {
+/* Retail world hover shows the health bar only, never a mana bar. */
+TEST(wc3_api, customize_entity_hides_invulnerable_health_and_never_shows_mana) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
     ent.health.value = 100.0f;
@@ -5527,7 +5727,7 @@ TEST(wc3_api, customize_entity_hides_invulnerable_health_but_keeps_mana) {
 
     globals.CustomizeEntity(3, &ent, &state);
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
-    T_ASSERT(state.flags & EF_HOVER_MANA);
+    T_ASSERT(!(state.flags & EF_HOVER_MANA));
 }
 
 TEST(wc3_api, customize_entity_omits_hover_mana_without_mana_pool) {

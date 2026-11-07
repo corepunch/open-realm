@@ -198,7 +198,7 @@ static cstring_t poison_buffs(uint32_t code) {
     cstring_t buffs = G_AbilityLevel(code, 1)->buffID;
     if (buffs && strlen(buffs) >= 4) return buffs;
     FOR_LOOP(i, sizeof(fallback) / sizeof(fallback[0]))
-        if (fallback[i].code == code) return fallback[i].buffs;
+        if (fallback[i].code == G_AbilityCode(code)) return fallback[i].buffs;
     return NULL;
 }
 
@@ -252,8 +252,13 @@ void S_PoisonOnHit(edict_t *attacker, edict_t *target) {
     uint32_t seen[sizeof(poison_codes) / sizeof(poison_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
-    FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0]))
-        if (G_UnitAbilityLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
+    /* Resolve the owned alias: a custom alias authors its own BuffID and
+     * duration, which map triggers may test on the target. */
+    FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0])) {
+        abilityAliasRef_t const ref = S_ResolveAbilityAlias(attacker, poison_codes[o]);
+        uint32_t const code = ref.alias ? ref.alias : poison_codes[o];
+        if (G_UnitAbilityLevel(attacker, code)) poison_apply(attacker, target, code, seen, &count);
+    }
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = G_InventoryItem(attacker, i);

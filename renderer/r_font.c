@@ -403,7 +403,8 @@ static vec2_t process_text(drawText_t const *arg, bool draw) {
         if (!strncmp(p, "|c", 2) || !strncmp(p, "|C", 2)) {
             color32_t c;
             sscanf(p+2, "%08x", (uint32_t *)&c);
-            color.a = c.a;
+            /* Maps write |c00rrggbb everywhere; the game ignores this alpha, so it must not hide the text. */
+            color.a = c.a ? c.a : color.a;
             color.b = c.r;
             color.g = c.g;
             color.r = c.b;

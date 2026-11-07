@@ -220,6 +220,12 @@ static void MenuConfigureMainSaveLoad(void) {
                     available, any_save, available, available && any_save);
     }
 }
+/* Localized GlobalStrings label (with its hotkey colour codes), English fallback. */
+static cstring_t HudMenuString(cstring_t key, cstring_t fallback) {
+    cstring_t value = UI_GetString(key);
+    return value && *value && strcmp(value, key) ? value : fallback;
+}
+
 
 void UI_LoadHudMenu(void) {
     if (hud.menu.EscMenuBackdrop) return;
@@ -322,11 +328,11 @@ void UI_LoadHudMenu(void) {
         }
     }
 
-    UI_SetText(hud.menu.PauseButtonText, "Resume Game");
-    UI_SetText(hud.menu.ReturnButtonText, "Return to Game");
+    UI_SetText(hud.menu.PauseButtonText, HudMenuString("KEY_RESUME_GAME", "Resume Game"));
+    UI_SetText(hud.menu.ReturnButtonText, HudMenuString("KEY_RETURN_TO_GAME", "Return to Game"));
     /* PauseButton duplicates ReturnButton's resume action in this menu. */
     UI_SetHidden(hud.menu.PauseButton, true);
-    UI_SetText(hud.menu.RestartButtonText, "Restart Mission");
+    UI_SetText(hud.menu.RestartButtonText, HudMenuString("KEY_RESTART_MISSION", "Restart Mission"));
     UI_SetOnClick(hud.menu.PauseButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.ReturnButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.EndGameButton, "menu_endgame");

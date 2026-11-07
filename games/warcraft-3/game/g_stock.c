@@ -297,6 +297,9 @@ static bool G_ShopPatronEligible(edict_t const *shop, edict_t const *unit, bool 
     bool const is_unit = unit && ((unit->svflags & SVF_MONSTER) || G_UnitIsStructure(unit));
 
     if (!shop || !unit || M_IsDead((edict_t *)unit) || !G_ShopPatronInRange(shop, unit)) return false;
+    /* Hidden and Locust units cannot be customers: maps keep invisible helper units with an inventory,
+     * and being nearest they silently received every purchase instead of the hero. */
+    if ((unit->s.flags & EF_NOT_SELECTABLE) || (unit->s.renderfx & RF_HIDDEN)) return false;
     /* Item shops retain the existing inventory-carrier contract, which also
      * admits heroes whose edict is not marked as a monster. Mercenary shops
      * use the authored neutral-building interaction to select real units. */
@@ -336,9 +339,14 @@ static edict_t *G_FindShopPatronInternal(gameClient_t *client, edict_t *shop, bo
         unit->inuse && unit != shop && G_UnitCanControl(client, unit) &&
         G_ShopPatronEligible(shop, unit, require_inventory)) {
         float distance = Vector2_distance(&shop->s.origin2, &unit->s.origin2);
+        /* A hero in range is the customer even when another inventory carrier stands
+         * closer, such as an item-storing building placed next to the shop. */
+        bool const hero = G_UnitIsHero(unit);
+        bool const best_hero = best && G_UnitIsHero(best);
 
-        if (!best || distance < best_distance ||
-            (distance == best_distance && unit->s.number < best->s.number)) {
+        if (!best || (hero && !best_hero) ||
+            (hero == best_hero && (distance < best_distance ||
+             (distance == best_distance && unit->s.number < best->s.number)))) {
             best = unit;
             best_distance = distance;
         }
@@ -351,8 +359,24 @@ edict_t *G_FindShopPatron(gameClient_t *client, edict_t *shop) {
     return G_FindShopPatronInternal(client, shop, true);
 }
 
+/* Aneu/Ane2/Aall make a building serve nearby customers. Without one it works like a production
+ * building: whoever controls it buys from anywhere, and the shop itself is the buyer. */
+static bool G_ShopServesCustomers(edict_t const *shop) {
+    cstring_t abilities = shop && shop->data.UnitAbilities ? shop->data.UnitAbilities->abilList : NULL;
+    if (!abilities) return false;
+    PARSE_LIST(abilities, ability, parse_segment) {
+        uint32_t code;
+        if (strlen(ability) != 4) continue;
+        code = G_AbilityCodeName(ability);
+        if (code == MAKEFOURCC('A','n','e','u') || code == MAKEFOURCC('A','n','e','2') ||
+            code == MAKEFOURCC('A','a','l','l')) return true;
+    }
+    return false;
+}
+
 edict_t *G_FindUnitShopPatron(gameClient_t *client, edict_t *shop) {
     if (!G_CanUseUnitShop(client, shop)) return NULL;
+    if (shop->s.player != PLAYER_NEUTRAL_PASSIVE && !G_ShopServesCustomers(shop)) return shop;
     return G_FindShopPatronInternal(client, shop, false);
 }
 
@@ -370,8 +394,10 @@ void G_UpdateShopPatronEffect(gameClient_t *client) {
     shop = G_GetMainSelectedUnit(client);
     if (G_CanUseItemShop(client, shop))
         patron = G_FindShopPatron(client, shop);
-    else if (G_CanUseUnitShop(client, shop))
+    else if (G_CanUseUnitShop(client, shop)) {
         patron = G_FindUnitShopPatron(client, shop);
+        if (patron == shop) patron = NULL; /* no customer to mark */
+    }
 
     FILTER_EDICTS(effect, effect->inuse && effect->status_effect_code == WC3_EFFECT_SHOP_PATRON_ARROW &&
                   effect->owner == client_entity) {
@@ -536,6 +562,11 @@ static void G_StartItemRestock(edict_t *shop, uint32_t index) {
 
     if (!shop || index >= wares->item_count) return;
     item = G_ItemData(wares->items[index].id);
+    /* A map that explicitly sets a zero replenish interval means no cooldown: the slot refills at once. */
+    if (G_MapItemHasInstantRestock(wares->items[index].id)) {
+        wares->items[index].current = MAX(0, wares->items[index].maximum);
+        return;
+    }
     if (item) G_StartStockRestock(&wares->items[index], item->stockRegen);
 }
 
@@ -1119,6 +1150,7 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     G_ActivateUnitFood(unit_ent);
     if (unit_ent->stand) unit_ent->stand(unit_ent);
     gi.LinkEntity(unit_ent);
+    G_UnitEnteredWorld(unit_ent);
 
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;

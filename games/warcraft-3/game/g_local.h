@@ -47,9 +47,9 @@
 #define MAX_REGION_SIZE 16
 #define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
 #define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
-#define EVENT_TOKEN_SLOT_BITS 12 // 1024 slots plus a two-bit tag; upper bits carry a generation
+#define EVENT_TOKEN_SLOT_BITS 16 // 16384 slots plus a two-bit tag; upper bits carry a generation
 #define REGION_HANDLE_ID_GENERATION_BITS 17 // keeps region GetHandleId values unique in a positive 28-bit range
-#define EVENT_HANDLE_ID_GENERATION_BITS 18 // keeps region-event GetHandleId values unique in a positive 28-bit range
+#define EVENT_HANDLE_ID_GENERATION_BITS 14 // 14 slot + 14 generation bits keep region-event GetHandleId values in a positive 28-bit range
 #define REGION_HANDLE_GENERATION_MAX ((1u << REGION_HANDLE_ID_GENERATION_BITS) - 1)
 #define EVENT_HANDLE_GENERATION_MAX ((1u << EVENT_HANDLE_ID_GENERATION_BITS) - 1)
 #define REGION_HANDLE_ID_BASE 0x10000000u
@@ -1234,7 +1234,9 @@ typedef struct {
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
 #define WC3_LAYER_MULTIBOARD LAYER_GAME_3 // custom multiboard / Team Resources; LAYER_GAME_2 belongs to WC3_LAYER_COMMAND_ERROR
-#define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
+#define MAX_EVENTS 16384 // handlers (large custom maps register ~6000: AnyUnitEventBJ = 16 per call); region-event tokens allow safe reuse of retired handler slots
+_Static_assert(MAX_EVENTS <= 1u << (EVENT_TOKEN_SLOT_BITS - 2), "event slot must fit the token");
+_Static_assert(EVENT_TOKEN_SLOT_BITS - 2 + EVENT_HANDLE_ID_GENERATION_BITS <= 28, "region-event handle ids must stay below 0x10000000 offset");
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
@@ -2423,6 +2425,8 @@ struct edict_s {
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
+    bool reposition_pending; /* a script moved it; re-check pathing after the script ends */
+    bool enter_world_pending; /* just created: the next step reports it as entering its regions */
     vec2_t old_origin; /* prior event sample: region/proximity events also track teleports, independent of travel */
     component_t *components; /* optional records owned by this edict */
     movement_t *movement; /* non-null while a travel operation owns routing scratch */
@@ -2538,6 +2542,9 @@ struct game_locals {
         float defenseArmor;
         float strAttackBonus;
         float agiDefenseBonus;
+        float agiDefenseBase;
+        float strHitPointBonus;
+        float intManaBonus;
         float agiAttackSpeedBonus;
         float damageBonus[8][8];
         bool defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
@@ -4053,6 +4060,13 @@ event_t *G_MakeEvent(EVENTTYPE);
 void G_RetireEvent(event_t *);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
+void G_UnitEnteredWorld(edict_t *ent);
+void G_RunDamagedHandlersNow(edict_t *target);
+cstring_t G_MapItemText(cstring_t category, cstring_t field);
+bool G_MapItemHasInstantRestock(uint32_t id);
+extern bool g_common_events_legacy; /* loaded common.j predates the mouse-event renumbering */
+extern char g_chat_text[256], g_chat_match[256]; /* last chat line, read by GetEventPlayerChatString* */
+void G_PlayerChat(edict_t *ent, cstring_t text);
 bool G_EventSubjectIsCurrent(event_t *);
 void G_UnitPositionChanged(edict_t *, vec2_t const *);
 void G_JassVariableChanged(cstring_t, float, float);
