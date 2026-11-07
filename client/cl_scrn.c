@@ -523,6 +523,10 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
     bool found = false;
     float best = 1e30f;
     bool modal = CL_WindowModalActive() || SCR_LayoutModalActive();
+    uiCanvas_t const *canvas = CL_Canvas();
+    CON_printf("[GAMEPAD_MENU_NAV] search direction=%d from_ui=(%.1f,%.1f) candidates=%u modal=%d canvas_scene=(%.1f,%.1f) window=(%.1f,%.1f)\n",
+               direction, from.x, from.y, gamepad_nav_count, modal,
+               canvas->scene.w, canvas->scene.h, canvas->window.width, canvas->window.height);
     if (layout_current_window) {
         gamepad_nav_count = 0;
         for (uint32_t i = 0; i < SCR_NumFrames(); ++i) {
@@ -530,6 +534,10 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             rect_t const *rect = SCR_LayoutRect(frame);
             if (!rect) continue;
+            if (gamepad_nav_count < 12)
+                CON_printf("[GAMEPAD_MENU_NAV] candidate frame=%u rect=(%.1f,%.1f %.1fx%.1f) center_ui=(%.1f,%.1f)\n",
+                           frame->number, rect->x, rect->y, rect->w, rect->h,
+                           rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f);
             gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
                 { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, true };
         }
@@ -543,8 +551,14 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
         if (modal && !gamepad_nav[i].modal) continue;
         if (parallel < 0.0001f) continue;
         float score = parallel + 2.5f * fabsf(orthogonal);
-        if (score < best) { best = score; *to = gamepad_nav[i].center; found = true; }
+        if (score < best) {
+            best = score; *to = gamepad_nav[i].center; found = true;
+            CON_printf("[GAMEPAD_MENU_NAV] selected candidate=%u center_ui=(%.1f,%.1f) score=%.1f\n",
+                       i, to->x, to->y, score);
+        }
     }
+    CON_printf("[GAMEPAD_MENU_NAV] result found=%d to_ui=(%.1f,%.1f)\n",
+               found, found ? to->x : -1.0f, found ? to->y : -1.0f);
     return found;
 }
 
