@@ -47,6 +47,7 @@ typedef struct {
     bool left_stick_neutral_required;
     bool down_dpad[4];
     bool dpad_hero_shortcut[4];
+    bool dpad_group_assigned[4];
     uint32_t dpad_pressed[4];
     uint32_t a_pressed, y_pressed, last_a_released, last_b_released, last_rb_released;
     uint32_t lb_pressed;
@@ -76,6 +77,7 @@ static void CL_GamepadReset(void) {
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
+    memset(gamepad.dpad_group_assigned, 0, sizeof(gamepad.dpad_group_assigned));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
@@ -101,6 +103,7 @@ static void CL_GamepadResetHeld(void) {
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
+    memset(gamepad.dpad_group_assigned, 0, sizeof(gamepad.dpad_group_assigned));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
@@ -475,6 +478,7 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
     if (down) {
         if (gamepad.down_dpad[d]) return;
         gamepad.down_dpad[d] = true; gamepad.dpad_pressed[d] = time;
+        gamepad.dpad_group_assigned[d] = false;
         if (gamepad.rt) gamepad.rt_used = true;
         if (gamepad.start) {
             static cstring_t const actions[] = {
@@ -540,6 +544,10 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
     }
     if (!gamepad.down_dpad[d]) return;
     gamepad.down_dpad[d] = false;
+    if (gamepad.dpad_group_assigned[d]) {
+        gamepad.dpad_group_assigned[d] = false;
+        return;
+    }
     if (gamepad.dpad_hero_shortcut[d]) {
         gamepad.dpad_hero_shortcut[d] = false;
         return;
@@ -806,6 +814,18 @@ static void CL_GamepadFrame(float dt) {
         return;
     }
     if (!gamepad.controller) return;
+    if (gamepad.rt && !gamepad.start && CL_GameplayInputReady() && !CL_GamepadModal()) {
+        uint32_t const now = SDL_GetTicks();
+        uint32_t const hold_ms = (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_group_hold_ms", 550));
+        FOR_LOOP(d, 4) {
+            if (!gamepad.down_dpad[d] || gamepad.dpad_group_assigned[d] ||
+                (uint32_t)(now - gamepad.dpad_pressed[d]) < hold_ms) continue;
+            char command[40];
+            snprintf(command, sizeof(command), "group assign %d", d + 1);
+            Cmd_ExecuteString(command);
+            gamepad.dpad_group_assigned[d] = true;
+        }
+    }
     if (Cvar_Integer("cl_gamepad_radial_hold_confirm", 1) && gamepad.y && !gamepad.y_radial_hold &&
         SDL_GetTicks() - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS) {
         gamepad.y_radial_hold = true;
