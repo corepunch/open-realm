@@ -484,9 +484,11 @@ while direct script/native insertion and removal continue to bypass those
 order permissions.
 
 Successful transitions and carried-item charge changes refresh the inventory
-layer for clients currently selecting the carrier. Hidden entities are also
-excluded from renderer hit and rectangle tests while snapshot removal is in
-flight.
+layer for clients currently selecting the carrier. When the carrier is the
+single selected unit, inventory changes also invalidate its status-panel cache
+so item-derived damage, armor, and attributes are resent on the next client HUD
+refresh. Hidden entities are also excluded from renderer hit and rectangle
+tests while snapshot removal is in flight.
 
 ## Phase Boundary
 

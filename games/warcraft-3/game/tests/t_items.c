@@ -1687,6 +1687,7 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     T_ASSERT(!player->inuse);
     client->ps.number = 0;
     G_SelectEntity(client, unit);
+    client->infopanel.entity = unit->s.number;
 
     G_SetClientConnected(player, false);
     reset_inventory_refresh_capture();
@@ -1709,6 +1710,7 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     T_EQ(disconnected_unicasts, 0);
     T_ASSERT(second_picked);
     T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_EQ(client->infopanel.entity, UINT32_MAX);
     T_ASSERT(!inventory_refresh_saw_other_layer);
     T_ASSERT(inventory_refresh_unicast_count > 0);
     T_ASSERT(inventory_refresh_unicast_target == player);

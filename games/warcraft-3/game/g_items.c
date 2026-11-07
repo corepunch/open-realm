@@ -30,6 +30,7 @@ static float G_MiscVectorValue(cstring_t name, uint32_t index) {
 }
 
 static void G_RefreshInventoryUI(edict_t *unit) {
+    bool refresh_status = false;
     if (!unit) {
         return;
     }
@@ -43,8 +44,10 @@ static void G_RefreshInventoryUI(edict_t *unit) {
         if (player->client && player->client->connected &&
             G_IsEntitySelected(player->client, unit)) {
             G_RefreshInventoryLayer(player);
+            refresh_status = true;
         }
     }
+    if (refresh_status) G_InvalidateUnitInfoPanel(unit);
 }
 
 static void G_ShowInventoryFull(edict_t *unit) {
