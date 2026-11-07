@@ -478,7 +478,10 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
             if (gamepad.y || SCR_GamepadRadialActive()) return;
             vec2_t dest;
-            if (SCR_GamepadNavigate(d, mouse.origin, &dest)) {
+            bool const navigated = CL_WindowModalActive()
+                ? CL_WindowGamepadNavigate(d, mouse.origin, &dest)
+                : SCR_GamepadNavigate(d, mouse.origin, &dest);
+            if (navigated) {
                 mouse.origin = dest;
                 CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0, (int)dest.x, (int)dest.y);
             } else if (CL_MenuActive() && cls.key_dest == key_menu) {

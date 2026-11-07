@@ -62,6 +62,10 @@ void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
+bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
+void SCR_GamepadBeginUIFrame(void);
+void SCR_WindowPrepare(handle_t layout, rect_t const *root);
+bool CL_WindowGamepadNavigate(int direction, vec2_t from, vec2_t *to);
 void SCR_DrawScreenField(uint32_t msec);
 void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
@@ -1417,6 +1421,40 @@ static void test_send_window(uint32_t id, uint32_t class_id, uint32_t flags, flo
     CL_ParseServerMessage(&sb);
 }
 
+static void test_send_two_button_window(uint32_t id, uint32_t flags) {
+    uint8_t buf[2048], arena[256] = { 0 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0};
+    char const *texts[] = { "First", "Second" };
+    char const *commands[] = { "first", "second" };
+    uint32_t offsets[4], cursor = 1;
+    uiGlueTextButton_t button = {0};
+
+    FOR_LOOP(i, 4) {
+        offsets[i] = cursor;
+        char const *value = i < 2 ? texts[i] : commands[i - 2];
+        strlcpy((string_t)arena + cursor, value, sizeof(arena) - cursor);
+        cursor += strlen(value) + 1;
+    }
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, id); MSG_WriteLong(&sb, id + 1000); MSG_WriteLong(&sb, flags);
+    FOR_LOOP(i, 2) {
+        uiFrame_t frame = { .number = (uint32_t)i + 1, .flags = { .type = FT_GLUETEXTBUTTON },
+            .text = (cstring_t)(uintptr_t)offsets[i], .onclick = (cstring_t)(uintptr_t)offsets[i + 2],
+            .size = { .width = 0.2f, .height = 0.1f } };
+        frame.points.x[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0,
+            .offset = 0.2f * UI_FRAMEPOINT_SCALE);
+        frame.points.y[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0,
+            .offset = (0.2f + i * 0.2f) * UI_FRAMEPOINT_SCALE);
+        MSG_WriteDeltaUIWindowFrame(&sb, &empty, &frame, true);
+        MSG_WriteByte(&sb, sizeof(button)); MSG_Write(&sb, &button, sizeof(button));
+    }
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    MSG_WriteLong(&sb, cursor); MSG_Write(&sb, arena, cursor);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+}
+
 
 static void test_send_slider_window(uint32_t id, cstring_t action) {
     uint8_t buf[1024], arena[256] = { 0 };
@@ -1767,6 +1805,24 @@ TEST(net, screen_layout_draws_client_windows) {
     test_send_window(3, 91, UI_WINDOW_UNIQUE, 0.1f, "Visible", "visible");
     test_textarea_draws = 0; SCR_DrawLayout();
     T_EQ(test_textarea_draws, 1); T_STREQ(test_textarea_draw.text, "Visible");
+    CL_WindowClear();
+}
+
+TEST(client_layout, gamepad_navigation_uses_current_modal_buttons_before_draw) {
+    vec2_t destination = {0};
+    test_client_stubs_init(); CL_WindowClear();
+    SCR_GamepadBeginUIFrame();
+    test_send_two_button_window(70, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE);
+    T_ASSERT(CL_WindowModalActive());
+
+    /* Input can arrive before the next render pass rebuilds its button list. */
+    re.GetTextSize = text_length_mock_size;
+    CL_WindowDraw();
+    /* Simulate the following input poll, after the draw pass's caches reset. */
+    SCR_GamepadBeginUIFrame();
+    T_ASSERT(CL_WindowGamepadNavigate(2, (vec2_t){ 0.3f, -0.25f }, &destination));
+    T_FEQ(destination.y, -0.15f, 0.001f);
+
     CL_WindowClear();
 }
 

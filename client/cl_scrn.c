@@ -296,7 +296,9 @@ static cstring_t active_tooltip = NULL;
 
 #define GAMEPAD_RADIAL_SLOTS 10
 #define GAMEPAD_RADIAL_PAGES 6
-#define GAMEPAD_NAV_MAX 256
+#define GAMEPAD_NAV_MAX 512
+static bool layout_current_window;
+static void SCR_GamepadCaptureFrame(uiFrame_t const *frame);
 /* Presentation caches are rebuilt from the game's real clickable frames each
  * draw. The client does not invent abilities, prices, or enabled state. */
 typedef struct {
@@ -521,6 +523,17 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
     bool found = false;
     float best = 1e30f;
     bool modal = CL_WindowModalActive() || SCR_LayoutModalActive();
+    if (layout_current_window) {
+        gamepad_nav_count = 0;
+        for (uint32_t i = 0; i < SCR_NumFrames(); ++i) {
+            uiFrame_t const *frame = SCR_Frame(i);
+            if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
+            rect_t const *rect = SCR_LayoutRect(frame);
+            if (!rect) continue;
+            gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
+                { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, true };
+        }
+    }
     FOR_LOOP(i, gamepad_nav_count) {
         float dx = gamepad_nav[i].center.x - from.x;
         float dy = gamepad_nav[i].center.y - from.y;
@@ -528,7 +541,7 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
                          direction == 2 ? dy : -dx;
         float orthogonal = (direction & 1) ? dy : dx;
         if (modal && !gamepad_nav[i].modal) continue;
-        if (parallel < 2.0f) continue;
+        if (parallel < 0.0001f) continue;
         float score = parallel + 2.5f * fabsf(orthogonal);
         if (score < best) { best = score; *to = gamepad_nav[i].center; found = true; }
     }
@@ -549,7 +562,6 @@ static uint32_t layout_hovered_layer;
 static uint32_t layout_current_layer;
 static handle_t layout_hovered;
 static handle_t layout_current;
-static bool layout_current_window;
 static uintptr_t layout_current_window_camera_namespace;
 
 /* Project a world point through the active camera into the virtual UI canvas.
@@ -2161,6 +2173,9 @@ void SCR_LayoutUpdateTooltip(handle_t layout) {
 void SCR_LayoutDrawOverlay(handle_t layout) {
     SCR_BeginSelectedEntityDraw();
     layout_current = layout;
+    if (layout_current_window) {
+        gamepad_nav_count = 0;
+    }
     FOR_LOOP(i, SCR_NumFrames()) SCR_GamepadCaptureFrame(SCR_Frame(i));
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *frame = SCR_Frame(i);
