@@ -8,6 +8,8 @@
 #define WC3_BUILD_SITE_INDICATOR_ALPHA 128
 #define WC3_PLAYER_HERO_LIMIT 3 // heroes; standard melee limit shared by Altar and Tavern recruitment
 
+static void G_TeleportBuildingOccupants(edict_t *building, edict_t *excluded_unit);
+
 /* Construction Site Indicator. RoC and TFT both show a translucent copy of the
  * normal building model while the worker travels to the accepted site. The
  * indicator is private order presentation: only its owner receives it in
@@ -1604,6 +1606,11 @@ static bool G_CompleteBuildingUpgrade(edict_t *building) {
         G_RefreshBuildingUpgradeUI(building);
         return false;
     }
+    /* An upgrade can replace a small pathing footprint with a larger one
+     * (Town Hall tiers and Tree of Ages). Clear any mobile units the new
+     * footprint now overlaps, using the same sequential exit placement as
+     * construction start so nearby units cannot choose the same exit. */
+    G_TeleportBuildingOccupants(building, NULL);
     building->aiflags &= ~AI_HOLD_FRAME;
     if (building->stand) building->stand(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_FINISH);

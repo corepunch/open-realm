@@ -7,6 +7,8 @@ void attack_melee(edict_t *self);
 void attack_ranged(edict_t *self);
 void whirlwind_think(edict_t *ent);
 void morph_end(edict_t *thinker);
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 static cstring_t spell_tft_expansion_cvar(cstring_t name, cstring_t fallback);
 
 uint32_t S_TestHeroAuraAliasResolves(void);
@@ -3138,6 +3140,7 @@ TEST(wc3_spell, far_seer_feral_spirit_summons_two_ranked_wolf_types_with_authore
 
     for (uint32_t rank = 1; rank <= 3; rank++) {
         uint32_t living = 0;
+        edict_t *first_wolf = NULL;
         caster->unit_state->ranks[0] = MAKE(heroability_t, .code = feral_spirit, .level = rank);
         S_SpellResetCooldowns(caster);
         T_ASSERT(S_CastNoTargetSpell(caster, feral_spirit));
@@ -3170,6 +3173,12 @@ TEST(wc3_spell, far_seer_feral_spirit_summons_two_ranked_wolf_types_with_authore
                 T_ASSERT(!S_UnitIsInvisibleToPlayer(wolf, 1));
                 T_ASSERT(wolf->vision && wolf->vision->reveal_until > level.time);
             }
+            if (first_wolf) {
+                T_ASSERT(Vector2_distance(&first_wolf->s.origin2, &wolf->s.origin2) >=
+                         first_wolf->collision + wolf->collision);
+            } else {
+                first_wolf = wolf;
+            }
             living++;
         }
         T_EQ(living, 2);
@@ -3185,6 +3194,62 @@ TEST(wc3_spell, far_seer_feral_spirit_summons_two_ranked_wolf_types_with_authore
     free_slk_rows(ui_rows);
     free_slk_rows(balance_rows);
     free_slk_rows(unit_data_rows);
+}
+
+/* Raise Dead and other S_SummonAt callers can request one exact location for
+ * several units. A building footprint there must move each summon to a legal,
+ * distinct location rather than leave them stacked or trapped inside it. */
+TEST(wc3_spell, summons_near_building_find_distinct_legal_positions) {
+    enum { CELLS = 128, FOOTPRINT = 16 };
+    static uint8_t pathmap[CELLS * CELLS];
+    static char const unit_data_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"collision\"\n"
+        "C;Y1;X3;K\"targType\"\nC;Y1;X4;K\"movetp\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K16\nC;Y2;X3;K\"ground\"\nC;Y2;X4;K\"foot\"\nE\n";
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    slkTestData_t *unit_rows, *old_unit_rows;
+    edict_t *caster, *building, *first, *second;
+    pathTex_t *pathtex;
+    vec2_t const requested = { 0.0f, 0.0f };
+
+    setup_test_world();
+    unit_rows = parse_slk_string(unit_data_slk);
+    old_unit_rows = G_SetSLKRows("UnitData", unit_rows);
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    caster = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
+    caster->s.player = 0;
+    gi.LinkEntity(caster);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), requested.x, requested.y);
+    building->svflags |= SVF_MONSTER;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = pathtex->height = FOOTPRINT;
+    FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    first = S_SummonAt(caster, MAKEFOURCC('h','f','o','o'), &requested, 0.0f);
+    second = S_SummonAt(caster, MAKEFOURCC('h','f','o','o'), &requested, 0.0f);
+    T_NOT_NULL(first);
+    T_NOT_NULL(second);
+    if (first && second) {
+        T_ASSERT(first->collision > 0.0f);
+        T_ASSERT(second->collision > 0.0f);
+        T_ASSERT(CM_PointIsPathableForRadius(&first->s.origin2, first->collision));
+        T_ASSERT(CM_PointIsPathableForRadius(&second->s.origin2, second->collision));
+        T_ASSERT(Vector2_distance(&first->s.origin2, &second->s.origin2) >=
+                 first->collision + second->collision);
+    }
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+    G_SetSLKRows("UnitData", old_unit_rows);
+    free_slk_rows(unit_rows);
 }
 
 /* OrcX01 issues the inherited "spiritwolf" order after removing the
@@ -6387,6 +6452,10 @@ TEST(wc3_spell, force_of_nature_consumes_required_area_trees_for_treants) {
 
 	reset_entities();
 	setup_test_world();
+	/* The rank fixtures are spaced across a large coordinate range. Include all
+	 * of them in the synthetic pathmap so Treants can legally spawn at trees. */
+	CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -8192.0f, -8192.0f },
+	                              .max = { 8192.0f, 8192.0f }));
 	ability_rows = parse_slk_string(ability_slk); old_ability = G_SetSLKRows("AbilityData", ability_rows);
 	ui_rows = parse_slk_string(unit_ui_slk); old_ui = G_SetSLKRows("UnitUI", ui_rows);
 	data_rows = parse_slk_string(unit_data_slk); old_data = G_SetSLKRows("UnitData", data_rows);

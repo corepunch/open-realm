@@ -248,6 +248,16 @@ god                    # toggle selected player unit invulnerability
 kill                   # kill the selected controllable unit
 ```
 
+For creep ability testing, three additional selected-unit commands are available:
+
+```
+unit enemy             # transfer the selected unit to the first hostile regular player slot
+unit own               # transfer the selected enemy unit to you
+unit sleep             # apply the normal sleep status for 60 minutes
+```
+
+All three require `sv_cheats 1`. `unit enemy` requires a selected unit currently owned by the issuing player and transfers ownership through the normal `G_SetUnitPlayer` lifecycle, so player upgrades, food accounting, creep guard state, owner-change events, and UI invalidation are updated. It chooses the first regular player slot that the issuer's alliance state considers hostile. `unit own` requires a selected visible enemy unit and transfers it to the issuing player through the same lifecycle, updating its team color. `unit sleep` works on any selected visible unit, including an enemy, and applies the ordinary `BUsl` sleep status and target effect, with sleep/stun state gates active for 60 minutes. Damage, dispel, or expiry can end it through the usual status lifecycle.
+
 `unit health` and `unit mana` operate on the full selected controllable group (including shared-control units); `unit kill` operates on all selected units, including enemies. The singular `god` and `kill` commands continue to resolve the primary controllable selection. Those controllable-unit commands reject missing or enemy-only selections; `unit kill` rejects an empty selection.
 The stat commands fill or set only the current pool, clamped independently to each unit's current maximum; `unit mana`
 skips units whose maximum mana is zero. `god` changes that actor's invulnerability; `kill` clears it and invokes the

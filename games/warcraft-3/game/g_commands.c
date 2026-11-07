@@ -1529,9 +1529,80 @@ CLIENTCOMMAND(Unit) {
     uint32_t changed_count = 0;
     bool const kill = argc >= 2 && !strcasecmp(argv[1], "kill");
     bool const health = argc >= 2 && !strcasecmp(argv[1], "health");
+    bool const enemy = argc >= 2 && !strcasecmp(argv[1], "enemy");
+    bool const own = argc >= 2 && !strcasecmp(argv[1], "own");
+    bool const sleep = argc >= 2 && !strcasecmp(argv[1], "sleep");
 
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (enemy) {
+        edict_t *unit = client ? G_GetMainSelectedUnit(client) : NULL;
+        uint32_t player;
+        if (argc != 2) {
+            G_CheatPrintf(clent, "WC3: usage: unit enemy");
+            return;
+        }
+        if (!client || !unit || !G_IsEntitySelected(client, unit) ||
+                unit->s.player != client->ps.number || client->no_control) {
+            G_CheatPrintf(clent, "WC3: unit enemy requires a selected unit owned by you");
+            return;
+        }
+        /* Pick the first distinct regular player that the issuer treats as hostile. */
+        for (player = 0; player < PLAYER_NEUTRAL_AGGRESSIVE; player++)
+            if (player != client->ps.number &&
+                    !G_PlayerTreatsPlayerAsAlly(client->ps.number, player)) break;
+        if (player >= PLAYER_NEUTRAL_AGGRESSIVE) {
+            G_CheatPrintf(clent, "WC3: no enemy player slot is available");
+            return;
+        }
+        G_SetUnitPlayer(unit, player);
+        G_SetUnitTeamColor(unit, game.clients[player].ps.color);
+        G_CheatPrintf(clent, "WC3: unit %u transferred to enemy player %u",
+                (unsigned)unit->s.number, (unsigned)player);
+        return;
+    }
+    if (own) {
+        edict_t *unit = client ? G_GetMainSelectedUnit(client) : NULL;
+        if (argc != 2) {
+            G_CheatPrintf(clent, "WC3: usage: unit own");
+            return;
+        }
+        if (!client || !unit || !G_IsEntitySelected(client, unit) ||
+                !(unit->svflags & SVF_MONSTER) ||
+                G_SelectionRelation(client->ps.number, unit) != SELECT_RELATION_ENEMY) {
+            G_CheatPrintf(clent, "WC3: unit own requires a selected visible enemy unit");
+            return;
+        }
+        G_SetUnitPlayer(unit, client->ps.number);
+        G_ClearUnitColorOverride(unit);
+        G_SetUnitTeamColor(unit, client->ps.color);
+        G_CheatPrintf(clent, "WC3: unit %u transferred to player %u",
+                (unsigned)unit->s.number, (unsigned)client->ps.number);
+        return;
+    }
+    if (sleep) {
+        edict_t *unit = client ? G_GetMainSelectedUnit(client) : NULL;
+        heroabilitystatus_t *status;
+        if (argc != 2) {
+            G_CheatPrintf(clent, "WC3: usage: unit sleep");
+            return;
+        }
+        if (!client || !unit || !G_IsEntitySelected(client, unit) ||
+                !(unit->svflags & SVF_MONSTER)) {
+            G_CheatPrintf(clent, "WC3: unit sleep requires a selected visible unit");
+            return;
+        }
+        status = S_SpellApplyTimedTargetStatus(unit, MAKEFOURCC('A','U','s','l'), 1, "BUsl", 3600.0f);
+        if (!status) {
+            G_CheatPrintf(clent, "WC3: could not put selected unit to sleep");
+            return;
+        }
+        status->state_mask |= WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_SLEEPING;
+        G_SetUnitAnimation(unit, "sleep");
+        G_CheatPrintf(clent, "WC3: unit %u put to sleep for 60 minutes",
+                (unsigned)unit->s.number);
         return;
     }
     if (kill) {
@@ -1563,7 +1634,7 @@ CLIENTCOMMAND(Unit) {
     }
     if (argc < 2 || argc > 3 ||
             (strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana"))) {
-        G_CheatPrintf(clent, "WC3: usage: unit kill | unit health [amount] | unit mana [amount]");
+        G_CheatPrintf(clent, "WC3: usage: unit kill | unit health [amount] | unit mana [amount] | unit enemy | unit own | unit sleep");
         return;
     }
     if (argc == 3 && !G_ParseUnitStatAmount(argv[2], &requested)) {
