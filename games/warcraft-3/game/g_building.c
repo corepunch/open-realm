@@ -1813,6 +1813,8 @@ static void G_TeleportBuildingOccupants(edict_t *building, edict_t *excluded_uni
         edict_t *ent = g_edicts + i;
         if (ent == building || ent == excluded_unit || !ent->inuse ||
             !(ent->svflags & SVF_MONSTER) || (ent->svflags & SVF_DEADMONSTER) || M_IsDead(ent) ||
+            /* Ground footprints do not overlap the independent air collision layer. */
+            !M_UnitsShareCollisionDomain(building, ent) ||
             ent->movetype == MOVETYPE_NONE || ent->collision <= 0.0f ||
             CM_DistanceToPathingFootprint(building, &ent->s.origin2) >= ent->collision)
             continue;

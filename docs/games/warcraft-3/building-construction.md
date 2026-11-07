@@ -498,3 +498,11 @@ renderer submission for all these cases.
 For a bounded visual check, load Bandit Ridge with `+idleworker +button CmdBuild +screenshot 10
 +com_frame_limit 25` after the map argument, in both ROC and TFT. The native construction card
 should show normal icon borders while the idle Peasant is selected.
+
+### Upgrade displacement review contracts
+
+`G_TeleportBuildingOccupants` considers only units sharing the building's collision domain; an air unit above an upgraded ground footprint must retain its position. `building_upgrade_growth_displaces_multiple_occupants` checks both sequential ground exits and unchanged flyer coordinates.
+
+Exit search is bounded to 300 candidates. If no exit exists, the helper logs the failure and leaves that occupant in place; upgrade completion is not rolled back or retried. This remains a known limitation, not a guarantee that every crowded/enclosed upgrade clears its occupants.
+
+Point summons use a separate 300-candidate `G_FindUnitUnstuckPosition` search. `S_SummonAt` frees a rejected provisional entity before assigning its owner, activating food, applying timed life, or publishing summon events. `summons_near_building_find_distinct_legal_positions` also checks a fully blocked map returns NULL without increasing live entities or food used. Movement-disabled rows bypass the SetUnitPosition legality test; mobile-summon coverage does not establish ward/factory footprint placement.

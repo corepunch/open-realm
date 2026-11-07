@@ -3246,6 +3246,18 @@ TEST(wc3_spell, summons_near_building_find_distinct_legal_positions) {
                  first->collision + second->collision);
     }
 
+    /* Failed placement must retire the provisional unit and its food ledger. */
+    uint32_t live_before = 0, live_after = 0;
+    int32_t food_before = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse) live_before++;
+    memset(pathmap, CM_PATHING_UNWALKABLE, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f }, .max = { 2048.0f, 2048.0f }));
+    T_NULL(S_SummonAt(caster, MAKEFOURCC('h','f','o','o'), &requested, 60.0f));
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse) live_after++;
+    T_EQ(live_after, live_before);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], food_before);
+
     building->pathtex = NULL;
     gi.MemFree(pathtex);
     G_SetSLKRows("UnitData", old_unit_rows);

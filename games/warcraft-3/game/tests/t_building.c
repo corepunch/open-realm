@@ -1447,7 +1447,7 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
     __typeof__(gi.ReadFile) old_read_file = gi.ReadFile;
     buildingMorphRows_t morph_rows;
     slkTestData_t *unit_rows, *old_unit_rows;
-    edict_t *building, *units[4];
+    edict_t *building, *units[4], *flyer;
     vec2_t const positions[4] = { { 40, 0 }, { -40, 0 }, { 0, 40 }, { 0, -40 } };
 
     setup_test_world();
@@ -1478,6 +1478,12 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
         units[i]->collision = 16.0f;
         gi.LinkEntity(units[i]);
     }
+    flyer = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    flyer->svflags |= SVF_MONSTER;
+    flyer->movetype = MOVETYPE_STEP;
+    flyer->aiflags |= AI_FLYING;
+    flyer->collision = 16.0f;
+    gi.LinkEntity(flyer);
     gi.LinkEntity(building);
     CM_BakeStaticObstacles();
 
@@ -1485,6 +1491,9 @@ TEST(wc3_building, building_upgrade_growth_displaces_multiple_occupants) {
     G_GetResearch(building)->progress = G_GetResearch(building)->duration;
     G_RunBuildingUpgradeFrame(building);
     T_EQ(building->class_id, target_id);
+    /* A ground footprint must not teleport units in the air collision layer. */
+    T_FEQ(flyer->s.origin2.x, 0.0f, 0.001f);
+    T_FEQ(flyer->s.origin2.y, 0.0f, 0.001f);
     FOR_LOOP(i, 4) {
         T_ASSERT(CM_DistanceToPathingFootprint(building, &units[i]->s.origin2) >= units[i]->collision);
         FOR_LOOP(j, i) {
