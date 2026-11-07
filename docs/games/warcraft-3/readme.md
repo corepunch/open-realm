@@ -148,6 +148,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Score Debug Build](score-debug-build.md): `WC3_DEBUG_SCORE=1` plus runtime cvar, compiled-out logging and regression coverage.
 - [Retail Score Experiments](retail-score-experiments.md): repeatable retail map extraction, passive score tracing, safe repacking, Wine capture, and UnitBalance comparison.
 - [DotA Custom-Map Playability](dota-map-playability.md): protected-MPQ load, hashtable demand, and map-imported object data for DotA 6.83d.
+- [Custom-Map Script and Object-Data Contracts](custom-map-script-contracts.md): Channel spells, script-added item bonuses, buff rawcodes in JASS, `war3map.w3h`, Misc hero constants
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Flat C Ability System: Flags and Message Procedures](ability-system.md)
 - [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)
