@@ -185,7 +185,9 @@ static bool summon_move_to_clear_position(edict_t *summon, vec2_t const *request
         summon->s.origin2 = clear;
         summon->s.origin.x = clear.x;
         summon->s.origin.y = clear.y;
-        summon->s.origin.z = CM_GetHeightAtPoint(clear.x, clear.y);
+        /* Recompute support and authored flight height at the accepted point;
+         * raw terrain Z dropped displaced flyers to the ground. */
+        M_CheckGround(summon);
         gi.LinkEntity(summon);
     }
     return true;

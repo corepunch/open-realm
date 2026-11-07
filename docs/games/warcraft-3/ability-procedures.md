@@ -178,6 +178,13 @@ Registry indices are rebuilt from the registry; save/load persists IDs rather th
 
 ## Verification
 
+Summon relocation must call `M_CheckGround()` after changing XY, before linking
+and publishing summon events. Assigning terrain Z directly discards authored
+flight height and bypasses water/bridge support and Swim-tag synchronization.
+`wc3_spell.displaced_flying_summon_preserves_authored_altitude` creates two
+flying summons at one point and checks separation and the second unit's
+180-unit flight height before any scheduler tick can repair it.
+
 The procedure conversion is covered by game tests for direct registry metadata, shared-procedure aliases,
 Holy Bolt validation/execution, command dispatch, item charge consumption, autocast state, ability membership
 and levels, persistent updates, animation ownership and save-safe rawcode identity. Run:

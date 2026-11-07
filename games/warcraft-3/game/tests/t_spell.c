@@ -3264,6 +3264,35 @@ TEST(wc3_spell, summons_near_building_find_distinct_legal_positions) {
     free_slk_rows(unit_rows);
 }
 
+TEST(wc3_spell, displaced_flying_summon_preserves_authored_altitude) {
+    static uint8_t cells[128 * 128];
+    static char const slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"collision\"\nC;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"movetp\"\nC;Y1;X5;K\"moveHeight\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K16\nC;Y2;X3;K\"air\"\n"
+        "C;Y2;X4;K\"fly\"\nC;Y2;X5;K180\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    vec2_t const requested = {0, 0};
+
+    setup_test_world();
+    old = G_SetSLKRows("UnitData", rows);
+    memset(cells, 0, sizeof(cells));
+    setup_test_pathmap(128, 128, cells);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-2048, -2048}, .max = {2048, 2048}));
+    edict_t *caster = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512, -512);
+    edict_t *first = S_SummonAt(caster, MAKEFOURCC('h','f','o','o'), &requested, 0);
+    edict_t *second = S_SummonAt(caster, MAKEFOURCC('h','f','o','o'), &requested, 0);
+    T_NOT_NULL(first); T_NOT_NULL(second);
+    if (first && second) {
+        T_ASSERT(Vector2_distance(&first->s.origin2, &second->s.origin2) >= first->collision + second->collision);
+        float const support = CM_GetHeightAtPoint(second->s.origin.x, second->s.origin.y);
+        T_FEQ(second->unitinfo.FlyHeight, 180, 0.01f);
+        T_FEQ(second->s.origin.z, support + second->unitinfo.FlyHeight, 0.01f);
+    }
+    G_SetSLKRows("UnitData", old); free_slk_rows(rows);
+}
+
 /* OrcX01 issues the inherited "spiritwolf" order after removing the
  * preplaced Misha. Arsg must resolve to its authored Misha data, then retire
  * that Misha when the ability is cast again. */
