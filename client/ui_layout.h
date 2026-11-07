@@ -60,7 +60,7 @@ void SCR_GamepadRadialOpen(void);
 void SCR_GamepadRadialSetAxis(float x, float y);
 void SCR_GamepadRadialNextPage(void);
 void SCR_GamepadRadialRelease(void);
-bool SCR_GamepadRadialToggleAutocast(void);
+bool SCR_GamepadRadialSecondaryClick(void);
 void SCR_GamepadRadialCancel(void);
 bool SCR_GamepadRadialActive(void);
 bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
