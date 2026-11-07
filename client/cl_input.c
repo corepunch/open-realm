@@ -40,7 +40,7 @@ static struct {
 typedef struct {
     SDL_GameController *controller;
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
-         lb, rb, rb_used, start, back, back_consumed,
+         lb, rb, rb_used, start, back,
          paint, paint_additive, paint_remove;
     bool left_stick_neutral_required;
     bool down_dpad[4];
@@ -71,7 +71,7 @@ static void CL_GamepadReset(void) {
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
-    gamepad.back = gamepad.back_consumed = false;
+    gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
@@ -92,7 +92,7 @@ static void CL_GamepadResetHeld(void) {
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
-    gamepad.back = gamepad.back_consumed = false;
+    gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
@@ -574,16 +574,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.back == down) break;
             gamepad.back = down;
             if (down) {
-                gamepad.back_consumed = gamepad.start;
                 if (gamepad.start) {
                     Cmd_ExecuteString("quit");
-                }
-            } else {
-                if (!gamepad.back_consumed) {
+                } else {
                     CL_InputKeyEvent(K_ESCAPE, 0, true, event->cbutton.timestamp);
                     CL_InputKeyEvent(K_ESCAPE, 0, false, event->cbutton.timestamp);
                 }
-                gamepad.back_consumed = false;
             }
             break;
         case SDL_CONTROLLER_BUTTON_A: CL_GamepadFaceA(down, event->cbutton.timestamp); break;
@@ -660,7 +656,6 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.start == down) break;
             gamepad.start = down;
             if (down && gamepad.back) {
-                gamepad.back_consumed = true;
                 Cmd_ExecuteString("quit");
             }
             if (down && gamepad.rt) gamepad.rt_used = true;
