@@ -44,8 +44,8 @@ The option does **not** modify the OS/SDL button mapping database.
 | LB, tap | Toggle status-panel cursor mode; D-pad moves between selected unit icons |
 | LB, tap again or B | Exit status-panel cursor mode |
 | A in status-panel cursor mode | Select only that unit or complete an active unit-target spell; exit mode and recenter |
-| LB, tap while a selected building has a training queue | Enter build-queue cursor mode; D-pad or left stick moves across cancellable queue entries |
-| A in build-queue cursor mode | Cancel the focused training queue entry and stay in the mode |
+| LB, tap while a selected building has a training queue | Enter build-queue cursor mode; D-pad or left stick moves between cancellable queue entries by direction, including down from the raised first entry |
+| A in build-queue cursor mode | Cancel the focused training queue entry and exit the mode |
 | B or LB in build-queue cursor mode | Exit the mode and recenter the cursor |
 | LB + Y | Reopen the last successfully cast ability from the focused selected subgroup |
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
