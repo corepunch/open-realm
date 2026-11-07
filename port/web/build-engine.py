@@ -160,7 +160,7 @@ def main():
          "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
          "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency,HEAP32",
          "-sEXPORTED_FUNCTIONS=_main,_Web_GamepadSharedAddress", "-lm", "--shell-file", shell,
-         "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
+         "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort,onRuntimeInitialized",
          # Make shipped bindings available before native Com_Init loads config.
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(web_share) + "@/share/warcraft-3",
