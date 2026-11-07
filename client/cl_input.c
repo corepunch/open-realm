@@ -15,6 +15,7 @@ static struct {
 static bool smart_click_active;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
 #define CL_GAMEPAD_RADIAL_HOLD_MS 250 // milliseconds; Y taps open, holds confirm the focused radial command
+#define CL_GAMEPAD_ZOOM_UPDATE_STEPS 0.02f // smaller camera-distance updates keep right-stick zoom smooth
 static bool cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
@@ -689,7 +690,7 @@ static void CL_GamepadFrame(float dt) {
          * every display frame while the stick is held off centre. */
         if (!SCR_GamepadRadialActive())
             gamepad.zoom_accumulator -= gamepad.ry * Cvar_Value("cl_gamepad_zoom_rate", 3.0f) * dt;
-        if (fabsf(gamepad.zoom_accumulator) >= 0.15f) {
+        if (fabsf(gamepad.zoom_accumulator) >= CL_GAMEPAD_ZOOM_UPDATE_STEPS) {
             CL_ZoomSteps(gamepad.zoom_accumulator, false);
             gamepad.zoom_accumulator = 0.0f;
         }
