@@ -13,6 +13,7 @@ static struct {
 } camera_drag;
 
 static bool smart_click_active;
+static bool gamepad_unready_reset;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
 #define CL_GAMEPAD_RADIAL_HOLD_MS 250 // milliseconds; Y taps open, holds confirm the focused radial command
 #define CL_GAMEPAD_ZOOM_UPDATE_STEPS 0.02f // smaller camera-distance updates keep right-stick zoom smooth
@@ -831,7 +832,18 @@ void CL_ResetInput(void) {
 static void CL_InputFrame(void) {
     uint32_t now = SDL_GetTicks(), msec = input.last_ms ? MIN(now - input.last_ms, BZ_INPUT_MAX_MSEC) : 0;
     input.last_ms = now;
-    if (!CL_GameplayInputReady()) { CL_GamepadFrame(msec / 1000.0f); CL_ResetInput(); return; }
+    if (!CL_GameplayInputReady()) {
+        if (!gamepad_unready_reset) {
+            float const lx = gamepad.lx, ly = gamepad.ly;
+            bool const keep_cursor_axis = input.focus && CL_GamepadModal();
+            CL_ResetInput();
+            if (keep_cursor_axis) { gamepad.lx = lx; gamepad.ly = ly; }
+            gamepad_unready_reset = true;
+        }
+        CL_GamepadFrame(msec / 1000.0f);
+        return;
+    }
+    gamepad_unready_reset = false;
     uint32_t bits = input.buttons;
     if (Cvar_Integer("cl_move_mouse", 0) && input.select && input.look) bits |= BZ_MOVE_FORWARD;
     if (bits || input.sent) CL_SendInput(&(inputCmd_t){ .action = BZ_INPUT_MOVE, .move = { bits, msec } });
