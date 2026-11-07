@@ -1309,25 +1309,33 @@ CLIENTCOMMAND(Button) {
 CLIENTCOMMAND(RepeatLastSpell) {
     gameClient_t *client = clent ? clent->client : NULL;
     uint32_t number;
-    edict_t *caster;
+    edict_t *caster, *main;
     abilityitem_t item;
     char entity_arg[16], code_arg[5];
     cstring_t select_argv[] = { "select", entity_arg };
     cstring_t button_argv[] = { "button", code_arg };
 
-    if (!client || !(number = client->last_spell_caster) || number >= globals.num_edicts ||
-        !client->last_spell_code) return;
-    caster = &globals.edicts[number];
-    if (!caster->inuse || caster->spawn_time != client->last_spell_caster_spawn_time ||
-        !G_UnitCanControl(client, caster) || !G_UnitCanBeSelected(client, caster)) return;
+    if (!client || !client->last_spell_code) return;
     item = S_AbilityItem(client->last_spell_code);
-    if (!S_AbilityHasCommand(item.ability) || !G_UnitAbilityLevel(caster, item.code)) return;
+    if (!S_AbilityHasCommand(item.ability)) return;
 
-    /* Reuse normal selection and command-card validation so this reopens the
-     * same ability from its original caster through the standard target path. */
-    G_PrepareUnitShortcut(clent);
-    snprintf(entity_arg, sizeof(entity_arg), "%u", number);
-    CMD_Select(clent, 2, select_argv);
+    /* A selected subgroup takes precedence over the caster recorded at the
+     * previous cast. Command dispatch and the eventual target callback both
+     * use the focused selection, so leave the complete selection untouched. */
+    main = G_GetMainSelectedUnit(client);
+    if (main) {
+        if (!G_UnitCanControl(client, main) || !G_UnitAbilityLevel(main, item.code)) return;
+    } else {
+        if (!(number = client->last_spell_caster) || number >= globals.num_edicts) return;
+        caster = &globals.edicts[number];
+        if (!caster->inuse || caster->spawn_time != client->last_spell_caster_spawn_time ||
+            !G_UnitCanControl(client, caster) || !G_UnitCanBeSelected(client, caster) ||
+            !G_UnitAbilityLevel(caster, item.code)) return;
+        /* With no current selection, fall back to the recorded caster. */
+        G_PrepareUnitShortcut(clent);
+        snprintf(entity_arg, sizeof(entity_arg), "%u", number);
+        CMD_Select(clent, 2, select_argv);
+    }
     memcpy(code_arg, &item.code, 4);
     code_arg[4] = '\0';
     CMD_Button(clent, 2, button_argv);
