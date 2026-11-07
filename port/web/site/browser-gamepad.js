@@ -62,7 +62,17 @@
     let activeIndex = -1;
     let address = 0;
     let warned = false;
+    let runtimeReady = false;
+    const onRuntimeInitialized = module.onRuntimeInitialized;
+    module.onRuntimeInitialized = function () {
+      runtimeReady = true;
+      if (typeof onRuntimeInitialized === 'function')
+        onRuntimeInitialized.apply(this, arguments);
+    };
     function sample() {
+      /* Emscripten publishes native exports before initializing their runtime.
+       * Polling must wait for its lifecycle callback before calling C. */
+      if (!runtimeReady) return;
       if (typeof module._Web_GamepadSharedAddress !== 'function' || !module.HEAP32) return;
       if (!address) address = module._Web_GamepadSharedAddress();
       const heap = module.HEAP32;

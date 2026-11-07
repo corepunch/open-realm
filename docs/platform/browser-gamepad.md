@@ -16,7 +16,9 @@ in `client/cl_input.c`. The native SDL2 controller path is not changed.
 3. The page writes a compact snapshot to shared WebAssembly memory. Pressed
    button and trigger edges are OR-latched with `Atomics.or` until consumed by
    the engine pthread's `Web_GamepadRead` (`__atomic_exchange_n`). This avoids
-   losing a quick press-and-release between game frames.
+   losing a quick press-and-release between game frames. Sampling waits for
+   Emscripten's `Module.onRuntimeInitialized`; the exported address function
+   exists before it is safe to call native code.
 4. The native adapter synthesizes SDL2 button and axis events and calls the
    existing `CL_GamepadEvent` state machine. Thus the same selection, camera,
    radial menu, shortcuts, tooltips and hold/tap interactions run in browser

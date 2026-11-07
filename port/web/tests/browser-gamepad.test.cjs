@@ -49,14 +49,25 @@ test('atomic mailbox latches a fast button press for the engine reader', () => {
   p.index = 0;
   p.connected = true;
   let tick;
+  let addressCalls = 0;
+  let initializedCalls = 0;
   const win = {
     navigator: { getGamepads: () => [p] }, SharedArrayBuffer,
     setInterval: fn => { tick = fn; }, addEventListener: () => {}
   };
   const doc = { hidden: false, hasFocus: () => true, addEventListener: () => {} };
-  const mod = { HEAP32: heap, _Web_GamepadSharedAddress: () => 16 };
+  const mod = {
+    HEAP32: heap,
+    _Web_GamepadSharedAddress: () => { addressCalls++; return 16; },
+    onRuntimeInitialized: () => { initializedCalls++; }
+  };
   assert.equal(install(win, doc, { hidden: false }, mod), true);
   tick();
+  assert.equal(addressCalls, 0);
+  mod.onRuntimeInitialized();
+  assert.equal(initializedCalls, 1);
+  tick();
+  assert.equal(addressCalls, 1);
   p.buttons[0].pressed = true;
   tick();
   p.buttons[0].pressed = false;
