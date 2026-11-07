@@ -349,6 +349,31 @@ static bool gamepad_radial_open, gamepad_selection_visible;
 static int gamepad_radial_page, gamepad_radial_sector = -1;
 static vec2_t gamepad_selection_center;
 static float gamepad_selection_radius;
+static char local_notification[128];
+static uint32_t local_notification_end_ms;
+
+static font_t const *SCR_LocalNotificationFont(void) {
+    font_t const *fallback = NULL;
+    FOR_LOOP(i, MAX_FONTSTYLES) {
+        font_t const *font = cl.fonts[i];
+        cstring_t spec = cl.configstrings[CS_FONTS + i];
+        cstring_t size = spec ? strchr(spec, ',') : NULL;
+        if (!font) continue;
+        if (!fallback) fallback = font;
+        if (size && !strcmp(size + 1, "10")) return font;
+    }
+    return fallback;
+}
+
+void SCR_ShowLocalNotification(cstring_t text) {
+    if (!text || !*text) {
+        local_notification[0] = '\0';
+        local_notification_end_ms = 0;
+        return;
+    }
+    strlcpy(local_notification, text, sizeof(local_notification));
+    local_notification_end_ms = SDL_GetTicks() + 2000;
+}
 
 void SCR_GamepadBeginUIFrame(void) {
     gamepad_nav_count = 0;
@@ -1897,6 +1922,34 @@ void SCR_LayoutUpdateFrame(uiFrame_t const *frame) {
 static void SCR_GamepadRadialDraw(void);
 static void SCR_GamepadDrawOverlay(void) {
     SCR_GamepadRadialDraw();
+    if (local_notification[0]) {
+        uint32_t const now = SDL_GetTicks();
+        if ((int32_t)(now - local_notification_end_ms) >= 0) {
+            local_notification[0] = '\0';
+        } else if (re.DrawText) {
+            uiCanvas_t const *canvas = CL_Canvas();
+            font_t const *font = SCR_LocalNotificationFont();
+            if (font && canvas->scene.w > 0.0f && canvas->scene.h > 0.0f) {
+                rect_t const rect = {
+                    canvas->scene.x + canvas->scene.w * (0.211f / 0.8f),
+                    canvas->scene.y + canvas->scene.h * (0.4145f / 0.6f),
+                    canvas->scene.w * (0.62f / 0.8f),
+                    canvas->scene.h * (0.035f / 0.6f),
+                };
+                drawText_t text = {
+                    .font = font, .text = local_notification, .rect = rect,
+                    .color = COLOR32_BLACK, .textWidth = rect.w,
+                    .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP,
+                };
+                text.rect.x += 0.001f;
+                text.rect.y += 0.001f;
+                re.DrawText(&text);
+                text.rect = rect;
+                text.color = MAKE(color32_t, 255, 204, 0, 255);
+                re.DrawText(&text);
+            }
+        }
+    }
     if (gamepad_selection_visible && re.DrawSelectionCircle)
         re.DrawSelectionCircle(gamepad_selection_center, gamepad_selection_radius,
                                MAKE(color32_t, 255, 255, 255, 245));
