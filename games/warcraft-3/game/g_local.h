@@ -3991,6 +3991,7 @@ void G_UpdateCommandError(edict_t *);
 cstring_t G_ResolveCommandErrorText(gameClient_t const *, cstring_t);
 void G_ShowCommandErrorKey(edict_t *, cstring_t, cstring_t);
 void G_ShowCommandErrorText(edict_t *, cstring_t);
+void G_ShowCommandNotificationText(edict_t *, cstring_t);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
 extern uint8_t g_numTreeFallSounds;
 
@@ -4335,6 +4336,7 @@ void G_RunEntities(void);
 void G_RunEvents(void);
 /* Host save/restore lifecycle; the basic filename is only visible during these callbacks. */
 bool G_BeforeSaveGame(cstring_t name);
+void G_AfterSaveGame(cstring_t name);
 void G_AfterLoadGame(cstring_t name);
 void G_AfterScriptLoadGame(cstring_t name);
 cstring_t G_GetSaveBasicFilename(void);

@@ -62,6 +62,7 @@ static void SV_SaveGame_f(void) {
             fprintf(stderr, "save: could not persist local control groups\n");
         if (!FS_BindScriptSaveScope(Cmd_Argv(1)))
             fprintf(stderr, "save: saved game but could not bind campaign zone storage\n");
+        if (ge->AfterSaveGame) ge->AfterSaveGame(Cmd_Argv(1));
     }
 }
 

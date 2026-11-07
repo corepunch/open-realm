@@ -4066,6 +4066,18 @@ TEST(wc3_api, command_error_uses_dedicated_replacing_hud_layer) {
     command_error_frame_count = 0;
     command_error_label_count = 0;
     command_error_recipient = NULL;
+    G_AfterSaveGame("quick");
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_STREQ(command_error_frames[1].text, "Game saved.");
+    T_EQ(command_error_recipient, ent);
+
+    G_CommandErrorReset();
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_label_count = 0;
+    command_error_recipient = NULL;
     UI_WriteCommandError(ent, NULL);
     T_EQ(command_error_header_count, 2);
     T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);

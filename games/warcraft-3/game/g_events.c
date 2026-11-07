@@ -47,6 +47,15 @@ bool G_BeforeSaveGame(cstring_t name) {
     return G_DispatchSaveLoadEvent(EVENT_GAME_SAVE, name);
 }
 
+void G_AfterSaveGame(cstring_t name) {
+    (void)name;
+    FOR_LOOP(i, game.max_clients) {
+        edict_t *clent = G_GetPlayerEntityByNumber(i);
+        if (clent && clent->client && clent->client->connected)
+            G_ShowCommandNotificationText(clent, "Game saved.");
+    }
+}
+
 void G_AfterLoadGame(cstring_t name) {
     if (!G_DispatchSaveLoadEvent(EVENT_GAME_LOADED, name))
         fprintf(stderr, "WC3: restored game-loaded event handlers could not complete\n");

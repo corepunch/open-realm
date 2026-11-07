@@ -2485,6 +2485,7 @@ CLIENTCOMMAND(MenuSaveNamed) {
                 fprintf(stderr, "WC3 menu: could not persist local control groups\n");
             if (gi.BindScriptSaveScope && !gi.BindScriptSaveScope(name))
                 fprintf(stderr, "WC3 menu: saved game, but could not bind campaign zone storage\n");
+            G_AfterSaveGame(name);
         }
     }
 }

@@ -20,6 +20,8 @@ runtime-only fields does not change the save format version.
 
 The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. Scripted save and load requests are deferred to VM-safe/session boundaries (see Scripted zone saves below).
 
+Successful in-game quick saves and saves submitted from the save menu display a brief “Game saved.” HUD notice. Both paths share `menu_save_named`, so failed writes do not show a success notice.
+
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
 - `W3SV` magic, the current save format version, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;

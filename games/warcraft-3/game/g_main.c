@@ -3361,6 +3361,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.LoadGame = ReadGame;
     globals.GetSaveMap = G_GetSaveMap;
     globals.BeforeSaveGame = G_BeforeSaveGame;
+    globals.AfterSaveGame = G_AfterSaveGame;
     globals.AfterLoadGame = G_AfterLoadGame;
     globals.AfterScriptLoadGame = G_AfterScriptLoadGame;
     globals.GetWorldBounds = CM_GetWorldBounds;
