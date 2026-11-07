@@ -404,6 +404,13 @@ bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
     gamepad_status_entity = gamepad_status_cells[next].entity;
     return SCR_GamepadStatusCellScreenPosition(next, position);
 }
+
+uint32_t SCR_GamepadStatusPanelEntity(void) {
+    FOR_LOOP(i, gamepad_status_cell_count)
+        if (gamepad_status_cells[i].entity == gamepad_status_entity)
+            return gamepad_status_entity;
+    return 0;
+}
 void SCR_GamepadRadialOpen(void) {
     gamepad_radial_open = true;
     gamepad_radial_page = 0;

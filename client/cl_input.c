@@ -150,6 +150,13 @@ static void CL_GamepadCenterCursor(void) {
     CL_UpdateHover(mouse.origin.x, mouse.origin.y);
 }
 
+static void CL_GamepadExitStatusPanelMode(void) {
+    gamepad.status_panel_mode = false;
+    gamepad.status_stick_direction = -1;
+    gamepad.status_stick_next_ms = 0;
+    CL_GamepadCenterCursor();
+}
+
 /* Use the same SDL mouse-event path as real clicks. The window manager, HUD
  * hit testing, minimap and normal world selection all retain their precedence. */
 static void CL_GamepadDispatchPointer(uint32_t type, uint8_t button, int x, int y) {
@@ -384,7 +391,15 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     }
     if (gamepad.status_panel_mode) {
         gamepad.last_a_released = 0;
-        CL_GamepadClick(SDL_BUTTON_LEFT);
+        uint32_t const entity = SCR_GamepadStatusPanelEntity();
+        if (entity) {
+            char command[32];
+            snprintf(command, sizeof(command), "select %u", (unsigned)entity);
+            CL_GamepadSendCommand(command);
+        } else {
+            CL_GamepadClick(SDL_BUTTON_LEFT);
+        }
+        CL_GamepadExitStatusPanelMode();
         return;
     }
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
@@ -417,8 +432,7 @@ static void CL_GamepadFaceB(bool down, uint32_t time) {
         return;
     }
     if (gamepad.status_panel_mode) {
-        gamepad.status_panel_mode = false;
-        gamepad.status_stick_direction = -1;
+        CL_GamepadExitStatusPanelMode();
         return;
     }
     if (gamepad.rt && CL_GameplayInputReady()) {
@@ -699,7 +713,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     else
                         CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
                             (int)mouse.origin.x, (int)mouse.origin.y);
-                }
+                } else CL_GamepadCenterCursor();
             }
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSTICK:

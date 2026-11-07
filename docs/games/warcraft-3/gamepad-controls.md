@@ -37,7 +37,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | LB, hold | Pan the camera 5× faster with the left stick |
 | LB, tap | Toggle status-panel cursor mode; D-pad moves between selected unit icons |
 | LB, tap again or B | Exit status-panel cursor mode |
-| A in status-panel cursor mode | Select/focus the icon under the cursor; completes an active unit-target spell |
+| A in status-panel cursor mode | Select only that unit or complete an active unit-target spell; exit mode and recenter |
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
 | Right-stick click | Reset camera to the game-selected default zoom |
 | A, tap | Normal left-click selection / HUD click; accept the focused radial command when it is open |
@@ -118,10 +118,11 @@ Tap LB (press and release within 250 ms) to enter status-panel cursor mode.
 The cursor starts on the currently focused selected-unit icon. D-pad left/right
 moves between icons in the current row; up/down moves one row while preserving
 the column where possible. The left stick also moves one icon per tilt, then
-repeats every 180 ms while held. A clicks the icon through the ordinary multiselect
-path, so selecting a unit or completing an active unit-target spell remains
-server-authoritative. Tap LB again or press B to leave the mode. Holding LB
-instead keeps its fast camera-pan modifier active.
+repeats every 180 ms while held. A selects only the focused icon's unit or
+completes an active unit-target spell through the normal server command path.
+Either action exits the mode and recentres the cursor on the camera viewport.
+Tap LB again or press B to leave the mode; both also recenter the cursor.
+Holding LB instead keeps its fast camera-pan modifier active.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat
