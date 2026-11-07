@@ -293,7 +293,7 @@ fi
 # For $ANALOG_STICKS we have the ability to supply multiple gptk files to support 1 and 2 analogue stick devices in different ways.
 # For a proper documentation how gptokeyb works: [Link](https://github.com/PortsMaster/gptokeyb)
 # $GPTOKEYB "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/open-realm.gptk" &
-$GPTOKEYB2 -1 "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm-wc3.gptk2.ini" >/dev/null &
+#$GPTOKEYB2 -1 "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm-wc3.gptk2.ini" >/dev/null &
 #$GPTOKEYB2 -1 "openwow.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm.gptk2.ini" >/dev/null &
 
 # Do some platform specific stuff right before the port is launched but after GPTOKEYB is run.
