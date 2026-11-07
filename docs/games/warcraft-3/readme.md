@@ -183,5 +183,6 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Neutral Creep Ability Tests](neutral-creep-ability-tests.md) — source matrix and executable gameplay contracts.
 - [Creep Ability Sandbox Map](creep-ability-sandbox.md) — generate and launch the local retail creep inspection map.
+- [Item Pickup Sandbox Map](item-pickup-sandbox.md) — generate and launch a map with every retail item, including runes.
 - [Retail Shop Item Tests](retail-shop-item-tests.md) — verified item/shop rawcodes and transactional stock tests.
 - [Hero Item Reference Tests](hero-item-reference-tests.md) — all five Blizzard item category references, rawcode status, and behavior acceptance matrix.
