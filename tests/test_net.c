@@ -3924,6 +3924,23 @@ TEST(net, entity_delta_preserves_neutral_flag) {
     T_ASSERT(out.flags & EF_NEUTRAL);
 }
 
+/* WC3's gamepad gather filter consumes this recipient-safe snapshot bit. */
+TEST(net, entity_delta_preserves_wc3_gathering_flag) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 3, .flags = EF_GATHERING }, out = { 0 };
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_GATHERING);
+}
+
 /* Water-supported selection circles are selected by WC3 object data, then
  * carried to the universal renderer as recipient-authored entity state. */
 TEST(net, entity_delta_preserves_water_selection_circle_flag) {
