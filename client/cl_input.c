@@ -178,6 +178,13 @@ static void CL_GamepadSendCommand(cstring_t command) {
     SZ_Printf(&cls.netchan.message, "%s", command);
 }
 
+static void CL_GamepadSelectFocusedSubgroup(void) {
+    uint32_t entities[CL_SELECTION_CANDIDATE_LIMIT];
+    uint32_t count = SCR_GamepadFocusedSubgroup(entities,
+                                                sizeof(entities) / sizeof(entities[0]));
+    if (count) CL_ApplySelectionCandidates(entities, count);
+}
+
 /* The client only sends candidates. The server's existing Select command
  * remains responsible for ownership, visibility and legal membership. */
 static void CL_GamepadSelectChange(uint32_t const *ids, uint32_t count, int mode) {
@@ -485,7 +492,11 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 if (axis > 0.5f && !gamepad.lt) {
                     gamepad.lt_used = gamepad.start || gamepad.rt || gamepad.y || SCR_GamepadRadialActive();
                     if (gamepad.start) CL_GamepadOpenMenu("allies");
-                    if (gamepad.rt) gamepad.rt_used = true;
+                    if (gamepad.rt) {
+                        gamepad.rt_used = true;
+                        if (!gamepad.start && !gamepad.y && !SCR_GamepadRadialActive() &&
+                            CL_GameplayInputReady()) CL_GamepadSelectFocusedSubgroup();
+                    }
                 }
                 if (axis <= 0.5f && gamepad.lt) {
                     if (!gamepad.lt_used && CL_GameplayInputReady())
@@ -499,6 +510,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     gamepad.rt_used = gamepad.start || gamepad.y || SCR_GamepadRadialActive();
                     if (gamepad.start) CL_GamepadOpenMenu("chat");
                     else if (SCR_GamepadRadialActive()) SCR_GamepadRadialNextPage();
+                    if (gamepad.lt) {
+                        gamepad.lt_used = true;
+                        gamepad.rt_used = true;
+                        if (!gamepad.start && !gamepad.y && !SCR_GamepadRadialActive() &&
+                            CL_GameplayInputReady()) CL_GamepadSelectFocusedSubgroup();
+                    }
                 }
                 if (axis <= 0.5f && gamepad.rt) {
                     if (!gamepad.rt_used && CL_GameplayInputReady())
