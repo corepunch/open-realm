@@ -1,5 +1,6 @@
 #include "cl_input_local.h"
 #include "cl_control_groups.h"
+#include "ui_layout.h"
 
 /* Numbered control groups stored on cl.groups. Config binds `group N`. */
 #define BZ_GROUP_TAP_MS 500 // milliseconds; deliberate double-tap window; controls group camera recenter
@@ -64,6 +65,11 @@ static void CL_GroupAssign(uint32_t g) {
     n = MIN(n, CL_SelectionLimit());
     cl.groups[g].num_selected = n;
     memcpy(cl.groups[g].entity_nums, cl.selection.entity_nums, sizeof(uint32_t) * n);
+    if (n) {
+        char notice[64];
+        snprintf(notice, sizeof(notice), "Control Group %u Created", g);
+        SCR_ShowLocalNotification(notice);
+    }
     CL_ResetGroupTap();
 }
 
@@ -73,6 +79,11 @@ static void CL_GroupAdd(uint32_t g) {
     cl.groups[g].num_selected = CL_ControlGroupAppendUnique(
         cl.groups[g].entity_nums, cl.groups[g].num_selected, CL_SelectionLimit(),
         cl.selection.entity_nums, n);
+    if (n) {
+        char notice[64];
+        snprintf(notice, sizeof(notice), "Control Group %u Updated", g);
+        SCR_ShowLocalNotification(notice);
+    }
     CL_ResetGroupTap();
 }
 

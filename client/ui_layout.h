@@ -55,6 +55,7 @@ bool SCR_LayoutKeyEvent(int key, bool shift_held);
 
 /* Gamepad presentation reuses server-authored command frames and modal hit targets. */
 void SCR_GamepadBeginUIFrame(void);
+void SCR_ShowLocalNotification(cstring_t text);
 void SCR_GamepadRadialOpen(void);
 void SCR_GamepadRadialSetAxis(float x, float y);
 void SCR_GamepadRadialNextPage(void);
