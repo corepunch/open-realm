@@ -64,6 +64,9 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
 bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
 void SCR_GamepadBeginUIFrame(void);
+bool SCR_GamepadBuildQueueCursor(vec2_t *position);
+bool SCR_GamepadBuildQueueMove(int direction, vec2_t *position);
+void SCR_SetGamepadBuildQueueTargets(vec2_t const *targets, uint32_t count);
 void SCR_WindowPrepare(handle_t layout, rect_t const *root);
 bool CL_WindowGamepadNavigate(int direction, vec2_t from, vec2_t *to);
 void SCR_DrawScreenField(uint32_t msec);
@@ -163,6 +166,8 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     uint32_t const cs_index = CS_GENERAL + ni / ENT_NAMES_PER_CS;
 
     test_client_stubs_init();
+    test_client_stubs_set_window_size(1024, 768);
+    CL_CanvasInit();
     SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
     cl.hover_entity = entnum;
     cl.ents[entnum].current = (entityState_t){
@@ -1831,6 +1836,24 @@ TEST(client_layout, gamepad_navigation_uses_current_modal_buttons_before_draw) {
     T_FEQ(next.y, -0.35f, 0.001f);
 
     CL_WindowClear();
+}
+
+TEST(client_layout, build_queue_navigation_captures_only_training_cancel_targets) {
+    vec2_t position = {0};
+    test_client_stubs_init();
+    test_client_stubs_set_window_size(1024, 768);
+    CL_CanvasInit();
+    SCR_GamepadBeginUIFrame();
+    vec2_t targets[] = { { 0.22f, 0.22f }, { 0.32f, 0.22f } };
+    SCR_SetGamepadBuildQueueTargets(targets, 2);
+    T_EQ((int)CL_Canvas()->window.width, 1024);
+
+    T_ASSERT(SCR_GamepadBuildQueueCursor(&position));
+    T_FEQ(position.x, (0.2f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
+    T_ASSERT(SCR_GamepadBuildQueueMove(1, &position));
+    T_FEQ(position.x, (0.3f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
+    T_ASSERT(SCR_GamepadBuildQueueMove(3, &position));
+    T_FEQ(position.x, (0.2f + 0.02f) * 1024.0f / CL_Canvas()->scene.w, 0.01f);
 }
 
 TEST(net, window_edit_text_does_not_leak_into_same_number_hud_frame) {

@@ -297,6 +297,7 @@ static cstring_t active_tooltip = NULL;
 #define GAMEPAD_RADIAL_SLOTS 10
 #define GAMEPAD_RADIAL_PAGES 6
 #define GAMEPAD_NAV_MAX 512
+#define GAMEPAD_QUEUE_MAX 16
 #define GAMEPAD_NAV_MIN_STEP 0.005f // virtual-canvas units; ignores pixel-rounding jitter at the focused button
 static bool layout_current_window;
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame);
@@ -331,6 +332,25 @@ static struct {
 static uint32_t gamepad_status_cell_count, gamepad_status_entity;
 static struct { vec2_t center; uint32_t row; } gamepad_hero_cells[MAX_LAYOUT_OBJECTS];
 static uint32_t gamepad_hero_cell_count, gamepad_hero_index;
+static vec2_t gamepad_queue_cells[GAMEPAD_QUEUE_MAX];
+static uint32_t gamepad_queue_cell_count, gamepad_queue_index;
+#ifdef BZ_TESTS
+void SCR_TestCaptureBuildQueueFrame(uiFrame_t const *frame, rect_t const *rect) {
+    if (frame && rect && frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
+        !strncmp(frame->onclick, "canceltrain ", 12) && rect->w > 0.001f && rect->h > 0.001f &&
+        gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
+        uiCanvas_t const *canvas = CL_Canvas();
+        gamepad_queue_cells[gamepad_queue_cell_count++] =
+            (vec2_t){ (rect->x + rect->w * 0.5f) / canvas->scene.w,
+                      (rect->y + rect->h * 0.5f) / canvas->scene.h };
+    }
+}
+#endif
+void SCR_SetGamepadBuildQueueTargets(vec2_t const *targets, uint32_t count) {
+    gamepad_queue_cell_count = MIN(count, GAMEPAD_QUEUE_MAX);
+    if (targets && gamepad_queue_cell_count)
+        memcpy(gamepad_queue_cells, targets, gamepad_queue_cell_count * sizeof(*targets));
+}
 static bool gamepad_panel_cursor_hero;
 static struct {
     uint32_t clickable, command_buttons, missing_art, unsupported, invalid_position;
@@ -346,6 +366,7 @@ void SCR_GamepadBeginUIFrame(void) {
     gamepad_nav_count = 0;
     gamepad_status_cell_count = 0;
     gamepad_hero_cell_count = 0;
+    gamepad_queue_cell_count = 0;
     memset(gamepad_radial, 0, sizeof(gamepad_radial));
     memset(&gamepad_radial_tooltip, 0, sizeof(gamepad_radial_tooltip));
     memset(&gamepad_radial_diag, 0, offsetof(typeof(gamepad_radial_diag), last_report_ms));
@@ -380,6 +401,29 @@ bool SCR_GamepadStatusPanelCursor(vec2_t *position) {
     gamepad_status_entity = gamepad_status_cells[index].entity;
     gamepad_panel_cursor_hero = false;
     return SCR_GamepadStatusCellScreenPosition(index, position);
+}
+
+bool SCR_GamepadBuildQueueCursor(vec2_t *position) {
+    if (!position || !gamepad_queue_cell_count) return false;
+    gamepad_queue_index = 0;
+    uiCanvas_t const *canvas = CL_Canvas();
+    if (canvas->scene.w <= 0.0f || canvas->scene.h <= 0.0f ||
+        canvas->window.width <= 0.0f || canvas->window.height <= 0.0f) return false;
+    position->x = gamepad_queue_cells[0].x * canvas->window.width / canvas->scene.w;
+    position->y = gamepad_queue_cells[0].y * canvas->window.height / canvas->scene.h;
+    return true;
+}
+
+bool SCR_GamepadBuildQueueMove(int direction, vec2_t *position) {
+    uiCanvas_t const *canvas = CL_Canvas();
+    if (!position || !gamepad_queue_cell_count || direction < 0 || direction > 3 ||
+        canvas->scene.w <= 0.0f || canvas->scene.h <= 0.0f ||
+        canvas->window.width <= 0.0f || canvas->window.height <= 0.0f) return false;
+    if (direction == 1 && gamepad_queue_index + 1 < gamepad_queue_cell_count) gamepad_queue_index++;
+    if (direction == 3 && gamepad_queue_index > 0) gamepad_queue_index--;
+    position->x = gamepad_queue_cells[gamepad_queue_index].x * canvas->window.width / canvas->scene.w;
+    position->y = gamepad_queue_cells[gamepad_queue_index].y * canvas->window.height / canvas->scene.h;
+    return true;
 }
 
 bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
@@ -1861,6 +1905,18 @@ static void SCR_GamepadDrawOverlay(void) {
  * submenu buttons use ordinary clockwise order and overflow onto RT pages. */
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     if (!frame) return;
+    if (!layout_current_window && layout_current_layer == LAYER_INFOPANEL &&
+        frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
+        !strncmp(frame->onclick, "canceltrain ", 12) &&
+        gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
+        rect_t const *rect = SCR_LayoutRect(frame);
+        if (rect && rect->w > 0.001f && rect->h > 0.001f &&
+            gamepad_queue_cell_count < GAMEPAD_QUEUE_MAX) {
+            gamepad_queue_cells[gamepad_queue_cell_count++] =
+                (vec2_t){ rect->x + rect->w * 0.5f,
+                          rect->y + rect->h * 0.5f };
+        }
+    }
     if ((frame->flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON) &&
         frame->flags.type == FT_COMMANDBUTTON && gamepad_hero_cell_count < MAX_LAYOUT_OBJECTS) {
         rect_t const *rect = SCR_LayoutRect(frame);
@@ -2173,6 +2229,8 @@ void SCR_LayoutUpdateTooltip(handle_t layout) {
 void SCR_LayoutDrawOverlay(handle_t layout) {
     SCR_BeginSelectedEntityDraw();
     layout_current = layout;
+    if (!layout_current_window && layout_current_layer == LAYER_LOADING)
+        layout_current_layer = LAYER_INFOPANEL;
     if (layout_current_window) {
         gamepad_nav_count = 0;
     }

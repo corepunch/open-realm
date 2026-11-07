@@ -43,7 +43,7 @@ typedef struct {
     SDL_GameController *controller;
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, y_repeat_spell,
          rt, rt_used, lt, lt_used, lb, lb_used, rb, rb_used, start, back,
-         paint, paint_additive, paint_remove, status_panel_mode;
+         paint, paint_additive, paint_remove, status_panel_mode, build_queue_mode;
     bool left_stick_neutral_required;
     bool down_dpad[4];
     bool dpad_hero_shortcut[4];
@@ -79,7 +79,7 @@ static void CL_GamepadReset(void) {
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
-    gamepad.lb = gamepad.status_panel_mode = false;
+    gamepad.lb = gamepad.status_panel_mode = gamepad.build_queue_mode = false;
     gamepad.status_stick_direction = -1;
     gamepad.status_stick_next_ms = 0;
     gamepad.last_rb_released = 0;
@@ -104,7 +104,7 @@ static void CL_GamepadResetHeld(void) {
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
-    gamepad.lb = gamepad.status_panel_mode = false;
+    gamepad.lb = gamepad.status_panel_mode = gamepad.build_queue_mode = false;
     gamepad.status_stick_direction = -1;
     gamepad.status_stick_next_ms = 0;
     gamepad.last_rb_released = 0;
@@ -154,6 +154,13 @@ static void CL_GamepadCenterCursor(void) {
 
 static void CL_GamepadExitStatusPanelMode(void) {
     gamepad.status_panel_mode = false;
+    gamepad.status_stick_direction = -1;
+    gamepad.status_stick_next_ms = 0;
+    CL_GamepadCenterCursor();
+}
+
+static void CL_GamepadExitBuildQueueMode(void) {
+    gamepad.build_queue_mode = false;
     gamepad.status_stick_direction = -1;
     gamepad.status_stick_next_ms = 0;
     CL_GamepadCenterCursor();
@@ -400,6 +407,11 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
         CL_GamepadExitStatusPanelMode();
         return;
     }
+    if (gamepad.build_queue_mode) {
+        gamepad.last_a_released = 0;
+        CL_GamepadClick(SDL_BUTTON_LEFT);
+        return;
+    }
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
     if (gamepad.paint) {
         /* The paint path already replaced selection continuously while A was held. */
@@ -431,6 +443,10 @@ static void CL_GamepadFaceB(bool down, uint32_t time) {
     }
     if (gamepad.status_panel_mode) {
         CL_GamepadExitStatusPanelMode();
+        return;
+    }
+    if (gamepad.build_queue_mode) {
+        CL_GamepadExitBuildQueueMode();
         return;
     }
     if (gamepad.rt && CL_GameplayInputReady()) {
@@ -465,9 +481,12 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
             CL_GamepadExecuteAction(actions[d], false);
             return;
         }
-        if (gamepad.status_panel_mode) {
+        if (gamepad.status_panel_mode || gamepad.build_queue_mode) {
             vec2_t destination;
-            if (SCR_GamepadStatusPanelMove(d, &destination)) {
+            bool const moved = gamepad.build_queue_mode
+                ? SCR_GamepadBuildQueueMove(d, &destination)
+                : SCR_GamepadStatusPanelMove(d, &destination);
+            if (moved) {
                 mouse.origin = destination;
                 CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
                                           (int)destination.x, (int)destination.y);
@@ -612,7 +631,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         }
         if (gamepad.left_stick_neutral_required && gamepad.lx == 0.0f && gamepad.ly == 0.0f)
             gamepad.left_stick_neutral_required = false;
-        if (axis != 0 && !CL_GamepadModal() && !gamepad.status_panel_mode)
+        if (axis != 0 && !CL_GamepadModal() && !gamepad.status_panel_mode && !gamepad.build_queue_mode)
             CL_GamepadCenterCursor();
         if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
         return true;
@@ -623,7 +642,8 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
         button = CL_GamepadFace(button);
     if (down && gamepad.lt) gamepad.lt_used = true;
-    if (down && !gamepad.status_panel_mode) CL_GamepadCenterCursor();
+    if (down && !gamepad.status_panel_mode && !gamepad.build_queue_mode &&
+        button != SDL_CONTROLLER_BUTTON_LEFTSHOULDER) CL_GamepadCenterCursor();
     if (button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
         button == SDL_CONTROLLER_BUTTON_DPAD_LEFT || button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT) {
         int const dir = button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 0 :
@@ -723,6 +743,11 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.lb == down) break;
             gamepad.lb = down;
             if (down) {
+                if (gamepad.build_queue_mode) {
+                    CL_GamepadExitBuildQueueMode();
+                    gamepad.lb_used = true;
+                    break;
+                }
                 gamepad.lb_used = false;
                 gamepad.lb_pressed = event->cbutton.timestamp;
                 if (gamepad.start) CL_GamepadExecuteAction("cl_gamepad_start_left_shoulder_action", false);
@@ -736,16 +761,16 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             } else if (!gamepad.start &&
                        event->cbutton.timestamp - gamepad.lb_pressed <= CL_GAMEPAD_LB_TAP_MS &&
                        !gamepad.lb_used && CL_GameplayInputReady()) {
-                gamepad.status_panel_mode = !gamepad.status_panel_mode;
+                gamepad.status_panel_mode = false;
+                gamepad.build_queue_mode = false;
                 gamepad.status_stick_direction = -1;
                 gamepad.status_stick_next_ms = 0;
-                if (gamepad.status_panel_mode) {
-                    if (!SCR_GamepadStatusPanelCursor(&mouse.origin))
-                        gamepad.status_panel_mode = false;
-                    else
-                        CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
-                            (int)mouse.origin.x, (int)mouse.origin.y);
-                } else CL_GamepadCenterCursor();
+                if (SCR_GamepadBuildQueueCursor(&mouse.origin)) gamepad.build_queue_mode = true;
+                else if (SCR_GamepadStatusPanelCursor(&mouse.origin)) gamepad.status_panel_mode = true;
+                if (gamepad.status_panel_mode || gamepad.build_queue_mode)
+                    CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                        (int)mouse.origin.x, (int)mouse.origin.y);
+                else CL_GamepadCenterCursor();
             }
             gamepad.lb_used = false;
             break;
@@ -796,7 +821,7 @@ static void CL_GamepadFrame(float dt) {
         }
         return;
     }
-    if (gamepad.status_panel_mode) {
+    if (gamepad.status_panel_mode || gamepad.build_queue_mode) {
         float const ax = fabsf(gamepad.lx), ay = fabsf(gamepad.ly);
         int direction = -1;
         uint32_t const now = SDL_GetTicks();
@@ -808,7 +833,14 @@ static void CL_GamepadFrame(float dt) {
             gamepad.status_stick_next_ms = 0;
         } else if (direction != gamepad.status_stick_direction ||
                    (int32_t)(now - gamepad.status_stick_next_ms) >= 0) {
-            CL_GamepadStatusPanelMove(direction);
+            if (gamepad.build_queue_mode) {
+                vec2_t destination;
+                if (SCR_GamepadBuildQueueMove(direction, &destination)) {
+                    mouse.origin = destination;
+                    CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                        (int)destination.x, (int)destination.y);
+                }
+            } else CL_GamepadStatusPanelMove(direction);
             gamepad.status_stick_direction = direction;
             gamepad.status_stick_next_ms = now + 180;
         }
@@ -1545,10 +1577,10 @@ static void CL_ScrollFrame(void) {
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
     if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
-        !gamepad.status_panel_mode &&
+        !gamepad.status_panel_mode && !gamepad.build_queue_mode &&
         !gamepad.left_stick_neutral_required &&
         !SCR_GamepadRadialActive()) {
-        float const pan_scale = gamepad.lb && !gamepad.status_panel_mode
+        float const pan_scale = gamepad.lb && !gamepad.status_panel_mode && !gamepad.build_queue_mode
             ? Cvar_Value("cl_gamepad_fast_pan_multiplier", 5.0f) : 1.0f;
         dx += gamepad.lx * pan_scale;
         dy -= gamepad.ly * pan_scale; /* SDL positive Y is down; game north is positive Y. */

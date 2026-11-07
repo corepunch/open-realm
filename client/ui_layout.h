@@ -67,6 +67,8 @@ void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible);
 uint32_t SCR_GamepadFocusedSubgroup(uint32_t *entities, uint32_t capacity);
 bool SCR_GamepadStatusPanelCursor(vec2_t *position);
 bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position);
+bool SCR_GamepadBuildQueueCursor(vec2_t *position);
+bool SCR_GamepadBuildQueueMove(int direction, vec2_t *position);
 
 
 #endif /* ui_layout_h */
