@@ -39,7 +39,7 @@ static struct {
 typedef struct {
     SDL_GameController *controller;
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
-         lb, rb, rb_used, start, paint, paint_additive;
+         lb, rb, rb_used, start, paint, paint_additive, paint_remove;
     bool left_stick_neutral_required;
     bool down_dpad[4];
     uint32_t dpad_pressed[4];
@@ -286,7 +286,10 @@ static void CL_GamepadPaintFrame(void) {
     if (!gamepad.a || !CL_GameplayInputReady() || SCR_GamepadRadialActive() ||
         (uint32_t)(SDL_GetTicks() - gamepad.a_pressed) <
                  (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_hold_ms", 180))) return;
-    if (!was_painting) gamepad.paint_additive = gamepad.rt;
+    if (!was_painting) {
+        gamepad.paint_remove = gamepad.lt;
+        gamepad.paint_additive = gamepad.rt && !gamepad.paint_remove;
+    }
     gamepad.paint = true;
     radius = MAX(24.0f, MIN(200.0f, Cvar_Value("cl_gamepad_paint_radius", 72)));
     SCR_GamepadSelectionCircle(mouse.origin, radius, true);
@@ -309,11 +312,13 @@ static void CL_GamepadPaintFrame(void) {
             gamepad.painted[gamepad.painted_count++] = id;
     }
     /* Preserve the current selection until the brush first touches a unit.
-     * RT latches additive mode at paint start; otherwise the first hit replaces
+     * LT latches remove mode, RT additive mode; otherwise the first hit replaces
      * selection and subsequent newly touched units extend that painted set. */
     if (gamepad.painted_count > 0 &&
         (!was_painting || gamepad.painted_count != previous_painted_count)) {
-        if (gamepad.paint_additive)
+        if (gamepad.paint_remove)
+            CL_GamepadSelectChange(gamepad.painted, gamepad.painted_count, -1);
+        else if (gamepad.paint_additive)
             CL_GamepadSelectChange(gamepad.painted, gamepad.painted_count, 1);
         else
             CL_ApplySelectionCandidates(gamepad.painted, gamepad.painted_count);
@@ -329,7 +334,9 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
         if (gamepad.a) return;
         if (gamepad.rt) gamepad.rt_used = true;
         gamepad.a = true; gamepad.a_pressed = time;
-        gamepad.painted_count = 0; gamepad.paint = gamepad.paint_additive = false;
+        gamepad.painted_count = 0;
+        gamepad.paint = gamepad.paint_additive = gamepad.paint_remove = false;
+        if (gamepad.lt) gamepad.lt_used = true;
         if (SCR_GamepadRadialActive()) return;
         if (CL_GamepadModal()) CL_GamepadDispatchPointer(SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT,
                 (int)mouse.origin.x, (int)mouse.origin.y);
