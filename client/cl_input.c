@@ -1429,8 +1429,9 @@ static void CL_ScrollFrame(void) {
     if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
         !gamepad.left_stick_neutral_required &&
         !SCR_GamepadRadialActive()) {
-        dx += gamepad.lx;
-        dy -= gamepad.ly; /* SDL positive Y is down; game north is positive Y. */
+        float const pan_scale = gamepad.lb ? Cvar_Value("cl_gamepad_fast_pan_multiplier", 5.0f) : 1.0f;
+        dx += gamepad.lx * pan_scale;
+        dy -= gamepad.ly * pan_scale; /* SDL positive Y is down; game north is positive Y. */
     }
 
 
@@ -2099,6 +2100,7 @@ void CL_InitInput(void) {
     Cvar_Get("cl_gamepad_paint_radius", "72", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_zoom_rate", "3.0", CVAR_ARCHIVE);
     Cvar_Get("cl_gamepad_menu_cursor_speed", "600", CVAR_ARCHIVE);
+    Cvar_Get("cl_gamepad_fast_pan_multiplier", "5.0", CVAR_ARCHIVE);
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0) {
         SDL_GameControllerEventState(SDL_ENABLE);
