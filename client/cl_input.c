@@ -502,6 +502,14 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
         }
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
             if (gamepad.y || SCR_GamepadRadialActive()) return;
+            if (CL_MenuActive() && cls.key_dest == key_menu && menu.GamepadNavigate) {
+                int x, y;
+                if (menu.GamepadNavigate(d, (int)mouse.origin.x, (int)mouse.origin.y, &x, &y)) {
+                    mouse.origin = (vec2_t){ (float)x, (float)y };
+                    CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0, x, y);
+                    return;
+                }
+            }
             vec2_t dest_ui;
             vec2_t const from_ui = SCR_ScreenToUI((int)mouse.origin.x, (int)mouse.origin.y);
             bool const navigated = CL_WindowModalActive()
@@ -3001,6 +3009,13 @@ TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
 
 /* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
 static uint32_t test_menu_mouse, test_menu_text, test_menu_keys;
+static uint32_t test_gamepad_menu_navigations;
+static bool CL_TestMenuGamepadNavigate(int direction, int x, int y, int *out_x, int *out_y) {
+    test_gamepad_menu_navigations++;
+    *out_x = x + (direction + 1) * 10;
+    *out_y = y + (direction + 1) * 20;
+    return true;
+}
 static bool CL_TestMenuMouse(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods) {
     (void)event; (void)x; (void)y; (void)param; (void)mods; test_menu_mouse++; return false;
 }
@@ -3054,6 +3069,44 @@ TEST(client_input, menu_sdl_input_is_exclusive_with_world_presentation) {
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
     Key_SetBinding(K_MOUSE1, 0, click_bind); Key_SetBinding(K_F12, 0, key_bind); mouse = old_mouse;
     memcpy(&cl, old, sizeof(cl)); MemFree(old); cls = old_cls; menu = old_menu; re = old_re; input = old_input;
+}
+
+TEST(client_input, gamepad_dpad_moves_pointer_through_start_menu_controls) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    menuExport_t old_menu = menu;
+    __typeof__(gamepad) old_gamepad = gamepad;
+    mouseEvent_t old_mouse = mouse;
+    SDL_Event event;
+
+    gamepad = (__typeof__(gamepad)){0};
+    cls.state = ca_disconnected;
+    cls.key_dest = key_menu;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    menu.GamepadNavigate = CL_TestMenuGamepadNavigate;
+    test_gamepad_menu_navigations = 0;
+    mouse.origin = (vec2_t){ 100, 200 };
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+
+    CL_GamepadDpad(0, true, 100);
+    T_EQ(test_gamepad_menu_navigations, 1);
+    T_FEQ(mouse.origin.x, 110, 0.001f);
+    T_FEQ(mouse.origin.y, 220, 0.001f);
+    T_EQ(SDL_PollEvent(&event), 1);
+    T_EQ(event.type, SDL_MOUSEMOTION);
+    T_EQ(event.motion.x, 110);
+    T_EQ(event.motion.y, 220);
+    CL_GamepadDpad(0, false, 101);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    cls = old_cls;
+    memcpy(&cl, old_cl, sizeof(cl));
+    MemFree(old_cl);
+    menu = old_menu;
+    gamepad = old_gamepad;
+    mouse = old_mouse;
 }
 
 TEST(client_input, minimap_sdl_click_drag_release_over_hud) {

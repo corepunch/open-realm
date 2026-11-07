@@ -549,6 +549,18 @@ static vec2_t UI_PixelToFdf(int px, int py) {
     return MAKE(vec2_t, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
+static bool M_GamepadNavigate(int direction, int x, int y, int *out_x, int *out_y) {
+    refExport_t *renderer = mi.GetRenderer();
+    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    rect_t scene = UI_GetSceneRect();
+    vec2_t destination;
+    if (!out_x || !out_y || window.width <= 0 || window.height <= 0 || scene.w <= 0.0f || scene.h <= 0.0f ||
+        !UI_GamepadNavigate(direction, UI_PixelToFdf(x, y), &destination)) return false;
+    *out_x = (int)((destination.x - scene.x) * window.width / scene.w);
+    *out_y = (int)((destination.y - scene.y) * window.height / scene.h);
+    return true;
+}
+
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
 bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods) {
     bool const down = event == MENU_MOUSE_DOWN;
@@ -748,6 +760,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
     exp.KeyEvent = M_KeyEvent;
     exp.TextInput = M_TextInput;
     exp.MouseEvent = M_MouseEvent;
+    exp.GamepadNavigate = M_GamepadNavigate;
     exp.UpdateLobbySetup = M_UpdateLobbySetup;
     
     return exp;

@@ -91,6 +91,7 @@ void UI_LoadTheme(cstring_t fileName);
 void UI_ClearTheme(void);
 void UI_QueueCommand(cstring_t command);
 frameDef_t const *UI_HitTest(float fdf_x, float fdf_y);
+bool UI_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
 rect_t UI_GetSceneRect(void);
 rect_t UI_GetCenteredSceneRect(void);
 void UI_DrawFrameInScene(frameDef_t const *frame, rect_t const *scene);

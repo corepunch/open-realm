@@ -128,6 +128,8 @@ typedef struct {
     void (*KeyEvent)(int key, uint32_t mods, bool down, uint32_t time);
     void (*TextInput)(cstring_t text);
     bool (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods);
+    /* Move a pointer to the nearest menu control in the requested direction. */
+    bool (*GamepadNavigate)(int direction, int x, int y, int *out_x, int *out_y);
     
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 } menuExport_t;
