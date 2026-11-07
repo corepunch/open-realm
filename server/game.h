@@ -213,6 +213,7 @@ struct game_export {
     /* Optional map-owned JASS events around player save/load operations.
      * The server passes the virtual filename, never its absolute disk path. */
     bool (*BeforeSaveGame)(cstring_t name);
+    void (*AfterSaveGame)(cstring_t name);
     void (*AfterLoadGame)(cstring_t name);
     box2_t (*GetWorldBounds)(void);
     bool (*PathingEntityIsIgnored)(edict_t const *ent);

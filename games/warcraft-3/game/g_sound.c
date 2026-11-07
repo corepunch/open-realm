@@ -495,6 +495,10 @@ static void G_ShowCommandErrorPresentation(edict_t *clent, cstring_t text) {
     command_error_end_time[player] = G_Time() + WC3_COMMAND_ERROR_LIFETIME_MS;
 }
 
+void G_ShowCommandNotificationText(edict_t *clent, cstring_t text) {
+    G_ShowCommandErrorPresentation(clent, text);
+}
+
 void G_UpdateCommandError(edict_t *clent) {
     uint32_t player;
 

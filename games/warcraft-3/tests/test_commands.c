@@ -738,6 +738,7 @@ TEST(video_modes, wc3_defaults_to_native_fullscreen_with_vid_mode_fallback) {
     T_STREQ(Cvar_String("vid_native", NULL), "1");
     T_STREQ(Cvar_String("vid_fullscreen", NULL), "1");
     T_STREQ(Cvar_String("vid_mode", NULL), "4");
+    T_STREQ(Cvar_String("cl_gamepad_start_dpad_up_action", NULL), "cmd menu_save_quick");
 }
 
 TEST(video_modes, wow_defaults_allow_explicit_override) {
