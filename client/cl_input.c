@@ -42,6 +42,7 @@ typedef struct {
          lb, rb, rb_used, start, paint, paint_additive, paint_remove;
     bool left_stick_neutral_required;
     bool down_dpad[4];
+    bool dpad_hero_shortcut[4];
     uint32_t dpad_pressed[4];
     uint32_t a_pressed, y_pressed, last_a_released, last_b_released, last_rb_released;
     float lx, ly, rx, ry, zoom_accumulator;
@@ -66,6 +67,7 @@ static void CL_GamepadReset(void) {
     gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
+    memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.last_rb_released = 0;
@@ -85,6 +87,7 @@ static void CL_GamepadResetHeld(void) {
     gamepad.y_radial_closed = false;
     gamepad.painted_count = 0;
     memset(gamepad.down_dpad, 0, sizeof(gamepad.down_dpad));
+    memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.last_rb_released = 0;
@@ -438,6 +441,17 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
             }
             return;
         }
+        if (gamepad.lt) {
+            char command[32];
+            gamepad.dpad_hero_shortcut[d] = true;
+            gamepad.lt_used = true;
+            if (gamepad.rt) gamepad.rt_used = true;
+            if (CL_GameplayInputReady()) {
+                snprintf(command, sizeof(command), "herokey %d", d);
+                CL_GamepadSendCommand(command);
+            }
+            return;
+        }
         if (gamepad.rt) return; /* decide tap vs hold at release */
         if (!CL_GameplayInputReady()) return;
         CL_GamepadQuickAction(d);
@@ -445,6 +459,10 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
     }
     if (!gamepad.down_dpad[d]) return;
     gamepad.down_dpad[d] = false;
+    if (gamepad.dpad_hero_shortcut[d]) {
+        gamepad.dpad_hero_shortcut[d] = false;
+        return;
+    }
     if (gamepad.start || !gamepad.rt || !CL_GameplayInputReady() || CL_GamepadModal()) return;
     char command[40];
     bool assign = time - gamepad.dpad_pressed[d] >=
