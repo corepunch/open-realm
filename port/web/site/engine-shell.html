@@ -455,6 +455,11 @@ openrealmInstallGameShortcutMenus(window, document, gameCanvas, [
   [document.getElementById('game-shortcut-groups'), document.getElementById('game-shortcut-groups-popup')]
 ]);
 </script>
+<script src="browser-gamepad.js"></script>
+<script>
+/* The browser owns hardware polling; all gameplay decisions stay in C/SDL2. */
+openrealmInstallBrowserGamepad(window, document, gameContainer, Module);
+</script>
 <script src="browser-keyboard.js"></script>
 <script>
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);

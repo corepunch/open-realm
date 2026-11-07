@@ -1,5 +1,8 @@
 # Browser platform — experimental Warcraft III port
 
+For browser controller support and the Gamepad API bridge, see
+[browser gamepad input](browser-gamepad.md).
+
 For end-user build, serving, import and run instructions, see
 [Build and run OpenRealm Warcraft III in a browser](browser-run.md). This page
 records implementation stages, ownership and technical limitations. The
