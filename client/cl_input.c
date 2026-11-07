@@ -150,6 +150,8 @@ static void CL_GamepadCenterCursor(void) {
         (1.0f - view.y - view.h * 0.5f) * win.height,
     };
     CL_UpdateHover(mouse.origin.x, mouse.origin.y);
+    CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                              (int)mouse.origin.x, (int)mouse.origin.y);
 }
 
 static void CL_GamepadExitStatusPanelMode(void) {
