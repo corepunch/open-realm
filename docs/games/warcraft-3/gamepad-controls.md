@@ -74,6 +74,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | RT + B, tap | Remove cursor unit from selection |
 | RT + A, double-tap | Add same-type units visible on camera to selection |
 | RT + B, double-tap | Remove same-type units visible on camera from selection |
+| Hold RT + D-pad direction | Assign the current selection to control group 1–4 once the hold threshold is reached |
 
 The cursor recentres on gamepad activity to the **centre of the rendered camera
 viewport**, not the whole window (the bottom HUD occupies non-gameplay space).
