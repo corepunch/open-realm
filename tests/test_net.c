@@ -60,6 +60,7 @@ void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawTextArea(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
 bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to);
@@ -67,6 +68,8 @@ void SCR_GamepadBeginUIFrame(void);
 bool SCR_GamepadBuildQueueCursor(vec2_t *position);
 bool SCR_GamepadBuildQueueMove(int direction, vec2_t *position);
 void SCR_SetGamepadBuildQueueTargets(vec2_t const *targets, uint32_t count);
+void SCR_GamepadRadialOpen(void);
+void SCR_GamepadRadialCancel(void);
 void SCR_WindowPrepare(handle_t layout, rect_t const *root);
 bool CL_WindowGamepadNavigate(int direction, vec2_t from, vec2_t *to);
 void SCR_DrawScreenField(uint32_t msec);
@@ -88,6 +91,8 @@ extern char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 static rect_t test_scroll_rects[3], test_scroll_uvs[3];
 static texture_t const *test_scroll_tex[3];
 static uint32_t test_scroll_draws;
+static uint32_t test_command_button_draws;
+static void capture_command_button_draw(drawImage_t const *draw) { (void)draw; test_command_button_draws++; }
 static drawText_t test_textarea_draw;
 static uint32_t test_textarea_draws;
 static drawText_t test_listbox_draw[8];
@@ -1857,6 +1862,27 @@ TEST(client_layout, build_queue_navigation_captures_only_training_cancel_targets
     T_ASSERT(SCR_GamepadBuildQueueCursor(&position));
     T_ASSERT(SCR_GamepadBuildQueueMove(2, &position));
     T_FEQ(position.x, 0.3191f * 1024.0f, 0.01f);
+}
+
+TEST(client_layout, radial_menu_keeps_persistent_hud_shortcuts_visible) {
+    void (*old_draw)(drawImage_t const *) = re.DrawImageEx;
+    uiFrame_t command = { .flags = { .type = FT_COMMANDBUTTON }, .tex = { .index = 0 },
+                         .color = COLOR32_WHITE };
+    rect_t screen = { 0.1f, 0.1f, 0.03f, 0.03f };
+
+    test_client_stubs_init();
+    re.DrawImageEx = capture_command_button_draw;
+    test_command_button_draws = 0;
+    SCR_GamepadRadialOpen();
+
+    SCR_LayoutDrawCommandButton(&command, &screen);
+    T_EQ(test_command_button_draws, 0);
+    command.flagsvalue |= UIFLAG_GAMEPAD_HUD_SHORTCUT;
+    SCR_LayoutDrawCommandButton(&command, &screen);
+    T_EQ(test_command_button_draws, 1);
+
+    SCR_GamepadRadialCancel();
+    re.DrawImageEx = old_draw;
 }
 
 TEST(net, window_edit_text_does_not_leak_into_same_number_hud_frame) {

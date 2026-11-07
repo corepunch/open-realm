@@ -127,6 +127,8 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
             unsigned number;
 
             shortcut_hero_parented = true;
+            T_ASSERT(frame->flagsvalue & UIFLAG_GAMEPAD_HUD_SHORTCUT);
+            T_ASSERT(frame->flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON);
             shortcut_hero_alert_seen = !!(frame->flagsvalue & UIFLAG_ALERT_RED_PULSE);
             shortcut_hero_alert_deadline = frame->value;
             if (shortcut_hero_entity_count < sizeof(shortcut_hero_entities) / sizeof(shortcut_hero_entities[0]) &&
@@ -135,7 +137,11 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
                 shortcut_hero_entities[shortcut_hero_entity_count++] = (uint32_t)number;
             }
         }
-        if (!strncmp(frame->onclick, "idleworker ", 11)) shortcut_worker_parented = true;
+        if (!strncmp(frame->onclick, "idleworker ", 11)) {
+            shortcut_worker_parented = true;
+            T_ASSERT(frame->flagsvalue & UIFLAG_GAMEPAD_HUD_SHORTCUT);
+            T_ASSERT(!(frame->flagsvalue & UIFLAG_GAMEPAD_STATUS_ICON));
+        }
     } else if (frame->flags.type == FT_SIMPLESTATUSBAR) {
         uint32_t kind;
 
