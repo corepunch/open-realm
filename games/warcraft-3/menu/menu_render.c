@@ -153,6 +153,37 @@ frameDef_t const *UI_HitTest(float fdf_x, float fdf_y) {
     return NULL;
 }
 
+bool UI_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
+    bool found = false;
+    float best = 1e30f, wrap_best = 1e30f;
+    vec2_t wrap = { 0 };
+    if (!to || direction < 0 || direction > 3) return false;
+    for (uint32_t i = 0; i < MAX_UI_CLASSES; i++) {
+        frameDef_t const *frame = &frames[i];
+        rect_t const *rect = &runtimes[i].rect;
+        if (!runtimes[i].calculated || !frame->inuse || !UI_FrameIsInteractive(frame)) continue;
+        float const x = rect->x + rect->w * 0.5f;
+        float const y = rect->y + rect->h * 0.5f;
+        /* Honor stacking, active modal dialogs, and open popups exactly like
+         * pointer hit testing so hidden controls never receive focus. */
+        if (UI_HitTest(x, y) != frame) continue;
+        float const dx = x - from.x, dy = y - from.y;
+        float const parallel = direction == 0 ? -dy : direction == 1 ? dx :
+                               direction == 2 ? dy : -dx;
+        float const orthogonal = (direction & 1) ? dy : dx;
+        if (parallel < -0.002f) {
+            float const score = -parallel + 2.5f * fabsf(orthogonal);
+            if (score < wrap_best) { wrap_best = score; wrap = (vec2_t){ x, y }; }
+            continue;
+        }
+        if (parallel <= 0.002f) continue;
+        float const score = parallel + 2.5f * fabsf(orthogonal);
+        if (score < best) { best = score; *to = (vec2_t){ x, y }; found = true; }
+    }
+    if (!found && wrap_best < 1e30f) { *to = wrap; found = true; }
+    return found;
+}
+
 /* ========================================================================
  * LAYOUT SOLVING
  * ======================================================================== */
