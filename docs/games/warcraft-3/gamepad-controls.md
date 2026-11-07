@@ -124,6 +124,9 @@ completes an active unit-target spell through the normal server command path.
 Either action exits the mode and recentres the cursor on the camera viewport.
 Tap LB again or press B to leave the mode; both also recenter the cursor.
 Holding LB instead keeps its fast camera-pan modifier active.
+Vertical navigation crosses between the status-panel grid and Hero shortcuts:
+up from the grid's top row moves to the last Hero icon, and up from the top Hero
+icon moves to the grid's bottom row. Down performs the reverse transitions.
 Press LB+Y to reopen the player's last successfully cast ability from the
 currently focused selected unit, when it has that ability. This keeps the
 complete selection intact for the normal targeting path. If nothing is selected,
