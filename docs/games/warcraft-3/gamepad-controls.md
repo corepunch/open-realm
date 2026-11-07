@@ -36,7 +36,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
 | Right-stick click | Reset camera to the game-selected default zoom |
 | A, tap | Normal left-click selection / HUD click; accept the focused radial command when it is open |
-| A, hold | Draw a white circular paint ring; the first unit touched replaces the selection, then newly touched units are added live |
+| A, hold | Draw a circular paint ring; the first hit replaces selection, or adds to it with RT held; later hits are added live |
 | A, double-tap | Select all visible selectable units of the same type as the unit under the cursor |
 | B | Cancel the radial menu when open; otherwise cancel the current command, selection mode, or menu (Esc) |
 | X | Contextual right click (move, interact, attack, rally, etc.); toggle autocast for a focused autocast command while the radial is open |
@@ -54,6 +54,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | D-pad down | Jump through nearby clusters of *currently attacking* controllable units |
 | D-pad right | Jump to recent alert location, like Space (`quickcamera`) |
 | RT + A, tap | Add cursor unit to selection |
+| RT + A, hold | Paint-select additively, preserving the existing selection |
 | RT + B, tap | Remove cursor unit from selection |
 | RT + A, double-tap | Add same-type units visible on camera to selection |
 | RT + B, double-tap | Remove same-type units visible on camera from selection |
