@@ -1475,7 +1475,7 @@ static float SCR_CommandButtonRadialShade(uiFrame_t const *frame) {
 
 void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
     /* The radial overlay replaces the square command-card grid while open. */
-    if (gamepad_radial_open) return;
+    if (gamepad_radial_open && !(frame->flagsvalue & UIFLAG_GAMEPAD_HUD_SHORTCUT)) return;
     entityState_t const *sel = SCR_LayoutSelectedEntity();
     bool const alternate_active = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) != 0;
     bool const ability_match = sel && frame->stat != UINT8_MAX && sel->ability == frame->stat;
