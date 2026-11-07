@@ -62,6 +62,9 @@ When `group assign N` runs:
 3. Control-group double-tap state is reset.
 
 Assignment does not itself send a selection command because the assigned units are already the active selection.
+Assigning a non-empty selection displays a brief local “Control Group N Created” notice. Appending a non-empty
+selection displays “Control Group N Updated”; both notifications use the shared client overlay and work the same
+for keyboard and controller bindings.
 
 ### Append (Shift+N)
 
