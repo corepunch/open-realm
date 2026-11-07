@@ -66,6 +66,10 @@ typedef struct {
     uint32_t painted_count;
 } gamepadState_t;
 static gamepadState_t gamepad;
+static bool gamepad_a_pointer_down, gamepad_a_release_pending, gamepad_a_cancel_release;
+#define CL_GAMEPAD_MOUSE_ID UINT32_C(0xfffffffe)
+static void CL_GamepadCancelARelease(void);
+static void CL_GamepadHandleARelease(SDL_Event *event);
 
 /* Browser and native controllers share one input state machine. */
 static bool CL_GamepadConnected(void) {
@@ -83,6 +87,7 @@ static bool CL_GamepadModal(void) {
 }
 
 static void CL_GamepadReset(void) {
+    CL_GamepadCancelARelease();
     if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
@@ -109,6 +114,7 @@ static void CL_GamepadReset(void) {
 }
 
 static void CL_GamepadResetHeld(void) {
+    CL_GamepadCancelARelease();
     if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
@@ -200,13 +206,34 @@ static void CL_GamepadDispatchPointer(uint32_t type, uint8_t button, int x, int 
         event.motion.x = x;
         event.motion.y = y;
     } else {
-        event.button.which = 0;
+        event.button.which = CL_GAMEPAD_MOUSE_ID;
         event.button.button = button;
         event.button.state = type == SDL_MOUSEBUTTONDOWN ? SDL_PRESSED : SDL_RELEASED;
         event.button.x = x;
         event.button.y = y;
     }
     SDL_PushEvent(&event);
+}
+
+/* A controller's final A-up can be queued immediately before its device-removal
+ * event. If removal follows before the synthetic mouse-up is consumed, move
+ * that release off all controls so it clears the press without activating it. */
+static void CL_GamepadCancelARelease(void) {
+    if (!gamepad_a_pointer_down) return;
+    gamepad_a_cancel_release = true;
+    if (!gamepad_a_release_pending) {
+        gamepad_a_release_pending = true;
+        CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT, -1, -1);
+    }
+}
+
+static void CL_GamepadHandleARelease(SDL_Event *event) {
+    if (!event || event->type != SDL_MOUSEBUTTONUP || event->button.button != SDL_BUTTON_LEFT ||
+        event->button.which != CL_GAMEPAD_MOUSE_ID || !gamepad_a_release_pending) return;
+    if (gamepad_a_cancel_release) event->button.x = event->button.y = -1;
+    gamepad_a_pointer_down = false;
+    gamepad_a_release_pending = false;
+    gamepad_a_cancel_release = false;
 }
 
 static void CL_GamepadClick(uint8_t button) {
@@ -228,6 +255,10 @@ static void CL_GamepadFaceX(bool down) {
     }
     CL_GamepadDispatchPointer(down ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP,
                              SDL_BUTTON_RIGHT, (int)mouse.origin.x, (int)mouse.origin.y);
+}
+
+static void CL_GamepadRightStick(bool down) {
+    if (down) Cmd_ExecuteString("zoomdefault");
 }
 
 /* Game modules provide command bindings in their config. Keep this input path
@@ -406,12 +437,26 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
         gamepad.paint = gamepad.paint_additive = gamepad.paint_remove = false;
         if (gamepad.lt) gamepad.lt_used = true;
         if (SCR_GamepadRadialActive()) return;
-        if (CL_GamepadModal()) CL_GamepadDispatchPointer(SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT,
-                (int)mouse.origin.x, (int)mouse.origin.y);
+        if (CL_GamepadModal()) {
+            gamepad_a_pointer_down = true;
+            CL_GamepadDispatchPointer(SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT,
+                    (int)mouse.origin.x, (int)mouse.origin.y);
+        }
         return;
     }
     if (!gamepad.a) return;
     gamepad.a = false;
+    if (gamepad_a_pointer_down) {
+        gamepad_a_release_pending = true;
+        if (CL_GamepadModal())
+            CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT,
+                                      (int)mouse.origin.x, (int)mouse.origin.y);
+        else {
+            gamepad_a_cancel_release = true;
+            CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT, -1, -1);
+        }
+        return;
+    }
     if (SCR_GamepadRadialActive()) {
         gamepad.left_stick_neutral_required = gamepad.lx != 0.0f || gamepad.ly != 0.0f;
         SCR_GamepadRadialRelease();
@@ -421,8 +466,6 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
     SCR_GamepadSelectionCircle(mouse.origin, 0, false);
     if (CL_GamepadModal()) {
         gamepad.last_a_released = 0;
-        CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_LEFT,
-                               (int)mouse.origin.x, (int)mouse.origin.y);
         return;
     }
     if (gamepad.status_panel_mode) {
@@ -823,7 +866,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             gamepad.lb_used = false;
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-            if (down && !gamepad.down_dpad[0]) Cmd_ExecuteString("zoomdefault");
+            CL_GamepadRightStick(down);
             break;
         case SDL_CONTROLLER_BUTTON_LEFTSTICK: break;
         case SDL_CONTROLLER_BUTTON_START:
@@ -1852,6 +1895,7 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
     mouse.wheel = 0;
     while(poll_event(&event)) {
         if (CL_GamepadEvent(&event)) continue;
+        CL_GamepadHandleARelease(&event);
         /* Y owns the radial-menu interaction. Ignore physical mouse movement
          * until release so it cannot move the cursor beneath the overlay. */
         if ((gamepad.y || SCR_GamepadRadialActive()) && event.type == SDL_MOUSEMOTION) continue;
@@ -2807,6 +2851,7 @@ TEST(client_input, zoom_reset_returns_to_default_after_zooming_in) {
     sizeBuf_t old_msg = cls.netchan.message;
     viewDef_t old_view = cl.viewDef;
     __typeof__(cl.camera_prediction) old_prediction = cl.camera_prediction;
+    __typeof__(gamepad) old_gamepad = gamepad;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     bool old_focus = input.focus;
     bool add_command = !Cmd_Exists("zoomdefault");
@@ -2814,10 +2859,11 @@ TEST(client_input, zoom_reset_returns_to_default_after_zooming_in) {
     if (add_command) Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true;
+    gamepad.down_dpad[0] = true;
     cl.viewDef.camerastate[0].distance = cl.viewDef.camerastate[1].distance = 1200.0f;
     cl.viewDef.camerastate[0].viewangles = (vec3_t){ 10, 0, 20 };
     SZ_Init(&cls.netchan.message, data, sizeof(data));
-    Cbuf_AddText("zoomdefault\n"); Cbuf_Execute();
+    CL_GamepadRightStick(true); Cbuf_Execute();
 
     T_FEQ(cl.viewDef.camerastate[0].distance, 1650.0f, 0.001f);
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
@@ -2827,6 +2873,7 @@ TEST(client_input, zoom_reset_returns_to_default_after_zooming_in) {
     T_FEQ(cmd.view.distance, 1650.0f, 0.001f);
 
     cls.netchan.message = old_msg; cl.viewDef = old_view; cl.camera_prediction = old_prediction;
+    gamepad = old_gamepad;
     cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui;
     input.focus = old_focus;
     if (add_command) Cmd_RemoveCommand("zoomdefault");
@@ -3209,6 +3256,44 @@ TEST(client_input, gamepad_dpad_moves_pointer_through_start_menu_controls) {
     MemFree(old_cl);
     menu = old_menu;
     gamepad = old_gamepad;
+    mouse = old_mouse;
+}
+
+TEST(client_input, gamepad_reset_cancels_pending_modal_a_release) {
+    __typeof__(gamepad) old_gamepad = gamepad;
+    bool old_pointer_down = gamepad_a_pointer_down;
+    bool old_release_pending = gamepad_a_release_pending;
+    bool old_cancel_release = gamepad_a_cancel_release;
+    mouseEvent_t old_mouse = mouse;
+    SDL_Event event;
+
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    gamepad = (__typeof__(gamepad)){0};
+
+    /* The A-up can already be queued when device removal is handled. */
+    gamepad_a_pointer_down = true;
+    gamepad_a_release_pending = true;
+    gamepad_a_cancel_release = false;
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONUP, .which = CL_GAMEPAD_MOUSE_ID,
+        .button = SDL_BUTTON_LEFT, .x = 400, .y = 300 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    CL_GamepadReset();
+    T_ASSERT(gamepad_a_cancel_release);
+    T_EQ(SDL_PollEvent(&event), 1);
+    CL_GamepadHandleARelease(&event);
+    T_EQ(event.type, SDL_MOUSEBUTTONUP);
+    T_EQ(event.button.x, -1);
+    T_EQ(event.button.y, -1);
+    T_ASSERT(!gamepad_a_pointer_down);
+    T_ASSERT(!gamepad_a_release_pending);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    gamepad = old_gamepad;
+    gamepad_a_pointer_down = old_pointer_down;
+    gamepad_a_release_pending = old_release_pending;
+    gamepad_a_cancel_release = old_cancel_release;
     mouse = old_mouse;
 }
 
