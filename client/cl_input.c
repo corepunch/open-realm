@@ -41,8 +41,8 @@ static struct {
  * without depending on OS-specific button names or GUID databases. */
 typedef struct {
     SDL_GameController *controller;
-    bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
-         lb, rb, rb_used, start, back,
+    bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, y_repeat_spell,
+         rt, rt_used, lt, lt_used, lb, lb_used, rb, rb_used, start, back,
          paint, paint_additive, paint_remove, status_panel_mode;
     bool left_stick_neutral_required;
     bool down_dpad[4];
@@ -69,6 +69,7 @@ static void CL_GamepadReset(void) {
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.y = gamepad.paint = false;
+    gamepad.y_repeat_spell = gamepad.lb_used = false;
     gamepad.x_radial = false;
     gamepad.y_radial_hold = false;
     gamepad.y_radial_closed = false;
@@ -93,6 +94,7 @@ static void CL_GamepadResetHeld(void) {
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
                                   (int)mouse.origin.x, (int)mouse.origin.y);
     gamepad.a = gamepad.b = gamepad.x = gamepad.paint = false;
+    gamepad.y_repeat_spell = gamepad.lb_used = false;
     gamepad.x_radial = false;
     gamepad.y_radial_hold = false;
     gamepad.y_radial_closed = false;
@@ -645,12 +647,25 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 gamepad.y_pressed = event->cbutton.timestamp;
                 gamepad.y_radial_hold = false;
                 gamepad.y_radial_closed = SCR_GamepadRadialActive();
+                if (gamepad.lb && !gamepad.start) {
+                    gamepad.y_repeat_spell = true;
+                    gamepad.y_radial_hold = true;
+                    gamepad.lb_used = true;
+                    SCR_GamepadRadialCancel();
+                    CL_GamepadSendCommand("repeatlastspell");
+                    break;
+                }
                 if (gamepad.y_radial_closed) {
                     gamepad.left_stick_neutral_required = gamepad.lx != 0.0f || gamepad.ly != 0.0f;
                     gamepad.y_radial_hold = true;
                     SCR_GamepadRadialCancel();
                 }
             } else {
+                if (gamepad.y_repeat_spell) {
+                    gamepad.y_repeat_spell = false;
+                    gamepad.y_radial_hold = false;
+                    break;
+                }
                 if (gamepad.y_radial_closed) {
                     gamepad.y_radial_closed = false;
                     gamepad.y_radial_hold = false;
@@ -699,11 +714,19 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (gamepad.lb == down) break;
             gamepad.lb = down;
             if (down) {
+                gamepad.lb_used = false;
                 gamepad.lb_pressed = event->cbutton.timestamp;
                 if (gamepad.start) CL_GamepadOpenMenu("quests");
+                else if (gamepad.y) {
+                    gamepad.y_repeat_spell = true;
+                    gamepad.y_radial_hold = true;
+                    gamepad.lb_used = true;
+                    SCR_GamepadRadialCancel();
+                    CL_GamepadSendCommand("repeatlastspell");
+                }
             } else if (!gamepad.start &&
                        event->cbutton.timestamp - gamepad.lb_pressed <= CL_GAMEPAD_LB_TAP_MS &&
-                       CL_GameplayInputReady()) {
+                       !gamepad.lb_used && CL_GameplayInputReady()) {
                 gamepad.status_panel_mode = !gamepad.status_panel_mode;
                 gamepad.status_stick_direction = -1;
                 gamepad.status_stick_next_ms = 0;
@@ -715,6 +738,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                             (int)mouse.origin.x, (int)mouse.origin.y);
                 } else CL_GamepadCenterCursor();
             }
+            gamepad.lb_used = false;
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
             if (down && !gamepad.down_dpad[0]) Cmd_ExecuteString("zoomdefault");

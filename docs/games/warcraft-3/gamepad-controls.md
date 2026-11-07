@@ -38,6 +38,7 @@ The option does **not** modify the OS/SDL button mapping database.
 | LB, tap | Toggle status-panel cursor mode; D-pad moves between selected unit icons |
 | LB, tap again or B | Exit status-panel cursor mode |
 | A in status-panel cursor mode | Select only that unit or complete an active unit-target spell; exit mode and recenter |
+| LB + Y | Reopen the last successfully cast ability from its original caster |
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
 | Right-stick click | Reset camera to the game-selected default zoom |
 | A, tap | Normal left-click selection / HUD click; accept the focused radial command when it is open |
@@ -123,6 +124,8 @@ completes an active unit-target spell through the normal server command path.
 Either action exits the mode and recentres the cursor on the camera viewport.
 Tap LB again or press B to leave the mode; both also recenter the cursor.
 Holding LB instead keeps its fast camera-pan modifier active.
+Press LB+Y to select the caster of the player's last successful spell and reopen
+that same ability through its normal command and targeting path.
 
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat

@@ -791,6 +791,8 @@ struct client_s {
     /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
      * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */
     unitShortcutState_t shortcuts;
+    /* Last successfully executed spell for the gamepad repeat-cast shortcut. */
+    uint32_t last_spell_caster, last_spell_caster_spawn_time, last_spell_code;
     edict_t *rally_indicator;
     playerMessage_t message;
     messageLog_t message_log;
