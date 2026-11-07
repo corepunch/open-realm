@@ -380,7 +380,7 @@ static void CL_GamepadFaceX(bool down) {
         if (gamepad.x_radial) return;
     } else if (gamepad.x_radial) {
         gamepad.x_radial = false;
-        SCR_GamepadRadialToggleAutocast();
+        SCR_GamepadRadialSecondaryClick();
         return;
     }
     CL_GamepadDispatchPointer(down ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP,

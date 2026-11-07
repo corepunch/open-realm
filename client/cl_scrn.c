@@ -2129,15 +2129,18 @@ void SCR_GamepadRadialRelease(void) {
     SCR_GamepadRadialCancel();
 }
 
-bool SCR_GamepadRadialToggleAutocast(void) {
+bool SCR_GamepadRadialSecondaryClick(void) {
     if (!gamepad_radial_open) return false;
     if (gamepad_radial_sector < 0 || gamepad_radial_page >= GAMEPAD_RADIAL_PAGES) return true;
     gamepadRadialItem_t const *item = &gamepad_radial[gamepad_radial_page][gamepad_radial_sector];
-    if (item->present && item->frame.flags.type == FT_COMMANDBUTTON && item->frame.text &&
-        !strncmp(item->frame.text, "autocast ", 9)) {
-        uiFrame_t command_frame = item->frame;
-        command_frame.onclick = command_frame.text;
-        SCR_LayoutSendFrameCommand(&command_frame);
+    /* Match right-clicking the ordinary command button. Inventory proxies use
+     * their secondary text command (for example itemdrag <slot>) to start the
+     * server-owned item drop/transfer interaction; autocast buttons use the
+     * same channel to toggle their mode. */
+    if (item->present && item->frame.flags.type == FT_COMMANDBUTTON &&
+        item->frame.text && *item->frame.text) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "%s", item->frame.text);
     }
     return true;
 }
@@ -3014,5 +3017,32 @@ TEST(client_layout, selected_entity_lookup_caches_empty_selection_and_restarts) 
     FOR_LOOP(i, 3) cl.ents[i].current.renderfx = saved_flags[i];
     cl.num_entities = saved_count;
     layout_selected_cache = saved_cache;
+}
+
+TEST(client_layout, radial_x_uses_inventory_right_click_command) {
+    uint8_t data[64];
+    sizeBuf_t old_message = cls.netchan.message;
+    bool const old_open = gamepad_radial_open;
+    int const old_page = gamepad_radial_page;
+    int const old_sector = gamepad_radial_sector;
+    gamepadRadialItem_t const old_item = gamepad_radial[1][8];
+    gamepad_radial_open = true;
+    gamepad_radial_page = 1;
+    gamepad_radial_sector = 8;
+    gamepad_radial[1][8] = (gamepadRadialItem_t){
+        .frame = { .flags = { .type = FT_COMMANDBUTTON }, .text = "itemdrag 2" },
+        .present = true,
+    };
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    T_ASSERT(SCR_GamepadRadialSecondaryClick());
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&cls.netchan.message), "itemdrag 2");
+
+    gamepad_radial[1][8] = old_item;
+    gamepad_radial_open = old_open;
+    gamepad_radial_page = old_page;
+    gamepad_radial_sector = old_sector;
+    cls.netchan.message = old_message;
 }
 #endif
