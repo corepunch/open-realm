@@ -162,6 +162,8 @@ static void CL_GamepadExitStatusPanelMode(void) {
 /* Use the same SDL mouse-event path as real clicks. The window manager, HUD
  * hit testing, minimap and normal world selection all retain their precedence. */
 static void CL_GamepadDispatchPointer(uint32_t type, uint8_t button, int x, int y) {
+    if (type == SDL_MOUSEMOTION && (CL_WindowModalActive() || SCR_LayoutModalActive()))
+        CON_printf("[GAMEPAD_MENU_NAV] dispatch motion pixels=(%d,%d)\n", x, y);
     SDL_Event event = {0};
     event.type = type;
     if (type == SDL_MOUSEMOTION) {
@@ -477,13 +479,26 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
         }
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
             if (gamepad.y || SCR_GamepadRadialActive()) return;
-            vec2_t dest;
+            vec2_t dest_ui;
+            vec2_t const from_ui = SCR_ScreenToUI((int)mouse.origin.x, (int)mouse.origin.y);
             bool const navigated = CL_WindowModalActive()
-                ? CL_WindowGamepadNavigate(d, mouse.origin, &dest)
-                : SCR_GamepadNavigate(d, mouse.origin, &dest);
+                ? CL_WindowGamepadNavigate(d, from_ui, &dest_ui)
+                : SCR_GamepadNavigate(d, from_ui, &dest_ui);
+            uiCanvas_t const *canvas = CL_Canvas();
+            vec2_t const dest_pixels = {
+                canvas->scene.w > 0.0f ? dest_ui.x * canvas->window.width / canvas->scene.w : 0.0f,
+                canvas->scene.h > 0.0f ? dest_ui.y * canvas->window.height / canvas->scene.h : 0.0f
+            };
+            CON_printf("[GAMEPAD_MENU_NAV] dpad=%d from_pixels=(%.1f,%.1f) from_ui=(%.1f,%.1f) navigated=%d dest_ui=(%.1f,%.1f) dest_pixels=(%.1f,%.1f)\n",
+                       d, mouse.origin.x, mouse.origin.y, from_ui.x, from_ui.y,
+                       navigated, navigated ? dest_ui.x : -1.0f,
+                       navigated ? dest_ui.y : -1.0f,
+                       navigated ? dest_pixels.x : -1.0f,
+                       navigated ? dest_pixels.y : -1.0f);
             if (navigated) {
-                mouse.origin = dest;
-                CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0, (int)dest.x, (int)dest.y);
+                mouse.origin = dest_pixels;
+                CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                                          (int)dest_pixels.x, (int)dest_pixels.y);
             } else if (CL_MenuActive() && cls.key_dest == key_menu) {
                 /* Native menus expose keyboard focus but not server-authored
                  * layout frames; forward their ordinary arrow navigation. */

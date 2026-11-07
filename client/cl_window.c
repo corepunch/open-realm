@@ -1036,7 +1036,11 @@ bool CL_WindowGamepadNavigate(int direction, vec2_t from, vec2_t *to) {
     clientWindow_t *window = CL_WindowModal();
     if (!window || !to || window->blackout) return false;
     rect_t const root = CL_WindowRoot(window);
+    CON_printf("[GAMEPAD_MENU_NAV] modal window=%d direction=%d from_ui=(%.1f,%.1f) root_ui=(%.1f,%.1f %.1fx%.1f)\n",
+               window->id, direction, from.x, from.y, root.x, root.y, root.w, root.h);
     CL_WindowPrepareState(window, &root);
+    CON_printf("[GAMEPAD_MENU_NAV] prepared window=%d frames=%u\n",
+               window->id, SCR_NumFrames());
     return SCR_GamepadNavigate(direction, from, to);
 }
 
