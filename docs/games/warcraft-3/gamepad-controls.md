@@ -23,6 +23,7 @@ picked up when the input loop next runs.
 | `cl_gamepad_paint_radius` | `72` | Brush radius, in on-screen pixels (clamped to 24–200) |
 | `cl_gamepad_zoom_rate` | `3.0` | Right-stick zoom rate (mouse-wheel steps per second) |
 | `cl_gamepad_menu_cursor_speed` | `600` | Left-stick cursor speed in modal windows, pixels/second |
+| `cl_gamepad_fast_pan_multiplier` | `5.0` | Left-stick camera pan multiplier while LB is held |
 
 For example `seta cl_gamepad_nintendo "1"` in the user console or config
 makes the physical Nintendo A/B and X/Y functions follow their Nintendo labels.
@@ -33,6 +34,10 @@ The option does **not** modify the OS/SDL button mapping database.
 | Input | Behaviour |
 |---|---|
 | Left stick | Pan camera like the arrow keys (camera-relative) |
+| LB, hold | Pan the camera 5× faster with the left stick |
+| LB, tap | Toggle status-panel cursor mode; D-pad moves between selected unit icons |
+| LB, tap again or B | Exit status-panel cursor mode |
+| A in status-panel cursor mode | Select/focus the icon under the cursor; completes an active unit-target spell |
 | Right stick up/down | Zoom in/out within existing Warcraft player camera limits |
 | Right-stick click | Reset camera to the game-selected default zoom |
 | A, tap | Normal left-click selection / HUD click; accept the focused radial command when it is open |
@@ -109,6 +114,14 @@ cancelling, return the left stick to its deadzone before it resumes camera
 movement; this prevents the selection direction from panning the camera as soon
 as the menu closes.
 
+Tap LB (press and release within 250 ms) to enter status-panel cursor mode.
+The cursor starts on the currently focused selected-unit icon. D-pad left/right
+moves between icons in the current row; up/down moves one row while preserving
+the column where possible. A clicks the icon through the ordinary multiselect
+path, so selecting a unit or completing an active unit-target spell remains
+server-authoritative. Tap LB again or press B to leave the mode. Holding LB
+instead keeps its fast camera-pan modifier active.
+
 **Current limitation:** The supplied OpenRealm baseline defines a `ChatDialog`
 FDF binding but does not expose a working gameplay `chat` game command or chat
 window. Start+RT is reserved and sends that command; it cannot open a working
@@ -179,6 +192,7 @@ string and ordinary validation/targeting logic.
   client-side candidate selection, camera input, menu pointer events.
 * `client/cl_scrn.c`: paints circular brush, collects server-authored
   clickable UI frames for the ten-slot radial / directional menu navigation,
+  and exposes multiselect status-panel icon geometry for controller navigation,
   and reuses the authored command icon and tooltip presentation when radial-focused.
 * `renderer/r_draw.c`: pixel-space selection circle and radial-sector outlines.
 * `games/warcraft-3/game/hud/hud_commands.c` and `skills/s_build.c`: explicit

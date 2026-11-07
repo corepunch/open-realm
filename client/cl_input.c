@@ -17,6 +17,7 @@ static bool gamepad_unready_reset;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
 #define CL_GAMEPAD_RADIAL_HOLD_MS 250 // milliseconds; Y taps open, holds confirm the focused radial command
 #define CL_GAMEPAD_ZOOM_UPDATE_STEPS 0.02f // smaller camera-distance updates keep right-stick zoom smooth
+#define CL_GAMEPAD_LB_TAP_MS 250 // short LB presses toggle selected-unit status-panel navigation
 static bool cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
@@ -42,12 +43,13 @@ typedef struct {
     SDL_GameController *controller;
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, rt, rt_used, lt, lt_used,
          lb, rb, rb_used, start, back,
-         paint, paint_additive, paint_remove;
+         paint, paint_additive, paint_remove, status_panel_mode;
     bool left_stick_neutral_required;
     bool down_dpad[4];
     bool dpad_hero_shortcut[4];
     uint32_t dpad_pressed[4];
     uint32_t a_pressed, y_pressed, last_a_released, last_b_released, last_rb_released;
+    uint32_t lb_pressed;
     float lx, ly, rx, ry, zoom_accumulator;
     uint32_t painted[CL_SELECTION_CANDIDATE_LIMIT];
     uint32_t painted_count;
@@ -74,6 +76,7 @@ static void CL_GamepadReset(void) {
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
+    gamepad.lb = gamepad.status_panel_mode = false;
     gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
@@ -95,6 +98,7 @@ static void CL_GamepadResetHeld(void) {
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
+    gamepad.lb = gamepad.status_panel_mode = false;
     gamepad.last_rb_released = 0;
     gamepad.left_stick_neutral_required = false;
     gamepad.lx = gamepad.ly = gamepad.rx = gamepad.ry = gamepad.zoom_accumulator = 0.0f;
@@ -372,6 +376,11 @@ static void CL_GamepadFaceA(bool down, uint32_t time) {
                                (int)mouse.origin.x, (int)mouse.origin.y);
         return;
     }
+    if (gamepad.status_panel_mode) {
+        gamepad.last_a_released = 0;
+        CL_GamepadClick(SDL_BUTTON_LEFT);
+        return;
+    }
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
     if (gamepad.paint) {
         /* The paint path already replaced selection continuously while A was held. */
@@ -401,6 +410,10 @@ static void CL_GamepadFaceB(bool down, uint32_t time) {
         SCR_GamepadRadialCancel();
         return;
     }
+    if (gamepad.status_panel_mode) {
+        gamepad.status_panel_mode = false;
+        return;
+    }
     if (gamepad.rt && CL_GameplayInputReady()) {
         if (gamepad.last_b_released && time - gamepad.last_b_released <=
             (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350))) {
@@ -428,6 +441,15 @@ static void CL_GamepadDpad(int d, bool down, uint32_t time) {
         if (gamepad.start) {
             if (d == 0) Cmd_ExecuteString("save quick");
             else if (d == 2) Cmd_ExecuteString("load quick");
+            return;
+        }
+        if (gamepad.status_panel_mode) {
+            vec2_t destination;
+            if (SCR_GamepadStatusPanelMove(d, &destination)) {
+                mouse.origin = destination;
+                CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                                          (int)destination.x, (int)destination.y);
+            }
             return;
         }
         if (CL_GamepadModal() || SCR_GamepadRadialActive()) {
@@ -647,7 +669,21 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
             if (gamepad.lb == down) break;
             gamepad.lb = down;
-            if (down && gamepad.start) CL_GamepadOpenMenu("quests");
+            if (down) {
+                gamepad.lb_pressed = event->cbutton.timestamp;
+                if (gamepad.start) CL_GamepadOpenMenu("quests");
+            } else if (!gamepad.start &&
+                       event->cbutton.timestamp - gamepad.lb_pressed <= CL_GAMEPAD_LB_TAP_MS &&
+                       CL_GameplayInputReady()) {
+                gamepad.status_panel_mode = !gamepad.status_panel_mode;
+                if (gamepad.status_panel_mode) {
+                    if (!SCR_GamepadStatusPanelCursor(&mouse.origin))
+                        gamepad.status_panel_mode = false;
+                    else
+                        CL_GamepadDispatchPointer(SDL_MOUSEMOTION, 0,
+                            (int)mouse.origin.x, (int)mouse.origin.y);
+                }
+            }
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
             if (down && !gamepad.down_dpad[0]) Cmd_ExecuteString("zoomdefault");
@@ -1427,9 +1463,11 @@ static void CL_ScrollFrame(void) {
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
     if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
+        !gamepad.status_panel_mode &&
         !gamepad.left_stick_neutral_required &&
         !SCR_GamepadRadialActive()) {
-        float const pan_scale = gamepad.lb ? Cvar_Value("cl_gamepad_fast_pan_multiplier", 5.0f) : 1.0f;
+        float const pan_scale = gamepad.lb && !gamepad.status_panel_mode
+            ? Cvar_Value("cl_gamepad_fast_pan_multiplier", 5.0f) : 1.0f;
         dx += gamepad.lx * pan_scale;
         dy -= gamepad.ly * pan_scale; /* SDL positive Y is down; game north is positive Y. */
     }

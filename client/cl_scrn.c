@@ -321,6 +321,12 @@ static gamepadRadialItem_t gamepad_radial[GAMEPAD_RADIAL_PAGES][GAMEPAD_RADIAL_S
 static struct { vec2_t center; bool modal; } gamepad_nav[GAMEPAD_NAV_MAX];
 static uint32_t gamepad_nav_count;
 static struct {
+    vec2_t center;
+    uint32_t entity, row, column, columns;
+    bool focused;
+} gamepad_status_cells[MAX_SELECTED_ENTITIES];
+static uint32_t gamepad_status_cell_count, gamepad_status_entity;
+static struct {
     uint32_t clickable, command_buttons, missing_art, unsupported, invalid_position;
     uint32_t duplicate, captured;
     uint32_t last_report_ms;
@@ -332,9 +338,71 @@ static float gamepad_selection_radius;
 
 void SCR_GamepadBeginUIFrame(void) {
     gamepad_nav_count = 0;
+    gamepad_status_cell_count = 0;
     memset(gamepad_radial, 0, sizeof(gamepad_radial));
     memset(&gamepad_radial_tooltip, 0, sizeof(gamepad_radial_tooltip));
     memset(&gamepad_radial_diag, 0, offsetof(typeof(gamepad_radial_diag), last_report_ms));
+}
+
+static bool SCR_GamepadStatusCellScreenPosition(uint32_t index, vec2_t *position) {
+    uiCanvas_t const *canvas = CL_Canvas();
+    if (!position || index >= gamepad_status_cell_count || canvas->scene.w <= 0.0f ||
+        canvas->scene.h <= 0.0f || canvas->window.width <= 0.0f || canvas->window.height <= 0.0f)
+        return false;
+    position->x = gamepad_status_cells[index].center.x * canvas->window.width / canvas->scene.w;
+    position->y = gamepad_status_cells[index].center.y * canvas->window.height / canvas->scene.h;
+    return true;
+}
+
+bool SCR_GamepadStatusPanelCursor(vec2_t *position) {
+    if (!gamepad_status_cell_count) return false;
+    uint32_t index = 0;
+    FOR_LOOP(i, gamepad_status_cell_count) {
+        if (gamepad_status_cells[i].focused) { index = i; break; }
+    }
+    gamepad_status_entity = gamepad_status_cells[index].entity;
+    return SCR_GamepadStatusCellScreenPosition(index, position);
+}
+
+bool SCR_GamepadStatusPanelMove(int direction, vec2_t *position) {
+    if (!gamepad_status_cell_count || direction < 0 || direction > 3) return false;
+    uint32_t index = 0;
+    bool found = false;
+    FOR_LOOP(i, gamepad_status_cell_count) {
+        if (gamepad_status_cells[i].entity == gamepad_status_entity) {
+            index = i;
+            found = true;
+            break;
+        }
+    }
+    if (!found) FOR_LOOP(i, gamepad_status_cell_count) {
+        if (gamepad_status_cells[i].focused) { index = i; found = true; break; }
+    }
+    uint32_t columns = 1;
+    /* numcolumns is retained with each captured cell row via the same panel's
+     * row/column indices, so vertical moves preserve the current column. */
+    uint32_t row = gamepad_status_cells[index].row;
+    uint32_t column = gamepad_status_cells[index].column;
+    uint32_t next = index;
+    if (direction == 1) {
+        uint32_t row_start = row * gamepad_status_cells[index].columns;
+        uint32_t row_end = MIN(row_start + gamepad_status_cells[index].columns,
+                               gamepad_status_cell_count);
+        if (index + 1 < row_end) next = index + 1;
+    } else if (direction == 3) {
+        uint32_t row_start = row * gamepad_status_cells[index].columns;
+        if (index > row_start) next = index - 1;
+    }
+    else {
+        columns = gamepad_status_cells[index].columns;
+        uint32_t target_row = direction == 0 ? (row ? row - 1 : row) : row + 1;
+        uint32_t target_index = target_row * columns + column;
+        if (target_index < gamepad_status_cell_count) next = target_index;
+        else if (direction == 2 && target_row * columns < gamepad_status_cell_count)
+            next = gamepad_status_cell_count - 1;
+    }
+    gamepad_status_entity = gamepad_status_cells[next].entity;
+    return SCR_GamepadStatusCellScreenPosition(next, position);
 }
 void SCR_GamepadRadialOpen(void) {
     gamepad_radial_open = true;
@@ -1705,6 +1773,28 @@ static void SCR_GamepadDrawOverlay(void) {
  * submenu buttons use ordinary clockwise order and overflow onto RT pages. */
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     if (!frame) return;
+    if (layout_current_layer == LAYER_INFOPANEL && frame->flags.type == FT_MULTISELECT &&
+        frame->buffer.data && frame->buffer.size >= sizeof(uiMultiselect_t)) {
+        uiMultiselect_t const *multi = frame->buffer.data;
+        rect_t const *rect = SCR_LayoutRect(frame);
+        uint32_t available = (frame->buffer.size - sizeof(uiMultiselect_t)) /
+                             sizeof(uiMultiselectItem_t);
+        uint32_t items = MIN((uint32_t)multi->numitems, available);
+        if (rect && multi->numcolumns) FOR_LOOP(i, items) {
+            uiMultiselectItem_t const *item = &multi->items[i];
+            if (!item->entity || gamepad_status_cell_count >= MAX_SELECTED_ENTITIES) break;
+            uint32_t index = gamepad_status_cell_count++;
+            gamepad_status_cells[index] = (typeof(*gamepad_status_cells)) {
+                .center = { rect->x + multi->offset.x * (i % multi->numcolumns) + rect->w * 0.5f,
+                            rect->y + multi->offset.y * (i / multi->numcolumns) + rect->h * 0.5f },
+                .entity = item->entity,
+                .row = i / multi->numcolumns,
+                .column = i % multi->numcolumns,
+                .columns = multi->numcolumns,
+                .focused = (item->flags & UI_MULTISELECT_ITEM_FOCUSED) != 0,
+            };
+        }
+    }
     if (frame->flags.type == FT_TOOLTIPTEXT && !layout_current_window &&
         layout_current_layer == LAYER_COMMANDBAR && frame->buffer.data &&
         frame->buffer.size >= sizeof(uiTooltip_t) && SCR_LayoutRect(frame)) {
