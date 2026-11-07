@@ -765,14 +765,14 @@ TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
 
 TEST(server_net, connectionless_connect_requires_matching_protocol) {
     netadr_t loopback = { .type = NA_LOOPBACK };
-    cstring_t requests[] = { "connect\n\\name\\Old", "connect 20\n\\name\\Old",
+    cstring_t requests[] = { "connect\n\\name\\Old", "connect 20\n\\name\\Old", "connect 23\n\\name\\PreVitals",
         "connect " BZ_XSTR(BZ_PROTOCOL_VERSION) "\n\\name\\Player" };
     NET_Init(); reset_server_state(4);
-    FOR_LOOP(i, 3) {
+    FOR_LOOP(i, 4) {
         uint8_t bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
         MSG_WriteLong(&msg, -1); MSG_WriteString(&msg, requests[i]);
         SV_ConnectionlessPacket(&loopback, &msg);
-        T_EQ(svs.num_clients, i == 2 ? 1 : 0);
+        T_EQ(svs.num_clients, i == 3 ? 1 : 0);
     }
     NET_Shutdown();
 }

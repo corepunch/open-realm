@@ -637,6 +637,57 @@ TEST(wc3_shortcuts, controlled_hero_vitals_are_delta_sent_without_vision_and_fol
     gi.ImageIndex = old_image; gi.FontIndex = old_font;
 }
 
+/* Exercise the same recipient policy for both roster admission and a stale
+ * cached roster. Vitals must not admit a hidden Hero to world snapshots. */
+TEST(wc3_shortcuts, vital_authorization_matrix_preserves_world_fog) {
+    gameClient_t *client = &game.clients[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    uint32_t const passive = 1u << ALLIANCE_PASSIVE;
+    uint32_t const control = 1u << ALLIANCE_SHARED_CONTROL;
+    uint32_t const advanced = 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    struct { uint32_t flags; bool allowed; } const cases[] = {
+        {0, false}, {passive, false}, {control, false},
+        {passive | control, true}, {passive | advanced, true}, {passive, false},
+    };
+
+    reset_entities(); setup_test_world();
+    uint32_t const saved = level.alliances[0][1];
+    client->ps.number = 0;
+    client->connected = true;
+    g_edicts[0].client = client;
+    edict_t *hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 400.0f, 600.0f);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 1;
+    G_FowInit(); G_FowConnectPlayer(0);
+    gi.Write = shortcut_vital_write;
+    gi.unicast = shortcut_vital_unicast;
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        level.alliances[0][1] = cases[i].flags;
+        G_FowUpdate();
+        T_EQ(G_UnitShowsHeroShortcut(client, hero), cases[i].allowed);
+        T_ASSERT(!globals.CanSeeEntity(0, hero));
+        G_ClearUnitShortcutVitals(client);
+        client->shortcuts.vitals = gi.MemAlloc(sizeof(unitShortcutVital_t));
+        T_NOT_NULL(client->shortcuts.vitals);
+        if (!client->shortcuts.vitals) break;
+        client->shortcuts.vital_count = 1;
+        client->shortcuts.vitals[0] = (unitShortcutVital_t){ .entity = hero->s.number, .spawn_time = hero->spawn_time };
+        shortcut_wire_count = shortcut_wire_packets = 0;
+        G_SendUnitShortcutVitals(g_edicts, true);
+        T_EQ(shortcut_wire_packets, 1);
+        T_EQ(shortcut_wire[2], cases[i].allowed ? 1 : 0);
+        T_EQ(shortcut_wire_count, cases[i].allowed ? 7 : 3);
+        T_ASSERT(!globals.CanSeeEntity(0, hero));
+    }
+    G_ClearUnitShortcutVitals(client);
+    level.alliances[0][1] = saved;
+    G_FowShutdown();
+    G_SetClientConnected(g_edicts, false);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
 /* Changed-only HUD values can be lost after the server advances its cache.
  * The scheduled roster sweep must resend the value through the real updater. */
 TEST(wc3_shortcuts, hero_vital_sweep_recovers_a_dropped_changed_update) {

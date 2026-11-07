@@ -128,6 +128,19 @@ The Hero shortcut fills, world-hover health bars and multi-unit status-panel hea
 
 ### Live Hero Health And Mana Bars
 
+The HUD vital opcode requires network protocol 24. Protocol 23 peers must be
+rejected during connection setup: their message dispatcher cannot skip the new
+opcode and would abandon the remainder of a datagram. Native save version 143
+and browser save version 3 are separate contracts; prior saves are rejected,
+and the runtime vital cache is discarded and rebuilt after loading.
+
+`wc3_shortcuts.vital_authorization_matrix_preserves_world_fog` checks enemy,
+passive-only, control-without-passive, basic shared control, advanced shared
+control, and revoked-control recipients. It checks both cached-roster sends and
+`globals.CanSeeEntity`: granting HUD vitals must leave hidden world entities
+excluded. Authorization follows the existing directional
+`level.alliances[viewer][owner]` selection/control contract.
+
 `hud_shortcuts.c` emits *both* passive `FT_SIMPLESTATUSBAR` frames for each Hero. Art uses the multiselect status panel's `SimpleHpBarConsole` and `SimpleManaBarConsole`. Health fill uses the shared continuous red-to-yellow-to-green life gradient, whereas mana remains cyan. The client hides mana bars for Heroes without a mana pool, including when max mana changes to zero, without resending the layout. Portrait commands retain selection, tooltips, skill-point badges, and damage alerts. The native-frame geometry uses inline normalized UI coordinates and stays entirely in the WC3 game module.
 
 The generic renderer in `client/cl_scrn.c` interprets `UIFLAG_ENTITY_STATUSBAR` as a binding: `uiFrame_t.value` is the integral entity number and `uiFrame_t.stat` is `ENT_HEALTH` or `ENT_MANA`. `svc_ui_entity_stats` supplies only `(entity number, compressed HP, compressed mana, has_mana)` to the recipient's HUD cache, not the unit's world position. The client clips the statusbar image/UV by the live normalized fraction. Invalid bindings or missing cache entries are not drawn. This does not change the ordinary statusbar/playerstate/context bindings.
