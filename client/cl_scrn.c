@@ -297,6 +297,7 @@ static cstring_t active_tooltip = NULL;
 #define GAMEPAD_RADIAL_SLOTS 10
 #define GAMEPAD_RADIAL_PAGES 6
 #define GAMEPAD_NAV_MAX 512
+#define GAMEPAD_NAV_MIN_STEP 0.005f // virtual-canvas units; ignores pixel-rounding jitter at the focused button
 static bool layout_current_window;
 static void SCR_GamepadCaptureFrame(uiFrame_t const *frame);
 /* Presentation caches are rebuilt from the game's real clickable frames each
@@ -521,12 +522,11 @@ void SCR_GamepadSelectionCircle(vec2_t center, float radius, bool visible) {
 
 bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
     bool found = false;
+    bool wrapped = false;
     float best = 1e30f;
+    float wrap_best = 1e30f;
+    uint32_t wrap_index = 0;
     bool modal = CL_WindowModalActive() || SCR_LayoutModalActive();
-    uiCanvas_t const *canvas = CL_Canvas();
-    CON_printf("[GAMEPAD_MENU_NAV] search direction=%d from_ui=(%.1f,%.1f) candidates=%u modal=%d canvas_scene=(%.1f,%.1f) window=(%.1f,%.1f)\n",
-               direction, from.x, from.y, gamepad_nav_count, modal,
-               canvas->scene.w, canvas->scene.h, canvas->window.width, canvas->window.height);
     if (layout_current_window) {
         gamepad_nav_count = 0;
         for (uint32_t i = 0; i < SCR_NumFrames(); ++i) {
@@ -534,12 +534,10 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             rect_t const *rect = SCR_LayoutRect(frame);
             if (!rect) continue;
-            if (gamepad_nav_count < 12)
-                CON_printf("[GAMEPAD_MENU_NAV] candidate frame=%u rect=(%.1f,%.1f %.1fx%.1f) center_ui=(%.1f,%.1f)\n",
-                           frame->number, rect->x, rect->y, rect->w, rect->h,
-                           rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f);
-            gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
-                { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, true };
+            if (gamepad_nav_count < GAMEPAD_NAV_MAX) {
+                gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
+                    { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, true };
+            }
         }
     }
     FOR_LOOP(i, gamepad_nav_count) {
@@ -549,16 +547,21 @@ bool SCR_GamepadNavigate(int direction, vec2_t from, vec2_t *to) {
                          direction == 2 ? dy : -dx;
         float orthogonal = (direction & 1) ? dy : dx;
         if (modal && !gamepad_nav[i].modal) continue;
-        if (parallel < 0.0001f) continue;
+        if (parallel < -GAMEPAD_NAV_MIN_STEP) {
+            float const score = -parallel + 2.5f * fabsf(orthogonal);
+            if (score < wrap_best) { wrap_best = score; wrap_index = i; }
+            continue;
+        }
+        if (parallel <= GAMEPAD_NAV_MIN_STEP) continue;
         float score = parallel + 2.5f * fabsf(orthogonal);
         if (score < best) {
             best = score; *to = gamepad_nav[i].center; found = true;
-            CON_printf("[GAMEPAD_MENU_NAV] selected candidate=%u center_ui=(%.1f,%.1f) score=%.1f\n",
-                       i, to->x, to->y, score);
         }
     }
-    CON_printf("[GAMEPAD_MENU_NAV] result found=%d to_ui=(%.1f,%.1f)\n",
-               found, found ? to->x : -1.0f, found ? to->y : -1.0f);
+    if (!found && wrap_best < 1e30f) {
+        *to = gamepad_nav[wrap_index].center;
+        found = wrapped = true;
+    }
     return found;
 }
 
@@ -1929,7 +1932,9 @@ static void SCR_GamepadCaptureFrame(uiFrame_t const *frame) {
     }
     if (gamepad_nav_count < GAMEPAD_NAV_MAX) {
         gamepad_nav[gamepad_nav_count++] = (typeof(*gamepad_nav)) {
-            { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f }, layout_current_window };
+            { rect->x + rect->w * 0.5f, rect->y + rect->h * 0.5f },
+            layout_current_window || layout_current_layer == LAYER_QUESTDIALOG ||
+                layout_current_layer == LAYER_GAME_RESULT };
     }
     if (frame->flags.type != FT_COMMANDBUTTON) return;
     gamepad_radial_diag.command_buttons++;
