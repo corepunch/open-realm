@@ -886,6 +886,17 @@ static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t t
     G_PublishEventWithPoint(&params);
     params.type = EVENT_UNIT_SPELL_EFFECT;
     G_PublishEventWithPoint(&params);
+    /* Keep a per-controller repeat-cast hint. This is transient input state;
+     * the normal spell command still validates and executes the next cast. */
+    if (caster && caster->inuse && caster->s.number && code) {
+        FOR_LOOP(i, game.max_clients) {
+            gameClient_t *client = &game.clients[i];
+            if (!client->connected || !G_UnitCanControl(client, caster)) continue;
+            client->last_spell_caster = caster->s.number;
+            client->last_spell_caster_spawn_time = caster->spawn_time;
+            client->last_spell_code = code;
+        }
+    }
 }
 
 /* ---- Per-target-type unified callbacks ---- */

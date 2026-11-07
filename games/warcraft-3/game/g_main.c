@@ -2165,6 +2165,9 @@ static void G_ClientBegin(edict_t *edict) {
     Get_Commands_f(edict);
     client->shortcuts.last_idle_worker = 0;
     client->shortcuts.dirty = false;
+    client->last_spell_caster = 0;
+    client->last_spell_caster_spawn_time = 0;
+    client->last_spell_code = 0;
     UI_WriteUnitShortcutLayer(edict);
     G_SendUnitShortcutVitals(edict, true);
 
