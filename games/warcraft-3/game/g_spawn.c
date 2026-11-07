@@ -1033,6 +1033,15 @@ void G_SpawnEntities(cstring_t map_path) {
             G_AccumulatePlayerFood(client);
     }
     
+    {
+        /* Detect the event numbering of the data set before common.j converts its constants. */
+        uint32_t common_size = 0;
+        string_t common = gi.ReadFile("Scripts\\common.j", &common_size);
+        cstring_t sell = common ? strstr(common, "EVENT_PLAYER_UNIT_SELL") : NULL;
+        cstring_t open = sell ? strchr(sell, '(') : NULL;
+        g_common_events_legacy = open && atoi(open + 1) == 269;
+        if (common) gi.MemFree(common);
+    }
     jass_dofile(level.vm, "Scripts\\common.j");
     gi.LoadingFrame();
     jass_dofile(level.vm, "Scripts\\Blizzard.j");

@@ -543,6 +543,11 @@ uint32_t SetHeroLevel(jass_t *j) {
     }
     return 0;
 }
+uint32_t GetHeroProperName(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    cstring_t name = whichHero && whichHero->unit_state ? whichHero->unit_state->proper_name : NULL;
+    return jass_pushstring(j, name ? name : "");
+}
 uint32_t GetHeroLevel(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichHero ? whichHero->unit_state->hero.level : 0);
@@ -568,6 +573,12 @@ uint32_t SelectHeroSkill(jass_t *j) {
 uint32_t GetUnitAbilityLevel(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     int32_t abilcode = jass_checkinteger(j, 2);
+    /* Retail answers a buff rawcode with the buff's level, a common map test
+     * for "is this unit affected". */
+    if (whichUnit && whichUnit->unit_state && !G_UnitAbilityLevel(whichUnit, (uint32_t)abilcode)) {
+        heroabilitystatus_t const *status = unit_findstatus(whichUnit, (uint32_t)abilcode);
+        if (status) return jass_pushinteger(j, (int32_t)MAX(1u, status->level));
+    }
     return jass_pushinteger(j, whichUnit ? (int32_t)G_UnitAbilityLevel(whichUnit, (uint32_t)abilcode) : 0);
 }
 uint32_t SetUnitAbilityLevel(jass_t *j) {
@@ -588,20 +599,20 @@ uint32_t IncUnitAbilityLevel(jass_t *j) {
 uint32_t GetHeroStr(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     bool includeBonuses = jass_checkboolean(j, 2);
-    (void)includeBonuses; /* TODO: attribute bonuses from items/auras are not tracked separately yet. */
-    return jass_pushinteger(j, whichHero && whichHero->unit_state ? (int32_t)whichHero->unit_state->hero.str : 0);
+    if (!whichHero || !whichHero->unit_state) return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, (int32_t)whichHero->unit_state->hero.str - (includeBonuses ? 0 : whichHero->unit_state->hero.bonus_str));
 }
 uint32_t GetHeroAgi(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     bool includeBonuses = jass_checkboolean(j, 2);
-    (void)includeBonuses;
-    return jass_pushinteger(j, whichHero && whichHero->unit_state ? (int32_t)whichHero->unit_state->hero.agi : 0);
+    if (!whichHero || !whichHero->unit_state) return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, (int32_t)whichHero->unit_state->hero.agi - (includeBonuses ? 0 : whichHero->unit_state->hero.bonus_agi));
 }
 uint32_t GetHeroInt(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     bool includeBonuses = jass_checkboolean(j, 2);
-    (void)includeBonuses;
-    return jass_pushinteger(j, whichHero && whichHero->unit_state ? (int32_t)whichHero->unit_state->hero.intel : 0);
+    if (!whichHero || !whichHero->unit_state) return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, (int32_t)whichHero->unit_state->hero.intel - (includeBonuses ? 0 : whichHero->unit_state->hero.bonus_intel));
 }
 uint32_t GetUnitLevel(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -783,12 +794,11 @@ uint32_t SetUnitPathing(jass_t *j) {
     return 0;
 }
 uint32_t GetUnitPointValue(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? G_UnitData(whichUnit->class_id)->points : 0);
 }
 uint32_t GetUnitPointValueByType(jass_t *j) {
-    //int32_t unitType = jass_checkinteger(j, 1);
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, G_UnitData((uint32_t)jass_checkinteger(j, 1))->points);
 }
 uint32_t UnitAddItem(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -1147,7 +1157,12 @@ uint32_t UnitAddAbility(jass_t *j) {
 uint32_t UnitRemoveAbility(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t abilityId = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, G_ActorRemoveSkill(whichUnit, abilityId));
+    heroabilitystatus_t *status;
+    if (G_ActorRemoveSkill(whichUnit, abilityId)) return jass_pushboolean(j, true);
+    /* Retail also removes a buff by its rawcode. */
+    status = whichUnit && whichUnit->unit_state ? unit_findstatus(whichUnit, abilityId) : NULL;
+    if (status) unit_removestatus(whichUnit, status, STATUS_REMOVE_SCRIPT);
+    return jass_pushboolean(j, status != NULL);
 }
 uint32_t UnitMakeAbilityPermanent(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -1206,9 +1221,10 @@ uint32_t UnitWakeUp(jass_t *j) {
     return 0;
 }
 uint32_t UnitApplyTimedLife(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //int32_t buffId = jass_checkinteger(j, 2);
-    //float duration = jass_checknumber(j, 3);
+    /* Scripts spawn effect dummies this way; a stub left them (and their looping models) alive forever. */
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    float duration = jass_checknumber(j, 3);
+    if (whichUnit && whichUnit->inuse && duration > 0.0f) S_SpellApplyTimedLife(whichUnit, 1, duration);
     return 0;
 }
 uint32_t IssueImmediateOrder(jass_t *j) {

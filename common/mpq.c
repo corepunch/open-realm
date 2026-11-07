@@ -359,6 +359,11 @@ typedef struct {
     uint32_t file_key;
     uint32_t sector_count;
     uint32_t *sector_offsets;
+    /* Last decompressed sector (or whole SINGLE_UNIT file). Small reads used to inflate
+     * the sector again every call; protected maps with 2 MB sectors took minutes. */
+    uint8_t *cache_data;
+    uint32_t cache_size;
+    uint32_t cache_sector_plus1; /* 0 = empty */
 } mpqFile_t;
 
 typedef struct {
@@ -1670,6 +1675,7 @@ bool SFileCloseFile(handle_t file)
         if (mpqfile->sector_offsets) {
             free(mpqfile->sector_offsets);
         }
+        free(mpqfile->cache_data);
         free(file);
         if (owner_archive) {
             SFileCloseArchive(owner_archive);
@@ -1758,6 +1764,20 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
         uint32_t bytes_in_file = 0;
         bool ok;
 
+        if (mpqfile->cache_sector_plus1 == 1 && mpqfile->cache_data) {
+            if (file_offset >= mpqfile->cache_size) {
+                if (bytesRead) *bytesRead = 0;
+                return false;
+            }
+            if (toRead > mpqfile->cache_size - file_offset) {
+                toRead = mpqfile->cache_size - file_offset;
+            }
+            memcpy(dest, mpqfile->cache_data + file_offset, toRead);
+            mpqfile->current_pos += toRead;
+            if (bytesRead) *bytesRead = toRead;
+            return true;
+        }
+
         compressed = (uint8_t *)malloc(block->dwBlockSize ? block->dwBlockSize : 1);
         whole_file = (uint8_t *)malloc(mpqfile->file_size ? mpqfile->file_size : 1);
         if (!compressed || !whole_file) {
@@ -1801,7 +1821,10 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
         if (bytesRead) *bytesRead = toRead;
 
         free(compressed);
-        free(whole_file);
+        free(mpqfile->cache_data);
+        mpqfile->cache_data = whole_file;
+        mpqfile->cache_size = bytes_in_file;
+        mpqfile->cache_sector_plus1 = 1;
         return true;
     }
 
@@ -1826,6 +1849,23 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
 
         if (sector_end_offset < sector_start_offset) {
             break;
+        }
+
+        if (mpqfile->cache_sector_plus1 == sector_start + 1 && mpqfile->cache_data) {
+            bytes_in_sector = mpqfile->cache_size;
+            if (sector_offset >= bytes_in_sector) {
+                break;
+            }
+            to_read_in_block = bytes_in_sector - sector_offset;
+            if (to_read_in_block > (toRead - read_so_far)) {
+                to_read_in_block = (toRead - read_so_far);
+            }
+            memcpy(dest, &mpqfile->cache_data[sector_offset], to_read_in_block);
+            dest += to_read_in_block;
+            read_so_far += to_read_in_block;
+            sector_offset = 0;
+            sector_start++;
+            continue;
         }
 
         sector_compressed_size = sector_end_offset - sector_start_offset;
@@ -1864,6 +1904,15 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
             }
         }
         free(compressed);
+
+        if (!mpqfile->cache_data) {
+            mpqfile->cache_data = (uint8_t *)malloc(mpq->sector_size);
+        }
+        if (mpqfile->cache_data && bytes_in_sector <= mpq->sector_size) {
+            memcpy(mpqfile->cache_data, mpq->sector_buffer, bytes_in_sector);
+            mpqfile->cache_size = bytes_in_sector;
+            mpqfile->cache_sector_plus1 = sector_start + 1;
+        }
 
         if (sector_offset >= bytes_in_sector) {
             break;

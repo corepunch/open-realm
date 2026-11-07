@@ -1228,6 +1228,16 @@ static void UI_RemoveBom(string_t buffer) {
     if (length >= sizeof(utf8_bom) &&
         memcmp((unsigned char *)buffer, utf8_bom, sizeof(utf8_bom)) == 0) {
         memmove(buffer, buffer + sizeof(utf8_bom), length - sizeof(utf8_bom) + 1);
+        return;
+    }
+    /* Polish TFT (War3xLocal.mpq GlobalStrings.fdf): BOM decoded as CP1250
+     * ("\u010f\u00bb\u017c") and re-encoded as UTF-8. */
+    {
+        static unsigned char const cp1250_bom[] = { 0xC4, 0x8F, 0xC2, 0xBB, 0xC5, 0xBC };
+        if (length >= sizeof(cp1250_bom) &&
+            memcmp((unsigned char *)buffer, cp1250_bom, sizeof(cp1250_bom)) == 0) {
+            memmove(buffer, buffer + sizeof(cp1250_bom), length - sizeof(cp1250_bom) + 1);
+        }
     }
 }
 

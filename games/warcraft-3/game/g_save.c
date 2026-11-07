@@ -173,14 +173,17 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-static uint32_t const save_version = 3;
+/* Browser version 4: as native version 144. */
+static uint32_t const save_version = 4;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
 /* Version 141 adds independent PauseUnit ownership during transformations. */
 /* Version 142 expands gameClient_t with runtime-only Hero HUD vital cache fields. */
 /* Version 143 adds runtime-only Hero HUD vital sweep state. */
-static uint32_t const save_version = 143;
+/* Version 144 adds Hero item attribute bonuses, script reposition and enter-world
+ * flags, larger event tables, and new Misc hero constants. */
+static uint32_t const save_version = 144;
 #endif
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -3748,6 +3751,9 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->unit_state->statuses[0].source = target;
     unit->unit_state->statuses[0].source_spawn_time = target->spawn_time;
     unit->unit_state->hero.xp = 123;
+    unit->unit_state->hero.bonus_agi = 5;
+    unit->reposition_pending = true;
+    unit->enter_world_pending = true;
     unit->vision->forced[3] = 2;
     unit->vision->shared = 1u << 4;
     unit->vision->reveal_until = 7000;
@@ -3821,6 +3827,9 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->unit_state->next_status_id, 57);
     T_ASSERT(unit->unit_state->statuses[0].source == target);
     T_EQ(unit->unit_state->hero.xp, 123);
+    T_EQ(unit->unit_state->hero.bonus_agi, 5);
+    T_ASSERT(unit->reposition_pending);
+    T_ASSERT(unit->enter_world_pending);
     T_EQ(unit->vision->forced[3], 2);
     T_EQ(unit->vision->shared, 1u << 4);
     T_EQ(unit->vision->reveal_until, 7000);

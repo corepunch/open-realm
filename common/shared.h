@@ -706,6 +706,9 @@ typedef enum {
  * Wire slots use ASCII Unit Separator padding because configstrings cannot carry embedded NULs. The client restores separators
  * to NULs after receipt. Decode: i = name-1; slot = i/ENT_NAMES_PER_CS; sub = i%ENT_NAMES_PER_CS. */
 #define CS_MAX_NAMES        256
+/* entityState_t.hover_value flag: the low bits are a plain number labelled by
+ * the nametag frame's tooltip, instead of a resource amount + 1. */
+#define ENT_HOVER_LABELED_VALUE 0x80000000u
 #define ENT_NAMES_PER_CS    8   /* names per configstring slot */
 #define ENT_NAME_SLOT_SIZE  32  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
 #define ENT_NAME_SEPARATOR  0x1f // ASCII byte; keeps fixed-width name records transmissible through C-string configstrings
@@ -1397,6 +1400,7 @@ typedef struct {
     uint32_t intel;        // intelligence attribute
     uint32_t xp;           // accumulated experience points
     bool  suspend_xp;   // when true, XP gains are suspended
+    int32_t bonus_str, bonus_agi, bonus_intel; /* item share of str/agi/intel, shown as a green + */
     uint32_t skillpoints;  // available skill points for hero ability learning
 } doodadHero_t;
 

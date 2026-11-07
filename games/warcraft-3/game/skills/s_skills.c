@@ -62,7 +62,7 @@ static ability_t abilitylist[] = {
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
-    { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
+    { "ANcl", CAbilityChannel, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT_OR_POINT },  /* Channel: DataB picks the target */
     { "Arsq", CAbilitySummonQuilbeastCampaign, AB_SPELL },  /* Summon Quilbeast */
     { "Arsg", CAbilitySummonMisha, AB_SPELL },  /* Summon Misha */
     { "Arsp", CAbilityStampede, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Stampede */
@@ -189,6 +189,7 @@ static ability_t abilitylist[] = {
     { "AImi", CAbilityMaxLifeMod, AB_ITEM | AB_POWERUP },  /* Item Permanent Life Gain */
     { "AIab", CAbilityAttributeBonus, 0 },  /* Item Hero Stat Bonus */
     { "AIml", CAbilityMaxLifeBonus, 0 },  /* Item Life Bonus */
+    { "Arel", CAbilityLifeRegenBonus, 0 },  /* Item Life Regeneration */
     { "AImm", CAbilityMaxManaBonus, 0 },  /* Item Mana Bonus */
     { "AIct", CAbilityItemChangeTOD, AB_ITEM },  /* Change Time of Day */
 

@@ -1177,6 +1177,11 @@ static void CL_InputFrame(void) {
     CL_ScrollFrame();
 }
 
+/* Holding Alt shows every visible unit's health bar (SCR_DrawUnitHealthBars). */
+bool CL_AltHeld(void) {
+    return (SDL_GetModState() & KMOD_ALT) != 0;
+}
+
 static bool CL_OrderQueueModifierDown(void) {
     return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
 }
@@ -1813,6 +1818,11 @@ static uint32_t CL_BindMods(SDL_Keymod m) {
     return mods;
 }
 
+static void CL_ChatOpen(void);
+static void CL_ChatClose(bool send);
+static void CL_ChatTextInput(cstring_t text);
+static void CL_ChatKey(SDL_Keycode sym);
+
 /* SDL owns the authoritative window/display transition state.  Notify the
  * renderer only on events that can change the OpenGL drawable so it can
  * resync physical viewport/scissor dimensions without per-frame polling. */
@@ -2007,11 +2017,24 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
         
         switch(event.type) {
             case SDL_TEXTINPUT:
-                if (cls.key_dest == key_console) CON_TextInput(event.text.text);
+                if (cls.key_dest == key_message) CL_ChatTextInput(event.text.text);
+                else if (cls.key_dest == key_console) CON_TextInput(event.text.text);
                 else if (CL_MenuActive() && cls.key_dest == key_menu) menu.TextInput(event.text.text);
                 else if (cls.state == ca_active && cls.key_dest == key_game) CL_WindowTextInput(event.text.text);
                 break;
             case SDL_KEYDOWN:
+                if (cls.key_dest == key_message) {
+                    if (cls.state != ca_active) CL_ChatClose(false);
+                    else CL_ChatKey(event.key.keysym.sym);
+                    break;
+                }
+                if (cls.key_dest == key_game && cls.state == ca_active && !event.key.repeat &&
+                    (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_KP_ENTER) &&
+                    !(event.key.keysym.mod & KMOD_ALT) && !CL_WindowTextInputActive() &&
+                    !CL_WindowPresentationActive()) {
+                    CL_ChatOpen();
+                    break;
+                }
                 if (event.key.keysym.sym == SDLK_BACKQUOTE) {
                     CON_ToggleConsole();
                     break;
@@ -2138,6 +2161,54 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
 
 void CL_Input(void) {
     CL_InputEvents(SDL_PollEvent);
+}
+
+static char chat_text[200];
+
+bool CL_ChatActive(void) { return cls.key_dest == key_message; }
+cstring_t CL_ChatText(void) { return chat_text; }
+
+static void CL_SetSDLTextInput(bool enabled);
+
+static void CL_ChatOpen(void) {
+    chat_text[0] = '\0';
+    cls.key_dest = key_message;
+    CL_SetSDLTextInput(true);
+}
+
+static void CL_ChatClose(bool send) {
+    if (send && chat_text[0] && cls.state == ca_active) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "say %s", chat_text);
+    }
+    chat_text[0] = '\0';
+    cls.key_dest = key_game;
+    CL_SetSDLTextInput(CL_WindowTextInputActive());
+}
+
+static void CL_ChatTextInput(cstring_t text) {
+    size_t used = strlen(chat_text);
+    for (; text && *text && used + 1 < sizeof(chat_text); text++) {
+        /* The line travels as one unquoted command string. */
+        if (*text == '"' || *text == '\n' || *text == '\r') continue;
+        chat_text[used++] = *text;
+    }
+    chat_text[used] = '\0';
+}
+
+static void CL_ChatKey(SDL_Keycode sym) {
+    size_t used = strlen(chat_text);
+    switch (sym) {
+        case SDLK_RETURN: case SDLK_KP_ENTER: CL_ChatClose(true); break;
+        case SDLK_ESCAPE: CL_ChatClose(false); break;
+        case SDLK_BACKSPACE:
+            /* Step over UTF-8 continuation bytes so Polish letters erase whole. */
+            while (used && ((unsigned char)chat_text[used - 1] & 0xC0) == 0x80) used--;
+            if (used) used--;
+            chat_text[used] = '\0';
+            break;
+        default: break;
+    }
 }
 
 static void CL_SetSDLTextInput(bool enabled) {
@@ -2477,6 +2548,7 @@ void CL_InitInput(void) {
     Cvar_Get("cl_same_type_select", "0", 0);
     Cvar_Get("cl_group_focus", "1", 0);
     Cvar_Get("cl_hover_health_only", "1", 0);
+    Cvar_Get("cl_healthbars", "0", CVAR_ARCHIVE); /* Options: always show unit health bars */
     Cvar_Get("cl_context_cursor", "0", 0);
     Cvar_Get("cl_look_command", "", 0);
     Cvar_Get("cl_move_mouse", "0", 0);

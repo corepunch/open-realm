@@ -2093,6 +2093,196 @@ TEST(wc3_spell, vampiric_aura_status_only_applies_to_melee_units) {
     free_slk_rows(rows);
 }
 
+/* A dummy unit gets an AOae alias via UnitAddAbility with targets
+ * "hero,player" and a custom BuffID. Only the owner's hero gets it. */
+TEST(wc3_spell, runtime_added_aura_alias_buffs_owned_hero_only) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\nC;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"DataB1\"\n"
+        "C;Y2;X1;K\"A0DY\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"hero,player\"\n"
+        "C;Y2;X4;K\"99999\"\nC;Y2;X5;K\"0.15\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"B03H\"\nC;Y2;X8;K\"0.3\"\n"
+        "C;Y3;X1;K\"AOae\"\nC;Y3;X2;K\"AOae\"\nC;Y3;X6;K\"1\"\nE\n";
+    static UnitBalance_t const hero_balance = { .strength = 1 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *dummy = make_hero(MAKEFOURCC('n','0','0','O'), 100, 0, 0, 0);
+    edict_t *hero = alloc_test_unit(MAKEFOURCC('E','0','2','9'), 3000, -1300);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('E','0','2','I'), 3100, -1300);
+
+    hero->data.UnitBalance = enemy->data.UnitBalance = (UnitBalance_t *)&hero_balance;
+    dummy->s.player = hero->s.player = 0;
+    enemy->s.player = 1;
+    dummy->targtype = hero->targtype = enemy->targtype = TARG_GROUND;
+    dummy->think = hero->think = enemy->think = monster_think;
+    T_ASSERT(G_ActorAddSkill(dummy, MAKEFOURCC('A','0','D','Y')));
+    level.time = level.framenum = 0;
+    G_RunEntities();
+    T_EQ(S_EnduranceAuraBuff(hero), MAKEFOURCC('B','0','3','H'));
+    T_EQ(S_EnduranceAuraBuff(enemy), 0u);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Hero vitals come from HP/manaN/def plus the active Misc constants, not the
+ * realHP/realM/realdef previews computed with stock constants. */
+TEST(wc3_spell, hero_vitals_follow_map_misc_attribute_constants) {
+    static UnitBalance_t const balance = {
+        .strength = 11, .agility = 8, .intelligence = 5,
+        .baseHealth = 100, .baseMana = 150, .baseArmor = 2,
+        .maxHealth = 625.0f, .maxMana = 240.0f, .armor = 4.4f,
+    };
+    float const saved_hp = game.constants.strHitPointBonus, saved_mana = game.constants.intManaBonus;
+    float const saved_agi = game.constants.agiDefenseBonus, saved_base = game.constants.agiDefenseBase;
+    bool const saved_loaded = game.constants.combatConstantsLoaded;
+    edict_t *hero = make_hero(MAKEFOURCC('E','0','2','9'), 1, 1, 0, 0);
+
+    game.constants.strHitPointBonus = 20.0f;
+    game.constants.intManaBonus = 10.0f;
+    game.constants.agiDefenseBonus = 0.08f;
+    game.constants.agiDefenseBase = -2.0f;
+    game.constants.combatConstantsLoaded = true;
+    hero->data.UnitBalance = (UnitBalance_t *)&balance;
+    hero->unit_state->hero.str = 17;
+    hero->unit_state->hero.agi = 13;
+    hero->unit_state->hero.intel = 7;
+    G_RecomputeHeroStats(hero);
+    T_FEQ(hero->health.max_value, 100.0f + 17 * 20.0f, 0.001f);
+    T_FEQ(hero->mana.max_value, 150.0f + 7 * 10.0f, 0.001f);
+    T_FEQ(hero->unit_state->armor_value, 2.0f + 13 * 0.08f - 2.0f, 0.001f);
+
+    game.constants.strHitPointBonus = saved_hp;
+    game.constants.intManaBonus = saved_mana;
+    game.constants.agiDefenseBonus = saved_agi;
+    game.constants.agiDefenseBase = saved_base;
+    game.constants.combatConstantsLoaded = saved_loaded;
+}
+
+/* Channel (ANcl) takes its target type from each alias's DataB. */
+TEST(wc3_spell, channel_target_type_follows_alias_datab) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y2;X1;K\"A005\"\nC;Y2;X2;K\"ANcl\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"3\"\n"
+        "C;Y3;X1;K\"A006\"\nC;Y3;X2;K\"ANcl\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"0\"\n"
+        "C;Y4;X1;K\"A007\"\nC;Y4;X2;K\"ANcl\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t const unit_or_point = MAKEFOURCC('A','0','0','5'), instant = MAKEFOURCC('A','0','0','6');
+    uint32_t const unit = MAKEFOURCC('A','0','0','7');
+
+    T_EQ(S_SpellTargetTypeForCode(S_SpellAbilityForCode(unit_or_point), unit_or_point), SPELL_TARGET_UNIT_OR_POINT);
+    T_EQ(S_SpellTargetTypeForCode(S_SpellAbilityForCode(instant), instant), SPELL_TARGET_NONE);
+    T_EQ(S_SpellTargetTypeForCode(S_SpellAbilityForCode(unit), unit), SPELL_TARGET_UNIT);
+    {
+        /* A cast keeps the caster channeling for DataA (here 0), then ends. */
+        edict_t *caster = make_hero(MAKEFOURCC('E','0','2','9'), 500, 200, 0, 0);
+        caster->unit_state->ranks[0] = MAKE(heroability_t, .code = unit_or_point, .level = 1);
+        T_ASSERT(S_IssuePointTargetSpell(caster, unit_or_point, &MAKE(vec2_t, 300, 0)));
+        FOR_LOOP(i, 10) G_RunEntities();
+        T_ASSERT(!S_SpellIsChanneling(caster));
+    }
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* A unit-or-point command opens target mode for both clicks; a ground click
+ * publishes the spell effect with that point (GetSpellTargetLoc). */
+TEST(wc3_spell, unit_or_point_command_publishes_clicked_point) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"Rng1\"\n"
+        "C;Y2;X1;K\"A005\"\nC;Y2;X2;K\"ANcl\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"3\"\nC;Y2;X5;K\"1500\"\nE\n";
+    static UnitAbilities_t abilities = { .abilList = "", .heroAbilList = "A005" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    cstring_t button[] = { "button", "A005" };
+    cstring_t click[] = { "point", "300", "40" };
+    edict_t *player, *hero;
+    bool published = false;
+
+    setup_test_world();
+    player = &g_edicts[0]; player->client->ps.number = 0;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
+    hero->health.value = hero->health.max_value = 100;
+    hero->stand = unit_stand; unit_stand(hero); gi.LinkEntity(hero);
+    hero->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','0','0','5'), .level = 1);
+    G_SelectEntity(player->client, hero);
+
+    G_ClientCommand(player, 2, button);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    G_ClientCommand(player, 3, click);
+    for (uint32_t i = level.events.read; i < level.events.write; i++) {
+        gameEvent_t const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (evt->type != EVENT_PLAYER_UNIT_SPELL_EFFECT || evt->edict != hero) continue;
+        published = evt->has_point && evt->point.x == 300.0f && evt->point.y == 40.0f;
+    }
+    T_ASSERT(published);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Frost Armor: DataB armor on the target, melee attackers get Bfro. */
+TEST(wc3_spell, frost_armor_alias_adds_armor_and_slows_melee_attackers) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"Dur1\"\nC;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"A082\"\nC;Y2;X2;K\"AUfa\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"45\"\n"
+        "C;Y2;X5;K\"15\"\nC;Y2;X6;K\"5\"\nC;Y2;X7;K\"B024\"\nC;Y2;X8;K\"5\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('H','a','m','g'), 500, 200, 0, 0);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 60, 0);
+    float const armor = unit_status_modifier_total(caster, WC3_STATUS_MOD_ARMOR_FLAT);
+
+    caster->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','0','8','2'), .level = 1);
+    T_ASSERT(test_execute_code(caster, "A082", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = caster)));
+    T_FEQ(unit_status_modifier_total(caster, WC3_STATUS_MOD_ARMOR_FLAT) - armor, 15.0f, 0.001f);
+    S_FrostArmorOnAttacked(attacker, caster);
+    T_NOT_NULL(unit_findstatus(attacker, MAKEFOURCC('B','f','r','o')));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Arel: DataA hit points per second while owned. */
+TEST(wc3_spell, item_life_regeneration_bonus_applies_and_reverts) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"A07Q\"\nC;Y2;X2;K\"Arel\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"20\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *hero = make_hero(MAKEFOURCC('E','0','2','9'), 100, 0, 0, 0);
+
+    T_ASSERT(G_ActorAddSkill(hero, MAKEFOURCC('A','0','7','Q')));
+    T_FEQ(hero->unit_state->health_regen_bonus, 20.0f, 0.001f);
+    T_ASSERT(G_ActorRemoveSkill(hero, MAKEFOURCC('A','0','7','Q')));
+    T_FEQ(hero->unit_state->health_regen_bonus, 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Item bonus abilities added straight to a unit by a script. */
+TEST(wc3_spell, item_attack_bonus_added_to_unit_applies_and_reverts) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"A09B\"\nC;Y2;X2;K\"AIat\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"4\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *hero = make_hero(MAKEFOURCC('E','0','2','9'), 100, 0, 0, 0);
+
+    T_ASSERT(G_ActorAddSkill(hero, MAKEFOURCC('A','0','9','B')));
+    T_FEQ(hero->unit_state->attack1.temporaryDamageBonus, 4.0f, 0.001f);
+    T_ASSERT(G_ActorRemoveSkill(hero, MAKEFOURCC('A','0','9','B')));
+    T_FEQ(hero->unit_state->attack1.temporaryDamageBonus, 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 #if BZ_COMPAT_WORKAROUNDS
 /* RoC omits BuffID on Cairne's AOr2 alias. Resolve recipients to BOae's
  * authored buff art so they receive the glow/icon, not AOae's caster rune. */
@@ -8633,6 +8823,86 @@ TEST(wc3_spell, metamorphosis_alias_applies_timer_and_reverts_bonus_health) {
     G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
     G_SetSLKRows("UnitAbilities", old_abilities); free_slk_rows(abilities_rows);
     G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
+/* A custom hero ability on an AEme base with a custom form. Only the stock
+ * Demon Hunter forms inherit AEmb/AEim/AEev; a custom hero must end the
+ * morph with the abilities it started with. */
+TEST(wc3_spell, custom_metamorphosis_form_does_not_gain_demon_hunter_skills) {
+    char const ability_data[] =
+        "ID;PWXL;N;EBB;Y5;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"UnitID1\"\nC;Y1;X5;K\"DataE1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"A0DS\"\nC;Y2;X2;K\"AEme\"\nC;Y2;X3;K1\nC;Y2;X4;K\"E02F\"\nC;Y2;X5;K0\nC;Y2;X6;K15\nC;Y2;X7;K\"BEme\"\n"
+        "C;Y3;X1;K\"AEmb\"\nC;Y3;X2;K\"AEmb\"\nC;Y3;X3;K1\n"
+        "C;Y4;X1;K\"AEim\"\nC;Y4;X2;K\"AEim\"\nC;Y4;X3;K1\n"
+        "C;Y5;X1;K\"AEev\"\nC;Y5;X2;K\"AEev\"\nC;Y5;X3;K1\nE\n";
+    char const unit_abilities[] =
+        "ID;PWXL;N;EBB;Y3;X2\nC;Y1;X1;K\"unitAbilID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"E029\"\nC;Y2;X2;K\"A0DS\"\nC;Y3;X1;K\"E02F\"\nC;Y3;X2;K\"A0DS\"\nE\n";
+    char const unit_ui[] =
+        "ID;PWXL;N;EBB;Y3;X3\nC;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"modelScale\"\n"
+        "C;Y2;X1;K\"E029\"\nC;Y2;X2;K\"Units\\NightElf\\DemonHunter\\DemonHunter.mdx\"\nC;Y2;X3;K1\n"
+        "C;Y3;X1;K\"E02F\"\nC;Y3;X2;K\"Units\\NightElf\\DemonHunter\\DemonHunter.mdx\"\nC;Y3;X3;K1\nE\n";
+    slkTestData_t *ability_rows = parse_slk_string(ability_data), *old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *abilities_rows = parse_slk_string(unit_abilities), *old_abilities = G_SetSLKRows("UnitAbilities", abilities_rows);
+    slkTestData_t *ui_rows = parse_slk_string(unit_ui), *old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    uint32_t const code = MAKEFOURCC('A','0','D','S');
+    edict_t *hero;
+
+    reset_entities(); setup_test_world();
+    hero = alloc_test_unit(MAKEFOURCC('E','0','2','9'), 64.0f, 64.0f);
+    hero->s.player = 0;
+    hero->svflags |= SVF_MONSTER;
+    hero->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+    abilityitem_t const spell = S_AbilityItem(code);
+    spellTarget_t const target = MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    abilityCall_t const call = MAKE(abilityCall_t, .item = &spell, .target = &target);
+    T_ASSERT(S_AbilityMessage(hero, A_EXECUTE, &call));
+    T_EQ(hero->class_id, MAKEFOURCC('E','0','2','F'));
+    T_ASSERT(unit_findstatus(hero, MAKEFOURCC('B','E','m','e')) != NULL);
+    T_ASSERT(!G_ActorHasSkill(hero, "AEmb"));
+    T_ASSERT(!G_ActorHasSkill(hero, "AEim"));
+    T_ASSERT(!G_ActorHasSkill(hero, "AEev"));
+
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
+    G_SetSLKRows("UnitAbilities", old_abilities); free_slk_rows(abilities_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
+/* Retail Tip/Ubertip hold one comma-separated entry per level. */
+TEST(wc3_spell, hero_command_tooltip_shows_only_the_learned_level) {
+    char const slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AEmb\"\nC;Y2;X2;K\"AEmb\"\nC;Y2;X3;K\"2\"\nE\n";
+    static char const config[] =
+        "[AEmb]\nArt=ReplaceableTextures\\CommandButtons\\BTNManaBurn.blp\n"
+        "Tip=Burn [Level 1],Burn [Level 2]\n"
+        "Ubertip=\"First, with comma\",\"Second, with comma\"\n";
+    static UnitBalance_t const balance = { .strength = 1 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    gameCommandButton_t button;
+    edict_t *hero;
+
+    T_ASSERT(G_TestPushAbilityConfig(config));
+    reset_entities(); setup_test_world();
+    hero = alloc_test_unit(MAKEFOURCC('E','d','e','m'), 64.0f, 64.0f);
+    hero->data.UnitBalance = (UnitBalance_t *)&balance;
+
+    /* Not learned yet: first entry, never the whole list. */
+    T_ASSERT(G_BuildCommandButton(hero, "AEmb", false, 0, &button));
+    T_STREQ(button.tooltip, "Burn [Level 1]");
+    T_STREQ(button.ubertip, "First, with comma");
+
+    hero->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','E','m','b'), .level = 2);
+    T_ASSERT(G_BuildCommandButton(hero, "AEmb", false, 0, &button));
+    T_STREQ(button.tooltip, "Burn [Level 2]");
+    T_STREQ(button.ubertip, "Second, with comma");
+
+    G_TestPopAbilityConfig();
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, bear_form_hides_normal_form_spells_and_uses_reverse_button_art) {

@@ -46,6 +46,9 @@ typedef struct {
     vec2_t origin;
 } mouseEvent_t;
 
+bool CL_ChatActive(void);
+cstring_t CL_ChatText(void);
+
 typedef enum {
     key_game,
     key_console,
@@ -301,6 +304,8 @@ uint32_t CL_MinimapRecentCount(void);
 /* World-hover targeting and UI_STAT_CONTEXT_* name/vital bindings share this
  * snapshot gate so a stale hover cannot keep a name after death or flag loss.
  * Invulnerable units may publish a name with neither bar flag. */
+bool CL_AltHeld(void);
+
 static inline bool CL_EntityAllowsWorldHover(entityState_t const *state) {
     return state && state->model &&
            state->stats[ENT_HEALTH] > 0 &&

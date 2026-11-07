@@ -462,7 +462,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     heroabilitystatus_t *status;
 
     if (!caster || !target || !ability || ability->proc == CAbilityDevour ||
-        (ability->target_type != SPELL_TARGET_UNIT && ability->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        (S_SpellTargetTypeForCode(ability, code) != SPELL_TARGET_UNIT && S_SpellTargetTypeForCode(ability, code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_SpellIsEnemy(caster, target) || !S_SpellIsAliveTarget(target)) return false;
     /* Physical nets and Finger of Death bypass Spell Shield. */
     if (ability->proc == CAbilityEnsnare || ability->proc == CAbilityWeb ||
@@ -708,6 +708,21 @@ edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) 
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
+/* Channel (ANcl) authors its target type per alias in DataB:
+ * 0 none, 1 unit, 2 point, 3 unit or point. Other bases are fixed. */
+spellTargetType_t S_SpellTargetTypeForCode(ability_t const *spell, uint32_t code) {
+    if (!spell) return SPELL_TARGET_NONE;
+    if (spell->proc == CAbilityChannel && code) {
+        switch ((int)S_SpellData(code, 1, 2)) {
+        case 1: return SPELL_TARGET_UNIT;
+        case 2: return SPELL_TARGET_POINT;
+        case 3: return SPELL_TARGET_UNIT_OR_POINT;
+        default: return SPELL_TARGET_NONE;
+        }
+    }
+    return spell->target_type;
+}
+
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
     channel_t *cast = G_GetChannel(caster);
     edict_t *ent;
@@ -1001,19 +1016,19 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = thinker && thinker_cast ? thinker_cast->source_item : NULL;
     bool const point_target = spell && move_goal == thinker && !tree_approach &&
-        (spell->target_type == SPELL_TARGET_POINT || spell->target_type == SPELL_TARGET_UNIT_OR_POINT);
+        (S_SpellTargetTypeForCode(spell, code) == SPELL_TARGET_POINT || S_SpellTargetTypeForCode(spell, code) == SPELL_TARGET_UNIT_OR_POINT);
     /* Ability-owned entity cursors retain the entity and incarnation while
      * approaching, rather than freezing a point at the original click. */
     bool const entity_point_target = spell && !tree_approach && move_goal != thinker &&
-        spell->target_type == SPELL_TARGET_POINT;
+        S_SpellTargetTypeForCode(spell, code) == SPELL_TARGET_POINT;
     uint32_t level;
     float range;
     spellTarget_t st;
 
     if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker_cast->source_item_spawn_time) ||
-        (!point_target && !entity_point_target && !tree_approach && spell->target_type != SPELL_TARGET_UNIT &&
-         spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
+        (!point_target && !entity_point_target && !tree_approach && S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT &&
+         S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT_OR_POINT)) {
         if (caster && caster->goalentity == move_goal) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -1446,10 +1461,10 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     }
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || spell->target_type != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
+    if (!spell || S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
         if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
             fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_shape spell=%p target_type=%u command=%u\n",
-                    (void *)spell, spell ? (unsigned)spell->target_type : 0u,
+                    (void *)spell, spell ? (unsigned)S_SpellTargetTypeForCode(spell, code) : 0u,
                     (unsigned)(spell && S_AbilityHasCommand(spell)));
         return false;
     }
@@ -1502,8 +1517,8 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+    if (!spell || (S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_POINT &&
+                   S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
@@ -1533,7 +1548,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell) return false;
-    if (spell->target_type != SPELL_TARGET_UNIT) return false;
+    if (S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT) return false;
     if (!S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
     if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level), NULL)) return false;
@@ -2000,7 +2015,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
         return spell_execute_point_target(NULL, caster, code, level, spell, &unit->s.origin2,
                                           unit, NULL, 0, NULL);
     }
-    if (spell->target_type != SPELL_TARGET_UNIT && spell->target_type != SPELL_TARGET_UNIT_OR_POINT)
+    if (S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT && S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT_OR_POINT)
         return false;
     range = S_SpellRange(code, level);
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f, NULL) ||
@@ -2028,8 +2043,8 @@ bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point
         return false;
     spell = S_SpellAbilityForCode(code);
     item = MAKE(abilityitem_t, .code = code, .ability = spell);
-    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
-                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+    if (!spell || (S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_POINT &&
+                   S_SpellTargetTypeForCode(spell, code) != SPELL_TARGET_UNIT_OR_POINT) ||
         !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
@@ -2110,7 +2125,7 @@ void spell_cmd(edict_t *clent) {
     }
 
 
-    switch (spell->target_type) {
+    switch (S_SpellTargetTypeForCode(spell, code)) {
     case SPELL_TARGET_NONE:
         spell_no_target_execute(clent);
         break;
@@ -2145,8 +2160,16 @@ void spell_cmd(edict_t *clent) {
             clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }
-    case SPELL_TARGET_UNIT_OR_POINT:
-        spell_no_target_execute(clent); /* TODO: add unit-or-point fallback via smart-click */
+    case SPELL_TARGET_UNIT_OR_POINT: {
+        /* Clicking a unit targets it; clicking the ground targets the point
+         * (Carrion Swarm, Shockwave, Channel with DataB 3). */
+        uint32_t const level = S_SpellLevel(caster, code);
+        UI_AddCancelButton(clent);
+        clent->client->menu.ability_code = code;
+        clent->client->menu.on_entity_selected = spell_unit_target_selected;
+        clent->client->menu.on_location_selected = spell_point_target_selected;
+        S_SpellCursorSplat(clent, S_SpellNumber(code, ABILITY_NUMBER_AREA, level));
         break;
+    }
     }
 }

@@ -302,7 +302,12 @@ cstring_t SCR_GetStringValue(uiFrame_t const *frame) {
         name = cl.configstrings[cs_index] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE;
         /* The server offsets present resource values by one so zero remains a
          * distinct, valid depleted-mine value instead of meaning absent. */
-        if (ent->hover_value && frame->text && *frame->text) {
+        if ((ent->hover_value & ENT_HOVER_LABELED_VALUE) && frame->tooltip && *frame->tooltip) {
+            snprintf(text, sizeof(text), "%.*s\n%s %u", ENT_NAME_SLOT_SIZE - 1, name,
+                     frame->tooltip, (unsigned)(ent->hover_value & ~ENT_HOVER_LABELED_VALUE));
+            return text;
+        }
+        if (ent->hover_value && !(ent->hover_value & ENT_HOVER_LABELED_VALUE) && frame->text && *frame->text) {
             snprintf(text, sizeof(text), "%.*s\n%s %u", ENT_NAME_SLOT_SIZE - 1, name,
                      frame->text, (unsigned)(ent->hover_value - 1));
             return text;

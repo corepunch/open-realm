@@ -1131,6 +1131,17 @@ handle_t FS_OpenFile(cstring_t fileName) {
             return file;
         }
     }
+    /* The edition filter exists for data and scripts. Maps also name icons that only the expansion
+     * archive ships, so a texture missing from the active edition may still come from there. */
+    if (FS_HasExtension(fileName, ".blp")) {
+        for (int i = MAX_ARCHIVES - 1; i >= 0; i--) {
+            handle_t file;
+            if (archives[i] && SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
+                filelock = false;
+                return file;
+            }
+        }
+    }
     FOR_LOOP(i, num_map_archive_sources) {
         handle_t file;
         if (FS_OpenMapSourceMember(map_archive_sources + i, fileName, &file)) return file;
@@ -1282,6 +1293,25 @@ int FS_ReadFileQ3(cstring_t filename, void **buf) {
     return (int)size;
 }
 
+/* Read a file only from the mounted map archive. Empty entries (protectors leave them as
+ * placeholders) count as absent. */
+handle_t FS_ReadPriorityFile(cstring_t filename, uint32_t *size) {
+    handle_t fp = NULL;
+    uint32_t read_size = 0;
+    string_t buffer;
+    if (!priority_archive || !SFileOpenFileEx(priority_archive, filename, SFILE_OPEN_FROM_MPQ, &fp)) return NULL;
+    *size = SFileGetFileSize(fp, NULL);
+    if (!*size) { SFileCloseFile(fp); return NULL; }
+    buffer = MemAlloc(*size + 1);
+    if (!SFileReadFile(fp, buffer, *size, &read_size, NULL) || read_size != *size) {
+        MemFree(buffer); SFileCloseFile(fp); *size = 0;
+        return NULL;
+    }
+    buffer[*size] = '\0';
+    SFileCloseFile(fp);
+    return buffer;
+}
+
 handle_t FS_ReadFile(cstring_t filename, uint32_t *size) {
     handle_t fp = FS_OpenFile(filename);
     uint32_t read_size = 0;
@@ -1289,6 +1319,16 @@ handle_t FS_ReadFile(cstring_t filename, uint32_t *size) {
         return FS_ReadLooseFile(filename, size, 0);
     }
     *size = SFileGetFileSize(fp, NULL);
+    if (!*size && priority_archive) {
+        /* An empty map placeholder must not hide the stock file underneath it. */
+        handle_t const overlay = priority_archive;
+        handle_t buffer;
+        FS_CloseFile(fp);
+        priority_archive = NULL;
+        buffer = FS_ReadFile(filename, size);
+        priority_archive = overlay;
+        return buffer;
+    }
     string_t buffer = MemAlloc(*size + 1);
     if (!SFileReadFile(fp, buffer, *size, &read_size, NULL) || read_size != *size) {
         fprintf(stderr, "FS_ReadFile: incomplete MPQ read for %s (%u/%u bytes)\n", filename, read_size, *size);

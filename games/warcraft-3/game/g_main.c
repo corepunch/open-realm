@@ -552,6 +552,15 @@ static handle_t G_ReadGameDataFile(cstring_t filename, uint32_t *size) {
 
     if (!filename || !*filename) return NULL;
     if (!size) size = &ignored_size;
+    /* Anything the map itself ships wins: War3Patch carries Custom_V1\\Units\\*.slk, and those used
+     * to replace the map's own tables, so its custom units lost every balance/UI row (0 HP). */
+    if (gi.ReadPriorityFile) {
+        if (game.data_prefix[0]) {
+            snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
+            if ((data = gi.ReadPriorityFile(path, size))) return data;
+        }
+        if ((data = gi.ReadPriorityFile(filename, size))) return data;
+    }
     if (game.data_prefix[0]) {
         snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
         data = gi.ReadFile(path, size);
@@ -931,6 +940,10 @@ static void InitConstants(void) {
     InitMiscValueDefault("DefenseArmor", &game.constants.defenseArmor, 0.06f);
     InitMiscValueDefault("StrAttackBonus", &game.constants.strAttackBonus, 1.0f);
     InitMiscValueDefault("AgiDefenseBonus", &game.constants.agiDefenseBonus, 0.3f);
+    /* Units\MiscData.txt hero attribute constants; war3mapMisc.txt may override them. */
+    InitMiscValueDefault("AgiDefenseBase", &game.constants.agiDefenseBase, -2.0f);
+    InitMiscValueDefault("StrHitPointBonus", &game.constants.strHitPointBonus, 25.0f);
+    InitMiscValueDefault("IntManaBonus", &game.constants.intManaBonus, 15.0f);
     InitMiscValueDefault("AgiAttackSpeedBonus", &game.constants.agiAttackSpeedBonus, 0.02f);
     InitMiscValueDefault("DefendDeflection", &defend_deflection, 1.0f);
     game.constants.defendDeflection = defend_deflection != 0.0f;
@@ -2420,8 +2433,16 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         /* Name remains the hover gate for invulnerable units with no mana bar. */
             state->name = G_NameConfigstring(G_UnitName(ent->s.class_id));
         state->hover_value = G_HoverResourceValue(ent);
+        /* Retail names a Hero by its proper name with a "Level N" line, and
+         * the world hover shows only the health bar, never mana. */
+        if (G_UnitIsHero(ent) && ent->unit_state) {
+            cstring_t proper = ent->unit_state->proper_name && *ent->unit_state->proper_name
+                ? ent->unit_state->proper_name
+                : G_LevelString(G_UnitProfile(ent->class_id)->properNames);
+            if (proper && *proper) state->name = G_NameConfigstring(proper);
+            state->hover_value = ENT_HOVER_LABELED_VALUE | MAX(1u, ent->unit_state->hero.level);
+        }
         if (!G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) state->flags |= EF_HOVER_HEALTH;
-        if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;
     }
 
 }

@@ -297,6 +297,8 @@ static sheetTable_t *FS_ParseINI_Buffer(cstring_t buffer) {
     table->rows = rows;
 
     p = buffer; end = buffer + size;
+    /* A BOM would make the first [section] line an ignored field, and every key after it sectionless. */
+    if (size >= 3 && !memcmp(p, "\xEF\xBB\xBF", 3)) p += 3;
     while (p < end) {
         while (p < end && isspace((unsigned char)*p)) p++;
         if (p >= end) break;

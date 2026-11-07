@@ -2590,8 +2590,129 @@ void ShutdownUnitData(void) {
     FOR_LOOP(i, abilityConfigTableCount) Stb_IniCacheFree(abilityConfigTables + i);
 }
 
+/* Item icon, texts and name live in war3map.w3t. Only numeric fields reach the typed ItemData
+ * override, so custom items showed their base item's texts or nothing at all. */
+static cstring_t MapItemModString(uint32_t id, uint32_t mod_id) {
+    mapInfo_t const *info = level.mapinfo;
+    if (!info) return NULL;
+    FOR_LOOP(depth, 16) {
+        unitData_t const *found = NULL;
+        FOR_LOOP(i, info->num_userCreatedItems) {
+            if (info->userCreatedItems[i].newUnitID == id) { found = info->userCreatedItems + i; break; }
+        }
+        if (!found) FOR_LOOP(i, info->num_originalItems) {
+            if (info->originalItems[i].originalUnitID == id) { found = info->originalItems + i; break; }
+        }
+        if (!found) return NULL;
+        FOR_LOOP(m, found->numbeOfModifications) {
+            unitModification_t const *mod = found->modifications + m;
+            if (mod->modID == mod_id && UnitModificationString(mod) && mod->data && *(cstring_t)mod->data)
+                return (cstring_t)mod->data;
+        }
+        if (!found->newUnitID || found->originalUnitID == id) return NULL;
+        id = found->originalUnitID;
+    }
+    return NULL;
+}
+
+bool G_MapItemHasInstantRestock(uint32_t id) {
+    mapInfo_t const *info = level.mapinfo;
+    if (!info) return false;
+    FOR_LOOP(depth, 16) {
+        unitData_t const *found = NULL;
+        FOR_LOOP(i, info->num_userCreatedItems) {
+            if (info->userCreatedItems[i].newUnitID == id) { found = info->userCreatedItems + i; break; }
+        }
+        if (!found) FOR_LOOP(i, info->num_originalItems) {
+            if (info->originalItems[i].originalUnitID == id) { found = info->originalItems + i; break; }
+        }
+        if (!found) return false;
+        FOR_LOOP(m, found->numbeOfModifications) {
+            unitModification_t const *mod = found->modifications + m;
+            if (mod->modID == MAKEFOURCC('i','s','t','r') && mod->type == mod_int && mod->data)
+                return *(int32_t const *)mod->data == 0;
+        }
+        if (!found->newUnitID || found->originalUnitID == id) return false;
+        id = found->originalUnitID;
+    }
+    return false;
+}
+
+cstring_t G_MapItemText(cstring_t category, cstring_t field) {
+    static struct { cstring_t field; uint32_t mod_id; } const fields[] = {
+        { "Art", MAKEFOURCC('i','i','c','o') }, { "Tip", MAKEFOURCC('u','t','i','p') },
+        { "Ubertip", MAKEFOURCC('u','t','u','b') }, { "Description", MAKEFOURCC('i','d','e','s') },
+        { "Name", MAKEFOURCC('u','n','a','m') }, { "Hotkey", MAKEFOURCC('u','h','o','t') },
+    };
+    uint32_t id;
+    if (!category || !field || strlen(category) != 4 || !level.mapinfo) return NULL;
+    memcpy(&id, category, 4);
+    FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
+        if (!strcmp(fields[i].field, field)) return MapItemModString(id, fields[i].mod_id);
+    }
+    return NULL;
+}
+
+/* war3map.w3h custom buffs. Fields the map leaves unset come from the base
+ * buff, as in the World Editor. */
+static unitData_t const *MapBuffRecord(uint32_t id, bool *custom) {
+    mapInfo_t const *info = level.mapinfo;
+    if (!info) return NULL;
+    FOR_LOOP(i, info->num_userCreatedBuffs)
+        if (info->userCreatedBuffs[i].newUnitID == id) { *custom = true; return info->userCreatedBuffs + i; }
+    FOR_LOOP(i, info->num_originalBuffs)
+        if (info->originalBuffs[i].originalUnitID == id) { *custom = false; return info->originalBuffs + i; }
+    return NULL;
+}
+
+static cstring_t MapBuffText(cstring_t category, cstring_t field, uint32_t *parent) {
+    static struct { cstring_t field; uint32_t mod_id; } const fields[] = {
+        { "Bufftip", MAKEFOURCC('f','t','i','p') }, { "Buffubertip", MAKEFOURCC('f','u','b','e') },
+        { "Buffart", MAKEFOURCC('f','a','r','t') }, { "TargetArt", MAKEFOURCC('f','t','a','t') },
+        { "Targetart", MAKEFOURCC('f','t','a','t') }, { "Targetattach", MAKEFOURCC('f','t','a','0') },
+        { "Targetattach1", MAKEFOURCC('f','t','a','1') }, { "Targetattach2", MAKEFOURCC('f','t','a','2') },
+        { "Targetattachcount", MAKEFOURCC('f','t','a','c') }, { "EffectArt", MAKEFOURCC('f','e','a','t') },
+        { "Effectart", MAKEFOURCC('f','e','a','t') }, { "SpecialArt", MAKEFOURCC('f','s','a','t') },
+        { "Specialart", MAKEFOURCC('f','s','a','t') }, { "Specialattach", MAKEFOURCC('f','s','p','t') },
+        { "Missileart", MAKEFOURCC('f','m','a','t') }, { "Effectsound", MAKEFOURCC('f','e','f','s') },
+        { "Effectsoundlooped", MAKEFOURCC('f','e','f','l') },
+    };
+    unitData_t const *record;
+    uint32_t id, mod_id = 0;
+    bool custom = false;
+    static char number[16];
+
+    *parent = 0;
+    if (!category || strlen(category) != 4 || category[0] != 'B' || !level.mapinfo) return NULL;
+    memcpy(&id, category, 4);
+    if (!(record = MapBuffRecord(id, &custom))) return NULL;
+    if (custom && record->originalUnitID != id) *parent = record->originalUnitID;
+    FOR_LOOP(i, sizeof(fields) / sizeof(*fields))
+        if (!strcmp(fields[i].field, field)) { mod_id = fields[i].mod_id; break; }
+    if (!mod_id) return NULL;
+    FOR_LOOP(m, record->numbeOfModifications) {
+        unitModification_t const *mod = record->modifications + m;
+        if (mod->modID != mod_id || !mod->data) continue;
+        if (UnitModificationString(mod)) return *(cstring_t)mod->data ? (cstring_t)mod->data : NULL;
+        if (mod->type == mod_int) {
+            snprintf(number, sizeof(number), "%d", *(int32_t const *)mod->data);
+            return number;
+        }
+    }
+    return NULL;
+}
+
 cstring_t FindConfigValue(cstring_t category, cstring_t field) {
     cstring_t value;
+    uint32_t buff_parent = 0;
+
+    if ((value = G_MapItemText(category, field))) return value;
+    if ((value = MapBuffText(category, field, &buff_parent))) return value;
+    if (buff_parent) {
+        char parent[5] = { 0 };
+        memcpy(parent, &buff_parent, 4);
+        if ((value = FindConfigValue(parent, field))) return value;
+    }
 
     if (!strncmp(category, "Cmd", 3)) {
         if (commandFuncConfig) {
@@ -2646,6 +2767,7 @@ cstring_t G_ObjectName(uint32_t objectId) {
     cstring_t name;
 
     if (!objectId) return "";
+    if ((name = G_MapItemText(GetClassName(objectId), "Name"))) return G_LevelString(name);
     profile = G_UnitProfile(objectId);
     if (profile && profile->name && *profile->name) return G_LevelString(profile->name);
     item = G_ItemData(objectId);
