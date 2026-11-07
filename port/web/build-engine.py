@@ -87,7 +87,8 @@ def main():
         "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),
         "engine": sources("client", "server", "common", "sound",
                           exclude=("stb_vorbis.c", "sv_routing.c")) +
-                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c", ROOT / "port/web/src/web_loading.c"],
+                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c",
+                   ROOT / "port/web/src/web_loading.c", ROOT / "port/web/src/web_gamepad.c"],
     }
     # Source collection is deliberately scoped to the known native modules.
     # Never accidentally compile fixture tests or a second platform main().
@@ -157,13 +158,14 @@ def main():
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
          "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
-         "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
+         "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency,HEAP32",
+         "-sEXPORTED_FUNCTIONS=_main,_Web_GamepadSharedAddress", "-lm", "--shell-file", shell,
          "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
          # Make shipped bindings available before native Com_Init loads config.
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(web_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("browser-keyboard.js", "game-shortcut-menus.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js", "ios-audio-session.js"):
+    for name in ("browser-keyboard.js", "browser-gamepad.js", "game-shortcut-menus.js", "fullscreen-controls.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js", "ios-audio-session.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     shutil.copy2(ROOT / "port/web/site/ios-home-screen.js", out / "ios-home-screen.js")

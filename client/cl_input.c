@@ -4,6 +4,9 @@
 
 #include <stdlib.h>
 #include <strings.h>
+#ifdef __EMSCRIPTEN__
+#include "port/web/src/web_gamepad.h"
+#endif
 
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
@@ -41,6 +44,11 @@ static struct {
  * without depending on OS-specific button names or GUID databases. */
 typedef struct {
     SDL_GameController *controller;
+#ifdef __EMSCRIPTEN__
+    bool web_connected, web_dispatch;
+    uint32_t web_buttons, web_generation;
+    int16_t web_axes[BZ_WEB_GAMEPAD_AXES];
+#endif
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, y_repeat_spell,
          rt, rt_used, lt, lt_used, lb, lb_used, rb, rb_used, start, back,
          paint, paint_additive, paint_remove, status_panel_mode, build_queue_mode;
@@ -58,6 +66,15 @@ typedef struct {
     uint32_t painted_count;
 } gamepadState_t;
 static gamepadState_t gamepad;
+
+/* Browser and native controllers share one input state machine. */
+static bool CL_GamepadConnected(void) {
+#ifdef __EMSCRIPTEN__
+    return gamepad.web_connected;
+#else
+    return gamepad.controller != NULL;
+#endif
+}
 
 static bool CL_GamepadModal(void) {
     return (CL_MenuActive() && cls.key_dest == key_menu) ||
@@ -117,6 +134,7 @@ static void CL_GamepadResetHeld(void) {
     SCR_GamepadRadialCancel();
 }
 
+#ifndef __EMSCRIPTEN__
 static void CL_GamepadOpen(int device_index) {
     if (gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
         !SDL_IsGameController(device_index)) return;
@@ -129,6 +147,7 @@ static void CL_GamepadDetach(void) {
     memset(&gamepad, 0, sizeof(gamepad));
     if (controller) SDL_GameControllerClose(controller);
 }
+#endif
 
 static float CL_GamepadAxis(int16_t raw) {
     float const value = raw < 0 ? raw / 32768.0f : raw / 32767.0f;
@@ -589,20 +608,30 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
     bool down;
     SDL_GameControllerButton button;
     if (event->type == SDL_CONTROLLERDEVICEADDED) {
+#ifndef __EMSCRIPTEN__
         CL_GamepadOpen(event->cdevice.which);
+#endif
         return true;
     }
     if (event->type == SDL_CONTROLLERDEVICEREMOVED) {
+#ifndef __EMSCRIPTEN__
         if (gamepad.controller && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) ==
                                    event->cdevice.which) CL_GamepadDetach();
+#endif
         return true;
     }
     if (event->type != SDL_CONTROLLERBUTTONDOWN && event->type != SDL_CONTROLLERBUTTONUP &&
         event->type != SDL_CONTROLLERAXISMOTION) return false;
+#ifdef __EMSCRIPTEN__
+    /* The browser JS sampler is the sole source of WC3 controller events.
+     * Ignore SDL's own browser joystick events to avoid duplicate actions. */
+    if (!gamepad.web_dispatch || !gamepad.web_connected || !Cvar_Integer("cl_gamepad", 0)) return true;
+#else
     if (!gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
         SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) !=
                 (event->type == SDL_CONTROLLERAXISMOTION ? event->caxis.which : event->cbutton.which))
         return true;
+#endif
     if (event->type == SDL_CONTROLLERAXISMOTION) {
         float axis = CL_GamepadAxis(event->caxis.value);
         switch (event->caxis.axis) {
@@ -813,7 +842,78 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
     return true;
 }
 
+#ifdef __EMSCRIPTEN__
+/* Reconstruct SDL2 controller events from the page-owned shared snapshot.
+ * A latched press with an already released button becomes a down/up pair.
+ * Triggers are axes in SDL2 and receive an equivalent short analogue pulse. */
+static void CL_GamepadWebFrame(void) {
+    webGamepadSnapshot_t state;
+    SDL_Event event = {0};
+    uint32_t const now = SDL_GetTicks();
+    Web_GamepadRead(&state);
+    if (!state.connected) {
+        if (gamepad.web_connected) CL_GamepadReset();
+        gamepad.web_connected = false;
+        gamepad.web_buttons = 0;
+        memset(gamepad.web_axes, 0, sizeof(gamepad.web_axes));
+        return;
+    }
+    if (gamepad.web_connected && gamepad.web_generation != state.generation)
+        CL_GamepadReset(); /* A replacement pad must not inherit held Y/RT/etc. */
+    if (!gamepad.web_connected || gamepad.web_generation != state.generation) {
+        gamepad.web_connected = true;
+        gamepad.web_generation = state.generation;
+        gamepad.web_buttons = 0;
+        memset(gamepad.web_axes, 0, sizeof(gamepad.web_axes));
+    }
+    gamepad.web_dispatch = true;
+    FOR_LOOP(button, SDL_CONTROLLER_BUTTON_MAX) {
+        uint32_t const bit = 1u << button;
+        bool const was = (gamepad.web_buttons & bit) != 0;
+        bool const down = (state.buttons & bit) != 0;
+        bool const pressed = (state.pressed & bit) != 0;
+        event.cbutton.timestamp = now;
+        event.cbutton.button = button;
+        if ((!was && down) || pressed) {
+            event.type = SDL_CONTROLLERBUTTONDOWN;
+            CL_GamepadEvent(&event);
+        }
+        if ((was || pressed) && !down) {
+            event.type = SDL_CONTROLLERBUTTONUP;
+            CL_GamepadEvent(&event);
+        }
+    }
+    FOR_LOOP(axis, BZ_WEB_GAMEPAD_AXES) {
+        int16_t const value = (int16_t)MAX(-32768, MIN(32767, state.axes[axis]));
+        uint32_t const latch = axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? BZ_WEB_GAMEPAD_TRIG_LEFT :
+                               axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT ? BZ_WEB_GAMEPAD_TRIG_RIGHT : 0;
+        event.type = SDL_CONTROLLERAXISMOTION;
+        event.caxis.timestamp = now;
+        event.caxis.axis = axis;
+        if (latch && (state.pressed & latch) && value <= 16384) {
+            event.caxis.value = 32767;
+            CL_GamepadEvent(&event);
+        }
+        if (value != gamepad.web_axes[axis] || (latch && (state.pressed & latch))) {
+            event.caxis.value = value;
+            CL_GamepadEvent(&event);
+        }
+        gamepad.web_axes[axis] = value;
+    }
+    gamepad.web_buttons = state.buttons;
+    gamepad.web_dispatch = false;
+}
+#endif
+
 static void CL_GamepadFrame(float dt) {
+#ifdef __EMSCRIPTEN__
+    if (!Cvar_Integer("cl_gamepad", 0)) {
+        if (gamepad.web_connected) CL_GamepadReset();
+        gamepad.web_connected = false;
+        return;
+    }
+    CL_GamepadWebFrame();
+#else
     if (!gamepad.controller && Cvar_Integer("cl_gamepad", 0) &&
         (SDL_WasInit(SDL_INIT_GAMECONTROLLER) & SDL_INIT_GAMECONTROLLER))
         FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
@@ -821,7 +921,8 @@ static void CL_GamepadFrame(float dt) {
         if (gamepad.controller) CL_GamepadDetach();
         return;
     }
-    if (!gamepad.controller) return;
+#endif
+    if (!CL_GamepadConnected()) return;
     if (gamepad.rt && !gamepad.start && CL_GameplayInputReady() && !CL_GamepadModal()) {
         uint32_t const now = SDL_GetTicks();
         uint32_t const hold_ms = (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_group_hold_ms", 550));
@@ -1607,7 +1708,7 @@ static void CL_ScrollFrame(void) {
     if (cam_east) dx += 1.0f;
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
-    if (gamepad.controller && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
+    if (CL_GamepadConnected() && Cvar_Integer("cl_gamepad", 0) && !gamepad.y &&
         !gamepad.status_panel_mode && !gamepad.build_queue_mode &&
         !gamepad.left_stick_neutral_required &&
         !SCR_GamepadRadialActive()) {
@@ -2303,10 +2404,12 @@ void CL_InitInput(void) {
     FOR_LOOP(i, sizeof(gamepad_point_cvars) / sizeof(gamepad_point_cvars[0]))
         Cvar_Get(gamepad_point_cvars[i], "0", CVAR_ARCHIVE);
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+#ifndef __EMSCRIPTEN__
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0) {
         SDL_GameControllerEventState(SDL_ENABLE);
         FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
     }
+#endif
     fprintf(stderr, "%d joysticks were found.\n", SDL_NumJoysticks());
     fprintf(stderr, "Input initialized.\n\n");
 

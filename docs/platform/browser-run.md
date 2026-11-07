@@ -122,6 +122,10 @@ page, but cannot delete a generation that an open game tab is using.
 
 ## Controls and troubleshooting
 
+A connected controller uses the browser Gamepad API, normalized into the
+existing SDL2 gamepad controls; see [browser gamepad input](browser-gamepad.md).
+The controller may require a button press after the page becomes active.
+
 The canvas uses the Warcraft III defaults bundled with the browser build:
 left-click selection, right-click smart orders and middle mouse button pan.
 The **Esc** overlay sends Escape to the game. The **Game** and **1–9**
