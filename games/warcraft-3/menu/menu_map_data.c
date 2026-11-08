@@ -183,30 +183,22 @@ static void UI_ReadLine(cstring_t *cursor, string_t out, uint32_t out_size) {
 static void UI_MapRemoveBom(string_t buffer) {
     unsigned char *bytes = (unsigned char *)buffer;
 
-    if (bytes && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+    if (!bytes)
+        return;
+    if (bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
         memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
+    /* Localized Blizzard maps carry the BOM re-encoded through CP1250 (C4 8F C2 BB C5 BC). */
+    else if (bytes[0] == 0xC4 && bytes[1] == 0x8F && bytes[2] == 0xC2 && bytes[3] == 0xBB &&
+             bytes[4] == 0xC5 && bytes[5] == 0xBC)
+        memmove(buffer, buffer + 6, strlen(buffer + 6) + 1);
 }
 
-static void UI_ReadStringsInto(handle_t archive, mapInfo_t *info) {
-    handle_t file;
-    uint32_t size;
-    string_t buffer;
+/* Parse the body of a war3map.wts into info->strings. `buffer` is modified (BOM removed). */
+void UI_ParseTrigStrings(string_t buffer, mapInfo_t *info) {
     cstring_t cursor;
     mapTrigStr_t *entry = NULL;
     bool reading_data = false;
     char line[MAX_TRIGSTR_LENGTH];
-
-    if (!archive || !info || !SFileOpenFileEx(archive, "war3map.wts", SFILE_OPEN_FROM_MPQ, &file))
-        return;
-    size = SFileGetFileSize(file, NULL);
-    buffer = mi.MemAlloc(size + 1);
-    if (!buffer) {
-        SFileCloseFile(file);
-        return;
-    }
-    SFileReadFile(file, buffer, size, NULL, NULL);
-    buffer[size] = '\0';
-    SFileCloseFile(file);
 
     UI_MapRemoveBom(buffer);
     cursor = buffer;
@@ -243,6 +235,26 @@ static void UI_ReadStringsInto(handle_t archive, mapInfo_t *info) {
             mi.MemFree(entry);
         }
     }
+}
+
+static void UI_ReadStringsInto(handle_t archive, mapInfo_t *info) {
+    handle_t file;
+    uint32_t size;
+    string_t buffer;
+
+    if (!archive || !info || !SFileOpenFileEx(archive, "war3map.wts", SFILE_OPEN_FROM_MPQ, &file))
+        return;
+    size = SFileGetFileSize(file, NULL);
+    buffer = mi.MemAlloc(size + 1);
+    if (!buffer) {
+        SFileCloseFile(file);
+        return;
+    }
+    SFileReadFile(file, buffer, size, NULL, NULL);
+    buffer[size] = '\0';
+    SFileCloseFile(file);
+
+    UI_ParseTrigStrings(buffer, info);
     mi.MemFree(buffer);
 }
 
@@ -396,40 +408,106 @@ bool UI_MapNameMatchesFile(cstring_t name, cstring_t path) {
     return !strcasecmp(name, base);
 }
 
+/* Map size and tileset labels live in UI\WorldEditGameStrings.txt ("KEY=value" lines, localized per client). */
+static char *world_edit_strings;
+
+void UI_ClearWorldEditStrings(void) {
+    if (world_edit_strings)
+        mi.MemFree(world_edit_strings);
+    world_edit_strings = NULL;
+}
+
+static bool UI_LoadWorldEditStrings(void) {
+    void *data = NULL;
+    int size;
+
+    if (world_edit_strings)
+        return true;
+    if (!mi.FS_ReadFile || !mi.FS_FreeFile || !mi.MemAlloc || !mi.MemFree)
+        return false;
+    size = mi.FS_ReadFile("UI\\WorldEditGameStrings.txt", &data);
+    if (!data || size <= 0)
+        return false;
+    world_edit_strings = mi.MemAlloc((size_t)size + 1);
+    if (!world_edit_strings) {
+        mi.FS_FreeFile(data);
+        return false;
+    }
+    memcpy(world_edit_strings, data, (size_t)size);
+    world_edit_strings[size] = '\0';
+    mi.FS_FreeFile(data);
+    UI_MapRemoveBom(world_edit_strings);
+    return true;
+}
+
+/* Copy the value of `key` into out; false when the table or the key is missing. */
+static bool UI_WorldEditString(cstring_t key, string_t out, uint32_t out_size) {
+    size_t const key_len = strlen(key);
+
+    if (!UI_LoadWorldEditStrings())
+        return false;
+    for (cstring_t line = world_edit_strings; *line;) {
+        cstring_t const end = line + strcspn(line, "\r\n");
+
+        if (!strncmp(line, key, key_len) && line[key_len] == '=') {
+            snprintf(out, out_size, "%.*s", (int)(end - (line + key_len + 1)), line + key_len + 1);
+            return true;
+        }
+        line = end;
+        while (*line == '\r' || *line == '\n')
+            line++;
+    }
+    return false;
+}
+
+/* Returns the localized label, or `fallback` when the string table has no such key. */
+static cstring_t UI_LocalizedMapLabel(cstring_t key, cstring_t fallback) {
+    static char labels[4][64];
+    static uint32_t cursor;
+    string_t out = labels[cursor++ & 3];
+
+    return UI_WorldEditString(key, out, sizeof(labels[0])) && out[0] ? out : fallback;
+}
+
 cstring_t UI_MapTilesetName(uint8_t tileset) {
     switch (tileset) {
-        case 'A': return "Ashenvale";
-        case 'B': return "Barrens";
-        case 'C': return "Felwood";
-        case 'D': return "Dungeon";
-        case 'F': return "Lordaeron Fall";
-        case 'G': return "Underground";
-        case 'I': return "Icecrown Glacier";
-        case 'J': return "Dalaran";
-        case 'K': return "Black Citadel";
-        case 'L': return "Lordaeron Summer";
-        case 'N': return "Northrend";
-        case 'O': return "Outland";
-        case 'Q': return "Village Fall";
-        case 'V': return "Village";
-        case 'W': return "Lordaeron Winter";
-        case 'X': return "Dalaran Ruins";
-        case 'Y': return "Cityscape";
-        case 'Z': return "Sunken Ruins";
+        case 'A': return UI_LocalizedMapLabel("WESTRING_LOCALE_ASHENVALE", "Ashenvale");
+        case 'B': return UI_LocalizedMapLabel("WESTRING_LOCALE_BARRENS", "Barrens");
+        case 'C': return UI_LocalizedMapLabel("WESTRING_LOCALE_FELWOOD", "Felwood");
+        case 'D': return UI_LocalizedMapLabel("WESTRING_LOCALE_DUNGEON", "Dungeon");
+        case 'F': return UI_LocalizedMapLabel("WESTRING_LOCALE_LORDAERON_FALL", "Lordaeron Fall");
+        case 'G': return UI_LocalizedMapLabel("WESTRING_LOCALE_DUNGEON2", "Underground");
+        case 'I': return UI_LocalizedMapLabel("WESTRING_LOCALE_ICECROWN", "Icecrown Glacier");
+        case 'J': return UI_LocalizedMapLabel("WESTRING_LOCALE_DALARANRUINS", "Dalaran Ruins");
+        case 'K': return UI_LocalizedMapLabel("WESTRING_LOCALE_BLACKCITADEL", "Black Citadel");
+        case 'L': return UI_LocalizedMapLabel("WESTRING_LOCALE_LORDAERON_SUMMER", "Lordaeron Summer");
+        case 'N': return UI_LocalizedMapLabel("WESTRING_LOCALE_NORTHREND", "Northrend");
+        case 'O': return UI_LocalizedMapLabel("WESTRING_LOCALE_OUTLAND", "Outland");
+        case 'Q': return UI_LocalizedMapLabel("WESTRING_LOCALE_VILLAGEFALL", "Village Fall");
+        case 'V': return UI_LocalizedMapLabel("WESTRING_LOCALE_VILLAGE", "Village");
+        case 'W': return UI_LocalizedMapLabel("WESTRING_LOCALE_LORDAERON_WINTER", "Lordaeron Winter");
+        case 'X': return UI_LocalizedMapLabel("WESTRING_LOCALE_DALARAN", "Dalaran");
+        case 'Y': return UI_LocalizedMapLabel("WESTRING_LOCALE_CITYSCAPE", "Cityscape");
+        case 'Z': return UI_LocalizedMapLabel("WESTRING_LOCALE_RUINS", "Sunken Ruins");
         default: return NULL;
     }
 }
 
+/* Thresholds are the map areas (cells) of [MapSizes] in UI\WorldEditData.txt. */
 cstring_t UI_MapSizeName(uint32_t width, uint32_t height) {
-    uint32_t largest = MAX(width, height);
+    uint64_t const area = (uint64_t)width * height;
 
-    if (largest <= 96)
-        return "Small";
-    if (largest <= 128)
-        return "Medium";
-    if (largest <= 160)
-        return "Large";
-    return "Huge";
+    if (area <= 7500)
+        return UI_LocalizedMapLabel("WESTRING_MAPSIZE_TINY", "Tiny");
+    if (area <= 13500)
+        return UI_LocalizedMapLabel("WESTRING_MAPSIZE_SMALL", "Small");
+    if (area <= 22000)
+        return UI_LocalizedMapLabel("WESTRING_MAPSIZE_MEDIUM", "Medium");
+    if (area <= 32500)
+        return UI_LocalizedMapLabel("WESTRING_MAPSIZE_LARGE", "Large");
+    if (area <= 45000)
+        return UI_LocalizedMapLabel("WESTRING_MAPSIZE_HUGE", "Huge");
+    return UI_LocalizedMapLabel("WESTRING_MAPSIZE_EPIC", "Epic");
 }
 
 void UI_SanitizeMapListField(string_t text) {
@@ -442,10 +520,19 @@ void UI_SanitizeMapListField(string_t text) {
 }
 
 void UI_SanitizeMapInfoText(string_t text) {
+    string_t out = text;
+    bool after_cr = false;
+
     if (!text)
         return;
-    for (string_t p = text; *p; p++) {
-        if (*p == '\t')
-            *p = ' ';
+    for (cstring_t p = text; *p; p++) {
+        bool const skip = *p == '\n' && after_cr;
+
+        after_cr = *p == '\r';
+        if (skip)
+            continue;
+        /* CRLF collapses to one break; a stray CR renders as a missing glyph. */
+        *out++ = *p == '\t' ? ' ' : *p == '\r' ? '\n' : *p;
     }
+    *out = '\0';
 }

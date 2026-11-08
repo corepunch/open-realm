@@ -4368,6 +4368,83 @@ TEST(menu_fdf, sidecar_map_files_are_not_listed) {
     mi = saved;
 }
 
+/* Localized Blizzard maps start their war3map.wts with the UTF-8 BOM re-encoded through CP1250, which hid
+ * STRING 0 (the map name) and left the raw TRIGSTR_000 in the list. */
+TEST(menu_fdf, map_strings_survive_mangled_bom) {
+    menuImport_t saved = mi;
+    char mangled[] = "\xC4\x8F\xC2\xBB\xC5\xBCSTRING 0\r\n{\r\nGrabie\xC5\xBC\r\n}\r\n\r\nSTRING 1\r\n{\r\n1na1\r\n}\r\n";
+    char real[] = "\xEF\xBB\xBFSTRING 0\r\n{\r\nName\r\n}\r\n";
+    mapInfo_t info;
+    char out[64];
+
+    memset(&mi, 0, sizeof(mi));
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+
+    memset(&info, 0, sizeof(info));
+    UI_ParseTrigStrings(mangled, &info);
+    UI_ResolveMapInfoString(&info, "TRIGSTR_000", out, sizeof(out));
+    T_STREQ(out, "Grabie\xC5\xBC");
+    UI_ResolveMapInfoString(&info, "TRIGSTR_001", out, sizeof(out));
+    T_STREQ(out, "1na1");
+    UI_FreeMapInfo(&info);
+
+    memset(&info, 0, sizeof(info));
+    UI_ParseTrigStrings(real, &info);
+    UI_ResolveMapInfoString(&info, "TRIGSTR_000", out, sizeof(out));
+    T_STREQ(out, "Name");
+    UI_FreeMapInfo(&info);
+    mi = saved;
+}
+
+static char const test_world_edit_strings[] =
+    "\xEF\xBB\xBF[WorldEditStrings]\r\nWESTRING_MAPSIZE_TINY=Bardzo ma\xC5\x82""a\r\n"
+    "WESTRING_MAPSIZE_LARGE=Du\xC5\xBC""a\r\nWESTRING_LOCALE_LORDAERON_WINTER=Zima Lordaeronu\r\n";
+
+static int test_world_edit_read(cstring_t path, void **out) {
+    if (strcmp(path, "UI\\WorldEditGameStrings.txt")) {
+        *out = NULL;
+        return -1;
+    }
+    *out = (void *)test_world_edit_strings;
+    return (int)sizeof(test_world_edit_strings) - 1;
+}
+
+static void test_world_edit_free(handle_t data) { (void)data; }
+
+/* Size and tileset labels come from the localized string table; missing keys fall back to English. */
+TEST(menu_fdf, map_size_and_tileset_use_localized_strings) {
+    menuImport_t saved = mi;
+
+    memset(&mi, 0, sizeof(mi));
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+    UI_ClearWorldEditStrings();
+    T_STREQ(UI_MapSizeName(96, 96), "Small"); /* no table loaded yet: English fallback */
+    UI_ClearWorldEditStrings();
+
+    mi.FS_ReadFile = test_world_edit_read;
+    mi.FS_FreeFile = test_world_edit_free;
+    T_STREQ(UI_MapSizeName(64, 64), "Bardzo ma\xC5\x82""a");
+    T_STREQ(UI_MapSizeName(96, 96), "Small"); /* key absent from the table */
+    T_STREQ(UI_MapSizeName(160, 160), "Du\xC5\xBC""a");
+    T_STREQ(UI_MapSizeName(192, 192), "Huge");
+    T_STREQ(UI_MapSizeName(256, 256), "Epic");
+    T_STREQ(UI_MapTilesetName('W'), "Zima Lordaeronu");
+    T_STREQ(UI_MapTilesetName('J'), "Dalaran Ruins");
+    T_NULL(UI_MapTilesetName('?'));
+    UI_ClearWorldEditStrings();
+    mi = saved;
+}
+
+/* Map descriptions use CRLF; a lone CR draws as a missing glyph. */
+TEST(menu_fdf, map_info_text_normalizes_line_breaks) {
+    char text[] = "One\r\nTwo\rThree\tFour\nFive";
+
+    UI_SanitizeMapInfoText(text);
+    T_STREQ(text, "One\nTwo\nThree Four\nFive");
+}
+
 static int test_menu_map_list_folders(cstring_t path, cstring_t ext, string_t out, int size) {
     static cstring_t const files[] = {
         "Maps\\Zeta.w3m", "Maps\\Alpha.w3m", "Maps\\Download\\Inner.w3m", "Maps\\Download\\Deep\\Leaf.w3m",
