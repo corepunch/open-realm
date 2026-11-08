@@ -24,7 +24,7 @@
 /* -------------------------------------------------------------------------- */
 #define MAX_BUILD_QUEUE 7
 #ifndef MAX_UI_CLASSES
-#define MAX_UI_CLASSES 2048 // frames per module; measured peak is 1167, leaving 75% headroom
+#define MAX_UI_CLASSES 4096 // frames per module; screens keep their frames once built (main menu 1130, single-player menu +430, game setup +480, LAN create/lobby +700), so a session that visits them all reaches ~2800
 #endif
 #include "ui_constants.h"
 #define UI_MAX_MAP_LIST_ITEMS 1024
