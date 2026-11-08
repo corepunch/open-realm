@@ -3159,7 +3159,7 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
         { "menu_realm_select", &mainMenuScreen },
         { "menu_credits", &creditsMenuScreen },
         { "menu_game", &singlePlayerMenuScreen },
-        { "menu_single_player_skirmish", &lanJoinScreen },
+        { "menu_single_player_skirmish", &gameSetupScreen },
         { "menu_multiplayer", &lanJoinScreen },
         { "menu_startserver", &lanJoinScreen },
         { "menu_joinserver", &lanJoinScreen },
@@ -3371,9 +3371,9 @@ TEST(menu_fdf, glue_same_panel_screen_navigation_completes) {
     test_glue_tick(1000);
     Cmd_ExecuteString("menu_single_player_skirmish");
     test_glue_tick(1000);
-    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     Cmd_ExecuteString("menu_game");
-    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     T_ASSERT(M_IsTransitioning());
     test_glue_tick(667);
     T_ASSERT(UI_GetCurrentScreen() == &singlePlayerMenuScreen);
@@ -4501,6 +4501,40 @@ TEST(menu_fdf, map_list_browses_folders) {
     T_NULL(LAN_SelectedMapPath());
     Cmd_ExecuteString("menu_lan_select 1");
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* The single-player custom game is one screen: picking a map in the list publishes that map's lobby. */
+TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
+    menuImport_t saved = mi;
+    frameDef_t *start;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    captured_command[0] = '\0';
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    /* The first map of the root is selected by default. */
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    start = UI_FindFrame("StartGameButton");
+    T_NOT_NULL(start);
+    Cmd_ExecuteString("menu_lan_select 2");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
+    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Zeta.w3m\"") != NULL);
+    /* A folder row has no map: nothing can be started. */
+    Cmd_ExecuteString("menu_lan_select 0");
+    T_NULL(LAN_SelectedMapPath());
+    T_ASSERT(start->disabled);
+    Cmd_ExecuteString("menu_lan_open");
+    Cmd_ExecuteString("menu_lan_select 2");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Inner.w3m");
+    T_ASSERT(!start->disabled);
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }

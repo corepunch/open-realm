@@ -22,6 +22,7 @@
 #include "../menu_screen.h"
 #include "../generated/game_chatroom.h"
 #include "../generated/map_info_pane.h"
+#include "../generated/map_list_box.h"
 #include "../generated/player_slot.h"
 
 #define GAME_SETUP_CHAT_LINES 16
@@ -55,6 +56,10 @@ typedef struct {
     PlayerSlot_t slot_template;
     MapInfoPane_t map_info_template;
     MapInfoPane_t map_info_pane;
+    MapListBox_t list_template;
+    MapListBox_t list_box;
+    frameDef_t *settings_label;
+    bool skirmish; /* single-player custom game: map list on top, slots below */
     bool ready;
     PATHSTR map_path;
     UINAME map_name;
@@ -83,6 +88,9 @@ static cstring_t const setup_lf[] = {
 
 static gameSetupState_t setup;
 
+extern uiScreen_t gameSetupScreen;
+static void GameSetup_ApplyLayout(void);
+
 static uint32_t GameSetup_CountPlayers(mapInfo_t const *info);
 static void GameSetup_PublishLobby(void);
 static void GameSetup_AppendText(string_t out, size_t out_size, size_t *used, cstring_t text);
@@ -91,9 +99,12 @@ static bool GameSetup_FixedPlayerSettings(void);
 static bool GameSetup_LoadScreen(void) {
     bool ok = true;
 
+    /* A (re)load builds new frame trees; drop every pointer into the previous ones. */
+    memset(&setup, 0, sizeof(setup));
     ok = GameChatroom_Load(&setup.frames) && ok;
     ok = PlayerSlot_Load(&setup.slot_template) && ok;
     ok = MapInfoPane_Load(&setup.map_info_template) && ok;
+    ok = MapListBox_Load(&setup.list_template) && ok;
     return ok;
 }
 
@@ -192,7 +203,7 @@ static void GameSetup_UpdateStartButton(void) {
     if (!setup.start_button) {
         return;
     }
-    if (GameSetup_CanStart()) {
+    if (GameSetup_CanStart() && (!setup.skirmish || setup.map_path[0])) {
         UI_SetOnClick(setup.start_button, "menu_game_setup_start");
         UI_SetEnabled(setup.start_button, true);
     } else {
@@ -893,6 +904,86 @@ void GameSetup_LoadMap(cstring_t map_path) {
     GameSetup_PublishLobby();
 }
 
+/* Skirmish.fdf geometry of the original single-player custom-game screen. */
+static void GameSetup_EnsureSkirmishFrames(void) {
+    frameDef_t const *text_template;
+
+    if (!setup.list_box.MapListBox && setup.list_template.MapListBox) {
+        frameDef_t *root = UI_CloneFrameTree(setup.list_template.MapListBox, setup.root);
+
+        if (root && MapListBox_Bind(&setup.list_box, root)) {
+            UI_SetPoint(setup.list_box.MapListBox, FRAMEPOINT_TOPLEFT, setup.root, FRAMEPOINT_TOPLEFT,
+                        0.163125f, -0.019375f);
+            UI_SetSize(setup.list_box.MapListBox, 0.31675f, 0.13375f);
+            UI_BindMapList(setup.list_box.MapListBox, LAN_MapListState(), NULL, 5, "menu_lan_select %u");
+        }
+    }
+    if (!setup.settings_label) {
+        setup.settings_label = UI_Spawn(FT_TEXT, setup.root);
+        if (setup.settings_label) {
+            snprintf(setup.settings_label->Name, sizeof(setup.settings_label->Name), "GameSetupSettingsLabel");
+            text_template = UI_FindFrame("StandardInfoTextTemplate");
+            if (text_template) {
+                setup.settings_label->DecorateFileNames = text_template->DecorateFileNames;
+                setup.settings_label->Font = text_template->Font;
+            }
+            if (!setup.settings_label->Font.Name[0]) {
+                snprintf(setup.settings_label->Font.Name, sizeof(setup.settings_label->Font.Name), "MasterFont");
+            }
+            if (setup.settings_label->Font.Size <= 0.0f) {
+                setup.settings_label->Font.Size = 0.011f;
+            }
+            setup.settings_label->Font.Color = COLOR32_WHITE;
+            setup.settings_label->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+            setup.settings_label->Font.Justification.Vertical = FONT_JUSTIFYTOP;
+            UI_SetSize(setup.settings_label, 0.14f, 0.02f);
+            UI_SetPoint(setup.settings_label, FRAMEPOINT_TOPLEFT, setup.root, FRAMEPOINT_TOPLEFT,
+                        0.020625f, -0.03125f);
+            UI_SetText(setup.settings_label, "%s", UI_GetString("GAME_SETTINGS"));
+        }
+    }
+}
+
+/* The same screen serves the LAN lobby (slots and chat) and the single-player custom game (map list and slots). */
+static void GameSetup_ApplyLayout(void) {
+    bool const skirmish = setup.skirmish;
+    frameDef_t *team = setup.frames.TeamSetupContainer;
+
+    if (skirmish) {
+        GameSetup_EnsureSkirmishFrames();
+    }
+    if (team) {
+        if (skirmish) {
+            team->Points.y[FPP_MIN].used = false;
+            UI_SetPoint(team, FRAMEPOINT_BOTTOMLEFT, setup.root, FRAMEPOINT_BOTTOMLEFT, 0.015f, 0.0225f);
+        } else {
+            team->Points.y[FPP_MAX].used = false;
+            UI_SetPoint(team, FRAMEPOINT_TOPLEFT, setup.root, FRAMEPOINT_TOPLEFT, 0.015f, -0.031875f);
+        }
+        UI_SetSize(team, 0.46375f, 0.39f);
+    }
+    UI_SetHidden(setup.list_box.MapListBox, !skirmish);
+    UI_SetHidden(setup.settings_label, !skirmish);
+    UI_SetHidden(setup.frames.ChatTextArea, skirmish);
+    UI_SetHidden(setup.frames.ChatEditBox, skirmish);
+    UI_SetHidden(setup.frames.ChatScrollBar, skirmish);
+    UI_SetHidden(setup.frames.GameNameLabel, skirmish);
+    UI_SetHidden(setup.frames.GameNameValue, skirmish);
+}
+
+/* The map list selection moved: reload the map, its slots and its info. */
+void GameSetup_MapSelectionChanged(void) {
+    if (!setup.ready || !setup.skirmish || UI_GetCurrentScreen() != &gameSetupScreen) {
+        return;
+    }
+    GameSetup_LoadSelectedMap();
+    GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
+    GameSetup_UpdateMapInfo();
+    GameSetup_PopulateSlots();
+    GameSetup_UpdateStartButton();
+    GameSetup_PublishLobby();
+}
+
 static void GameSetup_BuildFrames(void) {
     setup.ready = false;
     setup.root = setup.frames.GameChatroom;
@@ -924,8 +1015,9 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
-    UI_SetOnClick(setup.cancel_button,
-                  LAN_IsSinglePlayerCreate() ? "menu_single_player_skirmish" : "menu_startserver");
+    setup.skirmish = LAN_IsSinglePlayerCreate();
+    GameSetup_ApplyLayout();
+    UI_SetOnClick(setup.cancel_button, setup.skirmish ? "menu_game" : "menu_startserver");
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
@@ -938,7 +1030,7 @@ static void GameSetup_Shutdown(void) {
 }
 
 static void GameSetup_Refresh(int msec) {
-    (void)msec;
+    if (setup.skirmish) LAN_AnimateMapList(msec);
     GameSetup_UpdateStartButton();
     if (!strcmp(mi.Cvar_String("online_mode", "0"), "1") && mi.Online_Status)
         GameSetup_SetTextIfPresent(setup.game_name, "%s", mi.Online_Status());
@@ -954,6 +1046,9 @@ static void GameSetup_Draw(void) {
 
 static void GameSetup_KeyEvent(int key, bool down) {
     if (!down) {
+        return;
+    }
+    if (setup.skirmish && LAN_MapListKeyEvent(key)) {
         return;
     }
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
@@ -1043,8 +1138,11 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
     if (!state || !state->active || !state->map_path[0]) {
         return;
     }
-    setup.applying_lobby = true;
     changed_map = strcmp(setup.map_path, state->map_path) != 0;
+    if (setup.skirmish && changed_map) {
+        return; /* a stale echo of an earlier selection */
+    }
+    setup.applying_lobby = true;
     if (changed_map || !setup.ready) {
         GameSetup_LoadMap(state->map_path);
     }

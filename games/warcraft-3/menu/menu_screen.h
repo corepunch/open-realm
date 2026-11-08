@@ -79,12 +79,17 @@ void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
 void LAN_SelectMapIndex(uint32_t index);
 void LAN_OpenSelectedFolder(void);
+void LAN_PrepareSkirmish(void);
+uiMapListState_t *LAN_MapListState(void);
+bool LAN_MapListKeyEvent(int key);
+void LAN_AnimateMapList(int msec);
 void LAN_StartSelectedMap(void);
 void LAN_JoinSelectedGame(void);
 void LAN_ApplyPlayerName(void);
 bool LAN_IsSinglePlayerCreate(void);
 
 bool GameSetup_StartGame(void);
+void GameSetup_MapSelectionChanged(void);
 void GameSetup_LoadMap(cstring_t map_path);
 void GameSetup_UpdateLobbySetup(lobbyState_t const *state);
 void GameSetup_AddChatMessage(cstring_t text, bool own);

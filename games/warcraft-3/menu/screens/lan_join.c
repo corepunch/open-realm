@@ -70,6 +70,18 @@ static cstring_t const lan_left[] = {
 
 static lan_join_state_t lan;
 
+/* The single-player custom-game screen shows five map rows, like the original client. */
+#define LAN_VISIBLE_SKIRMISH_MAPS 5
+
+static uint32_t LAN_MapRows(void) {
+    return lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? LAN_VISIBLE_SKIRMISH_MAPS : LAN_VISIBLE_MAPS;
+}
+
+/* The map list can be used without the LAN frames (the skirmish screen hosts it in the game-setup screen). */
+static bool LAN_MapsAvailable(void) {
+    return lan.ready || lan.all_maps.count > 0;
+}
+
 static bool LANJoin_LoadScreen(void) {
     bool ok = true;
 
@@ -368,7 +380,7 @@ static void LAN_BuildMapView(cstring_t select_path) {
         }
     }
     view->selected = selected == UINT32_MAX ? 0 : selected;
-    LAN_EnsureRowVisible(view, LAN_VISIBLE_MAPS);
+    LAN_EnsureRowVisible(view, LAN_MapRows());
     view->visualScroll = (float)view->scroll;
 }
 
@@ -385,7 +397,7 @@ void LAN_OpenSelectedFolder(void) {
         snprintf(lan.dir, sizeof(lan.dir), "%s", item->path + 5);
         LAN_BuildMapView(NULL);
         lan.maps.selected = 0; /* "[..]" */
-        LAN_EnsureRowVisible(&lan.maps, LAN_VISIBLE_MAPS);
+        LAN_EnsureRowVisible(&lan.maps, LAN_MapRows());
         lan.maps.visualScroll = (float)lan.maps.scroll;
     } else if (item->kind == UI_MAP_ITEM_PARENT) {
         char *slash;
@@ -396,6 +408,7 @@ void LAN_OpenSelectedFolder(void) {
         LAN_BuildMapView(left);
     }
     LAN_UpdateControls();
+    GameSetup_MapSelectionChanged();
 }
 
 static void LAN_LoadMapsWithExtension(cstring_t extension) {
@@ -919,17 +932,58 @@ static void LANJoin_KeyEvent(int key, bool down) {
     if (!lan.ready || lan.mode == LAN_MODE_BROWSER || UI_EditHasFocus(lan.join_frames.PlayerNameEditBox)) {
         return;
     }
+    LAN_MapListKeyEvent(key);
+}
+
+/* Enter opens a folder, Up/Down move the selection. Returns true when the key was used. */
+bool LAN_MapListKeyEvent(int key) {
+    if (!LAN_MapsAvailable()) {
+        return false;
+    }
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+        if (lan.maps.selected < lan.maps.count && lan.maps.items[lan.maps.selected].kind == UI_MAP_ITEM_MAP) {
+            return false;
+        }
         LAN_OpenSelectedFolder();
-    } else if (key == LAN_KEY_UP && lan.maps.selected > 0) {
-        LAN_SelectMapIndex(lan.maps.selected - 1);
-    } else if (key == LAN_KEY_DOWN) {
+        return true;
+    }
+    if (key == LAN_KEY_UP) {
+        if (lan.maps.selected > 0) LAN_SelectMapIndex(lan.maps.selected - 1);
+        return true;
+    }
+    if (key == LAN_KEY_DOWN) {
         LAN_SelectMapIndex(lan.maps.selected + 1);
+        return true;
+    }
+    return false;
+}
+
+/* Ease the visible scroll offset toward the target row, as the LAN screen does every frame. */
+void LAN_AnimateMapList(int msec) {
+    float const target = (float)lan.maps.scroll;
+    float const diff = target - lan.maps.visualScroll;
+    float const alpha = MIN((float)msec / 90.0f, 1.0f);
+
+    if (diff > -0.001f && diff < 0.001f) {
+        lan.maps.visualScroll = target;
+    } else {
+        lan.maps.visualScroll += diff * alpha;
     }
 }
 
+uiMapListState_t *LAN_MapListState(void) {
+    return &lan.maps;
+}
+
+/* Entering the single-player custom-game screen: scan the maps and start at the Maps root. */
+void LAN_PrepareSkirmish(void) {
+    lan.mode = LAN_MODE_SINGLE_PLAYER_CREATE;
+    lan.dir[0] = '\0';
+    LAN_LoadMaps();
+}
+
 cstring_t LAN_SelectedMapPath(void) {
-    if (!lan.ready) {
+    if (!LAN_MapsAvailable()) {
         return NULL;
     }
     if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count ||
@@ -940,7 +994,7 @@ cstring_t LAN_SelectedMapPath(void) {
 }
 
 cstring_t LAN_SelectedMapName(void) {
-    if (!lan.ready) {
+    if (!LAN_MapsAvailable()) {
         return NULL;
     }
     if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count ||
@@ -984,11 +1038,11 @@ void LAN_SelectMapIndex(uint32_t index) {
     uiMapListState_t *list;
     uint32_t visible_rows;
 
-    if (!lan.ready) {
+    if (!LAN_MapsAvailable()) {
         return;
     }
     list = lan.mode == LAN_MODE_BROWSER ? &lan.games : &lan.maps;
-    visible_rows = lan.mode == LAN_MODE_BROWSER ? LAN_VISIBLE_GAMES : LAN_VISIBLE_MAPS;
+    visible_rows = lan.mode == LAN_MODE_BROWSER ? LAN_VISIBLE_GAMES : LAN_MapRows();
     if (index >= list->count) {
         return;
     }
@@ -1000,6 +1054,7 @@ void LAN_SelectMapIndex(uint32_t index) {
         list->scroll = list->selected - visible_rows + 1;
     }
     LAN_UpdateControls();
+    GameSetup_MapSelectionChanged();
 }
 
 void LAN_JoinSelectedGame(void) {
