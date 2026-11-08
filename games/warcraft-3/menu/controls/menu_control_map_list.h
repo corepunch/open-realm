@@ -1,6 +1,42 @@
 #ifndef UI_CONTROL_MAP_LIST_H
 #define UI_CONTROL_MAP_LIST_H
 
+#define MAP_LIST_SCROLLBAR_WIDTH 0.0125f
+
+typedef struct {
+    rect_t up, down, track, thumb;
+} mapListScrollbar_t;
+
+static uint32_t UI_MapListVisibleRows(uiMapListControl_t const *control, rect_t const *rect) {
+    float const row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
+
+    return control->VisibleRows ? control->VisibleRows
+                                : (uint32_t)((rect->h - control->InsetY * 2.0f) / row_height);
+}
+
+/* The scrollbar exists only when the list overflows, as in the original client. */
+static bool UI_MapListScrollbar(uiMapListControl_t const *control, rect_t const *rect, mapListScrollbar_t *bar) {
+    uiMapListState_t const *state = control->State;
+    float const row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
+    uint32_t const visible_rows = UI_MapListVisibleRows(control, rect);
+    float const width = MAP_LIST_SCROLLBAR_WIDTH;
+    float const height = row_height * (float)visible_rows;
+    float x, y, travel, fraction;
+
+    if (!state || visible_rows == 0 || state->count <= visible_rows) {
+        return false;
+    }
+    x = rect->x + rect->w - control->InsetX - width;
+    y = rect->y + control->InsetY;
+    bar->track = MAKE(rect_t, x, y, width, height);
+    bar->up = MAKE(rect_t, x, y, width, width);
+    bar->down = MAKE(rect_t, x, y + height - width, width, width);
+    travel = height - width * 3.0f;
+    fraction = (float)MIN(state->scroll, state->count - visible_rows) / (float)(state->count - visible_rows);
+    bar->thumb = MAKE(rect_t, x, y + width + travel * fraction, width, width);
+    return true;
+}
+
 static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
     refExport_t *renderer = mi.GetRenderer();
     uiMapListControl_t const *control;
@@ -13,6 +49,8 @@ static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
     float row_offset;
     rect_t content;
     rect_t clip;
+    mapListScrollbar_t bar;
+    bool has_bar;
 
     if (!frame || !rect) {
         return;
@@ -31,6 +69,10 @@ static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
                    rect->y + control->InsetY,
                    rect->w - control->InsetX * 2.0f,
                    row_height);
+    has_bar = UI_MapListScrollbar(control, rect, &bar);
+    if (has_bar) {
+        content.w -= MAP_LIST_SCROLLBAR_WIDTH + 0.002f;
+    }
     clip = MAKE(rect_t,
                 content.x,
                 content.y,
@@ -145,6 +187,29 @@ static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
                                   .halign = FONT_JUSTIFYLEFT,
                                   .valign = FONT_JUSTIFYMIDDLE,
                                   .clip = clip));
+    }
+
+    if (has_bar && renderer->DrawImageEx) {
+        struct { rect_t const *rect; cstring_t path; } const parts[] = {
+            { &bar.up, "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-UpArrow.blp" },
+            { &bar.down, "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-DownArrow.blp" },
+            { &bar.thumb, "UI\\Widgets\\Glues\\SinglePlayerSkirmish-ScrollBarKnob.blp" },
+        };
+
+        for (uint32_t i = 0; i < sizeof(parts) / sizeof(parts[0]); i++) {
+            texture_t const *texture = UI_GetTexture(UI_LoadTexture(parts[i].path, false));
+
+            if (!texture) {
+                continue;
+            }
+            renderer->DrawImageEx(&MAKE(drawImage_t,
+                                        .texture = texture,
+                                        .shader = SHADER_UI,
+                                        .alphamode = BLEND_MODE_BLEND,
+                                        .screen = *parts[i].rect,
+                                        .uv = MAKE(rect_t, 0, 0, 1, 1),
+                                        .color = COLOR32_WHITE));
+        }
     }
 }
 
