@@ -14,6 +14,10 @@
 #endif
 
 #include "../menu_local.h"
+
+/* Menu key events carry engine key codes (client/keys.h), not SDL keycodes. */
+#define LAN_KEY_UP 140
+#define LAN_KEY_DOWN 141
 #include "../menu_screen.h"
 #include "../generated/local_multiplayer_join.h"
 #include "../generated/local_multiplayer_create.h"
@@ -37,7 +41,9 @@ typedef struct lan_join_state_s {
     LocalMultiplayerCreate_t create_frames;
     lanMode_t mode;
     uiMapListState_t games;
-    uiMapListState_t maps;
+    uiMapListState_t maps;      /* rows of the folder being browsed */
+    uiMapListState_t all_maps;  /* every map found under Maps */
+    PATHSTR dir;                /* browsed folder relative to Maps, backslash separated */
     bool ready;
     frameDef_t *root;
     frameDef_t *join_button;
@@ -193,8 +199,8 @@ static bool LAN_ParseMapInfo(uiMapListItem_t *item) {
 }
 
 static bool LAN_MapExists(cstring_t path) {
-    for (uint32_t i = 0; i < lan.maps.count; i++) {
-        if (!strcasecmp(lan.maps.items[i].path, path)) {
+    for (uint32_t i = 0; i < lan.all_maps.count; i++) {
+        if (!strcasecmp(lan.all_maps.items[i].path, path)) {
             return true;
         }
     }
@@ -221,13 +227,13 @@ static bool LAN_IsSidecarMap(cstring_t path) {
 static void LAN_AddMap(cstring_t path) {
     uiMapListItem_t *item;
 
-    if (!path || !*path || lan.maps.count >= UI_MAX_MAP_LIST_ITEMS ||
+    if (!path || !*path || lan.all_maps.count >= UI_MAX_MAP_LIST_ITEMS ||
         !LAN_HasMapExtension(path) || LAN_IsCampaignMap(path) || LAN_IsSidecarMap(path) ||
         LAN_MapExists(path)) {
         return;
     }
 
-    item = &lan.maps.items[lan.maps.count++];
+    item = &lan.all_maps.items[lan.all_maps.count++];
     memset(item, 0, sizeof(*item));
     snprintf(item->path, sizeof(item->path), "%s", path);
     for (char *p = item->path; *p; p++) {
@@ -243,14 +249,143 @@ static void LAN_AddMap(cstring_t path) {
     LAN_ParseMapInfo(item);
 }
 
-static int LAN_CompareMaps(void const *a, void const *b) {
+/* Folder of a path relative to Maps, e.g. "Maps\Download\x.w3m" -> "Download". */
+static void LAN_ParentDir(cstring_t path, string_t out, size_t out_size) {
+    cstring_t const rest = !strncasecmp(path, "Maps\\", 5) ? path + 5 : path;
+    cstring_t const slash = strrchr(rest, '\\');
+    size_t const len = slash ? (size_t)(slash - rest) : 0;
+
+    snprintf(out, out_size, "%.*s", (int)len, rest);
+}
+
+/* True when `dir` is `base` itself or lies below it; `child` receives the first component below `base`. */
+static bool LAN_DirChild(cstring_t dir, cstring_t base, string_t child, size_t child_size) {
+    size_t const base_len = strlen(base);
+    cstring_t rest = dir;
+    size_t len;
+
+    if (base_len) {
+        if (strncasecmp(dir, base, base_len) || (dir[base_len] != '\\' && dir[base_len] != '\0')) {
+            return false;
+        }
+        rest = dir[base_len] ? dir + base_len + 1 : dir + base_len;
+    }
+    if (!*rest) {
+        return false;
+    }
+    len = strcspn(rest, "\\");
+    snprintf(child, child_size, "%.*s", (int)len, rest);
+    return true;
+}
+
+static int LAN_CompareItems(void const *a, void const *b) {
     uiMapListItem_t const *ma = a;
     uiMapListItem_t const *mb = b;
 
+    if (ma->kind != mb->kind) {
+        /* "[..]" first, then folders, then maps. */
+        static uint8_t const rank[] = { 2, 1, 0 };
+        return rank[ma->kind] < rank[mb->kind] ? -1 : 1;
+    }
+    if (ma->kind == UI_MAP_ITEM_FOLDER) {
+        return strcasecmp(ma->name, mb->name);
+    }
     if (ma->players != mb->players) {
         return ma->players < mb->players ? -1 : 1;
     }
-    return strcasecmp(ma->name, mb->name);
+    /* The original client orders display names ordinally, not case-insensitively. */
+    return strcmp(ma->name, mb->name);
+}
+
+static void LAN_EnsureRowVisible(uiMapListState_t *list, uint32_t visible_rows) {
+    if (list->selected < list->scroll) {
+        list->scroll = list->selected;
+    }
+    if (list->selected >= list->scroll + visible_rows) {
+        list->scroll = list->selected - visible_rows + 1;
+    }
+}
+
+static bool LAN_FolderListed(uiMapListState_t const *list, cstring_t name) {
+    for (uint32_t i = 0; i < list->count; i++) {
+        if (list->items[i].kind == UI_MAP_ITEM_FOLDER && !strcasecmp(list->items[i].name, name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void LAN_UpdateControls(void);
+
+/* Fill lan.maps with the rows of lan.dir. `select_path` picks the row to select; without it the first map
+ * (or, failing that, the first row) is selected, as the original client does. */
+static void LAN_BuildMapView(cstring_t select_path) {
+    uiMapListState_t *view = &lan.maps;
+    uint32_t selected = UINT32_MAX;
+
+    memset(view, 0, sizeof(*view));
+    if (lan.dir[0]) {
+        uiMapListItem_t *item = &view->items[view->count++];
+        memset(item, 0, sizeof(*item));
+        item->kind = UI_MAP_ITEM_PARENT;
+        snprintf(item->name, sizeof(item->name), "[..]");
+    }
+    for (uint32_t i = 0; i < lan.all_maps.count && view->count < UI_MAX_MAP_LIST_ITEMS; i++) {
+        uiMapListItem_t const *map = &lan.all_maps.items[i];
+        char dir[sizeof(map->path)];
+        char child[128];
+
+        LAN_ParentDir(map->path, dir, sizeof(dir));
+        if (!strcasecmp(dir, lan.dir)) {
+            view->items[view->count++] = *map;
+        } else if (LAN_DirChild(dir, lan.dir, child, sizeof(child)) && !LAN_FolderListed(view, child)) {
+            uiMapListItem_t *item = &view->items[view->count++];
+            memset(item, 0, sizeof(*item));
+            item->kind = UI_MAP_ITEM_FOLDER;
+            snprintf(item->name, sizeof(item->name), "%s", child);
+            snprintf(item->path, sizeof(item->path), "Maps\\%s%s%s", lan.dir, lan.dir[0] ? "\\" : "", child);
+        }
+    }
+    qsort(view->items, view->count, sizeof(view->items[0]), LAN_CompareItems);
+
+    for (uint32_t i = 0; i < view->count; i++) {
+        if (select_path && !strcasecmp(view->items[i].path, select_path)) {
+            selected = i;
+            break;
+        }
+        if (!select_path && selected == UINT32_MAX && view->items[i].kind == UI_MAP_ITEM_MAP) {
+            selected = i;
+        }
+    }
+    view->selected = selected == UINT32_MAX ? 0 : selected;
+    LAN_EnsureRowVisible(view, LAN_VISIBLE_MAPS);
+    view->visualScroll = (float)view->scroll;
+}
+
+/* Enter on a folder row opens it; on "[..]" goes up and keeps the folder just left selected. */
+void LAN_OpenSelectedFolder(void) {
+    uiMapListItem_t const *item;
+    char left[sizeof(lan.dir)];
+
+    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
+        return;
+    }
+    item = &lan.maps.items[lan.maps.selected];
+    if (item->kind == UI_MAP_ITEM_FOLDER) {
+        snprintf(lan.dir, sizeof(lan.dir), "%s", item->path + 5);
+        LAN_BuildMapView(NULL);
+        lan.maps.selected = 0; /* "[..]" */
+        LAN_EnsureRowVisible(&lan.maps, LAN_VISIBLE_MAPS);
+        lan.maps.visualScroll = (float)lan.maps.scroll;
+    } else if (item->kind == UI_MAP_ITEM_PARENT) {
+        char *slash;
+
+        snprintf(left, sizeof(left), "Maps\\%s", lan.dir);
+        slash = strrchr(lan.dir, '\\');
+        if (slash) *slash = '\0'; else lan.dir[0] = '\0';
+        LAN_BuildMapView(left);
+    }
+    LAN_UpdateControls();
 }
 
 static void LAN_LoadMapsWithExtension(cstring_t extension) {
@@ -272,12 +407,11 @@ static void LAN_LoadMapsWithExtension(cstring_t extension) {
 }
 
 static void LAN_LoadMaps(void) {
-    memset(&lan.maps, 0, sizeof(lan.maps));
+    memset(&lan.all_maps, 0, sizeof(lan.all_maps));
     LAN_LoadMapsWithExtension(".w3m");
     LAN_LoadMapsWithExtension(".w3x");
-    qsort(lan.maps.items, lan.maps.count, sizeof(lan.maps.items[0]), LAN_CompareMaps);
-    lan.maps.visualScroll = (float)lan.maps.scroll;
-    mi.Printf("LAN_LoadMaps: %d maps\n", (int)lan.maps.count);
+    LAN_BuildMapView(NULL);
+    mi.Printf("LAN_LoadMaps: %d maps\n", (int)lan.all_maps.count);
 }
 
 static void LAN_SetTextIfPresent(frameDef_t *frame, cstring_t format, ...) {
@@ -426,6 +560,17 @@ static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
     }
 
     item = &items->items[items->selected];
+    if (item->kind != UI_MAP_ITEM_MAP) {
+        /* Folder rows carry no map data: keep the labels, blank the values. */
+        UI_SetHidden(pane->MinimapImage, true);
+        LAN_SetTextIfPresent(pane->MaxPlayersValue, " ");
+        LAN_SetTextIfPresent(pane->MapNameValue, " ");
+        LAN_SetTextIfPresent(pane->SuggestedPlayersValue, " ");
+        LAN_SetTextIfPresent(pane->MapSizeValue, " ");
+        LAN_SetTextIfPresent(pane->MapTilesetValue, " ");
+        LAN_SetTextIfPresent(pane->MapDescValue, " ");
+        return;
+    }
     if (pane->MinimapImage) {
         PATHSTR preview;
 
@@ -597,7 +742,7 @@ static void LAN_UpdateControls(void) {
     }
 
     if (lan.play_button) {
-        bool const available = lan.maps.count > 0 && (!LAN_Internet() || (mi.Online_Ready && mi.Online_Ready()));
+        bool const available = LAN_SelectedMapPath() != NULL && (!LAN_Internet() || (mi.Online_Ready && mi.Online_Ready()));
         UI_SetEnabled(lan.play_button, available);
         if (available) {
             UI_SetOnClick(lan.play_button, "menu_lan_start");
@@ -759,6 +904,17 @@ static void LANJoin_KeyEvent(int key, bool down) {
         UI_EditHasFocus(lan.join_frames.PlayerNameEditBox)) {
         LAN_ApplyPlayerName();
         UI_ClearEditFocus();
+        return;
+    }
+    if (!lan.ready || lan.mode == LAN_MODE_BROWSER || UI_EditHasFocus(lan.join_frames.PlayerNameEditBox)) {
+        return;
+    }
+    if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+        LAN_OpenSelectedFolder();
+    } else if (key == LAN_KEY_UP && lan.maps.selected > 0) {
+        LAN_SelectMapIndex(lan.maps.selected - 1);
+    } else if (key == LAN_KEY_DOWN) {
+        LAN_SelectMapIndex(lan.maps.selected + 1);
     }
 }
 
@@ -766,7 +922,8 @@ cstring_t LAN_SelectedMapPath(void) {
     if (!lan.ready) {
         return NULL;
     }
-    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
+    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count ||
+        lan.maps.items[lan.maps.selected].kind != UI_MAP_ITEM_MAP) {
         return NULL;
     }
     return lan.maps.items[lan.maps.selected].path;
@@ -776,7 +933,8 @@ cstring_t LAN_SelectedMapName(void) {
     if (!lan.ready) {
         return NULL;
     }
-    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count) {
+    if (lan.maps.count == 0 || lan.maps.selected >= lan.maps.count ||
+        lan.maps.items[lan.maps.selected].kind != UI_MAP_ITEM_MAP) {
         return NULL;
     }
     return lan.maps.items[lan.maps.selected].name[0]
@@ -850,6 +1008,7 @@ void LAN_JoinSelectedGame(void) {
 /* Same-screen navigation still changes chrome. With animation ownership in
  * menu_main, rebuilding controls can reuse the normal initialization path. */
 static void LAN_ShowMode(lanMode_t mode) {
+    lan.dir[0] = '\0'; /* a freshly opened map list starts at the Maps root */
     lan.mode = mode;
     if (UI_GetCurrentScreen() == &lanJoinScreen) LANJoin_Init();
 }
