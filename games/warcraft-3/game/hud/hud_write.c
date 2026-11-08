@@ -257,6 +257,12 @@ cstring_t UI_FormatMessageText(cstring_t text) {
             p += 3;
             continue;
         }
+        /* JASS strings carry a literal backslash-n; the message layer expects a line break. */
+        if (p[0] == '\\' && p[1] == 'n') {
+            UI_AppendMessageText(temp, sizeof(temp), "\n");
+            p += 2;
+            continue;
+        }
         {
             size_t const used = strlen(temp);
             temp[used] = *p++;
