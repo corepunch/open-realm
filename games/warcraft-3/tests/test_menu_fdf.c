@@ -4360,7 +4360,62 @@ TEST(menu_fdf, sidecar_map_files_are_not_listed) {
     Cmd_ExecuteString("menu_startserver");
     test_glue_tick(1000);
     Cmd_ExecuteString("menu_lan_refresh");
+    Cmd_ExecuteString("menu_lan_select 0");
+    Cmd_ExecuteString("menu_lan_open");
+    Cmd_ExecuteString("menu_lan_select 1"); /* row 0 is "[..]" */
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Melee\\TwinRivers.w3m");
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+static int test_menu_map_list_folders(cstring_t path, cstring_t ext, string_t out, int size) {
+    static cstring_t const files[] = {
+        "Maps\\Zeta.w3m", "Maps\\Alpha.w3m", "Maps\\Download\\Inner.w3m", "Maps\\Download\\Deep\\Leaf.w3m",
+    };
+    size_t used = 0;
+    int count = 0;
+
+    (void)path;
+    if (strcmp(ext, ".w3m")) {
+        return 0;
+    }
+    for (uint32_t i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
+        used += (size_t)snprintf(out + used, size - used, "%s", files[i]) + 1;
+        count++;
+    }
+    return count;
+}
+
+/* Folders come first, Enter opens them, "[..]" returns and re-selects the folder that was left. */
+TEST(menu_fdf, map_list_browses_folders) {
+    menuImport_t saved = mi;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_lan_refresh");
+    /* Root: the Download folder, then maps; the first map is selected by default. */
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    Cmd_ExecuteString("menu_lan_select 0");
+    T_NULL(LAN_SelectedMapPath());
+    Cmd_ExecuteString("menu_lan_open");
+    /* Download: "[..]" is selected, then folder Deep, then the map. */
+    T_NULL(LAN_SelectedMapPath());
+    Cmd_ExecuteString("menu_lan_select 2");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Inner.w3m");
+    Cmd_ExecuteString("menu_lan_select 1");
+    Cmd_ExecuteString("menu_lan_open");
+    Cmd_ExecuteString("menu_lan_select 1");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Deep\\Leaf.w3m");
+    Cmd_ExecuteString("menu_lan_select 0");
+    Cmd_ExecuteString("menu_lan_open"); /* up to Download, Deep selected */
+    Cmd_ExecuteString("menu_lan_select 0");
+    Cmd_ExecuteString("menu_lan_open"); /* up to the root, Download selected */
+    T_NULL(LAN_SelectedMapPath());
+    Cmd_ExecuteString("menu_lan_select 1");
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }
@@ -4412,7 +4467,10 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     Cmd_ExecuteString("menu_startserver");
     test_glue_tick(1000);
     Cmd_ExecuteString("menu_lan_refresh");
+    T_NULL(LAN_SelectedMapPath()); /* the root lists only folders */
     Cmd_ExecuteString("menu_lan_select 1");
+    Cmd_ExecuteString("menu_lan_open"); /* Melee */
+    Cmd_ExecuteString("menu_lan_select 1"); /* row 0 is "[..]" */
     T_NOT_NULL(LAN_SelectedMapPath());
     Cmd_ExecuteString("menu_lan_start");
     test_glue_tick(667);

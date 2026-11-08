@@ -151,6 +151,7 @@ static const menucommand_t menu_commands[] = {
     { "menu_single_player_save_delete", SinglePlayerMenu_DeleteSelectedSave },
     { "menu_single_player_skirmish", M_ShowSinglePlayerSkirmishMenu },
     { "menu_lan_refresh", LAN_RefreshMaps },
+    { "menu_lan_open", LAN_OpenSelectedFolder },
     { "menu_lan_start", LAN_StartSelectedMap },
     { "menu_lan_join", LAN_JoinSelectedGame },
     { "menu_game_setup_start", UI_MenuGameSetupStart_f },

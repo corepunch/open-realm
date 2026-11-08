@@ -78,6 +78,7 @@ void LAN_ShowSinglePlayerCreate(void);
 void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
 void LAN_SelectMapIndex(uint32_t index);
+void LAN_OpenSelectedFolder(void);
 void LAN_StartSelectedMap(void);
 void LAN_JoinSelectedGame(void);
 void LAN_ApplyPlayerName(void);

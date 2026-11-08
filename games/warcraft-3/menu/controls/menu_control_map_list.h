@@ -94,7 +94,10 @@ static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
         icon_rect.w = row_height - 0.002f;
         icon_rect.h = row_height - 0.002f;
         if (renderer->DrawImageEx) {
-            uint32_t const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
+            cstring_t const icon_path = item->kind == UI_MAP_ITEM_FOLDER ? "ui\\widgets\\glues\\icon-folder.blp"
+                                      : item->kind == UI_MAP_ITEM_PARENT ? "ui\\widgets\\glues\\icon-folder-up.blp"
+                                                                         : "ui\\widgets\\glues\\icon-file-melee.blp";
+            uint32_t const icon = UI_LoadTexture(icon_path, false);
             texture_t const *icon_texture = UI_GetTexture(icon);
 
             if (icon_texture) {
@@ -109,7 +112,7 @@ static void UI_DrawMapListControl(frameDef_t const *frame, rect_t const *rect) {
                                             .clip = clip));
             }
         }
-        if (item->players > 0) {
+        if (item->kind == UI_MAP_ITEM_MAP && item->players > 0) {
             char players[8];
             font_t const *small_font = renderer->LoadFont(UI_FontFile(control->FontName), 9);
 

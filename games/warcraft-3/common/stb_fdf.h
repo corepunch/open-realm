@@ -111,6 +111,8 @@ typedef struct {
     int32_t value;
 } uiMenuItem_t;
 
+enum { UI_MAP_ITEM_MAP = 0, UI_MAP_ITEM_FOLDER, UI_MAP_ITEM_PARENT };
+
 typedef struct {
     PATHSTR path;
     char name[128];
@@ -120,6 +122,7 @@ typedef struct {
     char tileset[64];
     uint32_t players;
     uint32_t flags;
+    uint8_t kind; /* UI_MAP_ITEM_* */
 } uiMapListItem_t;
 
 typedef struct {
