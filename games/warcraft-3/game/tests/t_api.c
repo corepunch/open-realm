@@ -3326,6 +3326,17 @@ TEST(wc3_api, direct_local_player_text_call_reaches_each_player_once) {
     T_NULL(currentplayer);
 }
 
+TEST(wc3_api, display_text_converts_escaped_newline) {
+    gameClient_t *gc = &game.clients[0];
+
+    level.time = 100;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call DisplayTimedTextToPlayer(Player(0), 0.0, 0.0, 2.0, \"First.\\nSecond.\")\n"
+        "endfunction\n"));
+    T_STREQ(gc->message.text, "First.\nSecond.");
+}
+
 TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     gameClient_t *gc = &game.clients[0];
 
