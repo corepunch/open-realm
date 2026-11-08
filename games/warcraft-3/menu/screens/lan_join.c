@@ -317,6 +317,15 @@ static bool LAN_FolderListed(uiMapListState_t const *list, cstring_t name) {
 
 static void LAN_UpdateControls(void);
 
+/* Reign of Chaos lists only .w3m maps; .w3x maps (Frozen Throne format) appear when the expansion is mounted.
+ * Their folders stay visible, as in the original client. */
+static bool LAN_MapListed(uiMapListItem_t const *map) {
+    cstring_t const dot = strrchr(map->path, '.');
+    cstring_t const expansion = mi.Cvar_String ? mi.Cvar_String("fs_expansion", "0") : NULL;
+
+    return (expansion && atoi(expansion) != 0) || !dot || strcasecmp(dot, ".w3x") != 0;
+}
+
 /* Fill lan.maps with the rows of lan.dir. `select_path` picks the row to select; without it the first map
  * (or, failing that, the first row) is selected, as the original client does. */
 static void LAN_BuildMapView(cstring_t select_path) {
@@ -337,7 +346,7 @@ static void LAN_BuildMapView(cstring_t select_path) {
 
         LAN_ParentDir(map->path, dir, sizeof(dir));
         if (!strcasecmp(dir, lan.dir)) {
-            view->items[view->count++] = *map;
+            if (LAN_MapListed(map)) view->items[view->count++] = *map;
         } else if (LAN_DirChild(dir, lan.dir, child, sizeof(child)) && !LAN_FolderListed(view, child)) {
             uiMapListItem_t *item = &view->items[view->count++];
             memset(item, 0, sizeof(*item));
