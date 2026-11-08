@@ -122,6 +122,7 @@ void UI_BindMapList(frameDef_t *frame,
                     cstring_t select_command);
 void UI_LayoutMapInfoPane(frameDef_t *frame);
 bool UI_ReadMapInfo(cstring_t mapFilename, mapInfo_t *info);
+void UI_ParseTrigStrings(string_t buffer, mapInfo_t *info);
 bool UI_FindMapPreviewTexture(cstring_t mapFilename, string_t out, uint32_t out_size);
 void UI_FreeMapInfo(mapInfo_t *info);
 void UI_DefaultMapName(cstring_t path, string_t out, uint32_t out_size);
@@ -129,6 +130,7 @@ void UI_ResolveMapInfoString(mapInfo_t const *info, cstring_t text, string_t out
 bool UI_MapNameMatchesFile(cstring_t name, cstring_t path);
 cstring_t UI_MapTilesetName(uint8_t tileset);
 cstring_t UI_MapSizeName(uint32_t width, uint32_t height);
+void UI_ClearWorldEditStrings(void);
 void UI_SanitizeMapListField(string_t text);
 void UI_SanitizeMapInfoText(string_t text);
 cstring_t Theme_String(cstring_t, cstring_t);
