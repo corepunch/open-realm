@@ -283,8 +283,10 @@ void M_ShowLanCreateMenu(void) {
     UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, LAN_ShowCreate);
 }
 
+/* One screen holds the map list, the player slots and the map info, as in the original client. */
 static void M_ShowSinglePlayerSkirmishMenu(void) {
-    UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, LAN_ShowSinglePlayerCreate);
+    LAN_PrepareSkirmish();
+    UI_RequestScreen(&gameSetupScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL);
 }
 
 static void M_ShowOnlineBrowserMenu(void) {
