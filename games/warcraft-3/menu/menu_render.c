@@ -1182,6 +1182,21 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
     if (visible_rows == 0 || state->count == 0) {
         return;
     }
+    mapListScrollbar_t bar;
+    if (UI_MapListScrollbar(control, rect, &bar) && fdf_x >= bar.track.x) {
+        uint32_t const max_scroll = state->count - visible_rows;
+
+        if (UI_PointInRect(fdf_x, fdf_y, &bar.up)) {
+            state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
+        } else if (UI_PointInRect(fdf_x, fdf_y, &bar.down)) {
+            state->scroll = MIN(state->scroll + 1, max_scroll);
+        } else if (fdf_y < bar.thumb.y) {
+            state->scroll = state->scroll > visible_rows ? state->scroll - visible_rows : 0;
+        } else if (fdf_y > bar.thumb.y + bar.thumb.h) {
+            state->scroll = MIN(state->scroll + visible_rows, max_scroll);
+        }
+        return;
+    }
     float row = (fdf_y - content.y) / row_height;
     uint32_t index = (uint32_t)floorf(state->visualScroll + row);
     if (row >= 0.0f && row < (float)visible_rows && index < state->count) {
