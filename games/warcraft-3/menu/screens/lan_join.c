@@ -163,7 +163,8 @@ static uint32_t LAN_CountMapPlayers(mapInfo_t const *info) {
     uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
-        if (info && info->players[i].used) {
+        /* The list badge counts user slots only; computer and neutral slots are not selectable players. */
+        if (info && info->players[i].used && info->players[i].playerType == kPlayerTypeHuman) {
             count++;
         }
     }
