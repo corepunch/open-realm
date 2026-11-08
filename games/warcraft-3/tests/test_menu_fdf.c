@@ -4376,6 +4376,10 @@ static int test_menu_map_list_folders(cstring_t path, cstring_t ext, string_t ou
     int count = 0;
 
     (void)path;
+    if (!strcmp(ext, ".w3x")) {
+        snprintf(out, size, "%s", "Maps\\Hidden.w3x");
+        return 1;
+    }
     if (strcmp(ext, ".w3m")) {
         return 0;
     }
@@ -4398,6 +4402,10 @@ TEST(menu_fdf, map_list_browses_folders) {
     Cmd_ExecuteString("menu_lan_refresh");
     /* Root: the Download folder, then maps; the first map is selected by default. */
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    /* Reign of Chaos hides the .w3x map: the root holds only Download, Alpha and Zeta. */
+    Cmd_ExecuteString("menu_lan_select 2");
+    Cmd_ExecuteString("menu_lan_select 3"); /* out of range, ignored */
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
     Cmd_ExecuteString("menu_lan_select 0");
     T_NULL(LAN_SelectedMapPath());
     Cmd_ExecuteString("menu_lan_open");
