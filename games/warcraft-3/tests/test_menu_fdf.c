@@ -4535,6 +4535,16 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     Cmd_ExecuteString("menu_lan_select 2");
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Inner.w3m");
     T_ASSERT(!start->disabled);
+    /* Leaving and reopening starts again at the root with the first map and its lobby. */
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    captured_command[0] = '\0';
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Alpha.w3m\"") != NULL);
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }

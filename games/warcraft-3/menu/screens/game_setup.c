@@ -99,8 +99,11 @@ static bool GameSetup_FixedPlayerSettings(void);
 static bool GameSetup_LoadScreen(void) {
     bool ok = true;
 
-    /* A (re)load builds new frame trees; drop every pointer into the previous ones. */
-    memset(&setup, 0, sizeof(setup));
+    /* Frame trees survive a reload of the screen, so keep the built rows and bindings: rebuilding them on every
+     * visit would exhaust the frame pool. Drop the state only when the trees it points into have been reset. */
+    if (setup.chat_text && UI_FindFrame("GameSetupChatText") != setup.chat_text) {
+        memset(&setup, 0, sizeof(setup));
+    }
     ok = GameChatroom_Load(&setup.frames) && ok;
     ok = PlayerSlot_Load(&setup.slot_template) && ok;
     ok = MapInfoPane_Load(&setup.map_info_template) && ok;
@@ -808,6 +811,14 @@ static void GameSetup_UpdateMapInfo(void) {
         }
         GameSetup_SetTextIfPresent(setup.map_info_pane.MaxPlayersValue, " ");
         GameSetup_SetTextIfPresent(setup.map_info_pane.MapNameValue, "%s", setup.map_name[0] ? setup.map_name : " ");
+        if (setup.skirmish) {
+            /* A folder row in the map list: the original leaves the values empty. */
+            GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, " ");
+            GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue, " ");
+            GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, " ");
+            GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, " ");
+            return;
+        }
         GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
         GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue, "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
         GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", UI_GetString("UNKNOWNMAP_TILESET"));
@@ -961,6 +972,13 @@ static void GameSetup_ApplyLayout(void) {
             UI_SetPoint(team, FRAMEPOINT_TOPLEFT, setup.root, FRAMEPOINT_TOPLEFT, 0.015f, -0.031875f);
         }
         UI_SetSize(team, 0.46375f, 0.39f);
+    }
+    /* Skirmish.fdf gives the info pane 0.2875 of height (with the description); the lobby keeps it compact. */
+    if (setup.frames.MapInfoPaneContainer) {
+        UI_SetSize(setup.frames.MapInfoPaneContainer, 0.234375f, skirmish ? 0.2875f : 0.225f);
+        if (setup.map_info_pane.MapInfoPane) {
+            UI_LayoutMapInfoPane(setup.map_info_pane.MapInfoPane);
+        }
     }
     UI_SetHidden(setup.list_box.MapListBox, !skirmish);
     UI_SetHidden(setup.settings_label, !skirmish);
