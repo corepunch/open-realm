@@ -382,6 +382,11 @@ BZ_ITEM_PROC(AbilityItemRestore) {
     return changed;
 }
 
+BZ_ITEM_PROC(AbilityItemRetraining) {
+    edict_t *hero = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+    return hero && G_HeroRetrainSkills(hero);
+}
+
 
 static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     edict_t *target;

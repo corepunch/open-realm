@@ -2197,6 +2197,28 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     free_slk_rows(rows);
 }
 
+TEST(wc3_combat, tome_of_retraining_refunds_only_learned_hero_skills) {
+    UnitAbilities_t const tree = { .abilList = "AInv", .heroAbilList = "AHhb,AHds,AHtb" };
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 0, 0, 0);
+    uint32_t const holy = MAKEFOURCC('A','H','h','b');
+    uint32_t const shield = MAKEFOURCC('A','H','d','s');
+    hero->data.UnitAbilities = &tree;
+    hero->unit_state->hero.level = 7;
+    hero->unit_state->hero.xp = 1234;
+    hero->unit_state->hero.skillpoints = 2;
+    hero->unit_state->ranks[0] = (heroability_t){ .code = holy, .level = 3 };
+    hero->unit_state->ranks[1] = (heroability_t){ .code = shield, .level = 2 };
+    hero->unit_state->ranks[2] = (heroability_t){ .code = MAKEFOURCC('A','I','a','t'), .level = 4 };
+    T_ASSERT(G_HeroRetrainSkills(hero));
+    T_EQ(hero->unit_state->hero.level, 7);
+    T_EQ(hero->unit_state->hero.xp, 1234);
+    T_EQ(hero->unit_state->hero.skillpoints, 7);
+    T_EQ(hero->unit_state->ranks[0].level, 0);
+    T_EQ(hero->unit_state->ranks[1].level, 0);
+    T_EQ(hero->unit_state->ranks[2].code, MAKEFOURCC('A','I','a','t'));
+    T_EQ(hero->unit_state->ranks[2].level, 4);
+}
+
 TEST(wc3_combat, player_disabled_hero_skill_is_omitted_from_select_skill_menu) {
     UnitAbilities_t const tree = { .heroAbilList = "AHhb,AHds,AHtb" };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;

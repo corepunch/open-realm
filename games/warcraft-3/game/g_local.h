@@ -4143,6 +4143,7 @@ uint32_t G_HeroSkillRequiredLevel(edict_t *ent, uint32_t abilcode);
 heroSkillState_t G_HeroSkillState(edict_t *ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level);
 bool G_HeroLearnSkill(edict_t *ent, uint32_t abilcode);
 bool G_HeroModifySkillPoints(edict_t *ent, int32_t delta);
+bool G_HeroRetrainSkills(edict_t *ent);
 
 void G_GameCacheInit(gameCache_t *cache, cstring_t campaign);
 bool G_GameCacheSave(gameCache_t *cache);
