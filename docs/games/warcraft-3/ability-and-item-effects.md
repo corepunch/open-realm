@@ -26,11 +26,13 @@ This is adjacent to, but intentionally different from, `entityState_t.effect/eff
 
 See also [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md) and [Inventory And Items](inventory-and-items.md).
 
-## Faerie Fire Unit Vision
+## Faerie Fire And Wand Of Shadowsight Vision
 
 Faerie Fire (`Afae`, `Afa2`, and creep `ACff`) applies the `Bfae` status with
-an authored armor reduction and a unit-specific vision mark. The cast records
-its player number as `status.data = player + 1` (zero means no vision source).
+an authored armor reduction and a unit-specific vision mark. The TFT Wand of
+Shadowsight (`wshs`/`Ashs`) applies its `Bshs` status and the same vision mark,
+without Faerie Fire's armor reduction. Both casts record the caster's player
+number as `status.data = player + 1` (zero means no vision source).
 The fog-of-war entity visibility/hover gates read the active status directly,
 including the remaining duration, and grant vision to that player and players
 receiving their shared vision. `IsUnitVisible` queries the same current-visibility

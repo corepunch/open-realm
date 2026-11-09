@@ -393,7 +393,7 @@ static ability_t abilitylist[] = {
     { "AIbr", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Lumber Mill */
     { "AIbs", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Barracks */
     { "AIbh", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Altar of Kings */
-    // TODO: Ashs a_spell  /* Wand of Shadowsight */
+    { "Ashs", CAbilityShadowSight, AB_SPELL, SPELL_TARGET_UNIT },  /* Wand of Shadowsight */
     { "Aret", CAbilityItemRetraining, AB_ITEM },  /* Tome of Retraining */
     { "ANpr", CAbilityItemPreservation, AB_SPELL, SPELL_TARGET_UNIT },  /* Staff of Preservation */
     { "Amec", CAbilityMechanicalCritter, AB_ITEM },  /* Mechanical Critter */

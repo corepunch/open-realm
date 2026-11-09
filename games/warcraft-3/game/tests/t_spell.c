@@ -9567,6 +9567,50 @@ TEST(wc3_spell, faerie_fire_shares_target_sight_for_buff_lifetime) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown();
 }
 
+TEST(wc3_spell, wand_of_shadowsight_lends_target_vision_without_armor_reduction) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"Ashs\"\nC;Y2;X2;K\"Ashs\"\n"
+        "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"5\"\n"
+        "C;Y2;X5;K\"0\"\nC;Y2;X6;K\"Bshs\"\nC;Y2;X7;K\"1\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster, *target;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_FowInit(); G_FowConnectPlayer(0);
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('e','d','o','t'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 512, 0);
+    caster->s.player = 0; target->s.player = 1;
+    caster->health.value = target->health.value = 100;
+    caster->health.max_value = target->health.max_value = 100;
+    target->unit_state->armor_value = 8.0f;
+    target->runtime.sight_radius.day = target->runtime.sight_radius.night = 600.0f;
+    caster->runtime.sight_radius.day = caster->runtime.sight_radius.night = 0.0f;
+    G_FowUpdate();
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, target));
+
+    T_ASSERT(test_execute_code(caster, "Ashs", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','s','h','s')));
+    T_EQ(unit_findstatus(target, MAKEFOURCC('B','s','h','s'))->data, 1);
+    T_FEQ(G_UnitArmorValue(target), 8.0f, 0.01f);
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, target));
+    G_FowUpdate();
+    T_ASSERT(G_FowPointIsVisible(0, &target->s.origin2));
+
+    level.time = 6000;
+    unit_updatestatuses(target);
+    G_FowUpdate();
+    T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','s','h','s')));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, target));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown();
+}
+
 /* ROC AbilityData lacks BuffID; alternate/crow and creep Faerie Fire still
  * need Bfae so their casts grant the same unit vision as Afae. */
 TEST(wc3_spell, faerie_fire_roc_fallback_covers_alternate_and_creep) {

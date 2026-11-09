@@ -322,7 +322,8 @@ bool G_FowFaerieFireRevealsUnit(uint32_t viewer, edict_t const *unit) {
     if (!unit || !unit->unit_state || M_IsDead(unit) || viewer >= MAX_PLAYERS) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = unit->unit_state->statuses + i;
-        if (status->level && status->code == MAKEFOURCC('B','f','a','e') &&
+        if (status->level && (status->code == MAKEFOURCC('B','f','a','e') ||
+                              status->code == MAKEFOURCC('B','s','h','s')) &&
             (!status->timestamp || status->timestamp > G_Time()) &&
             status->data > 0 && status->data <= MAX_PLAYERS &&
             G_FowPlayersShareVision(viewer, status->data - 1)) return true;
@@ -1560,7 +1561,8 @@ void G_FowUpdate(void) {
             heroabilitystatus_t const *status = ent->unit_state->statuses + status_index;
             uint32_t caster;
             uint32_t faerie_viewers = 0;
-            if (!status->level || status->code != MAKEFOURCC('B','f','a','e') ||
+            if (!status->level || (status->code != MAKEFOURCC('B','f','a','e') &&
+                                  status->code != MAKEFOURCC('B','s','h','s')) ||
                 (status->timestamp && status->timestamp <= G_Time()) ||
                 status->data <= 0 || status->data > MAX_PLAYERS) {
                 continue;
