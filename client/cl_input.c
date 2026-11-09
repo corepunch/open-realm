@@ -48,6 +48,9 @@ typedef struct {
     SDL_GameController *controller;
     SDL_Joystick *joystick; /* raw pad without an SDL mapping */
     uint8_t hat;
+    int32_t raw_last[6];       /* relative axes: previous raw value */
+    uint8_t rel_age[4];        /* logical axes holding a one-frame relative pulse */
+    bool rel_live[4];
 #ifdef __EMSCRIPTEN__
     bool web_connected, web_dispatch;
     uint32_t web_buttons, web_generation;
@@ -208,6 +211,45 @@ static void CL_GamepadResetHeld(void) {
 }
 
 #ifndef __EMSCRIPTEN__
+/* Quake 2 style joystick axes (joystick.txt): joy_advaxis<n> assigns a control
+ * to raw axis n (0 unused, 1 forward, 2 pitch, 3 side, 4 yaw, 5 up; +16 marks a
+ * relative axis such as a trackball). joy_advanced 0 uses the simple map and
+ * joy_advancedupdate snapshots the cvars. Here forward/side drive the left
+ * stick, yaw/pitch the right stick (camera zoom); "up" has no RTS control. */
+#define JOY_MAX_AXES 6
+static struct {
+    int control[JOY_MAX_AXES];
+    bool relative[JOY_MAX_AXES];
+    float threshold[6], sensitivity[6]; /* indexed by control code 1..5 */
+} joy_map;
+static cstring_t const joy_control_names[6] = {"", "forward", "pitch", "side", "yaw", "up"};
+
+static void CL_JoyAdvancedUpdate_f(void) {
+    memset(&joy_map, 0, sizeof(joy_map));
+    if (Cvar_Integer("joy_advanced", 0) == 0) {
+        joy_map.control[0] = 3; /* X: side */
+        joy_map.control[1] = 1; /* Y: forward */
+    } else {
+        cstring_t label = Cvar_String("joy_name", "joystick");
+        if (strcmp(label, "joystick")) fprintf(stderr, "\n%s configured\n\n", label);
+        FOR_LOOP(i, JOY_MAX_AXES) {
+            char name[24];
+            int value;
+            snprintf(name, sizeof(name), "joy_advaxis%d", (int)i);
+            value = Cvar_Integer(name, 0);
+            joy_map.control[i] = value & 15;
+            joy_map.relative[i] = (value & 16) != 0;
+        }
+    }
+    for (int c = 1; c <= 5; c++) {
+        char name[40];
+        snprintf(name, sizeof(name), "joy_%sthreshold", joy_control_names[c]);
+        joy_map.threshold[c] = MIN(1.0f, MAX(0.0f, Cvar_Value(name, 0.15f)));
+        snprintf(name, sizeof(name), "joy_%ssensitivity", joy_control_names[c]);
+        joy_map.sensitivity[c] = Cvar_Value(name, 1.0f);
+    }
+}
+
 static void CL_GamepadOpen(int device_index) {
     if (gamepad.controller || gamepad.joystick || !Cvar_Integer("cl_gamepad", 0)) return;
     if (SDL_IsGameController(device_index)) {
@@ -217,9 +259,15 @@ static void CL_GamepadOpen(int device_index) {
     /* A pad SDL has no mapping for is used raw: buttons arrive as AUX1..AUX32
      * and the pad's own config (pad_<vendor><product>.cfg) binds them, like a
      * Quake 2 joystick config. */
+    if (!Cvar_Integer("in_joystick", 1)) return;
     gamepad.joystick = SDL_JoystickOpen(device_index);
     if (gamepad.joystick) {
         char cmd[64];
+        cstring_t const sdl_name = SDL_JoystickName(gamepad.joystick);
+        fprintf(stderr, "joystick: %s (%d axes, %d buttons, %d hats)\n", sdl_name ? sdl_name : "unknown",
+                SDL_JoystickNumAxes(gamepad.joystick), SDL_JoystickNumButtons(gamepad.joystick),
+                SDL_JoystickNumHats(gamepad.joystick));
+        CL_JoyAdvancedUpdate_f();
         snprintf(cmd, sizeof(cmd), "exec pad_%04x%04x.cfg\n",
                  SDL_JoystickGetVendor(gamepad.joystick), SDL_JoystickGetProduct(gamepad.joystick));
         Cbuf_AddText(cmd);
@@ -236,9 +284,10 @@ static void CL_GamepadDetach(void) {
 }
 #endif
 
+static bool gamepad_axis_prethresholded; /* raw pads apply joy_*threshold instead */
 static float CL_GamepadAxis(int16_t raw) {
     float const value = raw < 0 ? raw / 32768.0f : raw / 32767.0f;
-    float deadzone = Cvar_Value("cl_gamepad_deadzone", 0.2f);
+    float deadzone = gamepad_axis_prethresholded ? 0.0f : Cvar_Value("cl_gamepad_deadzone", 0.2f);
     deadzone = MIN(0.9f, MAX(0.0f, deadzone));
     if (fabsf(value) <= deadzone) return 0.0f;
     return copysignf((fabsf(value) - deadzone) / (1.0f - deadzone), value);
@@ -986,34 +1035,44 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             if (event->jbutton.button < 32)
                 CL_GamepadKey(K_AUX1 + event->jbutton.button, event->type == SDL_JOYBUTTONDOWN, event->jbutton.timestamp);
         } else if (event->type == SDL_JOYHATMOTION) {
-            static int const hat_buttons[4] = {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
-                                               SDL_CONTROLLER_BUTTON_DPAD_DOWN, SDL_CONTROLLER_BUTTON_DPAD_LEFT};
             static uint8_t const hat_bits[4] = {SDL_HAT_UP, SDL_HAT_RIGHT, SDL_HAT_DOWN, SDL_HAT_LEFT};
             if (event->jhat.hat != 0) return true;
             FOR_LOOP(i, 4) {
                 bool const now = (event->jhat.value & hat_bits[i]) != 0;
                 if (now != ((gamepad.hat & hat_bits[i]) != 0))
-                    CL_GamepadPress(hat_buttons[i], now, event->jhat.timestamp);
+                    CL_GamepadKey(K_AUX1 + 28 + (int)i, now, event->jhat.timestamp); /* Q2: POV = AUX29..32 */
             }
             gamepad.hat = event->jhat.value;
         } else {
-            /* Quake 2 joy_advaxis<n> codes per raw axis: 1 forward (left Y),
-             * 2 pitch (right Y), 3 side (left X), 4 yaw (right X); 0 unused. */
             static int const logical[5] = {-1, SDL_CONTROLLER_AXIS_LEFTY, SDL_CONTROLLER_AXIS_RIGHTY,
                                            SDL_CONTROLLER_AXIS_LEFTX, SDL_CONTROLLER_AXIS_RIGHTX};
-            char name[24];
-            int code;
-            if (event->jaxis.axis > 5) return true;
-            snprintf(name, sizeof(name), "joy_advaxis%d", event->jaxis.axis);
-            code = Cvar_Integer(name, 0) & 15;
+            int const raw_axis = event->jaxis.axis;
+            if (raw_axis >= JOY_MAX_AXES) return true;
+            int const code = joy_map.control[raw_axis];
             if (code >= 1 && code <= 4) {
+                float n = event->jaxis.value < 0 ? event->jaxis.value / 32768.0f : event->jaxis.value / 32767.0f;
+                if (joy_map.relative[raw_axis]) { /* trackball: speed from the change since last event */
+                    float const delta = (float)(event->jaxis.value - gamepad.raw_last[raw_axis]);
+                    gamepad.raw_last[raw_axis] = event->jaxis.value;
+                    n = MAX(-1.0f, MIN(1.0f, delta / 1024.0f));
+                }
+                n = fabsf(n) < joy_map.threshold[code] ? 0.0f : n * joy_map.sensitivity[code];
+                n = MAX(-1.0f, MIN(1.0f, n));
                 SDL_Event axis = {0};
                 axis.type = SDL_CONTROLLERAXISMOTION;
                 axis.caxis.timestamp = event->jaxis.timestamp;
                 axis.caxis.which = event->jaxis.which;
                 axis.caxis.axis = logical[code];
-                axis.caxis.value = event->jaxis.value;
+                axis.caxis.value = (int16_t)(n * 32767.0f);
+                gamepad_axis_prethresholded = true;
                 CL_GamepadEvent(&axis);
+                gamepad_axis_prethresholded = false;
+                if (joy_map.relative[raw_axis]) { /* hold one frame, then release */
+                    int const l = logical[code] == SDL_CONTROLLER_AXIS_LEFTX ? 0 : logical[code] == SDL_CONTROLLER_AXIS_LEFTY ? 1 :
+                                  logical[code] == SDL_CONTROLLER_AXIS_RIGHTX ? 2 : 3;
+                    gamepad.rel_live[l] = n != 0.0f;
+                    gamepad.rel_age[l] = 0;
+                }
             }
         }
         return true;
@@ -1143,6 +1202,20 @@ static void CL_GamepadFrame(float dt) {
     }
 #endif
     if (!CL_GamepadConnected()) return;
+#ifndef __EMSCRIPTEN__
+    FOR_LOOP(l, 4) {
+        static int const axes[4] = {SDL_CONTROLLER_AXIS_LEFTX, SDL_CONTROLLER_AXIS_LEFTY,
+                                    SDL_CONTROLLER_AXIS_RIGHTX, SDL_CONTROLLER_AXIS_RIGHTY};
+        if (!gamepad.rel_live[l]) continue;
+        if (gamepad.rel_age[l]++ < 1) continue;
+        gamepad.rel_live[l] = false;
+        SDL_Event zero = {0};
+        zero.type = SDL_CONTROLLERAXISMOTION;
+        zero.caxis.which = CL_GamepadInstance();
+        zero.caxis.axis = axes[l];
+        CL_GamepadEvent(&zero);
+    }
+#endif
     if (gamepad.rt && !gamepad.start && CL_GameplayInputReady() && !CL_GamepadModal()) {
         uint32_t const now = SDL_GetTicks();
         uint32_t const hold_ms = (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_group_hold_ms", 550));
@@ -2736,6 +2809,23 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
     Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     Cmd_AddCommand("messagemode", CL_ChatOpen_f);
+    Cvar_Get("in_joystick", "1", CVAR_ARCHIVE);
+    Cvar_Get("joy_name", "joystick", 0);
+    Cvar_Get("joy_advanced", "0", 0);
+    FOR_LOOP(i, JOY_MAX_AXES) {
+        char name[24];
+        snprintf(name, sizeof(name), "joy_advaxis%d", (int)i);
+        Cvar_Get(name, "0", 0);
+    }
+    for (int c = 1; c <= 5; c++) {
+        char name[40];
+        snprintf(name, sizeof(name), "joy_%sthreshold", joy_control_names[c]);
+        Cvar_Get(name, "0.15", 0);
+        snprintf(name, sizeof(name), "joy_%ssensitivity", joy_control_names[c]);
+        Cvar_Get(name, "1", 0);
+    }
+    Cmd_AddCommand("joy_advancedupdate", CL_JoyAdvancedUpdate_f);
+    CL_JoyAdvancedUpdate_f();
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
