@@ -889,3 +889,8 @@ Rusty Mining Pick (`rump`) carries Bash alias `AIbx` (`AHbh`). On a successful
 proc it adds the alias's authored bonus damage and stun duration. The focused
 regression `retail_item_effect.rusty_mining_pick_bash_stuns_on_attack` verifies
 the attack, extra damage and timed stun from the item.
+
+Ancient Janggo of Endurance (`ajen`) carries `AIae` (`AOae`), granting its
+authored 10% movement-speed and 5% attack-speed aura to nearby allies. The
+regression `retail_item_effect.ancient_janggo_provides_authored_endurance_aura`
+covers both values and range exclusion.

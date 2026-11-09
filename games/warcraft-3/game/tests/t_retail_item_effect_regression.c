@@ -526,6 +526,32 @@ TEST(retail_item_effect, rusty_mining_pick_bash_stuns_on_attack) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, ancient_janggo_provides_authored_endurance_aura) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X4;K\"6\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AIae\"\nC;Y3;X2;K\"AOae\"\nC;Y3;X3;K\"900\"\n"
+        "C;Y3;X4;K\"0.1\"\nC;Y3;X5;K\"0.05\"\nC;Y3;X7;K\"air,ground,friend,self,vuln,invu\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"ajen\"\nC;Y2;X2;K\"AIae\"\nC;Y2;X3;K\"1\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.enemy->s.player = 0;
+    re_equip(&f, "ajen", 0);
+    level.framenum++;
+    T_FEQ(S_EnduranceMoveBonus(f.enemy), 0.1f, 0.001f);
+    T_FEQ(S_EnduranceAttackBonus(f.enemy), 0.05f, 0.001f);
+    Vector2_set(&f.enemy->s.origin2, 1000, 0);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_EnduranceMoveBonus(f.enemy), 0.0f, 0.001f);
+    T_FEQ(S_EnduranceAttackBonus(f.enemy), 0.0f, 0.001f);
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
