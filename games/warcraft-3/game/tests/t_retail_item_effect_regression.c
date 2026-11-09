@@ -447,6 +447,34 @@ TEST(retail_item_effect, legion_doom_horn_provides_authored_unholy_aura) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, allerias_flute_boosts_nearby_ranged_units) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"targs1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\n"
+        "C;Y3;X1;K\"AIar\"\nC;Y3;X2;K\"AEar\"\n"
+        "C;Y3;X3;K\"900\"\nC;Y3;X4;K\"0.1\"\n"
+        "C;Y3;X6;K\"air,ground,friend,self,vuln,invu\"\nC;Y3;X7;K\"BEar\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"afac\"\nC;Y2;X2;K\"AIar\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.enemy->s.player = 0;
+    f.enemy->unit_state->attack1.type = ATK_NORMAL;
+    re_equip(&f, "afac", 0);
+    level.framenum++;
+    T_FEQ(S_TrueshotAttackBonus(f.enemy), 0.0f, 0.001f);
+    f.enemy->unit_state->attack1.weapon = WPN_MISSILE;
+    T_FEQ(S_TrueshotAttackBonus(f.enemy), 0.1f, 0.001f);
+    Vector2_set(&f.enemy->s.origin2, 1000, 0);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_TrueshotAttackBonus(f.enemy), 0.0f, 0.001f);
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
