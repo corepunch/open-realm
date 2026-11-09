@@ -26,15 +26,19 @@ static void shadowmeld_capture_write(pfWriteType_t type, void const *value) {
 }
 
 static char const shadowmeld_slk[] =
-    "ID;PWXL;N;E9;Y3;X9\n"
+    "ID;PWXL;N;E14;Y4;X14\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
     "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
     "C;Y1;X9;K\"DataA1\"\n"
+    "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+    "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\n"
     "C;Y2;X1;K\"Ashm\"\nC;Y2;X2;K\"Ashm\"\nC;Y2;X3;K\"1\"\n"
     "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"1.5\"\n"
     "C;Y3;X1;K\"Ahid\"\nC;Y3;X2;K\"Ahid\"\nC;Y3;X3;K\"1\"\n"
-    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"1.5\"\nE\n";
+    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"1.5\"\n"
+    "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"1\"\n"
+    "C;Y4;X10;K\"6\"\nC;Y4;X12;K\"1\"\nC;Y4;X13;K\"1\"\nC;Y4;X14;K\"1\"\nE\n";
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -113,6 +117,43 @@ TEST(wc3_shadowmeld, ability_classes_are_not_wind_walk) {
     T_ASSERT((hide.ability->flags & (AB_PASSIVE | AB_UPDATE | AB_SPELL)) ==
              (AB_PASSIVE | AB_UPDATE | AB_SPELL));
     T_EQ(G_OrderId("ambush"), 852131);
+}
+
+TEST(wc3_shadowmeld, cloak_of_shadows_applies_carried_shadow_meld) {
+    shadowmeldFix_t fix;
+    static UnitAbilities_t inventory_abilities = { .abilList = "AInv" };
+    ItemData_t cloak_data = { .abilList = "Ashm", .usable = true };
+    edict_t *cloak;
+
+    shadowmeld_setup(&fix);
+    ARRAY_COUNT(fix.unit->unit_state->overrides.added) = 0;
+    fix.unit->data.UnitAbilities = &inventory_abilities;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    cloak = alloc_test_unit(MAKEFOURCC('c','l','s','d'), 0, 0);
+    cloak->targtype = TARG_ITEM;
+    cloak->data.ItemData = &cloak_data;
+    G_AddItem(cloak);
+    G_InitInventory(fix.unit);
+    fix.unit->inventory->slots[0] = cloak;
+    G_GetItem(cloak)->in_world = false;
+    G_GetItem(cloak)->carrier = fix.unit;
+    G_GetItem(cloak)->inventory_slot = 0;
+    T_ASSERT(G_InventoryCanUseItems(fix.unit));
+
+    shadowmeld_tick(fix.unit, 1);
+    shadowmeld_tick(fix.unit, 1500);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+    T_ASSERT(S_UnitHasInvisibilityState(fix.unit));
+
+    fix.unit->inventory->slots[0] = NULL;
+    G_GetItem(cloak)->carrier = NULL;
+    G_GetItem(cloak)->inventory_slot = -1;
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(!S_ShadowMeldActive(fix.unit));
+    T_ASSERT(!S_UnitHasInvisibilityState(fix.unit));
+    T_ASSERT(!G_GetShadowMeld(fix.unit)->active);
+    shadowmeld_done(&fix);
 }
 
 TEST(wc3_shadowmeld, availability_is_scoped_to_each_shadowmeld_class) {

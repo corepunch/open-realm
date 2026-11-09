@@ -827,6 +827,19 @@ static bool update_may_have_ability(edict_t const *ent, uint32_t code) {
         memcpy(&alias, token, sizeof(alias));
         if (G_AbilityCode(alias) == code) return true;
     }
+    if (G_InventoryCanUseItems((edict_t *)ent)) {
+        FOR_LOOP(slot, G_InventoryCapacity(ent)) {
+            edict_t *item = G_InventoryItem((edict_t *)ent, slot);
+            cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+            if (!abilities) continue;
+            PARSE_LIST(abilities, token, parse_segment) {
+                uint32_t alias = 0;
+                if (strlen(token) != 4) continue;
+                memcpy(&alias, token, sizeof(alias));
+                if (alias == code || G_AbilityCode(alias) == code) return true;
+            }
+        }
+    }
     return false;
 }
 
