@@ -91,7 +91,7 @@ static bool CL_GamepadModal(void) {
 }
 
 /* Controller buttons are ordinary keys (JOYA.., AUX1..), bound in config.cfg
- * with `bind`, e.g. `bind JOYA "+gp_a"` or `bind AUX3 "+attack"`. The +gp_*
+ * with `bind`, e.g. `bind JOYA "+select"` or `bind AUX3 "+attack"`. The controller verbs
  * commands are the pad's gameplay verbs; a "+command" gets "-command" on
  * release, and held ones are released when the pad disconnects. */
 #define CL_GAMEPAD_LT SDL_CONTROLLER_BUTTON_MAX
@@ -728,7 +728,7 @@ static SDL_GameControllerButton CL_GamepadFace(SDL_GameControllerButton button) 
 }
 
 /* Built-in controller roles. Nothing reaches them by button identity: config.cfg
- * binds each physical button to "+gp_<role>" with gamepadbind. */
+ * binds each physical button to a verb with `bind`. */
 static void CL_GamepadRole(int button, bool down, uint32_t ts) {
     if (button == CL_GAMEPAD_LT) {
                 if (down && !gamepad.lt) {
@@ -920,15 +920,36 @@ static void CL_GamepadRole(int button, bool down, uint32_t ts) {
     }
 }
 
-static void CL_GamepadRole_f(void) {
+/* Controller verbs. +select and +smart are the mouse commands themselves: bound
+ * to a controller key they take the pad route (virtual cursor, paint, radial). */
+static struct { cstring_t name; int role; } const gamepad_commands[] = {
+    {"cancel", SDL_CONTROLLER_BUTTON_B}, {"radial", SDL_CONTROLLER_BUTTON_Y},
+    {"statuspanel", SDL_CONTROLLER_BUTTON_LEFTSHOULDER}, {"selectvisible", SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+    {"selectremove", CL_GAMEPAD_LT}, {"selectadd", CL_GAMEPAD_RT},
+    {"system", SDL_CONTROLLER_BUTTON_START}, {"escape", SDL_CONTROLLER_BUTTON_BACK},
+    {"dpadup", SDL_CONTROLLER_BUTTON_DPAD_UP}, {"dpadright", SDL_CONTROLLER_BUTTON_DPAD_RIGHT},
+    {"dpaddown", SDL_CONTROLLER_BUTTON_DPAD_DOWN}, {"dpadleft", SDL_CONTROLLER_BUTTON_DPAD_LEFT},
+};
+
+static uint32_t CL_GamepadCommandTime(void) {
+    return Cmd_Argc() >= 3 ? (uint32_t)strtoul(Cmd_Argv(2), NULL, 10) : SDL_GetTicks();
+}
+
+static void CL_GamepadCommand_f(void) {
     cstring_t name = Cmd_Argv(0);
-    if (strlen(name) < 5 || strncmp(name + 1, "gp_", 3)) return;
-    FOR_LOOP(i, CL_GAMEPAD_ROLE_COUNT)
-        if (!strcasecmp(gamepad_button_names[i].name, name + 4)) {
-            CL_GamepadRole(gamepad_button_names[i].button, name[0] == '+',
-                           Cmd_Argc() >= 3 ? (uint32_t)strtoul(Cmd_Argv(2), NULL, 10) : SDL_GetTicks());
+    FOR_LOOP(i, sizeof(gamepad_commands) / sizeof(*gamepad_commands))
+        if (!strcasecmp(gamepad_commands[i].name, name + 1)) {
+            CL_GamepadRole(gamepad_commands[i].role, name[0] == '+', CL_GamepadCommandTime());
             return;
         }
+}
+
+/* True when a mouse command was triggered by a controller key (JOY*, AUX*). */
+static bool CL_GamepadKeyCommand(int role, bool down) {
+    int const key = Cmd_Argc() >= 2 ? atoi(Cmd_Argv(1)) : 0;
+    if (key < K_JOY_A || key > K_AUX32) return false;
+    CL_GamepadRole(role, down, CL_GamepadCommandTime());
+    return true;
 }
 
 #ifndef __EMSCRIPTEN__
@@ -1763,6 +1784,7 @@ static void IN_PanUp(void) {
 }
 
 static void IN_SmartDown(void) {
+    if (CL_GamepadKeyCommand(SDL_CONTROLLER_BUTTON_X, true)) return;
     if (!CL_GameplayInputReady()) {
         smart_click_active = false;
         return;
@@ -1771,6 +1793,7 @@ static void IN_SmartDown(void) {
 }
 
 static void IN_SmartUp(void) {
+    if (CL_GamepadKeyCommand(SDL_CONTROLLER_BUTTON_X, false)) return;
     if (!CL_GameplayInputReady()) {
         smart_click_active = false;
         return;
@@ -2448,6 +2471,7 @@ static void CL_SendSameTypeSelection(uint32_t anchor) {
 }
 
 void IN_SelectDown(void) {
+    if (CL_GamepadKeyCommand(SDL_CONTROLLER_BUTTON_A, true)) return;
     input.select = false;
     input.down = mouse.origin;
     if (!CL_GameplayInputReady()) {
@@ -2479,6 +2503,7 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
+    if (CL_GamepadKeyCommand(SDL_CONTROLLER_BUTTON_A, false)) return;
     bool held = input.select;
     input.select = false;
     /* Release the shared drag before either selection path can return. */
@@ -2711,12 +2736,12 @@ void CL_InitInput(void) {
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
     {
-        static char role_cmds[2][CL_GAMEPAD_ROLE_COUNT][16];
-        FOR_LOOP(i, CL_GAMEPAD_ROLE_COUNT) {
-            snprintf(role_cmds[0][i], 16, "+gp_%s", gamepad_button_names[i].name);
-            snprintf(role_cmds[1][i], 16, "-gp_%s", gamepad_button_names[i].name);
-            Cmd_AddCommand(role_cmds[0][i], CL_GamepadRole_f);
-            Cmd_AddCommand(role_cmds[1][i], CL_GamepadRole_f);
+        static char gamepad_cmd_names[2][sizeof(gamepad_commands) / sizeof(*gamepad_commands)][20];
+        FOR_LOOP(i, sizeof(gamepad_commands) / sizeof(*gamepad_commands)) {
+            snprintf(gamepad_cmd_names[0][i], 20, "+%s", gamepad_commands[i].name);
+            snprintf(gamepad_cmd_names[1][i], 20, "-%s", gamepad_commands[i].name);
+            Cmd_AddCommand(gamepad_cmd_names[0][i], CL_GamepadCommand_f);
+            Cmd_AddCommand(gamepad_cmd_names[1][i], CL_GamepadCommand_f);
         }
     }
     Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
