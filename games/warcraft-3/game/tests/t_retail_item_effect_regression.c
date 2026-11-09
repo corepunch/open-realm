@@ -75,6 +75,43 @@ static void re_done(retailEffectFixture_t *f) {
     free_slk_rows(f->ability_rows);
 }
 
+TEST(retail_item_effect, pres_restores_authored_health_and_mana) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AIre\"\nC;Y3;X2;K\"AIre\"\n"
+        "C;Y3;X3;K\"500\"\nC;Y3;X4;K\"200\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"perishable\"\n"
+        "C;Y2;X1;K\"pres\"\nC;Y2;X2;K\"AIre\"\nC;Y2;X3;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    static ItemData_t item_data = { .abilList = "AIre", .perishable = true };
+    edict_t *item, *player;
+    re_init(&f, ability_slk, items);
+    /* This contract is independent of the inventory permission schema. Use
+     * the classic Hero default slots so the test isolates AIre's use effect. */
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 0;
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    f.hero->s.player = 0;
+    G_SelectEntity(player->client, f.hero);
+    T_EQ(G_GetMainSelectedUnit(player->client), f.hero);
+    f.hero->health.value = 100;
+    f.hero->mana.value = 350;
+    item = re_equip(&f, "pres", 0);
+    item->data.ItemData = &item_data;
+    G_GetItem(item)->charges = 1;
+    G_UseItem(f.hero, 0);
+    T_FEQ(f.hero->health.value, 500, 0.001f);
+    T_FEQ(f.hero->mana.value, 500, 0.001f);
+    T_NULL(G_InventoryItem(f.hero, 0));
+    re_done(&f);
+}
+
 /* BIcb is currently a timed state without an armor consumer. Verify that the
  * held retail orb applies and expires its authored corruption status. */
 TEST(retail_item_effect, ocor_applies_timed_corruption_status) {

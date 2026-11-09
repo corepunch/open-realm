@@ -209,6 +209,7 @@ BZ_ABILITY_PROC(CAbilityCoupleArcher);
 BZ_ABILITY_PROC(CAbilityCoupleHippogryph);
 BZ_ABILITY_PROC(CAbilityDecouple);
 BZ_ABILITY_PROC(CAbilityItemHeal);
+BZ_ABILITY_PROC(CAbilityItemRestore);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
 BZ_ABILITY_PROC(CAbilityItemRegeneration);
 BZ_ABILITY_PROC(CAbilityItemBlight);
