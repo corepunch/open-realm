@@ -807,6 +807,46 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
     }
     return CAbilitySimpleSpell(ent, msg, call);
 }
+
+/* Diamond of Summoning selects a point, then pulls up to the authored number
+ * of the caster's nearby living units to the caster. Each relocation uses the
+ * shared unstuck placement path, so a group receives distinct landing cells. */
+BZ_ABILITY_PROC(CAbilityDarkSummoning) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    spellTarget_t target;
+    if (msg != A_VALIDATE && msg != A_EXECUTE) return CAbilitySimpleSpell(ent, msg, call);
+    target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    if (msg == A_VALIDATE)
+        return spell && ent && target.type == SPELL_TARGET_POINT && ent->s.player < MAX_PLAYERS;
+    if (msg == A_EXECUTE) {
+        uint32_t code, level, limit, moved = 0;
+        float radius;
+        vec2_t destination;
+        if (!spell || !ent || target.type != SPELL_TARGET_POINT || ent->s.player >= MAX_PLAYERS) return false;
+        code = spell->code;
+        level = S_SpellLevel(ent, code);
+        radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+        limit = MAX(0, (int)S_SpellData(code, level, 1));
+        if (!(radius >= 0.0f) || !limit) return false;
+        destination = ent->s.origin2;
+        FILTER_EDICTS(unit, moved < limit && unit != ent && S_SpellIsAliveTarget(unit) &&
+                      unit->s.player == ent->s.player && !G_UnitIsStructure(unit) &&
+                      S_SpellAllowsAreaTarget(code, ent, unit) &&
+                      Vector2_distance(&target.point, &unit->s.origin2) <= radius) {
+            float const placement_radius = MAX(128.0f,
+                (unit->collision * 2.0f + 24.0f) * limit / (2.0f * (float)M_PI));
+            float const angle = 2.0f * (float)M_PI * moved / limit;
+            vec2_t requested = { destination.x + cosf(angle) * placement_radius,
+                                 destination.y + sinf(angle) * placement_radius };
+            vec2_t position = requested;
+            (void)G_FindUnitUnstuckPosition(unit, &requested, &position);
+            S_SpellRelocateUnit(unit, code, &position);
+            moved++;
+        }
+        return moved > 0;
+    }
+    return false;
+}
 /* Name=Bladestorm
  * Ubertip="Causes a Blademaster to spin violently, damaging nearby enemy units."
  */

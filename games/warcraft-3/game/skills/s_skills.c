@@ -408,7 +408,7 @@ static ability_t abilitylist[] = {
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
     { "AIrb", CAbilityItemRebirth, AB_ITEM | AB_POWERUP }, /* Rune of Rebirth */
-    // TODO: AUds CAbilityMassTeleport  /* Dark Summoning */
+    { "AUds", CAbilityDarkSummoning, AB_SPELL, SPELL_TARGET_POINT },  /* Diamond of Summoning */
     // TODO: AIdd CAbilityItemHeal  /* Defend */
     // TODO: AIsh a_item_town_portal  /* Summon Headhunter */
 

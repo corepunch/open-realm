@@ -828,3 +828,11 @@ The full Clarity Potion (`AIpr`) uses the authored self-only regeneration
 path, restoring its `DataB` mana over its authored duration and ending on
 incoming damage. Its regression covers the mana pulse, absence of health
 healing, and damage interruption.
+
+## Diamond of Summoning
+
+The charged Diamond of Summoning (`dsum`) uses point-targeted `AUds`. Its
+installed TFT data sets a 700-unit selection radius and `DataA=12`. On an
+accepted point cast, up to twelve living nonstructure units owned by the caster
+inside that radius relocate to the caster through the shared unstuck placement
+path. Other players' units and units outside the selected area remain in place.
