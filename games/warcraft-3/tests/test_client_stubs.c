@@ -266,4 +266,7 @@ void FS_SavePath(cstring_t name, string_t out, uint32_t size) {
 }
 #endif
 
-bool CL_AltHeld(void) { return false; }
+bool CL_ChatActive(void) { return false; }
+cstring_t CL_ChatText(void) { return ""; }
+uint32_t CL_EntityOverlayMask(void) { return 0; }
+bool CL_EntityOverlayAllHeld(void) { return false; }
