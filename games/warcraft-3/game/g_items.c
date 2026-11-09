@@ -437,6 +437,9 @@ void G_CompleteItemUse(edict_t *unit, edict_t *item) {
     item_t *rec = G_ItemState(item);
     if (!unit || !unit->inuse || !rec || rec->pending_use_removal) return;
 
+    /* Some successful uses, especially permanent tomes, do not alter the
+     * item's charges or inventory slot. Still refresh attributes/statuses. */
+    G_InvalidateUnitInfoPanel(unit);
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
 
@@ -600,6 +603,10 @@ static bool G_IsAbilitylessPowerup(edict_t const *item) {
 }
 
 static void G_CompletePowerupUse(edict_t *unit, edict_t *item) {
+    /* Power-up effects can change Hero attributes without changing an
+     * inventory slot or a charge count. Dirty the status panel after a rune
+     * or tome pickup independently of the inventory refresh. */
+    G_InvalidateUnitInfoPanel(unit);
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
@@ -627,6 +634,7 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
     }
     if (G_CanConsumePickupPowerup(unit, item) &&
         G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
+        G_InvalidateUnitInfoPanel(unit);
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
