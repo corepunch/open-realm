@@ -623,4 +623,35 @@ TEST(retail_item_effect, replenishment_potions_and_scrolls_use_authored_targets_
     re_done(&f);
 }
 
+
+/* AIpr is the full Clarity Potion: caster-only mana restoration over 45 s. */
+TEST(retail_item_effect, clarity_potion_regenerates_mana_and_interrupts_on_damage) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AIpr\"\nC;Y2;X2;K\"AIpr\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"200\"\nC;Y2;X5;K\"45\"\nC;Y2;X6;K\"45\"\nC;Y2;X7;K\"BIrg\"\nE\n";
+    retailEffectFixture_t f;
+    static UnitBalance_t no_regen;
+    memset(&no_regen, 0, sizeof(no_regen));
+    no_regen.healthRegenType = "none";
+    re_init(&f, ability_slk, "ID;PWXL;N;EBB;Y2;X2\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"pclr\"\nC;Y2;X2;K\"AIpr\"\nE\n");
+    f.hero->data.UnitBalance = &no_regen;
+    f.hero->mana.value = 100; f.hero->mana.max_value = 500;
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("AIpr"));
+    T_EQ(item.ability ? item.ability->proc : 0, CAbilityItemRegeneration);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(f.hero->health.value, 500.0f, 0.001f);
+    T_FEQ(f.hero->mana.value, 100.0f + 200.0f / 45.0f, 0.001f);
+    T_NOT_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    S_ResolveAttackHit(f.enemy, f.hero, 10);
+    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+    float const after_interrupt = f.hero->mana.value;
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.hero->mana.value, after_interrupt, 0.001f);
+    re_done(&f);
+}
+
 #endif /* BZ_TESTS */
