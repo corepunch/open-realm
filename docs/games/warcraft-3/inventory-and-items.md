@@ -823,3 +823,8 @@ mask. Damage interrupts each affected unit independently. Regression coverage
 in `retail_item_effect.replenishment_potions_and_scrolls_use_authored_targets_and_interrupt`
 checks both caster-only and area behavior, outside-area exclusion, interruption,
 and the lesser/greater scroll amounts.
+
+The full Clarity Potion (`AIpr`) uses the authored self-only regeneration
+path, restoring its `DataB` mana over its authored duration and ending on
+incoming damage. Its regression covers the mana pulse, absence of health
+healing, and damage interruption.

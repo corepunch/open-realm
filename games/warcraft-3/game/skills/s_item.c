@@ -484,11 +484,11 @@ BZ_ABILITY_PROC(CAbilityItemBlight) {
 #define ITEM_REGEN_TICK_MS 1000u
 static bool item_regeneration_ability(uint32_t code) {
     return code == MAKEFOURCC('A','I','s','l') || code == MAKEFOURCC('A','I','p','l') ||
-           code == MAKEFOURCC('A','I','r','l') ||
+           code == MAKEFOURCC('A','I','r','l') || code == MAKEFOURCC('A','I','p','r') ||
            (code >= MAKEFOURCC('A','I','p','1') && code <= MAKEFOURCC('A','I','p','6'));
 }
 static bool item_regeneration_self_only(uint32_t code) {
-    return code == MAKEFOURCC('A','I','p','l') ||
+    return code == MAKEFOURCC('A','I','p','l') || code == MAKEFOURCC('A','I','p','r') ||
            (code >= MAKEFOURCC('A','I','p','1') && code <= MAKEFOURCC('A','I','p','4'));
 }
 static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {

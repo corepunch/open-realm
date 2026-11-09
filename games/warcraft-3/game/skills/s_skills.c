@@ -185,6 +185,7 @@ static ability_t abilitylist[] = {
     { "AIre", CAbilityItemRestore, AB_ITEM },  /* Potion of Restoration */
     { "AIsl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Scroll of Regeneration */
     { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Clarity Potion */
+    { "AIpr", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Clarity Potion */
     { "AIp1", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Minor Replenishment Potion */
     { "AIp2", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Replenishment Potion */
     { "AIp3", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Replenishment Potion */
