@@ -750,7 +750,7 @@ uint32_t RemoveAllGuardPositions(jass_t *j) {
     if (player) G_BotRemoveAllGuardPositions(player);
     return 0;
 }
-/* Terrain repainting is not implemented. Accept the call so the rest of the calling thread still runs. */
+/* TODO: implement terrain repainting. Keep the script running and warn once until then. */
 uint32_t SetTerrainType(jass_t *j) {
     static bool warned;
     (void)j;

@@ -127,6 +127,12 @@ void SV_HandleUnitUIRequest(client_t *client, sizeBuf_t *msg) { (void)client; (v
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
+static edict_t *test_client_entity(uint32_t playernum) {
+    if (playernum) FOR_LOOP(i, MAX_PLAYERS) {
+        if (test_edicts[i].client && test_edicts[i].client->ps.number == playernum) return &test_edicts[i];
+    }
+    return &test_edicts[playernum];
+}
 static uint32_t test_game_shutdowns;
 static uint32_t test_camera_calls;
 static edict_t *test_camera_ent;
@@ -198,6 +204,7 @@ static void reset_server_state(int max_players) {
     test_ge.edicts = test_edicts;
     test_ge.num_edicts = max_players;
     test_ge.RunFrame = test_run_frame;
+    test_ge.ClientEntity = test_client_entity;
     test_ge.ClientInput = test_set_camera;
     test_ge.GetThemeValue = test_theme_value;
     test_ge.PrepareMap = test_prepare_map;
@@ -390,6 +397,92 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
     T_EQ(MSG_ReadByte(&msg), svc_layout);
     T_EQ(MSG_ReadByte(&msg), LAYER_INFOPANEL);
     T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 0);
+}
+
+static uint32_t test_command_calls, test_command_argc;
+static char test_command_name[TOKEN_LEN], test_command_arg[TOKEN_LEN];
+static void test_client_command(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    (void)ent;
+    test_command_calls++;
+    test_command_argc = argc;
+    strlcpy(test_command_name, argc ? argv[0] : "", sizeof(test_command_name));
+    strlcpy(test_command_arg, argc > 1 ? argv[1] : "", sizeof(test_command_arg));
+}
+
+TEST(server_net, chat_stringcmd_is_bounded_and_dispatched_once) {
+    uint8_t data[4096];
+    char text[1800], command[1900];
+    sizeBuf_t msg;
+    client_t *client;
+
+    reset_server_state(1);
+    client = &svs.clients[0];
+    client->state = cs_spawned;
+    client->edict = &test_edicts[0];
+    test_ge.ClientCommand = test_client_command;
+    test_command_calls = 0;
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, clc_stringcmd);
+    MSG_WriteString(&msg, "say hello; god");
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 1);
+    T_STREQ(test_command_name, "say");
+    T_ASSERT(test_command_argc >= 2);
+
+    memset(text, 'a', 180); text[180] = 0;
+    snprintf(command, sizeof(command), "say %s", text);
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd); MSG_WriteString(&msg, command);
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 2);
+    T_STREQ(test_command_arg, text);
+
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd); MSG_WriteString(&msg, "say \320\237\321\200\320\270\320\262\320\265\321\202");
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 3);
+    T_STREQ(test_command_arg, "\320\237\321\200\320\270\320\262\320\265\321\202");
+
+    /* A token larger than the parser buffer must not dispatch a partial command. */
+    memset(text, 'b', 1500); text[1500] = 0;
+    snprintf(command, sizeof(command), "say %s", text);
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd); MSG_WriteString(&msg, command);
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 3);
+
+    /* An oversized, terminated string is consumed without dispatch. */
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd);
+    memset(data + msg.cursize, 'x', 3000); msg.cursize += 3000;
+    MSG_WriteByte(&msg, 0);
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 3);
+    T_EQ(msg.readcount, msg.cursize);
+
+    /* Unterminated commands are malformed and consume the rest of the packet. */
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd); SZ_Write(&msg, "say broken", 10);
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 3);
+    T_EQ(msg.readcount, msg.cursize);
+}
+
+static uint32_t test_resolved_player;
+static edict_t *test_resolve_client_entity(uint32_t playernum) {
+    test_resolved_player = playernum;
+    return &test_edicts[7];
+}
+
+TEST(server_net, signon_uses_game_owned_player_mapping) {
+    cstring_t argv[] = { "configstrings" };
+    client_t *client;
+    reset_server_state(1);
+    client = &svs.clients[0];
+    client->state = cs_connected;
+    client->playernum = 4;
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
+    test_resolved_player = UINT32_MAX;
+    test_ge.ClientEntity = test_resolve_client_entity;
+    SV_Configstrings_f(client, 1, argv);
+    T_EQ(test_resolved_player, 4);
+    T_ASSERT(client->edict == &test_edicts[7]);
 }
 
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {

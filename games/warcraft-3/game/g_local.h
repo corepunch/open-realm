@@ -990,6 +990,7 @@ typedef enum {
     A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
+    A_MELEE_ATTACKED,    /* Defender status event after a melee hit; entity is the attacker. */
     A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
     A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
 } abilityMsg_t;

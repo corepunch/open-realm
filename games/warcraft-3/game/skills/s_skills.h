@@ -255,7 +255,6 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots);
 BZ_ABILITY_PROC(CAbilityDarkRitual);
 BZ_ABILITY_PROC(CAbilityFrostArmor);
 spellTargetType_t S_SpellTargetTypeForCode(ability_t const *spell, uint32_t code);
-void S_FrostArmorOnAttacked(edict_t *attacker, edict_t *target);
 BZ_ABILITY_PROC(CAbilityDivineShield);
 BZ_ABILITY_PROC(CAbilityPhaseShift);
 BZ_ABILITY_PROC(CAbilityStoneForm);

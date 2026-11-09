@@ -38,7 +38,7 @@ generic; no engine code tests a map rawcode.
 | `GetUnitAbilityLevel(u, buff)` returns the buff level when the unit has that status; `UnitRemoveAbility(u, buff)` removes it. | `api_unit.h` | `wc3_api.ability_natives_read_and_remove_buff_rawcodes` |
 | A group filter run inside a trigger action keeps `GetTriggerUnit()`; `GetFilterUnit()` is separate (`jassContext_t.filter_unit`). | `jass_evaluateboolexpr` (`jdo.c`) | `wc3_api.group_filter_keeps_trigger_unit_separate_from_filter_unit` |
 | `And`/`Or`/`Not` composites, null triggers as no-ops, locals shadowing globals, `\"` escapes. | `jdo.c`, `jlex.c` | `wc3_api.boolexpr_composites_and_event_id`, `wc3_api.custom_map_jass_semantics` |
-| `GetTriggerEventId` exposes the current event type. | `api_trigger.h` | No focused regression yet. |
+| `GetTriggerEventId` exposes the current event type, including player chat. | `api_trigger.h`, `g_commands.c` | `wc3_api.player_chat_fires_matching_triggers` |
 
 ## Presentation
 

@@ -253,7 +253,26 @@ BZ_ABILITY_PROC(CAbilityDarkRitual) {
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
+static void AbilityFrostArmor_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell);
+BZ_ABILITY_PROC(CAbilityFrostArmor) {
+    if (msg == A_MELEE_ATTACKED) {
+        heroabilitystatus_t const *status = call ? call->status.slot : NULL;
+        edict_t *attacker = call ? call->entity : NULL;
+        if (status && attacker && !M_IsDead(attacker)) {
+            uint32_t const level = status->rank ? status->rank : status->level;
+            S_SpellApplyTimedStatus(attacker, "Bfro", level,
+                                    S_SpellResistantDuration(status->source_ability, level, attacker));
+        }
+        return 0;
+    }
+    if (msg == A_EXECUTE) {
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+        AbilityFrostArmor_Execute(ent, target, call ? call->item : NULL);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+static void AbilityFrostArmor_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = S_SpellBuffId(spell->code, level);
@@ -274,31 +293,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
             target, spell->code, level, buff, S_SpellData(spell->code, level, 1));
         /* Frost Armor's TargetArt is authored on its BUfa buff, not AUfa/AUfu. */
         if (status) unit_status_enabletargetart(target, status, "chest");
-        /* DataB is the armor bonus; S_FrostArmorOnAttacked slows melee attackers. */
+        /* Preserve the source as the status event owner, including map aliases. */
+        if (status) status->data = spell->code;
         if (status) unit_status_setmodifier(status, 0, &(wc3_status_modifier_t){
             .type = WC3_STATUS_MOD_ARMOR_FLAT, .policy = WC3_STATUS_MOD_ADD,
             .value = S_SpellData(spell->code, level, 2) });
-    }
-}
-
-static bool frost_armor_ability(uint32_t code) {
-    uint32_t const base = G_AbilityCode(code);
-    return base == MAKEFOURCC('A','U','f','a') || base == MAKEFOURCC('A','U','f','u') ||
-           base == MAKEFOURCC('A','C','f','a') || base == MAKEFOURCC('A','C','f','2');
-}
-
-/* A melee attacker hitting a unit under Frost Armor is slowed (Bfro) for
- * the armor ability's Dur, as in retail. */
-void S_FrostArmorOnAttacked(edict_t *attacker, edict_t *target) {
-    if (!attacker || !target || !target->unit_state || M_IsDead(attacker)) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t const *status = target->unit_state->statuses + i;
-        uint32_t level;
-        if (!status->level || !frost_armor_ability(status->source_ability)) continue;
-        level = status->rank ? status->rank : status->level;
-        S_SpellApplyTimedStatus(attacker, "Bfro", level,
-                                S_SpellResistantDuration(status->source_ability, level, attacker));
-        return;
     }
 }
 

@@ -22,6 +22,7 @@ type questitem        extends handle
 type playergameresult extends handle
 type trigger          extends handle
 type event            extends handle
+type eventid          extends handle
 type race             extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
@@ -77,6 +78,7 @@ type dialog          extends agent
 type button          extends agent
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
+native GetTriggerEventId          takes nothing returns eventid
 native ConvertPlayerEvent         takes integer i returns playerevent
 native ConvertGameEvent           takes integer i returns gameevent
 native ConvertPlayerUnitEvent     takes integer i returns playerunitevent

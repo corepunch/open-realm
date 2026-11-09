@@ -1,5 +1,6 @@
 #ifdef BZ_TESTS
 #include "shared/test.h"
+#include "../g_local.h"
 #include "games/warcraft-3/common/war3map_vertices.h"
 #include <stdlib.h>
 
@@ -145,5 +146,42 @@ TEST(wc3_terrain, w3e_bulk_reader_rejects_truncated_and_invalid_geometry) {
     map.height = W3E_MAX_VERTEX_DIMENSION;
     T_ASSERT(!Test_ReadW3EVertices("w3e-overflow.mpq", payload, sizeof(payload), &map));
     T_NULL(map.vertices);
+}
+/* String scanning must cross both its 512-byte chunk and an MPQ sector while
+ * restoring the caller's file position. */
+uint32_t SFileReadStringLength(handle_t file);
+void SFileReadString(handle_t file, string_t *out);
+TEST(wc3_w3e, mpq_string_length_crosses_scan_and_sector_boundaries) {
+    uint8_t payload[5200];
+    handle_t archive = NULL, file = NULL;
+    cstring_t path = Test_TempPath("mpq-string-scan.mpq");
+    memset(payload, 'x', sizeof(payload));
+    payload[5100] = 0;
+    T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "war3map.w3d", payload, sizeof(payload)));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "truncated.bin", payload, 5000));
+    T_ASSERT(SFileCloseArchive(archive));
+    T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));
+    T_ASSERT(SFileOpenFileEx(archive, "war3map.w3d", SFILE_OPEN_FROM_MPQ, &file));
+    T_EQ(SFileSetFilePointer(file, 3990, NULL, SEEK_SET), 3990);
+    T_EQ(SFileReadStringLength(file), 1111);
+    T_EQ(SFileSetFilePointer(file, 0, NULL, SEEK_CUR), 3990);
+    T_EQ(SFileReadStringLength(file), 1111);
+    T_EQ(SFileSetFilePointer(file, 0, NULL, SEEK_CUR), 3990);
+    SFileCloseFile(file);
+    T_ASSERT(SFileOpenFileEx(archive, "truncated.bin", SFILE_OPEN_FROM_MPQ, &file));
+    T_EQ(SFileSetFilePointer(file, 4500, NULL, SEEK_SET), 4500);
+    T_EQ(SFileReadStringLength(file), 501);
+    {
+        string_t text = NULL;
+        SFileReadString(file, &text);
+        T_NOT_NULL(text);
+        if (text) {
+            T_EQ(strlen(text), 500);
+            gi.MemFree(text);
+        }
+    }
+    SFileCloseFile(file);
+    SFileCloseArchive(archive);
 }
 #endif

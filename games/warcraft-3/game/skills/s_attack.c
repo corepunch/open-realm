@@ -778,7 +778,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
         unitAttack_t const *profile = attack_profile(attacker, target);
         if (S_AttackProfileIsMelee(profile)) {
             G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
-            S_FrostArmorOnAttacked(attacker, target);
+            S_UnitStatusAbilityEvent(target, A_MELEE_ATTACKED, &MAKE(abilityCall_t, .entity = attacker));
         }
     }
     if (target->inuse && attacker->inuse && !M_IsDead(attacker) &&

@@ -2186,6 +2186,49 @@ TEST(wc3_spell, channel_target_type_follows_alias_datab) {
     free_slk_rows(rows);
 }
 
+/* Exercise the actual ANcl thinker through the simulation, including natural
+ * completion and the interruption conditions shared with other channels. */
+TEST(wc3_spell, channel_follow_through_completes_and_interrupts) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y2;X1;K\"A005\"\nC;Y2;X2;K\"ANcl\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"2\"\nC;Y2;X5;K\"0\"\nE\n";
+    uint32_t const code = MAKEFOURCC('A','0','0','5');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    for (int mode = 0; mode < 4; mode++) {
+        edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+        edict_t *thinker = NULL;
+        caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
+        level.time = 1000;
+        T_ASSERT(S_CastNoTargetSpell(caster, code));
+        FOR_LOOP(i, globals.num_edicts)
+            if (g_edicts[i].inuse && g_edicts[i].owner == caster && g_edicts[i].class_id == code && g_edicts[i].think)
+                thinker = g_edicts + i;
+        T_NOT_NULL(thinker);
+        if (!thinker) continue;
+        T_ASSERT(S_SpellIsChanneling(caster));
+        if (mode == 0) {
+            level.time = 2999; G_RunEntity(thinker);
+            T_ASSERT(thinker->inuse && S_SpellIsChanneling(caster));
+            level.time = 3000;
+        } else if (mode == 1) {
+            caster->s.origin2.x += 10;
+        } else if (mode == 2) {
+            unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
+        } else {
+            caster->health.value = 0;
+        }
+        G_RunEntity(thinker);
+        T_ASSERT(!thinker->inuse);
+        T_ASSERT(!S_SpellIsChanneling(caster));
+    }
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* A unit-or-point command opens target mode for both clicks; a ground click
  * publishes the spell effect with that point (GetSpellTargetLoc). */
 TEST(wc3_spell, unit_or_point_command_publishes_clicked_point) {
@@ -2240,7 +2283,12 @@ TEST(wc3_spell, frost_armor_alias_adds_armor_and_slows_melee_attackers) {
     caster->unit_state->ranks[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','0','8','2'), .level = 1);
     T_ASSERT(test_execute_code(caster, "A082", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = caster)));
     T_FEQ(unit_status_modifier_total(caster, WC3_STATUS_MOD_ARMOR_FLAT) - armor, 15.0f, 0.001f);
-    S_FrostArmorOnAttacked(attacker, caster);
+    attacker->unit_state->attack1.type = ATK_NORMAL;
+    attacker->unit_state->attack1.weapon = WPN_MISSILE;
+    S_ResolveAttackHit(attacker, caster, 10);
+    T_NULL(unit_findstatus(attacker, MAKEFOURCC('B','f','r','o')));
+    attacker->unit_state->attack1.weapon = WPN_NORMAL;
+    S_ResolveAttackHit(attacker, caster, 10);
     T_NOT_NULL(unit_findstatus(attacker, MAKEFOURCC('B','f','r','o')));
 
     G_SetSLKRows("AbilityData", old);

@@ -1666,6 +1666,40 @@ TEST(wc3_api, fly_height_native_keeps_authored_default_separate) {
         "endfunction\n"));
 }
 
+/* A freshly created unit enters on the simulation step, and a later
+ * scripted exit/re-entry must not replay that original arrival. */
+TEST(wc3_api, spawned_and_repositioned_unit_enters_region_once_per_crossing) {
+    player_t *saved_currentplayer = currentplayer;
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    level.started = level.scriptsStarted = true;
+    T_ASSERT(run_test_jass(
+        "globals\n  unit mover = null\n  integer enters = 0\nendglobals\n"
+        "function on_enter takes nothing returns nothing\n  set enters = enters + 1\nendfunction\n"
+        "function verify_one takes nothing returns nothing\n  call BJassAssert(enters == 1, \"expected one entry\")\nendfunction\n"
+        "function verify_two takes nothing returns nothing\n  call BJassAssert(enters == 2, \"expected two entries\")\nendfunction\n"
+        "function move_out takes nothing returns nothing\n  call SetUnitPosition(mover, 300.0, 100.0)\nendfunction\n"
+        "function move_in takes nothing returns nothing\n  call SetUnitPosition(mover, 100.0, 100.0)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n  local region r = CreateRegion()\n"
+        "  call RegionAddRect(r, Rect(50.0, 50.0, 150.0, 150.0))\n"
+        "  call TriggerRegisterEnterRegion(t, r, null)\n  call TriggerAddAction(t, function on_enter)\n"
+        "  set mover = CreateUnit(Player(0), 'hfoo', 100.0, 100.0, 0.0)\nendfunction\n"));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_one", true); jass_runevents(level.vm);
+    if (jass_rterror_pending(level.vm)) fprintf(stderr, "WC3_REGION_TEST: %s\n", jass_rterror_message(level.vm));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "move_out", true); jass_runevents(level.vm);
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "move_in", true); jass_runevents(level.vm);
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_two", true); jass_runevents(level.vm);
+    if (jass_rterror_pending(level.vm)) fprintf(stderr, "WC3_REGION_TEST: %s\n", jass_rterror_message(level.vm));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
     edict_t *entering = NULL;
     event_t *handler = NULL;
@@ -1799,6 +1833,7 @@ TEST(wc3_api, player_chat_fires_matching_triggers) {
     human->connected = true;
     T_ASSERT(run_test_jass(
         "function exact takes nothing returns nothing\n"
+        "  call BJassAssert(GetTriggerEventId() == ConvertPlayerEvent(16), \"chat event id\")\n"
         "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, StringLength(GetEventPlayerChatString()))\n"
         "endfunction\n"
         "function partial takes nothing returns nothing\n"
@@ -1820,10 +1855,55 @@ TEST(wc3_api, player_chat_fires_matching_triggers) {
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
     G_PlayerChat(ent, "-AR");
     jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 3);
     G_PlayerChat(ent, "-lvl max");
     jass_runevents(level.vm);
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
+}
+
+/* Large protected maps register thousands of events. Exercise dispatch past
+ * the old limit and confirm that retiring a slot makes it reusable. */
+TEST(wc3_api, large_event_table_dispatch_and_reuse) {
+    enum { REGISTRATIONS = 6001 };
+    event_t *retired = NULL;
+    event_t *replacement;
+    edict_t *player;
+    int created = 0;
+
+    setup_test_world();
+    for (int i = 0; i < REGISTRATIONS; i++) {
+        event_t *event = G_MakeEvent(EVENT_GAME_VICTORY);
+        if (!event) break;
+        if (i == 3000) retired = event;
+        created++;
+    }
+    T_EQ(created, REGISTRATIONS);
+    T_NOT_NULL(retired);
+    if (created != REGISTRATIONS || !retired) return;
+    game.clients[0].ps.number = 0;
+    game.clients[0].connected = true;
+    T_ASSERT(run_test_jass(
+        "function on_chat takes nothing returns nothing\n"
+        "  call BJassAssert(GetTriggerEventId() == ConvertPlayerEvent(16), \"large table event id\")\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 123)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerChatEvent(t, Player(0), \"hi\", true)\n"
+        "  call TriggerAddAction(t, function on_chat)\n"
+        "endfunction\n"));
+    T_ASSERT(level.events.handlers[REGISTRATIONS].inuse);
+    player = G_GetPlayerEntityByNumber(0);
+    T_NOT_NULL(player);
+    if (!player) return;
+    G_PlayerChat(player, "hi");
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
+    G_RetireEvent(retired);
+    replacement = G_MakeEvent(EVENT_GAME_VICTORY);
+    T_ASSERT(replacement == retired);
 }
 
 TEST(wc3_api, boolexpr_composites_and_event_id) {

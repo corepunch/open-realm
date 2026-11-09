@@ -946,6 +946,10 @@ static cstring_t SC2_GetThemeValue(cstring_t filename) {
     return filename ? filename : "";
 }
 
+static edict_t *SC2_ClientEntity(uint32_t playernum) {
+    return globals.edicts + playernum;
+}
+
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
 
@@ -955,6 +959,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientBegin           = SC2_ClientBegin;
     globals.ClientDisconnect      = SC2_ClientDisconnect;
     globals.PrepareMap            = SC2_PrepareMap;
+    globals.ClientEntity = SC2_ClientEntity;
     globals.ClientCommand         = SC2_ClientCommand;
     globals.ClientInput = SC2_ClientInput;
     globals.CanSeeEntity          = SC2_CanSeeEntity;

@@ -139,6 +139,26 @@ TEST(mpq_compression, writer_retail_sector_layout) {
     T_ASSERT(SFileReadFile(file, output, sizeof(output), &read, NULL));
     T_EQ(read, sizeof(input));
     T_EQ(memcmp(input, output, sizeof(input)), 0);
+    /* Repeated seeks hit the same cached sector, then cross into a different
+     * one and revisit the original. All bytes must match the source. */
+    for (int i = 0; i < 3; i++) {
+        T_EQ(SFileSetFilePointer(file, 4000, NULL, SEEK_SET), 4000);
+        T_ASSERT(SFileReadFile(file, output, 64, &read, NULL));
+        T_EQ(read, 64); T_EQ(memcmp(output, input + 4000, read), 0);
+    }
+    T_EQ(SFileSetFilePointer(file, 4090, NULL, SEEK_SET), 4090);
+    T_ASSERT(SFileReadFile(file, output, 32, &read, NULL));
+    T_EQ(read, 32); T_EQ(memcmp(output, input + 4090, read), 0);
+    T_EQ(SFileSetFilePointer(file, 8188, NULL, SEEK_SET), 8188);
+    T_ASSERT(SFileReadFile(file, output, 32, &read, NULL));
+    T_EQ(read, 32); T_EQ(memcmp(output, input + 8188, read), 0);
+    T_EQ(SFileSetFilePointer(file, 4000, NULL, SEEK_SET), 4000);
+    T_ASSERT(SFileReadFile(file, output, 64, &read, NULL));
+    T_EQ(read, 64); T_EQ(memcmp(output, input + 4000, read), 0);
+    SFileCloseFile(file);
+    T_ASSERT(SFileOpenFileEx(archive, "war3map.j", 0, &file));
+    T_ASSERT(SFileReadFile(file, output, 64, &read, NULL));
+    T_EQ(read, 64); T_EQ(memcmp(output, input, read), 0);
     SFileCloseFile(file);
     SFileCloseArchive(archive);
     unlink(path);

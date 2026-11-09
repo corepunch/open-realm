@@ -3435,7 +3435,7 @@ void G_PlayerChat(edict_t *ent, cstring_t text) {
         if (!evt->subject || !evt->subject->client || evt->subject->client->ps.number != number) continue;
         if (!G_ChatMatches(evt, text)) continue;
         strlcpy(g_chat_match, evt->variable ? evt->variable : "", sizeof(g_chat_match));
-        jass_calltriggerevent(level.vm, evt->trigger, &(gameEvent_t){ .dialog_player = number + 1 });
+        jass_calltriggerevent(level.vm, evt->trigger, &(gameEvent_t){ .type = EVENT_PLAYER_CHAT, .dialog_player = number + 1 });
     }
 }
 

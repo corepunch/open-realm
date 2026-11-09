@@ -58,7 +58,7 @@ static ability_t abilitylist[] = {
     { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
-    { "ACfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
+    { "ACfu", CAbilityFrostArmor, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
@@ -302,8 +302,8 @@ static ability_t abilitylist[] = {
     { "ACsl", CAbilitySleep, AB_SPELL, SPELL_TARGET_UNIT },  /* Sleep (creep) */
     { "AUav", CAbilityCreepAura, AB_PASSIVE },  /* Vampiric Aura */
     { "AUfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova */
-    { "AUfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
-    { "AUfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
+    { "AUfa", CAbilityFrostArmor, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Frost Armor */
+    { "AUfu", CAbilityFrostArmor, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUdr", CAbilityDarkRitual, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Ritual */
     { "AUdd", CAbilityDeathAndDecay, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Death And Decay */
     { "Arst", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST },  /* Restore */
@@ -617,9 +617,9 @@ static ability_t abilitylist[] = {
     { "ACen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare (Creep) */
     { "ACes", CAbilityCreepAura, AB_PASSIVE },  /* Evasion (creep 100%) */
     { "ACev", CAbilityCreepAura, AB_PASSIVE },  /* Evasion (creep) */
-    { "ACf2", CAbilityFrostArmor, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frost Armor (creep, autocast) */
+    { "ACf2", CAbilityFrostArmor, AB_SPELL | AB_STATUS_EVENTS | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frost Armor (creep, autocast) */
     { "ACf3", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain (2,1 Button) */
-    { "ACfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor (creep, old) */
+    { "ACfa", CAbilityFrostArmor, AB_SPELL | AB_STATUS_EVENTS, SPELL_TARGET_UNIT },  /* Frost Armor (creep, old) */
     { "ACfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (creep) */
     { "ACfd", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain */
     { "ACff", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire (creep) */

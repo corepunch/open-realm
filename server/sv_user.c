@@ -5,19 +5,9 @@ static uint32_t SV_ClientPlayerNumber(client_t *cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
 
-/* A lobby stores the W3I map player, but the game permutes client slots so that slot 0 is the first
- * human map player: on maps whose players start at 2 edict 2 belongs to player 1, an unused player
- * (no resources, no units, camera at the origin). Resolve the owner of that map player instead.
- * Non-lobby clients have playernum 0 and keep slot 0, which the game binds to the local player. */
+/* The game owns the mapping between lobby player numbers and client entities. */
 static edict_t *SV_ClientEdict(client_t *cl) {
-    uint32_t const playernum = SV_ClientPlayerNumber(cl);
-    if (playernum) {
-        FOR_LOOP(i, MAX_PLAYERS) {
-            edict_t *ent = EDICT_NUM(i);
-            if (ent->client && ent->client->ps.number == playernum) return ent;
-        }
-    }
-    return EDICT_NUM(playernum);
+    return ge->ClientEntity(SV_ClientPlayerNumber(cl));
 }
 
 /* Continuation indexes come from the peer; reject malformed requests before indexing server tables. */
@@ -191,12 +181,27 @@ ucmd_t ucmds[] = {
 };
 
 void SV_ExecuteUserCommand(sizeBuf_t *msg, client_t *client) {
-    typedef char cmdarg_t[CMDARG_LEN];
+    typedef char cmdarg_t[TOKEN_LEN];
     static cmdarg_t args[MAX_CMDARGS];
     static cstring_t argv[MAX_CMDARGS];
     uint32_t argc = 0;
-    cstring_t command = MSG_ReadString2(msg);
+    char command[2048];
+    uint32_t remaining;
+    uint8_t const *start, *end;
     parser_t p = { 0 };
+    if (msg->readcount > msg->cursize) return;
+    remaining = msg->cursize - msg->readcount;
+    start = msg->data + msg->readcount;
+    end = memchr(start, 0, remaining);
+    if (!end) {
+        msg->readcount = msg->cursize;
+        return;
+    }
+    size_t const length = (size_t)(end - start);
+    msg->readcount += (uint32_t)length + 1;
+    if (length >= sizeof(command)) return;
+    memcpy(command, start, length);
+    command[length] = '\0';
     p.tok = p.token;
     p.str = command;
     for (cstring_t tok = ParserGetToken(&p); tok && argc < MAX_CMDARGS; tok = ParserGetToken(&p)) {
@@ -204,7 +209,7 @@ void SV_ExecuteUserCommand(sizeBuf_t *msg, client_t *client) {
         argv[argc] = args[argc];
         argc++;
     }
-    if (argc == 0) {
+    if (p.error || argc == 0) {
         return;
     }
     for (ucmd_t *u = ucmds; u->name; u++) {

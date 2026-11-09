@@ -58,6 +58,8 @@ void SFileReadString(handle_t file, string_t *lppString) {
     uint32_t stringLength = SFileReadStringLength(file);
     *lppString = MemAlloc(stringLength);
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
+    /* A truncated map may end without the requested NUL. */
+    (*lppString)[stringLength - 1] = '\0';
 }
 
 static uint32_t SFileBytesRemaining(handle_t file) {

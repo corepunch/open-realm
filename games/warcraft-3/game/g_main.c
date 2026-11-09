@@ -3346,6 +3346,18 @@ TEST(wc3_script_load, failed_target_after_save_aborts_source_transaction) {
 /* Return the game API vtable to the server.
  * Called once at startup; after this point the server drives the game
  * exclusively through the returned function pointers. */
+/* Lobby map-player numbers may differ from the permuted client-edict slots.
+ * Slot zero remains the local client until the game assigns its map player. */
+static edict_t *G_ClientEntity(uint32_t playernum) {
+    if (playernum) {
+        FOR_LOOP(i, MAX_PLAYERS) {
+            edict_t *ent = g_edicts + i;
+            if (ent->client && ent->client->ps.number == playernum) return ent;
+        }
+    }
+    return g_edicts + playernum;
+}
+
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     FS_SetSheetHost(&MAKE(sheetHost_t,
@@ -3365,6 +3377,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ExternalStepComplete = WC3_SC2API_ExternalStepComplete;
     globals.ExternalMapComplete = WC3_SC2API_ExternalMapComplete;
 #endif
+    globals.ClientEntity = G_ClientEntity;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientInput = G_ClientInput;
     globals.PrepareMap = G_PrepareMap;

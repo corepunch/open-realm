@@ -2460,6 +2460,10 @@ static bool Wow_PrepareMap(cstring_t filename) {
     return true;
 }
 
+static edict_t *Wow_ClientEntity(uint32_t playernum) {
+    return globals.edicts + playernum;
+}
+
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     (void)gi;
@@ -2468,6 +2472,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Shutdown = Wow_Shutdown;
     globals.RunFrame = Wow_RunFrame;
     globals.GetThemeValue = Wow_GetThemeValue;
+    globals.ClientEntity = Wow_ClientEntity;
     globals.ClientCommand = Wow_ClientCommand;
     globals.ClientInput = Wow_ClientInput;
     globals.PrepareMap = Wow_PrepareMap;

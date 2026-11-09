@@ -294,7 +294,7 @@ void MSG_ReadStringN(sizeBuf_t *buf, string_t value, int maxlen) {
 
 cstring_t MSG_ReadString2(sizeBuf_t *buf) {
     static char buffer[2048];
-    MSG_ReadString(buf, buffer);
+    MSG_ReadStringN(buf, buffer, sizeof(buffer));
     return buffer;
 }
 

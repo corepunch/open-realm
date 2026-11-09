@@ -194,6 +194,8 @@ struct game_export {
     void (*ExternalStepComplete)(uint32_t steps);
     void (*ExternalMapComplete)(cstring_t map, bool success);
     cstring_t (*GetThemeValue)(cstring_t filename);
+    /* Resolve a lobby map-player number to the game-owned client entity. */
+    edict_t *(*ClientEntity)(uint32_t playernum);
     void (*ClientCommand)(edict_t *ent, uint32_t argc, cstring_t argv[]);
     void (*ClientInput)(edict_t *ent, inputCmd_t const *cmd);
     /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */

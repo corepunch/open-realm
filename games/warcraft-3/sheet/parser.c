@@ -13,7 +13,7 @@ bool ParserSingleLineComment(parser_t *p, cstring_t str) {
 
 bool ParserSpace(parser_t *p, cstring_t str) {
     if (!p->reading_string) {
-        if (isspace(*str)) return true;
+        if (isspace((unsigned char)*str)) return true;
         if (p->comma_space && *str == ',') return true;
         if (*str == '\"') return true;
     }
@@ -80,6 +80,11 @@ string_t ParserGetToken(parser_t *p) {
                 return p->token;
             }
         } else {
+            if (p->tok >= p->token + sizeof(p->token) - 1) {
+                p->error = true;
+                p->tok = p->token;
+                return NULL;
+            }
             *(p->tok++) = *p->str;
         }
     }

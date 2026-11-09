@@ -222,8 +222,20 @@ static void MenuConfigureMainSaveLoad(void) {
 }
 /* Localized GlobalStrings label (with its hotkey colour codes), English fallback. */
 static cstring_t HudMenuString(cstring_t key, cstring_t fallback) {
+    static uint32_t warned;
     cstring_t value = UI_GetString(key);
-    return value && *value && strcmp(value, key) ? value : fallback;
+    uint32_t bit;
+
+    if (value && *value && strcmp(value, key)) return value;
+    if (!strcmp(key, "KEY_RESUME_GAME")) bit = 1u;
+    else if (!strcmp(key, "KEY_RETURN_TO_GAME")) bit = 2u;
+    else if (!strcmp(key, "KEY_RESTART_MISSION")) bit = 4u;
+    else bit = 8u;
+    if (!(warned & bit)) {
+        warned |= bit;
+        fprintf(stderr, "UI_WC3: missing GlobalStrings entry %s; using fallback\n", key);
+    }
+    return fallback;
 }
 
 
