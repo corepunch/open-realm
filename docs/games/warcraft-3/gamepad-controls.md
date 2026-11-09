@@ -18,6 +18,22 @@ pad per line, loaded at startup before controllers are opened, like Quake 2's
 per-joystick config files). Produce a line with SDL's `controllermap` utility
 or a guided probe that records each button, axis and hat.
 
+## Rebinding buttons
+
+`gamepadbind <button> <command>` replaces the built-in behaviour of one
+button, like Quake 2's `bind`. Buttons: `a b x y lb rb start back lstick rstick
+dpup dpdown dpleft dpright` (face names follow `cl_gamepad_nintendo`; triggers
+stay built in). A `+command` receives its `-command` on release, and held binds
+are released when the pad disconnects. Related: `gamepadbind <button>` (show),
+`gamepadunbind <button>`, `gamepadunbindall`, `gamepadbindlist`. Put the lines in
+`config.cfg` or the user console. Unbound buttons keep the built-in controls
+below.
+
+```
+gamepadbind y "cmd quickcamera"
+gamepadbind dpup "+attack"
+```
+
 | Archived console cvar | Default | Meaning |
 |---|---:|---|
 | `cl_gamepad` | `1` (WC3) | Enable controller input; `0` disables it |

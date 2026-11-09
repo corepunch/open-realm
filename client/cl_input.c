@@ -88,7 +88,84 @@ static bool CL_GamepadModal(void) {
            (cls.key_dest == key_game && SCR_GamepadRadialActive());
 }
 
+/* Quake 2-style controller binds: `gamepadbind <button> <command>` replaces the
+ * built-in behaviour of that button. A "+command" gets "-command" on release.
+ * Face names are logical (after cl_gamepad_nintendo); triggers stay built in. */
+#define CL_GAMEPAD_BIND_LEN 256
+static struct { cstring_t name; SDL_GameControllerButton button; } const gamepad_button_names[] = {
+    {"a", SDL_CONTROLLER_BUTTON_A}, {"b", SDL_CONTROLLER_BUTTON_B},
+    {"x", SDL_CONTROLLER_BUTTON_X}, {"y", SDL_CONTROLLER_BUTTON_Y},
+    {"lb", SDL_CONTROLLER_BUTTON_LEFTSHOULDER}, {"rb", SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+    {"start", SDL_CONTROLLER_BUTTON_START}, {"back", SDL_CONTROLLER_BUTTON_BACK},
+    {"lstick", SDL_CONTROLLER_BUTTON_LEFTSTICK}, {"rstick", SDL_CONTROLLER_BUTTON_RIGHTSTICK},
+    {"dpup", SDL_CONTROLLER_BUTTON_DPAD_UP}, {"dpdown", SDL_CONTROLLER_BUTTON_DPAD_DOWN},
+    {"dpleft", SDL_CONTROLLER_BUTTON_DPAD_LEFT}, {"dpright", SDL_CONTROLLER_BUTTON_DPAD_RIGHT},
+};
+static char gamepad_binds[SDL_CONTROLLER_BUTTON_MAX][CL_GAMEPAD_BIND_LEN];
+static char gamepad_bind_held[SDL_CONTROLLER_BUTTON_MAX][CL_GAMEPAD_BIND_LEN];
+
+static int CL_GamepadBindIndex(cstring_t name) {
+    FOR_LOOP(i, sizeof(gamepad_button_names) / sizeof(*gamepad_button_names))
+        if (!strcasecmp(gamepad_button_names[i].name, name)) return gamepad_button_names[i].button;
+    return -1;
+}
+
+static void CL_GamepadBind_f(void) {
+    int button;
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "gamepadbind <button> [command] : attach a command to a controller button\n");
+        return;
+    }
+    if ((button = CL_GamepadBindIndex(Cmd_Argv(1))) < 0) {
+        fprintf(stderr, "\"%s\" isn't a bindable button (a b x y lb rb start back lstick rstick dpup dpdown dpleft dpright)\n", Cmd_Argv(1));
+        return;
+    }
+    if (Cmd_Argc() == 2) {
+        fprintf(stderr, "\"%s\" = \"%s\"\n", Cmd_Argv(1), gamepad_binds[button]);
+        return;
+    }
+    strlcpy(gamepad_binds[button], Cmd_ArgsFrom(2), sizeof(gamepad_binds[button]));
+}
+
+static void CL_GamepadUnbind_f(void) {
+    int button = Cmd_Argc() == 2 ? CL_GamepadBindIndex(Cmd_Argv(1)) : -1;
+    if (button < 0) { fprintf(stderr, "gamepadunbind <button>\n"); return; }
+    gamepad_binds[button][0] = '\0';
+}
+
+static void CL_GamepadUnbindAll_f(void) { memset(gamepad_binds, 0, sizeof(gamepad_binds)); }
+
+static void CL_GamepadBindList_f(void) {
+    FOR_LOOP(i, sizeof(gamepad_button_names) / sizeof(*gamepad_button_names)) {
+        cstring_t cmd = gamepad_binds[gamepad_button_names[i].button];
+        if (*cmd) fprintf(stderr, "%s \"%s\"\n", gamepad_button_names[i].name, cmd);
+    }
+}
+
+static void CL_GamepadRunBound(int button, bool down, uint32_t time) {
+    char cmd[CL_GAMEPAD_BIND_LEN + 32];
+    if (down) {
+        strlcpy(gamepad_bind_held[button], gamepad_binds[button], sizeof(gamepad_bind_held[button]));
+        cstring_t kb = gamepad_bind_held[button];
+        if (*kb == '+') snprintf(cmd, sizeof(cmd), "%s %i %u", kb, button, time);
+        else strlcpy(cmd, kb, sizeof(cmd));
+    } else {
+        cstring_t kb = gamepad_bind_held[button];
+        if (*kb != '+') { gamepad_bind_held[button][0] = '\0'; return; }
+        snprintf(cmd, sizeof(cmd), "-%s %i %u", kb + 1, button, time);
+        gamepad_bind_held[button][0] = '\0';
+    }
+    Cmd_ExecuteString(cmd);
+}
+
+/* Release held +commands when the pad disappears so they cannot stay stuck. */
+static void CL_GamepadReleaseBound(void) {
+    FOR_LOOP(i, SDL_CONTROLLER_BUTTON_MAX)
+        if (gamepad_bind_held[i][0]) CL_GamepadRunBound(i, false, SDL_GetTicks());
+}
+
 static void CL_GamepadReset(void) {
+    CL_GamepadReleaseBound();
     CL_GamepadCancelARelease();
     if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
@@ -116,6 +193,7 @@ static void CL_GamepadReset(void) {
 }
 
 static void CL_GamepadResetHeld(void) {
+    CL_GamepadReleaseBound();
     CL_GamepadCancelARelease();
     if (gamepad.x && !gamepad.x_radial)
         CL_GamepadDispatchPointer(SDL_MOUSEBUTTONUP, SDL_BUTTON_RIGHT,
@@ -148,16 +226,44 @@ static void CL_GamepadResetHeld(void) {
  * Quake 2 did with a config file per joystick. Run SDL's controllermap or
  * tools/sdlpadtest.c to produce a line for a new pad. Must run before pads
  * are opened. */
+/* The game's file host may not be installed yet this early in startup, so fall
+ * back to plain files beside the working directory (where config.cfg lives). */
+static char *CL_GamepadReadMappingFile(void) {
+    static cstring_t const paths[] = {"gamecontrollerdb.txt", "share/gamecontrollerdb.txt", "../share/gamecontrollerdb.txt"};
+    FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
+        FILE *f = fopen(paths[i], "rb");
+        long size;
+        char *buf;
+        if (!f) continue;
+        size = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+        buf = size >= 0 && fseek(f, 0, SEEK_SET) == 0 ? malloc((size_t)size + 1) : NULL;
+        if (buf && fread(buf, 1, (size_t)size, f) == (size_t)size) {
+            buf[size] = '\0';
+            fclose(f);
+            return buf;
+        }
+        free(buf);
+        fclose(f);
+    }
+    return NULL;
+}
+
 static void CL_GamepadLoadMappings(void) {
-    string_t db = FS_ReadFileIntoString("gamecontrollerdb.txt");
+    char *db = CL_GamepadReadMappingFile();
     int added = 0;
-    if (!db) return;
+    if (!db) {
+        string_t host = FS_ReadFileIntoString("gamecontrollerdb.txt");
+        if (!host) return;
+        db = strdup(host);
+        FS_FreeFileString(host);
+        if (!db) return;
+    }
     for (char *save = NULL, *line = strtok_r(db, "\r\n", &save); line; line = strtok_r(NULL, "\r\n", &save)) {
         while (*line == ' ' || *line == '\t') line++;
         if (*line && *line != '#' && SDL_GameControllerAddMapping(line) >= 0) added++;
     }
     fprintf(stderr, "%d controller mappings loaded from gamecontrollerdb.txt.\n", added);
-    FS_FreeFileString(db);
+    free(db);
 }
 
 static void CL_GamepadOpen(int device_index) {
@@ -752,6 +858,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
         button = CL_GamepadFace(button);
     if (down && gamepad.lt) gamepad.lt_used = true;
+    if (button < SDL_CONTROLLER_BUTTON_MAX &&
+        (down ? gamepad_binds[button][0] : gamepad_bind_held[button][0])) {
+        if (down == (gamepad_bind_held[button][0] != '\0')) return true; /* repeat/unmatched event */
+        CL_GamepadRunBound(button, down, event->cbutton.timestamp);
+        return true;
+    }
     if (down && !gamepad.status_panel_mode && !gamepad.build_queue_mode &&
         button != SDL_CONTROLLER_BUTTON_LEFTSHOULDER) CL_GamepadCenterCursor();
     if (button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
@@ -2578,6 +2690,10 @@ void CL_InitInput(void) {
     Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
+    Cmd_AddCommand("gamepadbind", CL_GamepadBind_f);
+    Cmd_AddCommand("gamepadunbind", CL_GamepadUnbind_f);
+    Cmd_AddCommand("gamepadunbindall", CL_GamepadUnbindAll_f);
+    Cmd_AddCommand("gamepadbindlist", CL_GamepadBindList_f);
     Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
     Cmd_AddCommand("+look", IN_LookDown); Cmd_AddCommand("-look", IN_LookUp);
     Cmd_AddCommand("+forward", IN_ForwardDown); Cmd_AddCommand("-forward", IN_ForwardUp);
