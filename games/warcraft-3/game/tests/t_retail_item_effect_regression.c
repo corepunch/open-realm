@@ -330,6 +330,29 @@ TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, necklace_of_spell_immunity_protects_its_carrier) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"nspi\"\nC;Y2;X2;K\"AImx\"\nC;Y2;X3;K\"1\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    re_equip(&f, "nspi", 0);
+    T_ASSERT(S_UnitSpellImmune(f.hero));
+    T_ASSERT(!S_SpellDamage(f.hero, f.enemy, 40));
+    T_FEQ(f.hero->health.value, 500, 0.001f);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_ASSERT(!S_UnitSpellImmune(f.hero));
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =

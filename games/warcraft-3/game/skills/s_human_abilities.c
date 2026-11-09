@@ -85,6 +85,19 @@ static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_
 }
 
 /* Retail timed immunity buffs block spell targeting and impacts, independently of physical damage. */
+static bool unit_has_spell_immunity_item(edict_t const *unit) {
+    if (!unit || !G_InventoryCanUseItems((edict_t *)unit)) return false;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *item = G_InventoryItem((edict_t *)unit, slot);
+        cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            if (strlen(name) == 4 && FS_SLKKey(name) == MAKEFOURCC('A','I','m','x')) return true;
+        }
+    }
+    return false;
+}
+
 bool S_UnitSpellImmune(edict_t const *unit) {
     static uint32_t const passive[] = {
         MAKEFOURCC('A','m','i','m'), MAKEFOURCC('A','C','m','i'),
@@ -92,7 +105,8 @@ bool S_UnitSpellImmune(edict_t const *unit) {
     };
     if (!unit) return false;
     FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
-    return unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
+    return unit_has_spell_immunity_item(unit) ||
+           unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.

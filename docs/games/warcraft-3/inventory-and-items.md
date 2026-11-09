@@ -846,3 +846,12 @@ active chance so multiple sources do not roll independently. The regression
 `retail_item_effect.talisman_of_evasion_causes_attacks_to_miss_using_item_data`
 checks the item data mapping and confirms a guaranteed item evasion prevents
 attack damage.
+
+## Necklace of Spell Immunity
+
+The Necklace (`nspi`) carries passive `AImx`. While carried by a unit that can
+use inventory items, it contributes to the same spell-immunity predicate as
+native immunity abilities and timed immunity statuses. Dropping it removes
+that contribution immediately; physical attack damage remains unaffected.
+`retail_item_effect.necklace_of_spell_immunity_protects_its_carrier` covers
+spell damage rejection and drop cleanup.
