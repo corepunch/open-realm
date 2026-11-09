@@ -874,3 +874,8 @@ Legion Doom-Horn (`lgdh`) carries `AIau` (`AUau`) and provides its authored
 movement and health-regeneration aura values to nearby allies. Its regression
 `retail_item_effect.legion_doom_horn_provides_authored_unholy_aura` checks both
 values and range exclusion.
+
+Alleria's Flute of Accuracy (`afac`) carries `AIar` (`AEar`), so its authored
+10% Trueshot bonus applies only to nearby friendly ranged attackers. The
+regression `retail_item_effect.allerias_flute_boosts_nearby_ranged_units`
+covers melee exclusion, ranged inclusion and range exclusion.
