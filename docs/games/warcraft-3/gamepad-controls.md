@@ -12,27 +12,20 @@ mapped USB/Bluetooth pads. Only the first compatible connected controller is
 used. Disconnecting it clears held controller inputs; another controller can be
 picked up when the input loop next runs.
 
-Pads SDL does not know (generic Bluetooth/USB HID gamepads) need a mapping
-line in `share/gamecontrollerdb.txt` (SDL's `gamecontrollerdb.txt` format, one
-pad per line, loaded at startup before controllers are opened, like Quake 2's
-per-joystick config files). Produce a line with SDL's `controllermap` utility
-or a guided probe that records each button, axis and hat.
+Controller buttons are keys bound in `config.cfg`, exactly like `MOUSE1`:
+`bind JOYA "+gp_a"`. Pads SDL recognizes use `JOYA JOYB JOYX JOYY JOYLB JOYRB
+JOYLT JOYRT JOYSTART JOYBACK JOYLSTICK JOYRSTICK JOYDPUP JOYDPDOWN JOYDPLEFT
+JOYDPRIGHT`. A pad SDL has no mapping for is opened raw: its buttons are
+`AUX1`..`AUX32` (raw button index + 1), its hat is the D-pad, and on attach the
+game runs `exec pad_<vendor><product>.cfg` (hex VID/PID) like a Quake 2
+joystick config. `share/warcraft-3/pad_294b1001.cfg` is the unu controller;
+copy it for another pad and set `cl_joy_axis_leftx/lefty/rightx/righty` to the
+pad's raw stick axis indices. No mapping database is needed.
 
-## Rebinding buttons
-
-`gamepadbind <button> <command>` replaces the built-in behaviour of one
-button, like Quake 2's `bind`. Buttons: `a b x y lb rb start back lstick rstick
-dpup dpdown dpleft dpright` (face names follow `cl_gamepad_nintendo`; triggers
-stay built in). A `+command` receives its `-command` on release, and held binds
-are released when the pad disconnects. Related: `gamepadbind <button>` (show),
-`gamepadunbind <button>`, `gamepadunbindall`, `gamepadbindlist`. Put the lines in
-`config.cfg` or the user console. Unbound buttons keep the built-in controls
-below.
-
-```
-gamepadbind y "cmd quickcamera"
-gamepadbind dpup "+attack"
-```
+The `+gp_<a|b|x|y|lb|rb|lt|rt|start|back|rstick|dpup|dpright|dpdown|dpleft>`
+commands are the controller verbs described below; bind any button to them or
+to any other command (`bind JOYY "cmd quickcamera"`). Bindings are saved with
+the rest of the config.
 
 | Archived console cvar | Default | Meaning |
 |---|---:|---|

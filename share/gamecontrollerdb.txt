@@ -1,5 +1,0 @@
-# Extra SDL game controller mappings (SDL_GameControllerDB format), one pad
-# per line: GUID,name,a:b0,... Add a line for a pad SDL does not know; see
-# tools/sdlpadtest.c in the tessera repo or SDL's controllermap utility.
-# unu controller (generic Bluetooth HID gamepad)
-0300042b4b2900000110000007030000,unu controller,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,lefttrigger:b6,righttrigger:b7,back:b8,start:b9,leftstick:b10,rightstick:b11,dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,lefty:a1,leftx:a0,righty:a5,rightx:a2,platform:Mac OS X,
