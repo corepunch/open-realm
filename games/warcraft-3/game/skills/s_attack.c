@@ -682,6 +682,26 @@ bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t
            (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
 }
 
+static abilityAliasRef_t item_bash_ability(edict_t *attacker) {
+    abilityAliasRef_t result = {0};
+    uint32_t const base = MAKEFOURCC('A','H','b','h');
+    if (!attacker || !G_InventoryCanUseItems(attacker)) return result;
+    FOR_LOOP(slot, G_InventoryCapacity(attacker)) {
+        edict_t *item = G_InventoryItem(attacker, slot);
+        cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            uint32_t const alias = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            if (alias && G_AbilityCode(alias) == base) {
+                result.alias = alias;
+                result.level = 1;
+                return result;
+            }
+        }
+    }
+    return result;
+}
+
 void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
                                  uint32_t arrow_code, uint32_t arrow_level) {
     float const initial_health = target ? target->health.value : 0.0f;
@@ -709,6 +729,7 @@ void S_ResolveAttackHitWithArrow(edict_t *attacker, edict_t *target, int damage,
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
+    if (!bash.alias) bash = item_bash_ability(attacker);
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
         S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));

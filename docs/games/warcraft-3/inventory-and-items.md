@@ -884,3 +884,8 @@ Mindstaff (`mnsf`) carries `AIba` (`AHab`) and applies its authored Brilliance
 mana-regeneration aura to nearby allies with a mana pool. The regression
 `retail_item_effect.mindstaff_provides_authored_brilliance_aura` checks the
 amount and range exclusion.
+
+Rusty Mining Pick (`rump`) carries Bash alias `AIbx` (`AHbh`). On a successful
+proc it adds the alias's authored bonus damage and stun duration. The focused
+regression `retail_item_effect.rusty_mining_pick_bash_stuns_on_attack` verifies
+the attack, extra damage and timed stun from the item.

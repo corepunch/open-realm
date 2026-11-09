@@ -501,6 +501,31 @@ TEST(retail_item_effect, mindstaff_provides_authored_brilliance_aura) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, rusty_mining_pick_bash_stuns_on_attack) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y4;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
+        "C;Y3;X1;K\"AItg\"\nC;Y3;X2;K\"AItg\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y4;X1;K\"AIbx\"\nC;Y4;X2;K\"AHbh\"\nC;Y4;X3;K\"100\"\n"
+        "C;Y4;X4;K\"25\"\nC;Y4;X5;K\"2\"\nC;Y4;X6;K\"2\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"rump\"\nC;Y2;X2;K\"AItg,AIbx\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.enemy->unit_state->attack1.type = ATK_NORMAL;
+    f.enemy->targtype = TARG_GROUND;
+    re_equip(&f, "rump", 0);
+    S_ResolveAttackHit(f.hero, f.enemy, 10);
+    T_ASSERT(f.enemy->health.value < 500.0f);
+    T_NOT_NULL(unit_findstatus(f.enemy, MAKEFOURCC('B','s','t','u')));
+    T_EQ(unit_findstatus(f.enemy, MAKEFOURCC('B','s','t','u'))->timestamp, level.time + 2000);
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
