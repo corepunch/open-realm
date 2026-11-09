@@ -267,6 +267,7 @@ BZ_ABILITY_PROC(CAbilityCryptFiendBurrow);
 BZ_ABILITY_PROC(CAbilityCriticalStrike);
 BZ_ABILITY_PROC(CAbilityEvasion);
 BZ_ABILITY_PROC(CAbilityMassTeleport);
+BZ_ABILITY_PROC(CAbilityDarkSummoning);
 BZ_ABILITY_PROC(CAbilityStampede);
 BZ_ABILITY_PROC(CAbilityWhirlwind);
 BZ_ABILITY_PROC(CAbilityTornado);

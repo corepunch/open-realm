@@ -768,4 +768,66 @@ TEST(retail_item_effect, crystal_ball_targets_a_point_and_reveals_authored_radiu
     G_FowShutdown(); re_done(&f);
 }
 
+TEST(retail_item_effect, diamond_of_summoning_targets_area_and_relocates_up_to_twelve_owned_units) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AUds\"\nC;Y2;X2;K\"AUds\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"700\"\nC;Y2;X5;K\"12\"\nC;Y2;X6;K\"99999\"\n"
+        "C;Y2;X7;K\"air,ground,vuln,invu,player\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y1;X3;K\"uses\"\nC;Y1;X4;K\"perishable\"\n"
+        "C;Y2;X1;K\"dsum\"\nC;Y2;X2;K\"AUds\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player, *item, *owned[13];
+    vec2_t source = { 1024, 0 };
+    cstring_t point_click[] = { "point", "1024", "0" };
+    re_init(&f, ability_slk, items);
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    game.clients[0].ps.rdflags &= ~RDF_NOFOG;
+    f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER; f.hero->targtype = TARG_GROUND;
+    f.hero->collision = 32;
+    f.hero->data.UnitData = &foot_data;
+    G_SelectEntity(player->client, f.hero);
+    item = re_equip(&f, "dsum", 0);
+    G_GetItem(item)->charges = 1;
+    FOR_LOOP(i, 13) {
+        owned[i] = alloc_test_unit(FS_SLKKey("hfoo"), source.x, source.y);
+        owned[i]->s.player = 0; owned[i]->svflags |= SVF_MONSTER;
+        owned[i]->targtype = TARG_GROUND;
+        owned[i]->collision = 32;
+        owned[i]->data.UnitData = &foot_data;
+        owned[i]->movetype = MOVETYPE_STEP;
+        owned[i]->spawn_time = level.time;
+        gi.LinkEntity(owned[i]);
+    }
+    f.enemy->s.origin2 = source;
+    f.enemy->s.player = 1;
+    f.enemy->collision = 32;
+    f.enemy->data.UnitData = &foot_data;
+    gi.LinkEntity(f.hero);
+    gi.LinkEntity(f.enemy);
+    G_FowInit(); G_FowConnectPlayer(0);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    if (!player->client->menu.on_location_selected) { G_FowShutdown(); re_done(&f); return; }
+    G_ClientCommand(player, 3, point_click);
+    T_NULL(player->client->menu.on_location_selected);
+    T_EQ(G_ItemCharges(item), 0);
+    uint32_t moved = 0;
+    FOR_LOOP(i, 13) if (Vector2_distance(&owned[i]->s.origin2, &source) > 500.0f) moved++;
+    T_EQ(moved, 12);
+    T_FEQ(Vector2_distance(&owned[12]->s.origin2, &source), 0.0f, 0.001f);
+    T_FEQ(f.enemy->s.origin2.x, source.x, 0.001f);
+    T_FEQ(f.enemy->s.origin2.y, source.y, 0.001f);
+    for (uint32_t i = 0; i < 12; i++) for (uint32_t j = i + 1; j < 12; j++)
+        T_ASSERT(Vector2_distance(&owned[i]->s.origin2, &owned[j]->s.origin2) > 0.01f);
+    G_FowShutdown(); re_done(&f);
+}
+
 #endif /* BZ_TESTS */
