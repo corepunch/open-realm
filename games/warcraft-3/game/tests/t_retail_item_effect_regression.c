@@ -654,4 +654,56 @@ TEST(retail_item_effect, clarity_potion_regenerates_mana_and_interrupts_on_damag
     re_done(&f);
 }
 
+
+/* Retail Flare Gun (fgun/AIfa) is a charged, point-targeted Flare. */
+TEST(retail_item_effect, flare_gun_targets_a_point_and_reveals_authored_radius) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Area1\"\n"
+        "C;Y2;X1;K\"AIfa\"\nC;Y2;X2;K\"AIfa\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"20\"\nC;Y2;X5;K\"100\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y1;X3;K\"uses\"\nC;Y1;X4;K\"perishable\"\n"
+        "C;Y2;X1;K\"fgun\"\nC;Y2;X2;K\"AIfa\"\nC;Y2;X3;K\"3\"\nC;Y2;X4;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player, *item;
+    vec2_t center = { 128, 128 }, nearby = { 180, 128 }, outside = { 512, 128 };
+    cstring_t point_click[] = { "point", "128", "128" };
+    re_init(&f, ability_slk, items);
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER; f.hero->targtype = TARG_GROUND;
+    f.hero->runtime.sight_radius.day = f.hero->runtime.sight_radius.night = 0;
+    G_SelectEntity(player->client, f.hero);
+    item = re_equip(&f, "fgun", 0);
+    G_GetItem(item)->charges = 3;
+    G_FowInit(); G_FowConnectPlayer(0);
+    G_FowUpdate();
+    abilityitem_t flare = S_AbilityItem(FS_SLKKey("AIfa"));
+    T_NOT_NULL(flare.ability);
+    if (!flare.ability) { G_FowShutdown(); re_done(&f); return; }
+    T_EQ(flare.ability->proc, CAbilityFlare);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    T_EQ(G_ItemCharges(item), 3);
+    G_ClientCommand(player, 3, point_click);
+    T_NULL(player->client->menu.on_location_selected);
+    T_EQ(G_ItemCharges(item), 2);
+    T_ASSERT(G_FowPointIsVisible(0, &center));
+    T_ASSERT(G_FowPointIsVisible(0, &nearby));
+    T_ASSERT(!G_FowPointIsVisible(0, &outside));
+    FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == f.hero &&
+                  thinker->class_id == FS_SLKKey("AIfa") && G_GetChannel(thinker)) {
+        T_FEQ(thinker->s.origin2.x, center.x, 0.001f);
+        T_FEQ(thinker->s.origin2.y, center.y, 0.001f);
+        T_EQ(thinker->spawn_time, level.time + 20000);
+        G_FowShutdown(); re_done(&f); return;
+    }
+    T_ASSERT(false);
+    G_FowShutdown(); re_done(&f);
+}
+
 #endif /* BZ_TESTS */

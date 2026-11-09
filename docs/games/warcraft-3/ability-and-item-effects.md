@@ -44,6 +44,15 @@ status replacement, target death, and save/load do not need a parallel sight
 counter or thinker. Refresh/recast updates the casting player. Spell Steal
 redirecting a negative `Bfae` status assigns the mark to the stealing player.
 
+## Flare Gun
+
+The TFT Flare Gun (`fgun`) grants the point-targeted `AIfa` ability. It uses the
+same Flare execution as `Afla`: the item enters point targeting, and accepting a
+point creates a timed reveal source owned by the user. The reveal radius and
+duration come from the item ability's `Area1` and `Dur1` data, so the area reveal
+and its lifetime remain data-driven. The item charge is consumed only after a
+point is accepted.
+
 ## Data Flow
 
 Ability-authored presentation follows:
