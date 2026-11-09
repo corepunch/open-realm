@@ -53,6 +53,12 @@ duration come from the item ability's `Area1` and `Dur1` data, so the area revea
 and its lifetime remain data-driven. The item charge is consumed only after a
 point is accepted.
 
+The Crystal Ball (`crys`) uses `AIta` to reveal a selected point for the
+authored `Dur1` duration and `Area1` radius, while applying its `BuffID`
+(`Bdet`) to units inside that area so the viewer detects invisible enemies. The
+terrain reveal is maintained by the timed area source; detection is carried by
+ordinary expiring unit statuses. Installed TFT values are 10 seconds and 900.
+
 ## Data Flow
 
 Ability-authored presentation follows:

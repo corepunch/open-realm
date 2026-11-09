@@ -675,6 +675,7 @@ TEST(retail_item_effect, flare_gun_targets_a_point_and_reveals_authored_radius) 
     re_init(&f, ability_slk, items);
     player = &g_edicts[0];
     player->client->ps.number = 0;
+    game.clients[0].ps.rdflags &= ~RDF_NOFOG;
     f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER; f.hero->targtype = TARG_GROUND;
     f.hero->runtime.sight_radius.day = f.hero->runtime.sight_radius.night = 0;
     G_SelectEntity(player->client, f.hero);
@@ -700,6 +701,67 @@ TEST(retail_item_effect, flare_gun_targets_a_point_and_reveals_authored_radius) 
         T_FEQ(thinker->s.origin2.x, center.x, 0.001f);
         T_FEQ(thinker->s.origin2.y, center.y, 0.001f);
         T_EQ(thinker->spawn_time, level.time + 20000);
+        G_FowShutdown(); re_done(&f); return;
+    }
+    T_ASSERT(false);
+    G_FowShutdown(); re_done(&f);
+}
+
+/* Retail Crystal Ball (crys/AIta) reveals the selected point for ten seconds. */
+TEST(retail_item_effect, crystal_ball_targets_a_point_and_reveals_authored_radius) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AIta\"\nC;Y2;X2;K\"AIta\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"900\"\nC;Y2;X6;K\"3\"\nC;Y2;X7;K\"Bdet\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"perishable\"\n"
+        "C;Y2;X1;K\"crys\"\nC;Y2;X2;K\"AIta\"\nC;Y2;X3;K\"false\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player;
+    vec2_t center = { 128, 128 }, nearby = { 768, 128 }, outside = { -900, 128 };
+    cstring_t point_click[] = { "point", "128", "128" };
+    re_init(&f, ability_slk, items);
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    game.clients[0].ps.rdflags &= ~RDF_NOFOG;
+    f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER; f.hero->targtype = TARG_GROUND;
+    f.hero->runtime.sight_radius.day = f.hero->runtime.sight_radius.night = 0;
+    G_SelectEntity(player->client, f.hero);
+    re_equip(&f, "crys", 0);
+    f.enemy->s.origin2 = nearby;
+    f.enemy->s.origin.x = nearby.x; f.enemy->s.origin.y = nearby.y;
+    f.enemy->runtime.sight_radius.day = f.enemy->runtime.sight_radius.night = 0;
+    f.enemy->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(unit_addtimedstatus(f.enemy, "Binv", 1, 20.0f));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(f.enemy, 0));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowUpdate();
+    T_ASSERT(!G_FowPointIsVisible(0, &outside));
+    abilityitem_t reveal = S_AbilityItem(FS_SLKKey("AIta"));
+    T_NOT_NULL(reveal.ability);
+    if (!reveal.ability) { G_FowShutdown(); re_done(&f); return; }
+    T_EQ(reveal.ability->proc, CAbilityItemDetectAoe);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    G_ClientCommand(player, 3, point_click);
+    T_NULL(player->client->menu.on_location_selected);
+    T_ASSERT(G_FowPointIsVisible(0, &center));
+    T_ASSERT(G_FowPointIsVisible(0, &nearby));
+    T_ASSERT(!G_FowPointIsVisible(0, &outside));
+    T_ASSERT(S_UnitIsDetectedByPlayer(f.enemy, 0));
+    FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == f.hero &&
+                  thinker->class_id == FS_SLKKey("AIta") && G_GetChannel(thinker)) {
+        T_FEQ(thinker->s.origin2.x, center.x, 0.001f);
+        T_FEQ(thinker->s.origin2.y, center.y, 0.001f);
+        T_EQ(thinker->spawn_time, level.time + 10000);
+        level.time += 10000;
+        G_RunEntity(thinker);
+        G_RunEntity(f.enemy);
+        G_FowUpdate();
+        T_ASSERT(!S_UnitIsDetectedByPlayer(f.enemy, 0));
+        T_ASSERT(!G_FowPointIsVisible(0, &center));
         G_FowShutdown(); re_done(&f); return;
     }
     T_ASSERT(false);

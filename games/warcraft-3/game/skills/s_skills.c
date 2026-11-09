@@ -344,7 +344,7 @@ static ability_t abilitylist[] = {
     { "APmg", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Greater Mana */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
     { "AIra", CAbilityItemRestoreAoe, AB_ITEM | AB_POWERUP }, /* Item Area Heal/Mana Regain */
-    // TODO: AIta a_item_town_portal  /* Item Area Detection */
+    { "AIta", CAbilityItemDetectAoe, AB_SPELL, SPELL_TARGET_POINT },  /* Crystal Ball */
     // TODO: AIrm a_item_regen_mana  /* Item Mana Regeneration */
     // TODO: AIil a_item_illusion  /* Item Illusions */
     { "AIdi", CAbilityItemDispelAoe, AB_ITEM | AB_POWERUP },  /* Item Area Dispel / Rune of Dispel Magic */

@@ -219,6 +219,7 @@ BZ_ABILITY_PROC(CAbilityMechanicalCritter);
 BZ_ABILITY_PROC(CAbilityItemSanctuary);
 BZ_ABILITY_PROC(CAbilityItemPreservation);
 BZ_ABILITY_PROC(CAbilityItemDetectByBuff);
+BZ_ABILITY_PROC(CAbilityItemDetectAoe);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
 BZ_ABILITY_PROC(CAbilityLifeRegenBonus);
 BZ_ABILITY_PROC(CAbilityAttributeBonus);

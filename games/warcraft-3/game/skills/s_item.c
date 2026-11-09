@@ -903,6 +903,42 @@ BZ_ABILITY_PROC(CAbilityItemDetectByBuff) {
     return true;
 }
 
+/* Crystal Ball reveals a point and gives the viewer temporary detection over
+ * units in its authored area. Terrain reveal is maintained by the same
+ * generation-guarded area thinker used by Flare. */
+BZ_SIMPLE_SPELL_PROC(AbilityItemDetectAoe) {
+    uint32_t code, level;
+    float radius, duration;
+    cstring_t buff;
+    edict_t *thinker;
+    if (!caster || !spell || st.type != SPELL_TARGET_POINT || caster->s.player >= MAX_PLAYERS)
+        return;
+    code = spell->code;
+    level = 1;
+    radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    duration = S_SpellDuration(code, level, false);
+    buff = S_SpellBuffId(code, level);
+    if (!(radius > 0.0f) || !(duration > 0.0f) || !buff || strlen(buff) < 4) return;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) &&
+                  S_SpellAllowsAreaTarget(code, caster, target) &&
+                  Vector2_distance(&st.point, &target->s.origin2) <= radius) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(target, code, level, buff, duration);
+        if (!status) continue;
+        status->data = caster->s.player + 1;
+        G_InvalidateUnitInfoPanel(target);
+    }
+    thinker = G_Spawn();
+    if (!thinker) return;
+    thinker->owner = caster;
+    thinker->class_id = code;
+    thinker->s.origin2 = st.point;
+    G_AddChannel(thinker);
+    G_GetChannel(thinker)->owner_spawn_time = caster->spawn_time;
+    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
+    thinker->think = human_ability_think;
+    human_ability_think(thinker);
+}
+
 /* Mechanical Critter creates a player-owned scout chosen for this map's terrain. */
 BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
     edict_t *caster, *critter;
