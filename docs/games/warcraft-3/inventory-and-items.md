@@ -815,3 +815,11 @@ damage interrupts the regeneration. Enemy, mechanical, dead, full-health, and
 out-of-range targets are rejected by the normal spell validation path. The
 regeneration pulse and interruption lifecycle are covered by
 `retail_item_effect.healing_salve_targets_friendly_unit_and_interrupts_on_damage`.
+
+The replenishment family uses the same timed regeneration lifecycle:
+`AIp1`–`AIp4` apply to the carrier, while `AIp5`–`AIp6` affect nearby
+eligible allies using their authored area, health, mana, duration, and target
+mask. Damage interrupts each affected unit independently. Regression coverage
+in `retail_item_effect.replenishment_potions_and_scrolls_use_authored_targets_and_interrupt`
+checks both caster-only and area behavior, outside-area exclusion, interruption,
+and the lesser/greater scroll amounts.
