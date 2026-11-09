@@ -880,4 +880,27 @@ TEST(retail_item_effect, spider_silk_targets_and_ensnares_an_enemy_flyer) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, talisman_of_evasion_causes_attacks_to_miss_using_item_data) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"1\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"evtl\"\nC;Y2;X2;K\"AIev\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.enemy->unit_state->attack1.type = ATK_NORMAL;
+    f.enemy->unit_state->attack1.targetsAllowed = TARG_GROUND;
+    float const initial_health = f.hero->health.value;
+    S_ResolveAttackHit(f.enemy, f.hero, 10);
+    T_FEQ(f.hero->health.value, initial_health - 10.0f, 0.001f);
+    re_equip(&f, "evtl", 0);
+    f.hero->health.value = initial_health;
+    S_ResolveAttackHit(f.enemy, f.hero, 10);
+    T_FEQ(f.hero->health.value, initial_health, 0.001f);
+    re_done(&f);
+}
+
 #endif /* BZ_TESTS */

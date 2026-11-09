@@ -836,3 +836,13 @@ installed TFT data sets a 700-unit selection radius and `DataA=12`. On an
 accepted point cast, up to twelve living nonstructure units owned by the caster
 inside that radius relocate to the caster through the shared unstuck placement
 path. Other players' units and units outside the selected area remain in place.
+
+## Talisman of Evasion
+
+The Talisman of Evasion (`evtl`) grants its carrier the authored `AIev`
+evasion chance (`AEev` data). The attack-hit path checks evasion abilities
+provided by carried items as well as learned unit abilities, using the highest
+active chance so multiple sources do not roll independently. The regression
+`retail_item_effect.talisman_of_evasion_causes_attacks_to_miss_using_item_data`
+checks the item data mapping and confirms a guaranteed item evasion prevents
+attack damage.
