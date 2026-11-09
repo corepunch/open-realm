@@ -2404,14 +2404,18 @@ static void SCR_DrawEntityOverlays(void) {
     FOR_LOOP(i, cl.viewDef.num_entities) {
         renderEntity_t const *render = &cl.viewDef.entities[i];
         rect_t root;
+        vec3_t top;
+        vec2_t screen;
         if (!render->number || render->number >= MAX_CLIENT_ENTITIES ||
             (!all_held && render->number == saved_hover) ||
             !(cl.ents[render->number].current.flags & mask)) continue;
         cl.hover_entity = render->number;
+        if (!SCR_LayoutContextEntity() || !re.GetEntityOverheadPosition(render, &top) ||
+            !SCR_ProjectWorldPoint(&top, &screen)) continue;
+        root = MAKE(rect_t, screen.x, screen.y, 0, 0);
         layout_current_window = false;
         layout_current_layer = LAYER_WORLD_HOVER;
         SCR_ClearLayer(layout, LAYER_WORLD_HOVER);
-        if (!SCR_LayoutWorldHoverRoot(&root)) continue;
         SCR_SetLayoutRoot(&root);
         SCR_LayoutDrawOverlay(layout);
     }

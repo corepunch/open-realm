@@ -44,7 +44,8 @@ generic; no engine code tests a map rawcode.
 ## Presentation
 
 - World hover names a Hero by its proper name with a `LEVEL` line and shows the health bar only. `hover_value` carries the level with `ENT_HOVER_LABELED_VALUE`; the label is the nametag frame's tooltip.
-- `cl_healthbars 1` (Options > Gameplay > Health Bars) draws bars over own and allied units; holding Alt draws them over every visible unit.
+- Options > Gameplay > Health Bars (or `cl_healthbars 1`) shows own and allied bars. Holding `[` shows friendly bars, `]` shows enemy bars, and either Alt key shows all visible unit bars including mana without names. Destructibles are excluded. The client reuses the game-authored hover layout.
+- Enter opens a centered message prompt using the multiboard backdrop. Chat input and the prompt are client-local; the game supplies its layout and key binding.
 - In-game menu labels come from `GlobalStrings.fdf` (`KEY_RESTART_MISSION`, `KEY_RETURN_TO_GAME`, `KEY_RESUME_GAME`).
 
 ## Diagnosis notes

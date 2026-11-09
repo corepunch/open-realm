@@ -247,8 +247,11 @@ into a trailing packet text arena, allowing long text independently of the one-b
 
 Game modules own the layer contents. WC3 and WoW send their native frame trees during `ClientBegin`; WoW authors compressed creature
 vitals through `CustomizeEntity` and keeps `entityState_t.name` hidden until that recipient selects the creature. SC2 sends a header
-and terminator with no frames until its gameplay state can author a real widget. The renderer has no parallel health-bar pass, and
-there is no ALT-driven show-all mode because one `LAYER_WORLD_HOVER` instance has one `cl.hover_entity` context.
+and terminator with no frames until its gameplay state can author a real widget. Optional entity overlay category flags let the
+client reuse that same tree for multiple visible entities, projecting each model top and suppressing labels and cargo while the
+overlay context is active. The game assigns categories and mana eligibility; generic held commands select categories locally.
+`LAYER_CLIENT_MESSAGE` similarly lets the game author the local message-entry panel, with `UI_STAT_CLIENT_MESSAGE_TEXT` binding
+the prompt to the client's input buffer.
 
 ## Client-Measured Structural Widths
 

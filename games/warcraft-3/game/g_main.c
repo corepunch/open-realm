@@ -2425,9 +2425,10 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     }
     if (hoverable && (state->flags & EF_UNIT)) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
-        if (relation == SELECT_RELATION_ENEMY) state->flags |= EF_OVERLAY_B;
-        else if (relation == SELECT_RELATION_NEUTRAL && !G_PlayerTreatsPlayerAsAlly(player, ent->s.player))
+        if (ent->s.player == PLAYER_NEUTRAL_PASSIVE || ent->s.player == PLAYER_NEUTRAL_VICTIM ||
+            ent->s.player == PLAYER_NEUTRAL_EXTRA)
             state->flags |= EF_OVERLAY_C;
+        else if (relation == SELECT_RELATION_ENEMY) state->flags |= EF_OVERLAY_B;
         else state->flags |= EF_OVERLAY_A;
         if (ent->mana.max_value > 0.0f) state->flags |= EF_OVERLAY_MANA;
     }

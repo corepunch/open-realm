@@ -2947,13 +2947,15 @@ TEST(client_input, entity_overlay_bindings_hold_categories_and_both_alt_keys) {
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     bool old_focus = input.focus, add = !Cmd_Exists("+entityoverlayall");
     float old_default = Cvar_Value("cl_entity_overlay_default", 0);
-    char left[80], right[80], bracket[80];
+    char left[80], right[80], bracket[80], bracket_right[80];
     strlcpy(left, Key_GetBinding(K_LALT, 0), sizeof(left));
     strlcpy(right, Key_GetBinding(K_RALT, 0), sizeof(right));
     strlcpy(bracket, Key_GetBinding('[', 0), sizeof(bracket));
+    strlcpy(bracket_right, Key_GetBinding(']', 0), sizeof(bracket_right));
     if (add) {
         Cmd_AddCommand("+entityoverlayall", IN_OverlayAllDown); Cmd_AddCommand("-entityoverlayall", IN_OverlayAllUp);
         Cmd_AddCommand("+entityoverlaya", IN_OverlayADown); Cmd_AddCommand("-entityoverlaya", IN_OverlayAUp);
+        Cmd_AddCommand("+entityoverlayb", IN_OverlayBDown); Cmd_AddCommand("-entityoverlayb", IN_OverlayBUp);
     }
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; overlay_a = overlay_b = false; overlay_all_keys = 0;
@@ -2961,7 +2963,10 @@ TEST(client_input, entity_overlay_bindings_hold_categories_and_both_alt_keys) {
     Key_SetBinding(K_LALT, 0, "+entityoverlayall");
     Key_SetBinding(K_RALT, 0, "+entityoverlayall");
     Key_SetBinding('[', 0, "+entityoverlaya");
+    Key_SetBinding(']', 0, "+entityoverlayb");
     CL_InputKeyEvent('[', 0, true, 10); T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A);
+    CL_InputKeyEvent(']', 0, true, 10); T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A | EF_OVERLAY_B);
+    CL_InputKeyEvent(']', 0, false, 10); T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A);
     CL_InputKeyEvent(K_LALT, KEY_MOD_ALT, true, 11);
     CL_InputKeyEvent(K_RALT, KEY_MOD_ALT, true, 12);
     T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A | EF_OVERLAY_B | EF_OVERLAY_C);
@@ -2972,9 +2977,11 @@ TEST(client_input, entity_overlay_bindings_hold_categories_and_both_alt_keys) {
     T_EQ(CL_SDLKeyToKeyCode(SDLK_LALT), K_LALT);
     T_EQ(CL_SDLKeyToKeyCode(SDLK_RALT), K_RALT);
     Key_SetBinding(K_LALT, 0, left); Key_SetBinding(K_RALT, 0, right); Key_SetBinding('[', 0, bracket);
+    Key_SetBinding(']', 0, bracket_right);
     if (add) {
         Cmd_RemoveCommand("+entityoverlayall"); Cmd_RemoveCommand("-entityoverlayall");
         Cmd_RemoveCommand("+entityoverlaya"); Cmd_RemoveCommand("-entityoverlaya");
+        Cmd_RemoveCommand("+entityoverlayb"); Cmd_RemoveCommand("-entityoverlayb");
     }
     overlay_a = overlay_b = false; overlay_all_keys = 0;
     Cvar_SetValue("cl_entity_overlay_default", old_default);
