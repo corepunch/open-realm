@@ -28,7 +28,7 @@ generic; no engine code tests a map rawcode.
 | Item bonus abilities (`AIat`, `AIde`, `AIml`, attribute bonuses, `Arel`) also apply when a script adds them to a unit: `UnitAddAbility` sends `A_ENABLE` and `UnitRemoveAbility` sends `A_DISABLE`. Maps build damage bonuses from bit-flag sets of such abilities. | `BZ_ITEM_BONUS_PROC` (`s_item_stats.c`) | `wc3_spell.item_attack_bonus_added_to_unit_applies_and_reverts`, `wc3_spell.item_life_regeneration_bonus_applies_and_reverts` |
 | Poison and orb attacks use the owned alias, so a custom alias applies its own `BuffID` and duration. | `S_PoisonOnHit`, `S_OrbOnHit` | covered by poison/orb suites |
 | Aura target token `player` limits recipients to the source's owner. Auras on runtime-added aliases (a dummy unit given `AOae` by script) reach recipients. | `aura_allows_target` (`s_hero_passives.c`) | `wc3_spell.runtime_added_aura_alias_buffs_owned_hero_only` |
-| Frost Armor adds `DataB` armor through a status modifier and slows melee attackers with `Bfro` for the ability's `Dur`. | `AbilityFrostArmor`, `S_FrostArmorOnAttacked` (`s_ability_stubs.c`) | `wc3_spell.frost_armor_alias_adds_armor_and_slows_melee_attackers` |
+| Frost Armor adds `DataB` armor through a status modifier and slows melee attackers with `Bfro` for the ability's `Dur`. | `CAbilityFrostArmor` and status-event dispatch (`s_ability_stubs.c`, `s_attack.c`) | `wc3_spell.frost_armor_alias_adds_armor_and_slows_melee_attackers` |
 | Only the stock Demon Hunter forms (`Edmm`, `Eevm`) gain `AEmb`/`AEim`/`AEev` on Metamorphosis. A custom `AEme` alias morphs into its own form with that form's hero list. | `AbilityMetamorphosis_Execute` | `wc3_spell.custom_metamorphosis_form_does_not_gain_demon_hunter_skills` |
 
 ## JASS
