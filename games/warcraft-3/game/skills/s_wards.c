@@ -312,6 +312,24 @@ static float unit_detector_range(edict_t const *detector) {
 		}
 		if (level) range = MAX(range, S_SpellRange(abilities[i], level));
 	}
+	if (G_InventoryCanUseItems(detector)) {
+		FOR_LOOP(slot, G_InventoryCapacity(detector)) {
+			edict_t *item = G_InventoryItem(detector, slot);
+			cstring_t carried = item ? G_ItemAbilityList(item) : NULL;
+			if (!carried) continue;
+			PARSE_LIST(carried, name, parse_segment) {
+				uint32_t const alias = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+				bool detector_ability = false;
+				if (!alias) continue;
+				FOR_LOOP(i, sizeof(abilities) / sizeof(*abilities))
+					if (alias == abilities[i] || G_AbilityCode(alias) == abilities[i]) {
+						detector_ability = true;
+						break;
+					}
+				if (detector_ability) range = MAX(range, S_SpellRange(alias, 1));
+			}
+		}
+	}
 	return range;
 }
 

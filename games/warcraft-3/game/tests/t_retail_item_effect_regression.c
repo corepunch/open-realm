@@ -552,6 +552,29 @@ TEST(retail_item_effect, ancient_janggo_provides_authored_endurance_aura) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, gem_of_true_sight_detects_enemies_from_carrier) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Rng1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X4;K\"6\"\nC;Y2;X5;K\"1\"\n"
+        "C;Y3;X1;K\"Adt1\"\nC;Y3;X2;K\"Adet\"\nC;Y3;X3;K\"1100\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"gemt\"\nC;Y2;X2;K\"Adt1\"\nC;Y2;X3;K\"1\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    re_equip(&f, "gemt", 0);
+    T_ASSERT(S_UnitIsDetectedByPlayer(f.enemy, 0));
+    Vector2_set(&f.enemy->s.origin2, 1200, 0);
+    T_ASSERT(!S_UnitIsDetectedByPlayer(f.enemy, 0));
+    Vector2_set(&f.enemy->s.origin2, 64, 0);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(f.enemy, 0));
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
