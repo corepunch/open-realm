@@ -9,8 +9,23 @@
 
 static uint32_t shadowmeld_fade_ms(edict_t const *unit);
 
+static bool shadowmeld_has_carried_ability(edict_t const *unit, uint32_t code) {
+    if (!unit || !G_InventoryCanUseItems((edict_t *)unit)) return false;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *item = G_InventoryItem((edict_t *)unit, slot);
+        cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            uint32_t const alias = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            if (alias == code || (alias && G_AbilityCode(alias) == code)) return true;
+        }
+    }
+    return false;
+}
+
 static bool shadowmeld_has_standard(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_ASHM) != 0;
+    return unit && (G_UnitAbilityLevel(unit, ID_ASHM) != 0 ||
+                    shadowmeld_has_carried_ability(unit, ID_ASHM));
 }
 
 static bool shadowmeld_has_akama(edict_t const *unit) {
@@ -23,7 +38,8 @@ static bool shadowmeld_has_ability(edict_t const *unit) {
 
 static bool shadowmeld_ability_available(edict_t const *unit, bool akama) {
     uint32_t code = akama ? ID_AHID : ID_ASHM;
-    return unit && G_UnitAbilityLevel(unit, code) != 0 && G_IsUnitAbilityAvailable(unit, code);
+    return unit && (G_UnitAbilityLevel(unit, code) != 0 ? G_IsUnitAbilityAvailable(unit, code) :
+                    (!akama && shadowmeld_has_carried_ability(unit, code)));
 }
 
 static bool shadowmeld_any_ability_available(edict_t const *unit) {
@@ -85,6 +101,7 @@ static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
     uint32_t code = shadowmeld_has_standard(unit) ? ID_ASHM :
                     shadowmeld_has_akama(unit) ? ID_AHID : 0;
     uint32_t level = code ? G_UnitAbilityLevel(unit, code) : 0;
+    if (!level && code == ID_ASHM && shadowmeld_has_carried_ability(unit, code)) level = 1;
     float duration = code && level ? S_SpellData(code, level, 1) : 0.0f; /* Shm1 / DataA */
 
     if (!(duration > 0.0f) || !isfinite(duration)) {
@@ -155,7 +172,7 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     shadowMeld_t *meld = G_GetShadowMeld(ent);
     switch (msg) {
     case A_UPDATE:
-        if (shadowmeld_ability_available(ent, akama)) shadowmeld_update(ent);
+        if (meld || shadowmeld_ability_available(ent, akama)) shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);
     case A_NO_ACQUIRE:
         return ent && shadowmeld_ability_available(ent, akama) &&
