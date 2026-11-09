@@ -181,6 +181,7 @@ static ability_t abilitylist[] = {
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
     { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
+    { "AIre", CAbilityItemRestore, AB_ITEM },  /* Potion of Restoration */
     { "AIsl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Scroll of Regeneration */
     { "AIpl", CAbilityItemRegeneration, AB_ITEM | AB_STATUS_EVENTS | AB_ENGINE_EVENTS }, /* Lesser Clarity Potion */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */

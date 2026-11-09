@@ -358,6 +358,30 @@ BZ_ITEM_PROC(AbilityItemHeal) {
     return true;
 }
 
+/* Potion of Restoration (AIre) directly restores its authored health and mana
+ * to the selected unit. It is distinct from AIra's area powerup behavior. */
+BZ_ITEM_PROC(AbilityItemRestore) {
+    edict_t *target = G_GetMainSelectedUnit(clent->client);
+    uint32_t const code = S_SpellCurrentCode(clent, MAKEFOURCC('A','I','r','e'));
+    float const health = S_SpellData(code, 1, 1);
+    float const mana = S_SpellData(code, 1, 2);
+    bool changed = false;
+
+    if (!S_SpellIsAliveTarget(target) || health < 0.0f || mana < 0.0f ||
+        (target->health.value >= target->health.max_value &&
+         target->mana.value >= target->mana.max_value)) return false;
+    if (health > 0.0f && target->health.value < target->health.max_value) {
+        S_SpellHeal(target, health);
+        changed = true;
+    }
+    if (mana > 0.0f && target->mana.value < target->mana.max_value) {
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + mana);
+        changed = true;
+    }
+    if (changed) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return changed;
+}
+
 
 static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     edict_t *target;
