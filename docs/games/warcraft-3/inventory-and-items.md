@@ -869,3 +869,8 @@ Warsong Battle Drums (`ward`) also carry `AIcd` and use the same authored
 Command Aura path. The focused regression
 `retail_item_effect.warsong_battle_drums_provide_authored_command_aura`
 checks the inventory alias against the 10% recipient bonus.
+
+Legion Doom-Horn (`lgdh`) carries `AIau` (`AUau`) and provides its authored
+movement and health-regeneration aura values to nearby allies. Its regression
+`retail_item_effect.legion_doom_horn_provides_authored_unholy_aura` checks both
+values and range exclusion.

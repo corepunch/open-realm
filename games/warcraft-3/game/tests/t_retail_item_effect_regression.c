@@ -413,6 +413,40 @@ TEST(retail_item_effect, warsong_battle_drums_provide_authored_command_aura) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, legion_doom_horn_provides_authored_unholy_aura) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"targs1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X4;K\"6\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AIau\"\nC;Y3;X2;K\"AUau\"\n"
+        "C;Y3;X3;K\"900\"\nC;Y3;X4;K\"0.1\"\nC;Y3;X5;K\"0.5\"\n"
+        "C;Y3;X7;K\"air,ground,friend,self,vuln,invu\"\nC;Y3;X8;K\"BUau\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"lgdh\"\nC;Y2;X2;K\"AIau\"\nC;Y2;X3;K\"1\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.enemy->s.player = 0;
+    re_equip(&f, "lgdh", 0);
+    level.framenum++;
+    T_FEQ(S_UnholyMoveBonus(f.enemy), 0.1f, 0.001f);
+    T_FEQ(S_UnholyHealthRegen(f.enemy), 0.5f, 0.001f);
+    Vector2_set(&f.enemy->s.origin2, 1000, 0);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(f.enemy), 0.0f, 0.001f);
+    T_FEQ(S_UnholyHealthRegen(f.enemy), 0.0f, 0.001f);
+    Vector2_set(&f.enemy->s.origin2, 64, 0);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    level.framenum++;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_UnholyMoveBonus(f.enemy), 0.0f, 0.001f);
+    T_FEQ(S_UnholyHealthRegen(f.enemy), 0.0f, 0.001f);
+    re_done(&f);
+}
+
 
 TEST(retail_item_effect, item_cooldown_id_blocks_shared_item_use) {
     char const *ability_slk =
