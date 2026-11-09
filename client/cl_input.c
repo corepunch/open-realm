@@ -997,16 +997,21 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
             }
             gamepad.hat = event->jhat.value;
         } else {
-            /* Sticks: pad configs name the raw axis index of each logical axis. */
-            static cstring_t const cvars[4] = {"cl_joy_axis_leftx", "cl_joy_axis_lefty",
-                                               "cl_joy_axis_rightx", "cl_joy_axis_righty"};
-            FOR_LOOP(i, 4) {
-                if (Cvar_Integer(cvars[i], -1) != event->jaxis.axis) continue;
+            /* Quake 2 joy_advaxis<n> codes per raw axis: 1 forward (left Y),
+             * 2 pitch (right Y), 3 side (left X), 4 yaw (right X); 0 unused. */
+            static int const logical[5] = {-1, SDL_CONTROLLER_AXIS_LEFTY, SDL_CONTROLLER_AXIS_RIGHTY,
+                                           SDL_CONTROLLER_AXIS_LEFTX, SDL_CONTROLLER_AXIS_RIGHTX};
+            char name[24];
+            int code;
+            if (event->jaxis.axis > 5) return true;
+            snprintf(name, sizeof(name), "joy_advaxis%d", event->jaxis.axis);
+            code = Cvar_Integer(name, 0) & 15;
+            if (code >= 1 && code <= 4) {
                 SDL_Event axis = {0};
                 axis.type = SDL_CONTROLLERAXISMOTION;
                 axis.caxis.timestamp = event->jaxis.timestamp;
                 axis.caxis.which = event->jaxis.which;
-                axis.caxis.axis = i;
+                axis.caxis.axis = logical[code];
                 axis.caxis.value = event->jaxis.value;
                 CL_GamepadEvent(&axis);
             }

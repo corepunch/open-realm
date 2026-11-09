@@ -19,8 +19,8 @@ JOYDPRIGHT`. A pad SDL has no mapping for is opened raw: its buttons are
 `AUX1`..`AUX32` (raw button index + 1), its hat is the D-pad, and on attach the
 game runs `exec pad_<vendor><product>.cfg` (hex VID/PID) like a Quake 2
 joystick config. `share/warcraft-3/pad_294b1001.cfg` is the unu controller;
-copy it for another pad and set `cl_joy_axis_leftx/lefty/rightx/righty` to the
-pad's raw stick axis indices. No mapping database is needed.
+copy it for another pad and set `joy_advaxis<n>` for each raw stick axis `n`, with Quake 2's codes
+(`1` forward/left Y, `2` pitch/right Y, `3` side/left X, `4` yaw/right X). No mapping database is needed.
 
 Defaults: `JOYA` `+select` (same command as `MOUSE1`), `JOYX` `+smart` (as
 `MOUSE2`), `JOYB` `+cancel`, `JOYY` `+radial`, `JOYLB` `+statuspanel`, `JOYRB`
