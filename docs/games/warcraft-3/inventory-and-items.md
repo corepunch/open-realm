@@ -524,6 +524,11 @@ and revival contract as the Resurrection runes, but through the inventory
 item-use path. Its `DataA` sets the maximum corpses revived and `Area` bounds
 the search around the selected Hero; it does not enter unit or point targeting.
 
+Held spell-reduction items using `AIsr` apply the authored `DataA` percentage
+to spell damage only. The highest carried reduction applies once; duplicate
+copies do not compound. Physical weapon damage continues through its ordinary
+damage path without this modifier.
+
 Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
 It applies a permanent one-charge `BNss` buff to eligible nearby allies and
 consumes even if none qualify. The shared hostile unit-target spell guard consumes
