@@ -39,6 +39,7 @@ generic; no engine code tests a map rawcode.
 | A group filter run inside a trigger action keeps `GetTriggerUnit()`; `GetFilterUnit()` is separate (`jassContext_t.filter_unit`). | `jass_evaluateboolexpr` (`jdo.c`) | `wc3_api.group_filter_keeps_trigger_unit_separate_from_filter_unit` |
 | `And`/`Or`/`Not` composites, null triggers as no-ops, locals shadowing globals, `\"` escapes. | `jdo.c`, `jlex.c` | `wc3_api.boolexpr_composites_and_event_id`, `wc3_api.custom_map_jass_semantics` |
 | `GetTriggerEventId` exposes the current event type, including player chat. | `api_trigger.h`, `g_commands.c` | `wc3_api.player_chat_fires_matching_triggers` |
+| Legacy player-unit event numbering is selected from the parsed `EVENT_PLAYER_UNIT_SELL` initializer; unrecognized forms warn and use the modern layout. | `g_spawn.c`, `jdo.c` | `wc3_api.legacy_event_detection_reads_parsed_constant` |
 
 ## Presentation
 

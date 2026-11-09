@@ -1037,10 +1037,16 @@ void G_SpawnEntities(cstring_t map_path) {
         /* Detect the event numbering of the data set before common.j converts its constants. */
         uint32_t common_size = 0;
         string_t common = gi.ReadFile("Scripts\\common.j", &common_size);
+        static bool warned;
         int32_t sell = 0;
-        g_common_events_legacy = common &&
+        bool const found = common &&
             jass_find_integer_call_constant(common, common_size, "EVENT_PLAYER_UNIT_SELL",
-                                            "ConvertPlayerUnitEvent", &sell) && sell == 269;
+                                            "ConvertPlayerUnitEvent", &sell);
+        g_common_events_legacy = found && sell == 269;
+        if (common && (!found || (sell != 269 && sell != 272)) && !warned) {
+            warned = true;
+            fprintf(stderr, "WC3: unrecognized common.j player-unit event numbering; assuming modern layout\n");
+        }
         if (common) gi.MemFree(common);
     }
     jass_dofile(level.vm, "Scripts\\common.j");

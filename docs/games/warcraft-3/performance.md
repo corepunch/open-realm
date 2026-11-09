@@ -1,3 +1,12 @@
+## Squirt emitter cache
+
+The MDX renderer tracks burst crossings per emitter, entity number, client-local
+generation, and retained instance identity. Colliding hashes probe the table
+instead of replacing another live emitter. `_W3M_ClearMap` clears the table;
+when all 1,024 slots are occupied, the least recently sampled slot is evicted.
+`renderer_model.squirt_cache_keeps_collisions_loops_and_entity_incarnations_separate`
+covers collisions, held frames, looping, entity reuse, and reset.
+
 ## Exact yaw placement rounding
 
 `renderer/r_ents.c:R_YawEntityPlacement` must match the generic quaternion
