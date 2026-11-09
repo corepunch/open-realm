@@ -805,3 +805,13 @@ non-item target types before traversing components. Use its returned pointer whe
 classification and payload access are both needed; `G_IsItem` is its boolean wrapper.
 Raw `G_GetItem` is appropriate inside initialization/teardown and partial-state
 transitions. See [component lookup](pooled-entity-state.md#optional-components).
+
+## Item regeneration effects
+
+The targeted Healing Salve (`AIrl`, item `hslv`) applies its authored `BIrg`
+status to an eligible wounded friendly organic unit, restores `DataA` health
+over `HeroDur`, and consumes one charge only after a successful cast. Incoming
+damage interrupts the regeneration. Enemy, mechanical, dead, full-health, and
+out-of-range targets are rejected by the normal spell validation path. The
+regeneration pulse and interruption lifecycle are covered by
+`retail_item_effect.healing_salve_targets_friendly_unit_and_interrupts_on_damage`.
