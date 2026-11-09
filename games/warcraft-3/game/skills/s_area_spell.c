@@ -988,7 +988,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
     starfall_think(thinker);
 }
 
-static void channel_think(edict_t *ent) {
+void S_ChannelThink(edict_t *ent) {
     if (!S_SpellChannelActive(ent) || G_Time() >= ent->spawn_time) S_SpellEndChannel(ent);
 }
 
@@ -1006,5 +1006,5 @@ BZ_SIMPLE_SPELL_PROC(AbilityChannel) {
     thinker = S_SpellChannelThinker(caster, spell->code);
     if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(MAX(0.0f, follow_through) * 1000.0f);
-    thinker->think = channel_think;
+    thinker->think = S_ChannelThink;
 }

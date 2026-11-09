@@ -5375,6 +5375,35 @@ SAVE_INT_FIELD_TEST(field_phoenix_fire_cooldown_round_trip, phoenix_fire_next_ms
 SAVE_INT_FIELD_TEST(field_phoenix_egg_hatching_round_trip, phoenix_hatch_ms, 12400)
 SAVE_INT_FIELD_TEST(field_phoenix_caster_incarnation_round_trip, phoenix_owner_spawn_time, 6570)
 
+TEST(wc3_save, channel_follow_through_thinker_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-channel-follow-through.bin");
+    uint32_t const code = MAKEFOURCC('A','N','c','l');
+    edict_t *caster, *thinker;
+    channel_t *channel;
+
+    reset_entities(); setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    channel = G_AddChannel(caster);
+    channel->code = code; channel->serial = 73; channel->origin = caster->s.origin2;
+    thinker = S_SpellChannelThinker(caster, code);
+    T_NOT_NULL(thinker);
+    if (!thinker) return;
+    thinker->think = S_ChannelThink;
+    thinker->spawn_time = 3000;
+    level.time = 1000;
+    T_ASSERT(WriteGame(filename));
+    thinker->think = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(thinker->think == S_ChannelThink);
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    T_ASSERT(S_SpellIsChanneling(caster));
+    level.time = 2999; G_RunEntity(thinker);
+    T_ASSERT(thinker->inuse && S_SpellIsChanneling(caster));
+    level.time = 3000; G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse && !S_SpellIsChanneling(caster));
+    remove(filename);
+}
+
 TEST(wc3_save, tornado_channel_thinker_and_toss_marker_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-tornado-channel.bin");
     uint32_t const code = MAKEFOURCC('A','N','t','o');

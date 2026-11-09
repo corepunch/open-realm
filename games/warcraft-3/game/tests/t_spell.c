@@ -2198,7 +2198,7 @@ TEST(wc3_spell, channel_follow_through_completes_and_interrupts) {
     uint32_t const code = MAKEFOURCC('A','0','0','5');
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 
-    for (int mode = 0; mode < 4; mode++) {
+    for (int mode = 0; mode < 6; mode++) {
         edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
         edict_t *thinker = NULL;
         caster->unit_state->ranks[0] = MAKE(heroability_t, .code = code, .level = 1);
@@ -2218,8 +2218,22 @@ TEST(wc3_spell, channel_follow_through_completes_and_interrupts) {
             caster->s.origin2.x += 10;
         } else if (mode == 2) {
             unit_addtimedstatus(caster, "Bstu", 1, 10.0f);
-        } else {
+        } else if (mode == 3) {
             caster->health.value = 0;
+        } else if (mode == 4) {
+            S_SpellCancelChannel(caster);
+        } else {
+            edict_t *replacement = NULL;
+            T_ASSERT(S_CastNoTargetSpell(caster, code));
+            FOR_LOOP(i, globals.num_edicts)
+                if (&g_edicts[i] != thinker && g_edicts[i].inuse && g_edicts[i].owner == caster &&
+                    g_edicts[i].class_id == code && g_edicts[i].think) replacement = &g_edicts[i];
+            T_NOT_NULL(replacement);
+            G_RunEntity(thinker);
+            T_ASSERT(!thinker->inuse && S_SpellIsChanneling(caster));
+            if (replacement) { level.time = 3000; G_RunEntity(replacement); T_ASSERT(!replacement->inuse); }
+            T_ASSERT(!S_SpellIsChanneling(caster));
+            continue;
         }
         G_RunEntity(thinker);
         T_ASSERT(!thinker->inuse);

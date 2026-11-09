@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 4: as native version 144. */
-static uint32_t const save_version = 4;
+/* Browser version 5: as native version 145. */
+static uint32_t const save_version = 5;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -183,7 +183,8 @@ static uint32_t const save_version = 4;
 /* Version 143 adds runtime-only Hero HUD vital sweep state. */
 /* Version 144 adds Hero item attribute bonuses, script reposition and enter-world
  * flags, larger event tables, and new Misc hero constants. */
-static uint32_t const save_version = 144;
+/* Version 145 registers the Channel follow-through thinker. */
+static uint32_t const save_version = 145;
 #endif
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -281,6 +282,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(lava_spawn_split_think),
     SAVE_CFUNCTION(brewmaster_burn_think),
     SAVE_CFUNCTION(brewmaster_split_think),
+    SAVE_CFUNCTION(S_ChannelThink),
 };
 
 static int SaveCFunctionIndex(void *func) {

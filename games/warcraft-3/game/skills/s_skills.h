@@ -8,6 +8,7 @@
 edict_t *S_SpellBeginAreaPresentation(edict_t *owner, uint32_t code, uint32_t level, vec2_t const *point);
 void S_SpellEndAreaPresentation(edict_t *owner);
 void impale_wave_think(edict_t *wave);
+void S_ChannelThink(edict_t *thinker);
 
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \

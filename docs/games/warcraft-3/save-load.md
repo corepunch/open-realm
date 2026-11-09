@@ -1,3 +1,11 @@
+## Channel follow-through save compatibility
+
+Native save version 145 (browser version 5) registers the Channel follow-through
+thinker in the serialized C callback roster. A live Channel can resume and end
+after loading; earlier versions are rejected by the exact-version guard.
+`wc3_save.channel_follow_through_thinker_round_trip` exercises the restored
+thinker and its natural completion.
+
 # Warcraft III Save/Load
 
 ## Status slot indexes
