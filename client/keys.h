@@ -28,6 +28,14 @@ enum {
     K_MOUSE3 = 202,
     K_MWHEELUP = 203,
     K_MWHEELDOWN = 204,
+
+    /* Controller buttons: JOYA..JOYRT follow SDL's standard layout, AUX1..AUX32
+     * are raw joystick buttons of pads SDL has no mapping for (Quake 2 style). */
+    K_JOY_A = 205, K_JOY_B, K_JOY_X, K_JOY_Y, K_JOY_LB, K_JOY_RB, K_JOY_START, K_JOY_BACK,
+    K_JOY_LSTICK, K_JOY_RSTICK, K_JOY_DPUP, K_JOY_DPDOWN, K_JOY_DPLEFT, K_JOY_DPRIGHT,
+    K_JOY_LT, K_JOY_RT,
+    K_AUX1 = 221, /* ..K_AUX32 = 252 */
+    K_AUX32 = 252,
 };
 
 void Key_Init(void);

@@ -46,6 +46,8 @@ static struct {
  * without depending on OS-specific button names or GUID databases. */
 typedef struct {
     SDL_GameController *controller;
+    SDL_Joystick *joystick; /* raw pad without an SDL mapping */
+    uint8_t hat;
 #ifdef __EMSCRIPTEN__
     bool web_connected, web_dispatch;
     uint32_t web_buttons, web_generation;
@@ -78,7 +80,7 @@ static bool CL_GamepadConnected(void) {
 #ifdef __EMSCRIPTEN__
     return gamepad.web_connected;
 #else
-    return gamepad.controller != NULL;
+    return gamepad.controller != NULL || gamepad.joystick != NULL;
 #endif
 }
 
@@ -88,11 +90,14 @@ static bool CL_GamepadModal(void) {
            (cls.key_dest == key_game && SCR_GamepadRadialActive());
 }
 
-/* Quake 2-style controller binds: `gamepadbind <button> <command>` replaces the
- * built-in behaviour of that button. A "+command" gets "-command" on release.
- * Face names are logical (after cl_gamepad_nintendo); triggers stay built in. */
+/* Controller buttons are ordinary keys (JOYA.., AUX1..), bound in config.cfg
+ * with `bind`, e.g. `bind JOYA "+gp_a"` or `bind AUX3 "+attack"`. The +gp_*
+ * commands are the pad's gameplay verbs; a "+command" gets "-command" on
+ * release, and held ones are released when the pad disconnects. */
+#define CL_GAMEPAD_LT SDL_CONTROLLER_BUTTON_MAX
+#define CL_GAMEPAD_RT (SDL_CONTROLLER_BUTTON_MAX + 1)
 #define CL_GAMEPAD_BIND_LEN 256
-static struct { cstring_t name; SDL_GameControllerButton button; } const gamepad_button_names[] = {
+static struct { cstring_t name; int button; } const gamepad_button_names[] = { /* order == K_JOY_A.. */
     {"a", SDL_CONTROLLER_BUTTON_A}, {"b", SDL_CONTROLLER_BUTTON_B},
     {"x", SDL_CONTROLLER_BUTTON_X}, {"y", SDL_CONTROLLER_BUTTON_Y},
     {"lb", SDL_CONTROLLER_BUTTON_LEFTSHOULDER}, {"rb", SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
@@ -100,68 +105,50 @@ static struct { cstring_t name; SDL_GameControllerButton button; } const gamepad
     {"lstick", SDL_CONTROLLER_BUTTON_LEFTSTICK}, {"rstick", SDL_CONTROLLER_BUTTON_RIGHTSTICK},
     {"dpup", SDL_CONTROLLER_BUTTON_DPAD_UP}, {"dpdown", SDL_CONTROLLER_BUTTON_DPAD_DOWN},
     {"dpleft", SDL_CONTROLLER_BUTTON_DPAD_LEFT}, {"dpright", SDL_CONTROLLER_BUTTON_DPAD_RIGHT},
+    {"lt", CL_GAMEPAD_LT}, {"rt", CL_GAMEPAD_RT},
 };
-static char gamepad_binds[SDL_CONTROLLER_BUTTON_MAX][CL_GAMEPAD_BIND_LEN];
-static char gamepad_bind_held[SDL_CONTROLLER_BUTTON_MAX][CL_GAMEPAD_BIND_LEN];
+#define CL_GAMEPAD_ROLE_COUNT (sizeof(gamepad_button_names) / sizeof(*gamepad_button_names))
+static char gamepad_bind_held[256][CL_GAMEPAD_BIND_LEN];
 
-static int CL_GamepadBindIndex(cstring_t name) {
-    FOR_LOOP(i, sizeof(gamepad_button_names) / sizeof(*gamepad_button_names))
-        if (!strcasecmp(gamepad_button_names[i].name, name)) return gamepad_button_names[i].button;
+static int CL_GamepadKeyForButton(int button) {
+    FOR_LOOP(i, CL_GAMEPAD_ROLE_COUNT)
+        if (gamepad_button_names[i].button == button) return K_JOY_A + (int)i;
     return -1;
 }
 
-static void CL_GamepadBind_f(void) {
-    int button;
-    if (Cmd_Argc() < 2) {
-        fprintf(stderr, "gamepadbind <button> [command] : attach a command to a controller button\n");
-        return;
-    }
-    if ((button = CL_GamepadBindIndex(Cmd_Argv(1))) < 0) {
-        fprintf(stderr, "\"%s\" isn't a bindable button (a b x y lb rb start back lstick rstick dpup dpdown dpleft dpright)\n", Cmd_Argv(1));
-        return;
-    }
-    if (Cmd_Argc() == 2) {
-        fprintf(stderr, "\"%s\" = \"%s\"\n", Cmd_Argv(1), gamepad_binds[button]);
-        return;
-    }
-    strlcpy(gamepad_binds[button], Cmd_ArgsFrom(2), sizeof(gamepad_binds[button]));
-}
-
-static void CL_GamepadUnbind_f(void) {
-    int button = Cmd_Argc() == 2 ? CL_GamepadBindIndex(Cmd_Argv(1)) : -1;
-    if (button < 0) { fprintf(stderr, "gamepadunbind <button>\n"); return; }
-    gamepad_binds[button][0] = '\0';
-}
-
-static void CL_GamepadUnbindAll_f(void) { memset(gamepad_binds, 0, sizeof(gamepad_binds)); }
-
-static void CL_GamepadBindList_f(void) {
-    FOR_LOOP(i, sizeof(gamepad_button_names) / sizeof(*gamepad_button_names)) {
-        cstring_t cmd = gamepad_binds[gamepad_button_names[i].button];
-        if (*cmd) fprintf(stderr, "%s \"%s\"\n", gamepad_button_names[i].name, cmd);
-    }
-}
-
-static void CL_GamepadRunBound(int button, bool down, uint32_t time) {
+static void CL_GamepadRunBound(int key, bool down, uint32_t time) {
     char cmd[CL_GAMEPAD_BIND_LEN + 32];
+    cstring_t kb;
     if (down) {
-        strlcpy(gamepad_bind_held[button], gamepad_binds[button], sizeof(gamepad_bind_held[button]));
-        cstring_t kb = gamepad_bind_held[button];
-        if (*kb == '+') snprintf(cmd, sizeof(cmd), "%s %i %u", kb, button, time);
+        strlcpy(gamepad_bind_held[key], Key_GetBinding((keyCode_t)key, 0), sizeof(gamepad_bind_held[key]));
+        kb = gamepad_bind_held[key];
+        if (*kb == '+') snprintf(cmd, sizeof(cmd), "%s %i %u", kb, key, time);
         else strlcpy(cmd, kb, sizeof(cmd));
     } else {
-        cstring_t kb = gamepad_bind_held[button];
-        if (*kb != '+') { gamepad_bind_held[button][0] = '\0'; return; }
-        snprintf(cmd, sizeof(cmd), "-%s %i %u", kb + 1, button, time);
-        gamepad_bind_held[button][0] = '\0';
+        kb = gamepad_bind_held[key];
+        if (*kb != '+') { gamepad_bind_held[key][0] = '\0'; return; }
+        snprintf(cmd, sizeof(cmd), "-%s %i %u", kb + 1, key, time);
+        gamepad_bind_held[key][0] = '\0';
     }
     Cmd_ExecuteString(cmd);
 }
 
+/* Run the bound command for a controller key, pairing each down with one up. */
+static void CL_GamepadKey(int key, bool down, uint32_t ts) {
+    if (key < 0 || key > 255) return;
+    if (down == (gamepad_bind_held[key][0] != '\0')) return;
+    if (down && !*Key_GetBinding((keyCode_t)key, 0)) return;
+    CL_GamepadRunBound(key, down, ts);
+}
+
+static void CL_GamepadPress(int button, bool down, uint32_t ts) {
+    CL_GamepadKey(CL_GamepadKeyForButton(button), down, ts);
+}
+
 /* Release held +commands when the pad disappears so they cannot stay stuck. */
 static void CL_GamepadReleaseBound(void) {
-    FOR_LOOP(i, SDL_CONTROLLER_BUTTON_MAX)
-        if (gamepad_bind_held[i][0]) CL_GamepadRunBound(i, false, SDL_GetTicks());
+    FOR_LOOP(i, 256)
+        if (gamepad_bind_held[i][0]) CL_GamepadRunBound((int)i, false, SDL_GetTicks());
 }
 
 static void CL_GamepadReset(void) {
@@ -221,62 +208,31 @@ static void CL_GamepadResetHeld(void) {
 }
 
 #ifndef __EMSCRIPTEN__
-/* Pads SDL has no built-in mapping for (generic Bluetooth/USB HID gamepads)
- * are described in gamecontrollerdb.txt, one SDL mapping line per pad, as
- * Quake 2 did with a config file per joystick. Run SDL's controllermap or
- * tools/sdlpadtest.c to produce a line for a new pad. Must run before pads
- * are opened. */
-/* The game's file host may not be installed yet this early in startup, so fall
- * back to plain files beside the working directory (where config.cfg lives). */
-static char *CL_GamepadReadMappingFile(void) {
-    static cstring_t const paths[] = {"gamecontrollerdb.txt", "share/gamecontrollerdb.txt", "../share/gamecontrollerdb.txt"};
-    FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
-        FILE *f = fopen(paths[i], "rb");
-        long size;
-        char *buf;
-        if (!f) continue;
-        size = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
-        buf = size >= 0 && fseek(f, 0, SEEK_SET) == 0 ? malloc((size_t)size + 1) : NULL;
-        if (buf && fread(buf, 1, (size_t)size, f) == (size_t)size) {
-            buf[size] = '\0';
-            fclose(f);
-            return buf;
-        }
-        free(buf);
-        fclose(f);
-    }
-    return NULL;
-}
-
-static void CL_GamepadLoadMappings(void) {
-    char *db = CL_GamepadReadMappingFile();
-    int added = 0;
-    if (!db) {
-        string_t host = FS_ReadFileIntoString("gamecontrollerdb.txt");
-        if (!host) return;
-        db = strdup(host);
-        FS_FreeFileString(host);
-        if (!db) return;
-    }
-    for (char *save = NULL, *line = strtok_r(db, "\r\n", &save); line; line = strtok_r(NULL, "\r\n", &save)) {
-        while (*line == ' ' || *line == '\t') line++;
-        if (*line && *line != '#' && SDL_GameControllerAddMapping(line) >= 0) added++;
-    }
-    fprintf(stderr, "%d controller mappings loaded from gamecontrollerdb.txt.\n", added);
-    free(db);
-}
-
 static void CL_GamepadOpen(int device_index) {
-    if (gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
-        !SDL_IsGameController(device_index)) return;
-    gamepad.controller = SDL_GameControllerOpen(device_index);
+    if (gamepad.controller || gamepad.joystick || !Cvar_Integer("cl_gamepad", 0)) return;
+    if (SDL_IsGameController(device_index)) {
+        gamepad.controller = SDL_GameControllerOpen(device_index);
+        return;
+    }
+    /* A pad SDL has no mapping for is used raw: buttons arrive as AUX1..AUX32
+     * and the pad's own config (pad_<vendor><product>.cfg) binds them, like a
+     * Quake 2 joystick config. */
+    gamepad.joystick = SDL_JoystickOpen(device_index);
+    if (gamepad.joystick) {
+        char cmd[64];
+        snprintf(cmd, sizeof(cmd), "exec pad_%04x%04x.cfg\n",
+                 SDL_JoystickGetVendor(gamepad.joystick), SDL_JoystickGetProduct(gamepad.joystick));
+        Cbuf_AddText(cmd);
+    }
 }
 
 static void CL_GamepadDetach(void) {
     SDL_GameController *controller = gamepad.controller;
+    SDL_Joystick *joystick = gamepad.joystick;
     CL_GamepadReset();
     memset(&gamepad, 0, sizeof(gamepad));
     if (controller) SDL_GameControllerClose(controller);
+    if (joystick) SDL_JoystickClose(joystick);
 }
 #endif
 
@@ -771,44 +727,11 @@ static SDL_GameControllerButton CL_GamepadFace(SDL_GameControllerButton button) 
     return button;
 }
 
-/* Controller events are consumed before the mouse/touch dispatch loop. */
-static bool CL_GamepadEvent(SDL_Event const *event) {
-    bool down;
-    SDL_GameControllerButton button;
-    if (event->type == SDL_CONTROLLERDEVICEADDED) {
-#ifndef __EMSCRIPTEN__
-        CL_GamepadOpen(event->cdevice.which);
-#endif
-        return true;
-    }
-    if (event->type == SDL_CONTROLLERDEVICEREMOVED) {
-#ifndef __EMSCRIPTEN__
-        if (gamepad.controller && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) ==
-                                   event->cdevice.which) CL_GamepadDetach();
-#endif
-        return true;
-    }
-    if (event->type != SDL_CONTROLLERBUTTONDOWN && event->type != SDL_CONTROLLERBUTTONUP &&
-        event->type != SDL_CONTROLLERAXISMOTION) return false;
-#ifdef __EMSCRIPTEN__
-    /* The browser JS sampler is the sole source of WC3 controller events.
-     * Ignore SDL's own browser joystick events to avoid duplicate actions. */
-    if (!gamepad.web_dispatch || !gamepad.web_connected || !Cvar_Integer("cl_gamepad", 0)) return true;
-#else
-    if (!gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
-        SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller)) !=
-                (event->type == SDL_CONTROLLERAXISMOTION ? event->caxis.which : event->cbutton.which))
-        return true;
-#endif
-    if (event->type == SDL_CONTROLLERAXISMOTION) {
-        float axis = CL_GamepadAxis(event->caxis.value);
-        switch (event->caxis.axis) {
-            case SDL_CONTROLLER_AXIS_LEFTX: gamepad.lx = axis; break;
-            case SDL_CONTROLLER_AXIS_LEFTY: gamepad.ly = axis; break;
-            case SDL_CONTROLLER_AXIS_RIGHTX: gamepad.rx = axis; break;
-            case SDL_CONTROLLER_AXIS_RIGHTY: gamepad.ry = axis; break;
-            case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
-                if (axis > 0.5f && !gamepad.lt) {
+/* Built-in controller roles. Nothing reaches them by button identity: config.cfg
+ * binds each physical button to "+gp_<role>" with gamepadbind. */
+static void CL_GamepadRole(int button, bool down, uint32_t ts) {
+    if (button == CL_GAMEPAD_LT) {
+                if (down && !gamepad.lt) {
                     gamepad.lt_used = gamepad.start || gamepad.rt || gamepad.y || SCR_GamepadRadialActive();
                     if (gamepad.start) CL_GamepadExecuteAction("cl_gamepad_start_left_trigger_action", false);
                     if (gamepad.rt) {
@@ -817,15 +740,16 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                             CL_GameplayInputReady()) CL_GamepadSelectFocusedSubgroup();
                     }
                 }
-                if (axis <= 0.5f && gamepad.lt) {
+                if (!down && gamepad.lt) {
                     if (!gamepad.lt_used && CL_GameplayInputReady())
                         CL_GamepadExecuteAction("cl_gamepad_left_trigger_tap_action", false);
                     gamepad.lt_used = false;
                 }
-                gamepad.lt = axis > 0.5f;
-                break;
-            case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
-                if (axis > 0.5f && !gamepad.rt) {
+                gamepad.lt = down;
+        return;
+    }
+    if (button == CL_GAMEPAD_RT) {
+                if (down && !gamepad.rt) {
                     gamepad.rt_used = gamepad.start || gamepad.y || SCR_GamepadRadialActive();
                     if (gamepad.start) CL_GamepadExecuteAction("cl_gamepad_start_right_trigger_action", false);
                     else if (SCR_GamepadRadialActive()) SCR_GamepadRadialNextPage();
@@ -836,34 +760,15 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                             CL_GameplayInputReady()) CL_GamepadSelectFocusedSubgroup();
                     }
                 }
-                if (axis <= 0.5f && gamepad.rt) {
+                if (!down && gamepad.rt) {
                     if (!gamepad.rt_used && CL_GameplayInputReady())
                         CL_GamepadExecuteAction("cl_gamepad_right_trigger_tap_action", false);
                     gamepad.rt_used = false;
                 }
-                gamepad.rt = axis > 0.5f;
-                break;
-            default: break;
-        }
-        if (gamepad.left_stick_neutral_required && gamepad.lx == 0.0f && gamepad.ly == 0.0f)
-            gamepad.left_stick_neutral_required = false;
-        if (axis != 0 && !CL_GamepadModal() && !gamepad.status_panel_mode && !gamepad.build_queue_mode)
-            CL_GamepadCenterCursor();
-        if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
-        return true;
+                gamepad.rt = down;
+        return;
     }
-    down = event->type == SDL_CONTROLLERBUTTONDOWN;
-    button = (SDL_GameControllerButton)event->cbutton.button;
-    if (button != SDL_CONTROLLER_BUTTON_DPAD_UP && button != SDL_CONTROLLER_BUTTON_DPAD_DOWN &&
-        button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
-        button = CL_GamepadFace(button);
     if (down && gamepad.lt) gamepad.lt_used = true;
-    if (button < SDL_CONTROLLER_BUTTON_MAX &&
-        (down ? gamepad_binds[button][0] : gamepad_bind_held[button][0])) {
-        if (down == (gamepad_bind_held[button][0] != '\0')) return true; /* repeat/unmatched event */
-        CL_GamepadRunBound(button, down, event->cbutton.timestamp);
-        return true;
-    }
     if (down && !gamepad.status_panel_mode && !gamepad.build_queue_mode &&
         button != SDL_CONTROLLER_BUTTON_LEFTSHOULDER) CL_GamepadCenterCursor();
     if (button == SDL_CONTROLLER_BUTTON_DPAD_UP || button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ||
@@ -871,8 +776,8 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         int const dir = button == SDL_CONTROLLER_BUTTON_DPAD_UP ? 0 :
                         button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT ? 1 :
                         button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ? 2 : 3;
-        CL_GamepadDpad(dir, down, event->cbutton.timestamp);
-        return true;
+        CL_GamepadDpad(dir, down, ts);
+        return;
     }
     switch (button) {
         case SDL_CONTROLLER_BUTTON_BACK:
@@ -882,20 +787,20 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 if (gamepad.start) {
                     Cmd_ExecuteString("quit");
                 } else {
-                    CL_InputKeyEvent(K_ESCAPE, 0, true, event->cbutton.timestamp);
-                    CL_InputKeyEvent(K_ESCAPE, 0, false, event->cbutton.timestamp);
+                    CL_InputKeyEvent(K_ESCAPE, 0, true, ts);
+                    CL_InputKeyEvent(K_ESCAPE, 0, false, ts);
                 }
             }
             break;
-        case SDL_CONTROLLER_BUTTON_A: CL_GamepadFaceA(down, event->cbutton.timestamp); break;
-        case SDL_CONTROLLER_BUTTON_B: CL_GamepadFaceB(down, event->cbutton.timestamp); break;
+        case SDL_CONTROLLER_BUTTON_A: CL_GamepadFaceA(down, ts); break;
+        case SDL_CONTROLLER_BUTTON_B: CL_GamepadFaceB(down, ts); break;
         case SDL_CONTROLLER_BUTTON_X: CL_GamepadFaceX(down); break;
         case SDL_CONTROLLER_BUTTON_Y:
             if (gamepad.y == down) break;
             if (down && gamepad.rt) gamepad.rt_used = true;
             gamepad.y = down;
             if (down) {
-                gamepad.y_pressed = event->cbutton.timestamp;
+                gamepad.y_pressed = ts;
                 gamepad.y_radial_hold = false;
                 gamepad.y_radial_closed = SCR_GamepadRadialActive();
                 if (gamepad.lb && !gamepad.start) {
@@ -924,7 +829,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 }
                 bool const held = Cvar_Integer("cl_gamepad_radial_hold_confirm", 1) &&
                     (gamepad.y_radial_hold ||
-                     event->cbutton.timestamp - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS);
+                     ts - gamepad.y_pressed >= CL_GAMEPAD_RADIAL_HOLD_MS);
                 if (held) {
                     if (!SCR_GamepadRadialActive() && CL_GameplayInputReady() && cl.selection.num_selected)
                         SCR_GamepadRadialOpen();
@@ -950,12 +855,12 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                 if (!gamepad.rb_used && !gamepad.start && CL_GameplayInputReady()) {
                     uint32_t const double_ms = (uint32_t)MAX(0, Cvar_Integer("cl_gamepad_double_ms", 350));
                     if (gamepad.last_rb_released &&
-                        event->cbutton.timestamp - gamepad.last_rb_released <= double_ms) {
+                        ts - gamepad.last_rb_released <= double_ms) {
                         CL_GamepadSelectVisible(true);
                         gamepad.last_rb_released = 0;
                     } else {
                         CL_GamepadSelectVisible(false);
-                        gamepad.last_rb_released = event->cbutton.timestamp;
+                        gamepad.last_rb_released = ts;
                     }
                 }
                 gamepad.rb_used = false;
@@ -971,7 +876,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     break;
                 }
                 gamepad.lb_used = false;
-                gamepad.lb_pressed = event->cbutton.timestamp;
+                gamepad.lb_pressed = ts;
                 if (gamepad.start) CL_GamepadExecuteAction("cl_gamepad_start_left_shoulder_action", false);
                 else if (gamepad.y) {
                     gamepad.y_repeat_spell = true;
@@ -981,7 +886,7 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
                     CL_GamepadExecuteAction("cl_gamepad_repeat_cast_action", false);
                 }
             } else if (!gamepad.start &&
-                       event->cbutton.timestamp - gamepad.lb_pressed <= CL_GAMEPAD_LB_TAP_MS &&
+                       ts - gamepad.lb_pressed <= CL_GAMEPAD_LB_TAP_MS &&
                        !gamepad.lb_used && CL_GameplayInputReady()) {
                 gamepad.status_panel_mode = false;
                 gamepad.build_queue_mode = false;
@@ -1013,6 +918,121 @@ static bool CL_GamepadEvent(SDL_Event const *event) {
         case SDL_CONTROLLER_BUTTON_GUIDE: break;
         default: break;
     }
+}
+
+static void CL_GamepadRole_f(void) {
+    cstring_t name = Cmd_Argv(0);
+    if (strlen(name) < 5 || strncmp(name + 1, "gp_", 3)) return;
+    FOR_LOOP(i, CL_GAMEPAD_ROLE_COUNT)
+        if (!strcasecmp(gamepad_button_names[i].name, name + 4)) {
+            CL_GamepadRole(gamepad_button_names[i].button, name[0] == '+',
+                           Cmd_Argc() >= 3 ? (uint32_t)strtoul(Cmd_Argv(2), NULL, 10) : SDL_GetTicks());
+            return;
+        }
+}
+
+#ifndef __EMSCRIPTEN__
+static SDL_JoystickID CL_GamepadInstance(void) {
+    if (gamepad.controller) return SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(gamepad.controller));
+    if (gamepad.joystick) return SDL_JoystickInstanceID(gamepad.joystick);
+    return -1;
+}
+#endif
+
+/* Controller events are consumed before the mouse/touch dispatch loop. */
+static bool CL_GamepadEvent(SDL_Event const *event) {
+    bool down;
+    SDL_GameControllerButton button;
+    if (event->type == SDL_CONTROLLERDEVICEADDED || event->type == SDL_JOYDEVICEADDED) {
+#ifndef __EMSCRIPTEN__
+        CL_GamepadOpen(event->cdevice.which);
+#endif
+        return true;
+    }
+    if (event->type == SDL_CONTROLLERDEVICEREMOVED || event->type == SDL_JOYDEVICEREMOVED) {
+#ifndef __EMSCRIPTEN__
+        if (CL_GamepadInstance() == event->cdevice.which) CL_GamepadDetach();
+#endif
+        return true;
+    }
+#ifndef __EMSCRIPTEN__
+    if (event->type == SDL_JOYBUTTONDOWN || event->type == SDL_JOYBUTTONUP ||
+        event->type == SDL_JOYHATMOTION || event->type == SDL_JOYAXISMOTION) {
+        /* Raw pads only; mapped controllers report through SDL_CONTROLLER*. */
+        if (!gamepad.joystick || !Cvar_Integer("cl_gamepad", 0) ||
+            SDL_JoystickInstanceID(gamepad.joystick) != event->jbutton.which) return true;
+        if (event->type == SDL_JOYBUTTONDOWN || event->type == SDL_JOYBUTTONUP) {
+            if (event->jbutton.button < 32)
+                CL_GamepadKey(K_AUX1 + event->jbutton.button, event->type == SDL_JOYBUTTONDOWN, event->jbutton.timestamp);
+        } else if (event->type == SDL_JOYHATMOTION) {
+            static int const hat_buttons[4] = {SDL_CONTROLLER_BUTTON_DPAD_UP, SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+                                               SDL_CONTROLLER_BUTTON_DPAD_DOWN, SDL_CONTROLLER_BUTTON_DPAD_LEFT};
+            static uint8_t const hat_bits[4] = {SDL_HAT_UP, SDL_HAT_RIGHT, SDL_HAT_DOWN, SDL_HAT_LEFT};
+            if (event->jhat.hat != 0) return true;
+            FOR_LOOP(i, 4) {
+                bool const now = (event->jhat.value & hat_bits[i]) != 0;
+                if (now != ((gamepad.hat & hat_bits[i]) != 0))
+                    CL_GamepadPress(hat_buttons[i], now, event->jhat.timestamp);
+            }
+            gamepad.hat = event->jhat.value;
+        } else {
+            /* Sticks: pad configs name the raw axis index of each logical axis. */
+            static cstring_t const cvars[4] = {"cl_joy_axis_leftx", "cl_joy_axis_lefty",
+                                               "cl_joy_axis_rightx", "cl_joy_axis_righty"};
+            FOR_LOOP(i, 4) {
+                if (Cvar_Integer(cvars[i], -1) != event->jaxis.axis) continue;
+                SDL_Event axis = {0};
+                axis.type = SDL_CONTROLLERAXISMOTION;
+                axis.caxis.timestamp = event->jaxis.timestamp;
+                axis.caxis.which = event->jaxis.which;
+                axis.caxis.axis = i;
+                axis.caxis.value = event->jaxis.value;
+                CL_GamepadEvent(&axis);
+            }
+        }
+        return true;
+    }
+#endif
+    if (event->type != SDL_CONTROLLERBUTTONDOWN && event->type != SDL_CONTROLLERBUTTONUP &&
+        event->type != SDL_CONTROLLERAXISMOTION) return false;
+#ifdef __EMSCRIPTEN__
+    /* The browser JS sampler is the sole source of WC3 controller events.
+     * Ignore SDL's own browser joystick events to avoid duplicate actions. */
+    if (!gamepad.web_dispatch || !gamepad.web_connected || !Cvar_Integer("cl_gamepad", 0)) return true;
+#else
+    if (CL_GamepadInstance() < 0 || !Cvar_Integer("cl_gamepad", 0) ||
+        CL_GamepadInstance() !=
+                (event->type == SDL_CONTROLLERAXISMOTION ? event->caxis.which : event->cbutton.which))
+        return true;
+#endif
+    if (event->type == SDL_CONTROLLERAXISMOTION) {
+        float axis = CL_GamepadAxis(event->caxis.value);
+        switch (event->caxis.axis) {
+            case SDL_CONTROLLER_AXIS_LEFTX: gamepad.lx = axis; break;
+            case SDL_CONTROLLER_AXIS_LEFTY: gamepad.ly = axis; break;
+            case SDL_CONTROLLER_AXIS_RIGHTX: gamepad.rx = axis; break;
+            case SDL_CONTROLLER_AXIS_RIGHTY: gamepad.ry = axis; break;
+            case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+                CL_GamepadPress(CL_GAMEPAD_LT, axis > 0.5f, event->caxis.timestamp);
+                break;
+            case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+                CL_GamepadPress(CL_GAMEPAD_RT, axis > 0.5f, event->caxis.timestamp);
+                break;
+            default: break;
+        }
+        if (gamepad.left_stick_neutral_required && gamepad.lx == 0.0f && gamepad.ly == 0.0f)
+            gamepad.left_stick_neutral_required = false;
+        if (axis != 0 && !CL_GamepadModal() && !gamepad.status_panel_mode && !gamepad.build_queue_mode)
+            CL_GamepadCenterCursor();
+        if (SCR_GamepadRadialActive()) SCR_GamepadRadialSetAxis(gamepad.lx, gamepad.ly);
+        return true;
+    }
+    down = event->type == SDL_CONTROLLERBUTTONDOWN;
+    button = (SDL_GameControllerButton)event->cbutton.button;
+    if (button != SDL_CONTROLLER_BUTTON_DPAD_UP && button != SDL_CONTROLLER_BUTTON_DPAD_DOWN &&
+        button != SDL_CONTROLLER_BUTTON_DPAD_LEFT && button != SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        button = CL_GamepadFace(button);
+    CL_GamepadPress(button, down, event->cbutton.timestamp);
     return true;
 }
 
@@ -1088,11 +1108,11 @@ static void CL_GamepadFrame(float dt) {
     }
     CL_GamepadWebFrame();
 #else
-    if (!gamepad.controller && Cvar_Integer("cl_gamepad", 0) &&
+    if (!gamepad.controller && !gamepad.joystick && Cvar_Integer("cl_gamepad", 0) &&
         (SDL_WasInit(SDL_INIT_GAMECONTROLLER) & SDL_INIT_GAMECONTROLLER))
         FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
     if (!Cvar_Integer("cl_gamepad", 0)) {
-        if (gamepad.controller) CL_GamepadDetach();
+        if (gamepad.controller || gamepad.joystick) CL_GamepadDetach();
         return;
     }
 #endif
@@ -2671,8 +2691,8 @@ void CL_InitInput(void) {
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #ifndef __EMSCRIPTEN__
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0) {
-        CL_GamepadLoadMappings();
         SDL_GameControllerEventState(SDL_ENABLE);
+        SDL_JoystickEventState(SDL_ENABLE);
         FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
     }
 #endif
@@ -2690,10 +2710,15 @@ void CL_InitInput(void) {
     Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_RegisterCameraControls();
-    Cmd_AddCommand("gamepadbind", CL_GamepadBind_f);
-    Cmd_AddCommand("gamepadunbind", CL_GamepadUnbind_f);
-    Cmd_AddCommand("gamepadunbindall", CL_GamepadUnbindAll_f);
-    Cmd_AddCommand("gamepadbindlist", CL_GamepadBindList_f);
+    {
+        static char role_cmds[2][CL_GAMEPAD_ROLE_COUNT][16];
+        FOR_LOOP(i, CL_GAMEPAD_ROLE_COUNT) {
+            snprintf(role_cmds[0][i], 16, "+gp_%s", gamepad_button_names[i].name);
+            snprintf(role_cmds[1][i], 16, "-gp_%s", gamepad_button_names[i].name);
+            Cmd_AddCommand(role_cmds[0][i], CL_GamepadRole_f);
+            Cmd_AddCommand(role_cmds[1][i], CL_GamepadRole_f);
+        }
+    }
     Cmd_AddCommand("+attack", IN_AttackDown); Cmd_AddCommand("-attack", IN_AttackUp);
     Cmd_AddCommand("+look", IN_LookDown); Cmd_AddCommand("-look", IN_LookUp);
     Cmd_AddCommand("+forward", IN_ForwardDown); Cmd_AddCommand("-forward", IN_ForwardUp);
