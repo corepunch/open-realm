@@ -136,6 +136,59 @@ TEST(retail_item_effect, aisr_reduces_spell_damage_but_not_physical_damage) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, healing_salve_targets_friendly_unit_and_interrupts_on_damage) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"Range1\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"targs1\"\nC;Y1;X10;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"6\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X10;K\"1\"\n"
+        "C;Y3;X1;K\"AIrl\"\nC;Y3;X2;K\"AIrl\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"400\"\nC;Y3;X5;K\"45\"\nC;Y3;X6;K\"45\"\n"
+        "C;Y3;X7;K\"50\"\nC;Y3;X8;K\"BIrg\"\nC;Y3;X9;K\"air,ground,friend,organic\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y1;X3;K\"uses\"\nC;Y1;X4;K\"perishable\"\n"
+        "C;Y2;X1;K\"hslv\"\nC;Y2;X2;K\"AIrl\"\nC;Y2;X3;K\"3\"\nC;Y2;X4;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *ally, *attacker, *player, *salve;
+    gameClient_t *client;
+    re_init(&f, ability_slk, items);
+    f.hero->s.player = 0;
+    f.enemy->s.player = 0;
+    f.enemy->health.value = 100;
+    ally = f.enemy;
+    attacker = alloc_test_unit(FS_SLKKey("hfoo"), 128, 0);
+    attacker->s.player = 1;
+    attacker->svflags |= SVF_MONSTER;
+    attacker->spawn_time = level.time;
+    player = &g_edicts[0];
+    static UnitBalance_t no_regen_balance;
+    memset(&no_regen_balance, 0, sizeof(no_regen_balance));
+    no_regen_balance.healthRegenType = "none";
+    ally->data.UnitBalance = &no_regen_balance;
+    player->client->ps.number = 0;
+    client = player->client;
+    G_SelectEntity(client, f.hero);
+    salve = re_equip(&f, "hslv", 0);
+    G_GetItem(salve)->charges = 3;
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    if (client->menu.on_entity_selected) client->menu.on_entity_selected(player, ally);
+    T_NOT_NULL(unit_findstatus(ally, FS_SLKKey("BIrg")));
+    T_EQ(G_GetItem(salve)->charges, 2);
+    float const after_cast = ally->health.value;
+    re_run_frame_at(ally, level.time + 1000);
+    T_FEQ(ally->health.value, after_cast + 400.0f / 45.0f, 0.01f);
+    S_ResolveAttackHit(attacker, ally, 10);
+    T_NULL(unit_findstatus(ally, FS_SLKKey("BIrg")));
+    float const after_interrupt = ally->health.value;
+    re_run_frame_at(ally, level.time + 1000);
+    T_FEQ(ally->health.value, after_interrupt, 0.001f);
+    re_done(&f);
+}
+
 /* BIcb is currently a timed state without an armor consumer. Verify that the
  * held retail orb applies and expires its authored corruption status. */
 TEST(retail_item_effect, ocor_applies_timed_corruption_status) {

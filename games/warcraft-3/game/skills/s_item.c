@@ -499,6 +499,31 @@ static void item_regeneration_pulse(edict_t *target, uint32_t code, uint32_t lev
 }
 
 BZ_ABILITY_PROC(CAbilityItemRegeneration) {
+    if ((msg == A_VALIDATE || msg == A_EXECUTE) && call && call->item && call->target &&
+        call->item->code == MAKEFOURCC('A','I','r','l')) {
+        edict_t *target = call->target->type == SPELL_TARGET_UNIT ? call->target->entity : NULL;
+        uint32_t const code = call->item->code;
+        uint32_t const rank = 1;
+        cstring_t buff = S_SpellBuffToken(S_SpellBuffId(code, rank), 0);
+        abilityLevel_t const *row = G_AbilityLevel(code, rank);
+        float const duration = S_SpellHeroDuration(code, rank, target);
+        if (!buff) buff = "BIrg";
+        if (!target || !row || !(duration > 0.0f) ||
+            !S_SpellIsAliveTarget(target) || !S_SpellIsFriend(ent, target) ||
+            !S_SpellAllowsTarget(code, ent, target)) return false;
+        if (msg == A_VALIDATE) return target->health.value < target->health.max_value;
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, rank, buff, duration);
+        if (!status) return false;
+        status->data = code;
+        status->source_ability = code;
+        status->rank = rank;
+        status->source = target;
+        status->source_spawn_time = target->spawn_time;
+        status->next_tick = G_Time() + ITEM_REGEN_TICK_MS;
+        item_regeneration_pulse(target, code, rank);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        return true;
+    }
     if (msg == A_STATUS_TICK && call && call->status.slot) {
         heroabilitystatus_t *status = call->status.slot;
         uint32_t const code = status->source_ability ? status->source_ability : status->data;
@@ -517,7 +542,8 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
             heroabilitystatus_t *status = ent->unit_state->statuses + i;
             if (!status->level || status->code != MAKEFOURCC('B','I','r','g') ||
                 (status->source_ability != MAKEFOURCC('A','I','s','l') &&
-                 status->source_ability != MAKEFOURCC('A','I','p','l'))) continue;
+                 status->source_ability != MAKEFOURCC('A','I','p','l') &&
+                 status->source_ability != MAKEFOURCC('A','I','r','l'))) continue;
             item_regeneration_end(ent, status);
             interrupted = true;
         }
@@ -531,7 +557,10 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
             item_regeneration_pulse(ent, code, rank);
         return true;
     }
-    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    if (msg != A_ITEM_USE || !call || !call->item) {
+        return call && call->item && call->item->code == MAKEFOURCC('A','I','r','l') ?
+            CAbilitySimpleSpell(ent, msg, call) : false;
+    }
     edict_t *caster = item_use_caster(ent, call);
     uint32_t const code = call->item->code;
     uint32_t const rank = 1;
