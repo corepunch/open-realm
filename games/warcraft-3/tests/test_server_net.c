@@ -456,10 +456,17 @@ TEST(server_net, chat_stringcmd_is_bounded_and_dispatched_once) {
     T_EQ(test_command_calls, 3);
     T_EQ(msg.readcount, msg.cursize);
 
+    /* Quotes and separators are data to one game command, never a second command. */
+    SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd);
+    MSG_WriteString(&msg, "say \"hello\"; god");
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_command_calls, 4);
+    T_STREQ(test_command_name, "say");
+
     /* Unterminated commands are malformed and consume the rest of the packet. */
     SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, clc_stringcmd); SZ_Write(&msg, "say broken", 10);
     SV_ParseClientMessage(&msg, client);
-    T_EQ(test_command_calls, 3);
+    T_EQ(test_command_calls, 4);
     T_EQ(msg.readcount, msg.cursize);
 }
 

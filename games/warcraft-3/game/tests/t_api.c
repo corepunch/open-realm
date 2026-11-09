@@ -1857,7 +1857,8 @@ TEST(wc3_api, player_chat_fires_matching_triggers) {
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 3);
-    G_PlayerChat(ent, "-lvl max");
+    cstring_t say_args[] = { "say", "-lvl", "max" };
+    G_ClientCommand(ent, 3, say_args);
     jass_runevents(level.vm);
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
 }
