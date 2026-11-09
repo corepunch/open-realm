@@ -661,13 +661,6 @@ void unit_build(edict_t *self, uint32_t class_id) {
 
     was_empty = self->build == NULL;
     ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
-    if (G_UnitIsHero(ent)) {
-        cstring_t proper_name = G_SelectHeroProperName(ent);
-        if (proper_name) {
-            G_InitUnitState(ent);
-            ent->unit_state->proper_name = proper_name;
-        }
-    }
     G_SetUnitFlag(ent, UNIT_FLAG_TRAINING, true);
     G_SetUnitFlag(ent, UNIT_FLAG_TRAINING_FOOD_WAIT_NOTIFIED, false);
     G_SetHealth(ent, 0);
