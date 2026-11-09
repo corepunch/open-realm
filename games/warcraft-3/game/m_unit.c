@@ -2549,6 +2549,27 @@ bool G_HeroModifySkillPoints(edict_t *ent, int32_t delta) {
     return true;
 }
 
+/* Tome of Retraining refunds only learned Hero-candidate ranks. Hero level,
+ * XP, attributes, and ordinary UnitAbilities remain owned by their systems. */
+bool G_HeroRetrainSkills(edict_t *ent) {
+    uint32_t refund = 0;
+    if (!ent || !G_UnitIsHero(ent) || !ent->unit_state) return false;
+    for (uint32_t i = 0; i < MAX_HERO_ABILITIES; i++) {
+        heroability_t const *rank = ent->unit_state->ranks + i;
+        if (rank->level && G_HeroHasCandidateSkill(ent, rank->code)) refund += rank->level;
+    }
+    if (!refund || refund > INT32_MAX || !G_HeroModifySkillPoints(ent, (int32_t)refund)) return false;
+    for (uint32_t i = 0; i < MAX_HERO_ABILITIES; i++) {
+        heroability_t *rank = ent->unit_state->ranks + i;
+        if (!rank->level || !G_HeroHasCandidateSkill(ent, rank->code)) continue;
+        rank->level = 0;
+        rank->code = 0;
+    }
+    gameClient_t *owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (owner && owner->ps.number == ent->s.player) G_InvalidateCommands(owner);
+    return true;
+}
+
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
     uint32_t const hero_level = G_HeroSkillLevel(ent, abilcode);
     char id[5] = { 0 };

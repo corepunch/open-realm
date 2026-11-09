@@ -514,6 +514,11 @@ the target's maxima. The item is consumed only when at least one resource is
 restored; the production item-use path refreshes the status panel and publishes
 the ordinary use-item events.
 
+Tome of Retraining (`tret`, `Aret`) clears the learned ranks in the selected
+Hero's `heroAbilList` and refunds one skill point per learned rank level. It
+preserves Hero level, XP, attributes, and non-Hero abilities. It has no effect
+when the selected unit is not a Hero or has no learned Hero skills.
+
 Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
 It applies a permanent one-charge `BNss` buff to eligible nearby allies and
 consumes even if none qualify. The shared hostile unit-target spell guard consumes
