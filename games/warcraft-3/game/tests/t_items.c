@@ -1335,6 +1335,51 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, resurrection_scroll_uses_inventory_click_to_revive_nearby_corpses) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"Area1\"\n"
+        "C;Y2;X1;K\"AIrs\"\nC;Y2;X2;K\"AIrs\"\nC;Y2;X3;K\"6\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"160\"\nE\n";
+    static ItemData_t scroll_data = { .abilList = "AIrs", .perishable = true, .usable = true };
+    static UnitData_t corpse_data = { .deathType = UNIT_DEATH_TYPE_RAISE };
+    static UnitBalance_t corpse_balance = { .level = 1 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *hero, *scroll, *corpses[6];
+    edict_t *player;
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    hero = make_item_test_inventory_unit(0, 0);
+    hero->s.player = 0;
+    hero->spawn_time = level.time;
+    G_InitUnitOrders(hero);
+    T_ASSERT(G_AddItemToSlot(hero, (scroll = make_item_test_world_item(MAKEFOURCC('s','r','e','s'), 8, 0)), 0));
+    scroll->data.ItemData = &scroll_data;
+    G_GetItem(scroll)->charges = 1;
+    scroll->targtype = TARG_ITEM;
+    G_SelectEntity(player->client, hero);
+    FOR_LOOP(i, 6) {
+        corpses[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 24.0f + (float)i * 12.0f, 0);
+        corpses[i]->s.player = 0;
+        corpses[i]->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+        corpses[i]->targtype = TARG_GROUND;
+        corpses[i]->data.UnitData = &corpse_data;
+        corpses[i]->data.UnitBalance = &corpse_balance;
+        corpses[i]->health.max_value = 100;
+        corpses[i]->health.value = 0;
+    }
+    T_EQ(FindAbilityForCommand("AIrs")->proc, CAbilityItemResurrection);
+    G_UseItem(hero, 0);
+    FOR_LOOP(i, 6) T_ASSERT(!M_IsDead(corpses[i]));
+    T_ASSERT(G_GetItem(scroll)->pending_use_removal);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* TFT Rune of Shielding: stock zero-duration BNss is an armed charge, not
  * timed immunity; target enumeration uses authored Area and flags. */
 TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {

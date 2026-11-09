@@ -519,6 +519,11 @@ Hero's `heroAbilList` and refunds one skill point per learned rank level. It
 preserves Hero level, XP, attributes, and non-Hero abilities. It has no effect
 when the selected unit is not a Hero or has no learned Hero skills.
 
+Scroll of Resurrection (`sres`, `AIrs`) uses the same authored corpse selection
+and revival contract as the Resurrection runes, but through the inventory
+item-use path. Its `DataA` sets the maximum corpses revived and `Area` bounds
+the search around the selected Hero; it does not enter unit or point targeting.
+
 Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
 It applies a permanent one-charge `BNss` buff to eligible nearby allies and
 consumes even if none qualify. The shared hostile unit-target spell guard consumes
