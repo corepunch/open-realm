@@ -1514,7 +1514,22 @@ float S_ThornsDamageReturn(edict_t const *target, edict_t const *attacker, float
 bool S_EvasionRoll(edict_t *target) {
     abilityAliasRef_t ev = S_ResolveAbilityAlias(target, ID_EVASION);
     uint32_t level;
-    if (ev.alias && ev.level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
+    float chance = ev.alias && ev.level ? S_SpellData(ev.alias, ev.level, 1) : 0.0f;
+    if (target && G_InventoryCanUseItems(target)) {
+        FOR_LOOP(slot, G_InventoryCapacity(target)) {
+            edict_t *item = G_InventoryItem(target, slot);
+            cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+            if (!abilities) continue;
+            PARSE_LIST(abilities, name, parse_segment) {
+                uint32_t const code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+                float item_chance;
+                if (!code || G_AbilityCode(code) != ID_EVASION) continue;
+                item_chance = S_SpellData(code, 1, 1);
+                chance = MAX(chance, item_chance);
+            }
+        }
+    }
+    if (chance > 0.0f && (float)(rand() % 10000) / 10000.0f < chance) return true;
     level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
     uint32_t code = ID_DRUNKEN_BRAWLER;
     if (!level) { code = ID_DRUNKEN_BRAWLER_CAMPAIGN; level = G_UnitAbilityLevel(target, code); }
