@@ -894,3 +894,8 @@ Ancient Janggo of Endurance (`ajen`) carries `AIae` (`AOae`), granting its
 authored 10% movement-speed and 5% attack-speed aura to nearby allies. The
 regression `retail_item_effect.ancient_janggo_provides_authored_endurance_aura`
 covers both values and range exclusion.
+
+Gem of True Seeing (`gemt`) carries detector ability `Adt1`; its authored
+`Rng=1100` true-sight radius now applies to the carrier. The regression
+`retail_item_effect.gem_of_true_sight_detects_enemies_from_carrier` checks
+detection inside range, outside range, and after dropping the gem.
