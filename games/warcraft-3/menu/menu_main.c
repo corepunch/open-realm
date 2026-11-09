@@ -495,18 +495,10 @@ float UI_ScreenFrameOffset(frameDef_t const *frame) {
     return UI_GlueSideOffset(UI_GLUE_RIGHT);
 }
 
-/* Milliseconds since the menu started drawing; M_Refresh receives frame deltas. */
-static uint32_t menu_clock_ms;
-
-uint32_t UI_ClockMs(void) {
-    return menu_clock_ms;
-}
-
 void M_Refresh(uint32_t time) {
     if (!ui_state.active) {
         return;
     }
-    menu_clock_ms += time;
 
     ui_state.time = time;
     /* Call current screen refresh */

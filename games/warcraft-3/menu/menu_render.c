@@ -1204,7 +1204,7 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
         static uint32_t last_click_ms = 0;
         static uint32_t last_click_index = UINT32_MAX;
         static uiMapListState_t const *last_click_list = NULL;
-        uint32_t const now = UI_ClockMs();
+        uint32_t const now = M_Time();
         bool const map_list = !control->SelectCommand[0] || !strncmp(control->SelectCommand, "menu_lan_select", 15);
 
         snprintf(command, sizeof(command),
