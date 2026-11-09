@@ -1906,6 +1906,25 @@ TEST(wc3_api, large_event_table_dispatch_and_reuse) {
     T_ASSERT(replacement == retired);
 }
 
+TEST(wc3_api, legacy_event_detection_reads_parsed_constant) {
+    char const legacy[] =
+        "// EVENT_PLAYER_UNIT_SELL = ConvertPlayerUnitEvent(272)\n"
+        "globals\n"
+        "  constant string text = \"EVENT_PLAYER_UNIT_SELL(272)\"\n"
+        "  constant playerunitevent EVENT_PLAYER_UNIT_SELL_ITEM = ConvertPlayerUnitEvent(274)\n"
+        "  constant playerunitevent EVENT_PLAYER_UNIT_SELL = ConvertPlayerUnitEvent($10D)\n"
+        "endglobals\n";
+    char const modern[] =
+        "globals\n  constant playerunitevent EVENT_PLAYER_UNIT_SELL = ConvertPlayerUnitEvent(272)\nendglobals\n";
+    int32_t value = 0;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    T_ASSERT(jass_find_integer_call_constant(legacy, strlen(legacy), "EVENT_PLAYER_UNIT_SELL", "ConvertPlayerUnitEvent", &value));
+    T_EQ(value, 269);
+    T_ASSERT(jass_find_integer_call_constant(modern, strlen(modern), "EVENT_PLAYER_UNIT_SELL", "ConvertPlayerUnitEvent", &value));
+    T_EQ(value, 272);
+    T_ASSERT(!jass_find_integer_call_constant(legacy, strlen(legacy), "EVENT_PLAYER_UNIT_SELL", "WrongFunction", &value));
+}
+
 TEST(wc3_api, boolexpr_composites_and_event_id) {
     T_ASSERT(run_test_jass(
         "globals\n"

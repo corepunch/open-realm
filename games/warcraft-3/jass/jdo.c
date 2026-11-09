@@ -2338,6 +2338,46 @@ static void jass_remove_bom(string_t buf) {
     if (u[0] == 0xFE && u[1] == 0xFF)                  { memmove(buf, buf + 2, strlen(buf + 2) + 1); }
 }
 
+/* Inspect the same parsed declaration the VM will evaluate, rather than
+ * searching source text that may mention the name in a comment or string. */
+bool jass_find_integer_call_constant(cstring_t source, uint32_t size, cstring_t name,
+                                     cstring_t function, int32_t *value) {
+    string_t buffer;
+    wordExtractor_t parser;
+    token_t *program;
+    bool found = false;
+    if (!source || !name || !function || !value) return false;
+    buffer = jass_alloc((long)size + 4);
+    if (!buffer) return false;
+    memcpy(buffer, source, size);
+    memset(buffer + size, 0, 4);
+    jass_remove_comments(buffer);
+    jass_remove_bom(buffer);
+    parser = MAKE(wordExtractor_t, .buffer = buffer, .start = buffer,
+                  .delimiters = jass_syntax[JASS_MODE_JASS].delimiters);
+    program = JASS_ParseTokens(&parser);
+    if (!parser.error) FOR_EACH_LIST(token_t, token, program) {
+        token_t const *call = token->init;
+        token_t const *arg = call ? call->args : NULL;
+        if (token->type != TT_GLOBAL || !(token->flags & TF_CONSTANT) || !token->secondary ||
+            strcmp(token->secondary, name) || !call || call->type != TT_CALL || !call->primary ||
+            strcmp(call->primary, function) || !arg || arg->type != TT_INTEGER || arg->next || !arg->primary)
+            continue;
+        char *end;
+        cstring_t text = arg->primary;
+        cstring_t digits = *text == '$' ? text + 1 : text;
+        long parsed = strtol(digits, &end, *text == '$' ? 16 : 0);
+        if (end != digits && *end == '\0' && parsed >= INT32_MIN && parsed <= INT32_MAX) {
+            *value = (int32_t)parsed;
+            found = true;
+        }
+        break;
+    }
+    JASS_FreeTokens(program);
+    jass_free(buffer);
+    return found;
+}
+
 /* Forward declaration — galaxy_preprocess_includes calls jass_dofile_ex. */
 bool jass_dofile_ex(jass_t *j, cstring_t fileName, JASSMODE mode);
 

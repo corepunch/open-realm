@@ -172,6 +172,9 @@ void jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine);
  * jass_dofile auto-detects Galaxy mode for .galaxy filenames. */
 bool jass_dofile(jass_t *j, cstring_t fileName);
 bool jass_dobuffer(jass_t *j, string_t buffer);
+/* Inspect a constant initialized by a one-integer-argument call without evaluating it. */
+bool jass_find_integer_call_constant(cstring_t source, uint32_t size, cstring_t name,
+                                     cstring_t function, int32_t *value);
 
 /* _ex variants — explicit mode control. */
 bool jass_dofile_ex(jass_t *j, cstring_t fileName, JASSMODE mode);

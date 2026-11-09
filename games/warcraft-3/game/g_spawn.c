@@ -1037,9 +1037,10 @@ void G_SpawnEntities(cstring_t map_path) {
         /* Detect the event numbering of the data set before common.j converts its constants. */
         uint32_t common_size = 0;
         string_t common = gi.ReadFile("Scripts\\common.j", &common_size);
-        cstring_t sell = common ? strstr(common, "EVENT_PLAYER_UNIT_SELL") : NULL;
-        cstring_t open = sell ? strchr(sell, '(') : NULL;
-        g_common_events_legacy = open && atoi(open + 1) == 269;
+        int32_t sell = 0;
+        g_common_events_legacy = common &&
+            jass_find_integer_call_constant(common, common_size, "EVENT_PLAYER_UNIT_SELL",
+                                            "ConvertPlayerUnitEvent", &sell) && sell == 269;
         if (common) gi.MemFree(common);
     }
     jass_dofile(level.vm, "Scripts\\common.j");
