@@ -1201,10 +1201,26 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
     uint32_t index = (uint32_t)floorf(state->visualScroll + row);
     if (row >= 0.0f && row < (float)visible_rows && index < state->count) {
         char command[128];
+        static uint32_t last_click_ms = 0;
+        static uint32_t last_click_index = UINT32_MAX;
+        static uiMapListState_t const *last_click_list = NULL;
+        uint32_t const now = UI_ClockMs();
+        bool const map_list = !control->SelectCommand[0] || !strncmp(control->SelectCommand, "menu_lan_select", 15);
+
         snprintf(command, sizeof(command),
                  control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
                  (unsigned)index);
         UI_QueueCommand(command);
+        /* A second click on the same row within half a second opens a folder (or goes up through "[..]"). */
+        if (map_list && last_click_list == state && last_click_index == index &&
+            now - last_click_ms < 500 && state->items[index].kind != UI_MAP_ITEM_MAP) {
+            UI_QueueCommand("menu_lan_open");
+            last_click_index = UINT32_MAX;
+        } else {
+            last_click_list = state;
+            last_click_index = index;
+            last_click_ms = now;
+        }
     }
 }
 
