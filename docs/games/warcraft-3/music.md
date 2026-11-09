@@ -43,7 +43,7 @@ dependency closure into `release/lib`, setting each copy's RUNPATH to `$ORIGIN`.
 resolve transitive dependencies. Keep glibc, C++/GCC runtimes and graphics driver interfaces on the host so Ubuntu copies
 cannot replace the libraries required by Manjaro's newer Mesa/SDL drivers. Retain Debian package copyright notices under
 `release/licenses/ffmpeg`, and fail packaging on unresolved dependencies or missing decoder libraries. This avoids requiring
-Manjaro's current FFmpeg to provide Ubuntu's older library SONAMEs. The `Linux release music and runtime packaging` CI job
+Manjaro's current FFmpeg to provide Ubuntu's older library SONAMEs. The Linux release job in `release.yml`
 builds the optimized Linux decoder and verifies the packaged dependency closure; `make test-linux-media-release` covers
 missing decoders, missing dependencies, RUNPATHs, notices, and paths containing spaces and UTF-8 characters.
 
