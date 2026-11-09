@@ -104,7 +104,7 @@ float S_ItemSpellDamageReduction(edict_t const *unit) {
             uint32_t const code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
             float amount;
             if (code != MAKEFOURCC('A','I','s','r')) continue;
-            amount = S_SpellData(code, 1, 1);
+            amount = S_SpellData(code, 1, 2); /* Runed Bracers author reduction as DataB. */
             if (amount > 1.0f) amount *= 0.01f;
             reduction = MAX(reduction, MIN(1.0f, MAX(0.0f, amount)));
         }
