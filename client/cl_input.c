@@ -1795,6 +1795,7 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
         { SDLK_PAGEDOWN, K_PAGEDOWN },
         { SDLK_HOME, K_HOME },
         { SDLK_END, K_END },
+        { SDLK_KP_ENTER, K_ENTER },
     };
     if (sym >= SDLK_F1 && sym <= SDLK_F12)
         return (keyCode_t)(K_F1 + (sym - SDLK_F1));
@@ -2028,13 +2029,6 @@ static void CL_InputEvents(int (*poll_event)(SDL_Event *)) {
                     else CL_ChatKey(event.key.keysym.sym);
                     break;
                 }
-                if (cls.key_dest == key_game && cls.state == ca_active && !event.key.repeat &&
-                    (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_KP_ENTER) &&
-                    !(event.key.keysym.mod & KMOD_ALT) && !CL_WindowTextInputActive() &&
-                    !CL_WindowPresentationActive()) {
-                    CL_ChatOpen();
-                    break;
-                }
                 if (event.key.keysym.sym == SDLK_BACKQUOTE) {
                     CON_ToggleConsole();
                     break;
@@ -2174,6 +2168,13 @@ static void CL_ChatOpen(void) {
     chat_text[0] = '\0';
     cls.key_dest = key_message;
     CL_SetSDLTextInput(true);
+}
+
+/* Games opt into the generic message editor through their own key bindings. */
+static void CL_ChatOpen_f(void) {
+    if (cls.state != ca_active || cls.key_dest != key_game ||
+        CL_WindowTextInputActive() || CL_WindowPresentationActive()) return;
+    CL_ChatOpen();
 }
 
 static void CL_ChatClose(bool send) {
@@ -2534,6 +2535,7 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoom", CL_Zoom_f);
     Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
     Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
+    Cmd_AddCommand("messagemode", CL_ChatOpen_f);
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
@@ -2916,6 +2918,33 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
     cl.playerstate.client_ui_state = old_ui;
     input.focus = old_focus;
     SDL_SetModState(old_mod);
+}
+
+TEST(client_input, message_mode_is_opened_by_game_binding) {
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    bool old_focus = input.focus;
+    bool add_command = !Cmd_Exists("messagemode");
+    char old_binding[80];
+
+    strlcpy(old_binding, Key_GetBinding(K_ENTER, 0), sizeof(old_binding));
+    if (add_command) Cmd_AddCommand("messagemode", CL_ChatOpen_f);
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input.focus = true;
+    Key_SetBinding(K_ENTER, 0, "");
+    CL_InputKeyEvent(K_ENTER, 0, true, 10);
+    T_ASSERT(!CL_ChatActive());
+    CL_InputKeyEvent(K_ENTER, 0, false, 11);
+    Key_SetBinding(K_ENTER, 0, "messagemode");
+    CL_InputKeyEvent(K_ENTER, 0, true, 12);
+    T_ASSERT(CL_ChatActive());
+    CL_ChatKey(SDLK_ESCAPE);
+    T_ASSERT(!CL_ChatActive());
+    CL_InputKeyEvent(K_ENTER, 0, false, 13);
+    T_EQ(CL_SDLKeyToKeyCode(SDLK_KP_ENTER), K_ENTER);
+    Key_SetBinding(K_ENTER, 0, old_binding);
+    if (add_command) Cmd_RemoveCommand("messagemode");
+    cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui;
+    input.focus = old_focus;
 }
 
 TEST(client_input, zoom_reset_returns_to_default_after_zooming_in) {
