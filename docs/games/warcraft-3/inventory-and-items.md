@@ -857,3 +857,10 @@ native immunity abilities and timed immunity statuses. Dropping it removes
 that contribution immediately; physical attack damage remains unaffected.
 `retail_item_effect.necklace_of_spell_immunity_protects_its_carrier` covers
 spell damage rejection and drop cleanup.
+
+Shield of Honor (`shhn`) carries Command Aura alias `AIcd` (`AOac`), with its
+10% attack bonus and 900-unit range authored in AbilityData. Carried aura
+abilities are included in the same live provider scan as unit-authored auras;
+the source's allies receive the bonus only while in range, and dropping the
+shield removes the source. `retail_item_effect.shield_of_honor_provides_authored_command_aura`
+covers range and removal.

@@ -351,6 +351,20 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
         if (G_ActorHasSkill(ent, alias_name))
             aura_record_owned_alias(resolved, alias, 1, mask);
     }
+    if (G_InventoryCanUseItems(ent)) {
+        FOR_LOOP(slot, G_InventoryCapacity(ent)) {
+            edict_t *item = G_InventoryItem(ent, slot);
+            cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+            if (!abilities) continue;
+            PARSE_LIST(abilities, token, parse_segment) {
+                uint32_t alias = 0, mask;
+                if (strlen(token) != 4) continue;
+                memcpy(&alias, token, sizeof(alias));
+                mask = aura_owned_family_mask(alias);
+                if (mask) aura_record_owned_alias(resolved, alias, 1, mask);
+            }
+        }
+    }
     FOR_LOOP(i, (ent->unit_state ? MAX_HERO_ABILITIES : 0)) {
         heroability_t const *hero = ent->unit_state->ranks + i;
         if (hero->level) {
