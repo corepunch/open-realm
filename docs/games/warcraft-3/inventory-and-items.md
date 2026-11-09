@@ -879,3 +879,8 @@ Alleria's Flute of Accuracy (`afac`) carries `AIar` (`AEar`), so its authored
 10% Trueshot bonus applies only to nearby friendly ranged attackers. The
 regression `retail_item_effect.allerias_flute_boosts_nearby_ranged_units`
 covers melee exclusion, ranged inclusion and range exclusion.
+
+Mindstaff (`mnsf`) carries `AIba` (`AHab`) and applies its authored Brilliance
+mana-regeneration aura to nearby allies with a mana pool. The regression
+`retail_item_effect.mindstaff_provides_authored_brilliance_aura` checks the
+amount and range exclusion.
