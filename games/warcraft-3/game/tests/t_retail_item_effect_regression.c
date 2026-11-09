@@ -544,4 +544,83 @@ TEST(retail_item_effect, regeneration_items_follow_target_damage_and_scheduler) 
     re_done(&f);
 }
 
+
+/* AIp1-AIp4 are caster-only replenishment potions. AIp5-AIp6 are area
+ * replenishment scrolls. The retail AbilityData rows provide each amount,
+ * duration, area, and BIrg lifecycle. */
+TEST(retail_item_effect, replenishment_potions_and_scrolls_use_authored_targets_and_interrupt) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y7;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"Dur1\"\nC;Y1;X7;K\"HeroDur1\"\n"
+        "C;Y1;X8;K\"Area1\"\nC;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIp1\"\nC;Y2;X2;K\"AIp1\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"100\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"30\"\nC;Y2;X7;K\"30\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"BIrg\"\nC;Y2;X10;K\"friend,self,organic\"\n"
+        "C;Y3;X1;K\"AIp5\"\nC;Y3;X2;K\"AIp5\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"250\"\nC;Y3;X5;K\"100\"\nC;Y3;X6;K\"45\"\nC;Y3;X7;K\"45\"\nC;Y3;X8;K\"100\"\nC;Y3;X9;K\"BIrg\"\nC;Y3;X10;K\"friend,self,organic\"\n"
+        "C;Y4;X1;K\"AIp6\"\nC;Y4;X2;K\"AIp6\"\nC;Y4;X3;K\"1\"\n"
+        "C;Y4;X4;K\"450\"\nC;Y4;X5;K\"150\"\nC;Y4;X6;K\"45\"\nC;Y4;X7;K\"45\"\nC;Y4;X8;K\"100\"\nC;Y4;X9;K\"BIrg\"\nC;Y4;X10;K\"friend,self,organic\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *nearby, *outside, *target;
+    abilityitem_t item;
+    abilityCall_t call;
+    static UnitBalance_t no_regen;
+    memset(&no_regen, 0, sizeof(no_regen));
+    no_regen.healthRegenType = "none";
+    re_init(&f, ability_slk, "ID;PWXL;N;EBB;Y2;X2\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y2;X1;K\"test\"\nC;Y2;X2;K\"AIp1,AIp5\"\nE\n");
+    f.hero->data.UnitBalance = &no_regen;
+    f.hero->health.value = 100; f.hero->health.max_value = 500;
+    f.hero->mana.value = 50; f.hero->mana.max_value = 250;
+    nearby = alloc_test_unit(FS_SLKKey("hfoo"), 40, 0);
+    outside = alloc_test_unit(FS_SLKKey("hfoo"), 160, 0);
+    nearby->s.player = outside->s.player = 0;
+    nearby->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
+    nearby->spawn_time = outside->spawn_time = level.time;
+    nearby->targtype = outside->targtype = TARG_GROUND;
+    nearby->data.UnitBalance = outside->data.UnitBalance = &no_regen;
+    nearby->health.value = 100; nearby->health.max_value = 500;
+    nearby->mana.value = 50; nearby->mana.max_value = 250;
+    outside->health.value = 100; outside->health.max_value = 500;
+    outside->mana.value = 50; outside->mana.max_value = 250;
+
+    item = S_AbilityItem(FS_SLKKey("AIp1"));
+    T_EQ(item.ability ? item.ability->proc : 0, CAbilityItemRegeneration);
+    for (uint32_t i = 2; i <= 4; i++) { char code[] = {'A', 'I', 'p', (char)('0' + i), '\0'}; T_EQ(S_AbilityItem(FS_SLKKey(code)).ability->proc, CAbilityItemRegeneration); }
+    call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(G_AbilityLevel(FS_SLKKey("AIp1"), 1) != NULL);
+    T_ASSERT(S_SpellIsAliveTarget(f.hero));
+    T_ASSERT(S_SpellIsFriend(f.hero, f.hero));
+    T_ASSERT(S_SpellAllowsAreaTarget(FS_SLKKey("AIp1"), f.hero, f.hero));
+    T_FEQ(S_SpellHeroDuration(FS_SLKKey("AIp1"), 1, f.hero), 30.0f, 0.001f);
+    T_ASSERT(G_AbilityLevel(FS_SLKKey("AIp1"), 1)->area >= 0.0f);
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(f.hero->health.value, 100.0f + 100.0f / 30.0f, 0.001f);
+    T_FEQ(f.hero->mana.value, 50.0f + 25.0f / 30.0f, 0.001f);
+    T_NULL(unit_findstatus(nearby, FS_SLKKey("BIrg")));
+    S_ResolveAttackHit(f.enemy, f.hero, 5);
+    T_NULL(unit_findstatus(f.hero, FS_SLKKey("BIrg")));
+
+    target = nearby;
+    item = S_AbilityItem(FS_SLKKey("AIp5")); call.item = &item;
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_NOT_NULL(unit_findstatus(nearby, FS_SLKKey("BIrg")));
+    T_FEQ(nearby->health.value, 100.0f + 250.0f / 45.0f, 0.001f);
+    T_FEQ(nearby->mana.value, 50.0f + 100.0f / 45.0f, 0.001f);
+    T_ASSERT(S_SpellIsAliveTarget(nearby));
+    T_ASSERT(S_SpellIsFriend(f.hero, nearby));
+    T_ASSERT(S_SpellAllowsAreaTarget(FS_SLKKey("AIp5"), f.hero, nearby));
+    T_NULL(unit_findstatus(outside, FS_SLKKey("BIrg")));
+    S_ResolveAttackHit(f.enemy, target, 5);
+    T_NULL(unit_findstatus(target, FS_SLKKey("BIrg")));
+    float const after_damage = target->health.value;
+    re_run_frame_at(target, level.time + 1000);
+    T_FEQ(target->health.value, after_damage, 0.001f);
+    target->health.value = 100; target->mana.value = 50;
+    item = S_AbilityItem(FS_SLKKey("AIp6")); call.item = &item;
+    T_ASSERT(S_AbilityMessage(f.hero, A_ITEM_USE, &call));
+    T_FEQ(target->health.value, 100.0f + 450.0f / 45.0f, 0.001f);
+    T_FEQ(target->mana.value, 50.0f + 150.0f / 45.0f, 0.001f);
+    re_done(&f);
+}
+
 #endif /* BZ_TESTS */

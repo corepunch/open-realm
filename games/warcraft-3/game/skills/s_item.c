@@ -482,6 +482,15 @@ BZ_ABILITY_PROC(CAbilityItemBlight) {
  * authored AIrg regeneration family. DataA/Duration restore life; DataB/Dur
  * restore mana. Statuses keep ticking independently of the item's lifetime. */
 #define ITEM_REGEN_TICK_MS 1000u
+static bool item_regeneration_ability(uint32_t code) {
+    return code == MAKEFOURCC('A','I','s','l') || code == MAKEFOURCC('A','I','p','l') ||
+           code == MAKEFOURCC('A','I','r','l') ||
+           (code >= MAKEFOURCC('A','I','p','1') && code <= MAKEFOURCC('A','I','p','6'));
+}
+static bool item_regeneration_self_only(uint32_t code) {
+    return code == MAKEFOURCC('A','I','p','l') ||
+           (code >= MAKEFOURCC('A','I','p','1') && code <= MAKEFOURCC('A','I','p','4'));
+}
 static void item_regeneration_end(edict_t *target, heroabilitystatus_t *status) {
     if (!target || !status || !status->level) return;
     unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
@@ -541,9 +550,7 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             heroabilitystatus_t *status = ent->unit_state->statuses + i;
             if (!status->level || status->code != MAKEFOURCC('B','I','r','g') ||
-                (status->source_ability != MAKEFOURCC('A','I','s','l') &&
-                 status->source_ability != MAKEFOURCC('A','I','p','l') &&
-                 status->source_ability != MAKEFOURCC('A','I','r','l'))) continue;
+                !item_regeneration_ability(status->source_ability)) continue;
             item_regeneration_end(ent, status);
             interrupted = true;
         }
@@ -575,7 +582,7 @@ BZ_ABILITY_PROC(CAbilityItemRegeneration) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  S_SpellIsFriend(caster, target) &&
-                 (code == MAKEFOURCC('A','I','p','l') ? target == caster :
+                 (item_regeneration_self_only(code) ? target == caster :
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area)) {
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, rank, buff, duration);
         if (!status) continue;
