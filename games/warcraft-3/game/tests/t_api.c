@@ -3489,6 +3489,35 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
     T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
 }
 
+/* SetUnitX/Y defer collision settling until the simulation step. Saving
+ * before that step must preserve the pending relocation. */
+TEST(wc3_api, blocked_scripted_reposition_settles_after_save_load) {
+    cstring_t filename = Test_TempPath("wc3-pending-reposition.sav");
+    edict_t *moved;
+
+    reset_entities(); setup_test_world(); setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitX(mover, 256.0)\n"
+        "  call SetUnitY(mover, 256.0)\n"
+        "endfunction\n"));
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    if (!moved) return;
+    T_ASSERT(moved->reposition_pending);
+    T_FEQ(moved->s.origin2.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin2.y, 256.0f, 0.001f);
+    T_ASSERT(WriteGame(filename));
+    moved->reposition_pending = false;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(moved->reposition_pending);
+    G_RunEntities();
+    T_ASSERT(!moved->reposition_pending);
+    T_ASSERT(Vector2_distance(&moved->s.origin2, &MAKE(vec2_t, 256.0f, 256.0f)) > 1.0f);
+    remove(filename);
+}
+
 TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
     edict_t *created;
 
