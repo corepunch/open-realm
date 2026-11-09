@@ -864,3 +864,8 @@ abilities are included in the same live provider scan as unit-authored auras;
 the source's allies receive the bonus only while in range, and dropping the
 shield removes the source. `retail_item_effect.shield_of_honor_provides_authored_command_aura`
 covers range and removal.
+
+Warsong Battle Drums (`ward`) also carry `AIcd` and use the same authored
+Command Aura path. The focused regression
+`retail_item_effect.warsong_battle_drums_provide_authored_command_aura`
+checks the inventory alias against the 10% recipient bonus.
