@@ -3575,6 +3575,38 @@ TEST(wc3_game, overhead_bar_fill_keeps_warsmash_three_pixel_inset) {
     T_FEQ(0.008f - 0.003f * 2.0f, 0.002f, 0.0001f);
 }
 
+static bool message_layout_pending, message_layer_seen, message_panel_seen, message_prompt_seen;
+static void message_layout_test_write(pfWriteType_t type, void const *value) {
+    if (!value) return;
+    if (type == PF_BYTE) {
+        int32_t byte = *(int32_t const *)value;
+        if (message_layout_pending) {
+            message_layer_seen = byte == LAYER_CLIENT_MESSAGE;
+            message_layout_pending = false;
+        } else if (byte == svc_layout) message_layout_pending = true;
+    } else if (type == PF_UIFRAME) {
+        uiFrame_t const *frame = value;
+        if (frame->flags.type == FT_BACKDROP) message_panel_seen = true;
+        if (frame->flags.type == FT_STRING && frame->stat == UI_STAT_CLIENT_MESSAGE_TEXT &&
+            frame->text && !strcmp(frame->text, "Message: ")) message_prompt_seen = true;
+    }
+}
+
+TEST(wc3_game, message_input_layout_authors_prompt_and_panel) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    edict_t *player;
+    setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
+    message_layout_pending = message_layer_seen = message_panel_seen = message_prompt_seen = false;
+    hover_font_count = hover_unicast_count = 0;
+    gi.Write = message_layout_test_write; gi.unicast = hover_test_unicast; gi.FontIndex = hover_test_font;
+    UI_WriteMessageInputLayout(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.FontIndex = old_font;
+    T_ASSERT(message_layer_seen); T_ASSERT(message_panel_seen); T_ASSERT(message_prompt_seen);
+    T_EQ(hover_unicast_count, 1);
+}
+
 TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;

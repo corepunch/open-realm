@@ -521,6 +521,7 @@ typedef enum {
     LAYER_GAME_1,
     LAYER_GAME_2,
     LAYER_GAME_3,
+    LAYER_CLIENT_MESSAGE, /* game-authored presentation for the local message editor */
 } UILAYOUTLAYER;
 
 typedef enum {
@@ -534,8 +535,8 @@ typedef enum {
 #define UI_WINDOW_NO_PAUSE (1u << 3) // flag bit; modal input capture without acquiring the client-owned simulation pause
 #define UI_WINDOW_NO_ESCAPE (1u << 4) // flag bit; Escape is consumed without dismissing the window; used by mandatory result/decision windows
 #define UI_WINDOW_PRESENTATION (1u << 5) // replaces gameplay world/HUD and other windows while active; client owns generic render isolation
-#define MAX_LAYOUT_LAYERS 17
-_Static_assert(LAYER_GAME_3 < MAX_LAYOUT_LAYERS, "every UILAYOUTLAYER needs a client layout slot");
+#define MAX_LAYOUT_LAYERS 18
+_Static_assert(LAYER_CLIENT_MESSAGE < MAX_LAYOUT_LAYERS, "every UILAYOUTLAYER needs a client layout slot");
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
@@ -576,6 +577,7 @@ typedef enum {
     /* uiFrame_t.stat is NFT_BYTE on the wire. Keep generic special bindings
      * inside the reserved high-byte range and below 251 so the established
      * selection/context bindings retain their values. */
+    UI_STAT_CLIENT_MESSAGE_TEXT = 247, /* frame text prefix followed by the local message editor */
     UI_STAT_LOADING_STATUS_TEXT = 248, /* text while busy, tooltip text while awaiting acknowledgement */
     UI_STAT_LOADING_PROGRESS = 249, /* client-local normalized resource registration progress */
     UI_STAT_SELECTION_TIMED_STATUS = 250, /* statusbar binding; reads normalized selected-unit timer player stat */

@@ -2163,6 +2163,7 @@ static void G_ClientBegin(edict_t *edict) {
 
     UI_ShowGameInterface(edict);
     UI_WriteHoverLayout(edict);
+    UI_WriteMessageInputLayout(edict);
     UI_WriteTimerDialogs(edict);
     UI_WriteLeaderboard(edict);
     UI_WriteMultiboard(edict);

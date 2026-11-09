@@ -3322,6 +3322,7 @@ multiboard_t *G_VisibleMultiboard(uint32_t client_index);
 void G_MarkMultiboardPlayerDirty(uint32_t owner);
 void G_UpdateMultiboards(void);
 void UI_WriteMultiboard(edict_t *ent);
+void UI_WriteMessageInputLayout(edict_t *ent);
 void G_SetMultiboardMinimized(multiboard_t *board, player_t *player, bool minimized);
 bool G_IsMultiboardMinimized(multiboard_t const *board, player_t const *player);
 void G_MarkMultiboardDirty(multiboard_t const *board);

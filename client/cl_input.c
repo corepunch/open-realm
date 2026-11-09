@@ -2937,6 +2937,9 @@ TEST(client_input, message_mode_is_opened_by_game_binding) {
     Key_SetBinding(K_ENTER, 0, "messagemode");
     CL_InputKeyEvent(K_ENTER, 0, true, 12);
     T_ASSERT(CL_ChatActive());
+    CL_ChatTextInput("hello");
+    T_STREQ(SCR_GetStringValue(&MAKE(uiFrame_t, .stat = UI_STAT_CLIENT_MESSAGE_TEXT, .text = "Message: ")),
+            "Message: hello_");
     CL_ChatKey(SDLK_ESCAPE);
     T_ASSERT(!CL_ChatActive());
     CL_InputKeyEvent(K_ENTER, 0, false, 13);

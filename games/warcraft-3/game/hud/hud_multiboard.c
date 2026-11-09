@@ -153,6 +153,31 @@ static uiBackdrop_t MultiboardBackdrop(void) {
     );
 }
 
+/* The client edits text locally; the game owns its position, prompt and art. */
+void UI_WriteMessageInputLayout(edict_t *ent) {
+    uiFrame_t frame = {0};
+    uiLabel_t label = {0};
+    uint32_t root;
+    if (!ent || !ent->client || !ent->client->connected) return;
+    UI_WriteStart(LAYER_CLIENT_MESSAGE);
+    root = MultiboardRoot();
+    MultiboardPanel(root, 0.18f, 0.29f, 0.44f, 0.036f);
+    frame.flags.type = FT_STRING;
+    frame.parent = root;
+    frame.stat = UI_STAT_CLIENT_MESSAGE_TEXT;
+    frame.text = "Message: ";
+    frame.color = COLOR32_WHITE;
+    label.font = MultiboardFont();
+    label.textalignx = FONT_JUSTIFYLEFT;
+    label.textaligny = FONT_JUSTIFYMIDDLE;
+    UI_SetFrameRect(&frame, 0.19f, 0.294f, 0.42f, 0.028f);
+    frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
+    frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+    UI_WriteEnd(ent);
+}
+
+
 static uint32_t MultiboardTeamRows(uint32_t viewer) {
     uint32_t count = 0;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) {
