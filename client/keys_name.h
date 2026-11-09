@@ -51,6 +51,7 @@ static keyname_t const key_names[] = {
     { "JOYDPRIGHT", K_JOY_A + 13 },
     { "JOYLT", K_JOY_A + 14 },
     { "JOYRT", K_JOY_A + 15 },
+    { "JOY1", K_AUX1 + 0 }, { "JOY2", K_AUX1 + 1 }, { "JOY3", K_AUX1 + 2 }, { "JOY4", K_AUX1 + 3 },
     { "AUX1", K_AUX1 + 0 },
     { "AUX2", K_AUX1 + 1 },
     { "AUX3", K_AUX1 + 2 },

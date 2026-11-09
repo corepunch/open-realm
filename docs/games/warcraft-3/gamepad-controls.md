@@ -15,12 +15,23 @@ picked up when the input loop next runs.
 Controller buttons are keys bound in `config.cfg`, exactly like `MOUSE1`:
 `bind JOYA "+select"`. Pads SDL recognizes use `JOYA JOYB JOYX JOYY JOYLB JOYRB
 JOYLT JOYRT JOYSTART JOYBACK JOYLSTICK JOYRSTICK JOYDPUP JOYDPDOWN JOYDPLEFT
-JOYDPRIGHT`. A pad SDL has no mapping for is opened raw: its buttons are
-`AUX1`..`AUX32` (raw button index + 1), its hat is the D-pad, and on attach the
-game runs `exec pad_<vendor><product>.cfg` (hex VID/PID) like a Quake 2
-joystick config. `share/warcraft-3/pad_294b1001.cfg` is the unu controller;
-copy it for another pad and set `joy_advaxis<n>` for each raw stick axis `n`, with Quake 2's codes
-(`1` forward/left Y, `2` pitch/right Y, `3` side/left X, `4` yaw/right X). No mapping database is needed.
+JOYDPRIGHT`. A pad SDL has no mapping for is opened raw, like a Quake 2 joystick
+(`in_joystick 0` disables raw pads): buttons 0-3 are `JOY1`-`JOY4`, the rest
+`AUX5`-`AUX32`, and the POV hat is `AUX29`-`AUX32` (up, right, down, left). On
+attach the game runs `exec pad_<vendor><product>.cfg` (hex VID/PID);
+`share/warcraft-3/pad_294b1001.cfg` is the unu controller, so copy it for
+another pad. No mapping database is needed.
+
+Raw sticks follow Quake 2's `joystick.txt`. `joy_advaxis0`..`joy_advaxis5`
+give each raw axis a control: `0` unused, `1` forward (left stick Y), `2` pitch
+(right stick Y, zoom), `3` side (left stick X), `4` yaw (right stick X), `5` up
+(accepted, but the RTS has no use for it); add `16` for a relative axis such as
+a trackball (its speed comes from the change per event). They only apply with
+`joy_advanced 1` (otherwise axis 0 is side and axis 1 forward), after
+`joy_advancedupdate`. Per control, `joy_<forward|pitch|side|yaw|up>threshold`
+(dead zone, default `0.15`) and `joy_<...>sensitivity` (default `1`, negative
+inverts) apply; `joy_name` labels the pad. Recognized pads keep using
+`cl_gamepad_deadzone`.
 
 Defaults: `JOYA` `+select` (same command as `MOUSE1`), `JOYX` `+smart` (as
 `MOUSE2`), `JOYB` `+cancel`, `JOYY` `+radial`, `JOYLB` `+statuspanel`, `JOYRB`
