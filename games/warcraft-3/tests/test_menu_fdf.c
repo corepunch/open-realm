@@ -2805,6 +2805,7 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
 
 /* Screen commands and the scene share the production owner, but use fixture I/O. */
 static void test_glue_setup(void) {
+    LAN_ResetMapMemory();
     mi.Printf = test_ui_printf;
     test_command_imports();
     Cmd_ExecuteString("menu_ingame");
@@ -4527,6 +4528,22 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     Cmd_ExecuteString("menu_lan_select 2");
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
     T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Zeta.w3m\"") != NULL);
+    /* Return accepts the selected map and Escape cancels, as in the original client. */
+    captured_command[0] = '\0';
+    T_ASSERT(LAN_MapListKeyEvent(13));
+    T_ASSERT(strstr(captured_command, "menu_game_setup_start") != NULL);
+    captured_command[0] = '\0';
+    gameSetupScreen.key_event(27, true);
+    T_ASSERT(strstr(captured_command, "menu_game") != NULL);
+    /* Home, End, PageUp and PageDown move the selection by rows (five rows are visible here). */
+    T_ASSERT(LAN_MapListKeyEvent(146));
+    T_NULL(LAN_SelectedMapPath());
+    T_ASSERT(LAN_MapListKeyEvent(147));
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
+    T_ASSERT(LAN_MapListKeyEvent(144));
+    T_NULL(LAN_SelectedMapPath());
+    T_ASSERT(LAN_MapListKeyEvent(145));
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
     /* A folder row has no map: nothing can be started. */
     Cmd_ExecuteString("menu_lan_select 0");
     T_NULL(LAN_SelectedMapPath());
@@ -4545,6 +4562,37 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
     T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Alpha.w3m\"") != NULL);
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* The LAN create list reopens where it was left, Return on a map goes on to the lobby and Escape goes back. */
+TEST(menu_fdf, lan_create_list_remembers_folder_and_map) {
+    menuImport_t saved = mi;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(1000);
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    Cmd_ExecuteString("menu_lan_select 0");
+    Cmd_ExecuteString("menu_lan_open"); /* Download */
+    Cmd_ExecuteString("menu_lan_select 2"); /* row 1 is the Deep folder */
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Inner.w3m");
+    Cmd_ExecuteString("menu_main");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Download\\Inner.w3m");
+    captured_command[0] = '\0';
+    T_ASSERT(LAN_MapListKeyEvent(13));
+    T_ASSERT(strstr(captured_command, "menu_lan_start") != NULL);
+    captured_command[0] = '\0';
+    lanJoinScreen.key_event(27, true);
+    T_ASSERT(strstr(captured_command, "menu_multiplayer") != NULL);
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }

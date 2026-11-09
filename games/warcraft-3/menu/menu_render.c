@@ -1211,10 +1211,10 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
                  control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
                  (unsigned)index);
         UI_QueueCommand(command);
-        /* A second click on the same row within half a second opens a folder (or goes up through "[..]"). */
-        if (map_list && last_click_list == state && last_click_index == index &&
-            now - last_click_ms < 500 && state->items[index].kind != UI_MAP_ITEM_MAP) {
-            UI_QueueCommand("menu_lan_open");
+        /* A second click on the same row within half a second opens a folder (or goes up through "[..]")
+         * and accepts a map, as the original client does. */
+        if (map_list && last_click_list == state && last_click_index == index && now - last_click_ms < 500) {
+            UI_QueueCommand(state->items[index].kind == UI_MAP_ITEM_MAP ? "menu_lan_activate" : "menu_lan_open");
             last_click_index = UINT32_MAX;
         } else {
             last_click_list = state;
