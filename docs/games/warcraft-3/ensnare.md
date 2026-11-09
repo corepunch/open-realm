@@ -11,6 +11,10 @@ Web (`Aweb` / `ACwb`, `Bwea` / `Bweb`) delegates to the same bind/height
 lifecycle with air-only validation and autocast. Removing one bind leaves flight
 grounded until the last Web or Ensnare slot is removed. Landing/restoration also
 updates `targtype` between ground and air, not only `AI_FLYING`.
+
+Spider Silk (`silk`) grants the item-specific `AIwb` `CAbilityWeb` alias. It
+uses its own 400 range, 20-second duration (7 seconds on Heroes), and
+`Bwea`/`Bweb` rows while sharing Web's air-target validation and landing path.
 See [creep combat effects](creep-combat-effects.md).
 
 | Rawcode | Archive | Notes |
@@ -18,6 +22,7 @@ See [creep combat effects](creep-combat-effects.md).
 | `Aens` | ROC and TFT | Raider Ensnare |
 | `ANen` | TFT | Naga Ensnare (`code=Aens`) |
 | `ACen` | ROC and TFT | creep Ensnare (`code=Aens`) |
+| `AIwb` | TFT | Spider Silk item Web |
 
 Casting binds one living enemy/neutral unit so it cannot move for `Dur` /
 `HeroDur`. Air units lose `AI_FLYING` immediately so ground attacks can hit them,

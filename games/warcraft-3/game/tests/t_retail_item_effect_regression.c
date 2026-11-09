@@ -830,4 +830,54 @@ TEST(retail_item_effect, diamond_of_summoning_targets_area_and_relocates_up_to_t
     G_FowShutdown(); re_done(&f);
 }
 
+TEST(retail_item_effect, spider_silk_targets_and_ensnares_an_enemy_flyer) {
+    static UnitData_t const flyer_data = { .moveTypeName = "fly", .moveHeight = 180.0f };
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataB1\"\nC;Y1;X10;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AIwb\"\nC;Y2;X2;K\"AIwb\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"20\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"400\"\nC;Y2;X7;K\"Bwea,Bweb\"\n"
+        "C;Y2;X8;K\"0.6\"\nC;Y2;X9;K\"200\"\nC;Y2;X10;K\"128\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"uses\"\nC;Y1;X4;K\"perishable\"\n"
+        "C;Y2;X1;K\"silk\"\nC;Y2;X2;K\"AIwb\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player, *item;
+    char number[16];
+    cstring_t select[] = { "select", number };
+    re_init(&f, ability_slk, items);
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    f.hero->s.player = 0;
+    f.enemy->s.player = 1;
+    f.enemy->targtype = TARG_AIR;
+    f.enemy->aiflags |= AI_FLYING;
+    f.enemy->unitinfo.FlyHeight = 180.0f;
+    f.enemy->data.UnitData = &flyer_data;
+    item = re_equip(&f, "silk", 0);
+    G_GetItem(item)->charges = 1;
+    G_SelectEntity(player->client, f.hero);
+    abilityitem_t web = S_AbilityItem(FS_SLKKey("AIwb"));
+    T_NOT_NULL(web.ability);
+    if (!web.ability) { re_done(&f); return; }
+    T_EQ(web.ability->proc, CAbilityWeb);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", f.enemy->s.number);
+    G_ClientCommand(player, 2, select);
+    T_NULL(player->client->menu.on_entity_selected);
+    T_ASSERT(S_UnitIsEnsnared(f.enemy));
+    T_EQ(G_UnitStatusLevel(f.enemy, FS_SLKKey("Bwea")), 1);
+    T_ASSERT(!(f.enemy->aiflags & AI_FLYING));
+    T_EQ(f.enemy->targtype, TARG_GROUND);
+    level.time += 1000;
+    S_RunAbilityUpdates(f.enemy);
+    T_FEQ(f.enemy->unitinfo.FlyHeight, 0.0f, 0.001f);
+    T_EQ(G_ItemCharges(item), 0);
+    re_done(&f);
+}
+
 #endif /* BZ_TESTS */
