@@ -1392,9 +1392,9 @@ TEST(renderer_model, squirt_cache_keeps_collisions_loops_and_entity_incarnations
     uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = {0};
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxParticleEmitter_t emitter = {0};
-    renderEntity_t first = { .number = 1, .generation = 1 };
+    renderEntity_t first = { .number = 4, .generation = 1 };
     /* These entity numbers collide in the original 1,024-slot hash. */
-    renderEntity_t second = { .number = 16385, .generation = 1 };
+    renderEntity_t second = { .number = 704, .generation = 1 };
     viewDef_t saved = tr.viewDef;
     float burst = 2.0f;
 
