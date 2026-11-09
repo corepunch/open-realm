@@ -107,6 +107,7 @@ void UI_EditboxFocusOnHit(frameDef_t const *frame);
 void UI_EditboxClearFocusOnMiss(void);
 void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y);
 void UI_MapListScroll(frameDef_t const *frame, bool scroll_up);
+uint32_t UI_ClockMs(void);
 void UI_PopupCloseOnMiss(void);
 bool UI_PopupPointInside(float fdf_x, float fdf_y);
 void UI_PopupMenuScroll(bool scroll_up);
