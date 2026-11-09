@@ -54,13 +54,18 @@ If no legal near-side point is visible, or the live-unit crowd blocks the step,
 walk cycle in place; the queue/pass policy keeps retrying and the walk pose
 returns on the first accepted step.
 
-A worker that still cannot make meaningful progress for 20 consecutive ticks
-(less than a quarter of one movement step, and only while it is actually beside
-its tree) is reassigned again as a backstop for late arrivals and trees that
-filled up after the order. Regressions:
+After 20 ticks without improving its closest distance to the tree, a worker
+near the tree periodically searches for a replacement. The selected replacement
+is kept instead of applying the initial spreading policy a second time. If no
+replacement is available, the stalled counter is retained: the movement code
+waits rather than taking steps away from the tree and retries forward movement
+as nearby blockers change. This prevents a repeated two-position walk; it can
+leave a worker waiting when a successful detour would initially move away from
+its goal. Regressions:
 `wc3_lumber_crowd.group_ordered_to_one_tree_reaches_chop_range`,
 `wc3_lumber_crowd.crowded_tree_large_footprint_waits_without_marching`, and
-`wc3_lumber_crowd.crowded_tree_spreads_group_to_adjacent_trees`.
+`wc3_lumber_crowd.crowded_tree_spreads_group_to_adjacent_trees` (including
+an interval check for sustained oscillation).
 
 ## Why Queue Instead Of Alternating Lanes
 

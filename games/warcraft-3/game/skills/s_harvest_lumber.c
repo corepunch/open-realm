@@ -103,6 +103,7 @@ void harvest_walkback(edict_t *ent);
 void harvest_walk(edict_t *ent);
 
 void harvest_start(edict_t *self, edict_t *target);
+static void harvest_start_selected(edict_t *self, edict_t *target);
 void harvest_gold_start(edict_t *self, edict_t *target);
 
 static int harvest_path_debug_level(void) {
@@ -680,18 +681,17 @@ static void ai_walktree(edict_t *ent) {
                 ent->movement->last_distance = distance;
                 ent->movement->blocked_frames = 0;
             } else if (++ent->movement->blocked_frames >= HARVEST_CROWD_RETARGET_TICKS &&
+                       ent->movement->blocked_frames % HARVEST_CROWD_RETARGET_TICKS == 0 &&
                        distance <= range * 1.5f) {
-                /* Only consider a reassignment while the worker is actually at
-                 * the crowded tree.  Once it has been sent to an adjacent tree
-                 * a bad local block must not bounce it between neighbours. */
+                /* Keep the stalled watermark if no alternative exists, so the
+                 * worker waits instead of restarting its oscillation. */
                 edict_t *other = find_adjacent_harvest_tree(ent, ent->goalentity);
-                ent->movement->blocked_frames = 0;
                 if (other) {
                     HARVEST_PATH_LOG(1,
                         "crowd-retarget worker=%d old=%d new=%d pos=(%.1f,%.1f)\n",
                         ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1,
                         other->s.number, ent->s.origin2.x, ent->s.origin2.y);
-                    harvest_start(ent, other);
+                    harvest_start_selected(ent, other);
                     return;
                 }
             }
@@ -871,8 +871,6 @@ void harvest_walkback(edict_t *ent) {
 void CMD_Harvest(edict_t *ent);
 
 void harvest_start(edict_t *self, edict_t *target) {
-    harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
-
     /* Plan ahead instead of waiting for the crowd: if the clicked tree already
      * has enough workers, this worker goes straight to a nearby tree. */
     if (target && target->targtype == TARG_TREE && !M_IsDead(target) &&
@@ -880,7 +878,13 @@ void harvest_start(edict_t *self, edict_t *target) {
         edict_t *other = find_adjacent_harvest_tree(self, target);
         if (other) target = other;
     }
+    harvest_start_selected(self, target);
+}
 
+/* A crowd replacement is already selected; do not apply eager spreading a
+ * second time or it can immediately choose the failed tree again. */
+static void harvest_start_selected(edict_t *self, edict_t *target) {
+    harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
     self->orders->resource_goal = target;
     if ((self->harvest ? self->harvest->lumber : 0) >= tuning.lumber_capacity && (self->harvest ? self->harvest->lumber : 0) > 0) {
         harvest_walkback(self);
