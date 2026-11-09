@@ -372,6 +372,7 @@ BZ_ABILITY_PROC(CAbilityWeb);
 BZ_ABILITY_PROC(CAbilityDrunkenHaze);
 BZ_ABILITY_PROC(CAbilityBloodlust);
 BZ_ABILITY_PROC(CAbilityFaerieFire);
+BZ_ABILITY_PROC(CAbilityShadowSight);
 BZ_ABILITY_PROC(CAbilityRejuvination);
 BZ_ABILITY_PROC(CAbilityRoar);
 BZ_ABILITY_PROC(CAbilityFrenzy);

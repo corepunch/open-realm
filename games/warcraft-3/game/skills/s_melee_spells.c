@@ -7,6 +7,7 @@ static cstring_t melee_buff_fallback(uint32_t code) {
         { MAKEFOURCC('A', 'C', 'b', 'l'), "Bblo" },
         { MAKEFOURCC('A', 'C', 'b', 'b'), "Bblo" },
         { MAKEFOURCC('A', 'f', 'a', 'e'), "Bfae" },
+        { MAKEFOURCC('A', 's', 'h', 's'), "Bshs" },
         { MAKEFOURCC('A', 'b', 's', 'k'), "Bbsk" },
         { MAKEFOURCC('A', 'f', 'a', '2'), "Bfae" },
         { MAKEFOURCC('A', 'r', 'e', 'j'), "Brej" },
@@ -48,10 +49,11 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
                              WC3_STATUS_BUFF_TRANSFERABLE | WC3_STATUS_BUFF_TARGET_ART;
         G_SpawnStatusEffectTarget(status->code, st.entity, "origin");
     }
-    else if (status && status->code == MAKEFOURCC('B','f','a','e')) {
+    else if (status && (status->code == MAKEFOURCC('B','f','a','e') ||
+                        status->code == MAKEFOURCC('B','s','h','s'))) {
         status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
-        /* Bfae's numeric payload owns the casting player (+1, so zero is no
-         * reveal).  The buff's existing duration/removal lifecycle owns sight. */
+        /* The vision buff stores the casting player (+1, so zero is no reveal).
+         * Its existing duration/removal lifecycle owns sight. */
         status->data = caster->s.player < MAX_PLAYERS ? caster->s.player + 1 : 0;
     }
     else if (status && (status->code == MAKEFOURCC('B','r','e','j') ||
@@ -167,6 +169,35 @@ BZ_ABILITY_PROC(CAbilityFaerieFire) {
     case A_AUTOCAST_ON: return ent && ent->unit_state->autocast == code;
     case A_AUTOCAST_SET: return true;
     case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, false, false, 900.0f);
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* Wand of Shadowsight lends an enemy unit's sight to the item's owner for
+ * the authored buff duration, without applying Faerie Fire's armor penalty. */
+BZ_ABILITY_PROC(CAbilityShadowSight) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    abilityitem_t const *spell = call ? call->item : NULL;
+    uint32_t level = spell ? S_SpellLevel(ent, spell->code) : 1;
+    cstring_t buff = spell ? melee_buff(spell, level) : NULL;
+    switch (msg) {
+    case A_VALIDATE:
+        return spell && target.entity && S_SpellIsAliveTarget(target.entity) &&
+            S_SpellIsEnemy(ent, target.entity) && melee_status_capacity(ent, target.entity, spell);
+    case A_EXECUTE: {
+        heroabilitystatus_t *status;
+        float duration;
+        if (!spell || !target.entity || !buff) return false;
+        duration = S_SpellHeroDuration(spell->code, level, target.entity);
+        status = S_SpellApplyTimedTargetStatus(target.entity, spell->code, level, buff, duration);
+        if (status) {
+            status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL |
+                                 WC3_STATUS_BUFF_TRANSFERABLE;
+            status->data = ent && ent->s.player < MAX_PLAYERS ? ent->s.player + 1 : 0;
+        }
+        return status != NULL;
+    }
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
