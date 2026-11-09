@@ -112,30 +112,6 @@ TEST(retail_item_effect, pres_restores_authored_health_and_mana) {
     re_done(&f);
 }
 
-TEST(retail_item_effect, aisr_reduces_spell_damage_but_not_physical_damage) {
-    char const *ability_slk =
-        "ID;PWXL;N;EBB;Y3;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
-        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
-        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
-        "C;Y3;X1;K\"AIsr\"\nC;Y3;X2;K\"AIsr\"\nC;Y3;X3;K\"33\"\nE\n";
-    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
-        "C;Y2;X1;K\"brac\"\nC;Y2;X2;K\"AIsr\"\nC;Y2;X3;K\"true\"\nE\n";
-    retailEffectFixture_t f;
-    re_init(&f, ability_slk, items);
-    f.hero->health.value = 500;
-    re_equip(&f, "brac", 0);
-    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
-    T_FEQ(f.hero->health.value, 433, 0.001f);
-    T_Damage(f.hero, f.enemy, 30);
-    T_FEQ(f.hero->health.value, 403, 0.001f);
-    T_ASSERT(G_DropItem(f.hero, 0));
-    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
-    T_FEQ(f.hero->health.value, 303, 0.001f);
-    re_done(&f);
-}
-
 TEST(retail_item_effect, healing_salve_targets_friendly_unit_and_interrupts_on_damage) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y3;X10\n"
@@ -350,6 +326,35 @@ TEST(retail_item_effect, necklace_of_spell_immunity_protects_its_carrier) {
     T_FEQ(f.hero->health.value, 500, 0.001f);
     T_ASSERT(G_DropItem(f.hero, 0));
     T_ASSERT(!S_UnitSpellImmune(f.hero));
+    re_done(&f);
+}
+
+TEST(retail_item_effect, runed_bracers_reduce_spell_damage_from_authored_datab) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K\"6\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AIsr\"\nC;Y3;X2;K\"AIsr\"\n"
+        "C;Y3;X3;K\"0\"\nC;Y3;X4;K\"0.33\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"brac\"\nC;Y2;X2;K\"AIsr\"\nC;Y2;X3;K\"1\"\nE\n";
+    retailEffectFixture_t f;
+    float held_damage, unheld_damage;
+    re_init(&f, ability_slk, items);
+    re_equip(&f, "brac", 0);
+    T_FEQ(S_ItemSpellDamageReduction(f.hero), 0.33f, 0.001f);
+    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
+    held_damage = 500.0f - f.hero->health.value;
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_FEQ(S_ItemSpellDamageReduction(f.hero), 0.0f, 0.001f);
+    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
+    unheld_damage = 500.0f - held_damage - f.hero->health.value;
+    T_FEQ(held_damage / unheld_damage, 0.67f, 0.02f);
     re_done(&f);
 }
 
