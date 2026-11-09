@@ -91,6 +91,27 @@ static uint32_t const orb_codes[] = {
     ID_ORB_FIRE, ID_ORB_LIGHTNING, ID_ORB_FROST, ID_ORB_POISON, ID_ORB_CORRUPTION, ID_ORB_FREEZE,
 };
 
+/* Held AIsr bracers reduce spell damage by their authored percentage. Use the
+ * strongest carried reduction once; duplicate item copies do not compound. */
+float S_ItemSpellDamageReduction(edict_t const *unit) {
+    float reduction = 0.0f;
+    if (!unit || !G_InventoryCanUseItems(unit)) return 0.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *item = G_InventoryItem((edict_t *)unit, slot);
+        cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            uint32_t const code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            float amount;
+            if (code != MAKEFOURCC('A','I','s','r')) continue;
+            amount = S_SpellData(code, 1, 1);
+            if (amount > 1.0f) amount *= 0.01f;
+            reduction = MAX(reduction, MIN(1.0f, MAX(0.0f, amount)));
+        }
+    }
+    return reduction;
+}
+
 static cstring_t orb_buff(uint32_t code) {
     static struct { uint32_t code; cstring_t buff; } const fallback[] = {
         { ID_ORB_FROST, "Bfro" },

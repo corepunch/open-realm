@@ -112,6 +112,30 @@ TEST(retail_item_effect, pres_restores_authored_health_and_mana) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, aisr_reduces_spell_damage_but_not_physical_damage) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
+        "C;Y3;X1;K\"AIsr\"\nC;Y3;X2;K\"AIsr\"\nC;Y3;X3;K\"33\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"brac\"\nC;Y2;X2;K\"AIsr\"\nC;Y2;X3;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    f.hero->health.value = 500;
+    re_equip(&f, "brac", 0);
+    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
+    T_FEQ(f.hero->health.value, 433, 0.001f);
+    T_Damage(f.hero, f.enemy, 30);
+    T_FEQ(f.hero->health.value, 403, 0.001f);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_ASSERT(S_SpellDamage(f.hero, f.enemy, 100));
+    T_FEQ(f.hero->health.value, 303, 0.001f);
+    re_done(&f);
+}
+
 /* BIcb is currently a timed state without an armor consumer. Verify that the
  * held retail orb applies and expires its authored corruption status. */
 TEST(retail_item_effect, ocor_applies_timed_corruption_status) {

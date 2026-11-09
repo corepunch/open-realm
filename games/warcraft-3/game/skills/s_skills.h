@@ -598,6 +598,7 @@ void S_PoisonOnHit(edict_t *attacker, edict_t *target);
 float S_SlowPoisonMoveReduction(edict_t const *unit);
 float S_SlowPoisonAttackReduction(edict_t const *unit);
 void S_OrbOnHit(edict_t *attacker, edict_t *target);
+float S_ItemSpellDamageReduction(edict_t const *unit);
 float S_BarkskinArmorBonus(edict_t const *unit);
 float S_ManaFlareArmorBonus(edict_t const *unit);
 bool S_ManaFlareActive(edict_t const *unit);

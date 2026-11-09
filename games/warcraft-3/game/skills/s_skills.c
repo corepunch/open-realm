@@ -376,7 +376,7 @@ static ability_t abilitylist[] = {
     { "Ablp", CAbilityItemBlight, AB_SPELL, SPELL_TARGET_POINT }, /* Sacrificial Skull / Blight Placement */
     // TODO: Aste a_figurine_rock_golem  /* Steal */
     // TODO: AIpv a_item_mana_restore_aoe  /* Vampiric Potion */
-    // TODO: AIsr a_item_speed  /* Spell Damage Reduction */
+    { "AIsr", CAbilityPassive, 0 },  /* Item Spell Damage Reduction */
     { "AIbl", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Castle */
     { "AIbg", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Great Hall */
     { "AIbt", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Scout Tower */
