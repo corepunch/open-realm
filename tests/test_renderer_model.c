@@ -1388,6 +1388,38 @@ TEST(renderer_model, mdx_one_shot_emitter_stops_only_after_final_frame_is_held) 
     tr.viewDef = saved;
 }
 
+TEST(renderer_model, squirt_cache_keeps_collisions_loops_and_entity_incarnations_separate) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxParticleEmitter_t emitter = {0};
+    renderEntity_t first = { .number = 1, .generation = 1 };
+    /* These entity numbers collide in the original 1,024-slot hash. */
+    renderEntity_t second = { .number = 16385, .generation = 1 };
+    viewDef_t saved = tr.viewDef;
+    float burst = 2.0f;
+
+    track->keyframeCount = 1; track->datatype = TDATA_FLOAT1; track->linetype = TRACK_LINEAR;
+    track->values[0].time = 50;
+    memcpy(track->values[0].data, &burst, sizeof(burst));
+    emitter.keytracks.EmissionRate = track;
+    MDLX_ResetSquirtCache(); tr.viewDef.time = 100;
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 0), 0, 0.001f);
+    T_FEQ(MDLX_TestSquirtCount(&second, &emitter, 0), 0, 0.001f);
+    tr.viewDef.time++;
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 2, 0.001f);
+    T_FEQ(MDLX_TestSquirtCount(&second, &emitter, 100), 2, 0.001f);
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 0, 0.001f);
+    tr.viewDef.time += 2000;
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 0, 0.001f);
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 0), 0, 0.001f);
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 2, 0.001f);
+    first.generation++;
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 2, 0.001f);
+    MDLX_ResetSquirtCache();
+    T_FEQ(MDLX_TestSquirtCount(&first, &emitter, 100), 2, 0.001f);
+    MDLX_ResetSquirtCache(); tr.viewDef = saved;
+}
+
 TEST(renderer_model, mdx_paused_worker_construction_does_not_spawn_particles) {
     mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1,
         .EmissionRate = 50, .Speed = 1, .Alpha = {255, 255, 255},

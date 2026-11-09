@@ -94,20 +94,47 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
 /* Squirt emitters: EmissionRate is a particle COUNT fired once when its key is reached, not a rate
  * (ThunderClapCaster's ring is 109 particles at one key; as a rate it gave about 20 sparks). Models
  * are shared, so the last sampled frame is remembered per entity+emitter. */
-typedef struct { uintptr_t key; float frame; uint32_t time; } mdxSquirtSlot_t;
+typedef struct {
+    mdxParticleEmitter_t const *emitter;
+    uintptr_t instance_id;
+    uint32_t number, generation;
+    float frame;
+    uint32_t time;
+} mdxSquirtSlot_t;
 static mdxSquirtSlot_t squirt_slots[1024];
+
+void MDLX_ResetSquirtCache(void) { memset(squirt_slots, 0, sizeof(squirt_slots)); }
 
 static float MDLX_SquirtCount(renderEntity_t const *entity, mdxParticleEmitter_t const *emitter, float frame) {
     mdxKeyTrack_t const *track = emitter->keytracks.EmissionRate;
-    uintptr_t const key = ((uintptr_t)emitter) ^ ((uintptr_t)entity->number * 2654435761u);
-    mdxSquirtSlot_t *slot = squirt_slots + (key >> 4) % (sizeof(squirt_slots) / sizeof(*squirt_slots));
+    uintptr_t const hash = (uintptr_t)emitter ^ ((uintptr_t)entity->number * 2654435761u) ^ entity->instance_id;
     uint32_t const now = tr.viewDef.time;
-    bool const fresh = slot->key != key || now - slot->time > 1000u;
-    float const previous = fresh ? frame : slot->frame;
-    float count = 0.0f;
+    uint32_t const count_slots = sizeof(squirt_slots) / sizeof(*squirt_slots);
+    mdxSquirtSlot_t *slot = NULL, *oldest = NULL;
+    uint32_t oldest_age = 0;
+    bool fresh;
+    float previous, count = 0.0f;
     uint32_t stride;
 
-    slot->key = key; slot->frame = frame; slot->time = now;
+    /* Probe collisions instead of treating another emitter as a fresh sample.
+     * Incarnation and instance identity keep reused edicts and UI models apart. */
+    FOR_LOOP(i, count_slots) {
+        mdxSquirtSlot_t *candidate = squirt_slots + (((hash >> 4) + i) % count_slots);
+        uint32_t const age = now - candidate->time;
+        if (!candidate->emitter ||
+            (candidate->emitter == emitter && candidate->number == entity->number &&
+             candidate->generation == entity->generation && candidate->instance_id == entity->instance_id)) {
+            slot = candidate;
+            break;
+        }
+        if (!oldest || age > oldest_age) { oldest = candidate; oldest_age = age; }
+    }
+    if (!slot) slot = oldest;
+    fresh = slot->emitter != emitter || slot->number != entity->number ||
+            slot->generation != entity->generation || slot->instance_id != entity->instance_id;
+    previous = fresh ? frame : slot->frame;
+    slot->emitter = emitter; slot->number = entity->number; slot->generation = entity->generation;
+    slot->instance_id = entity->instance_id; slot->frame = frame; slot->time = now;
     if (!track || !track->keyframeCount || track->datatype != TDATA_FLOAT1) return 0.0f;
     stride = sizeof(int) + sizeof(float) * (track->linetype > TRACK_LINEAR ? 3 : 1);
     FOR_LOOP(i, track->keyframeCount) {
@@ -123,6 +150,12 @@ static float MDLX_SquirtCount(renderEntity_t const *entity, mdxParticleEmitter_t
     }
     return count;
 }
+
+#ifdef BZ_TESTS
+float MDLX_TestSquirtCount(renderEntity_t const *entity, mdxParticleEmitter_t const *emitter, float frame) {
+    return MDLX_SquirtCount(entity, emitter, frame);
+}
+#endif
 
 /* Only one-shot animations stop emitting when held on their final frame.
  * Still emit from idle/Stand loops with equal snapshot frames (e.g. waterfalls

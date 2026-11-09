@@ -604,6 +604,7 @@ static uint32_t R_W3ReadMapInfoFlags(handle_t archive) {
 void _W3M_ClearMap(void) {
     texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
+    MDLX_ResetSquirtCache();
     R_ResetCliffSplatIndex();
     R_FreeMapSegments();
     R_FreeMapLayers(&g_groundLayers);

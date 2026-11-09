@@ -578,6 +578,10 @@ void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float 
 
 texture_t const *MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *, uint32_t);
 void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
+void MDLX_ResetSquirtCache(void);
+#ifdef BZ_TESTS
+float MDLX_TestSquirtCount(renderEntity_t const *, mdxParticleEmitter_t const *, float);
+#endif
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
 void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nverts,
                           mdxMaterial_t const *material, uint32_t team);
