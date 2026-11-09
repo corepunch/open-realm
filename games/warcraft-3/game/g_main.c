@@ -554,13 +554,11 @@ static handle_t G_ReadGameDataFile(cstring_t filename, uint32_t *size) {
     if (!size) size = &ignored_size;
     /* Anything the map itself ships wins: War3Patch carries Custom_V1\\Units\\*.slk, and those used
      * to replace the map's own tables, so its custom units lost every balance/UI row (0 HP). */
-    if (gi.ReadPriorityFile) {
-        if (game.data_prefix[0]) {
-            snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
-            if ((data = gi.ReadPriorityFile(path, size))) return data;
-        }
-        if ((data = gi.ReadPriorityFile(filename, size))) return data;
+    if (game.data_prefix[0]) {
+        snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
+        if ((data = gi.ReadPriorityFile(path, size))) return data;
     }
+    if ((data = gi.ReadPriorityFile(filename, size))) return data;
     if (game.data_prefix[0]) {
         snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
         data = gi.ReadFile(path, size);

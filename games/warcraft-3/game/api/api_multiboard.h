@@ -83,9 +83,14 @@ uint32_t MultiboardSetTitleText(jass_t *j) {
     return 0;
 }
 
-/* Multiboards have one fixed title color for now; accept the call so the calling thread keeps running. */
+/* TODO: transport and render the title color. Keep scripts running until the HUD supports it. */
 uint32_t MultiboardSetTitleTextColor(jass_t *j) {
+    static bool warned;
     (void)j;
+    if (!warned) {
+        warned = true;
+        fprintf(stderr, "WC3: MultiboardSetTitleTextColor is not implemented; ignoring\n");
+    }
     return 0;
 }
 /* Every Blizzard.j MultiboardSetItem*BJ reads these; a missing native aborted the calling thread. */
