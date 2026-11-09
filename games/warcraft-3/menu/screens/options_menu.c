@@ -145,7 +145,7 @@ static void OptionsMenu_SetPopupItems(frameDef_t *popup,
     OptionsMenu_SetPopupTitle(popup, UI_GetString(items[selected].text));
 }
 
-static bool health_bars_value; /* Gameplay > Health Bars <-> cl_healthbars */
+static bool health_bars_value; /* Gameplay > Health Bars <-> cl_entity_overlay_default */
 
 static int OptionsMenu_CvarInteger(cstring_t name, int fallback) {
     cstring_t value = mi.Cvar_String(name, NULL);
@@ -431,7 +431,7 @@ static void OptionsMenu_InitGameplayMenus(void) {
     };
 
     OptionsMenu_InitGamePortEditBox();
-    health_bars_value = OptionsMenu_CvarInteger("cl_healthbars", 0) != 0;
+    health_bars_value = OptionsMenu_CvarInteger("cl_entity_overlay_default", 0) != 0;
     OptionsMenu_SetCheckBox(options_menu.HealthBarsCheckBox, health_bars_value);
     OptionsMenu_SetPopupItems(options_menu.ChatSupportMenu,
                               options_menu.ChatSupportPopupMenuMenu,
@@ -499,7 +499,7 @@ static void OptionsMenu_RefreshHealthBars(void) {
     bool const checked = OptionsMenu_CheckBoxValue(options_menu.HealthBarsCheckBox, health_bars_value);
     if (checked == health_bars_value) return;
     health_bars_value = checked;
-    mi.Cvar_Set("cl_healthbars", checked ? "1" : "0");
+    mi.Cvar_Set("cl_entity_overlay_default", checked ? "1" : "0");
 }
 
 static void OptionsMenu_Refresh(int msec) {

@@ -347,6 +347,25 @@ TEST(client_layout, context_mana_zero_is_still_present) {
     T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
 }
 
+TEST(client_layout, entity_overlay_uses_authored_mana_and_suppresses_labels) {
+    float value = -1.0f;
+    uiFrame_t name = { .stat = UI_STAT_CONTEXT_NAME };
+    uiFrame_t cargo = { .flags.type = FT_SEGMENTED_STATUSBAR, .stat = ENT_CARGO };
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .name = 1, .flags = EF_HOVER_HEALTH | EF_OVERLAY_MANA,
+        .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 128 },
+    };
+    T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_MANA, &value));
+    SCR_SetEntityOverlayContext(true);
+    T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_MANA, &value));
+    T_FEQ(value, 128.0f / 255.0f, 0.0001f);
+    T_ASSERT(!SCR_LayoutContextFrameVisible(&name));
+    T_ASSERT(!SCR_LayoutContextFrameVisible(&cargo));
+    SCR_SetEntityOverlayContext(false);
+    T_ASSERT(SCR_LayoutContextFrameVisible(&name));
+}
+
 TEST(client_layout, hover_mana_backdrop_draws_at_empty_pool) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_MANA, .tex = { .index = 1 } };
     rect_t screen = MAKE(rect_t, 0.1f, 0.2f, 0.4f, 0.05f);

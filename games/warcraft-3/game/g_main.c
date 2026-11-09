@@ -2358,7 +2358,8 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         !(state->flags & EF_NOT_SELECTABLE) &&
         G_FowPlayerCanHoverEntity(player, ent);
 
-    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED);
+    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED |
+                      EF_OVERLAY_A | EF_OVERLAY_B | EF_OVERLAY_C | EF_OVERLAY_MANA);
     state->name = state->flags & EF_NAMED_ATTACHMENT ? ent->s.name : 0;
     state->hover_value = state->flags & EF_NAMED_ATTACHMENT ? ent->s.hover_value : 0;
     state->stats[ENT_CARGO] = 0;
@@ -2421,6 +2422,14 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             if (relation == SELECT_RELATION_NEUTRAL && hoverable)
                 state->flags |= EF_NEUTRAL;
         }
+    }
+    if (hoverable && (state->flags & EF_UNIT)) {
+        selectionRelation_t const relation = G_SelectionRelation(player, ent);
+        if (relation == SELECT_RELATION_ENEMY) state->flags |= EF_OVERLAY_B;
+        else if (relation == SELECT_RELATION_NEUTRAL && !G_PlayerTreatsPlayerAsAlly(player, ent->s.player))
+            state->flags |= EF_OVERLAY_C;
+        else state->flags |= EF_OVERLAY_A;
+        if (ent->mana.max_value > 0.0f) state->flags |= EF_OVERLAY_MANA;
     }
     if (hoverable) {
         uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);

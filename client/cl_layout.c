@@ -8,6 +8,8 @@
 static uiFrame_t frames[MAX_LAYOUT_OBJECTS];
 static uint32_t num_frames = 0;
 static uint32_t layout_runtime_layer = MAX_LAYOUT_LAYERS;
+static bool entity_overlay_context;
+void SCR_SetEntityOverlayContext(bool active) { entity_overlay_context = active; }
 static struct {
     rect_t rect;
     bool calculated;
@@ -235,7 +237,7 @@ bool SCR_LayoutContextValue(uint32_t stat, float *value) {
             *value = ent->stats[ENT_HEALTH] / 255.0f;
             break;
         case UI_STAT_CONTEXT_MANA:
-            if (!(ent->flags & EF_HOVER_MANA)) return false;
+            if (!(ent->flags & (entity_overlay_context ? EF_OVERLAY_MANA : EF_HOVER_MANA))) return false;
             *value = ent->stats[ENT_MANA] / 255.0f;
             break;
         default:
@@ -253,6 +255,8 @@ bool SCR_LayoutContextFrameVisible(uiFrame_t const *frame) {
 
     if (!frame) return false;
     if (!SCR_LayoutEntityContextActive()) return true;
+    if (entity_overlay_context && (frame->stat == UI_STAT_CONTEXT_NAME ||
+                                   frame->flags.type == FT_SEGMENTED_STATUSBAR)) return false;
     if (frame->stat == UI_STAT_CONTEXT_NAME) {
         ent = SCR_LayoutContextEntity();
         return ent && ent->name;

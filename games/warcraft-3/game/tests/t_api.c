@@ -5908,6 +5908,25 @@ TEST(wc3_api, customize_entity_publishes_empty_acar_capacity_for_hover) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_api, entity_overlay_categories_exclude_scenery_and_author_mana) {
+    entityState_t state = { .number = 7, .model = 11, .flags = EF_UNIT };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 0, .flags = EF_UNIT } };
+    ent.health.value = ent.health.max_value = 100.0f;
+    ent.mana.value = 0; ent.mana.max_value = 50;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_OVERLAY_A); T_ASSERT(state.flags & EF_OVERLAY_MANA);
+    T_ASSERT(!(state.flags & (EF_OVERLAY_B | EF_OVERLAY_C)));
+    ent.s.player = 2; state.flags = EF_UNIT;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_OVERLAY_B); T_ASSERT(!(state.flags & EF_OVERLAY_A));
+    ent.s.player = PLAYER_NEUTRAL_PASSIVE; state.flags = EF_UNIT;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_OVERLAY_C);
+    state.flags = 0; /* Scenery can expose a hover health bar without being a unit. */
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & (EF_OVERLAY_A | EF_OVERLAY_B | EF_OVERLAY_C | EF_OVERLAY_MANA)));
+}
+
 TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };

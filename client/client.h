@@ -304,7 +304,9 @@ uint32_t CL_MinimapRecentCount(void);
 /* World-hover targeting and UI_STAT_CONTEXT_* name/vital bindings share this
  * snapshot gate so a stale hover cannot keep a name after death or flag loss.
  * Invulnerable units may publish a name with neither bar flag. */
-bool CL_AltHeld(void);
+uint32_t CL_EntityOverlayMask(void);
+bool CL_EntityOverlayAllHeld(void);
+void SCR_SetEntityOverlayContext(bool active);
 
 static inline bool CL_EntityAllowsWorldHover(entityState_t const *state) {
     return state && state->model &&

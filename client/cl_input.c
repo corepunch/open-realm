@@ -16,6 +16,8 @@ static struct {
 } camera_drag;
 
 static bool smart_click_active;
+static bool overlay_a, overlay_b;
+static uint32_t overlay_all_keys;
 static bool gamepad_unready_reset;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
 #define CL_GAMEPAD_RADIAL_HOLD_MS 250 // milliseconds; Y taps open, holds confirm the focused radial command
@@ -1141,6 +1143,7 @@ void CL_ResetInput(void) {
     if (input.sent && cls.state == ca_active)
         CL_SendInput(&(inputCmd_t){ .action = BZ_INPUT_MOVE });
     input.buttons = input.sent = 0;
+    overlay_a = overlay_b = false; overlay_all_keys = 0;
     cl.camera_prediction.active = cl.camera_prediction.view = false;
     input.select = input.look = camera_drag.active = smart_click_active = false;
     input.last_select_entity = input.last_select_ms = 0;
@@ -1177,9 +1180,24 @@ static void CL_InputFrame(void) {
     CL_ScrollFrame();
 }
 
-/* Holding Alt shows every visible unit's health bar (SCR_DrawUnitHealthBars). */
-bool CL_AltHeld(void) {
-    return (SDL_GetModState() & KMOD_ALT) != 0;
+/* Generic local display categories; each game authors eligible entities and binds controls. */
+static void IN_OverlayADown(void) { overlay_a = true; }
+static void IN_OverlayAUp(void) { overlay_a = false; }
+static void IN_OverlayBDown(void) { overlay_b = true; }
+static void IN_OverlayBUp(void) { overlay_b = false; }
+static uint32_t CL_OverlayKeyBit(void) {
+    int key = atoi(Cmd_Argv(1));
+    return key == K_LALT ? 1u : key == K_RALT ? 2u : 4u;
+}
+static void IN_OverlayAllDown(void) { overlay_all_keys |= CL_OverlayKeyBit(); }
+static void IN_OverlayAllUp(void) { overlay_all_keys &= ~CL_OverlayKeyBit(); }
+bool CL_EntityOverlayAllHeld(void) { return overlay_all_keys != 0; }
+uint32_t CL_EntityOverlayMask(void) {
+    uint32_t mask = 0;
+    if (overlay_all_keys) return EF_OVERLAY_A | EF_OVERLAY_B | EF_OVERLAY_C;
+    if (overlay_a || Cvar_Integer("cl_entity_overlay_default", 0)) mask |= EF_OVERLAY_A;
+    if (overlay_b) mask |= EF_OVERLAY_B;
+    return mask;
 }
 
 static bool CL_OrderQueueModifierDown(void) {
@@ -1796,6 +1814,7 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
         { SDLK_HOME, K_HOME },
         { SDLK_END, K_END },
         { SDLK_KP_ENTER, K_ENTER },
+        { SDLK_LALT, K_LALT }, { SDLK_RALT, K_RALT },
     };
     if (sym >= SDLK_F1 && sym <= SDLK_F12)
         return (keyCode_t)(K_F1 + (sym - SDLK_F1));
@@ -1805,6 +1824,7 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
 }
 
 static void CL_InputKeyEvent(keyCode_t key, uint32_t mods, bool down, uint32_t time) {
+    if (key == K_LALT || key == K_RALT) mods &= ~KEY_MOD_ALT;
     Key_Event(key, mods, down, time);
     /* SDL may deliver a short press's down and up events in one poll pass;
      * execute each edge before the next event can cancel held camera state. */
@@ -2550,7 +2570,10 @@ void CL_InitInput(void) {
     Cvar_Get("cl_same_type_select", "0", 0);
     Cvar_Get("cl_group_focus", "1", 0);
     Cvar_Get("cl_hover_health_only", "1", 0);
-    Cvar_Get("cl_healthbars", "0", CVAR_ARCHIVE); /* Options: always show unit health bars */
+    Cvar_Get("cl_entity_overlay_default", "0", CVAR_ARCHIVE);
+    Cmd_AddCommand("+entityoverlaya", IN_OverlayADown); Cmd_AddCommand("-entityoverlaya", IN_OverlayAUp);
+    Cmd_AddCommand("+entityoverlayb", IN_OverlayBDown); Cmd_AddCommand("-entityoverlayb", IN_OverlayBUp);
+    Cmd_AddCommand("+entityoverlayall", IN_OverlayAllDown); Cmd_AddCommand("-entityoverlayall", IN_OverlayAllUp);
     Cvar_Get("cl_context_cursor", "0", 0);
     Cvar_Get("cl_look_command", "", 0);
     Cvar_Get("cl_move_mouse", "0", 0);
@@ -2918,6 +2941,44 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
     cl.playerstate.client_ui_state = old_ui;
     input.focus = old_focus;
     SDL_SetModState(old_mod);
+}
+
+TEST(client_input, entity_overlay_bindings_hold_categories_and_both_alt_keys) {
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    bool old_focus = input.focus, add = !Cmd_Exists("+entityoverlayall");
+    float old_default = Cvar_Value("cl_entity_overlay_default", 0);
+    char left[80], right[80], bracket[80];
+    strlcpy(left, Key_GetBinding(K_LALT, 0), sizeof(left));
+    strlcpy(right, Key_GetBinding(K_RALT, 0), sizeof(right));
+    strlcpy(bracket, Key_GetBinding('[', 0), sizeof(bracket));
+    if (add) {
+        Cmd_AddCommand("+entityoverlayall", IN_OverlayAllDown); Cmd_AddCommand("-entityoverlayall", IN_OverlayAllUp);
+        Cmd_AddCommand("+entityoverlaya", IN_OverlayADown); Cmd_AddCommand("-entityoverlaya", IN_OverlayAUp);
+    }
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input.focus = true; overlay_a = overlay_b = false; overlay_all_keys = 0;
+    Cvar_SetValue("cl_entity_overlay_default", 0);
+    Key_SetBinding(K_LALT, 0, "+entityoverlayall");
+    Key_SetBinding(K_RALT, 0, "+entityoverlayall");
+    Key_SetBinding('[', 0, "+entityoverlaya");
+    CL_InputKeyEvent('[', 0, true, 10); T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A);
+    CL_InputKeyEvent(K_LALT, KEY_MOD_ALT, true, 11);
+    CL_InputKeyEvent(K_RALT, KEY_MOD_ALT, true, 12);
+    T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A | EF_OVERLAY_B | EF_OVERLAY_C);
+    CL_InputKeyEvent(K_LALT, KEY_MOD_ALT, false, 13); T_ASSERT(CL_EntityOverlayAllHeld());
+    CL_InputKeyEvent(K_RALT, 0, false, 14); T_ASSERT(!CL_EntityOverlayAllHeld());
+    T_EQ(CL_EntityOverlayMask(), EF_OVERLAY_A);
+    CL_InputKeyEvent('[', 0, false, 15); T_EQ(CL_EntityOverlayMask(), 0);
+    T_EQ(CL_SDLKeyToKeyCode(SDLK_LALT), K_LALT);
+    T_EQ(CL_SDLKeyToKeyCode(SDLK_RALT), K_RALT);
+    Key_SetBinding(K_LALT, 0, left); Key_SetBinding(K_RALT, 0, right); Key_SetBinding('[', 0, bracket);
+    if (add) {
+        Cmd_RemoveCommand("+entityoverlayall"); Cmd_RemoveCommand("-entityoverlayall");
+        Cmd_RemoveCommand("+entityoverlaya"); Cmd_RemoveCommand("-entityoverlaya");
+    }
+    overlay_a = overlay_b = false; overlay_all_keys = 0;
+    Cvar_SetValue("cl_entity_overlay_default", old_default);
+    cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui; input.focus = old_focus;
 }
 
 TEST(client_input, message_mode_is_opened_by_game_binding) {

@@ -2393,45 +2393,36 @@ uint32_t SCR_GamepadFocusedSubgroup(uint32_t *entities, uint32_t capacity) {
     }
     return count;
 }
-/* Retail draws a health bar over every visible unit while Alt is held, or
- * always when Options > Gameplay > Health Bars is on. The hovered unit keeps
- * its own nameplate bar. Only units that publish a hover health bar qualify. */
-static void SCR_DrawUnitHealthBars(void) {
-    float const width = 0.045f, height = 0.008f;
-
-    bool const all = CL_AltHeld();
-
-    /* The option shows own and allied units; Alt shows every visible unit. */
-    if (!all && !Cvar_Integer("cl_healthbars", 0)) return;
+/* Draw the game-authored entity-context layout for its selected categories. */
+static void SCR_DrawEntityOverlays(void) {
+    uint32_t const mask = CL_EntityOverlayMask();
+    uint32_t const saved_hover = cl.hover_entity;
+    bool const all_held = CL_EntityOverlayAllHeld();
+    handle_t layout = layout_layers[LAYER_WORLD_HOVER];
+    if (!mask || !layout || ((1u << LAYER_WORLD_HOVER) & cl.playerstate.uiflags)) return;
+    SCR_SetEntityOverlayContext(true);
     FOR_LOOP(i, cl.viewDef.num_entities) {
         renderEntity_t const *render = &cl.viewDef.entities[i];
-        entityState_t const *state;
-        vec3_t top;
-        vec2_t screen;
-        float fraction;
-        color32_t color;
-
-        if (render->number >= MAX_CLIENT_ENTITIES || render->number == cl.hover_entity) continue;
-        state = &cl.ents[render->number].current;
-        if (!(state->flags & EF_HOVER_HEALTH) || !CL_EntityAllowsWorldHover(state)) continue;
-        if (!all && state->player != cl.playerstate.number && !(state->flags & EF_ALLIED)) continue;
-        if (!re.GetEntityOverheadPosition(render, &top) || !SCR_ProjectWorldPoint(&top, &screen)) continue;
-        fraction = MIN(1.0f, state->stats[ENT_HEALTH] / 255.0f);
-        /* Green when healthy, through yellow, to red when nearly dead. */
-        color = fraction > 0.5f
-            ? MAKE(color32_t, (uint8_t)(510.0f * (1.0f - fraction)), 220, 40, 255)
-            : MAKE(color32_t, 230, (uint8_t)(440.0f * fraction), 40, 255);
-        re.DrawFill(&MAKE(rect_t, screen.x - width * 0.5f, screen.y - height, width, height),
-                    MAKE(color32_t, 0, 0, 0, 220));
-        re.DrawFill(&MAKE(rect_t, screen.x - width * 0.5f + 0.001f, screen.y - height + 0.001f,
-                          (width - 0.002f) * fraction, height - 0.002f), color);
+        rect_t root;
+        if (!render->number || render->number >= MAX_CLIENT_ENTITIES ||
+            (!all_held && render->number == saved_hover) ||
+            !(cl.ents[render->number].current.flags & mask)) continue;
+        cl.hover_entity = render->number;
+        layout_current_window = false;
+        layout_current_layer = LAYER_WORLD_HOVER;
+        SCR_ClearLayer(layout, LAYER_WORLD_HOVER);
+        if (!SCR_LayoutWorldHoverRoot(&root)) continue;
+        SCR_SetLayoutRoot(&root);
+        SCR_LayoutDrawOverlay(layout);
     }
+    cl.hover_entity = saved_hover;
+    SCR_SetEntityOverlayContext(false);
 }
 
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
     SCR_BeginSelectedEntityDraw();
-    SCR_DrawUnitHealthBars();
+    SCR_DrawEntityOverlays();
 
     /* Script panels (multiboard, leaderboard, timers) go under the HUD layers: the command card's
      * tooltip is drawn in its own layer and has to stay readable above a multiboard. */
@@ -2439,6 +2430,7 @@ void SCR_DrawLayout(void) {
         uint32_t flags = cl.playerstate.uiflags;
         if ((layer >= LAYER_GAME_0) != (pass == 0)) continue;
         if (layer == LAYER_LOADING) continue;
+        if (layer == LAYER_WORLD_HOVER && CL_EntityOverlayAllHeld()) continue;
         if (layer == LAYER_CLIENT_MESSAGE && !CL_ChatActive()) continue;
         if ((1 << layer) & flags) continue;
         handle_t layout = layout_layers[layer];

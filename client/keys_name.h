@@ -29,6 +29,7 @@ static keyname_t const key_names[] = {
     { "LEFT", K_LEFTARROW }, { "RIGHT", K_RIGHTARROW },
     { "PAGEUP", K_PAGEUP }, { "PAGEDOWN", K_PAGEDOWN },
     { "PGUP", K_PAGEUP }, { "PGDN", K_PAGEDOWN },
+    { "LALT", K_LALT }, { "RALT", K_RALT },
     { "MOUSE1", K_MOUSE1 },
     { "MOUSE2", K_MOUSE2 },
     { "MOUSE3", K_MOUSE3 },
