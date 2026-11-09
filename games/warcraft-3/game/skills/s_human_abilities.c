@@ -578,7 +578,8 @@ void human_ability_think(edict_t *thinker) {
     uint32_t now = G_Time();
     edict_t *target;
     heroabilitystatus_t *slot;
-    if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
+    if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare ||
+        S_AbilityItem(thinker->class_id).ability->proc == CAbilityItemDetectAoe) {
         edict_t *owner = S_SpellChannelOwner(thinker);
         if (now >= thinker->spawn_time || !owner) { G_FreeEdict(thinker); return; }
         G_FowSetStateRadius(&(fogWrite_t){ owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
