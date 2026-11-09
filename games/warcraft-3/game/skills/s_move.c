@@ -628,6 +628,18 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
  * disagreed with the heading unit_changeangle had already chosen and re-decided
  * a different direction every tick — that disagreement is what made units
  * visibly rotate/wobble and crab sideways past each other and trees. */
+/* A lumber worker which has made no approach progress for a prolonged
+ * interval waits instead of repeatedly stepping away from its tree. A newly
+ * opened forward step is retried each frame and resumes the existing order. */
+static bool move_lumber_reverses_step(edict_t const *self, vec2_t const *point, float step) {
+    (void)step;
+    if (!self->orders || !self->goalentity || self->orders->resource_goal != self->goalentity ||
+        self->goalentity->targtype != TARG_TREE || !self->movement ||
+        self->movement->blocked_frames < 20) return false;
+    return Vector2_distance(point, &self->goalentity->s.origin2) >=
+        Vector2_distance(&self->s.origin2, &self->goalentity->s.origin2) - 0.01f;
+}
+
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
     if (self->aiflags & AI_IMMOBILE) return;
@@ -700,6 +712,7 @@ static void unit_moveindirection_policy(edict_t *self,
     /* A lagging facing is useful while turning around an obstacle, but it must
      * not carry a unit away from the heading selected by the route solver. */
     if (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress &&
+        !move_lumber_reverses_step(self, &by_facing, dist) &&
         move_is_valid_policy(self, &by_facing, collision_policy, true)) {
         unit_commit_step(self, &by_facing);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
@@ -707,7 +720,8 @@ static void unit_moveindirection_policy(edict_t *self,
     }
     vec2_t const by_heading = Vector2_mad(&self->s.origin2, dist,
                                            &MAKE(vec2_t, cosf(self->movement->heading), sinf(self->movement->heading)));
-    if (move_is_valid_policy(self, &by_heading, collision_policy, true)) {
+    if (!move_lumber_reverses_step(self, &by_heading, dist) &&
+        move_is_valid_policy(self, &by_heading, collision_policy, true)) {
         unit_commit_step(self, &by_heading);
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
     } else {
@@ -834,7 +848,7 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
     edict_t *blocker;
     float max_deviation;
 
-    if (move_is_valid(self, &straight)) {
+    if (move_is_valid(self, &straight) && !move_lumber_reverses_step(self, &straight, dist)) {
         self->movement->worker_avoid_blocked_frames = 0;
         self->movement->worker_avoid_active = false;
         return goal_angle;
@@ -872,7 +886,7 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
                                              &MAKE(vec2_t, cosf(angle), sinf(angle)));
             if (unit_worker_lateral_deviation(self, &cand) > max_deviation)
                 continue;
-            if (move_is_valid(self, &cand)) {
+            if (!move_lumber_reverses_step(self, &cand, dist) && move_is_valid(self, &cand)) {
                 self->movement->worker_avoid_blocked_frames = 0;
                 return angle;
             }
@@ -902,7 +916,7 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
                     continue;
                 if (parallel < -retreat_cap)
                     continue;
-                if (move_is_valid(self, &cand)) {
+                if (!move_lumber_reverses_step(self, &cand, dist) && move_is_valid(self, &cand)) {
                     self->movement->worker_avoid_blocked_frames = 0;
                     return angle;
                 }

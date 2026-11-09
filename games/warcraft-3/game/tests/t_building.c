@@ -6782,17 +6782,17 @@ TEST(wc3_building, human_builder_works_from_inside_its_own_construction_site) {
     repair_build_primary(builder, building);
 
     T_ASSERT(builder->build == building);
-    T_ASSERT(building->construction->primary_builder == builder);
+    T_ASSERT(G_GetConstruction(building)->primary_builder == builder);
     /* No relocation: the worker is still on the site it walked to. */
     T_FEQ(builder->s.origin2.x, start.x, 0.001f);
     T_FEQ(builder->s.origin2.y, start.y, 0.001f);
     T_STREQ(builder->currentmove->animation, "stand work");
 
     /* The builder contributes construction progress from inside the site. */
-    progress = building->construction->progress;
+    progress = G_GetConstruction(building)->progress;
     health = building->health.value;
     FOR_LOOP(i, 4) builder->currentmove->think(builder);
-    T_ASSERT(building->construction->progress > progress);
+    T_ASSERT(G_GetConstruction(building)->progress > progress);
     T_ASSERT(building->health.value > health);
 
     building->pathtex = NULL;

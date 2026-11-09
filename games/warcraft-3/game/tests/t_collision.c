@@ -538,9 +538,9 @@ TEST(wc3_collision, location_order_cut_by_construction_waits_without_swaying) {
 
     site = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 600.0f, -600.0f);
     site->s.flags |= EF_BUILDING;
-    site->construction = G_AllocConstruction();
-    site->construction->paused = true;
-    site->construction->type = CONSTRUCTION_HUMAN;
+    G_AddConstruction(site);
+    G_GetConstruction(site)->paused = true;
+    G_GetConstruction(site)->type = CONSTRUCTION_HUMAN;
     site->stand = unit_stand;
     gi.LinkEntity(site);
 

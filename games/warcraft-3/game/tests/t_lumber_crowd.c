@@ -56,9 +56,9 @@ static edict_t *make_crowd_tree(float x, float y, int footprint_cells) {
                         (size_t)footprint_cells * footprint_cells * sizeof(color32_t);
 
     SP_monster_tree(tree);
-    if (!tree->destructable) tree->destructable = G_AllocDestructable();
-    assert(tree->destructable);
-    tree->destructable->item_table = (uint32_t)-1;
+    if (!G_GetDestructable(tree)) G_AddDestructable(tree);
+    assert(G_GetDestructable(tree));
+    G_GetDestructable(tree)->item_table = (uint32_t)-1;
     tree->targtype = TARG_TREE;
     tree->health.value = tree->health.max_value = 5000.0f;
     pathtex = gi.MemAlloc(size);
@@ -150,6 +150,8 @@ TEST(wc3_lumber_crowd, crowded_tree_spreads_group_to_adjacent_trees) {
     edict_t *trees[TREES];
     int distinct_goals = 0;
     int present_walking = 0;
+    vec2_t late_start[LUMBER_CROWD_WORKERS] = {0};
+    float late_travel[LUMBER_CROWD_WORKERS] = {0};
     float const saved_range = HARVEST_RANGE;
     float const saved_search_range = HARVEST_SEARCH_RANGE;
 
@@ -184,9 +186,20 @@ TEST(wc3_lumber_crowd, crowded_tree_spreads_group_to_adjacent_trees) {
 
     FOR_LOOP(tick, 320) {
         for (int i = 0; i < LUMBER_CROWD_WORKERS; i++) {
+            vec2_t const before = workers[i]->s.origin2;
+            if (tick == 220) late_start[i] = before;
             if (workers[i]->currentmove && workers[i]->currentmove->think)
                 workers[i]->currentmove->think(workers[i]);
+            if (tick >= 220)
+                late_travel[i] += Vector2_distance(&before, &workers[i]->s.origin2);
         }
+    }
+
+    /* Check a whole interval, not only the animation on the final tick: a
+     * worker oscillating between two points can happen to be standing then. */
+    for (int i = 0; i < LUMBER_CROWD_WORKERS; i++) {
+        float const displacement = Vector2_distance(&late_start[i], &workers[i]->s.origin2);
+        T_ASSERT(late_travel[i] < 190.0f || displacement > 38.0f);
     }
 
     for (int t = 0; t < TREES; t++) {
