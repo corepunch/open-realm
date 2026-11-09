@@ -610,6 +610,14 @@ void SP_CallSpawn(edict_t *edict) {
         return;
     edict->s.class_id = edict->class_id;
     G_BindEntityData(edict);
+    /* Propernames is a comma-separated Hero name pool. Choose an entry for
+     * every fresh Hero spawn, including map placements and JASS CreateUnit,
+     * while preserving a name that an earlier lifecycle step assigned. */
+    if (G_UnitIsHero(edict)) {
+        G_InitUnitState(edict);
+        if (!edict->unit_state->proper_name || !*edict->unit_state->proper_name)
+            edict->unit_state->proper_name = G_SelectHeroProperName(edict);
+    }
     if (edict->data.Doodads->id) {
         SP_SpawnDoodad(edict);
     } else if (edict->data.DestructableData->file) {
