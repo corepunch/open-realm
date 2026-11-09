@@ -13,7 +13,7 @@ used. Disconnecting it clears held controller inputs; another controller can be
 picked up when the input loop next runs.
 
 Controller buttons are keys bound in `config.cfg`, exactly like `MOUSE1`:
-`bind JOYA "+gp_a"`. Pads SDL recognizes use `JOYA JOYB JOYX JOYY JOYLB JOYRB
+`bind JOYA "+select"`. Pads SDL recognizes use `JOYA JOYB JOYX JOYY JOYLB JOYRB
 JOYLT JOYRT JOYSTART JOYBACK JOYLSTICK JOYRSTICK JOYDPUP JOYDPDOWN JOYDPLEFT
 JOYDPRIGHT`. A pad SDL has no mapping for is opened raw: its buttons are
 `AUX1`..`AUX32` (raw button index + 1), its hat is the D-pad, and on attach the
@@ -22,10 +22,13 @@ joystick config. `share/warcraft-3/pad_294b1001.cfg` is the unu controller;
 copy it for another pad and set `cl_joy_axis_leftx/lefty/rightx/righty` to the
 pad's raw stick axis indices. No mapping database is needed.
 
-The `+gp_<a|b|x|y|lb|rb|lt|rt|start|back|rstick|dpup|dpright|dpdown|dpleft>`
-commands are the controller verbs described below; bind any button to them or
-to any other command (`bind JOYY "cmd quickcamera"`). Bindings are saved with
-the rest of the config.
+Defaults: `JOYA` `+select` (same command as `MOUSE1`), `JOYX` `+smart` (as
+`MOUSE2`), `JOYB` `+cancel`, `JOYY` `+radial`, `JOYLB` `+statuspanel`, `JOYRB`
+`+selectvisible`, `JOYLT` `+selectremove`, `JOYRT` `+selectadd`, `JOYSTART`
+`+system`, `JOYBACK` `+escape`, `JOYRSTICK` `zoomdefault`, D-pad
+`+dpadup/right/down/left`. Bound to a controller key, `+select` and `+smart`
+use the controller route (virtual cursor, paint ring); rebind any button to any
+command (`bind JOYY "cmd quickcamera"`). Bindings are saved with the config.
 
 | Archived console cvar | Default | Meaning |
 |---|---:|---|
