@@ -79,6 +79,8 @@ void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
 void LAN_SelectMapIndex(uint32_t index);
 void LAN_OpenSelectedFolder(void);
+void LAN_ActivateSelectedMap(void);
+void LAN_ResetMapMemory(void);
 void LAN_PrepareSkirmish(void);
 uiMapListState_t *LAN_MapListState(void);
 bool LAN_MapListKeyEvent(int key);

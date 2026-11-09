@@ -1069,6 +1069,12 @@ static void GameSetup_KeyEvent(int key, bool down) {
     if (setup.skirmish && LAN_MapListKeyEvent(key)) {
         return;
     }
+    if (key == 27) { /* Escape leaves the screen, like the Cancel button (the LAN lobby returns to the LAN menu) */
+        bool const internet = !strcmp(mi.Cvar_String("online_mode", "0"), "1");
+
+        mi.Cmd_ExecuteText(setup.skirmish ? "menu_game\n" : internet ? "menu_online\n" : "menu_multiplayer\n");
+        return;
+    }
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
         GameSetup_SubmitChat();
     }

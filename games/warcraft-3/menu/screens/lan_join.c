@@ -18,6 +18,11 @@
 /* Menu key events carry engine key codes (client/keys.h), not SDL keycodes. */
 #define LAN_KEY_UP 140
 #define LAN_KEY_DOWN 141
+#define LAN_KEY_PAGEUP 144
+#define LAN_KEY_PAGEDOWN 145
+#define LAN_KEY_HOME 146
+#define LAN_KEY_END 147
+#define LAN_KEY_ESCAPE 27
 #include "../menu_screen.h"
 #include "../generated/local_multiplayer_join.h"
 #include "../generated/local_multiplayer_create.h"
@@ -44,6 +49,8 @@ typedef struct lan_join_state_s {
     uiMapListState_t maps;      /* rows of the folder being browsed */
     uiMapListState_t all_maps;  /* every map found under Maps */
     PATHSTR dir;                /* browsed folder relative to Maps, backslash separated */
+    PATHSTR last_dir;           /* folder and map of the LAN create list, kept between visits */
+    PATHSTR last_map;
     bool ready;
     frameDef_t *root;
     frameDef_t *join_button;
@@ -330,6 +337,22 @@ static bool LAN_FolderListed(uiMapListState_t const *list, cstring_t name) {
 
 static void LAN_UpdateControls(void);
 
+/* The LAN create list reopens at the last folder and map, as the original client does. */
+static void LAN_RememberSelection(void) {
+    if (lan.mode != LAN_MODE_CREATE) {
+        return;
+    }
+    snprintf(lan.last_dir, sizeof(lan.last_dir), "%s", lan.dir);
+    if (lan.maps.selected < lan.maps.count && lan.maps.items[lan.maps.selected].kind == UI_MAP_ITEM_MAP) {
+        snprintf(lan.last_map, sizeof(lan.last_map), "%s", lan.maps.items[lan.maps.selected].path);
+    }
+}
+
+void LAN_ResetMapMemory(void) {
+    lan.last_dir[0] = '\0';
+    lan.last_map[0] = '\0';
+}
+
 /* Reign of Chaos lists only .w3m maps; .w3x maps (Frozen Throne format) appear when the expansion is mounted.
  * Their folders stay visible, as in the original client. */
 static bool LAN_MapListed(uiMapListItem_t const *map) {
@@ -344,6 +367,7 @@ static bool LAN_MapListed(uiMapListItem_t const *map) {
 static void LAN_BuildMapView(cstring_t select_path) {
     uiMapListState_t *view = &lan.maps;
     uint32_t selected = UINT32_MAX;
+    uint32_t first_map = UINT32_MAX;
 
     memset(view, 0, sizeof(*view));
     if (lan.dir[0]) {
@@ -375,9 +399,12 @@ static void LAN_BuildMapView(cstring_t select_path) {
             selected = i;
             break;
         }
-        if (!select_path && selected == UINT32_MAX && view->items[i].kind == UI_MAP_ITEM_MAP) {
-            selected = i;
+        if (first_map == UINT32_MAX && view->items[i].kind == UI_MAP_ITEM_MAP) {
+            first_map = i;
         }
+    }
+    if (selected == UINT32_MAX) {
+        selected = first_map;
     }
     view->selected = selected == UINT32_MAX ? 0 : selected;
     LAN_EnsureRowVisible(view, LAN_MapRows());
@@ -407,6 +434,7 @@ void LAN_OpenSelectedFolder(void) {
         if (slash) *slash = '\0'; else lan.dir[0] = '\0';
         LAN_BuildMapView(left);
     }
+    LAN_RememberSelection();
     LAN_UpdateControls();
     GameSetup_MapSelectionChanged();
 }
@@ -433,7 +461,7 @@ static void LAN_LoadMaps(void) {
     memset(&lan.all_maps, 0, sizeof(lan.all_maps));
     LAN_LoadMapsWithExtension(".w3m");
     LAN_LoadMapsWithExtension(".w3x");
-    LAN_BuildMapView(NULL);
+    LAN_BuildMapView(lan.mode == LAN_MODE_CREATE && lan.last_map[0] ? lan.last_map : NULL);
     mi.Printf("LAN_LoadMaps: %d maps\n", (int)lan.all_maps.count);
 }
 
@@ -932,17 +960,32 @@ static void LANJoin_KeyEvent(int key, bool down) {
     if (!lan.ready || lan.mode == LAN_MODE_BROWSER || UI_EditHasFocus(lan.join_frames.PlayerNameEditBox)) {
         return;
     }
-    LAN_MapListKeyEvent(key);
+    if (!LAN_MapListKeyEvent(key) && key == LAN_KEY_ESCAPE && lan.mode == LAN_MODE_CREATE) {
+        mi.Cmd_ExecuteText(LAN_Internet() ? "menu_online\n" : "menu_multiplayer\n");
+    }
 }
 
-/* Enter opens a folder, Up/Down move the selection. Returns true when the key was used. */
+/* Accept the selected map (double click or Return): the single-player screen starts the game. */
+void LAN_ActivateSelectedMap(void) {
+    if (!LAN_SelectedMapPath()) {
+        return;
+    }
+    if (lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE) {
+        mi.Cmd_ExecuteText("menu_game_setup_start\n");
+    } else if (lan.mode == LAN_MODE_CREATE) {
+        mi.Cmd_ExecuteText("menu_lan_start\n"); /* on to the lobby, like the Create Game button */
+    }
+}
+
+/* Enter opens a folder or accepts a map, Up/Down move the selection. Returns true when the key was used. */
 bool LAN_MapListKeyEvent(int key) {
     if (!LAN_MapsAvailable()) {
         return false;
     }
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
         if (lan.maps.selected < lan.maps.count && lan.maps.items[lan.maps.selected].kind == UI_MAP_ITEM_MAP) {
-            return false;
+            LAN_ActivateSelectedMap();
+            return true;
         }
         LAN_OpenSelectedFolder();
         return true;
@@ -953,6 +996,25 @@ bool LAN_MapListKeyEvent(int key) {
     }
     if (key == LAN_KEY_DOWN) {
         LAN_SelectMapIndex(lan.maps.selected + 1);
+        return true;
+    }
+    if (lan.maps.count == 0) {
+        return false;
+    }
+    if (key == LAN_KEY_HOME) {
+        LAN_SelectMapIndex(0);
+        return true;
+    }
+    if (key == LAN_KEY_END) {
+        LAN_SelectMapIndex(lan.maps.count - 1);
+        return true;
+    }
+    if (key == LAN_KEY_PAGEUP) {
+        LAN_SelectMapIndex(lan.maps.selected > LAN_MapRows() ? lan.maps.selected - LAN_MapRows() : 0);
+        return true;
+    }
+    if (key == LAN_KEY_PAGEDOWN) {
+        LAN_SelectMapIndex(MIN(lan.maps.selected + LAN_MapRows(), lan.maps.count - 1));
         return true;
     }
     return false;
@@ -1053,6 +1115,7 @@ void LAN_SelectMapIndex(uint32_t index) {
     if (list->selected >= list->scroll + visible_rows) {
         list->scroll = list->selected - visible_rows + 1;
     }
+    LAN_RememberSelection();
     LAN_UpdateControls();
     GameSetup_MapSelectionChanged();
 }
@@ -1073,7 +1136,8 @@ void LAN_JoinSelectedGame(void) {
 /* Same-screen navigation still changes chrome. With animation ownership in
  * menu_main, rebuilding controls can reuse the normal initialization path. */
 static void LAN_ShowMode(lanMode_t mode) {
-    lan.dir[0] = '\0'; /* a freshly opened map list starts at the Maps root */
+    /* The single-player list starts at the Maps root; the LAN create list returns to where it was left. */
+    snprintf(lan.dir, sizeof(lan.dir), "%s", mode == LAN_MODE_CREATE ? lan.last_dir : "");
     lan.mode = mode;
     if (UI_GetCurrentScreen() == &lanJoinScreen) LANJoin_Init();
 }
