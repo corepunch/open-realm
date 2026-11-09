@@ -143,6 +143,23 @@ static void CL_GamepadResetHeld(void) {
 }
 
 #ifndef __EMSCRIPTEN__
+/* Pads SDL has no built-in mapping for (generic Bluetooth/USB HID gamepads)
+ * are described in gamecontrollerdb.txt, one SDL mapping line per pad, as
+ * Quake 2 did with a config file per joystick. Run SDL's controllermap or
+ * tools/sdlpadtest.c to produce a line for a new pad. Must run before pads
+ * are opened. */
+static void CL_GamepadLoadMappings(void) {
+    string_t db = FS_ReadFileIntoString("gamecontrollerdb.txt");
+    int added = 0;
+    if (!db) return;
+    for (char *save = NULL, *line = strtok_r(db, "\r\n", &save); line; line = strtok_r(NULL, "\r\n", &save)) {
+        while (*line == ' ' || *line == '\t') line++;
+        if (*line && *line != '#' && SDL_GameControllerAddMapping(line) >= 0) added++;
+    }
+    fprintf(stderr, "%d controller mappings loaded from gamecontrollerdb.txt.\n", added);
+    FS_FreeFileString(db);
+}
+
 static void CL_GamepadOpen(int device_index) {
     if (gamepad.controller || !Cvar_Integer("cl_gamepad", 0) ||
         !SDL_IsGameController(device_index)) return;
@@ -2542,6 +2559,7 @@ void CL_InitInput(void) {
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #ifndef __EMSCRIPTEN__
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) == 0) {
+        CL_GamepadLoadMappings();
         SDL_GameControllerEventState(SDL_ENABLE);
         FOR_LOOP(i, SDL_NumJoysticks()) CL_GamepadOpen(i);
     }

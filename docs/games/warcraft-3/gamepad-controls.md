@@ -12,6 +12,12 @@ mapped USB/Bluetooth pads. Only the first compatible connected controller is
 used. Disconnecting it clears held controller inputs; another controller can be
 picked up when the input loop next runs.
 
+Pads SDL does not know (generic Bluetooth/USB HID gamepads) need a mapping
+line in `share/gamecontrollerdb.txt` (SDL's `gamecontrollerdb.txt` format, one
+pad per line, loaded at startup before controllers are opened, like Quake 2's
+per-joystick config files). Produce a line with SDL's `controllermap` utility
+or a guided probe that records each button, axis and hat.
+
 | Archived console cvar | Default | Meaning |
 |---|---:|---|
 | `cl_gamepad` | `1` (WC3) | Enable controller input; `0` disables it |
