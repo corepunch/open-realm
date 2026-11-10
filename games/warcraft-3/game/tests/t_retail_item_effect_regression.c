@@ -440,6 +440,56 @@ TEST(retail_item_effect, orb_of_slow_grants_air_attack_and_authored_slow_proc) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, orb_of_fire_splashes_full_attack_damage_to_nearby_enemies) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y1;X5;K\"DataD1\"\nC;Y1;X6;K\"DataE1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\n"
+        "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X8;K\"1\"\n"
+        "C;Y3;X1;K\"AIfb\"\nC;Y3;X2;K\"AIfb\"\nC;Y3;X3;K\"11\"\n"
+        "C;Y3;X6;K\"2\"\nC;Y3;X7;K\"80\"\nC;Y3;X8;K\"1\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"ofir\"\nC;Y2;X2;K\"AIfb\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *nearby, *outside, *ranged_nearby, *ally;
+    re_init(&f, ability_slk, items);
+    f.enemy->s.origin2 = (vec2_t){ 64, 0 };
+    nearby = alloc_test_unit(FS_SLKKey("hfoo"), 110, 0);
+    outside = alloc_test_unit(FS_SLKKey("hfoo"), 180, 0);
+    ranged_nearby = alloc_test_unit(FS_SLKKey("hfoo"), 240, 0);
+    ally = alloc_test_unit(FS_SLKKey("hfoo"), 100, 20);
+    nearby->s.player = outside->s.player = ranged_nearby->s.player = 1;
+    ally->s.player = 0;
+    nearby->svflags |= SVF_MONSTER;
+    outside->svflags |= SVF_MONSTER;
+    ranged_nearby->svflags |= SVF_MONSTER;
+    ally->svflags |= SVF_MONSTER;
+    nearby->targtype = outside->targtype = ranged_nearby->targtype = ally->targtype = TARG_GROUND;
+    nearby->spawn_time = outside->spawn_time = ranged_nearby->spawn_time = ally->spawn_time = level.time;
+    nearby->health.value = nearby->health.max_value = 500;
+    outside->health.value = outside->health.max_value = 500;
+    ranged_nearby->health.value = ranged_nearby->health.max_value = 500;
+    ally->health.value = ally->health.max_value = 500;
+    re_equip(&f, "ofir", 0);
+    T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 11, 0.001f);
+    T_FEQ(S_SpellNumber(FS_SLKKey("AIfb"), ABILITY_NUMBER_AREA, 1), 80, 0.001f);
+    T_ASSERT(S_SpellIsAliveTarget(nearby));
+    T_ASSERT(S_SpellIsEnemy(f.hero, nearby));
+    T_ASSERT(S_AttackHitAllowed(f.hero, f.enemy, nearby));
+    S_ResolveAttackHit(f.hero, f.enemy, 100);
+    T_FEQ(nearby->health.value, 400, 0.001f);
+    T_FEQ(outside->health.value, 500, 0.001f);
+    T_FEQ(ally->health.value, 500, 0.001f);
+    f.hero->unit_state->attack1.weapon = WPN_MISSILE;
+    S_ResolveAttackHit(f.hero, outside, 100);
+    T_FEQ(ranged_nearby->health.value, 400, 0.001f);
+    re_done(&f);
+}
+
 TEST(retail_item_effect, shield_of_honor_provides_authored_command_aura) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X8\n"

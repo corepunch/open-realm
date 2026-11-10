@@ -81,7 +81,7 @@ CSV are not object-data verification.
 
 `games/warcraft-3/game/tests/t_retail_item_effect_regression.c` uses the game
 module's production inventory, attack, spell-damage and entity-scheduler paths.
-The latest full suite checkpoint passed these seven listed tests in both classic and TFT modes:
+The latest full suite checkpoint passed these listed tests in both classic and TFT modes:
 
 1. `ocor_applies_timed_corruption_status`: Equips `ocor`, lands an attack,
    checks the `BIcb` state, verifies expiry through `G_RunEntity`, and checks
@@ -115,6 +115,9 @@ The latest full suite checkpoint passed these seven listed tests in both classic
    `oslo`/`AIsb`, checks a melee unit gains and loses its air-target missile
    attack with the item, then drives the hit proc through nested `AIos` and
    checks authored movement/attack slow modifiers and Hero duration.
+9. `orb_of_fire_splashes_full_attack_damage_to_nearby_enemies`: Checks the
+   authored area radius, full damage on nearby enemies from melee and missile
+   hits, and exclusion of allies and out-of-radius enemies.
 
 `wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
 also exercises the installed `ANsa` contract with non-stock `DataA=7`: the
@@ -131,8 +134,8 @@ The 45 purchase tests should not be misrepresented as 62 effect tests.
 
 The 266-row matrix above remains an inventory of positive/negative acceptance
 scenarios, not executable C coverage. The tests listed here cover only the
-behaviors named in their descriptions. `AIcb` armor reduction, Orb of Fire
-splash behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
+behaviors named in their descriptions. `AIcb` armor reduction, full
+retail-value regeneration totals and the other matrix-only scenarios remain open until verified
 from archive data and exercised through production gameplay paths.
 
 ## Testing policy

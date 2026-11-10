@@ -13,7 +13,7 @@ unregistered.
 
 | Orb | BuffID (TFT; ROC omits) | Behavior |
 | --- | --- | --- |
-| `AIfb` | none | damage only |
+| `AIfb` | none | damage + full-damage splash to nearby enemies |
 | `AIlb` | none | damage only |
 | `AIob` | `Bfro` | damage + frost state, `Dur`/`HeroDur` |
 | `AIpb` | none | damage only |
@@ -25,6 +25,12 @@ All six rows use `CAbilityAttackBonus` with flags `0`, exactly like
 it. `S_OrbOnHit` in `s_item_stats.c` applies the BuffID state from
 `S_ResolveAttackHit` next to `S_SlowPoisonOnHit`, checking native orb
 ownership and held orb items (the same orb from both applies once).
+Orb of Fire (`AIfb`) uses its authored `Area` radius to splash the primary
+attack's damage to nearby enemies. The splash is applied on both melee and
+missile hits, excludes allies and out-of-radius units, and follows the normal
+attack damage path. Its archive row has `DataA=5`, `Area=140`, and `DataE=2`.
+The `orb_of_fire_splashes_full_attack_damage_to_nearby_enemies` regression uses
+a non-stock radius and checks both melee and missile hits.
 The status modifier system consumes the frost buff (`Bfro`) as the classic
 50% movement and 25% attack-rate slow. `BIcb` and `Bfre` also feed their
 respective authored status consumers. The Orb of Frost regression drives
