@@ -2451,7 +2451,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             if (proper && *proper) state->name = G_NameConfigstring(proper);
             state->hover_value = ENT_HOVER_LABELED_VALUE | MAX(1u, ent->unit_state->hero.level);
         }
-        if (!G_UnitHasFlag(ent, UNIT_FLAG_INVULNERABLE)) state->flags |= EF_HOVER_HEALTH;
+        if (!S_UnitInvulnerable(ent)) state->flags |= EF_HOVER_HEALTH;
     }
 
 }

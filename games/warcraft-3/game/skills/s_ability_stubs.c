@@ -62,6 +62,111 @@ static bool immolation_update_passive(edict_t *ent) {
     }
     return true;
 }
+/* Item Immolation (AIcf) has its own buff and a held-item source. Never
+ * reuse the BEim toggle/permanent status: an equipped Cloak cannot switch
+ * off a unit's unrelated ANpi or active AEim ability. A single item family
+ * produces one fire pulse, even when multiple identical items are held; the
+ * exact retail stacking contract remains a separate retail test. */
+#define ID_ITEM_IMMOLATION MAKEFOURCC('A','I','c','f')
+
+static uint32_t item_immolation_owned(edict_t *unit, edict_t const *exclude) {
+    if (!unit || !unit->unit_state) return 0;
+    if (G_InventoryCanUseItems(unit)) FOR_LOOP(i, G_InventoryCapacity(unit)) {
+        edict_t *item = G_InventoryItem(unit, i);
+        cstring_t list;
+        if (!item || item == exclude) continue;
+        list = G_ItemAbilityList(item);
+        if (!list) continue;
+        PARSE_LIST(list, token, parse_segment) {
+            uint32_t code;
+            abilityitem_t registered;
+            if (strlen(token) != 4) continue;
+            code = FS_SLKKey(token);
+            registered = S_AbilityItem(code);
+            if (registered.ability && registered.ability->proc == CAbilityItemImmolation)
+                return code;
+        }
+    }
+    if (G_ActorHasSkill(unit, "AIcf")) return ID_ITEM_IMMOLATION;
+    return 0;
+}
+
+static heroabilitystatus_t *item_immolation_status(edict_t *unit) {
+    if (!unit || !unit->unit_state) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *slot = unit->unit_state->statuses + i;
+        abilityitem_t item;
+        if (!slot->level || !slot->source_ability) continue;
+        item = S_AbilityItem(slot->source_ability);
+        if (item.ability && item.ability->proc == CAbilityItemImmolation)
+            return slot;
+    }
+    return NULL;
+}
+
+static void item_immolation_update(edict_t *unit, edict_t const *excluded, bool tick) {
+    uint32_t code = item_immolation_owned(unit, excluded);
+    heroabilitystatus_t *status = item_immolation_status(unit);
+    cstring_t buff;
+    if (!unit || !unit->unit_state) return;
+    if (!code) {
+        if (status) unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
+        return;
+    }
+    buff = S_SpellBuffId(code, 1);
+    if (!buff || strlen(buff) < 4) return;
+    if (status && status->code != FS_SLKKey(buff)) {
+        unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
+        status = NULL;
+    }
+    if (!status) {
+        status = S_SpellApplyTimedStatusFromAbility(unit, code, 1, buff, 0.0f);
+        if (!status) return;
+        unit_status_enabletargetart(unit, status, "origin");
+        status->next_tick = G_Time() + IMMOLATION_TICK_MS;
+    }
+    status->data = code;
+    status->source_ability = code;
+    status->rank = 1;
+    if (!status->next_tick) status->next_tick = G_Time() + IMMOLATION_TICK_MS;
+    if (!tick || !S_AuraUnitActive(unit)) return;
+    while ((int32_t)(G_Time() - status->next_tick) >= 0) {
+        float const damage = MAX(0.0f, S_SpellData(code, 1, 1));
+        float const area = MAX(0.0f, S_SpellNumber(code, ABILITY_NUMBER_AREA, 1));
+        status->next_tick += IMMOLATION_TICK_MS;
+        if (damage <= 0.0f || area <= 0.0f) continue;
+        /* AIcf targs excludes friendlies and air, but does NOT require
+         * organic units (ANpi does). Mechanical ground enemies are valid. */
+        FILTER_EDICTS(target, target != unit && S_SpellIsAliveTarget(target) &&
+                      S_SpellAllowsAreaTarget(code, unit, target) &&
+                      Vector2_distance(&target->s.origin2, &unit->s.origin2) <= area)
+            S_SpellDamage(target, unit, (int)damage);
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityItemImmolation) {
+    switch (msg) {
+    case A_ITEM_ADD:
+    case A_ENABLE:
+        item_immolation_update(ent, NULL, false);
+        return true;
+    case A_ITEM_REMOVE:
+        item_immolation_update(ent, call ? call->source_item : NULL, false);
+        return true;
+    case A_DISABLE:
+        if (ent && ent->unit_state) {
+            heroabilitystatus_t *status = item_immolation_status(ent);
+            if (status) unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
+        }
+        return true;
+    case A_UPDATE:
+        if (ent && ent->unit_state) item_immolation_update(ent, NULL, true);
+        return true;
+    default:
+        return CAbilityPassive(ent, msg, call);
+    }
+}
+
 BZ_ABILITY_PROC(CAbilityImmolation) {
     heroabilitystatus_t *status;
     uint32_t code;

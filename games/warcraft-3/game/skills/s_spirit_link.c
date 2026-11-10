@@ -130,7 +130,7 @@ int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage) {
 	uint32_t code, level, n = 0;
 	float ratio;
 	int shared, kept, portion;
-	edict_t *linked[SPL_MAX_CANDS];
+	static edict_t *linked[MAX_ENTITIES];
 	(void)attacker;
 	if (redirecting || !target || damage <= 0) return damage;
 	slot = spirit_link_slot(target);
@@ -142,7 +142,7 @@ int S_SpiritLinkRedirect(edict_t *target, edict_t *attacker, int damage) {
 	if (ratio > 1.0f) ratio = 1.0f;
 	FILTER_EDICTS(other, S_SpellIsAliveTarget(other) && spirit_link_slot(other) &&
 	              S_SpellIsFriend(target, other)) {
-		if (n >= SPL_MAX_CANDS) continue;
+		if (n >= MAX_ENTITIES) continue;
 		linked[n++] = other;
 	}
 	if (n < 1) return damage;

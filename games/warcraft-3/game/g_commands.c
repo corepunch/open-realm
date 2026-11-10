@@ -2067,9 +2067,6 @@ CLIENTCOMMAND(Inventory) {
     edict_t *ent;
     edict_t *item;
     int32_t slot;
-    cstring_t abilities;
-    bool handled = false;
-
     if (argc < 2) {
         return;
     }
@@ -2086,44 +2083,15 @@ CLIENTCOMMAND(Inventory) {
         return;
     }
 
-    /* Item ability lists are authored in ItemData.slk. Resolve through the
-     * typed row first; FindConfigValue() is only a compatibility fallback in
-     * G_ItemAbilityList() because it searches TXT/INI tables rather than the
-     * ItemData SLK. */
-    abilities = G_ItemAbilityList(item);
-    if (abilities && *abilities) {
-        PARSE_LIST(abilities, ability_name, parse_segment) {
-            ability_t const *ability = FindAbilityForCommand(ability_name);
-            abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-            abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .entity = clent);
-            bool succeeded = false;
-
-            if (!ability) continue;
-            client->menu.ability_code = FS_SLKKey(ability_name);
-            if (ability->flags & AB_ITEM) {
-                succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
-                handled = true;
-            } else if (S_AbilityHasCommand(ability)) {
-                client->menu.ability_item = item;
-                client->menu.ability_item_spawn_time = item->spawn_time;
-                S_AbilityCommand(clent, ability);
-                handled = true;
-                if (!client->menu.on_entity_selected && !client->menu.on_location_selected) {
-                    client->menu.ability_item = NULL;
-                    client->menu.ability_item_spawn_time = 0;
-                }
-            }
-
-            if (succeeded) G_CompleteItemUse(ent, item);
-            if (handled) break;
-        }
-    }
+    /* Keep HUD clicks and scripted item uses on the same cooldown, target
+     * selection, event and charge-consumption path. */
+    G_UseItemWithController(ent, (uint32_t)slot, clent);
 
     /* HUD serialization is only valid after ClientBegin; disconnected slots retain authoritative state only. */
     if (client->connected) {
         Get_Portrait_f(clent);
-        if (!handled) Get_Commands_f(clent);
-    } else if (!handled) {
+        Get_Commands_f(clent);
+    } else {
         G_InvalidateCommands(client);
     }
 }

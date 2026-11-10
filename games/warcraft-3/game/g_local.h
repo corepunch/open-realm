@@ -4403,6 +4403,7 @@ bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position);
 bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
+void G_UseItemWithController(edict_t *unit, uint32_t slot, edict_t *controller);
 uint32_t G_ItemTypeFromClass(cstring_t cls);
 
 // g_stock.c / neutral shops

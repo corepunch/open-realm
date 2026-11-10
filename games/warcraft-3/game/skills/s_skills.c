@@ -338,7 +338,7 @@ static ability_t abilitylist[] = {
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
     { "AIha", CAbilityItemHealAoe, AB_ITEM | AB_POWERUP },  /* Item Area Healing / Healing Runes */
-    // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
+    { "AIvu", CAbilityItemInvul, AB_ITEM },  /* Item Temporary Invulnerability */
     { "AImr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Item Area Mana Regain */
     { "APmr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Mana */
     { "APmg", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Greater Mana */
@@ -365,7 +365,8 @@ static ability_t abilitylist[] = {
     { "AIpm", CAbilityPlaceMine, AB_SPELL, SPELL_TARGET_POINT },  /* Item Place Goblin Land Mine */
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
-    // TODO: AIcf CAbilityImmolation  /* Item Immolation */
+    { "AIad", CAbilityAuraDevotion, AB_PASSIVE },  /* Lion Horn item aura (code=aura) */
+    { "AIcf", CAbilityItemImmolation, AB_PASSIVE | AB_UPDATE },  /* Held-item Immolation */
     { "AIzb", CAbilityAttackBonus, 0 },  /* Item Freeze Damage Bonus (orb) */
     // TODO: Arel a_aura_regen_life  /* Item Life Regeneration */
     { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
@@ -379,9 +380,9 @@ static ability_t abilitylist[] = {
     { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
     { "AIfa", CAbilityFlare, AB_SPELL, SPELL_TARGET_POINT },  /* Flare Gun */
     { "AIrv", CAbilityItemRevealEntireMap, AB_ITEM | AB_POWERUP }, /* Glyph of Omniscience */
-    // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */
     { "AIwb", CAbilityWeb, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Spider Silk / Item Web */
     { "AImo", CAbilityMonsterLure, AB_SPELL, SPELL_TARGET_POINT },  /* Monster Lure */
+    { "AIdc", CAbilityItemChainDispel, AB_SPELL, SPELL_TARGET_UNIT },  /* Wand of Neutralization */
     // TODO: AIri a_item_speed  /* Random Item */
     { "Ablp", CAbilityItemBlight, AB_SPELL, SPELL_TARGET_POINT }, /* Sacrificial Skull / Blight Placement */
     // TODO: Aste a_figurine_rock_golem  /* Steal */
@@ -696,7 +697,7 @@ static ability_t abilitylist[] = {
     { "SCva", CAbilityAuraRegenLife, AB_PASSIVE },  /* Vampiric attack */
     { "Adsm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic (creep) */
     { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
-    { "Ache", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Chain Dispel */
+    { "Ache", CAbilityItemChainDispel, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Dispel */
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */

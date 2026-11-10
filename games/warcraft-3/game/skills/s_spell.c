@@ -434,6 +434,11 @@ bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_na
     return false;
 }
 
+bool S_UnitInvulnerable(edict_t const *unit) {
+    return G_UnitHasFlag(unit, UNIT_FLAG_INVULNERABLE) ||
+           unit_hasstatusstate(unit, WC3_STATUS_STATE_INVULNERABLE);
+}
+
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     /* Sentinel is a tree-target spell. Ordinary unit-target masks are not
      * authoritative for destructables (which have no unit relationship). */
@@ -513,9 +518,15 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
           S_UnitSpellImmune(target)) return false; }
     ability_level = S_SpellLevel(caster, code);
     targets = G_AbilityLevel(code, ability_level)->targs;
-    if (!targets) {
-        return true;
-    }
+    if (!targets) return !S_UnitInvulnerable(target);
+    /* Explicit permanent invulnerability and independently timed Bvul/BHds
+     * must be identical to the authored target-mask evaluator. "invu" is
+     * an opt-in exception, not a blanket immunity to every beneficial spell. */
+    if (S_UnitInvulnerable(target) && !S_SpellTargetHasToken(targets, "invu", "invulnerable"))
+        return false;
+    if (!S_UnitInvulnerable(target) &&
+        S_SpellTargetHasToken(targets, "invu", "invulnerable") &&
+        !S_SpellTargetHasToken(targets, "vuln", "vulnerable")) return false;
     structure = G_UnitIsStructure(target);
     {
         bool const allows_hero = S_SpellTargetHasToken(targets, "hero", NULL);
@@ -524,9 +535,15 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
             (S_UnitIsResistant(target) ? !allows_hero : !allows_nonhero)) return false;
     }
     if (strstr(targets, "notself") && target == caster) return false;
+    /* TARG_MECHANICAL / TARG_ORGANIC represent material categories in the
+     * current unit model, not the opposite of ground movement. A ground-only
+     * ability such as AIcf must not exclude a mechanical ground target merely
+     * because its primary classification is mechanical. */
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
         !(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
-        !(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
+        !(strstr(targets, "ground") && (G_UnitTargetType(target) == TARG_GROUND ||
+                                      G_UnitTargetType(target) == TARG_MECHANICAL ||
+                                      G_UnitTargetType(target) == TARG_ORGANIC)) &&
         !(strstr(targets, "structure") && structure) &&
         !(S_SpellTargetHasToken(targets, "ward", NULL) && target->targtype == TARG_WARD)) {
         return false;

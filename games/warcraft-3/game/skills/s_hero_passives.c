@@ -244,6 +244,26 @@ abilityAliasRef_t S_ResolveAbilityAlias(edict_t *ent, uint32_t base_code) {
             return result;
         }
     }
+    /* The Lion Horn is a source of Devotion Aura even though AIad's raw
+     * parent is `aura`, not AHad. Only inspect inventory for this concrete
+     * aura family; unrelated item abilities are not innate unit skills. */
+    if (base_code == ID_DEVOTION_AURA && G_InventoryCanUseItems(ent)) {
+        FOR_LOOP(i, G_InventoryCapacity(ent)) {
+            edict_t *item = G_InventoryItem(ent, i);
+            cstring_t list = G_ItemAbilityList(item);
+            if (!list) continue;
+            PARSE_LIST(list, token, parse_segment) {
+                if (strlen(token) != 4) continue;
+                uint32_t const alias = FS_SLKKey(token);
+                abilityitem_t const entry = S_AbilityItem(alias);
+                if (entry.ability && entry.ability->proc == CAbilityAuraDevotion) {
+                    result.alias = alias;
+                    result.level = 1;
+                    return result;
+                }
+            }
+        }
+    }
     return result;
 }
 
@@ -292,6 +312,10 @@ static uint32_t aura_owned_family_mask(uint32_t alias) {
     test_aura_class_resolves++;
 #endif
     base = G_AbilityCode(alias);
+    /* AIad and custom item Devotion auras have code=aura, not AHad. */
+    { abilityitem_t const item = S_AbilityItem(alias);
+      if (item.ability && item.ability->proc == CAbilityAuraDevotion)
+          mask |= 1u << AURA_OWNED_DEVOTION; }
     FOR_LOOP(i, AURA_OWNED_COUNT) {
         if (aura_alias_matches_base(alias, aura_owned_codes[i]) || aura_owned_codes[i] == base)
             mask |= 1u << i;
@@ -500,11 +524,14 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     /* WC3 target lists may name both vulnerability classes; that means either
      * class is accepted, not that both conditions must hold. */
     if (wants_vulnerability &&
-        !((aura_target_has_token(targets, "vulnerable", "vuln") && !G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)) ||
-          (aura_target_has_token(targets, "invulnerable", "invu") && G_UnitHasFlag(target, UNIT_FLAG_INVULNERABLE)))) return false;
+        !((aura_target_has_token(targets, "vulnerable", "vuln") && !S_UnitInvulnerable(target)) ||
+          (aura_target_has_token(targets, "invulnerable", "invu") && S_UnitInvulnerable(target)))) return false;
     if ((aura_target_has_token(targets, "air", NULL) || aura_target_has_token(targets, "ground", "grou")) &&
         !(aura_target_has_token(targets, "air", NULL) && G_UnitTargetType(target) == TARG_AIR) &&
-        !(aura_target_has_token(targets, "ground", "grou") && G_UnitTargetType(target) == TARG_GROUND)) return false;
+        !(aura_target_has_token(targets, "ground", "grou") &&
+          (G_UnitTargetType(target) == TARG_GROUND ||
+           G_UnitTargetType(target) == TARG_MECHANICAL ||
+           G_UnitTargetType(target) == TARG_ORGANIC))) return false;
     if (wants_relation &&
         !(aura_target_has_token(targets, "self", NULL) && is_self) &&
         !((aura_target_has_token(targets, "friend", "frie") || aura_target_has_token(targets, "allies", "alli")) && is_friend) &&
@@ -540,6 +567,16 @@ typedef struct {
 } regenerationAuraInfo_t;
 
 static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][REGEN_FAMILY_COUNT][REGEN_VALUE_COUNT];
+
+/* Inventory acquisition/removal changes aura providers even within a frame.
+ * Invalidate the source snapshot and recipients; don't manufacture a unit
+ * ability or wait for a 2-second periodic refresh. */
+void S_AuraInventoryChanged(void) {
+    regen_cache_frame = UINT_MAX;
+    memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
+    memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
+    memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
+}
 
 void G_ResetHeroPassiveCaches(void) {
     memset(regen_sources, 0, sizeof(regen_sources));
