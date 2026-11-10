@@ -81,7 +81,7 @@ void SC2_HUD_Update(edict_t *client) {
     for (uint32_t i=globals.max_clients;i<globals.num_edicts;i++) {
         edict_t *unit=&edicts[i];
         if (!unit->inuse || !(unit->selected & (1u<<player))) continue;
-        if (!unit->unit.initialized || !SC2_UnitAlive(&unit->unit) || (unit->unit.states & (1u<<SC2_UNIT_HIDDEN))) continue;
+        if (!unit->unit.initialized || !SC2_UnitAlive(&unit->unit) || SC2_UnitHidden(&unit->unit)) continue;
         if (!selected) selected=unit;
         count++;
         hash=(hash^i)*1099511628211ull;

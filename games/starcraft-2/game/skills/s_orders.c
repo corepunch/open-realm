@@ -19,18 +19,18 @@ bool SC2_CommandSupported(cstring_t ability, cstring_t command) { return sc2_ord
 static bool sc2_order_selected(edict_t const *client, edict_t const *unit) {
     uint32_t player=client->client->ps.number;
     return unit->inuse && unit->s.player==player && (unit->selected & (1u<<player)) &&
-        unit->unit.initialized && SC2_UnitAlive(&unit->unit) && !(unit->unit.states & ((1u<<SC2_UNIT_PAUSED)|(1u<<SC2_UNIT_HIDDEN)));
+        unit->unit.initialized && SC2_UnitAlive(&unit->unit) && !SC2_UnitHidden(&unit->unit) && !(unit->unit.states & (1u<<SC2_UNIT_PAUSED));
 }
 edict_t *SC2_SelectedUnit(edict_t const *client) {
     if (!client || !client->client) return NULL;
     edict_t *edicts=globals.edicts;
     for (uint32_t i=globals.max_clients;i<globals.num_edicts;i++) if (edicts[i].inuse && edicts[i].unit.initialized && SC2_UnitAlive(&edicts[i].unit) &&
-        (edicts[i].selected & (1u<<client->client->ps.number)) && !(edicts[i].unit.states & (1u<<SC2_UNIT_HIDDEN))) return &edicts[i];
+        (edicts[i].selected & (1u<<client->client->ps.number)) && !SC2_UnitHidden(&edicts[i].unit)) return &edicts[i];
     return NULL;
 }
 static bool sc2_order_enemy(edict_t const *unit, edict_t const *target) {
     if (!target->inuse || !target->unit.initialized || !SC2_UnitAlive(&target->unit) ||
-        (target->unit.states & ((1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_INVULNERABLE)))) return false;
+        SC2_UnitHidden(&target->unit) || (target->unit.states & (1u<<SC2_UNIT_INVULNERABLE))) return false;
     uint32_t player=unit->s.player,other=target->s.player;
     return other && player<32 && other<32 && player!=other && !(sc2_players[player].alliances[other]&1u);
 }
@@ -96,14 +96,18 @@ bool SC2_CommandTarget(edict_t *client, uint32_t number) {
 
 void SC2_RunOrders(edict_t *unit) {
     if (!unit->unit.initialized || !SC2_UnitAlive(&unit->unit) ||
-        (unit->unit.states & ((1u<<SC2_UNIT_PAUSED)|(1u<<SC2_UNIT_HIDDEN)))) return;
+        SC2_UnitHidden(&unit->unit) || (unit->unit.states & (1u<<SC2_UNIT_PAUSED))) return;
     uint32_t kind=unit->order.kind;
     if (kind==SC2_ORDER_NONE || kind==SC2_ORDER_MOVE) return;
     sc2WeaponPresentation_t weapon;
     bool armed=false;
     for (uint32_t i=0;i<unit->unit.weapon_n;i++) {
         if (unit->unit.weapons[i].disabled) continue;
-        if (SC2_MapWeaponPresentation(unit->unit.weapons[i].link,&weapon)) { armed=true; break; }
+        if (SC2_MapWeaponPresentation(unit->unit.weapons[i].link,&weapon)) {
+            armed=true; unit->order.turreted=*unit->unit.weapons[i].turret!=0;
+            if (!unit->order.turreted) unit->s.hover_value=0;
+            break;
+        }
     }
     edict_t *edicts=globals.edicts,*target=NULL;
     if (armed && unit->order.target<globals.num_edicts && unit->order.target)
@@ -125,40 +129,15 @@ void SC2_RunOrders(edict_t *unit) {
         }
         if (unit->move.moving) SC2_StopUnit(unit);
         if ((int32_t)(gi.GetTime()-unit->order.next_attack)>=0) {
-            sc2UnitPresentation_t presentation;
-            float armor=SC2_MapUnitPresentation(target->unit.type,&presentation) ? presentation.armor : 0;
-            /* TODO: dispatch general SC2 effects when projectile, shield-armor
-             * and attribute-bonus catalog consumers exist. This direct-life
-             * path currently covers the Liberty infantry weapon effects. */
-            float damage=MAX(0.5f,weapon.damage-armor),old=target->unit.vitals[0].value;
-            SC2_UnitSetProperty(&target->unit,0,old-damage);
-            bool died=!SC2_UnitAlive(&target->unit);
             float face=atan2f(target->s.origin.y-unit->s.origin.y,target->s.origin.x-unit->s.origin.x);
             if (unit->order.turreted) { unit->order.turret_angle=face; unit->s.hover_value=SC2_PackTurretAngle(face); }
             else unit->s.angle=face;
             SC2_SetUnitAnimation(unit,"Attack");
             unit->order.next_attack=gi.GetTime()+(uint32_t)(weapon.period*1000);
-            SC2_UpdateUnit(target);
-            if (died) unit->unit.kills++;
-            else if (!target->order.kind && SC2_HUD_CommandEnabled(target,"attack,Execute")) {
+            SC2_WeaponDamage(unit,target,&weapon);
+            if (target->inuse && SC2_UnitAlive(&target->unit) && !target->order.kind && SC2_HUD_CommandEnabled(target,"attack,Execute")) {
                 target->order.kind=SC2_ORDER_ATTACK; target->order.target=unit->s.number;
                 target->order.destination=unit->s.origin2;
-            }
-            galaxy_combat_damage(sc2_level.vm,unit,target,MIN(old,damage),died);
-            if (weapon.splash>0) {
-                for (uint32_t j=globals.max_clients;j<globals.num_edicts;j++) {
-                    edict_t *victim=&edicts[j];
-                    if (victim==target || !sc2_order_enemy(unit,victim)) continue;
-                    if (Vector2_distance(&target->s.origin2,&victim->s.origin2)>weapon.splash) continue;
-                    sc2UnitPresentation_t vpres;
-                    float varmor=SC2_MapUnitPresentation(victim->unit.type,&vpres) ? vpres.armor : 0;
-                    float sdmg=MAX(0.5f,weapon.damage*0.5f-varmor);
-                    float vold=victim->unit.vitals[0].value;
-                    SC2_UnitSetProperty(&victim->unit,0,vold-sdmg);
-                    SC2_UpdateUnit(victim);
-                    if (!SC2_UnitAlive(&victim->unit)) unit->unit.kills++;
-                    galaxy_combat_damage(sc2_level.vm,unit,victim,MIN(vold,sdmg),!SC2_UnitAlive(&victim->unit));
-                }
             }
         }
         return;

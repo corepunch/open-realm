@@ -406,6 +406,7 @@ uint32_t         SC2_MapObjectClassId(sc2MapObject_t const *object);
 bool          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
 void          SC2_MapDump(FILE *out, cstring_t filename);
 
+uint32_t SC2_MapUnitWeapons(cstring_t type, sc2UnitWeapon_t *out, uint32_t max);
 uint64_t SC2_MapUnitTargetFlags(cstring_t type);
 
 #endif

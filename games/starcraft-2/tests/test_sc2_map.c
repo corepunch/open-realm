@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 
 #include "common.h"
+#include "common/net.h"
+#include "games/starcraft-2/common/sc2_coords.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "test.h"
 #include "games/starcraft-2/renderer/sc2/r_sc2map.h"
@@ -1159,7 +1161,28 @@ TEST(sc2_map, weapon_presentation_resolves_damage_and_splash) {
     T_FEQ(wp.range, 13.0f, 0.001f);
     T_FEQ(wp.damage, 40.0f, 0.001f);
     T_FEQ(wp.splash, 1.25f, 0.001f);
+    T_ASSERT(SC2_MapWeaponPresentation("CrucioShockCannon", &wp));
+    T_FEQ(wp.damage, 60, 0.001f);
+    T_FEQ(wp.splash, 1.25f, 0.001f);
+    T_EQ(wp.effect_count,2);
+    T_EQ(wp.effects[0].area_count,3);
+    T_FEQ(wp.effects[0].areas[0].fraction,1,0.001f);
+    T_FEQ(wp.effects[0].areas[1].fraction,0.5f,0.001f);
+    T_FEQ(wp.effects[0].areas[2].fraction,0.25f,0.001f);
+    T_ASSERT(SC2_MapWeaponPresentation("PartialWeapon",&wp));
+    T_FEQ(wp.damage,37,0.001f); T_EQ(wp.effects[0].area_count,2);
+    T_FEQ(wp.effects[0].areas[0].radius,0.3f,0.001f); T_FEQ(wp.effects[0].areas[0].fraction,0.6f,0.001f);
+    T_FEQ(wp.effects[0].areas[1].radius,1,0.001f); T_FEQ(wp.effects[0].areas[1].fraction,0.4f,0.001f);
+    T_ASSERT(!SC2_MapWeaponPresentation("CycleWeapon", &wp)); T_EQ(wp.effect_count,0);
+    T_ASSERT(!SC2_MapWeaponPresentation("BadValidatorWeapon", &wp)); T_EQ(wp.effect_count,0);
     T_ASSERT(!SC2_MapWeaponPresentation("Missing", &wp));
+    sc2UnitWeapon_t weapons[SC2_UNIT_WEAPONS];
+    T_EQ(SC2_MapUnitWeapons("SiegeTankSieged",weapons,SC2_UNIT_WEAPONS),1);
+    T_STREQ(weapons[0].link,"CrucioShockCannon"); T_STREQ(weapons[0].turret,"SiegeTankSieged");
+    T_EQ(SC2_MapUnitWeapons("TurretOverride",weapons,SC2_UNIT_WEAPONS),1);
+    T_STREQ(weapons[0].link,"CrucioShockCannon"); T_STREQ(weapons[0].turret,"OtherTurret");
+    T_EQ(SC2_MapUnitWeapons("TurretCleared",weapons,SC2_UNIT_WEAPONS),1); T_STREQ(weapons[0].turret,"");
+    T_EQ(SC2_MapUnitWeapons("WeaponRemoved",weapons,SC2_UNIT_WEAPONS),0);
     SC2_MapShutdown();
 }
 
@@ -1174,4 +1197,30 @@ TEST(sc2_map, burrow_state_flags) {
     u.states &= ~((1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED));
     T_ASSERT(!SC2_UnitIsBurrowed(&u));
     T_ASSERT(!(u.states & (1u<<SC2_UNIT_HIDDEN)));
+}
+
+TEST(sc2_map, turret_pivot_and_snapshot_transport) {
+    m3Bone_t bones[]={ {.name="Bone_Turret_Base",.nameNum=17}, {.name="Ref_TurretZ",.nameNum=12} };
+    m3Model_t model={.bones=bones,.bonesNum=2};
+    T_EQ(M3_FindTurretBone(&model),1);
+    model.bonesNum=1; T_EQ(M3_FindTurretBone(&model),-1);
+    mat4_t bone; Matrix4_identity(&bone);
+    bone.v[12]=2; bone.v[13]=3; bone.v[14]=4;
+    M3_RotateTurret(&bone,(float)M_PI/2);
+    T_FEQ(bone.v[12],2,0.0001f); T_FEQ(bone.v[13],3,0.0001f); T_FEQ(bone.v[14],4,0.0001f);
+    vec3_t point=Matrix4_multiply_vector3(&bone,&(vec3_t){1,0,0});
+    T_FEQ(point.x,2,0.0001f); T_FEQ(point.y,4,0.0001f);
+    M3_RotateTurret(&bone,-(float)M_PI/2);
+    point=Matrix4_multiply_vector3(&bone,&(vec3_t){1,0,0});
+    T_FEQ(point.x,3,0.0001f); T_FEQ(point.y,3,0.0001f);
+    float angles[]={0,1.75f,-1.25f,6.28f};
+    for (int i=0;i<4;i++) {
+        uint8_t bytes[256]; sizeBuf_t msg; SZ_Init(&msg,bytes,sizeof(bytes));
+        entityState_t from={0},to={.number=1,.model=1,.hover_value=SC2_PackTurretAngle(angles[i])},out={0};
+        MSG_WriteDeltaEntity(&msg,&from,&to,true);
+        uint32_t bits=0; int number=MSG_ReadEntityBits(&msg,&bits);
+        MSG_ReadDeltaEntity(&msg,&out,number,bits);
+        T_EQ(out.hover_value,to.hover_value);
+        T_FEQ(sinf(SC2_UnpackTurretAngle(out.hover_value)),sinf(angles[i]),0.0002f);
+    }
 }

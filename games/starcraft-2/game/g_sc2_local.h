@@ -100,5 +100,7 @@ void SC2_StopUnit(edict_t *unit);
 void SC2_UpdateUnit(edict_t *unit);
 edict_t *SC2_SelectedUnit(edict_t const *client);
 
+void SC2_WeaponDamage(edict_t *unit, edict_t *target, sc2WeaponPresentation_t const *weapon);
+
 /* HUD declarations are in hud/hud.h; include that separately in .c files. */
 #endif

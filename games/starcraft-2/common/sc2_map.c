@@ -73,7 +73,8 @@ typedef struct {
 
 /* One AbilArray/WeaponArray/BehaviorArray element. index<0 appends to the inherited array. */
 typedef struct {
-    char link[SC2_LINK_LEN];
+    char link[SC2_LINK_LEN], turret[SC2_LINK_LEN];
+    bool has_turret;
     uint32_t next;
     int8_t index;
     uint8_t kind;
@@ -139,7 +140,22 @@ typedef struct sc2_conversation {
 
 
 typedef struct { sc2CardButton_t button; uint32_t next; } sc2CatalogCard_t;
-typedef struct { char id[64], parent[64]; float amount, splash_radius; bool has_amount; } sc2CatalogDamage_t;
+enum { SC2_EFFECT_DAMAGE=1, SC2_EFFECT_SET };
+enum { SC2_EF_AMOUNT=1, SC2_EF_FILTER=2, SC2_EF_OFFSET=4, SC2_EF_EXCLUDE=8 };
+typedef struct {
+    char id[64], parent[64];
+    char children[SC2_DAMAGE_EFFECTS][64], validators[SC2_DAMAGE_VALIDATORS][64];
+    sc2DamageEffect_t damage;
+    char filters[256];
+    uint32_t fields, area_mask, child_mask, validator_mask;
+    uint8_t kind, area_fields[SC2_DAMAGE_AREAS];
+    bool invalid;
+} sc2CatalogDamage_t;
+typedef struct {
+    char id[64], field[64], compare[16], which[32];
+    float value;
+    bool supported;
+} sc2CatalogValidator_t;
 
 typedef struct {
     uint32_t cards_count, buttons_count, weapons_count, damage_count;
@@ -147,6 +163,8 @@ typedef struct {
     sc2ButtonFace_t buttons[2048];
     sc2WeaponPresentation_t weapons[2048];
     sc2CatalogDamage_t damage[4096];
+    sc2CatalogValidator_t validators[2048];
+    uint32_t validators_count;
     sc2Conversation_t *conv;
     uint32_t models_count;
     uint32_t actors_count;
@@ -213,6 +231,7 @@ static cstring_t const sc2_catalog_known_files[] = {
     "GameData\\ButtonData.xml",
     "GameData\\WeaponData.xml",
     "GameData\\EffectData.xml",
+    "GameData\\ValidatorData.xml",
     "GameData\\UnitData.xml",
     "GameData\\ModelData.xml",
     "GameData\\ActorData.xml",
@@ -1877,7 +1896,6 @@ static sc2XmlField_t const sc2_button_fields[] = {
 static sc2XmlField_t const sc2_weapon_fields[] = {
     SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "Effect", effect),
     SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "Icon", icon),
-    SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "TurretName", turret_name),
     SC2_STRUCT_XML_FIELD(sc2WeaponPresentation_t, "Range", range, SC2_XML_FIELD_FLOAT),
     SC2_STRUCT_XML_FIELD(sc2WeaponPresentation_t, "Period", period, SC2_XML_FIELD_FLOAT),
 };
@@ -1891,23 +1909,26 @@ static sc2XmlField_t const sc2_card_fields[] = {
     SC2_STRUCT_XML_FIELD(sc2CardButton_t, "index", index, SC2_XML_FIELD_DWORD),
 };
 
+#include "sc2_combat_catalog.h"
+
 static void sc2_parse_presentation_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    sc2_parse_combat_catalog_doc(catalog,doc);
     xmlNode *root=xmlDocGetRootElement(doc);
     for (xmlNode *node=root ? root->children : NULL; node; node=node->next) {
         char id[64], parent[64];
         cstring_t tag=(cstring_t)node->name;
-        bool button=sc2_streqi(tag,"CButton"), weapon=sc2_contains_i(tag,"CWeapon"), damage=sc2_streqi(tag,"CEffectDamage");
-        if (!button && !weapon && !damage) continue;
+        bool button=sc2_streqi(tag,"CButton"), weapon=sc2_contains_i(tag,"CWeapon");
+        if (!button && !weapon) continue;
         if (!sc2_xml_attr(node,"id",id,sizeof(id))) {
             char def[8];
             if (!sc2_xml_attr(node,"default",def,sizeof(def)) || !atoi(def)) continue;
             snprintf(id,sizeof(id),"$%s",tag);
         }
         void *row=NULL;
-        uint32_t *count=button ? &catalog->buttons_count : weapon ? &catalog->weapons_count : &catalog->damage_count;
-        size_t stride=button ? sizeof(catalog->buttons[0]) : weapon ? sizeof(catalog->weapons[0]) : sizeof(catalog->damage[0]);
-        void *rows=button ? (void *)catalog->buttons : weapon ? (void *)catalog->weapons : (void *)catalog->damage;
-        uint32_t capacity=button ? SC2_ARRAY_LEN(catalog->buttons) : weapon ? SC2_ARRAY_LEN(catalog->weapons) : SC2_ARRAY_LEN(catalog->damage);
+        uint32_t *count=button ? &catalog->buttons_count : &catalog->weapons_count;
+        size_t stride=button ? sizeof(catalog->buttons[0]) : sizeof(catalog->weapons[0]);
+        void *rows=button ? (void *)catalog->buttons : (void *)catalog->weapons;
+        uint32_t capacity=button ? SC2_ARRAY_LEN(catalog->buttons) : SC2_ARRAY_LEN(catalog->weapons);
         for (uint32_t i=0;i<*count;i++) if (!strcmp((char *)rows+i*stride,id)) { row=(char *)rows+i*stride; break; }
         if (!row) {
             if (*count==capacity) { fprintf(stderr,"SC2 %s catalog full: '%s'\n",tag,id); continue; }
@@ -1918,17 +1939,7 @@ static void sc2_parse_presentation_catalog_doc(sc2Catalog_t *catalog, xmlDoc *do
         for (xmlNode *child=node->children;child;child=child->next) {
             if (button) sc2_parse_xml_child_field(row,sc2_button_fields,SC2_ARRAY_LEN(sc2_button_fields),child,"value");
             else if (weapon) sc2_parse_xml_child_field(row,sc2_weapon_fields,SC2_ARRAY_LEN(sc2_weapon_fields),child,"value");
-            else {
-                static sc2XmlField_t const fields[]={ SC2_STRUCT_XML_FIELD(sc2CatalogDamage_t,"Amount",amount,SC2_XML_FIELD_FLOAT) };
-                if (sc2_parse_xml_child_field(row,fields,SC2_ARRAY_LEN(fields),child,"value")) ((sc2CatalogDamage_t *)row)->has_amount=true;
-                if (sc2_streqi((cstring_t)child->name,"AreaArray")) {
-                    char rad_s[32];
-                    if (sc2_xml_attr(child,"Radius",rad_s,sizeof(rad_s))) {
-                        float r=strtof(rad_s,NULL);
-                        if (r>((sc2CatalogDamage_t *)row)->splash_radius) ((sc2CatalogDamage_t *)row)->splash_radius=r;
-                    }
-                }
-            }
+
         }
     }
 }
@@ -1961,7 +1972,8 @@ static void sc2_parse_unit_cards(sc2Catalog_t *catalog, sc2CatalogUnit_t *unit, 
 /* ETargetFilter bit numbers from retail TriggerLibs/GameData/Game.galaxy. */
 static int sc2_catalog_target_bit(cstring_t name) {
     static struct { cstring_t name; int bit; } const fields[]={
-        {"Air",5},{"Ground",6},{"Light",7},{"Armored",8},{"Biological",9},{"Robotic",10},
+        {"Self",0},{"Player",1},{"Ally",2},{"Neutral",3},{"Enemy",4},
+        {"Stasis",31},{"Dead",33},{"Hidden",35},{"Invulnerable",37},{"Air",5},{"Ground",6},{"Light",7},{"Armored",8},{"Biological",9},{"Robotic",10},
         {"Mechanical",11},{"Psionic",12},{"Massive",13},{"Structure",14},{"Hover",15},
         {"Heroic",16},{"Worker",17},{"Resource",18},{"HarvestableResource",19},{"Missile",20},
         {"Destructible",21},{"Item",22},{"Uncommandable",23},{"PreventDefeat",26},{"PreventReveal",27}
@@ -2006,8 +2018,11 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
                 if (sc2_xml_attr(child, "index", index, sizeof(index))) e->index = (int8_t)MIN(127, MAX(0, atoi(index)));
                 e->removed = sc2_xml_attr(child, "removed", value, sizeof(value)) && atoi(value);
                 sc2_xml_attr(child, "Link", e->link, sizeof(e->link));
-                /* A Turret-only WeaponArray element changes presentation, not membership. */
-                if (e->removed || e->link[0]) link_n++;
+                sc2_xml_attr(child, "Turret", e->turret, sizeof(e->turret));
+                for (xmlAttr *attr=child->properties;attr;attr=attr->next)
+                    if (sc2_streqi((cstring_t)attr->name,"Turret")) e->has_turret=true;
+                /* An indexed turret override belongs to the inherited weapon slot. */
+                if (e->removed || e->link[0] || (e->index >= 0 && e->has_turret)) link_n++;
                 continue;
             }
             for (int p=0;p<24;p++) if (sc2_unit_property_fields[p] && sc2_streqi((char const *)child->name,sc2_unit_property_fields[p]) && sc2_xml_attr(child,"value",value,sizeof(value))) {
@@ -2500,19 +2515,22 @@ static void sc2_resolve_unit_properties(sc2Catalog_t const *catalog, sc2CatalogU
 /* Parents first, then this unit's elements in load order: indexed elements replace or remove a slot,
  * unindexed ones append unless the link is already present (a later layer repeating its base). */
 #define SC2_MAX_LINK_SLOTS 128 // slots; index attribute is clamped to 127
-typedef struct { char link[SC2_MAX_LINK_SLOTS][SC2_LINK_LEN]; bool present[SC2_MAX_LINK_SLOTS]; uint32_t count; } sc2LinkSlots_t;
+typedef struct { char link[SC2_MAX_LINK_SLOTS][SC2_LINK_LEN], turret[SC2_MAX_LINK_SLOTS][SC2_LINK_LEN]; bool present[SC2_MAX_LINK_SLOTS]; uint32_t count; } sc2LinkSlots_t;
 static void sc2_resolve_unit_links(sc2Catalog_t const *catalog, sc2CatalogUnit_t const *unit, int kind, sc2LinkSlots_t *slots, int depth) {
     if (!unit || depth >= SC2_MAX_CATALOG_PARENT_DEPTH) return;
     if (*unit->parent) sc2_resolve_unit_links(catalog, sc2_catalog_unit(catalog, unit->parent), kind, slots, depth + 1);
     for (uint32_t n = unit->first_link; n; n = catalog->links[n].next) {
         sc2CatalogLink_t const *e = &catalog->links[n];
         uint32_t at = e->index < 0 ? slots->count : (uint32_t)e->index;
-        bool dup = false;
         if (e->kind != kind) continue;
-        if (e->index < 0) FOR_LOOP(i, slots->count) dup |= slots->present[i] && !strcasecmp(slots->link[i], e->link);
-        if (dup || at >= SC2_MAX_LINK_SLOTS) continue;
-        slots->present[at] = !e->removed;
-        if (!e->removed) snprintf(slots->link[at], SC2_LINK_LEN, "%s", e->link);
+        if (e->index < 0) FOR_LOOP(i, slots->count)
+            if (slots->present[i] && !strcasecmp(slots->link[i], e->link)) { at=i; break; }
+        if (at >= SC2_MAX_LINK_SLOTS) continue;
+        if (e->removed) { slots->present[at]=false; slots->link[at][0]=slots->turret[at][0]=0; }
+        else {
+            if (*e->link) { slots->present[at]=true; snprintf(slots->link[at],SC2_LINK_LEN,"%s",e->link); }
+            if (e->has_turret) snprintf(slots->turret[at],SC2_LINK_LEN,"%s",e->turret);
+        }
         slots->count = MAX(slots->count, at + 1);
     }
 }
@@ -2527,6 +2545,21 @@ uint32_t SC2_MapUnitLinks(cstring_t unit_type, int kind, char (*out)[SC2_LINK_LE
     FOR_LOOP(i, slots.count) if (slots.present[i]) {
         if (n == max) { fprintf(stderr, "SC2 CUnit '%s': %u array links exceed unit capacity %u\n", unit_type, slots.count, max); break; }
         snprintf(out[n++], SC2_LINK_LEN, "%s", slots.link[i]);
+    }
+    return n;
+}
+
+uint32_t SC2_MapUnitWeapons(cstring_t type, sc2UnitWeapon_t *out, uint32_t max) {
+    sc2LinkSlots_t slots={0};
+    if (!sc2_persistent_catalog) return 0;
+    sc2_resolve_unit_links(sc2_persistent_catalog,sc2_catalog_unit(sc2_persistent_catalog,"$CUnit"),SC2_LINK_WEAPON,&slots,0);
+    sc2_resolve_unit_links(sc2_persistent_catalog,sc2_catalog_unit(sc2_persistent_catalog,type),SC2_LINK_WEAPON,&slots,0);
+    uint32_t n=0;
+    FOR_LOOP(i,slots.count) if (slots.present[i]) {
+        if (n==max) { fprintf(stderr,"SC2 CUnit '%s': weapon capacity %u exceeded\n",type,max); break; }
+        out[n]=(sc2UnitWeapon_t){0};
+        snprintf(out[n].link,sizeof(out[n].link),"%s",slots.link[i]);
+        snprintf(out[n++].turret,SC2_LINK_LEN,"%s",slots.turret[i]);
     }
     return n;
 }
@@ -2761,29 +2794,23 @@ static void sc2_resolve_weapon(cstring_t id, sc2WeaponPresentation_t *out, uint3
         if (*weapon->parent) sc2_resolve_weapon(weapon->parent,out,depth+1);
         if (*weapon->effect) snprintf(out->effect,sizeof(out->effect),"%s",weapon->effect);
         if (*weapon->icon) snprintf(out->icon,sizeof(out->icon),"%s",weapon->icon);
-        if (*weapon->turret_name) snprintf(out->turret_name,sizeof(out->turret_name),"%s",weapon->turret_name);
         if (weapon->range>0) out->range=weapon->range;
         if (weapon->period>0) out->period=weapon->period;
         return;
     }
-}
-static bool sc2_resolve_damage(cstring_t id, float *amount, float *splash, uint32_t depth) {
-    if (depth>=SC2_MAX_CATALOG_PARENT_DEPTH) return false;
-    for (uint32_t i=0;i<sc2_persistent_catalog->damage_count;i++) {
-        sc2CatalogDamage_t const *damage=&sc2_persistent_catalog->damage[i];
-        if (strcmp(damage->id,id)) continue;
-        if (damage->splash_radius>0 && splash) *splash=damage->splash_radius;
-        if (damage->has_amount) { *amount=damage->amount; return true; }
-        return *damage->parent && sc2_resolve_damage(damage->parent,amount,splash,depth+1);
-    }
-    return false;
 }
 bool SC2_MapWeaponPresentation(cstring_t id, sc2WeaponPresentation_t *out) {
     if (!sc2_persistent_catalog || !id || !out) return false;
     *out=(sc2WeaponPresentation_t){0};
     snprintf(out->id,sizeof(out->id),"%s",id);
     sc2_resolve_weapon("$CWeaponLegacy",out,0); sc2_resolve_weapon(id,out,0);
-    return *out->effect && sc2_resolve_damage(out->effect,&out->damage,&out->splash,0) && out->range>0 && out->period>0;
+    if (!*out->effect || out->range<=0 || out->period<=0) return false;
+    if (!sc2_compile_effect(out->effect,out,NULL,0,0)) { out->effect_count=0; return false; }
+    for (int i=0;i<out->effect_count;i++) {
+        out->damage=MAX(out->damage,out->effects[i].amount);
+        for (int a=0;a<out->effects[i].area_count;a++) out->splash=MAX(out->splash,out->effects[i].areas[a].radius);
+    }
+    return out->effect_count>0;
 }
 
 static bool sc2_catalog_sound_path_r(sc2Catalog_t const *catalog, sc2CatalogSound_t const *sound,

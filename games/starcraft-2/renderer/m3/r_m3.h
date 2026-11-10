@@ -443,6 +443,23 @@ typedef struct m3Model_s {
     Reference unknown28;
 } m3Model_t;
 
+/* Stock M3 rigs expose the yaw pivot as Ref_TurretZ. Prefer it over child bones. */
+static inline int32_t M3_FindTurretBone(m3Model_t const *model) {
+    for (uint32_t i=0;i<model->bonesNum;i++) {
+        m3Bone_t const *bone=&model->bones[i];
+        if (bone->nameNum>=12 && !memcmp(bone->name,"Ref_TurretZ\0",12)) return (int32_t)i;
+    }
+    return -1;
+}
+static inline void M3_RotateTurret(mat4_t *bone, float delta) {
+    float c=cosf(delta),s=sinf(delta);
+    mat4_t rotation={.v={c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1}},out;
+    Matrix4_multiply(&rotation,bone,&out);
+    /* Rotate the orientation about this joint, not its position about the model origin. */
+    out.v[12]=bone->v[12]; out.v[13]=bone->v[13]; out.v[14]=bone->v[14];
+    *bone=out;
+}
+
 m3Model_t *R_LoadModelM3(void *buffer, uint32_t size);
 
 #endif // M3HEADER_H_
