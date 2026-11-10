@@ -75,6 +75,7 @@ static void re_done(retailEffectFixture_t *f) {
     free_slk_rows(f->ability_rows);
 }
 
+
 TEST(retail_item_effect, pres_restores_authored_health_and_mana) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y3;X7\n"
@@ -1484,6 +1485,228 @@ TEST(retail_item_effect, talisman_of_evasion_causes_attacks_to_miss_using_item_d
     f.hero->health.value = initial_health;
     S_ResolveAttackHit(f.enemy, f.hero, 10);
     T_FEQ(f.hero->health.value, initial_health, 0.001f);
+    re_done(&f);
+}
+
+
+
+TEST(retail_item_effect, pnvu_click_has_timed_invulnerability_and_cooldown) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y4;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+        "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"Cool1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y1;X9;K\"DataA1\"\nC;Y1;X10;K\"DataC1\"\nC;Y1;X11;K\"DataD1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K1\nC;Y2;X9;K6\nC;Y2;X10;K1\nC;Y2;X11;K1\n"
+        "C;Y3;X1;K\"AIvu\"\nC;Y3;X2;K\"AAsm\"\n"
+        "C;Y3;X3;K1\nC;Y3;X4;K\"vuln,invu\"\n"
+        "C;Y3;X5;K2\nC;Y3;X6;K2\nC;Y3;X7;K8\nC;Y3;X8;K\"Bvul\"\n"
+        "C;Y4;X1;K\"A001\"\nC;Y4;X2;K\"A001\"\n"
+        "C;Y4;X3;K1\nC;Y4;X4;K\"ground,enemy,vuln\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y1;X3;K\"uses\"\nC;Y1;X4;K\"usable\"\n"
+        "C;Y1;X5;K\"perishable\"\nC;Y1;X6;K\"cooldownID\"\n"
+        "C;Y2;X1;K\"pnvu\"\nC;Y2;X2;K\"AIvu\"\n"
+        "C;Y2;X3;K2\nC;Y2;X4;K1\nC;Y2;X5;K0\nC;Y2;X6;K\"AIvu\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player, *potion;
+    re_init(&f, ability_slk, items);
+    player = G_GetPlayerEntityByNumber(0);
+    T_NOT_NULL(player);
+    if (!player || !player->client) { re_done(&f); return; }
+    G_SelectEntity(player->client, f.hero);
+    potion = re_equip(&f, "pnvu", 0);
+    G_GetItem(potion)->charges = 2;
+    T_ASSERT(!S_UnitInvulnerable(f.hero));
+    G_UseItem(f.hero, 0);
+    T_ASSERT(S_UnitHasStatus(f.hero, FS_SLKKey("Bvul")));
+    T_ASSERT(S_UnitInvulnerable(f.hero));
+    T_EQ(G_GetItem(potion)->charges, 1);
+    T_ASSERT(!S_SpellCooldownReady(f.hero, FS_SLKKey("AIvu")));
+    T_ASSERT(!S_SpellAllowsTarget(FS_SLKKey("A001"), f.enemy, f.hero));
+    T_ASSERT(!S_SpellDamage(f.hero, f.enemy, 17));
+    G_UseItem(f.hero, 0);
+    T_EQ(G_GetItem(potion)->charges, 1); /* no consumption on cooldown */
+    G_SetUnitFlag(f.hero, UNIT_FLAG_INVULNERABLE, true);
+    re_run_frame_at(f.hero, level.time + 2001);
+    T_ASSERT(!S_UnitHasStatus(f.hero, FS_SLKKey("Bvul")));
+    T_ASSERT(S_UnitInvulnerable(f.hero)); /* independent owner survives */
+    G_SetUnitFlag(f.hero, UNIT_FLAG_INVULNERABLE, false);
+    T_ASSERT(!S_UnitInvulnerable(f.hero));
+    T_ASSERT(S_SpellAllowsTarget(FS_SLKKey("A001"), f.enemy, f.hero));
+    re_done(&f);
+}
+
+/* Nonstock fire damage and radius catch accidental inheritance of ANpi's
+ * 220 radius or organic-only targeting. Dropping the source must stop pulses. */
+
+TEST(retail_item_effect, clfm_item_immolation_pulses_and_stops_on_drop) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+        "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K1\nC;Y2;X6;K6\nC;Y2;X8;K1\n"
+        "C;Y3;X1;K\"AIcf\"\nC;Y3;X2;K\"ANpi\"\n"
+        "C;Y3;X3;K1\nC;Y3;X4;K\"ground,enemy,neutral\"\n"
+        "C;Y3;X5;K96\nC;Y3;X6;K13\nC;Y3;X7;K\"BIcf\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"clfm\"\nC;Y2;X2;K\"AIcf\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *mechanical;
+    re_init(&f, ability_slk, items);
+    mechanical = alloc_test_unit(FS_SLKKey("hfoo"), 72, 0);
+    mechanical->s.player = 1;
+    mechanical->svflags |= SVF_MONSTER;
+    mechanical->spawn_time = level.time;
+    mechanical->targtype = TARG_MECHANICAL;
+    mechanical->health.value = mechanical->health.max_value = 500;
+    { edict_t *item = re_equip(&f, "clfm", 0); G_GetItem(item)->droppable_set = true; G_GetItem(item)->droppable = true; }
+    T_ASSERT(S_UnitHasStatus(f.hero, FS_SLKKey("BIcf")));
+    level.time += 1000; S_RunAbilityUpdates(f.hero);
+    T_FEQ(f.enemy->health.value, 487.0f, 0.001f);
+    T_FEQ(mechanical->health.value, 487.0f, 0.001f);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_ASSERT(!S_UnitHasStatus(f.hero, FS_SLKKey("BIcf")));
+    level.time += 1000; S_RunAbilityUpdates(f.hero);
+    T_FEQ(f.enemy->health.value, 487.0f, 0.001f);
+    T_FEQ(mechanical->health.value, 487.0f, 0.001f);
+    re_done(&f);
+}
+
+/* AIad is an item alias whose code='aura'; the generic AHad-family parent
+ * cannot be used to determine either ownership or the armor bonus. */
+
+TEST(retail_item_effect, lion_horn_provides_data_driven_devotion_aura) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+        "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K1\nC;Y2;X6;K6\nC;Y2;X8;K1\n"
+        "C;Y3;X1;K\"AIad\"\nC;Y3;X2;K\"aura\"\n"
+        "C;Y3;X3;K1\nC;Y3;X4;K\"air,ground,friend,self,vuln,invu\"\n"
+        "C;Y3;X5;K900\nC;Y3;X6;K2.25\nC;Y3;X7;K\"BHad\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"lhst\"\nC;Y2;X2;K\"AIad\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *ally;
+    re_init(&f, ability_slk, items);
+    ally = alloc_test_unit(FS_SLKKey("hfoo"), 100, 0);
+    ally->s.player = f.hero->s.player;
+    ally->svflags |= SVF_MONSTER;
+    ally->targtype = TARG_GROUND;
+    ally->spawn_time = level.time;
+    T_FEQ(S_DevotionArmorBonus(ally), 0.0f, 0.001f);
+    { edict_t *item = re_equip(&f, "lhst", 0); G_GetItem(item)->droppable_set = true; G_GetItem(item)->droppable = true; }
+    T_FEQ(S_DevotionArmorBonus(ally), 2.25f, 0.001f);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_FEQ(S_DevotionArmorBonus(ally), 0.0f, 0.001f);
+    re_done(&f);
+}
+
+/* Chain dispel is unit-targeted and reads DataC, not the Priest's Area
+ * dispel count. A nonstock 2-unit chain must not touch the third status. */
+
+TEST(retail_item_effect, wneu_chain_dispel_is_bounded_by_authored_target_count) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
+        "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\nC;Y2;X7;K6\n"
+        "C;Y3;X1;K\"AIdc\"\nC;Y3;X2;K\"AIdc\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K\"air,ground,friend,self,enemy,invu,vuln\"\n"
+        "C;Y3;X5;K150\nC;Y3;X6;K2\nC;Y3;X7;K0\nC;Y3;X8;K0\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"wneu\"\nC;Y2;X2;K\"AIdc\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *second, *third;
+    abilityitem_t spell;
+    spellTarget_t target;
+    abilityCall_t call;
+    edict_t *item;
+    re_init(&f, ability_slk, items);
+    f.hero_abilities.abilList = "AInv,AIdc";
+    second = alloc_test_unit(FS_SLKKey("hfoo"), 128, 0);
+    third = alloc_test_unit(FS_SLKKey("hfoo"), 192, 0);
+    second->s.player = third->s.player = 1;
+    second->svflags |= SVF_MONSTER;
+    third->svflags |= SVF_MONSTER;
+    second->targtype = third->targtype = TARG_GROUND;
+    second->spawn_time = third->spawn_time = level.time;
+    T_ASSERT(unit_addtimedstatus(f.enemy, "B000", 1, 30));
+    T_ASSERT(unit_addtimedstatus(second, "B001", 1, 30));
+    T_ASSERT(unit_addtimedstatus(third, "B002", 1, 30));
+    item = re_equip(&f, "wneu", 0);
+    G_GetItem(item)->droppable_set = true; G_GetItem(item)->droppable = true;
+    spell = S_AbilityItem(FS_SLKKey("AIdc"));
+    target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = f.enemy);
+    call = MAKE(abilityCall_t, .item = &spell, .target = &target);
+    T_ASSERT(S_AbilityMessage(f.hero, A_VALIDATE, &call));
+    T_ASSERT(S_AbilityMessage(f.hero, A_EXECUTE, &call));
+    T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("B000")));
+    T_ASSERT(!S_UnitHasStatus(second, FS_SLKKey("B001")));
+    T_ASSERT(S_UnitHasStatus(third, FS_SLKKey("B002")));
+    T_ASSERT(G_DropItem(f.hero, 0));
+    re_done(&f);
+}
+
+
+/* All four shdt abilities are inherited from ItemData, not a special-case
+ * inventory item type. The stock values are data assertions; the nonstock
+ * fire value proves the shared AIcf handler also owns shield flames. */
+
+TEST(retail_item_effect, shield_of_deathlord_has_four_reversible_item_effects) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y6;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\n"
+        "C;Y2;X3;K1\nC;Y2;X4;K6\nC;Y2;X8;K1\n"
+        "C;Y3;X1;K\"AIlf\"\nC;Y3;X2;K\"AIml\"\nC;Y3;X3;K1\nC;Y3;X4;K150\n"
+        "C;Y4;X1;K\"AImz\"\nC;Y4;X2;K\"AImm\"\nC;Y4;X3;K1\nC;Y4;X4;K100\n"
+        "C;Y5;X1;K\"AId0\"\nC;Y5;X2;K\"AIde\"\nC;Y5;X3;K1\nC;Y5;X4;K10\n"
+        "C;Y6;X1;K\"AIcf\"\nC;Y6;X2;K\"ANpi\"\nC;Y6;X3;K1\n"
+        "C;Y6;X4;K7\nC;Y6;X5;K160\n"
+        "C;Y6;X6;K\"ground,enemy,neutral\"\nC;Y6;X7;K\"BIcf\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"shdt\"\nC;Y2;X2;K\"AIlf,AImz,AId0,AIcf\"\nE\n";
+    retailEffectFixture_t f;
+    float defense;
+    re_init(&f, ability_slk, items);
+    defense = G_UnitArmorValue(f.hero);
+    { edict_t *item = re_equip(&f, "shdt", 0); G_GetItem(item)->droppable_set = true; G_GetItem(item)->droppable = true; }
+    T_FEQ(f.hero->health.max_value, 650.0f, 0.001f);
+    T_FEQ(f.hero->mana.max_value, 600.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.hero), defense + 10.0f, 0.001f);
+    T_ASSERT(S_UnitHasStatus(f.hero, FS_SLKKey("BIcf")));
+    re_run_frame_at(f.hero, level.time + 1000);
+    T_FEQ(f.enemy->health.value, 493.0f, 0.001f);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_FEQ(f.hero->health.max_value, 500.0f, 0.001f);
+    T_FEQ(f.hero->mana.max_value, 500.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.hero), defense, 0.001f);
+    T_ASSERT(!S_UnitHasStatus(f.hero, FS_SLKKey("BIcf")));
     re_done(&f);
 }
 

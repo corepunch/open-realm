@@ -446,6 +446,28 @@ BZ_ABILITY_PROC(CAbilityItemInvis) {
     }
 }
 
+/* Potion of Invulnerability (AIvu). The Bvul timed status contributes the
+ * invulnerable state without clearing any other invulnerability source when
+ * the potion expires, gets dispelled, or is overwritten. */
+BZ_ABILITY_PROC(CAbilityItemInvul) {
+    edict_t *unit;
+    cstring_t buff;
+    uint32_t code;
+    float duration;
+    heroabilitystatus_t *status;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    unit = item_use_caster(ent, call);
+    if (!S_SpellIsAliveTarget(unit)) return false;
+    code = call->item->code;
+    buff = S_SpellBuffId(code, 1);
+    duration = S_SpellHeroDuration(code, 1, unit);
+    if (!buff || strlen(buff) < 4 || duration <= 0.0f) return false;
+    status = S_SpellApplyTimedTargetStatus(unit, code, 1, buff, duration);
+    if (!status) return false; /* Full status table must not consume the potion. */
+    G_InvalidateUnitInfoPanel(unit);
+    return true;
+}
+
 BZ_ITEM_PROC(AbilityItemManaRestore) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);

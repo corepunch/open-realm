@@ -112,7 +112,7 @@ bool S_UnitSpellImmune(edict_t const *unit) {
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.
  * Bam2 absorption is not targeting immunity: leftover damage after the shell breaks still applies. */
 bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
-    if (!target || S_UnitSpellImmune(target)) return false;
+    if (!target || S_UnitSpellImmune(target) || S_UnitInvulnerable(target)) return false;
     damage = (int)((float)damage * (1.0f - S_ItemSpellDamageReduction(target)));
     if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL))
         damage = (int)((float)damage * 1.66f);
@@ -829,6 +829,64 @@ void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t co
     if (devoured_enemy_units && heal_mana > 0.0f)
         caster->mana.value = MIN(caster->mana.max_value,
                                  caster->mana.value + heal_mana * (float)devoured_enemy_units);
+}
+
+/* TFT AIdc (Wand of Neutralization) and Ache chain dispel. The first
+ * target is an explicitly ordered unit; DataC limits the total affected
+ * units and Area is the maximum distance from the previous chain hop.
+ * Both fields, summoned damage (DataB), and mana loss (DataA) are read from
+ * the concrete ability alias, not the older area-Dispel data. */
+BZ_ABILITY_PROC(CAbilityItemChainDispel) {
+    spellTarget_t const *target = call ? call->target : NULL;
+    uint32_t code = call && call->item ? call->item->code : 0;
+    edict_t *current;
+    uint32_t level, max_targets, visited_count = 0;
+    float area, mana_loss, summon_damage;
+    edict_t *visited[MAX_ENTITIES];
+    if (msg != A_VALIDATE && msg != A_EXECUTE)
+        return CAbilitySimpleSpell(ent, msg, call);
+    if (!code || !ent || !target || target->type != SPELL_TARGET_UNIT ||
+        !target->entity || !S_SpellAllowsTarget(code, ent, target->entity)) return false;
+    if (msg == A_VALIDATE) return true;
+    level = S_SpellLevel(ent, code);
+    if (!level) level = 1;
+    max_targets = (uint32_t)MAX(0.0f, S_SpellData(code, level, 3));
+    area = MAX(0.0f, S_SpellNumber(code, ABILITY_NUMBER_AREA, level));
+    mana_loss = MAX(0.0f, S_SpellData(code, level, 1));
+    summon_damage = MAX(0.0f, S_SpellData(code, level, 2));
+    if (!max_targets) return false;
+    current = target->entity;
+    while (current && visited_count < max_targets && visited_count < MAX_ENTITIES) {
+        edict_t *next = NULL;
+        vec2_t const hop_origin = current->s.origin2;
+        float nearest = FLT_MAX;
+        visited[visited_count++] = current;
+        /* Effects and the hop position must be captured before dispel or
+         * summoned-unit damage can retire the current target. */
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, current, NULL, true);
+        /* The shared dispel inverse owns status removal so timed lifecycle
+         * locks and ordinary positive/negative buffs clean up identically. */
+        (void)S_DispelUnitMagic(current);
+        if (current->inuse && mana_loss > 0.0f) {
+            current->mana.value = MAX(0.0f, current->mana.value - mana_loss);
+            G_InvalidateUnitInfoPanel(current);
+        }
+        if (current->inuse && summon_damage > 0.0f && !S_SpellIsFriend(ent, current) &&
+            S_DispelIsSummoned(current) && !S_SummonIsDispelImmune(current))
+            S_SpellDamage(current, ent, (int)summon_damage);
+        if (visited_count >= max_targets) break;
+        FILTER_EDICTS(candidate, candidate != current && S_SpellIsAliveTarget(candidate) &&
+                      S_SpellAllowsAreaTarget(code, ent, candidate) &&
+                      !S_SpellTargetVisited(visited, visited_count, candidate)) {
+            float const distance = Vector2_distance(&hop_origin, &candidate->s.origin2);
+            if (distance <= area && distance < nearest) {
+                nearest = distance;
+                next = candidate;
+            }
+        }
+        current = next;
+    }
+    return true;
 }
 
 /* A Devour Magic point cast launches the authored birth missile. Its gameplay

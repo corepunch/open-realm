@@ -1898,6 +1898,7 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
     case MAKEFOURCC('B','H','b','n'):
         return WC3_STATUS_STATE_ETHEREAL;
     case MAKEFOURCC('B','H','d','s'):
+    case MAKEFOURCC('B','v','u','l'): /* Item Invulnerability */
         return WC3_STATUS_STATE_INVULNERABLE;
     case MAKEFOURCC('B','H','a','v'):
     case MAKEFOURCC('B','a','m','s'):

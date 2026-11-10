@@ -127,9 +127,12 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
         abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
-        abilityCall_t call = MAKE(abilityCall_t, .item = &entry);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &entry,
+                                  .source_item = (edict_t *)item,
+                                  .source_item_spawn_time = item->spawn_time);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
     }
+    S_AuraInventoryChanged();
     /* The info panel shows the new stats right away, not at the next selection. */
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].connected && G_IsEntitySelected(game.clients + i, unit))
@@ -1057,8 +1060,10 @@ void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
     }
 }
 
-/* Use an item in inventory by slot index. Calls the item's ability cmd handler. */
-void G_UseItem(edict_t *unit, uint32_t slot) {
+/* The HUD caller may share-control a unit owned by another player.
+ * Preserve that actual command client for item targeting and feedback while
+ * retaining G_UseItem as the owner-context/script-compatible wrapper. */
+void G_UseItemWithController(edict_t *unit, uint32_t slot, edict_t *controller) {
     edict_t *item;
     edict_t *clent;
     cstring_t abilities;
@@ -1072,8 +1077,8 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         return;
     }
 
-    clent = G_GetPlayerEntityByNumber(unit->s.player);
-    if (!clent || !clent->client) return;
+    clent = controller ? controller : G_GetPlayerEntityByNumber(unit->s.player);
+    if (!clent || !clent->client || !G_UnitCanControl(clent->client, unit)) return;
     abilities = G_ItemAbilityList(item);
     if (!abilities) return;
 
@@ -1112,6 +1117,10 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         }
         return;
     }
+}
+
+void G_UseItem(edict_t *unit, uint32_t slot) {
+    G_UseItemWithController(unit, slot, NULL);
 }
 
 /* A held-item command refers to an inventory instance, never a recycled edict. */
