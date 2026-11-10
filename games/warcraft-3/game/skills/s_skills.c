@@ -697,7 +697,7 @@ static ability_t abilitylist[] = {
     { "SCva", CAbilityAuraRegenLife, AB_PASSIVE },  /* Vampiric attack */
     { "Adsm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic (creep) */
     { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
-    { "Ache", CAbilityItemChainDispel, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Dispel */
+    { "Ache", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Chain Dispel (creep) */
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */
