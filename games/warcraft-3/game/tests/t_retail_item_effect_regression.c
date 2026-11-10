@@ -1627,9 +1627,9 @@ TEST(retail_item_effect, wneu_chain_dispel_is_bounded_by_authored_target_count) 
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
         "C;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataC1\"\n"
         "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
-        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\nC;Y2;X7;K6\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\nC;Y2;X6;K1\nC;Y2;X7;K6\n"
         "C;Y3;X1;K\"AIdc\"\nC;Y3;X2;K\"AIdc\"\nC;Y3;X3;K1\n"
-        "C;Y3;X4;K\"air,ground,friend,self,enemy,invu,vuln\"\n"
+        "C;Y3;X4;K\"air,ground,enemy,vuln\"\n"
         "C;Y3;X5;K150\nC;Y3;X6;K2\nC;Y3;X7;K0\nC;Y3;X8;K0\nE\n";
     char const *items =
         "ID;PWXL;N;EBB;Y2;X2\n"
@@ -1656,9 +1656,13 @@ TEST(retail_item_effect, wneu_chain_dispel_is_bounded_by_authored_target_count) 
     item = re_equip(&f, "wneu", 0);
     G_GetItem(item)->droppable_set = true; G_GetItem(item)->droppable = true;
     spell = S_AbilityItem(FS_SLKKey("AIdc"));
+    T_FEQ(S_SpellData(FS_SLKKey("AIdc"), 1, 3), 2.0f, 0.001f);
+    T_FEQ(S_SpellNumber(FS_SLKKey("AIdc"), ABILITY_NUMBER_AREA, 1), 150.0f, 0.001f);
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = f.enemy);
     call = MAKE(abilityCall_t, .item = &spell, .target = &target);
     T_ASSERT(S_AbilityMessage(f.hero, A_VALIDATE, &call));
+    T_ASSERT(S_SpellIsEnemy(f.hero, second));
+    T_ASSERT(S_SpellAllowsAreaTarget(FS_SLKKey("AIdc"), f.hero, second));
     T_ASSERT(S_AbilityMessage(f.hero, A_EXECUTE, &call));
     T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("B000")));
     T_ASSERT(!S_UnitHasStatus(second, FS_SLKKey("B001")));
@@ -1700,7 +1704,8 @@ TEST(retail_item_effect, shield_of_deathlord_has_four_reversible_item_effects) {
     T_FEQ(f.hero->mana.max_value, 600.0f, 0.001f);
     T_FEQ(G_UnitArmorValue(f.hero), defense + 10.0f, 0.001f);
     T_ASSERT(S_UnitHasStatus(f.hero, FS_SLKKey("BIcf")));
-    re_run_frame_at(f.hero, level.time + 1000);
+    level.time += 1000;
+    S_RunAbilityUpdates(f.hero);
     T_FEQ(f.enemy->health.value, 493.0f, 0.001f);
     T_ASSERT(G_DropItem(f.hero, 0));
     T_FEQ(f.hero->health.max_value, 500.0f, 0.001f);
