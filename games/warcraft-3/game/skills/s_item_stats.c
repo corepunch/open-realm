@@ -88,6 +88,8 @@ BZ_ABILITY_PROC(CAbilityAttributeBonus) {
 #define ID_ORB_FREEZE MAKEFOURCC('A', 'I', 'z', 'b')
 #define ID_ORB_LIGHTNING_TFT MAKEFOURCC('A', 'I', 'l', 'l')
 #define ID_ORB_LIGHTNING_PROC MAKEFOURCC('A', 'I', 'p', 'g')
+#define ID_ORB_SLOW MAKEFOURCC('A', 'I', 's', 'b')
+#define ID_ORB_SLOW_PROC MAKEFOURCC('A', 'I', 'o', 's')
 
 static uint32_t const orb_codes[] = {
     ID_ORB_FIRE, ID_ORB_LIGHTNING_OLD, ID_ORB_LIGHTNING_TFT, ID_ORB_FROST, ID_ORB_POISON, ID_ORB_CORRUPTION, ID_ORB_FREEZE,
@@ -170,12 +172,31 @@ static void orb_lightning_on_hit(edict_t *attacker, edict_t *target) {
         &(abilityCall_t){ .item = &purge, .target = &spell_target });
 }
 
+/* Retail Oslo carries AIsb (DataA attack bonus, DataB proc chance,
+ * UnitID=AIos). Use AIos's registered Slow ability for target validation,
+ * resistance-scaled duration and the shared Bslo modifiers. */
+static void orb_slow_on_hit(edict_t *attacker, edict_t *target) {
+    abilityitem_t slow;
+    spellTarget_t spell_target;
+    abilityCall_t call;
+    if (!attacker || !target ||
+        !(G_UnitAbilityLevel(attacker, ID_ORB_SLOW) || item_has_ability(attacker, ID_ORB_SLOW)) ||
+        (float)(rand() % 100) >= S_SpellData(ID_ORB_SLOW, 1, 2)) return;
+    slow = S_AbilityItem(ID_ORB_SLOW_PROC);
+    if (!slow.ability || slow.ability->proc != CAbilitySlow) return;
+    spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+    call = MAKE(abilityCall_t, .item = &slow, .target = &spell_target);
+    if (!slow.ability->proc(attacker, A_VALIDATE, &call)) return;
+    (void)slow.ability->proc(attacker, A_EXECUTE, &call);
+}
+
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
  * orb ownership and held orb items; the same orb from both sources applies once. */
 void S_OrbOnHit(edict_t *attacker, edict_t *target) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
+    orb_slow_on_hit(attacker, target);
     orb_lightning_on_hit(attacker, target);
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0])) {
         /* Owned map aliases carry their own BuffID and duration. */

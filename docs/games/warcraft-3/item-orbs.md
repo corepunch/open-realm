@@ -31,6 +31,23 @@ respective authored status consumers. The Orb of Frost regression drives
 `S_OrbOnHit`, checks both slow modifiers, and advances the entity scheduler
 through the authored duration to verify they expire.
 
+## Orb of Slow and Orb of Lightning
+
+`oslo` carries `AIsb` directly. The installed ROC/TFT row is the item ability
+"Orb of Spells": `DataA=6` bonus attack damage, `DataB=15` percent proc chance,
+`DataC=5` summoned-unit bonus, `DataD=35`, `DataE=2`, and `UnitID=AIos`. The
+nested `AIos` ability is Slow (`Bslo`): `DataA=0.6` movement reduction,
+`DataB=0.25` attack-rate reduction, `Dur=60`, and `HeroDur=20`. A melee-only
+carrier gains an inventory-derived missile attack against air units. The
+`orb_of_slow_grants_air_attack_and_authored_slow_proc` regression covers the
+attack profile, damage bonus, proc, both status modifiers, normal/Hero
+durations, and removal of the air attack when the item is dropped.
+
+`oli2` carries `AIll`, an alias whose parent code is also `AIsb`; its own row
+has `DataA=5`, `DataB=35`, and `UnitID=AIpg` (Purge). The shared parent code
+does not make `AIll` and the direct `AIsb` Orb of Slow item interchangeable.
+The Lightning proc uses the alias's own chance and the nested Purge row.
+
 The `oven` item (`AIpb,Apo2`) also supplies an air-target missile attack when
 the carrier has no enabled authored attack that can hit air. Its transient
 profile uses the unit's Attack 1 damage, range, and timing with `Apo2`'s

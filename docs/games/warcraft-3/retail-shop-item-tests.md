@@ -97,9 +97,10 @@ never count as a test pass.
 - `pams` → `AIxs` (`code=Aami`): installed ROC/TFT ability rows both
   reported 15-second `Bams/Bam2`, cooldown 30; disregard the older 90-second
   documentation **until reconciled with actual archive provenance**.
-- The shared parent code `AIsb` does not identify Orb of Slow by itself:
-  `oli2` maps to `AIll` and its nested `AIpg` Purge proc. Verify an item's own
-  `ItemData.abilList` before assigning the separate Orb of Slow effect contract.
+- `oslo` carries `AIsb` directly and uses nested `AIos` for its 15% Slow proc;
+  melee carriers gain a missile attack against air units. `oli2` carries
+  `AIll` (also parented by `AIsb`) and uses nested `AIpg` for Purge. Tests keep
+  the direct base ability and its alias as distinct item behaviors.
 - `tsct` → `AIbt` → `hwtw` and `tgrh` → `AIbg` → `htow`; tests must
   also check real placement/pathing, cancellation and construction timing.
 

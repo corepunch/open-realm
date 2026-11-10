@@ -111,6 +111,10 @@ The latest full suite checkpoint passed these seven listed tests in both classic
    `G_RunEntity`. It verifies AIsl's area recipients tick independently,
    attack or spell damage cancels only the damaged recipient, AIpl affects only
    its user, and attack damage cancels AIpl recovery. The test runs under both classic and TFT.
+8. `orb_of_slow_grants_air_attack_and_authored_slow_proc`: Equips retail
+   `oslo`/`AIsb`, checks a melee unit gains and loses its air-target missile
+   attack with the item, then drives the hit proc through nested `AIos` and
+   checks authored movement/attack slow modifiers and Hero duration.
 
 `wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
 also exercises the installed `ANsa` contract with non-stock `DataA=7`: the
@@ -127,8 +131,8 @@ The 45 purchase tests should not be misrepresented as 62 effect tests.
 
 The 266-row matrix above remains an inventory of positive/negative acceptance
 scenarios, not executable C coverage. The tests listed here cover only the
-behaviors named in their descriptions. `AIcb` armor reduction, Orb of Slow's
-item-specific alias/proc behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
+behaviors named in their descriptions. `AIcb` armor reduction, Orb of Fire
+splash behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
 from archive data and exercised through production gameplay paths.
 
 ## Testing policy
