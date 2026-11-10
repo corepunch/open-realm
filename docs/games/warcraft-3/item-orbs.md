@@ -25,8 +25,11 @@ All six rows use `CAbilityAttackBonus` with flags `0`, exactly like
 it. `S_OrbOnHit` in `s_item_stats.c` applies the BuffID state from
 `S_ResolveAttackHit` next to `S_SlowPoisonOnHit`, checking native orb
 ownership and held orb items (the same orb from both applies once).
-Buffs are state-only like Frost Nova's `Bfro`: no movement/armor
-consumer reads `Bfro`/`BIcb`/`Bfre` yet.
+The status modifier system consumes the frost buff (`Bfro`) as the classic
+50% movement and 25% attack-rate slow. `BIcb` and `Bfre` also feed their
+respective authored status consumers. The Orb of Frost regression drives
+`S_OrbOnHit`, checks both slow modifiers, and advances the entity scheduler
+through the authored duration to verify they expire.
 
 The `oven` item (`AIpb,Apo2`) also supplies an air-target missile attack when
 the carrier has no enabled authored attack that can hit air. Its transient

@@ -359,6 +359,34 @@ TEST(retail_item_effect, runed_bracers_reduce_spell_damage_from_authored_datab) 
     re_done(&f);
 }
 
+TEST(retail_item_effect, orb_of_frost_slows_attack_and_movement_for_authored_duration) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\n"
+        "C;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"6\"\n"
+        "C;Y3;X4;K\"3\"\nC;Y3;X5;K\"1\"\nC;Y3;X6;K\"Bfro\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"ofro\"\nC;Y2;X2;K\"AIob\"\nE\n";
+    retailEffectFixture_t f;
+    re_init(&f, ability_slk, items);
+    re_equip(&f, "ofro", 0);
+    T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 6, 0.001f);
+    S_ResolveAttackHit(f.hero, f.enemy, 20);
+    T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Bfro")));
+    T_FEQ(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.5f, 0.001f);
+    T_FEQ(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), -0.25f, 0.001f);
+    re_run_frame_at(f.enemy, level.time + 3000);
+    T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("Bfro")));
+    T_FEQ(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0, 0.001f);
+    T_FEQ(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0, 0.001f);
+    re_done(&f);
+}
+
 TEST(retail_item_effect, shield_of_honor_provides_authored_command_aura) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X8\n"
