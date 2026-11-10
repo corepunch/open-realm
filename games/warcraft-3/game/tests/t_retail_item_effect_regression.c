@@ -1206,7 +1206,8 @@ TEST(retail_item_effect, flare_gun_targets_a_point_and_reveals_authored_radius) 
     T_NOT_NULL(flare.ability);
     if (!flare.ability) { G_FowShutdown(); re_done(&f); return; }
     T_EQ(flare.ability->proc, CAbilityFlare);
-    G_UseItem(f.hero, 0);
+    cstring_t inventory_click[] = { "inventory", "0" };
+    G_ClientCommand(player, 2, inventory_click);
     T_NOT_NULL(player->client->menu.on_location_selected);
     T_EQ(G_ItemCharges(item), 3);
     G_ClientCommand(player, 3, point_click);
