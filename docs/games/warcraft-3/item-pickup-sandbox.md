@@ -20,7 +20,7 @@ For another installation, pass `--data-dir '/path/to/Warcraft III'`. `--source-m
 
 ## Items and placement
 
-The generator includes every four-character item rawcode in retail `Units/ItemData.slk`, sorted by class and display name. That includes regular inventory items, campaign items, power-ups, and runes. The CSV records each item's rawcode, name, class, power-up flag, authored ability aliases, and map coordinates.
+The generator includes every four-character item rawcode in retail `Units/ItemData.slk`, sorted by class and display name. That includes regular inventory items, campaign items, power-ups, and runes. It also places a nearby second copy of the eight items covered by the retail restoration work: Rune of Rebirth (`rreb`), Rune of Spirit Link (`rspl`), Lion Horn (`lhst`), Shield of Deathlord (`shdt`), Cloak of Flames (`clfm`), Potion of Invulnerability (`pnvu`), Skeletal Artifact (`skrt`), and Wand of Neutralization (`wneu`). These copies are arranged in two rows beside the Player 1 Hero. The CSV records each item's rawcode, name, class, power-up flag, authored ability aliases, placement group, and coordinates; near-Hero copy coordinates are relative to Player 1's start location.
 
 The source map supplies retail terrain, pathing, and the playable map shell. The generator finds dry, fully walkable positions and spreads the items across the map. Its item placements are recalculated from the source map data each time it runs. A controllable Paladin is added near Player 1's start location, and the camera starts there. Use the minimap to visit other item groups. Items with active effects can be picked up by the Paladin; power-ups follow their normal retail pickup behavior.
 
