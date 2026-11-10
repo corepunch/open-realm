@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CWeapon id="GuassRifle">
+        <Effect value="GuassRifleDamage"/>
+        <Range value="5"/>
+        <Period value="0.8608"/>
+    </CWeapon>
+    <CWeapon id="SiegeTankCannon">
+        <Effect value="SiegeTankCannonDamage"/>
+        <Range value="13"/>
+        <Period value="2.14"/>
+    </CWeapon>
+</Catalog>

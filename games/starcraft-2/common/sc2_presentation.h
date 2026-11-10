@@ -21,7 +21,8 @@ typedef struct {
 
 typedef struct {
     char id[64], parent[64], effect[64], icon[256];
-    float range, period, damage;
+    char turret_name[64]; /* bone name from CWeapon.TurretName; non-empty = independent turret */
+    float range, period, damage, splash;
 } sc2WeaponPresentation_t;
 
 bool SC2_MapUnitPresentation(cstring_t type, sc2UnitPresentation_t *out);

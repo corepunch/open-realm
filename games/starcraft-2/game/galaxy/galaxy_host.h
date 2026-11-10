@@ -100,6 +100,8 @@ extern bool (*sc2_galaxy_unit_is_selected)(void *ent, int player);
 /* Team-color override index; a negative index restores the owner's color. */
 extern void (*sc2_galaxy_unit_team_color)(void *ent, int index);
 extern bool (*sc2_galaxy_unit_is_flying)(void *ent);
+/* UnitTransformUnit — change a unit to a new catalog type; returns false if unknown. */
+extern bool (*sc2_galaxy_unit_transform)(void *ent, cstring_t newType);
 
 typedef struct {
     float properties[16]; uint32_t states, alliances[32];

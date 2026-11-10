@@ -84,6 +84,31 @@ static float SC2_ObjectCollisionRadius(sc2MapObject_t const *object, float radiu
     return radius;
 }
 
+/* Apply a resolved catalog object to an in-use unit, preserving vital percentages,
+ * kills, ownership and selection. Called by SC2_UnitTransform after catalog lookup,
+ * and by in-engine tests that construct objects directly. */
+static bool SC2_UnitTransformFrom(edict_t *ent, sc2MapObject_t const *obj) {
+    if (!ent || !ent->inuse || !ent->unit.initialized) return false;
+    float lp=SC2_UnitProperty(&ent->unit,1), ep=SC2_UnitProperty(&ent->unit,5), sp=SC2_UnitProperty(&ent->unit,9);
+    float kills=ent->unit.kills; uint32_t player=ent->s.player, sel=ent->selected;
+    SC2_UnitInit(ent,obj);
+    SC2_UnitSetProperty(&ent->unit,1,lp); SC2_UnitSetProperty(&ent->unit,5,ep); SC2_UnitSetProperty(&ent->unit,9,sp);
+    ent->unit.kills=kills; ent->s.player=player; ent->selected=sel;
+    ent->s.model=G_RegisterModel(obj->model); ent->s.radius=SC2_ObjectRadius(obj);
+    ent->collision=SC2_ObjectCollisionRadius(obj,ent->s.radius);
+    ent->move.mobile=SC2_ObjectIsMobile(obj);
+    if (ent->move.mobile) ent->svflags|=SVF_MONSTER; else ent->svflags&=~SVF_MONSTER;
+    ent->move.flying=!strcasecmp(obj->mover,"Fly");
+    ent->move.moving=false; ent->move.path.valid=false; ent->order.kind=0;
+    SC2_UnitAnimation(ent,"Stand"); SC2_UnitChanged(ent);
+    return true;
+}
+static bool SC2_UnitTransform(edict_t *ent, cstring_t newType) {
+    sc2MapObject_t obj;
+    if (!SC2_MapResolveUnit(newType,&obj)) return false;
+    return SC2_UnitTransformFrom(ent,&obj);
+}
+
 static uint32_t SC2_EdictNumber(edict_t const *ent) {
     if (!ent || ent < sc2_edicts || ent >= sc2_edicts + SC2_MAX_EDICTS) {
         return SC2_MAX_EDICTS;
@@ -525,6 +550,7 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
 }
 
 static int SC2_GalaxyUnitOwner(void *ptr) { return ((edict_t const *)ptr)->s.player; }
+static bool SC2_GalaxyUnitTransform(void *ptr, cstring_t newType) { return SC2_UnitTransform((edict_t *)ptr, newType); }
 
 static bool SC2_GalaxyUnitIsAlive(void *ent_ptr) {
     edict_t *ent = (edict_t *)ent_ptr;
@@ -622,6 +648,7 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_unit_is_selected = SC2_UnitIsSelected;
     sc2_galaxy_unit_team_color = SC2_UnitTeamColor;
     sc2_galaxy_unit_is_flying = SC2_UnitIsFlying;
+    sc2_galaxy_unit_transform = SC2_GalaxyUnitTransform;
 }
 
 static void SC2_InitClients(void) {
@@ -947,6 +974,39 @@ static void SC2_CmdKill(edict_t *ent) {
     SC2_CheatPrintf(ent, "SC2: killed entity %u (%s)", unit->s.number, unit->unit.type);
 }
 
+/* morph <TargetType> — transform the selected unit to a different catalog type. Requires sv_cheats 1. */
+static void SC2_CmdMorph(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
+    if (argc < 2) { SC2_CheatPrintf(ent, "SC2: usage: morph <TargetType>"); return; }
+    edict_t *sel=SC2_SelectedUnit(ent);
+    if (!sel) { SC2_CheatPrintf(ent, "SC2: morph requires a selected unit"); return; }
+    char old_type[64]; strlcpy(old_type,sel->unit.type,sizeof(old_type));
+    if (SC2_UnitTransform(sel,argv[1])) SC2_CheatPrintf(ent, "SC2: morph %s -> %s",old_type,argv[1]);
+    else SC2_CheatPrintf(ent, "SC2: morph: unknown type '%s'",argv[1]);
+}
+
+/* burrow — toggle burrow on the selected unit, or scan for a burrowed unit if none selected.
+ * Burrowed units are hidden and cannot move; unburrow restores both. Requires sv_cheats 1. */
+static void SC2_CmdBurrow(edict_t *ent) {
+    edict_t *unit=NULL,*edicts=globals.edicts;
+    if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
+    unit=SC2_SelectedUnit(ent);
+    if (!unit) { /* burrowed units are hidden/unselectable; scan for the player's first burrowed unit */
+        uint32_t player=SC2_ClientPlayer(ent);
+        for (uint32_t i=globals.max_clients;i<globals.num_edicts && !unit;i++)
+            if (edicts[i].inuse && edicts[i].unit.initialized && (uint32_t)edicts[i].s.player==player &&
+                SC2_UnitIsBurrowed(&edicts[i].unit)) unit=&edicts[i];
+    }
+    if (!unit) { SC2_CheatPrintf(ent, "SC2: burrow requires a selected unit"); return; }
+    if (SC2_UnitIsBurrowed(&unit->unit)) {
+        SC2_UnitUnburrow(unit);
+        SC2_CheatPrintf(ent, "SC2: unburrowed entity %u",unit->s.number);
+    } else {
+        SC2_UnitBurrow(unit);
+        SC2_CheatPrintf(ent, "SC2: burrowed entity %u",unit->s.number);
+    }
+}
+
 static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     vec2_t loc;
 
@@ -962,6 +1022,8 @@ static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     if (!strcmp(argv[0], "spawn")) { SC2_CmdSpawn(ent, argc, argv); return; }
     if (!strcmp(argv[0], "god")) { SC2_CmdGod(ent); return; }
     if (!strcmp(argv[0], "kill")) { SC2_CmdKill(ent); return; }
+    if (!strcmp(argv[0], "morph")) { SC2_CmdMorph(ent, argc, argv); return; }
+    if (!strcmp(argv[0], "burrow")) { SC2_CmdBurrow(ent); return; }
     if (!strcmp(argv[0],"button") && argc>1) { SC2_CommandButton(ent,argv[1]); return; }
     if (!strcmp(argv[0],"cancel")) { SC2_CancelCommand(ent); return; }
     if (!strcmp(argv[0],"minimapping")) {

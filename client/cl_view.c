@@ -395,6 +395,7 @@ static void V_AddClientEntity(centity_t const *ent, bool debug_entities) {
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
+    re.hover_value = ent->current.hover_value;
     if ((ent->current.flags & EF_NAMED_ATTACHMENT) && ent->current.hover_value && ent->current.name) {
         uint32_t i = ent->current.name - 1;
         re.attachment_entity = ent->current.hover_value - 1;
