@@ -449,6 +449,36 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
     }
 }
 
+/* A Monster Lure is an explicit point placement that draws nearby neutral
+ * hostile camps into combat with the summoned ward. Keep ordinary script and
+ * queued orders authoritative, as with camp assistance. */
+void G_CreepGuardLurePlaced(edict_t *lure) {
+    float radius;
+    if (!lure || !lure->inuse || M_IsDead(lure)) return;
+    radius = creep_guard_misc("CreepLureRadius", 600.0f);
+    if (radius <= 0.0f) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *creep = g_edicts + i;
+        if (!creep->inuse || !creep->orders || !creep->orders->creep_guard_enabled ||
+            creep->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(creep) ||
+            creep->orders->creep_guard_phase == CREEP_GUARD_RETURNING ||
+            (creep->aiflags & AI_IMMOBILE) || G_UnitQueuedOrderCount(creep) ||
+            !creep->currentmove ||
+            (creep->currentmove->think != ai_stand && !G_UnitIsSleeping(creep)) ||
+            !unit_has_attack(creep) ||
+            Vector2_distance(&creep->orders->creep_guard_origin, &lure->s.origin2) > radius ||
+            Vector2_distance(&creep->s.origin2, &lure->s.origin2) > radius ||
+            !S_SpellIsEnemy(creep, lure) || !S_AttackCanTarget(creep, lure) ||
+            S_UnitAbilityEvent(creep, A_NO_RETALIATE) || S_UnitAbilityEvent(creep, A_NO_ACQUIRE)) continue;
+        if (G_UnitIsSleeping(creep)) G_UnitWakeUp(creep);
+        S_UnitAbilityEvent(creep, A_AUTO_COMBAT_START);
+        order_attack(creep, lure);
+        if (creep->goalentity == lure && creep->currentmove &&
+            creep->currentmove->proc == CAbilityAttack)
+            G_CreepGuardAutoCombat(creep);
+    }
+}
+
 void G_CreepGuardExplicitOrder(edict_t *unit) {
     if (!unit || !unit->orders) return;
     unit->orders->creep_guard_phase = CREEP_GUARD_IDLE;

@@ -4214,6 +4214,7 @@ void G_CreepGuardSetEnabled(edict_t *, bool);
 void G_CreepGuardDamaged(edict_t *);
 void G_CreepGuardCallForHelp(edict_t *, edict_t *);
 void G_CreepGuardConstructionStarted(edict_t *);
+void G_CreepGuardLurePlaced(edict_t *);
 void G_CreepGuardTick(edict_t *);
 bool G_CreepGuardCombatEnd(edict_t *);
 void G_CreepGuardExplicitOrder(edict_t *);

@@ -379,7 +379,7 @@ static ability_t abilitylist[] = {
     { "AIrv", CAbilityItemRevealEntireMap, AB_ITEM | AB_POWERUP }, /* Glyph of Omniscience */
     // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */
     { "AIwb", CAbilityWeb, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Spider Silk / Item Web */
-    // TODO: AImo a_item_mana_restore_aoe  /* Monster Lure */
+    { "AImo", CAbilityMonsterLure, AB_SPELL, SPELL_TARGET_POINT },  /* Monster Lure */
     // TODO: AIri a_item_speed  /* Random Item */
     { "Ablp", CAbilityItemBlight, AB_SPELL, SPELL_TARGET_POINT }, /* Sacrificial Skull / Blight Placement */
     // TODO: Aste a_figurine_rock_golem  /* Steal */

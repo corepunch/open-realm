@@ -3,7 +3,8 @@
 The Neutral Hostile guard system uses an anchor established at unit creation and
 keeps this separate from the player Stop/Hold Position guard anchor.
 It covers automatic acquisition, bounded pursuit, return-to-anchor movement,
-lethal-hit camp assistance, wake-up and construction-start provocation.
+lethal-hit camp assistance, wake-up, construction-start provocation and Monster
+Lure placement.
 
 ## Guard lifecycle
 
@@ -50,6 +51,11 @@ started construction can provoke eligible nearby creeps using
 `[Misc] BuildingPlacementNotifyRadius` (600 fallback). Level-7+ creeps use
 an approximate wounded-unit/Hero preference, with distance tie-breaks.
 This scoring is not yet proven retail-equivalent.
+
+The TFT Monster Lure (`lure`/`AImo`) creates the data-authored `nlur` ward at
+the selected point. Eligible nearby camp guards within `[Misc] CreepLureRadius`
+(600 fallback) wake and attack that ward through ordinary combat orders. Queued,
+scripted, returning and immobile creeps keep their existing ownership rules.
 
 ## JASS and computer AI
 
