@@ -520,13 +520,11 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) return !S_UnitInvulnerable(target);
     /* Explicit permanent invulnerability and independently timed Bvul/BHds
-     * must be identical to the authored target-mask evaluator. "invu" is
-     * an opt-in exception, not a blanket immunity to every beneficial spell. */
+     * must be identical to the authored target-mask evaluator. "invu" allows
+     * an otherwise matching spell to target an invulnerable unit; it does not
+     * require the target to be invulnerable. */
     if (S_UnitInvulnerable(target) && !S_SpellTargetHasToken(targets, "invu", "invulnerable"))
         return false;
-    if (!S_UnitInvulnerable(target) &&
-        S_SpellTargetHasToken(targets, "invu", "invulnerable") &&
-        !S_SpellTargetHasToken(targets, "vuln", "vulnerable")) return false;
     structure = G_UnitIsStructure(target);
     {
         bool const allows_hero = S_SpellTargetHasToken(targets, "hero", NULL);
