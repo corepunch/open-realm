@@ -20,6 +20,24 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +ui_start_command menu_main
 
 The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/menu/screens/main_menu.c`.
 
+### Unit spawning for testing
+
+To spawn WC3 units at runtime, enable cheats and use `give unit` with a FOURCC rawcode:
+
+```bash
+# Spawn a Footman (hfoo) and a Grunt (ogru) on a melee map
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set sv_cheats 1 \
+  +map 'Maps/(2)Rivercross.w3m' +give unit hfoo +give unit ogru
+
+# Spawn and screenshot for verification
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set sv_cheats 1 \
+  +map 'Maps/(2)Rivercross.w3m' +give unit hfoo +vid_hidden 1 +screenshot 10 +com_frame_limit 20
+```
+
+Common rawcodes: `hfoo` (Footman), `hkni` (Knight), `ogru` (Grunt), `orai` (Raider), `uaco` (Acolyte),
+`ugho` (Ghoul), `ewsp` (Wisp), `earc` (Archer), `Hpal` (Paladin hero), `Obla` (Blademaster hero).
+`debugspawn <rawcode>` is an alternative using the lower-level `SP_SpawnAtLocation` path.
+
 ### White MDX geometry diagnosis
 
 If menu scenes or in-game MDX models retain geometry but render large white regions, log a failed
@@ -94,14 +112,32 @@ make opensc2
 build/bin/opensc2 -data data/StarCraft2 +map Maps/TerranTest.SC2Components
 ```
 
+Per-race test maps place starter units for each faction on a flat 96x96 Mar Sara terrain:
+
+```bash
+make opensc2
+build/bin/opensc2 -data data/StarCraft2 +map Maps/TerranTest.SC2Components   # CC, 2 SCVs, 2 Marines
+build/bin/opensc2 -data data/StarCraft2 +map Maps/ProtossTest.SC2Components  # Nexus, 2 Probes, 2 Zealots, 1 Stalker
+build/bin/opensc2 -data data/StarCraft2 +map Maps/ZergTest.SC2Components     # Hatchery, 2 Drones, 2 Zerglings, 1 Roach
+```
+
+To spawn additional units at runtime, enable cheats and use the `spawn` command:
+
+```bash
+build/bin/opensc2 -data data/StarCraft2 +set sv_cheats 1 +map Maps/TerranTest.SC2Components +spawn Marine +spawn SiegeTank
+```
+
 SC2 UI and map rendering are separate from the WoW character scene; do not use a WoW-style character command unless a future SC2 screen registers one.
 
 ### Make shortcuts
 
 ```bash
-make build-run-sc2            # build + launch TerranTest
-make run-sc2                  # launch TerranTest, no rebuild
+make build-run-sc2            # build + launch TRaynor01 campaign map
+make run-sc2                  # launch TRaynor01, no rebuild
 make run-sc2 ARGS="+map Foo"  # override map
+make run-sc2-terran           # TerranTest map (CC, SCVs, Marines)
+make run-sc2-protoss          # ProtossTest map (Nexus, Probes, Zealots, Stalker)
+make run-sc2-zerg             # ZergTest map (Hatchery, Drones, Zerglings, Roach)
 ```
 
 ## Screenshots

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <stdarg.h>
 
 sc2Level_t sc2_level;
 
@@ -857,6 +858,71 @@ static bool SC2_PrepareMap(cstring_t filename) {
     return true;
 }
 
+static bool SC2_CheatsEnabled(void) { return atoi(gi.CvarString("sv_cheats", "0")) != 0; }
+
+static void SC2_CheatPrintf(edict_t *ent, cstring_t fmt, ...) {
+    char text[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    fprintf(stderr, "%s\n", text);
+    if (ent && ent->client) {
+        int32_t opcode = svc_console_print;
+        gi.Write(PF_BYTE, &opcode);
+        gi.Write(PF_STRING, text);
+        gi.unicast(ent);
+    }
+}
+
+/* spawn <UnitType> [player] [x y] — create a unit by catalog name at the selected unit's
+ * position, an explicit coordinate, or the map center. Requires sv_cheats 1. */
+static void SC2_CmdSpawn(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    sc2MapObject_t object;
+    cstring_t type;
+    uint32_t player;
+    float x, y, angle = 0.0f;
+    edict_t *spawned, *selected;
+
+    if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
+    if (argc < 2) { SC2_CheatPrintf(ent, "SC2: usage: spawn <UnitType> [player] [x y]"); return; }
+    type = argv[1];
+    player = SC2_ClientPlayer(ent);
+    if (argc >= 3 && argv[2][0] >= '0' && argv[2][0] <= '9') {
+        player = (uint32_t)atoi(argv[2]);
+        if (argc >= 5) { x = atof(argv[3]); y = atof(argv[4]); goto have_pos; }
+    } else if (argc >= 4) { x = atof(argv[2]); y = atof(argv[3]); goto have_pos; }
+    selected = SC2_SelectedUnit(ent);
+    if (selected) { x = selected->s.origin2.x + selected->collision + 2.0f; y = selected->s.origin2.y; }
+    else { x = 48.0f; y = 48.0f; } /* map center fallback */
+have_pos:
+    if (!SC2_MapResolveUnit(type, &object)) { SC2_CheatPrintf(ent, "SC2: unknown unit type '%s'", type); return; }
+    spawned = SC2_GalaxyCreateUnit(type, (int)player, x, y, angle);
+    if (!spawned) { SC2_CheatPrintf(ent, "SC2: failed to spawn '%s' (edict pool full?)", type); return; }
+    SC2_CheatPrintf(ent, "SC2: spawned %s (entity %u) for player %u at (%.1f, %.1f)", type, spawned->s.number, player, x, y);
+}
+
+/* god — toggle invulnerability on the selected unit. Requires sv_cheats 1. */
+static void SC2_CmdGod(edict_t *ent) {
+    edict_t *unit;
+    if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
+    unit = SC2_SelectedUnit(ent);
+    if (!unit) { SC2_CheatPrintf(ent, "SC2: god requires a selected unit"); return; }
+    unit->unit.states ^= 1u << SC2_UNIT_INVULNERABLE;
+    SC2_CheatPrintf(ent, "SC2: god %s for entity %u", (unit->unit.states & (1u << SC2_UNIT_INVULNERABLE)) ? "on" : "off", unit->s.number);
+}
+
+/* kill — kill the selected unit. Requires sv_cheats 1. */
+static void SC2_CmdKill(edict_t *ent) {
+    edict_t *unit;
+    if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
+    unit = SC2_SelectedUnit(ent);
+    if (!unit) { SC2_CheatPrintf(ent, "SC2: kill requires a selected unit"); return; }
+    unit->unit.vitals[0].value = 0;
+    SC2_UnitChanged(unit);
+    SC2_CheatPrintf(ent, "SC2: killed entity %u (%s)", unit->s.number, unit->unit.type);
+}
+
 static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     vec2_t loc;
 
@@ -869,6 +935,9 @@ static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         else fprintf(stderr,"SC2 selected: none\n");
         return;
     }
+    if (!strcmp(argv[0], "spawn")) { SC2_CmdSpawn(ent, argc, argv); return; }
+    if (!strcmp(argv[0], "god")) { SC2_CmdGod(ent); return; }
+    if (!strcmp(argv[0], "kill")) { SC2_CmdKill(ent); return; }
     if (!strcmp(argv[0],"button") && argc>1) { SC2_CommandButton(ent,argv[1]); return; }
     if (!strcmp(argv[0],"cancel")) { SC2_CancelCommand(ent); return; }
     if (!strcmp(argv[0],"minimapping")) {

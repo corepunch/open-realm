@@ -1,0 +1,9 @@
+<PlacedObjects>
+    <ObjectUnit Id="1" UnitType="Nexus" Player="1" Position="48,48,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="2" UnitType="Probe" Player="1" Position="42,44,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="3" UnitType="Probe" Player="1" Position="45,42,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="4" UnitType="Zealot" Player="1" Position="55,51,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="5" UnitType="Zealot" Player="1" Position="57,53,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="6" UnitType="Stalker" Player="1" Position="53,55,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="7" UnitType="VespeneGeyser" Player="0" Position="60,41,0" Rotation="0" Scale="1,1,1"/>
+</PlacedObjects>
