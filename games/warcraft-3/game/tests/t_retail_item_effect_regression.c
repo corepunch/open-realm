@@ -389,6 +389,59 @@ TEST(retail_item_effect, orb_of_frost_slows_attack_and_movement_for_authored_dur
     re_done(&f);
 }
 
+TEST(retail_item_effect, orb_of_slow_grants_air_attack_and_authored_slow_proc) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y4;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+        "C;Y1;X8;K\"UnitID1\"\nC;Y1;X9;K\"Dur1\"\nC;Y1;X10;K\"HeroDur1\"\n"
+        "C;Y1;X11;K\"BuffID1\"\nC;Y1;X12;K\"levels\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\n"
+        "C;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X12;K\"1\"\n"
+        "C;Y3;X1;K\"AIsb\"\nC;Y3;X2;K\"AIsb\"\nC;Y3;X3;K\"13\"\n"
+        "C;Y3;X4;K\"100\"\nC;Y3;X8;K\"AIos\"\nC;Y3;X12;K\"1\"\n"
+        "C;Y4;X1;K\"AIos\"\nC;Y4;X2;K\"Aslo\"\nC;Y4;X3;K\"0.4\"\n"
+        "C;Y4;X4;K\"0.3\"\nC;Y4;X9;K\"7\"\nC;Y4;X10;K\"3\"\n"
+        "C;Y4;X11;K\"Bslo\"\nC;Y4;X12;K\"1\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"oslo\"\nC;Y2;X2;K\"AIsb\"\nC;Y2;X3;K\"true\"\nE\n";
+    UnitWeapons_t weapons = { .attacksEnabled = 1 };
+    retailEffectFixture_t f;
+    edict_t *hero_target;
+    re_init(&f, ability_slk, items);
+    f.hero->data.UnitWeapons = &weapons;
+    f.hero->unit_state->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    f.enemy->targtype = TARG_AIR;
+    T_ASSERT(!S_AttackCanTarget(f.hero, f.enemy));
+    re_equip(&f, "oslo", 0);
+    T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 13, 0.001f);
+    T_ASSERT(S_AttackCanTarget(f.hero, f.enemy));
+    T_EQ(S_AbilityItem(FS_SLKKey("AIos")).ability->proc, CAbilitySlow);
+    S_ResolveAttackHit(f.hero, f.enemy, 20);
+    T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Bslo")));
+    heroabilitystatus_t *air_slow = unit_findstatus(f.enemy, FS_SLKKey("Bslo"));
+    T_NOT_NULL(air_slow);
+    if (air_slow) T_EQ(air_slow->timestamp, level.time + 7000);
+    T_FEQ(S_HumanMoveFactor(f.enemy), 0.6f, 0.001f);
+    T_FEQ(unit_status_modifier_total(f.enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), -0.3f, 0.001f);
+
+    hero_target = alloc_test_unit(FS_SLKKey("Hpal"), 80, 0);
+    hero_target->s.player = 1;
+    hero_target->spawn_time = level.time;
+    hero_target->targtype = TARG_GROUND;
+    S_ResolveAttackHit(f.hero, hero_target, 20);
+    T_ASSERT(S_UnitHasStatus(hero_target, FS_SLKKey("Bslo")));
+    heroabilitystatus_t *hero_slow = unit_findstatus(hero_target, FS_SLKKey("Bslo"));
+    T_NOT_NULL(hero_slow);
+    if (hero_slow) T_EQ(hero_slow->timestamp, level.time + 3000);
+    T_ASSERT(G_DropItem(f.hero, 0));
+    T_FEQ(f.hero->unit_state->attack1.temporaryDamageBonus, 0, 0.001f);
+    T_ASSERT(!S_AttackCanTarget(f.hero, f.enemy));
+    re_done(&f);
+}
+
 TEST(retail_item_effect, shield_of_honor_provides_authored_command_aura) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X8\n"

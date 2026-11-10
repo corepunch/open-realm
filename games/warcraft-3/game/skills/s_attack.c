@@ -46,6 +46,8 @@ static umove_t attack_move_ranged_cooldown;
 #define LIGHTNING_ATTACK_BOLT_MS 250u
 #define ID_ORB_OF_VENOM MAKEFOURCC('o','v','e','n')
 #define ID_POISON_ORB_ABILITY MAKEFOURCC('A','p','o','2')
+#define ID_ORB_OF_SLOW MAKEFOURCC('o','s','l','o')
+#define ID_ORB_SLOW_ABILITY MAKEFOURCC('A','I','s','b')
 
 /* Orb of Venom grants a unit without an authored air weapon a temporary
  * poison projectile attack. The profile is derived from Attack 1 so its
@@ -55,6 +57,15 @@ static bool has_orb_of_venom(edict_t const *unit) {
     FOR_LOOP(i, MAX_INVENTORY) {
         edict_t *item = G_InventoryItem(unit, i);
         if (item && item->class_id == ID_ORB_OF_VENOM) return true;
+    }
+    return false;
+}
+
+static bool has_orb_of_slow(edict_t const *unit) {
+    if (!unit || !G_InventoryCanUseItems((edict_t *)unit)) return false;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        edict_t *item = G_InventoryItem((edict_t *)unit, i);
+        if (item && item->class_id == ID_ORB_OF_SLOW) return true;
     }
     return false;
 }
@@ -79,6 +90,22 @@ static unitAttack_t const *venom_air_attack(edict_t const *unit) {
     if (!missile_art || !*missile_art)
         missile_art = "Abilities\\Spells\\Items\\OrbVenom\\OrbVenomMissile.mdl";
     profile.projectile.model = G_RegisterModel(missile_art);
+    profile.projectile.arc = 0.0f;
+    if (profile.projectile.speed <= 0.0f) profile.projectile.speed = 900.0f;
+    return &profile;
+}
+
+/* Orb of Slow adds the same temporary air-target weapon capability as other
+ * attack orbs for melee-only carriers. Keep the profile inventory-derived so
+ * dropping or transferring the item immediately removes the attack option. */
+static unitAttack_t const *slow_orb_air_attack(edict_t const *unit) {
+    static unitAttack_t profile;
+    if (!unit || !unit->unit_state || authored_attack_can_hit_air(unit) || !has_orb_of_slow(unit) ||
+        unit->unit_state->attack1.type == ATK_NONE) return NULL;
+    profile = unit->unit_state->attack1;
+    profile.weapon = WPN_MISSILE;
+    profile.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    profile.projectile.model = G_RegisterModel("Abilities\\Weapons\\ZigguratFrostMissile\\ZigguratFrostMissile.mdx");
     profile.projectile.arc = 0.0f;
     if (profile.projectile.speed <= 0.0f) profile.projectile.speed = 900.0f;
     return &profile;
@@ -206,6 +233,8 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
     if (attacker && flag == WC3_TARGET_FLAG_AIR && S_UnitAttackSlotEnabled(attacker, 0)) {
         unitAttack_t const *venom = venom_air_attack(attacker);
         if (venom) return venom;
+        unitAttack_t const *slow_orb = slow_orb_air_attack(attacker);
+        if (slow_orb) return slow_orb;
     }
     /* Rooted Ancients may retaliate with their weapon profile even when Root's
      * authored mask disables player-issued attacks; explicit orders are still
@@ -397,7 +426,7 @@ static uint32_t attack_retaliation_mask(edict_t const *ent) {
 
 static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
     return ((mask & 1u) && ent->unit_state->attack1.type != ATK_NONE) || ((mask & 2u) && ent->unit_state->attack2.type != ATK_NONE) ||
-           ((mask & 1u) && venom_air_attack(ent));
+           ((mask & 1u) && (venom_air_attack(ent) || slow_orb_air_attack(ent)));
 }
 
 static bool can_attack(edict_t const *ent) {
@@ -430,7 +459,8 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (((mask & 1u) && attacker->unit_state->attack1.type != ATK_NONE && (attacker->unit_state->attack1.targetsAllowed & flag)) ||
                     ((mask & 2u) && attacker->unit_state->attack2.type != ATK_NONE && (attacker->unit_state->attack2.targetsAllowed & flag)) ||
-                    (flag == WC3_TARGET_FLAG_AIR && (mask & 1u) && venom_air_attack(attacker)));
+                    (flag == WC3_TARGET_FLAG_AIR && (mask & 1u) &&
+                     (venom_air_attack(attacker) || slow_orb_air_attack(attacker))));
 }
 
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
