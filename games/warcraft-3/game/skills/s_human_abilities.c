@@ -1074,20 +1074,47 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
     uint32_t flak = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','l','k'));
     uint32_t barrage = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','r','o','c'));
     uint32_t storm = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','s','t','h'));
+    uint32_t fire_orb = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','I','f','b'));
     float radius = storm ? attacker->unit_state->attack1.areaSmall : flak ? S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 2) :
                    barrage ? S_SpellNumber(MAKEFOURCC('A','r','o','c'), ABILITY_NUMBER_AREA, barrage) : 0.0f;
     uint32_t count = 0, limit = barrage ? (uint32_t)S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 3) : UINT_MAX;
-    if (radius <= 0.0f) return;
-    FILTER_EDICTS(other, count < limit && other != target && S_SpellIsAliveTarget(other) && S_SpellIsEnemy(attacker, other) &&
-                  S_AttackHitAllowed(attacker, target, other) &&
-                  (!flak || other->targtype == TARG_AIR) && Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius) {
-        float distance = Vector2_distance(&other->s.origin2, &target->s.origin2), splash = damage;
-        if (flak) splash = distance <= S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 1) ?
-            S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 3) : S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 4);
-        else if (barrage) splash = S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 1);
-        else if (distance > attacker->unit_state->attack1.areaMedium) splash *= attacker->unit_state->attack1.factorSmall;
-        else if (distance > attacker->unit_state->attack1.areaFull) splash *= attacker->unit_state->attack1.factorMedium;
-        T_Damage(other, attacker, (int)MAX(1.0f, splash)); count++;
+    if (!fire_orb && G_InventoryCanUseItems(attacker)) {
+        FOR_LOOP(slot, G_InventoryCapacity(attacker)) {
+            edict_t *item = G_InventoryItem(attacker, slot);
+            cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+            if (!abilities) continue;
+            PARSE_LIST(abilities, name, parse_segment) {
+                uint32_t const code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+                if (code == MAKEFOURCC('A','I','f','b') ||
+                    (code && G_AbilityCode(code) == MAKEFOURCC('A','I','f','b'))) {
+                    fire_orb = 1;
+                    break;
+                }
+            }
+            if (fire_orb) break;
+        }
+    }
+    if (radius > 0.0f) {
+        FILTER_EDICTS(other, count < limit && other != target && S_SpellIsAliveTarget(other) && S_SpellIsEnemy(attacker, other) &&
+                      S_AttackHitAllowed(attacker, target, other) &&
+                      (!flak || other->targtype == TARG_AIR) && Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius) {
+            float distance = Vector2_distance(&other->s.origin2, &target->s.origin2), splash = damage;
+            if (flak) splash = distance <= S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 1) ?
+                S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 3) : S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 4);
+            else if (barrage) splash = S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 1);
+            else if (distance > attacker->unit_state->attack1.areaMedium) splash *= attacker->unit_state->attack1.factorSmall;
+            else if (distance > attacker->unit_state->attack1.areaFull) splash *= attacker->unit_state->attack1.factorMedium;
+            T_Damage(other, attacker, (int)MAX(1.0f, splash)); count++;
+        }
+    }
+    if (fire_orb) {
+        float const fire_radius = S_SpellNumber(MAKEFOURCC('A','I','f','b'), ABILITY_NUMBER_AREA, fire_orb);
+        if (fire_radius <= 0.0f) return;
+        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_SpellIsEnemy(attacker, other) &&
+                      S_AttackHitAllowed(attacker, target, other) &&
+                      Vector2_distance(&other->s.origin2, &target->s.origin2) <= fire_radius) {
+            T_Damage(other, attacker, damage);
+        }
     }
 }
 
