@@ -148,6 +148,15 @@ void SP_SpawnItem(edict_t *self) {
     }
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
+    /* World items do not run the unit animation state machine. Start them on
+     * their authored idle frame instead of frame 0, which can fall outside
+     * every sequence and leave sequence-keyed geoset alpha at its static
+     * default (visible). Some item models use those hidden geosets for wakes
+     * or other presentation meshes. */
+    animation_t const *stand = G_GetAnimation(self->s.model, "Stand");
+    if (stand && stand->interval[1] > stand->interval[0]) {
+        self->s.frame = stand->interval[0];
+    }
     scale = self->data.ItemData->scale;
     if (scale > 0) {
         self->s.scale = scale;

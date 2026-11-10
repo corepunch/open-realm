@@ -297,6 +297,17 @@ TEST(wc3_items, spawn_initializes_world_state) {
     T_ASSERT(!(item->svflags & SVF_NOCLIENT));
 }
 
+TEST(wc3_items, spawned_world_item_starts_on_authored_stand_frame) {
+    ItemData_t data = { .file = "TestUI\\Models\\delayed_stand.mdx" };
+    edict_t *item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
+    item->data.ItemData = &data;
+
+    SP_SpawnItem(item);
+
+    T_ASSERT(item->s.model > 0);
+    T_EQ(item->s.frame, 333);
+}
+
 TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
     edict_t *item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 64);
 
