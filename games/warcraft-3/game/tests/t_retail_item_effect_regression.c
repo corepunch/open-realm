@@ -522,6 +522,36 @@ TEST(retail_item_effect, shield_of_honor_provides_authored_command_aura) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, bladebane_armor_grants_nearby_units_one_armor) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y4;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\n"
+        "C;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"Area1\"\nC;Y1;X9;K\"targs1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"levels\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\n"
+        "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X11;K\"1\"\n"
+        "C;Y3;X1;K\"AId7\"\nC;Y3;X2;K\"AIde\"\nC;Y3;X3;K\"7\"\nC;Y3;X11;K\"1\"\n"
+        "C;Y4;X1;K\"AIad\"\nC;Y4;X2;K\"AHad\"\nC;Y4;X3;K\"1\"\nC;Y4;X8;K\"900\"\n"
+        "C;Y4;X9;K\"air,ground,friend,self,vuln,invu\"\nC;Y4;X10;K\"BHad\"\nC;Y4;X11;K\"1\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"blba\"\nC;Y2;X2;K\"AId7,AIad\"\nE\n";
+    retailEffectFixture_t f;
+    float const base_armor = 0.0f;
+    re_init(&f, ability_slk, items);
+    f.enemy->s.player = 0;
+    re_equip(&f, "blba", 0);
+    level.framenum++;
+    T_FEQ(S_DevotionArmorBonus(f.enemy), 1.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.enemy), base_armor + 1.0f, 0.001f);
+    Vector2_set(&f.enemy->s.origin2, 1000, 0);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(f.enemy), 0.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(f.enemy), base_armor, 0.001f);
+    re_done(&f);
+}
+
 TEST(retail_item_effect, warsong_battle_drums_provide_authored_command_aura) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X7\n"
