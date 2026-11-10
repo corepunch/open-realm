@@ -1398,6 +1398,72 @@ TEST(retail_item_effect, spider_silk_targets_and_ensnares_an_enemy_flyer) {
     re_done(&f);
 }
 
+/* Wand of Shadowsight must enter unit targeting from the inventory item path,
+ * then grant its caster temporary vision of the chosen target. */
+TEST(retail_item_effect, wand_of_shadowsight_targets_unit_from_inventory) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"Ashs\"\nC;Y2;X2;K\"Ashs\"\n"
+        "C;Y2;X3;K\"5\"\nC;Y2;X4;K\"5\"\n"
+        "C;Y2;X5;K\"0\"\nC;Y2;X6;K\"Bshs\"\nC;Y2;X7;K\"1\"\nE\n";
+    char const *items =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"perishable\"\n"
+        "C;Y2;X1;K\"wshs\"\nC;Y2;X2;K\"Ashs\"\nC;Y2;X3;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *player, *item;
+    char number[16];
+    cstring_t select[] = { "select", number };
+    re_init(&f, ability_slk, items);
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    game.clients[0].ps.rdflags &= ~RDF_NOFOG;
+    f.hero->s.player = 0;
+    f.hero->runtime.sight_radius.day = f.hero->runtime.sight_radius.night = 600.0f;
+    f.enemy->s.player = 1;
+    f.enemy->s.origin2 = (vec2_t){ 512, 0 };
+    f.enemy->s.origin.x = 512;
+    f.enemy->runtime.sight_radius.day = f.enemy->runtime.sight_radius.night = 0;
+    f.enemy->unit_state->armor_value = 8.0f;
+    G_SelectEntity(player->client, f.hero);
+    item = re_equip(&f, "wshs", 0);
+    G_GetItem(item)->charges = 3;
+    T_NOT_NULL(G_ItemAbilityList(item));
+    T_NOT_NULL(FindAbilityForCommand("Ashs"));
+    T_ASSERT(S_AbilityHasCommand(FindAbilityForCommand("Ashs")));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(2); G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, f.enemy));
+
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if (!player->client->menu.on_entity_selected) { G_FowShutdown(); re_done(&f); return; }
+    T_EQ(G_ItemCharges(item), 3);
+    snprintf(number, sizeof(number), "%u", f.enemy->s.number);
+    G_ClientCommand(player, 2, select);
+    T_NULL(player->client->menu.on_entity_selected);
+    T_EQ(G_ItemCharges(item), 2);
+    f.hero->runtime.sight_radius.day = f.hero->runtime.sight_radius.night = 0;
+    f.enemy->s.origin2 = (vec2_t){ 1024, 0 };
+    f.enemy->s.origin.x = 1024;
+    G_FowUpdate();
+    T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Bshs")));
+    T_EQ(unit_findstatus(f.enemy, FS_SLKKey("Bshs"))->data, 1);
+    T_FEQ(G_UnitArmorValue(f.enemy), 8.0f, 0.001f);
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, f.enemy));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(2, f.enemy));
+
+    level.time += 5000;
+    G_RunEntity(f.enemy);
+    G_FowUpdate();
+    T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("Bshs")));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, f.enemy));
+    G_FowShutdown();
+    re_done(&f);
+}
+
 TEST(retail_item_effect, talisman_of_evasion_causes_attacks_to_miss_using_item_data) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X3\n"
