@@ -124,6 +124,10 @@ The latest full suite checkpoint passed these listed tests in both classic and T
 11. `gloves_of_spell_mastery_control_summoned_units_from_inventory`: Uses
     retail `gvsm` from inventory, selects an enemy summon, and checks that it
     transfers to the Hero.
+12. `wand_of_shadowsight_targets_unit_from_inventory`: Uses retail `wshs` from
+    inventory, enters unit-target mode, selects a visible enemy, and verifies
+    the charge is consumed, the target receives owner-marked temporary vision,
+    the status follows it beyond the caster's sight, and the sight expires.
 
 `wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
 also exercises the installed `ANsa` contract with non-stock `DataA=7`: the
