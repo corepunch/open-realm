@@ -161,6 +161,17 @@ raises a renderer error rather than repeatedly drawing with the unrelated legacy
 ground coverage, unit-scale resolution, vertical key basis, invalid input, and shader source contracts in
 both `make test-renderer-model` and `make test-renderer-shadows` builds.
 
+Placed units and Galaxy-created units initialize their M3 `Stand` sequence, including stationary buildings.
+Starting at timeline zero instead can display a birth pose with dramatically oversized geometry; this is an
+animation initialization issue rather than a reason to shrink the building's placement scale. The
+`sc2_control.placed_units_start_standing` regression covers both stationary and mobile map objects.
+
+The local 2011-era `data/StarCraft2` installation used for test-map captures contains Terran and Zerg
+assets but no `Assets/Units/Protoss` directory. Its catalog still resolves paths such as
+`Assets\Units\Protoss\Zealot\Zealot.m3`, but a resolved catalog path is not evidence that the asset is
+present. Check with `build/bin/mpqtool -data data/StarCraft2 cat 'Assets/Units/Protoss/Zealot/Zealot.m3'`;
+the Protoss test map needs an installation containing those assets.
+
 ```sh
 build/bin/mpqtool -data data/StarCraft2 cat GameData/LightData.xml
 build/bin/mpqtool -data data/StarCraft2 cat GameData/ModelData.xml

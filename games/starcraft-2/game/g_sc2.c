@@ -614,7 +614,7 @@ static void *SC2_GalaxyCreateUnit(cstring_t unit_type, int player, float x, floa
         sc2_edicts[ent->s.number].move.flying = !strcasecmp(object.mover, "Fly");
         sc2_edicts[ent->s.number].move.speed = SC2_MOVE_SPEED;
         sc2_edicts[ent->s.number].move.height = object.move_height;
-        if (sc2_edicts[ent->s.number].move.mobile) SC2_UnitAnimation(ent, "Stand");
+        SC2_UnitAnimation(ent, "Stand");
     SC2_UnitInit(ent,&object);
     SC2_LinkUnit(ent);
             fprintf(stderr, "SC2_GalaxyCreateUnit: ent=%u type=%s model=%s mover=%s mobile=%d collision=%.2f player=%d at (%.1f,%.1f)\n",
@@ -776,6 +776,7 @@ static void SC2_SpawnEntities(void) {
         sc2_edicts[number].move.height = object->move_height;
         if (object->type == SC2_OBJECT_UNIT) {
             SC2_UnitInit(ent,object);
+            SC2_UnitAnimation(ent, "Stand");
             if (sc2_gunit_n < SC2_MAX_EDICTS) sc2_gunits[sc2_gunit_n++]=ent;
 
         }
