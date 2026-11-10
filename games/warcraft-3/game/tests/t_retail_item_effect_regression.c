@@ -552,6 +552,53 @@ TEST(retail_item_effect, bladebane_armor_grants_nearby_units_one_armor) {
     re_done(&f);
 }
 
+TEST(retail_item_effect, gloves_of_spell_mastery_control_summoned_units_from_inventory) {
+    char const *ability_slk =
+        "ID;PWXL;N;EBB;Y3;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs1\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"BuffID1\"\n"
+        "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X9;K\"1\"\n"
+        "C;Y2;X10;K\"6\"\nC;Y2;X11;K\"1\"\n"
+        "C;Y3;X1;K\"AIcm\"\nC;Y3;X2;K\"Acmg\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"air,ground,enemy,neutral,ward\"\nC;Y3;X5;K\"25\"\n"
+        "C;Y3;X6;K\"5\"\nC;Y3;X7;K\"700\"\nC;Y3;X8;K\"0.3\"\nC;Y3;X9;K\"Bcmg\"\nC;Y3;X10;K\"5\"\nE\n";
+    char const *items = "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y1;X3;K\"uses\"\nC;Y1;X4;K\"perishable\"\n"
+        "C;Y2;X1;K\"gvsm\"\nC;Y2;X2;K\"AIcm,AIi6\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"true\"\nE\n";
+    retailEffectFixture_t f;
+    edict_t *summoner, *summon, *player, *gloves;
+    gameClient_t *client;
+    re_init(&f, ability_slk, items);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    client = player->client;
+    summoner = alloc_test_unit(FS_SLKKey("oshm"), 256, 0);
+    summon = f.enemy;
+    summoner->s.player = summon->s.player = 1;
+    summoner->svflags |= SVF_MONSTER;
+    summoner->spawn_time = level.time;
+    summon->targtype = TARG_GROUND;
+    summon->owner = summoner;
+    summon->summon_ability = FS_SLKKey("Asum");
+    summon->health.value = 200;
+    f.hero->mana.value = f.hero->mana.max_value = 100;
+    G_SelectEntity(client, f.hero);
+    gloves = re_equip(&f, "gvsm", 0);
+    G_GetItem(gloves)->charges = 1;
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    if (client->menu.on_entity_selected) client->menu.on_entity_selected(player, summon);
+    T_EQ(summon->s.player, 0u);
+    T_EQ(summon->owner, f.hero);
+    re_done(&f);
+}
+
 TEST(retail_item_effect, warsong_battle_drums_provide_authored_command_aura) {
     char const *ability_slk =
         "ID;PWXL;N;EBB;Y2;X7\n"

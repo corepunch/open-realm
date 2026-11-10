@@ -900,6 +900,11 @@ authored 10% movement-speed and 5% attack-speed aura to nearby allies. The
 regression `retail_item_effect.ancient_janggo_provides_authored_endurance_aura`
 covers both values and range exclusion.
 
+Gloves of Spell Mastery (`gvsm`) carry the Control Magic item ability `AIcm`
+(`Acmg`) alongside their intellect bonus. Using the item opens unit targeting;
+the regression `retail_item_effect.gloves_of_spell_mastery_control_summoned_units_from_inventory`
+targets an enemy summon and verifies ownership transfers to the Hero.
+
 Gem of True Seeing (`gemt`) carries detector ability `Adt1`; its authored
 `Rng=1100` true-sight radius now applies to the carrier. The regression
 `retail_item_effect.gem_of_true_sight_detects_enemies_from_carrier` checks
