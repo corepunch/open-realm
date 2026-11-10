@@ -10,6 +10,30 @@ static void sc2_test_write(pfWriteType_t type, void const *value) {
 static void sc2_test_unicast(edict_t *ent) { (void)ent; }
 static void sc2_test_link(edict_t *ent) { (void)ent; }
 static uint32_t sc2_test_clock(void) { return sc2_test_time; }
+static int sc2_test_model_index(cstring_t name) { (void)name; return 1; }
+
+/* Placed units must start in Stand even when their first M3 sequence is Birth. */
+TEST(sc2_control, placed_units_start_standing) {
+    struct game_import saved = gi;
+    struct game_export saved_globals = globals;
+    sc2Map_t *map = SC2_MapCurrent();
+    uint32_t saved_count = map->num_objects;
+    sc2MapObject_t saved_objects[2] = { map->objects[0], map->objects[1] };
+    g_cmodel_t saved_model = g_models[1];
+    animation_t anims[] = { { .name = "Birth", .interval = {0, 1000} },
+                            { .name = "Stand", .interval = {1000, 2000} } };
+    g_models[1].animations = anims; g_models[1].num_animations = 2;
+    gi.ModelIndex = sc2_test_model_index; gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    globals.max_clients = 1; globals.max_edicts = SC2_MAX_EDICTS;
+    map->num_objects = 2;
+    map->objects[0] = (sc2MapObject_t){ .type = SC2_OBJECT_UNIT, .name = "Building", .model = "building.m3", .mover = "Stationary", .scale = 1 };
+    map->objects[1] = (sc2MapObject_t){ .type = SC2_OBJECT_UNIT, .name = "Marine", .model = "marine.m3", .mover = "Ground", .scale = 1 };
+    SC2_SpawnEntities();
+    T_ASSERT(!sc2_edicts[1].move.mobile); T_ASSERT(sc2_edicts[2].move.mobile);
+    T_EQ(sc2_edicts[1].s.frame, 1000); T_EQ(sc2_edicts[2].s.frame, 1000);
+    map->num_objects = saved_count; map->objects[0] = saved_objects[0]; map->objects[1] = saved_objects[1];
+    g_models[1] = saved_model; globals = saved_globals; gi = saved;
+}
 
 /* Compare the renderer's native model front with a completed authoritative move step. */
 static void sc2_test_model_follows_step(edict_t const *ent, vec2_t previous) {
