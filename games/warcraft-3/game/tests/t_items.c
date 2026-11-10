@@ -27,6 +27,7 @@ static bool inventory_panel_frame_seen;
 static bool inventory_panel_cooldown_frame_seen;
 static uiCommandButton_t inventory_panel_cooldown_state;
 static float inventory_panel_cooldown_fraction;
+static bool inventory_panel_charge_three_seen;
 
 /* Supply a valid target callback so the Cancel command exercises target-mode cleanup. */
 static bool item_test_target_callback(edict_t *clent, edict_t *target) {
@@ -114,6 +115,7 @@ static void reset_inventory_panel_capture(void) {
     inventory_panel_cooldown_frame_seen = false;
     memset(&inventory_panel_cooldown_state, 0, sizeof(inventory_panel_cooldown_state));
     inventory_panel_cooldown_fraction = 0.0f;
+    inventory_panel_charge_three_seen = false;
 }
 
 static void capture_inventory_refresh_write(pfWriteType_t type, void const *value) {
@@ -122,6 +124,9 @@ static void capture_inventory_refresh_write(pfWriteType_t type, void const *valu
     if (type == PF_UIFRAME && value) {
         inventory_panel_frame = *(uiFrame_t const *)value;
         inventory_panel_frame_seen = true;
+        if (inventory_panel_frame.flags.type == FT_STRING && inventory_panel_frame.text &&
+            !strcmp(inventory_panel_frame.text, "3"))
+            inventory_panel_charge_three_seen = true;
         if ((inventory_panel_frame.flagsvalue & UIFLAG_RADIAL_SHADE) &&
             inventory_panel_frame.buffer.size == sizeof(inventory_panel_cooldown_state) &&
             inventory_panel_frame.buffer.data) {
@@ -2116,6 +2121,37 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     count = G_GetInventory(unit, items, MAX_INVENTORY);
     T_EQ(count, 1);
     T_EQ(items[0].charges, 0);
+}
+
+TEST(wc3_items, wand_of_the_wind_charge_count_is_written_to_inventory_layer) {
+    static ItemData_t wind_data = { .abilList = "AIcy", .uses = 3, .perishable = true };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *player, *unit, *item;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    item = make_item_test_world_item(MAKEFOURCC('w','c','y','c'), 16, 0);
+    item->data.ItemData = &wind_data;
+    T_ASSERT(G_AddItemToSlot(unit, item, 0));
+    G_SetItemCharges(item, 3);
+    G_SelectEntity(player->client, unit);
+
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    G_RefreshInventoryLayer(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.ImageIndex = old_image_index;
+
+    T_ASSERT(inventory_panel_charge_three_seen);
 }
 
 TEST(wc3_items, inventory_item_carries_ability_cooldown_window) {
