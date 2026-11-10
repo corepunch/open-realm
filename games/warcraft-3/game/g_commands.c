@@ -1506,6 +1506,14 @@ static bool G_GivePlayerResources(edict_t *clent, cstring_t target, cstring_t va
     return true;
 }
 
+/* Returns false (leaving *out unchanged) if s is not exactly 4 bytes.
+ * Uses memcpy to avoid undefined behaviour from unaligned pointer casts. */
+bool G_ReadRawcode(cstring_t s, uint32_t *out) {
+    if (!s || strlen(s) != 4) return false;
+    memcpy(out, s, 4);
+    return true;
+}
+
 CLIENTCOMMAND(Give) {
     gameClient_t *client = clent->client;
     edict_t *unit;
@@ -1525,11 +1533,10 @@ CLIENTCOMMAND(Give) {
         vec2_t location;
         edict_t *spawned, *selected;
         uint32_t first_ability;
-        if (argc < 3 || strlen(argv[2]) < 4) {
+        if (argc < 3 || !G_ReadRawcode(argv[2], &code)) {
             G_CheatPrintf(clent, "WC3: give unit <rawcode> [x y] [ability ...]");
             return;
         }
-        code = *(uint32_t const *)argv[2];
         first_ability = 3;
         if (argc >= 5 && G_DebugIsNumber(argv[3]) && G_DebugIsNumber(argv[4])) {
             location = (vec2_t){ atof(argv[3]), atof(argv[4]) };
@@ -1544,8 +1551,10 @@ CLIENTCOMMAND(Give) {
             G_CheatPrintf(clent, "WC3: could not spawn unit %.4s", argv[2]);
             return;
         }
-        for (uint32_t i = first_ability; i < argc; i++)
-            if (strlen(argv[i]) >= 4) unit_learnability(spawned, *(uint32_t const *)argv[i]);
+        for (uint32_t i = first_ability; i < argc; i++) {
+            uint32_t ac;
+            if (G_ReadRawcode(argv[i], &ac)) unit_learnability(spawned, ac);
+        }
         FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
         G_SelectEntity(client, spawned);
         Get_Portrait_f(clent);
@@ -1565,19 +1574,17 @@ CLIENTCOMMAND(Give) {
         G_CheatPrintf(clent, "WC3: give %s requires a selected unit", argv[1]);
         return;
     }
-    if (strcasecmp(argv[1], "xp") && strlen(argv[2]) < 4) {
+    if (strcasecmp(argv[1], "xp") && !G_ReadRawcode(argv[2], &code)) {
         G_CheatPrintf(clent, "WC3: rawcode must contain four characters");
         return;
     }
     if (!strcasecmp(argv[1], "item")) {
-        code = *(uint32_t const *)argv[2];
         if (!G_GiveItem(unit, code)) {
             G_CheatPrintf(clent, "WC3: could not give item %.4s to selected unit", argv[2]);
             return;
         }
         G_CheatPrintf(clent, "WC3: gave item %.4s to selected unit", argv[2]);
     } else if (!strcasecmp(argv[1], "ability")) {
-        code = *(uint32_t const *)argv[2];
         unit_learnability(unit, code);
         G_CheatPrintf(clent, "WC3: gave ability %.4s to selected unit", argv[2]);
     } else if (!strcasecmp(argv[1], "xp")) {

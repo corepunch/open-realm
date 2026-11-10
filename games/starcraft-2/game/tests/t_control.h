@@ -332,3 +332,80 @@ TEST(sc2_control, smartpoint_rejects_disabled_and_paused_move) {
     sc2_edicts[1] = saved_unit; sc2_clients[0] = saved_client;
     globals.num_edicts = saved_n; gi = saved;
 }
+
+static cstring_t sc2_test_cvar_cheats_on(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "sv_cheats") ? "1" : fallback;
+}
+
+TEST(sc2_control, isfloat_accepts_integers_floats_and_negatives) {
+    T_ASSERT(SC2_IsFloat("0")); T_ASSERT(SC2_IsFloat("60")); T_ASSERT(SC2_IsFloat("60.5"));
+    T_ASSERT(SC2_IsFloat("-70")); T_ASSERT(SC2_IsFloat("-70.25")); T_ASSERT(SC2_IsFloat("+1"));
+    T_ASSERT(!SC2_IsFloat("")); T_ASSERT(!SC2_IsFloat(NULL)); T_ASSERT(!SC2_IsFloat("foo"));
+    T_ASSERT(!SC2_IsFloat("-")); T_ASSERT(!SC2_IsFloat("1.2.3")); T_ASSERT(!SC2_IsFloat("1e5"));
+}
+
+/* spawn Unit X Y (argc==4) must pass coords to GalaxyCreateUnit, not treat X as player. */
+TEST(sc2_control, spawn_argc4_treats_args_as_coords_not_player) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts, saved_max = globals.max_clients;
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    gi.CvarString = sc2_test_cvar_cheats_on;
+    globals.num_edicts = 1; globals.max_clients = 1;
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
+    sc2_edicts[0] = (edict_t){ .client = &sc2_clients[0] };
+    sc2_clients[0].ps.number = 1;
+    sc2_test_count = 0;
+    /* "foo bar" are non-numeric coords — should produce a parse error, not silently spawn */
+    SC2_ClientCommand(sc2_edicts, 4, (cstring_t[]){ "spawn", "Marine", "foo", "bar" });
+    T_EQ(sc2_test_count, 1); /* svc_console_print for the coord error */
+    T_EQ(globals.num_edicts, 1u); /* no edict created */
+    globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}
+
+/* spawn Unit X Y with numeric coords must not error on the parse step. */
+TEST(sc2_control, spawn_argc4_numeric_coords_pass_validation) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts, saved_max = globals.max_clients;
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    gi.CvarString = sc2_test_cvar_cheats_on;
+    globals.num_edicts = 1; globals.max_clients = 1;
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
+    sc2_edicts[0] = (edict_t){ .client = &sc2_clients[0] };
+    sc2_clients[0].ps.number = 1;
+    sc2_test_count = 0;
+    /* "60 70" are valid coords; GalaxyCreateUnit will fail (no catalog) but parse succeeds */
+    SC2_ClientCommand(sc2_edicts, 4, (cstring_t[]){ "spawn", "Marine", "60", "70" });
+    /* one error from GalaxyCreateUnit (unknown type), not from the coord parse */
+    T_EQ(sc2_test_count, 1);
+    /* error must come from the create step, NOT the "x and y must be numbers" check */
+    globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}
+
+/* kill cheat must zero health and trigger the SVF_DEADMONSTER transition. */
+TEST(sc2_control, kill_command_zeros_health_and_marks_dead) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts, saved_max = globals.max_clients;
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.UnlinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    gi.CvarString = sc2_test_cvar_cheats_on;
+    globals.num_edicts = 2; globals.max_clients = 1;
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
+    sc2_edicts[0] = (edict_t){ .client = &sc2_clients[0] };
+    sc2_clients[0].ps.number = 1;
+    edict_t *unit = &sc2_edicts[1];
+    *unit = (edict_t){ .inuse = true, .selected = 2, .s = { .number = 1, .player = 1, .model = 0 } };
+    unit->unit.initialized = true;
+    unit->unit.vitals[0].value = 100.0f;
+    unit->unit.vitals[0].max_value = 100.0f;
+    unit->unit.states |= 1u << SC2_UNIT_SELECTABLE;
+    T_ASSERT(SC2_GalaxyUnitIsAlive(unit));
+    sc2_test_count = 0;
+    SC2_ClientCommand(sc2_edicts, 1, (cstring_t[]){ "kill" });
+    T_FEQ(unit->unit.vitals[0].value, 0.0f, 0.0001f);
+    T_ASSERT(unit->svflags & SVF_DEADMONSTER);
+    T_ASSERT(!SC2_GalaxyUnitIsAlive(unit));
+    T_EQ(sc2_test_count, 1); /* confirmation message */
+    globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}
