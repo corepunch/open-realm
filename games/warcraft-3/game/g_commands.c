@@ -1518,7 +1518,40 @@ CLIENTCOMMAND(Give) {
     if (argc < 2) {
         G_CheatPrintf(clent,
             "WC3: cheats: give gold <amount> | lumber <amount> | res <amount> | "
-            "item <rawcode> [count] | ability <rawcode> | xp <amount>");
+            "unit <rawcode> [x y] | item <rawcode> | ability <rawcode> | xp <amount>");
+        return;
+    }
+    if (!strcasecmp(argv[1], "unit")) {
+        vec2_t location;
+        edict_t *spawned, *selected;
+        uint32_t first_ability;
+        if (argc < 3 || strlen(argv[2]) < 4) {
+            G_CheatPrintf(clent, "WC3: give unit <rawcode> [x y] [ability ...]");
+            return;
+        }
+        code = *(uint32_t const *)argv[2];
+        first_ability = 3;
+        if (argc >= 5 && G_DebugIsNumber(argv[3]) && G_DebugIsNumber(argv[4])) {
+            location = (vec2_t){ atof(argv[3]), atof(argv[4]) };
+            first_ability = 5;
+        } else {
+            selected = G_GetMainSelectedUnit(client);
+            if (selected) { location = selected->s.origin2; location.x += selected->collision + 96.0f; }
+            else location = (vec2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
+        }
+        spawned = unit_create(client->ps.number, code, &location, 270.0f);
+        if (!spawned) {
+            G_CheatPrintf(clent, "WC3: could not spawn unit %.4s", argv[2]);
+            return;
+        }
+        for (uint32_t i = first_ability; i < argc; i++)
+            if (strlen(argv[i]) >= 4) unit_learnability(spawned, *(uint32_t const *)argv[i]);
+        FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
+        G_SelectEntity(client, spawned);
+        Get_Portrait_f(clent);
+        Get_Commands_f(clent);
+        G_CheatPrintf(clent, "WC3: spawned unit %.4s (entity %u) for player %u at (%.0f, %.0f)",
+                      argv[2], spawned->s.number, client->ps.number, location.x, location.y);
         return;
     }
     if (argc < 3) {
@@ -3285,8 +3318,12 @@ CLIENTCOMMAND(DebugSpawn) {
     edict_t *spawned;
     uint32_t first_ability = 2;
 
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
     if (argc < 2 || strlen(argv[1]) < 4) {
-        fprintf(stderr, "usage: debugspawn <unitid> [x y] [ability ...]\n");
+        G_CheatPrintf(clent, "WC3: usage: debugspawn <rawcode> [x y] [ability ...]");
         return;
     }
 
@@ -3306,6 +3343,7 @@ CLIENTCOMMAND(DebugSpawn) {
 
     spawned = SP_SpawnAtLocation(class_id, client->ps.number, &location);
     if (!spawned) {
+        G_CheatPrintf(clent, "WC3: could not spawn unit %.4s", argv[1]);
         return;
     }
     G_ActivateUnitFood(spawned);
@@ -3322,6 +3360,8 @@ CLIENTCOMMAND(DebugSpawn) {
     G_SelectEntity(client, spawned);
     Get_Portrait_f(clent);
     Get_Commands_f(clent);
+    G_CheatPrintf(clent, "WC3: spawned unit %.4s (entity %u) for player %u at (%.0f, %.0f)",
+                  argv[1], spawned->s.number, client->ps.number, location.x, location.y);
 }
 
 typedef struct {

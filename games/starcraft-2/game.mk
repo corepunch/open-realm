@@ -25,6 +25,15 @@ run-sc2: $(SC2_BINARY) install-share
 build-run-sc2: opensc2 install-share
 	$(SC2_BINARY) -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map
 
+run-sc2-terran: $(SC2_BINARY) install-share
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/TerranTest.SC2Components $(ARGS)
+
+run-sc2-protoss: $(SC2_BINARY) install-share
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/ProtossTest.SC2Components $(ARGS)
+
+run-sc2-zerg: $(SC2_BINARY) install-share
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/ZergTest.SC2Components $(ARGS)
+
 $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(SHEET_LIB) $(RENDERER_SC2_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz
@@ -85,6 +94,7 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	echo "  sc2map diag OK"
 
 SC2_PHONY := renderer-sc2 game-sc2 menu-sc2 opensc2 run-sc2 build-run-sc2 \
+	run-sc2-terran run-sc2-protoss run-sc2-zerg \
 	test-sc2 test-sc2-assets
 
 # Exercise authoritative selection/orders in the same module as the live game.

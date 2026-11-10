@@ -235,6 +235,15 @@ The commands use the active map's authored `Dawn`, `Dusk`, and `DayHours` values
 The obsolete `wc3_cheat_timeofday_scale` registration was removed: current `G_UpdateTimeOfDay` never read it.
 Use `day`/`night` for phase testing; there is no independent clock-speed cheat.
 
+Unit spawning commands create new units at the selected unit's position (offset by collision radius) or the camera center:
+
+```
+give unit <rawcode> [x y] [ability ...]   # spawn a unit by FOURCC rawcode
+debugspawn <rawcode> [x y] [ability ...]  # lower-level spawn (SP_SpawnAtLocation)
+```
+
+`give unit` uses the full `unit_create` path (JASS-style CreateUnit), so the spawned unit gets unstuck resolution, food activation, score accounting, and world-entry events. `debugspawn` uses the simpler `SP_SpawnAtLocation`, which is useful for raw entity testing. Both are cheat-gated by `sv_cheats 1` and print their result to the in-game console. The optional `[x y]` overrides the spawn position; trailing four-character arguments are learned as abilities.
+
 Most unit-oriented commands target the first selected unit; the health/mana cheats below apply to the full selected controllable group:
 
 ```
@@ -281,6 +290,31 @@ camera edge <0|1>
 `enemiesclear` is cheat-gated by `sv_cheats 1`. It uses the primary selected friendly unit as the center and immediately removes nearby non-building enemy units; the default radius is 768 world units. The `eclear` alias runs the identical handler. Friendly units, buildings, units outside the radius, and the selected center unit are left unchanged.
 
 The `camera` family is diagnostic rather than a gameplay cheat. `camera move` moves the gameplay camera to the requested world coordinates, subject to the map's camera bounds. `camera selected` focuses and follows the primary selected unit using the same persistent target controller as portrait camera focusing. `camera edge 0` disables mouse screen-edge scrolling and `camera edge 1` restores it; keyboard camera binds and drag-pan remain available. Edge scrolling is client-local, while `move` and `selected` are forwarded through the normal authoritative WC3 game-command path.
+
+## StarCraft II
+
+SC2 cheat commands follow the same `sv_cheats 1` gate and `svc_console_print` feedback pattern as WC3 and WoW:
+
+```
+spawn <UnitType> [player] [x y]   # create a unit by catalog name
+god                                # toggle selected unit invulnerability
+kill                               # kill the selected unit
+```
+
+`spawn` resolves the unit type through `SC2_MapResolveUnit` (the same catalog lookup as Galaxy `UnitCreate`). Unit type names are catalog identifiers such as `Marine`, `Zealot`, `Zergling`, `SiegeTank`, `Colossus`, etc. The unit spawns at the selected unit's position (offset by collision radius), an explicit coordinate, or the map center (48, 48) as fallback. The optional `player` argument assigns ownership (defaults to the issuing player).
+
+Examples:
+
+```sh
+# Spawn a Marine next to the selected unit
+build/bin/opensc2 -data data/StarCraft2 +set sv_cheats 1 +map Maps/TerranTest.SC2Components +spawn Marine
+
+# Spawn a Zealot for player 2 at a specific position
+spawn Zealot 2 60 60
+
+# Spawn and screenshot for verification
+make run-sc2-terran ARGS="+set sv_cheats 1 +spawn Marine +spawn Zealot +vid_hidden 1 +screenshot 5 +com_frame_limit 10"
+```
 
 ## World of Warcraft
 
