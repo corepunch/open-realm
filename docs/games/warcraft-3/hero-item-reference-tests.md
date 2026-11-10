@@ -121,6 +121,9 @@ The latest full suite checkpoint passed these listed tests in both classic and T
 10. `bladebane_armor_grants_nearby_units_one_armor`: Equips retail `blba`
     (`AId7,AIad`), checks the one-point Devotion Aura armor bonus on an ally,
     then checks it disappears after the recipient leaves aura range.
+11. `gloves_of_spell_mastery_control_summoned_units_from_inventory`: Uses
+    retail `gvsm` from inventory, selects an enemy summon, and checks that it
+    transfers to the Hero.
 
 `wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
 also exercises the installed `ANsa` contract with non-stock `DataA=7`: the
