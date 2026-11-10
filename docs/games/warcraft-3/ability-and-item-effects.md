@@ -61,6 +61,14 @@ authored `Dur1` duration and `Area1` radius, while applying its `BuffID`
 terrain reveal is maintained by the timed area source; detection is carried by
 ordinary expiring unit statuses. Installed TFT values are 10 seconds and 900.
 
+## Horn Of The Clouds
+
+The TFT Horn of the Clouds (`sfog`) uses alias `AIfg` for Cloud of Fog
+(`Aclf`). It accepts a ground point and applies the authored `Bclf` status to
+enemy ranged buildings in its area. `S_HumanCanAttack` consumes that status,
+and its duration expires with the authored spell lifetime. The status stops
+the buildings from attacking.
+
 ## Data Flow
 
 Ability-authored presentation follows:

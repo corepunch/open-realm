@@ -9611,6 +9611,52 @@ TEST(wc3_spell, wand_of_shadowsight_lends_target_vision_without_armor_reduction)
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown();
 }
 
+TEST(wc3_spell, horn_of_the_clouds_disarms_nearby_enemy_ranged_buildings) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"BuffID1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AIfg\"\nC;Y2;X2;K\"Aclf\"\n"
+        "C;Y2;X3;K\"20\"\nC;Y2;X4;K\"500\"\nC;Y2;X5;K\"Bclf\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"Aclf\"\nC;Y3;X2;K\"Aclf\"\n"
+        "C;Y3;X3;K\"20\"\nC;Y3;X4;K\"500\"\nC;Y3;X5;K\"Bclf\"\nC;Y3;X6;K\"1\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster, *tower, *outside_tower;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    tower = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 128, 0);
+    outside_tower = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 700, 0);
+    caster->s.player = 0;
+    tower->s.player = outside_tower->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    tower->svflags |= SVF_MONSTER;
+    outside_tower->svflags |= SVF_MONSTER;
+    tower->s.flags |= EF_BUILDING;
+    outside_tower->s.flags |= EF_BUILDING;
+    tower->unit_state->attack1.type = outside_tower->unit_state->attack1.type = ATK_PIERCE;
+    T_ASSERT(S_HumanCanAttack(tower));
+    T_ASSERT(S_HumanCanAttack(outside_tower));
+
+    T_ASSERT(test_execute_code(caster, "AIfg", MAKE(spellTarget_t, .type = SPELL_TARGET_POINT,
+                                                    .point = MAKE(vec2_t, .x = 128, .y = 0))));
+    T_ASSERT(S_UnitHasStatus(tower, MAKEFOURCC('B','c','l','f')));
+    T_ASSERT(!S_HumanCanAttack(tower));
+    T_ASSERT(S_HumanCanAttack(outside_tower));
+    level.time = 20999;
+    unit_updatestatuses(tower);
+    T_ASSERT(!S_HumanCanAttack(tower));
+    level.time = 21000;
+    unit_updatestatuses(tower);
+    T_ASSERT(S_HumanCanAttack(tower));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* ROC AbilityData lacks BuffID; alternate/crow and creep Faerie Fire still
  * need Bfae so their casts grant the same unit vision as Afae. */
 TEST(wc3_spell, faerie_fire_roc_fallback_covers_alternate_and_creep) {
