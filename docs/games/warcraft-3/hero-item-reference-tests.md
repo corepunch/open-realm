@@ -118,6 +118,9 @@ The latest full suite checkpoint passed these listed tests in both classic and T
 9. `orb_of_fire_splashes_full_attack_damage_to_nearby_enemies`: Checks the
    authored area radius, full damage on nearby enemies from melee and missile
    hits, and exclusion of allies and out-of-radius enemies.
+10. `bladebane_armor_grants_nearby_units_one_armor`: Equips retail `blba`
+    (`AId7,AIad`), checks the one-point Devotion Aura armor bonus on an ally,
+    then checks it disappears after the recipient leaves aura range.
 
 `wc3_ability_lifecycle.staff_of_sanctuary_teleports_stuns_and_heals_until_full`
 also exercises the installed `ANsa` contract with non-stock `DataA=7`: the

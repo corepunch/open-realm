@@ -865,6 +865,11 @@ the source's allies receive the bonus only while in range, and dropping the
 shield removes the source. `retail_item_effect.shield_of_honor_provides_authored_command_aura`
 covers range and removal.
 
+Bladebane Armor (`blba`; reported as “Bloodbane Armor”) carries `AId7` and
+Devotion Aura alias `AIad` (`AHad`). Its authored `DataA=1` aura grants one
+armor to nearby allies. `retail_item_effect.bladebane_armor_grants_nearby_units_one_armor`
+checks the live armor value and range expiry.
+
 Warsong Battle Drums (`ward`) also carry `AIcd` and use the same authored
 Command Aura path. The focused regression
 `retail_item_effect.warsong_battle_drums_provide_authored_command_aura`
