@@ -269,22 +269,20 @@ TEST(retail_item_effect, oven_combines_attack_bonus_and_single_poison_pulse) {
  * deliberately nonstock 17s check already exists in t_anti_magic_shell.c. */
 TEST(retail_item_effect, pams_blocks_hostile_magic_until_15_seconds) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y3;X14\n"
+        "ID;PWXL;N;EBB;Y3;X13\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
         "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
         "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataC1\"\n"
         "C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"Cool1\"\n"
-        "C;Y1;X9;K\"Dur1\"\nC;Y1;X10;K\"HeroDur1\"\n"
-        "C;Y1;X11;K\"BuffID1\"\nC;Y1;X12;K\"levels\"\n"
-        "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\n"
+        "C;Y1;X11;K\"DataD1\"\nC;Y1;X12;K\"DataE1\"\nC;Y1;X13;K\"DataA1\"\n"
         "C;Y2;X1;K\"AIxs\"\nC;Y2;X2;K\"Aami\"\n"
         "C;Y2;X3;K\"1\"\nC;Y2;X4;K\"air,ground,friend,self\"\n"
         "C;Y2;X5;K\"15\"\nC;Y2;X6;K\"15\"\n"
         "C;Y2;X7;K\"10\"\nC;Y2;X8;K\"0\"\n"
         "C;Y2;X9;K\"Bams,Bam2\"\nC;Y2;X10;K\"30\"\n"
-        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X11;K\"6\"\n"
-        "C;Y3;X8;K\"1\"\nC;Y3;X13;K\"1\"\nC;Y3;X14;K\"1\"\nE\n";
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X8;K\"1\"\nC;Y3;X11;K\"1\"\nC;Y3;X12;K\"1\"\nC;Y3;X13;K\"6\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"pams\"\nC;Y2;X2;K\"AIxs\"\nE\n";
