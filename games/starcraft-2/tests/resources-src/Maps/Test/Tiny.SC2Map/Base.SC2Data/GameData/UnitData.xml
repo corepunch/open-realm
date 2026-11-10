@@ -17,4 +17,12 @@
         <Mover value="None"/>
         <Flag index="Structure" value="1"/>
     </CUnit>
+    <CUnit id="SiegeTankSieged" parent="Marine">
+        <Actor value="MarineActor"/>
+        <Mover value="None"/><LifeStart value="160"/><LifeMax value="160"/><LifeRegenRate value="0"/>
+        <WeaponArray index="0" Link="CrucioShockCannon" Turret="SiegeTankSieged"/>
+    </CUnit>
+    <CUnit id="TurretOverride" parent="SiegeTankSieged"><WeaponArray index="0" Turret="OtherTurret"/></CUnit>
+    <CUnit id="TurretCleared" parent="TurretOverride"><WeaponArray index="0" Turret=""/></CUnit>
+    <CUnit id="WeaponRemoved" parent="SiegeTankSieged"><WeaponArray index="0" removed="1"/></CUnit>
 </Catalog>

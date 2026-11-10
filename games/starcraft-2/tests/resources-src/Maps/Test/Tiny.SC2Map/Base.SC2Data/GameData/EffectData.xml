@@ -7,4 +7,21 @@
         <Amount value="40"/>
         <AreaArray Radius="1.25"/>
     </CEffectDamage>
+    <!-- Stock Liberty Tank topology, validators and radius/fraction bands. -->
+    <CEffectSet id="CrucioShockCannonSet"><EffectArray value="CrucioShockCannonBlastSet"/><EffectArray value="CrucioShockCannonDirected"/></CEffectSet>
+    <CEffectSet id="CrucioShockCannonBlastSet"><EffectArray value="CrucioShockCannonBlast"/></CEffectSet>
+    <CEffectDamage id="CrucioShockCannonBlast">
+        <ValidatorArray value="TargetRadiusSmall"/><Amount value="60"/>
+        <SearchFilters value="Ground;Self,Missile,Stasis,Dead,Hidden,Invulnerable"/>
+        <AreaArray Radius="0.4687" Fraction="1"/><AreaArray Radius="0.7812" Fraction="0.5"/><AreaArray Radius="1.25" Fraction="0.25"/>
+        <ExcludeArray Value="Target"/><SearchFlags index="OffsetByUnitRadius" value="0"/>
+    </CEffectDamage>
+    <CEffectDamage id="CrucioShockCannonDirected"><ValidatorArray value="TargetRadiusLarge"/><Amount value="60"/></CEffectDamage>
+    <CEffectSet id="TestBlastSet" parent="CrucioShockCannonBlastSet"><EffectArray index="0" value="TestBlast"/></CEffectSet>
+    <CEffectDamage id="TestBlast" parent="CrucioShockCannonBlast"><Amount value="37"/><ValidatorArray index="0" removed="1"/>
+        <AreaArray index="0" Radius="0.3" Fraction="0.8"/><AreaArray index="1" Radius="0.9" Fraction="0.4"/><AreaArray index="2" removed="1"/>
+    </CEffectDamage>
+    <CEffectSet id="CycleSet"><EffectArray value="CycleSet"/></CEffectSet>
+    <CEffectDamage id="BadValidator" parent="TestBlast"><ValidatorArray index="0" value="MissingValidator"/></CEffectDamage>
+    <CEffectDamage id="PartialBands" parent="TestBlast"><AreaArray index="0" Fraction="0.6"/><AreaArray index="1" Radius="1.0"/></CEffectDamage>
 </Catalog>

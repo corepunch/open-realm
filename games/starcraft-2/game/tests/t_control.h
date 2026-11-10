@@ -447,6 +447,8 @@ TEST(sc2_control, transform_preserves_state_across_type_change) {
     marine.unit_properties[0] = 45; marine.unit_properties[2] = 45; marine.unit_properties[20] = 3.75f;
     SC2_UnitInit(unit, &marine);
     unit->move.mobile = true; unit->unit.kills = 7;
+    unit->unit.custom[3] = 123;
+    unit->unit.states |= 1u << SC2_UNIT_INVULNERABLE;
     T_STREQ(unit->unit.type, "Marine");
     T_FEQ(unit->unit.vitals[0].value, 45.0f, 0.001f);
     sc2MapObject_t depot = { .id = 2, .name = "SupplyDepot", .radius = 1.5f, .mover = "None" };
@@ -457,6 +459,9 @@ TEST(sc2_control, transform_preserves_state_across_type_change) {
     T_FEQ(unit->unit.kills, 7.0f, 0.001f);
     T_EQ(unit->s.player, 3u);
     T_EQ(unit->selected, 2u);
+    T_ASSERT(SC2_UnitFromId(1) == unit);
+    T_FEQ(unit->unit.custom[3], 123, 0.001f);
+    T_ASSERT(unit->unit.states & (1u << SC2_UNIT_INVULNERABLE));
     T_ASSERT(!unit->move.mobile);
     T_ASSERT(!SC2_UnitTransformFrom(NULL, &depot));
     globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
@@ -481,11 +486,18 @@ TEST(sc2_control, burrow_command_toggles_burrowed_state) {
     unit->unit.initialized = true; unit->unit.vitals[0].value = 100; unit->unit.vitals[0].max_value = 100;
     unit->move.mobile = true;
     T_ASSERT(!SC2_UnitIsBurrowed(&unit->unit));
+    unit->unit.states |= 1u << 11; /* c_unitStateHighlightable is independent of burial. */
+    T_ASSERT(!SC2_UnitIsBurrowed(&unit->unit));
+    unit->unit.states &= ~(1u << 11);
     sc2_test_count = 0;
     SC2_ClientCommand(sc2_edicts, 1, (cstring_t[]){ "burrow" });
     T_ASSERT(SC2_UnitIsBurrowed(&unit->unit));
-    T_ASSERT(unit->unit.states & (1u << SC2_UNIT_HIDDEN));
-    T_ASSERT(unit->unit.states & (1u << SC2_UNIT_MOVE_SUPPRESSED));
+    T_ASSERT(unit->unit.states & 1u); /* c_unitStateBuried */
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    SC2_OrderMove(unit,&(vec2_t){10,0});
+    SC2_RunUnit(unit);
+    T_ASSERT(!SC2_UnitCanMove(1));
+    T_FEQ(unit->s.origin.x,0,0.001f);
     T_ASSERT(!unit->move.moving);
     T_EQ(sc2_test_count, 1);
     sc2_test_count = 0;
@@ -494,5 +506,94 @@ TEST(sc2_control, burrow_command_toggles_burrowed_state) {
     T_ASSERT(!(unit->unit.states & (1u << SC2_UNIT_HIDDEN)));
     T_ASSERT(!(unit->unit.states & (1u << SC2_UNIT_MOVE_SUPPRESSED)));
     T_EQ(sc2_test_count, 1);
+    T_ASSERT(SC2_UnitCanMove(1));
+    /* Unburrow must not remove independent script locks, including ones set while buried. */
+    SC2_UnitBurrow(unit);
+    unit->unit.states |= (1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED)|(1u<<11);
+    SC2_UnitUnburrow(unit);
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(!SC2_UnitCanMove(1));
+    T_ASSERT(unit->unit.states & (1u<<11));
     g_models[1] = model; globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}
+
+/* Real catalog -> command dispatch -> server scheduler -> damage/selection snapshots. */
+TEST(sc2_control, retail_tank_effects_turret_and_cooldown) {
+    struct game_import saved=gi;
+    uint32_t saved_n=globals.num_edicts,saved_max=globals.max_clients;
+    sc2Level_t saved_level=sc2_level;
+    gi.GetTime=sc2_test_clock; gi.LinkEntity=sc2_test_link; gi.UnlinkEntity=sc2_test_link;
+    gi.Write=sc2_test_write; gi.unicast=sc2_test_unicast;
+    SC2_MapSetHost(&(sc2MapHost_t){.read_file=gi.ReadFile,.free_file=gi.MemFree,.mem_alloc=gi.MemAlloc,.mem_free=gi.MemFree});
+    T_ASSERT(SC2_MapLoad("Maps/Test/Tiny.SC2Map"));
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(&sc2_level,0,sizeof(sc2_level));
+    memset(sc2_players,0,sizeof(sc2_players));
+    globals.max_clients=0; globals.num_edicts=12; sc2_test_time=100;
+    edict_t *tank=&sc2_edicts[1],*target=&sc2_edicts[2];
+    *tank=(edict_t){.inuse=true,.selected=2,.s={.number=1,.player=1,.model=1,.origin={2,0,0}}};
+    sc2MapObject_t object;
+    T_ASSERT(SC2_MapResolveUnit("SiegeTankSieged",&object));
+    SC2_UnitInit(tank,&object);
+    T_ASSERT(tank->order.turreted);
+    T_STREQ(tank->unit.weapons[0].turret,"SiegeTankSieged");
+    for (uint32_t i=2;i<globals.num_edicts;i++) {
+        sc2_edicts[i]=(edict_t){.inuse=true,.s={.number=i,.player=2,.model=1,.origin={2,2,0}}};
+        sc2_edicts[i].unit=(sc2UnitState_t){.initialized=true,.radius=0.25f,.vitals={{200,200,0}}};
+    }
+    float distances[]={0,0.2f,0.6f,1.1f,1.3f,0.2f,0.2f,0.2f,0.2f,0.2f};
+    for (int i=0;i<10;i++) sc2_edicts[i+2].s.origin.x+=distances[i];
+    sc2_edicts[7].s.player=1; /* authored search does not exclude allies */
+    sc2_edicts[8].move.flying=true;
+    sc2_edicts[9].unit.states=1u<<SC2_UNIT_INVULNERABLE;
+    sc2_edicts[10].unit.states=1u<<SC2_UNIT_HIDDEN;
+    sc2_edicts[11].unit.vitals[0].value=0;
+    struct client_s client_state={.ps={.number=1}};
+    edict_t client={.client=&client_state};
+    T_ASSERT(SC2_CommandTarget(&client,2));
+    SC2_RunFrame();
+    float expected[]={140,140,170,185,200,140,200,200,200,0};
+    for (int i=0;i<10;i++) T_FEQ(sc2_edicts[i+2].unit.vitals[0].value,expected[i],0.001f);
+    T_FEQ(tank->s.angle,0,0.001f);
+    T_FEQ(SC2_UnpackTurretAngle(tank->s.hover_value),(float)M_PI/2,0.001f);
+    sc2_test_time+=100; SC2_RunFrame();
+    T_FEQ(target->unit.vitals[0].value,140,0.001f);
+    sc2_test_time=3100; SC2_RunFrame();
+    T_FEQ(target->unit.vitals[0].value,80,0.001f);
+    /* Complementary radius validator chooses directed damage for large targets. */
+    target->unit.radius=1.25f;
+    for (int i=2;i<11;i++) sc2_edicts[i].unit.vitals[0].value=200;
+    sc2_test_time=6100; SC2_RunFrame();
+    T_FEQ(target->unit.vitals[0].value,140,0.001f);
+    T_FEQ(sc2_edicts[3].unit.vitals[0].value,200,0.001f);
+    target->unit.radius=0.25f; target->unit.vitals[0].value=1; sc2_edicts[3].unit.vitals[0].value=1;
+    sc2_test_time=9100; SC2_RunFrame();
+    T_FEQ(tank->unit.kills,2,0.001f);
+    T_ASSERT(target->svflags&SVF_DEADMONSTER); T_ASSERT(sc2_edicts[3].svflags&SVF_DEADMONSTER);
+    /* A different amount, inherited set, changed bands and a removed outer band. */
+    sc2WeaponPresentation_t weapon;
+    T_ASSERT(SC2_MapWeaponPresentation("TestCannon",&weapon));
+    for (int i=2;i<11;i++) { sc2_edicts[i].unit.vitals[0].value=200; sc2_edicts[i].svflags=0; }
+    SC2_WeaponDamage(tank,target,&weapon);
+    T_FEQ(target->unit.vitals[0].value,163,0.001f);
+    T_FEQ(sc2_edicts[3].unit.vitals[0].value,170.4f,0.001f);
+    T_FEQ(sc2_edicts[4].unit.vitals[0].value,185.2f,0.001f);
+    T_FEQ(sc2_edicts[5].unit.vitals[0].value,200,0.001f);
+    /* Morph uses the native binding and preserves the unit handle, map ID and script locks. */
+    SC2_InitGalaxyHost(); galaxy_reset();
+    tank->unit.map_id=72; tank->unit.custom[3]=123;
+    jass_sethost(&(jassHost_t){.MemAlloc=sc2_test_alloc,.MemFree=free,.galaxy_natives=galaxy_get_natives()});
+    jass_t *vm=jass_newstate();
+    char script[]="native unit UnitFromId(int id); native bool UnitTransformUnit(unit u,string t);"
+        "native void UnitSetState(unit u,int s,bool v); native bool UnitTestState(unit u,int s);"
+        "native void UnitSetCustomValue(unit u,int i,fixed v); native fixed UnitGetCustomValue(unit u,int i);"
+        "void main(){unit u=UnitFromId(72); UnitSetState(u,11,true); UnitSetState(u,9,true);"
+        "if(UnitTransformUnit(u,\"Marine\") && UnitFromId(72)==u && UnitGetCustomValue(u,3)==123.0 && UnitTestState(u,9))"
+        "{UnitSetCustomValue(u,63,1.0);} }";
+    T_ASSERT(jass_dobuffer_ex(vm,script,JASS_MODE_GALAXY)); jass_callbyname(vm,"main",false);
+    T_ASSERT(!jass_rterror_pending(vm)); T_FEQ(tank->unit.custom[63],1,0.001f);
+    T_ASSERT(!SC2_UnitIsBurrowed(&tank->unit)); T_EQ(tank->s.hover_value,0);
+    T_ASSERT(!tank->order.turreted); T_EQ(tank->order.target,0);
+    jass_close(vm); galaxy_reset();
+    SC2_MapShutdown(); memset(sc2_edicts,0,sizeof(sc2_edicts));
+    globals.num_edicts=saved_n; globals.max_clients=saved_max; sc2_level=saved_level; gi=saved;
 }

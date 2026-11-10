@@ -656,12 +656,7 @@ m3Model_t *R_LoadModelM3(void *data, uint32_t size) {
     model->type = model->refs[model->head->MODL.ref].version;
     currentmodel = model;
     M3_InitMODL(model, M3_MakeSizeBuf(model, model->head->MODL));
-    M3_FOR_EACH(Bone, bone, model->bones) {
-        if (bone->nameNum >= 6 && strncmp(bone->name, "Turret", 6) == 0) {
-            model->turret_bone = (int32_t)(bone - model->bones);
-            break;
-        }
-    }
+    model->turret_bone = M3_FindTurretBone(model);
     return model;
 }
 
@@ -858,10 +853,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, mat4_t
         if (entity->hover_value && model->turret_bone >= 0 && (int32_t)(bone - model->bones) == model->turret_bone) {
             float ta = SC2_UnpackTurretAngle(entity->hover_value);
             float delta = ta - entity->angle;
-            float c = cosf(delta), sn = sinf(delta);
-            mat4_t rz = { .v = {c,sn,0,0, -sn,c,0,0, 0,0,1,0, 0,0,0,1} };
-            mat4_t bt; Matrix4_multiply(&rz, tmp+(bone-model->bones), &bt);
-            tmp[bone-model->bones] = bt;
+            M3_RotateTurret(tmp+(bone-model->bones),delta);
         }
     }
 

@@ -477,7 +477,8 @@ static edict_t *test_resolve_client_entity(uint32_t playernum) {
 }
 
 TEST(server_net, signon_uses_game_owned_player_mapping) {
-    cstring_t argv[] = { "configstrings" };
+    uint8_t data[32];
+    sizeBuf_t command = { data, sizeof(data), 0, 0 };
     client_t *client;
     reset_server_state(1);
     client = &svs.clients[0];
@@ -487,7 +488,8 @@ TEST(server_net, signon_uses_game_owned_player_mapping) {
     SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
     test_resolved_player = UINT32_MAX;
     test_ge.ClientEntity = test_resolve_client_entity;
-    SV_Configstrings_f(client, 1, argv);
+    MSG_WriteString(&command, "configstrings");
+    SV_ExecuteUserCommand(&command, client);
     T_EQ(test_resolved_player, 4);
     T_ASSERT(client->edict == &test_edicts[7]);
 }

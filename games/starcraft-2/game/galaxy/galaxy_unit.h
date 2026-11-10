@@ -533,7 +533,7 @@ static bool sc2_filter_match(jass_t *j,int32_t h,int player,sc2UnitFilter_t cons
     if (u->vitals[1].max_value>0) flags|=1ull<<24;
     if (u->vitals[2].max_value>0) flags|=1ull<<25;
     if (!SC2_UnitAlive(u)) flags|=1ull<<33;
-    if (u->states&(1u<<SC2_UNIT_HIDDEN)) flags|=1ull<<35;
+    if (SC2_UnitHidden(u)) flags|=1ull<<35;
     if (u->states&(1u<<SC2_UNIT_INVULNERABLE)) flags|=1ull<<37;
     if (u->vitals[1].value>0) flags|=1ull<<38;
     if (u->vitals[2].value>0) flags|=1ull<<39;

@@ -65,6 +65,8 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 
 ### Documents
 
+- [Unit transforms, burial and Tank combat](unit-transforms-and-combat.md) — native state identity, weapon turret assignments, effect sets, splash bands and regression coverage.
+
 - [Map Storage And Loading](map-storage-and-loading.md) — container format, component folders, dependency/XML loading behavior, and cache/download context.
 - [Embedded Map Files](embedded-map-files.md) — full binary specs for all known files inside `.SC2Map` archives.
 - [Map, Model, And Unit Data](map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models.

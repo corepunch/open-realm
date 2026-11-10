@@ -3,6 +3,11 @@
 Audit of StarCraft II unit type support in the OpenWarcraft3 engine, covering catalog resolution,
 spawning, simulation, and gameplay mechanics. Date: 2026-11-10.
 
+Follow-up: [unit transforms, burial and Tank combat](unit-transforms-and-combat.md)
+documents the corrected native state bits, instance-preserving morphs, retail
+weapon/turret assignments and the supported damage-effect subset. The roster
+below describes catalog availability; it is not proof of complete combat parity.
+
 ## How Unit Types Work
 
 SC2 units are not hardcoded — they are resolved dynamically from XML catalog data at map load time:
@@ -127,7 +132,7 @@ The engine's SC2 simulation provides a baseline of:
 - **Vitals**: Life, energy, and shields with regeneration rates from catalog data
 - **Basic combat**: Weapon range/period/damage from `CWeapon` catalog, direct life damage, armor subtraction
 - **Attack orders**: Move, stop, hold position, patrol, attack-move, target attack
-- **Turret rotation**: Units with `CWeapon.TurretName` (Siege Tank, Thor, Battlecruiser) rotate only the turret bone when attacking; body faces movement direction. Turret angle transported via `entityState_t.hover_value` using 1–65535 packed encoding; decoded in M3 renderer to rotate the named bone.
+- **Turret rotation**: Units with a `CUnit.WeaponArray Turret` assignment can rotate the M3 `Ref_TurretZ` joint independently when attacking; body faces movement direction. Turret angle transported via `entityState_t.hover_value` using 1–65535 packed encoding; decoded in M3 renderer to rotate the named bone.
 - **Selection/control**: Click selection, control groups, Smart orders
 - **HUD**: Command card buttons resolved from `CUnit.CardLayouts` + `CButton` catalog
 - **Galaxy scripting**: Unit creation/removal/property changes through Galaxy VM natives
@@ -139,13 +144,13 @@ The engine's SC2 simulation provides a baseline of:
 
 | Feature | Affected Units | Impact |
 |---------|----------------|--------|
-| **Unit morphing/transformation** | Siege Tank ↔ Sieged, Viking ↔ Assault, Hellion ↔ Hellbat, Liberator modes, Warp Prism modes, Lurker burrow | Units exist as separate catalog entries; no runtime transform between them |
-| **Burrow** | Roach, Infestor, Baneling, Zergling, Widow Mine, Lurker | No burrow/unburrow state machine |
+| **Unit morphing/transformation** | Siege Tank ↔ Sieged, Viking ↔ Assault, Hellion ↔ Hellbat, Liberator modes, Warp Prism modes, Lurker burrow | Runtime morph cheat/native implemented; racial command-card morph abilities remain missing |
+| **Burrow** | Roach, Infestor, Baneling, Zergling, Widow Mine, Lurker | Cheat burial transition implemented; racial ability, detection and underground movement rules remain missing |
 | **Cloak/stealth** | Ghost, Dark Templar, Banshee, Observer, Mothership | No visibility/detection system |
 | **Transport/cargo** | Medivac, Warp Prism, Overlord, Nydus Worm | No load/unload/cargo mechanics |
 | **Special abilities (CAbil)** | Nearly all units | Abilities listed in CUnit.AbilArray are bookkeeping only — `s_orders.c` implements Move/Stop/Hold/Patrol/Attack but no specific CAbil behaviors |
 | **Effect system (CEffect)** | All damage, healing, spawning | `SC2_RunOrders` does direct life subtraction; no CEffect chain evaluation |
-| **Splash/bounce damage** | Siege Tank sieged, Colossus, Mutalisk, Baneling | Single-target damage only |
+| **Splash/bounce damage** | Siege Tank sieged, Colossus, Mutalisk, Baneling | Nested damage sets and radial bands implemented for Tank; bounce/persistent-effect dispatch remains missing |
 | **Resource gathering** | SCV, Probe, Drone, MULE | No worker AI or resource mechanics |
 | **Building construction** | All structures | No building placement/construction lifecycle |
 | **Production/training** | All production buildings, Larva | No unit training queues |

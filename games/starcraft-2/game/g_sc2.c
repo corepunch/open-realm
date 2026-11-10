@@ -91,7 +91,12 @@ static bool SC2_UnitTransformFrom(edict_t *ent, sc2MapObject_t const *obj) {
     if (!ent || !ent->inuse || !ent->unit.initialized) return false;
     float lp=SC2_UnitProperty(&ent->unit,1), ep=SC2_UnitProperty(&ent->unit,5), sp=SC2_UnitProperty(&ent->unit,9);
     float kills=ent->unit.kills; uint32_t player=ent->s.player, sel=ent->selected;
+    sc2UnitState_t previous=ent->unit;
     SC2_UnitInit(ent,obj);
+    ent->unit.map_id=previous.map_id; ent->unit.states=previous.states; ent->unit.ai_options=previous.ai_options;
+    memcpy(ent->unit.custom,previous.custom,sizeof(ent->unit.custom));
+    memcpy(ent->unit.cooldowns,previous.cooldowns,sizeof(ent->unit.cooldowns));
+    ent->unit.cooldown_n=previous.cooldown_n;
     SC2_UnitSetProperty(&ent->unit,1,lp); SC2_UnitSetProperty(&ent->unit,5,ep); SC2_UnitSetProperty(&ent->unit,9,sp);
     ent->unit.kills=kills; ent->s.player=player; ent->selected=sel;
     ent->s.model=G_RegisterModel(obj->model); ent->s.radius=SC2_ObjectRadius(obj);
@@ -99,7 +104,7 @@ static bool SC2_UnitTransformFrom(edict_t *ent, sc2MapObject_t const *obj) {
     ent->move.mobile=SC2_ObjectIsMobile(obj);
     if (ent->move.mobile) ent->svflags|=SVF_MONSTER; else ent->svflags&=~SVF_MONSTER;
     ent->move.flying=!strcasecmp(obj->mover,"Fly");
-    ent->move.moving=false; ent->move.path.valid=false; ent->order.kind=0;
+    ent->move.moving=false; ent->move.path.valid=false; ent->s.ability=0; ent->order.kind=0; ent->order.target=0;
     SC2_UnitAnimation(ent,"Stand"); SC2_UnitChanged(ent);
     return true;
 }
@@ -136,7 +141,7 @@ static bool SC2_CanSelectUnit(edict_t const *ent) {
     uint32_t number=SC2_EdictNumber(ent);
     return number<SC2_MAX_EDICTS && ent->inuse && ent->s.model &&
         (ent->unit.initialized ? SC2_UnitAlive(&ent->unit) &&
-        (ent->unit.states & (1u<<SC2_UNIT_SELECTABLE)) && !(ent->unit.states & (1u<<SC2_UNIT_HIDDEN)) : ent->move.mobile);
+        (ent->unit.states & (1u<<SC2_UNIT_SELECTABLE)) && !SC2_UnitHidden(&ent->unit) : ent->move.mobile);
 }
 static bool SC2_IsSelectable(edict_t const *ent, uint32_t player) {
     return SC2_CanSelectUnit(ent) && ent->s.player==player;
@@ -309,13 +314,14 @@ static void SC2_RunUnit(edict_t *ent) {
         next = Vector2_mad(&ent->s.origin2, step, &MAKE(vec2_t, cosf(ent->s.angle), sinf(ent->s.angle)));
         if (!SC2_MoveIsValid(ent, &next)) return;
     }
+    if (ent->order.turreted) { ent->order.turret_angle=ent->s.angle; ent->s.hover_value=SC2_PackTurretAngle(ent->s.angle); }
     if (!ent->s.ability) { SC2_UnitAnimation(ent, "Walk"); ent->s.ability = 1; }
     ent->s.origin2 = next;
     SC2_LinkUnit(ent);
 }
 
 static bool sc2_collision_filter(edict_t const *ent) {
-    return ent && ent->inuse && !(ent->svflags & SVF_DEADMONSTER) && ent->s.model && ent->collision > 0;
+    return ent && ent->inuse && !SC2_UnitIsBurrowed(&ent->unit) && !(ent->svflags & SVF_DEADMONSTER) && ent->s.model && ent->collision > 0;
 }
 
 static void SC2_PushEntity(edict_t *ent, float distance, vec2_t const *dir) {
@@ -330,7 +336,7 @@ static void SC2_SolveCollisions(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *a = &sc2_edicts[i];
-        if (!sc2_edicts[i].move.mobile || sc2_edicts[i].move.flying || !a->inuse || a->collision <= 0) {
+        if (!sc2_edicts[i].move.mobile || sc2_edicts[i].move.flying || !a->inuse || SC2_UnitIsBurrowed(&a->unit) || a->collision <= 0) {
             continue;
         }
         uint32_t num = gi.BoxEdicts(&a->bounds, colliders, SC2_MAX_COLLIDERS, sc2_collision_filter);
@@ -1090,7 +1096,7 @@ static bool SC2_CanSeeEntity(uint32_t player, edict_t const *ent) {
 /* Exclude scenery and hidden units before they fill the client selection list. */
 static void SC2_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t *state) {
     if (!SC2_CanSelectUnit(ent) || (!ent->unit.initialized && ent->s.player!=player)) state->flags|=EF_NOT_SELECTABLE;
-    if (ent->unit.initialized && SC2_UnitAlive(&ent->unit) && !(ent->unit.states & (1u<<SC2_UNIT_HIDDEN))) {
+    if (ent->unit.initialized && SC2_UnitAlive(&ent->unit) && !SC2_UnitHidden(&ent->unit)) {
         uint32_t other=ent->s.player;
         uint32_t contact=other==player ? SC2_MINIMAP_SELF : !other ? SC2_MINIMAP_NEUTRAL :
             player<32 && other<32 && (sc2_players[player].alliances[other]&1u) ? SC2_MINIMAP_ALLY : SC2_MINIMAP_ENEMY;

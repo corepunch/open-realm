@@ -1,0 +1,4 @@
+<Catalog>
+    <CValidatorUnitCompareField id="TargetRadiusSmall"><Compare value="LT"/><Field value="Radius"/><Value value="1.25"/></CValidatorUnitCompareField>
+    <CValidatorUnitCompareField id="TargetRadiusLarge"><Compare value="GE"/><Field value="Radius"/><Value value="1.25"/></CValidatorUnitCompareField>
+</Catalog>

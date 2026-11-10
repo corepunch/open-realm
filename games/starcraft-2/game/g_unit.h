@@ -13,8 +13,7 @@ static void SC2_UnitInitLinks(sc2UnitState_t *u) {
     char links[SC2_UNIT_ABILS][SC2_LINK_LEN];
     u->abil_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_ABIL,links,SC2_UNIT_ABILS);
     for (int i=0;i<u->abil_n;i++) { strlcpy(u->abils[i].link,links[i],sizeof(u->abils[i].link)); u->abils[i].level=1; }
-    u->weapon_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_WEAPON,links,SC2_UNIT_WEAPONS);
-    for (int i=0;i<u->weapon_n;i++) strlcpy(u->weapons[i].link,links[i],sizeof(u->weapons[i].link));
+    u->weapon_n=(uint8_t)SC2_MapUnitWeapons(u->type,u->weapons,SC2_UNIT_WEAPONS);
     u->behavior_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_BEHAVIOR,links,SC2_UNIT_BEHAVIORS);
     for (int i=0;i<u->behavior_n;i++) { strlcpy(u->behaviors[i].link,links[i],sizeof(u->behaviors[i].link)); u->behaviors[i].count=1; }
 }
@@ -34,14 +33,10 @@ static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     for (int p=0;p<24;p++) u->normal[p]=SC2_UnitProperty(u,p);
     SC2_UnitInitLinks(u);
     ent->move.speed=u->speed;
-    /* detect independent turret from catalog: any weapon with a non-empty TurretName */
     ent->order.turreted=false;
-    for (int i=0;i<u->weapon_n && !ent->order.turreted;i++) {
-        sc2WeaponPresentation_t wpn;
-        if (SC2_MapWeaponPresentation(u->weapons[i].link,&wpn) && *wpn.turret_name) ent->order.turreted=true;
-    }
+    for (int i=0;i<u->weapon_n;i++) if (*u->weapons[i].turret) ent->order.turreted=true;
     ent->order.turret_angle=ent->s.angle;
-    if (ent->order.turreted) ent->s.hover_value=SC2_PackTurretAngle(ent->order.turret_angle);
+    ent->s.hover_value=ent->order.turreted ? SC2_PackTurretAngle(ent->s.angle) : 0;
 }
 static void SC2_UnitChanged(void *ptr) {
     edict_t *ent=ptr; sc2UnitState_t *u=SC2_UnitState(ent);
@@ -53,9 +48,9 @@ static void SC2_UnitChanged(void *ptr) {
         ent->move.moving=false; ent->move.path.valid=false; ent->s.ability=0; ent->selected=0;
         SC2_UnitAnimation(ent,dead ? "Death" : "Stand");
     }
-    if (u->states & (1u<<SC2_UNIT_HIDDEN)) ent->s.renderfx |= RF_HIDDEN;
+    if (SC2_UnitHidden(u)) ent->s.renderfx |= RF_HIDDEN;
     else ent->s.renderfx &= ~RF_HIDDEN;
-    if (dead || (u->states & (1u<<SC2_UNIT_HIDDEN)) || !(u->states & (1u<<SC2_UNIT_SELECTABLE))) ent->selected=0;
+    if (dead || SC2_UnitHidden(u) || !(u->states & (1u<<SC2_UNIT_SELECTABLE))) ent->selected=0;
     if (selected_before!=ent->selected) sc2_level.selection_dirty|=selected_before;
     ent->s.stats[ENT_HEALTH]=(uint8_t)(SC2_UnitProperty(u,1)*255/100);
     ent->s.stats[ENT_MANA]=(uint8_t)(SC2_UnitProperty(u,5)*255/100);
@@ -87,7 +82,7 @@ static void SC2_UnitSelect(void *ptr,int player,bool select) {
     edict_t *ent=ptr; sc2UnitState_t const *u=SC2_UnitState(ent);
     if (!ent || !ent->inuse || player<0 || player>=32) return;
     uint32_t bit=1u<<player, before=ent->selected;
-    if (select && u && SC2_UnitAlive(u) && (u->states & (1u<<SC2_UNIT_SELECTABLE)) && !(u->states & (1u<<SC2_UNIT_HIDDEN)))
+    if (select && u && SC2_UnitAlive(u) && (u->states & (1u<<SC2_UNIT_SELECTABLE)) && !SC2_UnitHidden(u))
         ent->selected |= bit;
     else if (!select) ent->selected &= ~bit;
     if (ent->selected != before) sc2_level.selection_dirty |= bit;
@@ -116,15 +111,15 @@ static void *SC2_UnitFromId(uint32_t id) {
 }
 static bool SC2_UnitCanMove(uint32_t n) {
     sc2UnitState_t const *u=&sc2_edicts[n].unit;
-    return !u->initialized || (SC2_UnitAlive(u) && !(u->states & ((1u<<SC2_UNIT_PAUSED)|(1u<<SC2_UNIT_MOVE_SUPPRESSED))));
+    return !u->initialized || (SC2_UnitAlive(u) && !(u->states & ((1u<<SC2_UNIT_PAUSED)|(1u<<SC2_UNIT_MOVE_SUPPRESSED)|(1u<<SC2_UNIT_BURROWED))));
 }
 static void SC2_UnitBurrow(edict_t *ent) {
-    ent->unit.states |= (1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED);
-    ent->move.moving=false; ent->move.path.valid=false; ent->order.kind=0;
+    ent->unit.states |= 1u<<SC2_UNIT_BURROWED;
+    ent->move.moving=false; ent->move.path.valid=false; ent->s.ability=0; ent->order.kind=0; ent->order.target=0;
     SC2_UnitAnimation(ent,"Burrow"); SC2_UnitChanged(ent);
 }
 static void SC2_UnitUnburrow(edict_t *ent) {
-    ent->unit.states &= ~((1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED));
+    ent->unit.states &= ~(1u<<SC2_UNIT_BURROWED);
     SC2_UnitAnimation(ent,"UnBurrow"); SC2_UnitChanged(ent);
 }
 static void SC2_UnitTick(edict_t *ent) {

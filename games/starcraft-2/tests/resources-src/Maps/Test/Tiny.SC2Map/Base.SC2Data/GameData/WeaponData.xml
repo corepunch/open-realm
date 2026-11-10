@@ -10,4 +10,9 @@
         <Range value="13"/>
         <Period value="2.14"/>
     </CWeapon>
+    <CWeaponLegacy id="CrucioShockCannon"><Effect value="CrucioShockCannonSet"/><Range value="13"/><Period value="3"/></CWeaponLegacy>
+    <CWeaponLegacy id="TestCannon" parent="CrucioShockCannon"><Effect value="TestBlastSet"/></CWeaponLegacy>
+    <CWeaponLegacy id="CycleWeapon" parent="CrucioShockCannon"><Effect value="CycleSet"/></CWeaponLegacy>
+    <CWeaponLegacy id="BadValidatorWeapon" parent="CrucioShockCannon"><Effect value="BadValidator"/></CWeaponLegacy>
+    <CWeaponLegacy id="PartialWeapon" parent="CrucioShockCannon"><Effect value="PartialBands"/></CWeaponLegacy>
 </Catalog>
