@@ -713,3 +713,17 @@ BZ_ABILITY_PROC(CAbilityItemWatcherWard) {
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_EFFECT, 0, &ent->s.origin2, true);
     return true;
 }
+
+/* Monster Lure places the authored nlur ward at the selected point. Neutral
+ * hostile camps in range acquire it through their normal guarded attack path. */
+BZ_SIMPLE_SPELL_PROC(AbilityMonsterLure) {
+    uint32_t level, unit_id;
+    edict_t *lure;
+    if (!caster || !spell || st.type != SPELL_TARGET_POINT) return;
+    level = S_SpellLevel(caster, spell->code);
+    unit_id = S_SpellUnitId(spell->code, level);
+    if (!unit_id) return;
+    lure = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point,
+                             S_SpellDuration(spell->code, level, false));
+    if (lure) G_CreepGuardLurePlaced(lure);
+}

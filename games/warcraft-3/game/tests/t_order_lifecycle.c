@@ -698,6 +698,38 @@ TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
     T_EQ(creep->orders->creep_guard_last_hit_ms, 2000u);
 }
 
+TEST(wc3_order_lifecycle, monster_lure_draws_nearby_guard_creeps_and_respects_queued_orders) {
+    ability_t const *ability = FindAbilityForCommand("AImo");
+    setup_test_world();
+    edict_t *creep = review_order_unit(-200, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *queued_creep = review_order_unit(-100, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *distant_creep = review_order_unit(1200, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *queued_target = review_order_unit(80, 1);
+    edict_t *lure = review_order_unit(100, 0);
+    vec2_t queued_point = { -80, 300 };
+
+    T_NOT_NULL(ability);
+    if (ability) {
+        T_EQ(ability->proc, CAbilityMonsterLure);
+        T_EQ(ability->target_type, SPELL_TARGET_POINT);
+    }
+    G_CreepGuardInit(creep);
+    G_CreepGuardInit(queued_creep);
+    G_CreepGuardInit(distant_creep);
+    T_ASSERT(unit_issuetargetorder(queued_creep, "attack", queued_target));
+    T_ASSERT(G_IssueUnitPointOrder(queued_creep, "move", &queued_point, true,
+                                   queued_creep->s.player, 0.0f));
+    G_CreepGuardLurePlaced(lure);
+
+    T_ASSERT(creep->goalentity == lure);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityAttack);
+    T_EQ(creep->orders->creep_guard_phase, CREEP_GUARD_COMBAT);
+    T_ASSERT(queued_creep->goalentity != lure);
+    T_EQ(G_UnitQueuedOrderCount(queued_creep), 1u);
+    T_ASSERT(distant_creep->goalentity != lure);
+    T_EQ(distant_creep->orders->creep_guard_phase, CREEP_GUARD_IDLE);
+}
+
 TEST(wc3_order_lifecycle, creep_guard_return_retries_stop_after_bounded_failures) {
     setup_test_world();
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
