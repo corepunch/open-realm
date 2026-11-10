@@ -94,14 +94,18 @@ The latest full suite checkpoint passed these seven listed tests in both classic
 3. `pams_blocks_hostile_magic_until_15_seconds`: The `pams → AIxs (code=Aami)`
    immunity blocks real spell damage for its authored 15 seconds, then expires.
    A separate non-stock duration case is in `t_anti_magic_shell.c`.
-4. `oli2_AIll_retail_alias_has_no_registered_handler`: Confirms the `oli2 →
-   AIll (code=AIsb)` binding is retained and explicitly records that no
-   non-passive handler is registered.
+4. `oli2_AIll_resolves_attack_bonus_handler`: Confirms the `oli2 → AIll
+   (code=AIsb)` binding and registers its authored +5 attack bonus. On-hit
+   behavior is separately exercised by the Lightning proc cases below.
 5. `ocor_nonstock_data_keeps_status_without_armor_consumer`: Injects a
    non-stock duration/data row and checks the status lifecycle while confirming
    no armor change is currently implemented.
-6. `oli2_AIll_does_not_purge_until_handler_exists`: Confirms the current
-   unimplemented `AIsb` behavior does not silently remove a positive buff.
+6. `oli2_AIll_applies_authored_attack_bonus_and_purge_proc`,
+   `oli2_AIll_damages_enemy_summon_with_nested_ai_pg_value`, and
+   `oli2_AIll_respects_zero_proc_chance`: Exercise the held-item hit path,
+   35% proc configuration, purge/slow, summoned-unit damage, and the zero
+   chance boundary. `AIll` is the Orb of Lightning alias; its parent code
+   `AIsb` is shared and does not make every `AIsb` alias a Lightning item.
 7. `regeneration_items_follow_target_damage_and_scheduler`: Uses non-stock
    `AIsl`/`AIpl` data through item-use dispatch, ordinary attack damage, and
    `G_RunEntity`. It verifies AIsl's area recipients tick independently,
@@ -123,8 +127,8 @@ The 45 purchase tests should not be misrepresented as 62 effect tests.
 
 The 266-row matrix above remains an inventory of positive/negative acceptance
 scenarios, not executable C coverage. The tests listed here cover only the
-behaviors named in their descriptions. `AIcb` armor reduction, `AIsb` Orb of
-Lightning behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
+behaviors named in their descriptions. `AIcb` armor reduction, Orb of Slow's
+item-specific alias/proc behavior, full retail-value regeneration totals and the other matrix-only scenarios remain open until verified
 from archive data and exercised through production gameplay paths.
 
 ## Testing policy

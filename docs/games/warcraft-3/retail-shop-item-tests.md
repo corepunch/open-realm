@@ -85,8 +85,10 @@ never count as a test pass.
 ### Particularly important cases
 
 - `oli2` → **`AIll`** (`code=AIsb`, not `AIlb`). Verified `DataA=5`,
-  `DataB=35`, `DataC=10`, `DataD=35`, `DataE=2`, `UnitID=AIpg`;
-  verify precise `DataB` chance semantics before statistical 35% assertions.
+  `DataB=35`, `DataC=10`, `DataD=35`, `DataE=2`, `UnitID=AIpg`.
+  Regression coverage applies +5 damage, tests the nested Purge effect,
+  summoned-unit damage and zero-proc boundary. `AIll` is a distinct alias
+  from the legacy `AIlb` attack bonus.
 - `ocor` → `AIcb`: `DataA=5`, `DataB=5`, `DataE=2`, `Dur=5`, `BuffID=BIcb`.
   **Armor has to actually drop**, not just add a status; repository
   `item-orbs.md` says the armor consumer is not yet implemented.
@@ -95,6 +97,9 @@ never count as a test pass.
 - `pams` → `AIxs` (`code=Aami`): installed ROC/TFT ability rows both
   reported 15-second `Bams/Bam2`, cooldown 30; disregard the older 90-second
   documentation **until reconciled with actual archive provenance**.
+- The shared parent code `AIsb` does not identify Orb of Slow by itself:
+  `oli2` maps to `AIll` and its nested `AIpg` Purge proc. Verify an item's own
+  `ItemData.abilList` before assigning the separate Orb of Slow effect contract.
 - `tsct` → `AIbt` → `hwtw` and `tgrh` → `AIbg` → `htow`; tests must
   also check real placement/pathing, cancellation and construction timing.
 
