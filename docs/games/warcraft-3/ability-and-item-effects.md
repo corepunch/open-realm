@@ -52,8 +52,12 @@ The TFT Flare Gun (`fgun`) grants the point-targeted `AIfa` ability. It uses the
 same Flare execution as `Afla`: the item enters point targeting, and accepting a
 point creates a timed reveal source owned by the user. The reveal radius and
 duration come from the item ability's `Area1` and `Dur1` data, so the area reveal
-and its lifetime remain data-driven. The item charge is consumed only after a
-point is accepted.
+and its lifetime remain data-driven. The Flare source also detects invisible
+enemy units within the same authored radius. Detection lasts for the reveal's
+full duration: 15 seconds for the `Afla` unit ability and 45 seconds for the
+retail `AIfa` item ability. The item charge is consumed only after a point is
+accepted. `wc3_spell.flare_reveals_invisible_unit_for_fifteen_seconds` covers
+the `Afla` detection and expiry path.
 
 The Crystal Ball (`crys`) uses `AIta` to reveal a selected point for the
 authored `Dur1` duration and `Area1` radius, while applying its `BuffID`
