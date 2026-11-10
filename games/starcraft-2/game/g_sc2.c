@@ -875,10 +875,23 @@ static void SC2_CheatPrintf(edict_t *ent, cstring_t fmt, ...) {
     }
 }
 
+static bool SC2_IsFloat(cstring_t s) {
+    if (!s || !*s) return false;
+    if (*s == '-' || *s == '+') s++;
+    if (!*s) return false;
+    bool has_digit = false, dot = false;
+    while (*s) {
+        if (*s == '.' && !dot) { dot = true; s++; continue; }
+        if ((unsigned char)*s < '0' || (unsigned char)*s > '9') return false;
+        has_digit = true; s++;
+    }
+    return has_digit;
+}
+
 /* spawn <UnitType> [player] [x y] — create a unit by catalog name at the selected unit's
- * position, an explicit coordinate, or the map center. Requires sv_cheats 1. */
+ * position, an explicit coordinate, or the map center. Requires sv_cheats 1.
+ * Forms: spawn Unit | spawn Unit N | spawn Unit X Y | spawn Unit N X Y */
 static void SC2_CmdSpawn(edict_t *ent, uint32_t argc, cstring_t argv[]) {
-    sc2MapObject_t object;
     cstring_t type;
     uint32_t player;
     float x, y, angle = 0.0f;
@@ -888,17 +901,26 @@ static void SC2_CmdSpawn(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     if (argc < 2) { SC2_CheatPrintf(ent, "SC2: usage: spawn <UnitType> [player] [x y]"); return; }
     type = argv[1];
     player = SC2_ClientPlayer(ent);
-    if (argc >= 3 && argv[2][0] >= '0' && argv[2][0] <= '9') {
+    if (argc == 4) {
+        if (!SC2_IsFloat(argv[2]) || !SC2_IsFloat(argv[3])) {
+            SC2_CheatPrintf(ent, "SC2: spawn: x and y must be numbers"); return;
+        }
+        x = atof(argv[2]); y = atof(argv[3]); goto have_pos;
+    } else if (argc >= 3 && argv[2][0] >= '0' && argv[2][0] <= '9') {
         player = (uint32_t)atoi(argv[2]);
-        if (argc >= 5) { x = atof(argv[3]); y = atof(argv[4]); goto have_pos; }
-    } else if (argc >= 4) { x = atof(argv[2]); y = atof(argv[3]); goto have_pos; }
+        if (argc >= 5) {
+            if (!SC2_IsFloat(argv[3]) || !SC2_IsFloat(argv[4])) {
+                SC2_CheatPrintf(ent, "SC2: spawn: x and y must be numbers"); return;
+            }
+            x = atof(argv[3]); y = atof(argv[4]); goto have_pos;
+        }
+    }
     selected = SC2_SelectedUnit(ent);
     if (selected) { x = selected->s.origin2.x + selected->collision + 2.0f; y = selected->s.origin2.y; }
-    else { x = 48.0f; y = 48.0f; } /* map center fallback */
+    else { x = 48.0f; y = 48.0f; }
 have_pos:
-    if (!SC2_MapResolveUnit(type, &object)) { SC2_CheatPrintf(ent, "SC2: unknown unit type '%s'", type); return; }
     spawned = SC2_GalaxyCreateUnit(type, (int)player, x, y, angle);
-    if (!spawned) { SC2_CheatPrintf(ent, "SC2: failed to spawn '%s' (edict pool full?)", type); return; }
+    if (!spawned) { SC2_CheatPrintf(ent, "SC2: failed to create '%s' — unknown type or edict pool full", type); return; }
     SC2_CheatPrintf(ent, "SC2: spawned %s (entity %u) for player %u at (%.1f, %.1f)", type, spawned->s.number, player, x, y);
 }
 
@@ -918,7 +940,9 @@ static void SC2_CmdKill(edict_t *ent) {
     if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
     unit = SC2_SelectedUnit(ent);
     if (!unit) { SC2_CheatPrintf(ent, "SC2: kill requires a selected unit"); return; }
+    float health = unit->unit.vitals[0].value;
     unit->unit.vitals[0].value = 0;
+    galaxy_combat_damage(sc2_level.vm, NULL, unit, health, true);
     SC2_UnitChanged(unit);
     SC2_CheatPrintf(ent, "SC2: killed entity %u (%s)", unit->s.number, unit->unit.type);
 }

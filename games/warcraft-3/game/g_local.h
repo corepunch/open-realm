@@ -4038,6 +4038,7 @@ void G_QueueSelectionSound(edict_t *, bool);
 void G_QueueAttackOrderSound(edict_t *);
 void G_ClientCommand(edict_t *, uint32_t, cstring_t[]);
 bool G_CheatsEnabled(void);
+bool G_ReadRawcode(cstring_t s, uint32_t *out);
 void G_ClientSetCameraPosition(edict_t *, vec2_t const *);
 
 //  s_skills.c
