@@ -81,14 +81,16 @@ BZ_ABILITY_PROC(CAbilityAttributeBonus) {
  * buff in either version. Buffs are state-only like Frost Nova's Bfro: no
  * movement/armor consumer reads Bfro/BIcb/Bfre yet. */
 #define ID_ORB_FIRE MAKEFOURCC('A', 'I', 'f', 'b')
-#define ID_ORB_LIGHTNING MAKEFOURCC('A', 'I', 'l', 'b')
+#define ID_ORB_LIGHTNING_OLD MAKEFOURCC('A', 'I', 'l', 'b')
 #define ID_ORB_FROST MAKEFOURCC('A', 'I', 'o', 'b')
 #define ID_ORB_POISON MAKEFOURCC('A', 'I', 'p', 'b')
 #define ID_ORB_CORRUPTION MAKEFOURCC('A', 'I', 'c', 'b')
 #define ID_ORB_FREEZE MAKEFOURCC('A', 'I', 'z', 'b')
+#define ID_ORB_LIGHTNING_TFT MAKEFOURCC('A', 'I', 'l', 'l')
+#define ID_ORB_LIGHTNING_PROC MAKEFOURCC('A', 'I', 'p', 'g')
 
 static uint32_t const orb_codes[] = {
-    ID_ORB_FIRE, ID_ORB_LIGHTNING, ID_ORB_FROST, ID_ORB_POISON, ID_ORB_CORRUPTION, ID_ORB_FREEZE,
+    ID_ORB_FIRE, ID_ORB_LIGHTNING_OLD, ID_ORB_LIGHTNING_TFT, ID_ORB_FROST, ID_ORB_POISON, ID_ORB_CORRUPTION, ID_ORB_FREEZE,
 };
 
 /* Held AIsr bracers reduce spell damage by their authored percentage. Use the
@@ -137,12 +139,44 @@ static void orb_apply(edict_t *attacker, edict_t *target, uint32_t orb, uint32_t
     S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(orb, level, target));
 }
 
+static bool item_has_ability(edict_t const *unit, uint32_t ability) {
+    if (!unit || !G_InventoryCanUseItems((edict_t *)unit)) return false;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *item = G_InventoryItem((edict_t *)unit, slot);
+        cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            uint32_t code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            if (code == ability || (code && G_AbilityCode(code) == ability)) return true;
+        }
+    }
+    return false;
+}
+
+/* The TFT Orb of Lightning stores its on-hit spell in UnitID1 (AIpg). DataB
+ * is the proc chance on AIll; the nested item Purge row owns its slow and
+ * summoned-unit damage values. Invoke that passive spell effect directly so
+ * the item proc does not require a command-card ability or mana check. */
+static void orb_lightning_on_hit(edict_t *attacker, edict_t *target) {
+    abilityitem_t purge;
+    spellTarget_t spell_target;
+    if (!attacker || !target ||
+        !(G_UnitAbilityLevel(attacker, ID_ORB_LIGHTNING_TFT) || item_has_ability(attacker, ID_ORB_LIGHTNING_TFT)) ||
+        (float)(rand() % 100) >= S_SpellData(ID_ORB_LIGHTNING_TFT, 1, 2)) return;
+    purge = S_AbilityItem(ID_ORB_LIGHTNING_PROC);
+    if (!purge.ability || purge.ability->proc != CAbilityPurge) return;
+    spell_target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+    (void)purge.ability->proc(attacker, A_EXECUTE,
+        &(abilityCall_t){ .item = &purge, .target = &spell_target });
+}
+
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
  * orb ownership and held orb items; the same orb from both sources applies once. */
 void S_OrbOnHit(edict_t *attacker, edict_t *target) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
+    orb_lightning_on_hit(attacker, target);
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0])) {
         /* Owned map aliases carry their own BuffID and duration. */
         abilityAliasRef_t const ref = S_ResolveAbilityAlias(attacker, orb_codes[o]);

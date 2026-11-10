@@ -350,6 +350,7 @@ static ability_t abilitylist[] = {
     { "AIdi", CAbilityItemDispelAoe, AB_ITEM | AB_POWERUP },  /* Item Area Dispel / Rune of Dispel Magic */
     { "AIfb", CAbilityAttackBonus, 0 },  /* Item Attack Fire Bonus (orb) */
     { "AIlb", CAbilityAttackBonus, 0 },  /* Item Attack Lightning Bonus (orb) */
+    { "AIll", CAbilityAttackBonus, 0 },  /* Orb of Lightning attack bonus; hit proc is handled by S_OrbOnHit */
     { "AIob", CAbilityAttackBonus, 0 },  /* Item Attack Frost Bonus (orb) */
     { "AIlp", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Purge */
     { "AIpb", CAbilityAttackBonus, 0 },  /* Item Attack Poison Bonus (orb) */
