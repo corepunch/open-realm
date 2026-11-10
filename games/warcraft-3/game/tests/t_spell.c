@@ -9611,6 +9611,69 @@ TEST(wc3_spell, wand_of_shadowsight_lends_target_vision_without_armor_reduction)
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown();
 }
 
+TEST(wc3_spell, flare_reveals_invisible_unit_for_fifteen_seconds) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Area1\"\n"
+        "C;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Afla\"\nC;Y2;X2;K\"Afla\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"15\"\nC;Y2;X5;K\"1800\"\n"
+        "C;Y2;X6;K\"3\"\nC;Y2;X7;K\"0.8\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster, *invisible_enemy, *flare = NULL;
+    vec2_t point = { 128, 128 };
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    invisible_enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 512, 128);
+    caster->s.player = 0;
+    invisible_enemy->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    invisible_enemy->svflags |= SVF_MONSTER;
+    invisible_enemy->targtype = TARG_GROUND;
+    caster->spawn_time = invisible_enemy->spawn_time = level.time;
+    caster->runtime.sight_radius.day = caster->runtime.sight_radius.night = 0;
+    invisible_enemy->runtime.sight_radius.day = invisible_enemy->runtime.sight_radius.night = 0;
+    invisible_enemy->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(unit_addtimedstatus(invisible_enemy, "Binv", 1, 30.0f));
+
+    G_FowInit(); G_FowConnectPlayer(0); G_FowUpdate();
+    T_ASSERT(!G_FowPointIsVisible(0, &point));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(invisible_enemy, 0));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, invisible_enemy));
+
+    T_ASSERT(test_execute_code(caster, "Afla",
+        MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = point)));
+    T_ASSERT(G_FowPointIsVisible(0, &point));
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == FS_SLKKey("Afla") && G_GetChannel(ent)) {
+        flare = ent;
+        break;
+    }
+    T_NOT_NULL(flare);
+    if (!flare) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown(); return; }
+    G_RunEntity(flare);
+    T_ASSERT(S_UnitIsDetectedByPlayer(invisible_enemy, 0));
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, invisible_enemy));
+
+    T_EQ(flare->spawn_time, level.time + 15000);
+    level.time += 14999;
+    G_RunEntity(flare);
+    T_ASSERT(G_FowPointIsVisible(0, &point));
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, invisible_enemy));
+    level.time++;
+    G_RunEntity(flare); G_FowUpdate();
+    T_ASSERT(!G_FowPointIsVisible(0, &point));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(invisible_enemy, 0));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, invisible_enemy));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows); G_FowShutdown();
+}
+
 TEST(wc3_spell, horn_of_the_clouds_disarms_nearby_enemy_ranged_buildings) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X6\n"
