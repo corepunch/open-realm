@@ -378,6 +378,7 @@ typedef struct m3Model_s {
     handle_t buffer;
     uint32_t size;
     uint32_t type;
+    int32_t turret_bone; /* index into bones[], -1 = no independent turret */
     
     
     M3_ENTRIES(Char, modelName);

@@ -87,6 +87,7 @@ void (*sc2_galaxy_unit_select)(void *ent, int player, bool select);
 bool (*sc2_galaxy_unit_is_selected)(void *ent, int player);
 void (*sc2_galaxy_unit_team_color)(void *ent, int index);
 bool (*sc2_galaxy_unit_is_flying)(void *ent);
+bool (*sc2_galaxy_unit_transform)(void *ent, cstring_t newType);
 
 void (*sc2_galaxy_on_actor_create)(unsigned actor_id, char const *model,
                                    unsigned unit_id, float x, float y);
@@ -769,6 +770,7 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "UnitRefToUnit",                       sc2_UnitRefToUnit },
     { "UnitRemove",                          sc2_UnitRemove },
     { "UnitRevive",                          sc2_UnitRevive },
+    { "UnitTransformUnit",                   sc2_UnitTransformUnit },
     { "UnitSetCursor",                       sc2_UnitSetCursor },
     { "UnitSetFacing",                       sc2_UnitSetFacing },
     { "UnitSetHeight",                       sc2_UnitSetHeight },

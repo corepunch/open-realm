@@ -22,4 +22,15 @@ static inline vec3_t SC2_CameraFromEuler(vec3_t const *euler, float height) {
     return (vec3_t){ euler->x + 90.0f, euler->z + 180.0f, height };
 }
 
+/* Encode a turret world-space angle (radians) into hover_value for network transport.
+ * hover_value == 0 means no independent turret; values 1-65536 cover the full circle. */
+static inline uint32_t SC2_PackTurretAngle(float angle) {
+    float norm = fmodf(angle, 2.0f * (float)M_PI);
+    if (norm < 0.0f) norm += 2.0f * (float)M_PI;
+    return (uint32_t)(norm / (2.0f * (float)M_PI) * 65535.0f) + 1; /* 1..65535 */
+}
+static inline float SC2_UnpackTurretAngle(uint32_t hover) {
+    return (float)(hover - 1) / 65535.0f * 2.0f * (float)M_PI;
+}
+
 #endif

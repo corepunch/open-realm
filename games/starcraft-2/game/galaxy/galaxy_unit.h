@@ -113,6 +113,12 @@ static uint32_t sc2_unit_life(jass_t *j, bool revive) {
 }
 static uint32_t sc2_UnitKill(jass_t *j) { return sc2_unit_life(j,false); }
 static uint32_t sc2_UnitRevive(jass_t *j) { return sc2_unit_life(j,true); }
+/* UnitTransformUnit — change a live unit to a new catalog type; vital percentages are preserved. */
+static uint32_t sc2_UnitTransformUnit(jass_t *j) {
+    void *ent=sc2_ent_from_handle(j,1); cstring_t type=jass_checkstring(j,2);
+    bool ok=ent && sc2_galaxy_unit_transform && sc2_galaxy_unit_transform(ent,type);
+    return jass_pushboolean(j,ok);
+}
 static uint32_t sc2_UnitRemove(jass_t *j) {
     int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); void *ent = sc2_ent_from_handle(j,1);
     if (!ent) return 0;

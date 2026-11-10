@@ -409,3 +409,66 @@ TEST(sc2_control, kill_command_zeros_health_and_marks_dead) {
     T_EQ(sc2_test_count, 1); /* confirmation message */
     globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
 }
+
+/* SC2_UnitTransformFrom preserves vitals, kills, player, and selection across type change. */
+TEST(sc2_control, transform_preserves_state_across_type_change) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts, saved_max = globals.max_clients;
+    gi.LinkEntity = sc2_test_link; gi.UnlinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    globals.num_edicts = 2; globals.max_clients = 1;
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
+    edict_t *unit = &sc2_edicts[1];
+    *unit = (edict_t){ .inuse = true, .selected = 2, .s = { .number = 1, .player = 3, .model = 1 } };
+    sc2MapObject_t marine = { .id = 1, .name = "Marine", .radius = 0.375f, .mover = "Ground" };
+    marine.unit_properties[0] = 45; marine.unit_properties[2] = 45; marine.unit_properties[20] = 3.75f;
+    SC2_UnitInit(unit, &marine);
+    unit->move.mobile = true; unit->unit.kills = 7;
+    T_STREQ(unit->unit.type, "Marine");
+    T_FEQ(unit->unit.vitals[0].value, 45.0f, 0.001f);
+    sc2MapObject_t depot = { .id = 2, .name = "SupplyDepot", .radius = 1.5f, .mover = "None" };
+    depot.unit_properties[0] = 400; depot.unit_properties[2] = 400;
+    T_ASSERT(SC2_UnitTransformFrom(unit, &depot));
+    T_STREQ(unit->unit.type, "SupplyDepot");
+    T_FEQ(unit->unit.vitals[0].value, 400.0f, 0.001f); /* 100% life preserved from full-health Marine */
+    T_FEQ(unit->unit.kills, 7.0f, 0.001f);
+    T_EQ(unit->s.player, 3u);
+    T_EQ(unit->selected, 2u);
+    T_ASSERT(!unit->move.mobile);
+    T_ASSERT(!SC2_UnitTransformFrom(NULL, &depot));
+    globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}
+
+/* burrow cheat toggles burrowed state and suppresses movement. */
+TEST(sc2_control, burrow_command_toggles_burrowed_state) {
+    struct game_import saved = gi;
+    uint32_t saved_n = globals.num_edicts, saved_max = globals.max_clients;
+    animation_t anims[] = { { .name = "Stand", .interval = {0, 1000} }, { .name = "Burrow", .interval = {1000, 2000} },
+                            { .name = "UnBurrow", .interval = {2000, 3000} } };
+    g_cmodel_t model = g_models[1]; g_models[1].animations = anims; g_models[1].num_animations = 3;
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.UnlinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    gi.CvarString = sc2_test_cvar_cheats_on;
+    globals.num_edicts = 2; globals.max_clients = 1;
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
+    sc2_edicts[0] = (edict_t){ .client = &sc2_clients[0] };
+    sc2_clients[0].ps.number = 1;
+    edict_t *unit = &sc2_edicts[1];
+    *unit = (edict_t){ .inuse = true, .selected = 2, .s = { .number = 1, .player = 1, .model = 1 } };
+    unit->unit.initialized = true; unit->unit.vitals[0].value = 100; unit->unit.vitals[0].max_value = 100;
+    unit->move.mobile = true;
+    T_ASSERT(!SC2_UnitIsBurrowed(&unit->unit));
+    sc2_test_count = 0;
+    SC2_ClientCommand(sc2_edicts, 1, (cstring_t[]){ "burrow" });
+    T_ASSERT(SC2_UnitIsBurrowed(&unit->unit));
+    T_ASSERT(unit->unit.states & (1u << SC2_UNIT_HIDDEN));
+    T_ASSERT(unit->unit.states & (1u << SC2_UNIT_MOVE_SUPPRESSED));
+    T_ASSERT(!unit->move.moving);
+    T_EQ(sc2_test_count, 1);
+    sc2_test_count = 0;
+    SC2_ClientCommand(sc2_edicts, 1, (cstring_t[]){ "burrow" });
+    T_ASSERT(!SC2_UnitIsBurrowed(&unit->unit));
+    T_ASSERT(!(unit->unit.states & (1u << SC2_UNIT_HIDDEN)));
+    T_ASSERT(!(unit->unit.states & (1u << SC2_UNIT_MOVE_SUPPRESSED)));
+    T_EQ(sc2_test_count, 1);
+    g_models[1] = model; globals.num_edicts = saved_n; globals.max_clients = saved_max; gi = saved;
+}

@@ -37,9 +37,11 @@ typedef struct {
     bool initialized;
 } sc2UnitState_t;
 
-enum { SC2_UNIT_INVULNERABLE=8, SC2_UNIT_PAUSED=9, SC2_UNIT_HIDDEN=10,
+/* c_unitStateBurrowed=11 in natives.galaxy; bit 11 is already in the Galaxy UnitSetState writable mask (0x0F3F1F00). */
+enum { SC2_UNIT_INVULNERABLE=8, SC2_UNIT_PAUSED=9, SC2_UNIT_HIDDEN=10, SC2_UNIT_BURROWED=11,
        SC2_UNIT_SELECTABLE=17, SC2_UNIT_DEAD=22, SC2_UNIT_MOVE_SUPPRESSED=24, SC2_UNIT_TURN_SUPPRESSED=25 };
 static inline bool SC2_UnitAlive(sc2UnitState_t const *u) { return u && u->vitals[0].value > 0; }
+static inline bool SC2_UnitIsBurrowed(sc2UnitState_t const *u) { return u && (u->states & (1u<<SC2_UNIT_BURROWED)); }
 static inline float SC2_UnitProperty(sc2UnitState_t const *u, int prop) {
     if (prop < 0 || prop >= 24) return 0;
     if (prop < 12) {

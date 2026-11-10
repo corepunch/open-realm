@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CEffectDamage id="GuassRifleDamage">
+        <Amount value="6"/>
+    </CEffectDamage>
+    <CEffectDamage id="SiegeTankCannonDamage">
+        <Amount value="40"/>
+        <AreaArray Radius="1.25"/>
+    </CEffectDamage>
+</Catalog>

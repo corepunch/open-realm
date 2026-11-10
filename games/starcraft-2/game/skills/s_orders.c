@@ -133,7 +133,9 @@ void SC2_RunOrders(edict_t *unit) {
             float damage=MAX(0.5f,weapon.damage-armor),old=target->unit.vitals[0].value;
             SC2_UnitSetProperty(&target->unit,0,old-damage);
             bool died=!SC2_UnitAlive(&target->unit);
-            unit->s.angle=atan2f(target->s.origin.y-unit->s.origin.y,target->s.origin.x-unit->s.origin.x);
+            float face=atan2f(target->s.origin.y-unit->s.origin.y,target->s.origin.x-unit->s.origin.x);
+            if (unit->order.turreted) { unit->order.turret_angle=face; unit->s.hover_value=SC2_PackTurretAngle(face); }
+            else unit->s.angle=face;
             SC2_SetUnitAnimation(unit,"Attack");
             unit->order.next_attack=gi.GetTime()+(uint32_t)(weapon.period*1000);
             SC2_UpdateUnit(target);
@@ -143,6 +145,21 @@ void SC2_RunOrders(edict_t *unit) {
                 target->order.destination=unit->s.origin2;
             }
             galaxy_combat_damage(sc2_level.vm,unit,target,MIN(old,damage),died);
+            if (weapon.splash>0) {
+                for (uint32_t j=globals.max_clients;j<globals.num_edicts;j++) {
+                    edict_t *victim=&edicts[j];
+                    if (victim==target || !sc2_order_enemy(unit,victim)) continue;
+                    if (Vector2_distance(&target->s.origin2,&victim->s.origin2)>weapon.splash) continue;
+                    sc2UnitPresentation_t vpres;
+                    float varmor=SC2_MapUnitPresentation(victim->unit.type,&vpres) ? vpres.armor : 0;
+                    float sdmg=MAX(0.5f,weapon.damage*0.5f-varmor);
+                    float vold=victim->unit.vitals[0].value;
+                    SC2_UnitSetProperty(&victim->unit,0,vold-sdmg);
+                    SC2_UpdateUnit(victim);
+                    if (!SC2_UnitAlive(&victim->unit)) unit->unit.kills++;
+                    galaxy_combat_damage(sc2_level.vm,unit,victim,MIN(vold,sdmg),!SC2_UnitAlive(&victim->unit));
+                }
+            }
         }
         return;
     }

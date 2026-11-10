@@ -139,7 +139,7 @@ typedef struct sc2_conversation {
 
 
 typedef struct { sc2CardButton_t button; uint32_t next; } sc2CatalogCard_t;
-typedef struct { char id[64], parent[64]; float amount; bool has_amount; } sc2CatalogDamage_t;
+typedef struct { char id[64], parent[64]; float amount, splash_radius; bool has_amount; } sc2CatalogDamage_t;
 
 typedef struct {
     uint32_t cards_count, buttons_count, weapons_count, damage_count;
@@ -1877,6 +1877,7 @@ static sc2XmlField_t const sc2_button_fields[] = {
 static sc2XmlField_t const sc2_weapon_fields[] = {
     SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "Effect", effect),
     SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "Icon", icon),
+    SC2_STRUCT_XML_STRING_FIELD(sc2WeaponPresentation_t, "TurretName", turret_name),
     SC2_STRUCT_XML_FIELD(sc2WeaponPresentation_t, "Range", range, SC2_XML_FIELD_FLOAT),
     SC2_STRUCT_XML_FIELD(sc2WeaponPresentation_t, "Period", period, SC2_XML_FIELD_FLOAT),
 };
@@ -1920,6 +1921,13 @@ static void sc2_parse_presentation_catalog_doc(sc2Catalog_t *catalog, xmlDoc *do
             else {
                 static sc2XmlField_t const fields[]={ SC2_STRUCT_XML_FIELD(sc2CatalogDamage_t,"Amount",amount,SC2_XML_FIELD_FLOAT) };
                 if (sc2_parse_xml_child_field(row,fields,SC2_ARRAY_LEN(fields),child,"value")) ((sc2CatalogDamage_t *)row)->has_amount=true;
+                if (sc2_streqi((cstring_t)child->name,"AreaArray")) {
+                    char rad_s[32];
+                    if (sc2_xml_attr(child,"Radius",rad_s,sizeof(rad_s))) {
+                        float r=strtof(rad_s,NULL);
+                        if (r>((sc2CatalogDamage_t *)row)->splash_radius) ((sc2CatalogDamage_t *)row)->splash_radius=r;
+                    }
+                }
             }
         }
     }
@@ -2753,18 +2761,20 @@ static void sc2_resolve_weapon(cstring_t id, sc2WeaponPresentation_t *out, uint3
         if (*weapon->parent) sc2_resolve_weapon(weapon->parent,out,depth+1);
         if (*weapon->effect) snprintf(out->effect,sizeof(out->effect),"%s",weapon->effect);
         if (*weapon->icon) snprintf(out->icon,sizeof(out->icon),"%s",weapon->icon);
+        if (*weapon->turret_name) snprintf(out->turret_name,sizeof(out->turret_name),"%s",weapon->turret_name);
         if (weapon->range>0) out->range=weapon->range;
         if (weapon->period>0) out->period=weapon->period;
         return;
     }
 }
-static bool sc2_resolve_damage(cstring_t id, float *amount, uint32_t depth) {
+static bool sc2_resolve_damage(cstring_t id, float *amount, float *splash, uint32_t depth) {
     if (depth>=SC2_MAX_CATALOG_PARENT_DEPTH) return false;
     for (uint32_t i=0;i<sc2_persistent_catalog->damage_count;i++) {
         sc2CatalogDamage_t const *damage=&sc2_persistent_catalog->damage[i];
         if (strcmp(damage->id,id)) continue;
+        if (damage->splash_radius>0 && splash) *splash=damage->splash_radius;
         if (damage->has_amount) { *amount=damage->amount; return true; }
-        return *damage->parent && sc2_resolve_damage(damage->parent,amount,depth+1);
+        return *damage->parent && sc2_resolve_damage(damage->parent,amount,splash,depth+1);
     }
     return false;
 }
@@ -2773,7 +2783,7 @@ bool SC2_MapWeaponPresentation(cstring_t id, sc2WeaponPresentation_t *out) {
     *out=(sc2WeaponPresentation_t){0};
     snprintf(out->id,sizeof(out->id),"%s",id);
     sc2_resolve_weapon("$CWeaponLegacy",out,0); sc2_resolve_weapon(id,out,0);
-    return *out->effect && sc2_resolve_damage(out->effect,&out->damage,0) && out->range>0 && out->period>0;
+    return *out->effect && sc2_resolve_damage(out->effect,&out->damage,&out->splash,0) && out->range>0 && out->period>0;
 }
 
 static bool sc2_catalog_sound_path_r(sc2Catalog_t const *catalog, sc2CatalogSound_t const *sound,

@@ -161,6 +161,7 @@ typedef struct {
     uint16_t effect_flags;
     model_t const *effect_model;
     float angle;        /* Canonical actor heading in radians, independent of height anchoring. */
+    uint32_t hover_value; /* Game-specific passthrough; SC2 uses 1-65535 = packed turret angle, 0 = none. */
     float scale;
     float radius;
     float splatsize;

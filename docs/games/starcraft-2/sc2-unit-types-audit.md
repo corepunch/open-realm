@@ -30,14 +30,14 @@ The unit testing cookbook ([unit-testing-cookbook.md](../../unit-testing-cookboo
 | Reaper             | `Reaper`           | ✅        | ✅       | ✅     | No cliff jumping |
 | Ghost              | `Ghost`            | ✅        | ✅       | ✅     | No Snipe/EMP/Cloak |
 | Hellion            | `Hellion`          | ✅        | ✅       | ✅     | No Hellbat transform |
-| Siege Tank         | `SiegeTank`        | ✅        | ✅       | ✅     | Mobile mode only |
-| Siege Tank (sieged)| `SiegeTankSieged`  | ✅        | ❌       | ✅     | Spawns stationary, no un-siege |
-| Thor               | `Thor`             | ✅        | ✅       | ✅     | |
+| Siege Tank         | `SiegeTank`        | ✅        | ✅       | ✅     | Mobile mode only; turret tracks target independently |
+| Siege Tank (sieged)| `SiegeTankSieged`  | ✅        | ❌       | ✅     | Spawns stationary, no un-siege; turret tracks target |
+| Thor               | `Thor`             | ✅        | ✅       | ✅     | Turret tracks target independently |
 | Viking (air)       | `VikingFighter`    | ✅        | ✅       | ✅     | Flying; no transform to ground |
 | Viking (ground)    | `VikingAssault`    | ✅        | ✅       | ✅     | No transform to air |
 | Medivac            | `Medivac`          | ✅        | ✅       | ❌     | No heal/load/unload |
 | Banshee            | `Banshee`          | ✅        | ✅       | ✅     | No cloak |
-| Battlecruiser      | `Battlecruiser`    | ✅        | ✅       | ✅     | No Yamato Cannon/Tactical Jump |
+| Battlecruiser      | `Battlecruiser`    | ✅        | ✅       | ✅     | No Yamato Cannon/Tactical Jump; turret tracks target |
 | Raven              | `Raven`            | ✅        | ✅       | ❌     | No abilities (turret/seeker/scan) |
 
 ### Protoss
@@ -127,6 +127,7 @@ The engine's SC2 simulation provides a baseline of:
 - **Vitals**: Life, energy, and shields with regeneration rates from catalog data
 - **Basic combat**: Weapon range/period/damage from `CWeapon` catalog, direct life damage, armor subtraction
 - **Attack orders**: Move, stop, hold position, patrol, attack-move, target attack
+- **Turret rotation**: Units with `CWeapon.TurretName` (Siege Tank, Thor, Battlecruiser) rotate only the turret bone when attacking; body faces movement direction. Turret angle transported via `entityState_t.hover_value` using 1–65535 packed encoding; decoded in M3 renderer to rotate the named bone.
 - **Selection/control**: Click selection, control groups, Smart orders
 - **HUD**: Command card buttons resolved from `CUnit.CardLayouts` + `CButton` catalog
 - **Galaxy scripting**: Unit creation/removal/property changes through Galaxy VM natives
@@ -155,6 +156,10 @@ The engine's SC2 simulation provides a baseline of:
 | **Death model swap** | All units | No death model/ragdoll; death plays "Death" animation |
 | **Projectile effects** | Ranged units | Damage is instant; no projectile travel |
 | **Shield armor** | All Protoss units | Shield damage uses life armor, not separate shield armor value |
+| **Weapon target type filter** | Siege Tank (ground-only), Voidray (air+ground separate), Colossus (ground-only) | `CWeapon.TargetFilters` not evaluated; all weapons fire at any valid target |
+| **Height advantage** | Ground vs. high ground | No line-of-sight / terrain elevation miss chance |
+| **Creep** | Zerg units on creep | No creep placement/movement-bonus system |
+| **Multiple weapon dispatch** | Thor (anti-air vs. anti-ground), Corruptor, Carrier | Units with multiple weapons always use the first enabled weapon regardless of target type |
 
 ## Architecture Notes
 

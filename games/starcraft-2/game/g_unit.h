@@ -34,6 +34,14 @@ static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     for (int p=0;p<24;p++) u->normal[p]=SC2_UnitProperty(u,p);
     SC2_UnitInitLinks(u);
     ent->move.speed=u->speed;
+    /* detect independent turret from catalog: any weapon with a non-empty TurretName */
+    ent->order.turreted=false;
+    for (int i=0;i<u->weapon_n && !ent->order.turreted;i++) {
+        sc2WeaponPresentation_t wpn;
+        if (SC2_MapWeaponPresentation(u->weapons[i].link,&wpn) && *wpn.turret_name) ent->order.turreted=true;
+    }
+    ent->order.turret_angle=ent->s.angle;
+    if (ent->order.turreted) ent->s.hover_value=SC2_PackTurretAngle(ent->order.turret_angle);
 }
 static void SC2_UnitChanged(void *ptr) {
     edict_t *ent=ptr; sc2UnitState_t *u=SC2_UnitState(ent);
@@ -52,6 +60,7 @@ static void SC2_UnitChanged(void *ptr) {
     ent->s.stats[ENT_HEALTH]=(uint8_t)(SC2_UnitProperty(u,1)*255/100);
     ent->s.stats[ENT_MANA]=(uint8_t)(SC2_UnitProperty(u,5)*255/100);
     ent->move.speed=u->speed; ent->move.height=u->height;
+    if (ent->order.turreted) ent->s.hover_value=SC2_PackTurretAngle(ent->order.turret_angle);
     SC2_LinkUnit(ent);
 }
 static void SC2_UnitRemove(void *ptr) {
@@ -108,6 +117,15 @@ static void *SC2_UnitFromId(uint32_t id) {
 static bool SC2_UnitCanMove(uint32_t n) {
     sc2UnitState_t const *u=&sc2_edicts[n].unit;
     return !u->initialized || (SC2_UnitAlive(u) && !(u->states & ((1u<<SC2_UNIT_PAUSED)|(1u<<SC2_UNIT_MOVE_SUPPRESSED))));
+}
+static void SC2_UnitBurrow(edict_t *ent) {
+    ent->unit.states |= (1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED);
+    ent->move.moving=false; ent->move.path.valid=false; ent->order.kind=0;
+    SC2_UnitAnimation(ent,"Burrow"); SC2_UnitChanged(ent);
+}
+static void SC2_UnitUnburrow(edict_t *ent) {
+    ent->unit.states &= ~((1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED));
+    SC2_UnitAnimation(ent,"UnBurrow"); SC2_UnitChanged(ent);
 }
 static void SC2_UnitTick(edict_t *ent) {
     sc2UnitState_t *u=SC2_UnitState(ent); if (!u) return;

@@ -1145,3 +1145,33 @@ TEST(sc2_map, road_overlay_preserves_shadow_caster_pass) {
     r_sc2_draw_road_layers(NULL, &entity);
     T_EQ(road_pass.calls, 0);
 }
+
+TEST(sc2_map, weapon_presentation_resolves_damage_and_splash) {
+    setup_sc2_tests(); use_sc2_fs_host();
+    T_ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
+    sc2WeaponPresentation_t wp;
+    T_ASSERT(SC2_MapWeaponPresentation("GuassRifle", &wp));
+    T_FEQ(wp.range, 5.0f, 0.001f);
+    T_FEQ(wp.period, 0.8608f, 0.001f);
+    T_FEQ(wp.damage, 6.0f, 0.001f);
+    T_FEQ(wp.splash, 0.0f, 0.001f);
+    T_ASSERT(SC2_MapWeaponPresentation("SiegeTankCannon", &wp));
+    T_FEQ(wp.range, 13.0f, 0.001f);
+    T_FEQ(wp.damage, 40.0f, 0.001f);
+    T_FEQ(wp.splash, 1.25f, 0.001f);
+    T_ASSERT(!SC2_MapWeaponPresentation("Missing", &wp));
+    SC2_MapShutdown();
+}
+
+TEST(sc2_map, burrow_state_flags) {
+    sc2UnitState_t u = {0};
+    u.vitals[0].value = 100; u.vitals[0].max_value = 100;
+    T_ASSERT(!SC2_UnitIsBurrowed(&u));
+    u.states |= (1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED);
+    T_ASSERT(SC2_UnitIsBurrowed(&u));
+    T_ASSERT(u.states & (1u<<SC2_UNIT_HIDDEN));
+    T_ASSERT(u.states & (1u<<SC2_UNIT_MOVE_SUPPRESSED));
+    u.states &= ~((1u<<SC2_UNIT_BURROWED)|(1u<<SC2_UNIT_HIDDEN)|(1u<<SC2_UNIT_MOVE_SUPPRESSED));
+    T_ASSERT(!SC2_UnitIsBurrowed(&u));
+    T_ASSERT(!(u.states & (1u<<SC2_UNIT_HIDDEN)));
+}

@@ -51,7 +51,10 @@ struct edict_s {
     // keep above in sync with server.h
     sc2UnitState_t unit; /* vitals, flags, catalog links; Galaxy natives read it through sc2_galaxy_unit_state */
     sc2MoveState_t move;
-    struct { uint32_t kind, target, next_attack; vec2_t origin, destination; bool returning; } order;
+    struct { uint32_t kind, target, next_attack; vec2_t origin, destination; bool returning;
+             bool turreted;    /* weapon has CWeapon.TurretName; body faces movement, turret tracks target */
+             float turret_angle; /* world-space turret heading (radians); matches s.angle when not attacking */
+           } order;
 };
 
 extern struct game_import gi;
