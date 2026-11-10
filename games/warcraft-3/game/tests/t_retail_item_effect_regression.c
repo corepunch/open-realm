@@ -803,7 +803,7 @@ TEST(retail_item_effect, oli2_AIll_applies_authored_attack_bonus_and_purge_proc)
     S_ResolveAttackHit(f.hero, f.enemy, 20);
     T_ASSERT(!S_UnitHasStatus(f.enemy, FS_SLKKey("Binf")));
     T_ASSERT(S_UnitHasStatus(f.enemy, FS_SLKKey("Bprg")));
-    T_FEQ(S_PurgeMoveReduction(f.enemy), 0.8f, 0.001f); /* stock DataA=5 */
+    T_FEQ(S_PurgeMoveReduction(f.enemy), 1.0f, 0.001f); /* DataD=35 pauses the target */
     re_done(&f);
 }
 
@@ -842,15 +842,16 @@ TEST(retail_item_effect, oli2_AIll_damages_enemy_summon_with_nested_ai_pg_value)
 /* chance zero must never trigger the nested Purge ability. */
 TEST(retail_item_effect, oli2_AIll_respects_zero_proc_chance) {
     char const *ability_slk =
-        "ID;PWXL;N;EBB;Y3;X6\n"
+        "ID;PWXL;N;EBB;Y4;X9\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
-        "C;Y1;X5;K\"UnitID1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y1;X5;K\"UnitID1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\nC;Y1;X9;K\"levels\"\n"
         "C;Y2;X1;K\"AIll\"\nC;Y2;X2;K\"AIsb\"\nC;Y2;X3;K\"5\"\n"
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"AIpg\"\nC;Y2;X6;K\"1\"\n"
         "C;Y3;X1;K\"AIpg\"\nC;Y3;X2;K\"Aprg\"\nC;Y3;X5;K\"150\"\nC;Y3;X6;K\"1\"\n"
         "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\n"
-        "C;Y4;X5;K\"1\"\nC;Y4;X6;K\"1\"\nC;Y4;X7;K\"1\"\nE\n";
+        "C;Y4;X5;K\"1\"\nC;Y4;X6;K\"1\"\nC;Y4;X7;K\"1\"\nC;Y4;X8;K\"1\"\nC;Y4;X9;K\"1\"\nE\n";
     char const *items = "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"oli2\"\nC;Y2;X2;K\"AIll\"\nE\n";
