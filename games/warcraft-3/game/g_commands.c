@@ -2090,7 +2090,10 @@ CLIENTCOMMAND(Inventory) {
     /* HUD serialization is only valid after ClientBegin; disconnected slots retain authoritative state only. */
     if (client->connected) {
         Get_Portrait_f(clent);
-        Get_Commands_f(clent);
+        /* Targeted inventory spells arm callbacks on the command client. A
+         * command-card rebuild clears those callbacks before the player can
+         * choose a point or unit target (for example, Flare Gun). */
+        if (!G_TargetModeActive(client)) Get_Commands_f(clent);
     } else {
         G_InvalidateCommands(client);
     }
