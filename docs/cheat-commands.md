@@ -303,6 +303,8 @@ kill                               # kill the selected unit
 
 `spawn` resolves the unit type through `SC2_MapResolveUnit` (the same catalog lookup as Galaxy `UnitCreate`). Unit type names are catalog identifiers such as `Marine`, `Zealot`, `Zergling`, `SiegeTank`, `Colossus`, etc. The unit spawns at the selected unit's position (offset by collision radius), an explicit coordinate, or the map center (48, 48) as fallback. The optional `player` argument assigns ownership (defaults to the issuing player).
 
+Player IDs must be integers from 0 through 31. Coordinates must be finite decimal numbers; invalid players, coordinates, and extra arguments are rejected before creating a unit.
+
 Examples:
 
 ```sh

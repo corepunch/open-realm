@@ -174,6 +174,28 @@ TEST(wc3_avatar, ability_removal_expires_active_avatar) {
     avatar_done(fix);
 }
 
+TEST(wc3_avatar, retraining_removes_learned_ability_effects_and_allows_relearning) {
+    avFix_t fix = avatar_setup(1);
+    edict_t *unit = fix.unit;
+    UnitAbilities_t const tree = { .abilList = "AInv", .heroAbilList = "AHav" };
+    unit->data.UnitAbilities = &tree;
+    unit->unit_state->hero.level = 6;
+    unit->unit_state->hero.skillpoints = 0;
+    T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
+    T_FEQ(unit->health.max_value, 1150, 0.001f);
+    T_ASSERT(G_HeroRetrainSkills(unit));
+    T_NULL(G_GetAvatar(unit));
+    T_ASSERT(!S_UnitSpellImmune(unit));
+    T_FEQ(unit->health.max_value, 650, 0.001f);
+    T_FEQ(unit->unit_state->attack1.temporaryDamageBonus, 3, 0.001f);
+    T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);
+    T_EQ(unit->unit_state->hero.skillpoints, 1);
+    T_ASSERT(G_HeroLearnSkill(unit, BZ_AVATAR));
+    T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 1);
+    T_ASSERT(!G_HeroRetrainSkills(NULL));
+    avatar_done(fix);
+}
+
 TEST(wc3_avatar, immunity_rechecks_impact_and_leaves_physical_damage) {
     avFix_t fix = avatar_setup(1);
     edict_t *unit = fix.unit, *enemy = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);

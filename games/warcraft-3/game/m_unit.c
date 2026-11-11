@@ -2563,9 +2563,13 @@ bool G_HeroRetrainSkills(edict_t *ent) {
     for (uint32_t i = 0; i < MAX_HERO_ABILITIES; i++) {
         heroability_t *rank = ent->unit_state->ranks + i;
         if (!rank->level || !G_HeroHasCandidateSkill(ent, rank->code)) continue;
+        /* Retire the ability's active state while its learned rank is still
+         * available to its inverse. Do not install a permanent removal override. */
+        S_DisableAbility(ent, rank->code);
         rank->level = 0;
         rank->code = 0;
     }
+    G_ResetHeroPassiveCaches();
     gameClient_t *owner = G_GetPlayerClientByNumber(ent->s.player);
     if (owner && owner->ps.number == ent->s.player) G_InvalidateCommands(owner);
     return true;

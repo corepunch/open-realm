@@ -366,6 +366,40 @@ TEST(sc2_control, isfloat_accepts_integers_floats_and_negatives) {
     T_ASSERT(SC2_IsFloat("-70")); T_ASSERT(SC2_IsFloat("-70.25")); T_ASSERT(SC2_IsFloat("+1"));
     T_ASSERT(!SC2_IsFloat("")); T_ASSERT(!SC2_IsFloat(NULL)); T_ASSERT(!SC2_IsFloat("foo"));
     T_ASSERT(!SC2_IsFloat("-")); T_ASSERT(!SC2_IsFloat("1.2.3")); T_ASSERT(!SC2_IsFloat("1e5"));
+    T_ASSERT(!SC2_IsFloat("999999999999999999999999999999999999999999999999999999999999"));
+}
+
+TEST(sc2_control, spawn_rejects_invalid_players_and_argument_counts) {
+    struct game_import saved = gi;
+    struct game_export saved_globals = globals;
+    struct client_s saved_client = sc2_clients[0];
+    edict_t saved_edicts[2] = {sc2_edicts[0], sc2_edicts[1]};
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    gi.ModelIndex = sc2_test_model_index; gi.CvarString = sc2_test_cvar_cheats_on;
+    SC2_MapSetHost(&(sc2MapHost_t){.read_file=gi.ReadFile,.free_file=gi.MemFree,
+                                 .mem_alloc=gi.MemAlloc,.mem_free=gi.MemFree});
+    T_ASSERT(SC2_MapLoad("Maps/Test/Tiny.SC2Map"));
+    globals.num_edicts = globals.max_clients = 1; globals.max_edicts = 2;
+    sc2_edicts[0] = (edict_t){.client=&sc2_clients[0]};
+    sc2_clients[0].ps.number = 1;
+    cstring_t players[] = {"32", "-1", "1oops", "", "99999999999999999999999"};
+    FOR_LOOP(i, sizeof(players)/sizeof(*players)) {
+        globals.num_edicts = 1; sc2_test_count = 0;
+        SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"spawn", "Marine", players[i]});
+        T_EQ(globals.num_edicts, 1);
+    }
+    globals.num_edicts = 1; sc2_test_count = 0;
+    SC2_ClientCommand(sc2_edicts, 6, (cstring_t[]){"spawn", "Marine", "1", "2", "3", "extra"});
+    T_EQ(globals.num_edicts, 1);
+    globals.num_edicts = 1; sc2_test_count = 0;
+    SC2_ClientCommand(sc2_edicts, 5, (cstring_t[]){"spawn", "Marine", "31", "2", "3"});
+    T_EQ(globals.num_edicts, 2); T_EQ(sc2_edicts[1].s.player, 31);
+    T_FEQ(sc2_edicts[1].s.origin2.x, 2, 0.001f);
+    T_FEQ(sc2_edicts[1].s.origin2.y, 3, 0.001f);
+    SC2_MapShutdown();
+    sc2_edicts[0]=saved_edicts[0]; sc2_edicts[1]=saved_edicts[1];
+    sc2_clients[0]=saved_client; globals=saved_globals; gi=saved;
 }
 
 /* spawn Unit X Y (argc==4) must pass coords to GalaxyCreateUnit, not treat X as player. */

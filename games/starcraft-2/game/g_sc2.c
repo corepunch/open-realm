@@ -910,6 +910,7 @@ static void SC2_CheatPrintf(edict_t *ent, cstring_t fmt, ...) {
 }
 
 static bool SC2_IsFloat(cstring_t s) {
+    cstring_t start = s;
     if (!s || !*s) return false;
     if (*s == '-' || *s == '+') s++;
     if (!*s) return false;
@@ -919,7 +920,7 @@ static bool SC2_IsFloat(cstring_t s) {
         if ((unsigned char)*s < '0' || (unsigned char)*s > '9') return false;
         has_digit = true; s++;
     }
-    return has_digit;
+    return has_digit && isfinite(strtof(start, NULL));
 }
 
 /* spawn <UnitType> [player] [x y] — create a unit by catalog name at the selected unit's
@@ -932,7 +933,7 @@ static void SC2_CmdSpawn(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     edict_t *spawned, *selected;
 
     if (!SC2_CheatsEnabled()) { SC2_CheatPrintf(ent, "SC2: cheats are disabled; set sv_cheats 1"); return; }
-    if (argc < 2) { SC2_CheatPrintf(ent, "SC2: usage: spawn <UnitType> [player] [x y]"); return; }
+    if (argc < 2 || argc > 5) { SC2_CheatPrintf(ent, "SC2: usage: spawn <UnitType> [player] [x y]"); return; }
     type = argv[1];
     player = SC2_ClientPlayer(ent);
     if (argc == 4) {
@@ -940,9 +941,14 @@ static void SC2_CmdSpawn(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             SC2_CheatPrintf(ent, "SC2: spawn: x and y must be numbers"); return;
         }
         x = atof(argv[2]); y = atof(argv[3]); goto have_pos;
-    } else if (argc >= 3 && argv[2][0] >= '0' && argv[2][0] <= '9') {
-        player = (uint32_t)atoi(argv[2]);
-        if (argc >= 5) {
+    } else if (argc == 3 || argc == 5) {
+        char *end;
+        long parsed = strtol(argv[2], &end, 10);
+        if (end == argv[2] || *end || parsed < 0 || parsed >= 32) {
+            SC2_CheatPrintf(ent, "SC2: spawn: player must be an integer from 0 to 31"); return;
+        }
+        player = (uint32_t)parsed;
+        if (argc == 5) {
             if (!SC2_IsFloat(argv[3]) || !SC2_IsFloat(argv[4])) {
                 SC2_CheatPrintf(ent, "SC2: spawn: x and y must be numbers"); return;
             }

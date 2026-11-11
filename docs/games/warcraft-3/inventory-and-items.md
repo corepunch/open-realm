@@ -518,6 +518,11 @@ Tome of Retraining (`tret`, `Aret`) clears the learned ranks in the selected
 Hero's `heroAbilList` and refunds one skill point per learned rank level. It
 preserves Hero level, XP, attributes, and non-Hero abilities. It has no effect
 when the selected unit is not a Hero or has no learned Hero skills.
+Before clearing each rank, retraining disables the ability to reverse active
+effects and autocast state, then invalidates passive caches. It does not install
+a permanent removal override, so the Hero can learn the skills again.
+`wc3_avatar.retraining_removes_learned_ability_effects_and_allows_relearning`
+checks Avatar's health, damage, and immunity cleanup and subsequent relearning.
 
 Scroll of Resurrection (`sres`, `AIrs`) uses the same authored corpse selection
 and revival contract as the Resurrection runes, but through the inventory

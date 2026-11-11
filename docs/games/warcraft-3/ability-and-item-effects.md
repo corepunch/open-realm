@@ -60,10 +60,13 @@ accepted. `wc3_spell.flare_reveals_invisible_unit_for_fifteen_seconds` covers
 the `Afla` detection and expiry path.
 
 The Crystal Ball (`crys`) uses `AIta` to reveal a selected point for the
-authored `Dur1` duration and `Area1` radius, while applying its `BuffID`
-(`Bdet`) to units inside that area so the viewer detects invisible enemies. The
-terrain reveal is maintained by the timed area source; detection is carried by
-ordinary expiring unit statuses. Installed TFT values are 10 seconds and 900.
+authored `Dur1` duration and `Area1` radius. Its timed area source owns both
+terrain reveal and invisible-enemy detection: entering units become detectable,
+leaving units lose detection, and expiry removes both effects. Detection is
+available to the owner and players sharing its vision. Unlike Dust, Crystal
+Ball does not attach a lingering `Bdet` status to units present at cast time.
+Installed TFT values are 10 seconds and 900. The retail Crystal Ball regression
+checks targeting, entry, exit, viewer ownership, and expiry.
 
 ## Horn Of The Clouds
 

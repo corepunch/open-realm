@@ -941,14 +941,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityItemDetectAoe) {
     duration = S_SpellDuration(code, level, false);
     buff = S_SpellBuffId(code, level);
     if (!(radius > 0.0f) || !(duration > 0.0f) || !buff || strlen(buff) < 4) return;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) &&
-                  S_SpellAllowsAreaTarget(code, caster, target) &&
-                  Vector2_distance(&st.point, &target->s.origin2) <= radius) {
-        heroabilitystatus_t *status = S_SpellApplyTimedStatusFromAbility(target, code, level, buff, duration);
-        if (!status) continue;
-        status->data = caster->s.player + 1;
-        G_InvalidateUnitInfoPanel(target);
-    }
+    /* The thinker owns detection at the point, including units entering or
+     * leaving later. Bdet on individual units would follow them like Dust. */
     thinker = G_Spawn();
     if (!thinker) return;
     thinker->owner = caster;

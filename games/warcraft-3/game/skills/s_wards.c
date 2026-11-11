@@ -509,14 +509,15 @@ bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
 	              sight->collision > 0.0f && detector_shared_with_player(sight, player)) {
 		if (Vector2_distance(&sight->s.origin2, &unit->s.origin2) <= sight->collision) return true;
 	}
-	/* Flare reveals invisible enemies inside its temporary sight area. The
+	/* Flare and Crystal Ball reveal invisible enemies inside their sight area. The
 	 * thinker owns both the FOW reveal and the viewer-local detection lifetime. */
 	FILTER_EDICTS(flare, flare->inuse && flare->think == human_ability_think &&
 	              G_Time() < flare->spawn_time && G_GetChannel(flare)) {
 		abilityitem_t const item = S_AbilityItem(flare->class_id);
 		edict_t *owner;
 		float radius;
-		if (!item.ability || item.ability->proc != CAbilityFlare ||
+		if (!item.ability || (item.ability->proc != CAbilityFlare &&
+		                      item.ability->proc != CAbilityItemDetectAoe) ||
 		    !(owner = S_SpellChannelOwner(flare)) || owner->s.player >= MAX_PLAYERS ||
 		    !detector_shared_with_player(owner, player) || !S_SpellIsEnemy(owner, (edict_t *)unit)) continue;
 		radius = S_SpellNumber(flare->class_id, ABILITY_NUMBER_AREA, 1);

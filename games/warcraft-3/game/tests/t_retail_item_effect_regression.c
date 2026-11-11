@@ -1271,6 +1271,19 @@ TEST(retail_item_effect, crystal_ball_targets_a_point_and_reveals_authored_radiu
     T_ASSERT(G_FowPointIsVisible(0, &nearby));
     T_ASSERT(!G_FowPointIsVisible(0, &outside));
     T_ASSERT(S_UnitIsDetectedByPlayer(f.enemy, 0));
+    /* Detection belongs to the revealed area, not the units present at cast. */
+    f.enemy->s.origin2 = outside;
+    T_ASSERT(!S_UnitIsDetectedByPlayer(f.enemy, 0));
+    edict_t *entrant = alloc_test_unit(FS_SLKKey("hfoo"), outside.x, outside.y);
+    entrant->s.player = 1;
+    entrant->svflags |= SVF_MONSTER;
+    entrant->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(unit_addtimedstatus(entrant, "Binv", 1, 20.0f));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(entrant, 0));
+    entrant->s.origin2 = nearby;
+    T_ASSERT(S_UnitIsDetectedByPlayer(entrant, 0));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(entrant, 2));
+    f.enemy->s.origin2 = nearby;
     FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == f.hero &&
                   thinker->class_id == FS_SLKKey("AIta") && G_GetChannel(thinker)) {
         T_FEQ(thinker->s.origin2.x, center.x, 0.001f);
