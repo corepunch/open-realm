@@ -2,7 +2,13 @@
 
 ## Execution Contract
 
-The aggregate `test` target runs independent standalone, engine, and game-suite targets. Each `test_schema` target now has two stages: a persistent binary target and a test execution target. The binary depends on its compiled source list, so source edits rebuild it while repeated test runs execute without recompiling.
+The aggregate `test` target runs independent standalone, engine, and game-suite targets. Each `test_schema` target has two stages: a persistent binary target and a test execution target. Arguments 2 and 5 contain compile dependencies; argument 8 contains runtime fixture targets. Phony fixture checks belong on execution targets so repeated runs do not force compilation.
+
+Standalone test builds emit compiler-generated `build/bin/<test>.d` dependencies with `-MM -MP`. This tracks included headers and C implementation files, including renderer code compiled inside tests. Test binaries also depend on the Make recipes. An existing binary without its `.d` file rebuilds once. Only existing dependency files are included, so an unrelated Make target does not eagerly compile all tests.
+
+`test_fixture_schema` makes each generated archive depend on its source files **and directories** (to detect additions/deletions), generator binaries, generation scripts, and Make recipes. Generated staging directories are cleared before repacking. `.DELETE_ON_ERROR` prevents a failed pack from leaving an apparently current partial archive. The phony `test-*-assets` aliases still validate archives on every invocation; only generation is cached. Removing an archive forces regeneration. SC2 engine tests explicitly depend on `test-sc2-assets`, including when invoked alone or in parallel.
+
+`make test-test-build` exercises these schemas in temporary directories with a fake compiler: repeated execution, fixture edits/additions/deletions, missing archives/dependency files, compile-input/build-recipe changes, parallel consumers, and failed-pack recovery. It also runs in `make test`.
 
 The aggregate target runs the suites concurrently through recursive Make. `TEST_JOBS` controls the concurrency and defaults to 16; this was fastest on the local 8-core macOS machine in the measurements below.
 
@@ -214,6 +220,26 @@ after about 15 minutes with empty step lists. Each reported `The job was not acq
 multiple attempts`. This identifies hosted-runner acquisition failure before checkout, compilation, or tests; rerun CI to
 obtain code validation. The accompanying Ubuntu migration notices were notices, not the failure. The EOS job was intentionally
 skipped by the fork-PR condition in `.github/workflows/c-cpp.yml`. See [CI build environment](https://github.com/corepunch/open-realm/blob/main/CONTRIBUTING.md#build-and-linking).
+
+### Incremental test builds (2026-11-11)
+
+Phony fixture prerequisites previously forced eight standalone executables to
+recompile on every full run, and all five fixture archives were regenerated.
+Runtime fixtures now gate execution separately; unchanged runs retain the
+binaries and archives while still running all tests and archive checks.
+
+A local macOS comparison used the same source tree and built libraries, with
+copies of the previous Make recipes for the baseline:
+
+| Command | Previous rules, two runs | Incremental rules, two runs |
+|---------|-------------------------|-----------------------------|
+| `make test-sc2` | 3.36 s, 2.97 s | 2.20 s, 1.25 s |
+
+No SC2 tests were removed or sharded differently. Full-suite wall times varied
+substantially (29.6–65.6 s during validation), so these measurements do not
+establish a reliable whole-suite speedup. Use the same machine/load for further
+comparisons. `make test-test-build` adds ten regression tests for the Make
+schemas without a native compiler or game data.
 
 ### Local suite timing
 

@@ -152,11 +152,14 @@ $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/tes
 $(eval $(call test_schema,test-wow-abilities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-game,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_ui.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-entities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-menu,test-wow-assets $(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,))
-$(eval $(call test_schema,test-wow-wmo,test-wow-wmo-assets,$(WOW_WMO_TEST_CFLAGS),$(BIN_DIR)/test_wow_wmo$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_wmo.c $(call CSRC,shared),-lm,))
-$(eval $(call test_schema,test-wow-hud-xml,test-wow-assets $(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_hud_xml$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_hud_xml.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,))
+$(eval $(call test_schema,test-wow-menu,$(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,,test-wow-assets))
+$(eval $(call test_schema,test-wow-wmo,,$(WOW_WMO_TEST_CFLAGS),$(BIN_DIR)/test_wow_wmo$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_wmo.c $(call CSRC,shared),-lm,,test-wow-wmo-assets))
+$(eval $(call test_schema,test-wow-hud-xml,$(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_hud_xml$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_hud_xml.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,,test-wow-assets))
 
-test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
+$(eval $(call test_fixture_schema,test-wow-assets,$(WOW_TEST_MPQ),$(WOW_TEST_SRC_DIR),$(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),blpgen mpqtool)),games/world-of-warcraft/game.mk Makefile))
+
+$(WOW_TEST_MPQ): | $(TESTS_DIR)
+	@rm -rf $(WOW_TEST_RES_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"
 	@mkdir -p $(WOW_TEST_RES_DIR)/Interface/Test
 	@$(BIN_DIR)/blpgen$(EXE_EXT) solid 16 8 cc8844ff $(WOW_TEST_RES_DIR)/Interface/Test/LuaPanel.blp
@@ -170,6 +173,8 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 		rel=$${f#$(WOW_TEST_SRC_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) pack "$$@"
+
+test-wow-assets:
 	@echo "[test-wow-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/OW3Glue.lua | grep -q "function ow3_draw" && echo "  cat lua OK"
@@ -180,7 +185,10 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 # ---------------------------------------------------------------------------
 WOW_WMO_FIXTURE := $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test/TestBuilding.wmo
 
-test-wow-wmo-assets: wmogen wdtgen mpqtool | $(TESTS_DIR)
+$(eval $(call test_fixture_schema,test-wow-wmo-assets,$(WOW_WMO_TEST_MPQ),,$(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),wmogen wdtgen mpqtool)),games/world-of-warcraft/game.mk Makefile))
+
+$(WOW_WMO_TEST_MPQ): | $(TESTS_DIR)
+	@rm -rf $(WOW_WMO_TEST_DATA_DIR)
 	@echo "[test-wow-wmo-assets] generating WMO fixtures"
 	@mkdir -p $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test \
 	           $(WOW_WMO_TEST_DATA_DIR)/World/Maps/TestDungeon
@@ -200,6 +208,8 @@ test-wow-wmo-assets: wmogen wdtgen mpqtool | $(TESTS_DIR)
 		rel=$${f#$(WOW_WMO_TEST_DATA_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) pack "$$@"
+
+test-wow-wmo-assets:
 	@echo "[test-wow-wmo-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) \
 		info World/wmo/test/TestBuilding.wmo | grep -q "size=" && echo "  root WMO OK"
@@ -216,7 +226,10 @@ WOW_ENGINE_TEST_MPQ  := $(WOW_ENGINE_TEST_DIR)/test-wow-engine.mpq
 WOW_ENGINE_MODEL_DIR := $(WOW_ENGINE_TEST_DIR)/Character/Orc/Male
 WOW_ENGINE_MODEL_M2  := $(WOW_ENGINE_MODEL_DIR)/OrcMale.m2
 
-test-wow-engine-assets: m2gen mpqtool | $(TESTS_DIR)
+$(eval $(call test_fixture_schema,test-wow-engine-assets,$(WOW_ENGINE_TEST_MPQ),,$(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),m2gen mpqtool)),games/world-of-warcraft/game.mk Makefile))
+
+$(WOW_ENGINE_TEST_MPQ): | $(TESTS_DIR)
+	@rm -rf $(WOW_ENGINE_TEST_DIR)
 	@echo "[test-wow-engine-assets] generating minimal M2 model"
 	@mkdir -p $(WOW_ENGINE_MODEL_DIR)
 	@$(BIN_DIR)/m2gen$(EXE_EXT) $(WOW_ENGINE_MODEL_M2) \
@@ -229,6 +242,8 @@ test-wow-engine-assets: m2gen mpqtool | $(TESTS_DIR)
 		rel=$${f#$(WOW_ENGINE_TEST_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_ENGINE_TEST_MPQ) pack "$$@"
+
+test-wow-engine-assets:
 	@echo "[test-wow-engine-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_ENGINE_TEST_MPQ) cat Character/Orc/Male/OrcMale.m2 | head -c4 | grep -q "MD20" && echo "  cat M2 OK"
 

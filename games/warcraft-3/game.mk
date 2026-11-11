@@ -356,7 +356,7 @@ TEST_BROWSER_SUITE := # test-browser
  test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
+	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-test-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
 		$(TEST_BROWSER_SUITE) \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
@@ -364,17 +364,17 @@ TEST_BROWSER_SUITE := # test-browser
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
-test-stress: $(BIN_DIR)/test_server_net$(EXE_EXT) | $(TEST_JUNIT_DIR)
+test-stress: $(BIN_DIR)/test_server_net$(EXE_EXT) test-assets | $(TEST_JUNIT_DIR)
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-stress.xml" TEST_JUNIT_SUITE="test-stress" $(BIN_DIR)/test_server_net 'stress_net.*'
 
 $(eval $(call test_schema,test-core,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_openwarcraft3$(EXE_EXT),tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
-$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
-$(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
-$(eval $(call test_schema,test-music-mp3,$(LIB_DIR) client/cl_music.c vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(TEST_CFLAGS) -DBZ_TESTS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_music_mp3$(EXE_EXT),tests/test_runner.c tests/test_music_mp3.c sound/s_mp3.c shared/test.c,$(TEST_GC_SECTIONS) $(LIBS) -lm,))
-$(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c client/cl_canvas.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
-$(eval $(call test_schema,test-renderer-model,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
+$(eval $(call test_schema,test-commands,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),,test-assets))
+$(eval $(call test_schema,test-sound,$(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
+$(eval $(call test_schema,test-music-mp3,client/cl_music.c vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(TEST_CFLAGS) -DBZ_TESTS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_music_mp3$(EXE_EXT),tests/test_runner.c tests/test_music_mp3.c sound/s_mp3.c shared/test.c,$(TEST_GC_SECTIONS) $(LIBS) -lm,))
+$(eval $(call test_schema,test-server-net,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c client/cl_canvas.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),,test-assets))
+$(eval $(call test_schema,test-renderer-model,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),,test-assets))
 $(eval $(call test_schema,test-mdx-geoset,$(SHARED_LIB) $(WC3_DIR)/renderer/mdx/r_mdx_geoset.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_mdx_geoset$(EXE_EXT),tests/test_runner.c tests/test_mdx_geoset.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-texture,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_mdx_texture$(EXE_EXT),tests/test_runner.c tests/test_mdx_texture.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-ui-canvas,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_ui_canvas$(EXE_EXT),tests/test_runner.c tests/test_ui_canvas.c,-lrenderer -lshared -lm $(LIBS),))
@@ -382,9 +382,9 @@ $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB) client/tr_public.h $(WC3_DIR
 $(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_camera_height.h renderer/r_local.h renderer/r_profile.c renderer/r_profile.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c tests/test_renderer_profile.c renderer/r_trace.c renderer/r_camera_height.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-frame,$(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(wildcard renderer/*.h) renderer/r_main.c common/main.c,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_frame$(EXE_EXT),tests/test_runner.c tests/test_renderer_frame.c renderer/r_shader.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-font,$(SHARED_LIB) renderer/r_font.c renderer/r_local.h renderer/stb/stb_truetype.h,$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_font$(EXE_EXT),tests/test_runner.c tests/test_renderer_font.c,$(TEST_GC_SECTIONS) -lshared -lm $(LIBS),))
-$(eval $(call test_schema,test-renderer-shadows,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
+$(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_TESTS -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/w3m/r_war3map_special.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),,test-assets))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
-$(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-menu,$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),,test-assets))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)
@@ -396,14 +396,17 @@ test-mpq-compat: mpqtool $(MPQ_TEST)
 #   build/tests/resources/TestUI/Textures/*.blp  — via blpgen
 #   build/tests/resources/TestUI/Models/*.mdx    — via mdxgen
 # Source-controlled fixtures ($(WC3_TEST_DIR)/resources-src/**/*) are packed directly.
-# The archive is recreated from scratch on every run (deterministic).
+# Recreate deterministically when fixture sources, tools, or recipes change.
 # ---------------------------------------------------------------------------
 TESTS_DIR     := build/tests
 TESTS_MPQ     := $(TESTS_DIR)/tests.mpq
 TESTS_RES_DIR := $(TESTS_DIR)/resources
 TESTS_SRC_DIR := $(WC3_TEST_DIR)/resources-src
 
-test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
+$(eval $(call test_fixture_schema,test-assets,$(TESTS_MPQ),$(TESTS_SRC_DIR),$(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),blpgen mdxgen mpqtool)),games/warcraft-3/game.mk Makefile tools/wc3terrainfixturegen.py tools/wc3fixturegen.py))
+
+$(TESTS_MPQ): | $(TESTS_DIR)
+	@rm -rf $(TESTS_RES_DIR)
 	@echo "[test-assets] generating textures"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Textures
 	@for tex in \
@@ -470,6 +473,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		set -- "$$@" "$$f" "$$arc"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack "$$@"
+
+test-assets:
 	@echo "[test-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) ls | grep -q "TestUI/" && echo "  ls OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Maps/Campaign/Human02.w3m | grep -q "Human02" && echo "  cat map OK"
@@ -572,3 +577,7 @@ endif
 # Driver-level shadow filtering regression; requires a GL display (hidden window).
 .PHONY: test-renderer-shadow-pixels
 $(eval $(call test_schema,test-renderer-shadow-pixels,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_shadow_pixels$(EXE_EXT),tests/test_runner.c tests/test_renderer_shadow_pixels.c,-lrenderer -lshared -lm $(LIBS),))
+
+.PHONY: test-test-build
+test-test-build:
+	@python3 tests/test_test_build.py

@@ -60,9 +60,12 @@ SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps
 
-$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-sc2,$(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),,test-sc2-assets))
 
-test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
+$(eval $(call test_fixture_schema,test-sc2-assets,$(SC2_TEST_MPQ),$(SC2_TEST_SRC_DIR),$(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),sc2fixturegen mpqtool)),games/starcraft-2/game.mk Makefile))
+
+$(SC2_TEST_MPQ): | $(TESTS_DIR)
+	@rm -rf $(SC2_TEST_RES_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"
 	@mkdir -p $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) map-info $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/MapInfo
@@ -83,6 +86,8 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 		set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) pack "$$@"
+
+test-sc2-assets: $(BIN_DIR)/sc2map$(EXE_EXT)
 	@echo "[test-sc2-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) ls Maps/Test/Tiny.SC2Map | grep -q "MapInfo" && echo "  ls map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) cat Maps/Test/Tiny.SC2Map/Objects | grep -q "UnitType=\"Marine\"" && echo "  cat objects OK"
@@ -103,7 +108,7 @@ SC2_TEST_BINARY := $(BIN_DIR)/opensc2-tests$(EXE_EXT)
 $(eval $(call unity_lib_schema,$(GAME_SC2_TEST_LIB),$(SC2_GAME_HEADERS) $(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2-test,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS) -DBZ_TESTS,common/mpq.c,-ljass -lshared -lrenderer-sc2 $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(SC2_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_TEST_LIB) $(RENDERER_SC2_LIB) $(MENU_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(SC2_TEST_DIR)/test_sc2_picking.c,opensc2-tests,$(SC2_IMPL_CFLAGS) -DBZ_TESTS,-lsheet -lshared -lgame-sc2-test -lrenderer-sc2 -lmenu-sc2 $(LIBS) -lz,$(SC2_TEST_DIR)/test_sc2_picking.c))
 .PHONY: test-sc2-engine
-test-sc2-engine: $(SC2_TEST_BINARY) | $(TEST_JUNIT_DIR)
+test-sc2-engine: $(SC2_TEST_BINARY) test-sc2-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-sc2-engine.xml" TEST_JUNIT_SUITE="test-sc2-engine" $(SC2_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'sc2_control.*'
 test-sc2: test-sc2-engine test-sc2-parity test-sc2-galaxy-audit
 

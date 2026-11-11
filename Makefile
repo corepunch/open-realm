@@ -221,13 +221,30 @@ $(1): $(2) $$(SERVER_HEADERS) | $$(BIN_DIR) install-share
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
 endef
 
+# Arguments 2/5 are compile inputs; argument 8 contains runtime fixtures.
+# Phony fixture checks must never make an otherwise current binary stale.
 define test_schema
 
-$(4): $(2) $(5) $$(SERVER_HEADERS) | $$(BIN_DIR)
+# Bootstrap dependency files for existing binaries once. Include only existing
+# .d files so unrelated make targets do not build every test's dependencies.
+.PHONY: $(4)-missing-deps
+$(4): $(2) $(5) $$(SERVER_HEADERS) Makefile $(wildcard games/*/game.mk) $(if $(wildcard $(4).d),,$(4)-missing-deps) | $$(BIN_DIR)
 	@$$(CC) $(3) -o $(4) $(5) $$(RPATH) $$(LDFLAGS) $(6)
+	@$$(CC) $(3) -MM -MP -MT $(4) $(5) > $(4).d.tmp && mv $(4).d.tmp $(4).d
 
-$(1): $(4) | $$(TEST_JUNIT_DIR)
+-include $(wildcard $(4).d)
+
+$(1): $(4) $(8) | $$(TEST_JUNIT_DIR)
 	@TEST_JUNIT="$$(TEST_JUNIT_DIR)/$(1).xml" TEST_JUNIT_SUITE="$(1)" $(4) $(7)
+endef
+
+# Track directories as well as files so fixture additions/removals invalidate
+# archives. Depend on tool binaries, not their phony command aliases.
+# Callers attach generation to the archive and validation to the phony alias.
+define test_fixture_schema
+.DELETE_ON_ERROR:
+$(1): $(2)
+$(2): $(if $(3),$(shell find $(3) -type f -o -type d | sort)) $(4) $(5)
 endef
 
 default: build
