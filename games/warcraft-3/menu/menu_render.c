@@ -1171,19 +1171,22 @@ bool UI_MapListIsDoubleClick(uiMapListState_t const *state, uint32_t index, uint
     static uiMapListItem_t last_click_item;
     static bool last_click_valid = false;
     static uiMapListState_t const *last_click_list = NULL;
+    static uint32_t last_click_generation = 0;
     uiMapListItem_t const *item;
 
     if (!state || index >= state->count) {
         return false;
     }
     item = &state->items[index];
-    if (last_click_valid && last_click_list == state && now - last_click_ms < 500 &&
+    if (last_click_valid && last_click_list == state && last_click_generation == state->generation &&
+        now - last_click_ms < 500 &&
         last_click_item.kind == item->kind && !strcmp(last_click_item.path, item->path) &&
         !strcmp(last_click_item.name, item->name)) {
         last_click_valid = false;
         return true;
     }
     last_click_list = state;
+    last_click_generation = state->generation;
     last_click_item = *item;
     last_click_valid = true;
     last_click_ms = now;

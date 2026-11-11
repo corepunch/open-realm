@@ -370,7 +370,10 @@ static void LAN_BuildMapView(cstring_t select_path) {
     uint32_t selected = UINT32_MAX;
     uint32_t first_map = UINT32_MAX;
 
+    uint32_t const generation = view->generation + 1;
+
     memset(view, 0, sizeof(*view));
+    view->generation = generation;
     if (lan.dir[0]) {
         uiMapListItem_t *item = &view->items[view->count++];
         memset(item, 0, sizeof(*item));

@@ -131,6 +131,7 @@ typedef struct {
     uint32_t selected;
     uint32_t scroll;
     float visualScroll;
+    uint32_t generation; /* bumped whenever the entries are rebuilt, so remembered clicks go stale */
 } uiMapListState_t;
 
 typedef struct {
