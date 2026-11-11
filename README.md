@@ -1,7 +1,3 @@
-<p align="center">
-  <img width="480" height="320" src="https://github.com/user-attachments/assets/e4491ef4-fa69-4efd-814f-f7335d4c448a" />
-</p>
-
 # OpenRealm
 
 OpenRealm is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target and runs on Windows, Linux, macOS, and iPad; StarCraft II and World of Warcraft provide additional format and renderer targets.
