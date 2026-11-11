@@ -286,6 +286,7 @@ void M_ShowLanCreateMenu(void) {
 
 /* One screen holds the map list, the player slots and the map info, as in the original client. */
 static void M_ShowSinglePlayerSkirmishMenu(void) {
+    if (ui_state.transition_action) return; /* the request would be refused: leave the list state alone */
     LAN_PrepareSkirmish();
     UI_RequestScreen(&gameSetupScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL);
 }
@@ -745,7 +746,14 @@ static void UI_MenuSetupChat_f(void) {
 static void M_UpdateLobbySetup(lobbyState_t const *state) {
     /* No current standalone screen means loading/gameplay owns presentation;
      * late lobby packets must not resurrect the game-setup glue screen. */
-    if (!UI_GetCurrentScreen()) {
+    uiScreen_t const *current = UI_GetCurrentScreen();
+
+    if (!current) {
+        return;
+    }
+    /* Only the lobby screen and the LAN/online flow that leads to it follow a lobby; a stale packet
+     * must not pull someone browsing the solo menus into the setup screen. */
+    if (current != &gameSetupScreen && current != &lanJoinScreen) {
         return;
     }
     if (UI_RequestGameSetup()) GameSetup_UpdateLobbySetup(state);
