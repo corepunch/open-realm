@@ -1175,10 +1175,10 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
     if (!state || !state->active || !state->map_path[0]) {
         return;
     }
-    changed_map = strcmp(setup.map_path, state->map_path) != 0;
-    if (setup.skirmish && changed_map) {
-        return; /* a stale echo of an earlier selection */
+    if (setup.skirmish) {
+        return; /* the solo screen owns its choices; Start publishes them, so no echo can apply */
     }
+    changed_map = strcmp(setup.map_path, state->map_path) != 0;
     setup.applying_lobby = true;
     if (changed_map || !setup.ready) {
         GameSetup_LoadMap(state->map_path);
