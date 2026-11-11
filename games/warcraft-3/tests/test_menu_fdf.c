@@ -4506,7 +4506,7 @@ TEST(menu_fdf, map_list_browses_folders) {
     mi = saved;
 }
 
-/* The single-player custom game is one screen: picking a map in the list publishes that map's lobby. */
+/* The single-player custom game is one screen: picking a map in the list stays local, nothing is published. */
 TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     menuImport_t saved = mi;
     frameDef_t *start;
@@ -4527,7 +4527,7 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     T_NOT_NULL(start);
     Cmd_ExecuteString("menu_lan_select 2");
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Zeta.w3m");
-    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Zeta.w3m\"") != NULL);
+    T_NULL(strstr(captured_command, "lobby_"));
     /* Return accepts the selected map and Escape cancels, as in the original client. */
     captured_command[0] = '\0';
     T_ASSERT(LAN_MapListKeyEvent(13));
@@ -4561,8 +4561,42 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
-    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Alpha.w3m\"") != NULL);
+    T_NULL(strstr(captured_command, "lobby_"));
     Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* Start creates the lobby first, then configures it, then starts the map. A stale connect target is dropped. */
+TEST(menu_fdf, skirmish_start_creates_lobby_in_order) {
+    menuImport_t saved = mi;
+    char const *lobby, *config, *map;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    captured_command[0] = '\0';
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    T_STREQ(captured_cvar_name, "connect");
+    T_STREQ(captured_cvar_value, "");
+    T_NULL(strstr(captured_command, "lobby_"));
+    Cmd_ExecuteString("menu_lan_select 2");
+    Cmd_ExecuteString("menu_lan_select 2"); /* the same row again changes nothing */
+    T_NULL(strstr(captured_command, "lobby_"));
+    captured_command[0] = '\0';
+    Cmd_ExecuteString("menu_game_setup_start");
+    lobby = strstr(captured_command, "lobby_start \"Maps\\\\Zeta.w3m\"");
+    config = strstr(captured_command, "lobby_config ");
+    map = strstr(captured_command, "map \"Maps\\\\Zeta.w3m\"");
+    T_NOT_NULL(lobby);
+    T_NOT_NULL(config);
+    T_NOT_NULL(map);
+    T_ASSERT(lobby < config && config < map);
     mi = saved;
 }
 
@@ -4736,7 +4770,12 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
             captured_command[0] = 0;
             Cbuf_Execute();
             unsigned slot = 0, visible = 0, player = 0, type = 0, race = 0, team = 0, color = 0;
-            T_EQ(sscanf(captured_command, "lobby_slot %u %u %u %u %u %u %u", &slot, &visible, &player, &type, &race, &team, &color), 7);
+            /* The solo screen keeps its edits local: nothing is sent until Start publishes them. */
+            T_NULL(strstr(captured_command, "lobby_"));
+            T_ASSERT(GameSetup_StartGame());
+            char const *slot_line = strstr(captured_command, "lobby_slot 1 ");
+            T_NOT_NULL(slot_line);
+            T_EQ(sscanf(slot_line, "lobby_slot %u %u %u %u %u %u %u", &slot, &visible, &player, &type, &race, &team, &color), 7);
             T_EQ(slot, 1);
             T_EQ(player, 1);
             if (i < 4) T_EQ(type, picks[i].value);

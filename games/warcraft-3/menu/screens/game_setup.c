@@ -535,7 +535,7 @@ static void GameSetup_PublishSlot(uint32_t slot) {
     char command[512];
     size_t used = 0;
 
-    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
+    if (!GameSetup_IsHost() || setup.skirmish || setup.applying_lobby || !setup.map_path[0]) {
         return;
     }
     command[0] = '\0';
@@ -548,7 +548,8 @@ static void GameSetup_PublishLobby(void) {
     size_t used = 0;
     uint32_t slot_count;
 
-    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
+    /* Single-player browsing stays local; the lobby is created by Start (GameSetup_StartGame). */
+    if (!GameSetup_IsHost() || setup.skirmish || setup.applying_lobby || !setup.map_path[0]) {
         return;
     }
     command[0] = '\0';
@@ -991,8 +992,14 @@ static void GameSetup_ApplyLayout(void) {
 
 /* The map list selection moved: reload the map, its slots and its info. */
 void GameSetup_MapSelectionChanged(void) {
+    cstring_t selected;
+
     if (!setup.ready || !setup.skirmish || UI_GetCurrentScreen() != &gameSetupScreen) {
         return;
+    }
+    selected = LAN_SelectedMapPath();
+    if (!strcmp(selected ? selected : "", setup.map_path)) {
+        return; /* same map (or still no map): keep the edited slots */
     }
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
@@ -1089,6 +1096,12 @@ bool GameSetup_StartGame(void) {
         return false;
     }
     command[0] = '\0';
+    if (setup.skirmish) {
+        /* The lobby does not exist yet: create it first, then configure it, then start the map. */
+        GameSetup_AppendText(command, sizeof(command), &used, "lobby_start ");
+        GameSetup_AppendQuotedValue(command, sizeof(command), &used, setup.map_path);
+        GameSetup_AppendText(command, sizeof(command), &used, "\n");
+    }
     slot_count = GameSetup_LobbySlotCount();
     GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
     FOR_LOOP(i, slot_count) {
