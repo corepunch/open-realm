@@ -2809,6 +2809,8 @@ void CL_InitInput(void) {
     Cmd_AddCommand("zoomkey", CL_ZoomKey_f);
     Cmd_AddCommand("zoomdefault", CL_ZoomDefault_f);
     Cmd_AddCommand("messagemode", CL_ChatOpen_f);
+#ifndef __EMSCRIPTEN__
+    /* Raw SDL joystick mappings are native-only; browsers use Web_Gamepad. */
     Cvar_Get("in_joystick", "1", CVAR_ARCHIVE);
     Cvar_Get("joy_name", "joystick", 0);
     Cvar_Get("joy_advanced", "0", 0);
@@ -2826,6 +2828,7 @@ void CL_InitInput(void) {
     }
     Cmd_AddCommand("joy_advancedupdate", CL_JoyAdvancedUpdate_f);
     CL_JoyAdvancedUpdate_f();
+#endif
     Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     Cvar_Get("cl_touch_pinch_sensitivity", "0.3", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
