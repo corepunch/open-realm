@@ -436,8 +436,11 @@ static bool test_play_movie(cstring_t path) {
     return true;
 }
 
+static char test_connect_target[64];
+
 static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     if (!strcmp(name, "map")) return test_map;
+    if (!strcmp(name, "connect") && test_connect_target[0]) return test_connect_target;
     if (name && !strcmp(name, "ui_skip_transitions")) return test_skip_menu_transitions ? "1" : "0";
     if (name && !strcmp(name, "fs_expansion")) {
         return test_fs_expansion ? "1" : "0";
@@ -469,6 +472,7 @@ static void test_cvar_set(cstring_t name, cstring_t value) {
     snprintf(captured_cvar_name, sizeof(captured_cvar_name), "%s", name ? name : "");
     snprintf(captured_cvar_value, sizeof(captured_cvar_value), "%s", value ? value : "");
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
+    if (name && !strcmp(name, "connect")) snprintf(test_connect_target, sizeof(test_connect_target), "%s", value ? value : "");
 }
 
 static uint32_t test_list_saved_games(string_t out, uint32_t out_size) {
@@ -2806,6 +2810,7 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
 /* Screen commands and the scene share the production owner, but use fixture I/O. */
 static void test_glue_setup(void) {
     LAN_ResetMapMemory();
+    test_connect_target[0] = '\0';
     mi.Printf = test_ui_printf;
     test_command_imports();
     Cmd_ExecuteString("menu_ingame");
@@ -4564,6 +4569,94 @@ TEST(menu_fdf, skirmish_screen_follows_map_list_selection) {
     T_NULL(strstr(captured_command, "lobby_"));
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
+}
+
+/* A connect target left by a remote lobby must not lock the solo screen in guest mode. */
+TEST(menu_fdf, skirmish_ignores_stale_connect_target) {
+    menuImport_t saved = mi;
+    frameDef_t *start;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    mi.Cvar_String = test_cvar_string;
+    snprintf(test_connect_target, sizeof(test_connect_target), "192.0.2.1");
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    T_EQ(test_connect_target[0], '\0');
+    start = UI_FindFrame("StartGameButton");
+    T_NOT_NULL(start);
+    T_ASSERT(!start->disabled);
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* Choosing the loaded map again keeps the edited slots; choosing another map rebuilds them. */
+TEST(menu_fdf, skirmish_reselecting_same_map_keeps_slot_edits) {
+    menuImport_t saved = mi;
+    lobbyState_t state = {
+        .active = true, .map_path = "Maps\\Alpha.w3m", .slot_count = 2,
+        .slots = {
+            { .visible = true, .type = LOBBY_SLOT_HUMAN, .map_player = 0 },
+            { .visible = true, .type = LOBBY_SLOT_OPEN, .map_player = 1, .team = 1, .color = 1 },
+        },
+    };
+    unsigned slot, visible, player, type;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
+    GameSetup_UpdateLobbySetup(&state);
+    GameSetup_SetSlotType(1, LOBBY_SLOT_COMPUTER);
+    Cmd_ExecuteString("menu_lan_select 1"); /* the row of the map that is already loaded */
+    captured_command[0] = '\0';
+    T_ASSERT(GameSetup_StartGame());
+    T_ASSERT(strstr(captured_command, "lobby_slot 1 ") != NULL);
+    T_EQ(sscanf(strstr(captured_command, "lobby_slot 1 "), "lobby_slot %u %u %u %u", &slot, &visible, &player, &type), 4);
+    T_EQ(type, LOBBY_SLOT_COMPUTER);
+    Cmd_ExecuteString("menu_lan_select 2"); /* another map: its own slots, the edit is gone */
+    captured_command[0] = '\0';
+    T_ASSERT(GameSetup_StartGame());
+    T_NULL(strstr(captured_command, "lobby_slot 1 "));
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* A double click needs the same entry twice within the window; a rebuilt view reusing the row does not count. */
+TEST(menu_fdf, map_list_double_click_matches_the_entry) {
+    uiMapListState_t list;
+    uiMapListState_t other;
+
+    memset(&list, 0, sizeof(list));
+    list.count = 2;
+    list.items[0].kind = UI_MAP_ITEM_FOLDER;
+    snprintf(list.items[0].name, sizeof(list.items[0].name), "Download");
+    snprintf(list.items[0].path, sizeof(list.items[0].path), "Maps\\Download");
+    list.items[1].kind = UI_MAP_ITEM_MAP;
+    snprintf(list.items[1].name, sizeof(list.items[1].name), "Alpha");
+    snprintf(list.items[1].path, sizeof(list.items[1].path), "Maps\\Alpha.w3m");
+    other = list;
+
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 1000));
+    T_ASSERT(UI_MapListIsDoubleClick(&list, 0, 1300));
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 1400)); /* a third click starts a new pair */
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 2000)); /* the window has passed */
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 1, 2100)); /* another row */
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 2200));
+    list.items[0] = list.items[1]; /* the folder opened and a map took its row */
+    T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 2300));
+    T_ASSERT(!UI_MapListIsDoubleClick(&other, 0, 2400)); /* another list */
+    T_ASSERT(UI_MapListIsDoubleClick(&other, 0, 2500));
 }
 
 /* Start creates the lobby first, then configures it, then starts the map. A stale connect target is dropped. */
