@@ -4595,39 +4595,66 @@ TEST(menu_fdf, skirmish_ignores_stale_connect_target) {
     mi = saved;
 }
 
-/* Choosing the loaded map again keeps the edited slots; choosing another map rebuilds them. */
-TEST(menu_fdf, skirmish_reselecting_same_map_keeps_slot_edits) {
+static int test_menu_map_list_transport(cstring_t path, cstring_t ext, string_t out, int size) {
+    (void)path;
+    if (strcmp(ext, ".w3m")) {
+        return 0;
+    }
+    snprintf(out, size, "%s", "Maps\\Transport.w3m");
+    return 1;
+}
+
+/* Slots come from the real map; choosing the loaded map again and a lobby echo of that map change nothing. */
+TEST(menu_fdf, skirmish_keeps_slot_edits_over_reselect_and_lobby_echo) {
     menuImport_t saved = mi;
-    lobbyState_t state = {
-        .active = true, .map_path = "Maps\\Alpha.w3m", .slot_count = 2,
+    lobbyState_t echo = {
+        .active = true, .map_path = "Maps\\Transport.w3m", .slot_count = 2,
         .slots = {
             { .visible = true, .type = LOBBY_SLOT_HUMAN, .map_player = 0 },
-            { .visible = true, .type = LOBBY_SLOT_OPEN, .map_player = 1, .team = 1, .color = 1 },
+            { .visible = true, .type = LOBBY_SLOT_OPEN, .map_player = 1, .race = 3, .team = 4, .color = 7 },
         },
     };
-    unsigned slot, visible, player, type;
+    unsigned slot, visible, player, type, race, team, color;
 
     test_glue_setup();
-    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.FS_GetFileList = test_menu_map_list_transport;
     mi.Cvar_Set = test_cvar_set;
     Cmd_ExecuteString("menu_game");
     test_glue_tick(667);
     test_glue_tick(1000);
     Cmd_ExecuteString("menu_single_player_skirmish");
     test_glue_tick(1000);
-    T_STREQ(LAN_SelectedMapPath(), "Maps\\Alpha.w3m");
-    GameSetup_UpdateLobbySetup(&state);
+    T_STREQ(LAN_SelectedMapPath(), "Maps\\Transport.w3m");
     GameSetup_SetSlotType(1, LOBBY_SLOT_COMPUTER);
-    Cmd_ExecuteString("menu_lan_select 1"); /* the row of the map that is already loaded */
+    Cmd_ExecuteString("menu_lan_select 0"); /* the row of the map that is already loaded */
+    GameSetup_UpdateLobbySetup(&echo);     /* a stale echo of the same map */
     captured_command[0] = '\0';
     T_ASSERT(GameSetup_StartGame());
     T_ASSERT(strstr(captured_command, "lobby_slot 1 ") != NULL);
-    T_EQ(sscanf(strstr(captured_command, "lobby_slot 1 "), "lobby_slot %u %u %u %u", &slot, &visible, &player, &type), 4);
+    T_EQ(sscanf(strstr(captured_command, "lobby_slot 1 "), "lobby_slot %u %u %u %u %u %u %u",
+                &slot, &visible, &player, &type, &race, &team, &color), 7);
     T_EQ(type, LOBBY_SLOT_COMPUTER);
-    Cmd_ExecuteString("menu_lan_select 2"); /* another map: its own slots, the edit is gone */
-    captured_command[0] = '\0';
-    T_ASSERT(GameSetup_StartGame());
-    T_NULL(strstr(captured_command, "lobby_slot 1 "));
+    T_ASSERT(race != 3 && team != 4 && color != 7);
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+/* Lobby packets only matter on the lobby screen or in the LAN/online flow, not in the solo menus. */
+TEST(menu_fdf, stale_lobby_echo_does_not_open_setup_from_solo_menu) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m", .slot_count = 1 };
+    menuExport_t api;
+
+    test_glue_setup();
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() != NULL);
+    api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() != &gameSetupScreen);
     Cmd_ExecuteString("menu_ingame");
     mi = saved;
 }
@@ -4656,6 +4683,8 @@ TEST(menu_fdf, map_list_double_click_matches_the_entry) {
     list.items[0] = list.items[1]; /* the folder opened and a map took its row */
     T_ASSERT(!UI_MapListIsDoubleClick(&list, 0, 2300));
     T_ASSERT(!UI_MapListIsDoubleClick(&other, 0, 2400)); /* another list */
+    other.generation++;                                  /* the same entry, but the view was rebuilt */
+    T_ASSERT(!UI_MapListIsDoubleClick(&other, 0, 2450));
     T_ASSERT(UI_MapListIsDoubleClick(&other, 0, 2500));
 }
 
@@ -4822,15 +4851,11 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
-    Cmd_ExecuteString("menu_game_setup_map \"Maps\\Melee\\TwinRivers.w3m\"");
+    Cmd_ExecuteString("menu_game_setup_map \"Maps\\Transport.w3m\"");
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
     /* Select real popup rows: a visible title change alone must not conceal a rejected command. */
-    state.slots[1].type = LOBBY_SLOT_OPEN;
-    state.slots[1].map_player = 1;
-    state.slots[1].team = 1;
-    state.slots[1].color = 1;
     struct { cstring_t popup, menu; uint32_t value; } const picks[] = {
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_COMPUTER },
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_CLOSED },
@@ -4842,7 +4867,7 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     };
     FOR_LOOP(edition, 2) {
         test_fs_expansion = edition;
-        GameSetup_UpdateLobbySetup(&state);
+        Cmd_ExecuteString("menu_game_setup_map \"Maps\\Transport.w3m\""); /* fresh slots from the map */
         frameDef_t *row = UI_FindFrame("CreateGamePlayerSlot1");
         T_NOT_NULL(row);
         FOR_LOOP(i, sizeof(picks) / sizeof(picks[0])) {
@@ -4876,7 +4901,13 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
         }
         captured_command[0] = 0;
         T_ASSERT(GameSetup_StartGame());
-        T_ASSERT(strstr(captured_command, "lobby_slot 1 1 1 2 1 1 1 ") != NULL);
+        unsigned f[7] = {0};
+        T_ASSERT(strstr(captured_command, "lobby_slot 1 ") != NULL);
+        T_EQ(sscanf(strstr(captured_command, "lobby_slot 1 "), "lobby_slot %u %u %u %u %u %u %u",
+                    &f[0], &f[1], &f[2], &f[3], &f[4], &f[5], &f[6]), 7);
+        T_EQ(f[3], LOBBY_SLOT_COMPUTER);
+        T_EQ(f[4], kPlayerRaceHuman);
+        T_EQ(f[6], 1);
         T_ASSERT(strstr(captured_command, "map ") != NULL);
     }
     test_fs_expansion = false;
