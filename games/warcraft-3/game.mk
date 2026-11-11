@@ -351,6 +351,9 @@ TEST_UI_SRCS := \
 
 TEST_JOBS ?= 16
 
+# Menu oracle tests invoke this executable even when fixture archives are warm.
+test-menu: $(BIN_DIR)/mdxtool$(EXE_EXT)
+
 # TODO: Re-enable test-browser in the default suite after a future PR validates it in CI.
 TEST_BROWSER_SUITE := # test-browser
  test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)

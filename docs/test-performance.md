@@ -8,6 +8,8 @@ Standalone test builds emit compiler-generated `build/bin/<test>.d` dependencies
 
 `test_fixture_schema` makes each generated archive depend on its source files **and directories** (to detect additions/deletions), generator binaries, generation scripts, and Make recipes. Generated staging directories are cleared before repacking. `.DELETE_ON_ERROR` prevents a failed pack from leaving an apparently current partial archive. The phony `test-*-assets` aliases still validate archives on every invocation; only generation is cached. Removing an archive forces regeneration. SC2 engine tests explicitly depend on `test-sc2-assets`, including when invoked alone or in parallel.
 
+The menu suite also depends directly on the `mdxtool` executable used by its model oracles. A cached fixture archive does not guarantee that runtime tools exist; removing `build/bin/mdxtool` and running `make test-menu` must rebuild it before the oracle tests run.
+
 `make test-test-build` exercises these schemas in temporary directories with a fake compiler: repeated execution, fixture edits/additions/deletions, missing archives/dependency files, compile-input/build-recipe changes, parallel consumers, and failed-pack recovery. It also runs in `make test`.
 
 The aggregate target runs the suites concurrently through recursive Make. `TEST_JOBS` controls the concurrency and defaults to 16; this was fastest on the local 8-core macOS machine in the measurements below.

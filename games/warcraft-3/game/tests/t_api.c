@@ -1861,6 +1861,13 @@ TEST(wc3_api, player_chat_fires_matching_triggers) {
     G_ClientCommand(ent, 3, say_args);
     jass_runevents(level.vm);
     T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
+    human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    G_PlayerChat(ent, "prefix -LV");
+    jass_runevents(level.vm);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+    G_PlayerChat(ent, "prefix -LvL max");
+    jass_runevents(level.vm);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
 }
 
 /* Large protected maps register thousands of events. Exercise dispatch past

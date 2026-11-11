@@ -3431,7 +3431,11 @@ static bool G_ChatMatches(event_t const *evt, cstring_t text) {
     cstring_t const pattern = evt->variable ? evt->variable : "";
     if (evt->state) return !strcasecmp(text, pattern);
     if (!*pattern) return true;
-    return strcasestr(text, pattern) != NULL;
+    size_t const length = strlen(pattern);
+    for (; *text; text++) {
+        if (!strncasecmp(text, pattern, length)) return true;
+    }
+    return false;
 }
 
 /* A chat line is visible to everyone and drives the sender's EVENT_PLAYER_CHAT triggers. */
