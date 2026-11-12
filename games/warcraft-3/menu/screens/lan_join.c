@@ -645,7 +645,10 @@ static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
 }
 
 static void LAN_ClearGames(void) {
+    uint32_t const generation = lan.games.generation + 1;
+
     memset(&lan.games, 0, sizeof(lan.games));
+    lan.games.generation = generation;
 }
 
 static void LAN_CopyGameMapInfo(uiMapListItem_t *item, menuLanGame_t const *game) {
