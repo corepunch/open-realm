@@ -755,12 +755,12 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) {
         return;
     }
     /* A guest (connect target set, by the LAN/online browser or at startup) follows the lobby from any
-     * screen. Otherwise only the lobby screen and the LAN/online flow that leads to it do: a stale local
-     * packet must not pull someone browsing the solo menus into the setup screen. */
+     * screen. Otherwise only the lobby screen applies it: a stale packet, local or from a lobby the
+     * player already left, must not pull someone on the solo menus or the LAN list into the setup screen. */
     cstring_t const connect = mi.Cvar_String ? mi.Cvar_String("connect", "") : "";
     bool const guest = connect && connect[0];
 
-    if (!guest && current != &gameSetupScreen && current != &lanJoinScreen) {
+    if (!guest && current != &gameSetupScreen) {
         return;
     }
     if (UI_RequestGameSetup()) GameSetup_UpdateLobbySetup(state);
