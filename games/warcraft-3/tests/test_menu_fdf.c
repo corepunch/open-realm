@@ -4791,7 +4791,11 @@ TEST(menu_fdf, guest_leaving_ignores_late_lobby_packets) {
     };
     menuExport_t api;
 
-    FOR_LOOP(from_setup, 2) {
+    /* 0: leaving the browser for the main menu, 1: leaving the lobby for the main menu,
+     * 2: leaving the lobby for the LAN list, where the packet is still addressed to the old lobby. */
+    FOR_LOOP(variant, 3) {
+        bool const from_setup = variant > 0;
+
         test_glue_setup();
         mi.Cvar_Set = test_cvar_set;
         mi.Cvar_String = test_cvar_string;
@@ -4810,7 +4814,7 @@ TEST(menu_fdf, guest_leaving_ignores_late_lobby_packets) {
             test_glue_tick(1000);
             T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
         }
-        Cmd_ExecuteString("menu_main");
+        Cmd_ExecuteString(variant == 2 ? "menu_joinserver" : "menu_main");
         test_glue_tick(667);
         test_glue_tick(1000);
         T_EQ(test_connect_target[0], '\0');
