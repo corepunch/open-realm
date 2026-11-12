@@ -27,6 +27,10 @@ JASS SetDoodadAnimation*
 
 `animRandom=false` uses the ordinary first matching sequence.  `animRandom=true` chooses among numbered MDX variants that share the same logical animation sync point.
 
+## Undead07 Energy Field
+
+Undead07's `YZef` Energy Field uses a `Stand` sequence marked non-looping in its MDX, but retail keeps that shield effect active after the sequence ends. OpenRealm treats only `YZef` `Stand` as looping; its other sequences, including one-shot `Death` animations, keep the normal MDX non-looping behavior. This narrow exception preserves the Prologue01 banner's terminal Death pose.
+
 The special animation names `show` and `hide` toggle doodad presentation without changing pathing.  The retail `soundon`/`soundoff` special names are still outside the current doodad-audio implementation.
 
 ## Prologue01 Banner Behavior
