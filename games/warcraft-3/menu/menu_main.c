@@ -266,6 +266,9 @@ uiScreen_t *UI_GetCurrentScreen(void) {
 }
 
 BZ_HOST_HIDDEN void M_ShowMainMenu(void) {
+    /* Backing out to the main menu ends a join in progress; at startup there is no screen yet and a
+     * connect target given on the command line must stay. */
+    if (ui_current_screen && mi.Cvar_Set) mi.Cvar_Set("connect", "");
     if (mi.Cvar_String && !strcmp(mi.Cvar_String("online_mode", "0"), "1")) {
         if (mi.Online_Leave) mi.Online_Leave();
         if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "0");

@@ -1052,6 +1052,10 @@ static void GameSetup_Init(void) {
 }
 
 static void GameSetup_Shutdown(void) {
+    /* A guest leaving the lobby must not stay a guest for late lobby packets. */
+    if (setup.ready && !setup.skirmish && !GameSetup_IsHost() && mi.Cvar_Set) {
+        mi.Cvar_Set("connect", "");
+    }
 }
 
 static void GameSetup_Refresh(int msec) {
