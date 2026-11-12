@@ -208,6 +208,13 @@ static void unit_prepare_stand(edict_t *self) {
 /* Let a persistent ability claim the stand transition before the generic idle move is installed. */
 static void unit_install_stand_move(edict_t *self) {
     if (S_UnitAbilityEvent(self, A_UNIT_STAND)) return;
+    /* Orc07 sets the Enchanted Gemstone Obelisk to the looping Stand Second
+     * clip while it is already idle. Let that scripted variant survive the
+     * idle clip's completion callback; later orders still replace this move. */
+    if (self->class_id == MAKEFOURCC('n', 'g', 'o', 'b') && self->currentmove &&
+        self->currentmove->think == ai_stand && self->animation_request &&
+        !strcasecmp(self->animation_request, "stand second"))
+        return;
     unit_setmove(self, unit_affectingcombat(self) ? &unit_move_stand_ready : &unit_move_stand);
 }
 
