@@ -4659,6 +4659,107 @@ TEST(menu_fdf, stale_lobby_echo_does_not_open_setup_from_solo_menu) {
     mi = saved;
 }
 
+/* A guest that connected from the LAN browser, or at startup from the main menu, still follows the lobby. */
+TEST(menu_fdf, lobby_echo_takes_a_connected_guest_to_the_setup_screen) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = {
+        .active = true, .map_path = "Maps\\Transport.w3m", .slot_count = 2,
+        .slots = { { .visible = true, .type = LOBBY_SLOT_HUMAN }, { .visible = true, .type = LOBBY_SLOT_OPEN, .map_player = 1 } },
+    };
+    menuExport_t api;
+
+    FOR_LOOP(from_browser, 2) {
+        test_glue_setup();
+        mi.Cvar_Set = test_cvar_set;
+        mi.Cvar_String = test_cvar_string;
+        mi.LAN_RefreshServers = test_lan_refresh;
+        mi.LAN_NumServers = test_lan_count;
+        mi.LAN_Server = test_lan_server;
+        mi.LAN_ConnectServer = test_lan_connect;
+        snprintf(test_connect_target, sizeof(test_connect_target), "192.0.2.1");
+        Cmd_ExecuteString("menu_main");
+        test_glue_tick(667);
+        test_glue_tick(1000);
+        T_NOT_NULL(UI_GetCurrentScreen());
+        if (from_browser) {
+            Cmd_ExecuteString("menu_joinserver");
+            test_glue_tick(1000);
+            T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+        } else {
+            T_ASSERT(UI_GetCurrentScreen() != &lanJoinScreen);
+        }
+        api = M_GetAPI(mi);
+        api.UpdateLobbySetup(&echo);
+        test_glue_tick(667);
+        test_glue_tick(1000);
+        T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+        Cmd_ExecuteString("menu_ingame");
+        mi = saved;
+    }
+}
+
+/* The host's own lobby screen keeps applying echoes. */
+TEST(menu_fdf, lobby_echo_is_applied_on_the_host_lobby_screen) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = {
+        .active = true, .map_path = "Maps\\Transport.w3m", .slot_count = 2,
+        .slots = {
+            { .visible = true, .type = LOBBY_SLOT_HUMAN, .map_player = 0 },
+            { .visible = true, .type = LOBBY_SLOT_COMPUTER, .map_player = 1 },
+        },
+    };
+    menuExport_t api;
+    unsigned slot, visible, player, type;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_transport;
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_startserver");
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_lan_start");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    captured_command[0] = '\0';
+    T_ASSERT(GameSetup_StartGame());
+    T_ASSERT(strstr(captured_command, "lobby_slot 1 ") != NULL);
+    T_EQ(sscanf(strstr(captured_command, "lobby_slot 1 "), "lobby_slot %u %u %u %u", &slot, &visible, &player, &type), 4);
+    T_EQ(type, LOBBY_SLOT_COMPUTER); /* the map itself would have left it Open */
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+static void test_noop_action(void) {
+}
+
+/* While a screen transition is pending, the solo entry is refused and leaves everything as it was. */
+TEST(menu_fdf, skirmish_entry_is_refused_while_a_transition_is_pending) {
+    menuImport_t saved = mi;
+
+    test_glue_setup();
+    mi.FS_GetFileList = test_menu_map_list_folders;
+    mi.Cvar_Set = test_cvar_set;
+    mi.Cvar_String = test_cvar_string;
+    Cmd_ExecuteString("menu_game");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    snprintf(test_connect_target, sizeof(test_connect_target), "192.0.2.1");
+    M_TransitionToAction(test_noop_action);
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    T_STREQ(test_connect_target, "192.0.2.1");
+    T_ASSERT(!LAN_IsSinglePlayerCreate());
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    Cmd_ExecuteString("menu_single_player_skirmish");
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    T_EQ(test_connect_target[0], '\0');
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
 /* A double click needs the same entry twice within the window; a rebuilt view reusing the row does not count. */
 TEST(menu_fdf, map_list_double_click_matches_the_entry) {
     uiMapListState_t list;
