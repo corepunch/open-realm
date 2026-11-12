@@ -9,7 +9,11 @@
  *  - Uncompressed files
  *
  * Based on StormLib specifications and MPQ format documentation.
+ *
+ * Build with HAVE_CASC to use casc.c (CascLib) instead of this file.
  */
+
+#ifndef HAVE_CASC
 
 #include "mpq.h"
 #include <stdio.h>
@@ -2401,3 +2405,5 @@ bool SFileFindClose(handle_t find)
     }
     return true;
 }
+
+#endif /* !HAVE_CASC */

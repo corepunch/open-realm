@@ -76,6 +76,12 @@ endif
 ifeq ($(WC3_DEBUG_SCORE),1)
 	CFLAGS += -DBZ_WC3_DEBUG_SCORE
 endif
+# Use CascLib instead of the built-in MPQ reader (for CASC archives like SC2 retail).
+# Requires CascLib headers and library: https://github.com/ladislav-zezula/CascLib
+USE_CASC ?= 0
+ifeq ($(USE_CASC),1)
+	CFLAGS += -DHAVE_CASC
+endif
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
@@ -181,7 +187,11 @@ $(LUA_LIB): $(LUA_SRCS) $(wildcard $(LUA_DIR)/*.h) | $(LIB_DIR)
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
+ifeq ($(USE_CASC),1)
+TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/casc.c common/mpq.h
+else
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
+endif
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
 # Included implementation fragments must invalidate unity-build dependents.
@@ -199,7 +209,11 @@ FONT_SYMBOL := conchars_sysfont_pcx
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 CSRC = $(shell find $(1) -name '*.c' $(2) | sort)
 COMMON_SRCS      := $(filter-out common/main.c, $(call CSRC,common))
+ifeq ($(USE_CASC),1)
+COMMON_GAME_SRCS := common/casc.c
+else
 COMMON_GAME_SRCS := common/mpq.c vendor/blast/blast.c
+endif
 
 define unity_lib_schema
 $(1): $(2) $$(SERVER_HEADERS) | $$(LIB_DIR)
@@ -278,7 +292,12 @@ $(BIN_DIR) $(LIB_DIR):
 
 APP_SRCS          := $(filter-out server/sv_routing.c,$(shell find client server common sound -name '*.c'))
 RENDERER_BASE_DEPS  := $(wildcard vendor/gl_shader/*.[ch]) $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
-RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
+ifeq ($(USE_CASC),1)
+CASC_LIBS := -lcasc -lstdc++
+else
+CASC_LIBS :=
+endif
+RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz $(CASC_LIBS)
 SERVER_GAME_SRCS  := server/sv_quest.c
 GAME_BASE_DEPS    := $(SHARED_LIB) $(COMMON_HEADERS) $(COMMON_SRCS) $(SERVER_GAME_SRCS)
 UI_BASE_DEPS      := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS)
@@ -297,7 +316,7 @@ include games/starcraft-2/game.mk
 
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(RENDERER_LIB) $(GAME_LIB) $(MENU_LIB)
 	@$(CC) $(CFLAGS) -o $@ $< \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lmenu $(LIBS) -lm -lz
+		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lrenderer -lgame -lmenu $(LIBS) -lm -lz $(CASC_LIBS)
 
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
