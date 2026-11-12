@@ -6,4 +6,15 @@
     <ObjectUnit Id="5" UnitType="Zergling" Player="1" Position="57,53,0" Rotation="0" Scale="1,1,1"/>
     <ObjectUnit Id="6" UnitType="Roach" Player="1" Position="53,55,0" Rotation="0" Scale="1,1,1"/>
     <ObjectUnit Id="7" UnitType="VespeneGeyser" Player="0" Position="60,41,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="8" UnitType="Baneling" Player="1" Position="59,51,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="9" UnitType="Hydralisk" Player="1" Position="61,53,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="10" UnitType="Mutalisk" Player="1" Position="63,51,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="11" UnitType="Corruptor" Player="1" Position="65,53,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="12" UnitType="Infestor" Player="1" Position="55,57,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="13" UnitType="Ultralisk" Player="1" Position="58,57,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="14" UnitType="BroodLord" Player="1" Position="61,57,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="15" UnitType="Queen" Player="1" Position="64,57,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="16" UnitType="Overlord" Player="1" Position="55,61,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="17" UnitType="Overseer" Player="1" Position="58,61,0" Rotation="0" Scale="1,1,1"/>
+    <ObjectUnit Id="18" UnitType="Larva" Player="1" Position="50,46,0" Rotation="0" Scale="1,1,1"/>
 </PlacedObjects>

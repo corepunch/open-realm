@@ -116,9 +116,9 @@ Per-race test maps place starter units for each faction on a flat 96x96 Mar Sara
 
 ```bash
 make opensc2
-build/bin/opensc2 -data data/StarCraft2 +map Maps/TerranTest.SC2Components   # CC, 2 SCVs, 2 Marines
-build/bin/opensc2 -data data/StarCraft2 +map Maps/ProtossTest.SC2Components  # Nexus, 2 Probes, 2 Zealots, 1 Stalker
-build/bin/opensc2 -data data/StarCraft2 +map Maps/ZergTest.SC2Components     # Hatchery, 2 Drones, 2 Zerglings, 1 Roach
+build/bin/opensc2 -data data/StarCraft2 +map Maps/TerranTest.SC2Components   # full Terran roster (19 units)
+build/bin/opensc2 -data data/StarCraft2 +map Maps/ProtossTest.SC2Components  # full Protoss roster (19 units)
+build/bin/opensc2 -data data/StarCraft2 +map Maps/ZergTest.SC2Components     # full Zerg roster (18 units)
 ```
 
 To spawn additional units at runtime, enable cheats and use the `spawn` command:

@@ -209,8 +209,8 @@ Mechanics that go beyond the catalog's static data require simulation code:
 
 | Map | Race | Units Placed |
 |-----|------|-------------|
-| `Maps/TerranTest.SC2Components` | Terran | Marines, supply depots, test fixtures |
-| `Maps/ProtossTest.SC2Components` | Protoss | Basic Protoss units |
-| `Maps/ZergTest.SC2Components` | Zerg | Basic Zerg units |
+| `Maps/TerranTest.SC2Components` | Terran | CC, SCV×2, Marine×2, Marauder, Reaper, Ghost, Hellion, SiegeTank, SiegeTankSieged, Thor, VikingFighter, VikingAssault, Medivac, Banshee, Battlecruiser, Raven, VespeneGeyser |
+| `Maps/ProtossTest.SC2Components` | Protoss | Nexus, Probe×2, Zealot×2, Stalker, Sentry, HighTemplar, DarkTemplar, Archon, Immortal, Colossus, Observer, WarpPrism, Phoenix, VoidRay, Carrier, Mothership, VespeneGeyser |
+| `Maps/ZergTest.SC2Components` | Zerg | Hatchery, Drone×2, Zergling×2, Roach, Baneling, Hydralisk, Mutalisk, Corruptor, Infestor, Ultralisk, BroodLord, Queen, Overlord, Overseer, Larva, VespeneGeyser |
 
-All three are minimal fixture maps. Campaign maps (`TRaynor01`, etc.) from the user's SC2 installation contain the full roster of Liberty campaign units with their authored catalog data.
+All three maps place the full Liberty multiplayer roster. Campaign maps (`TRaynor01`, etc.) from the user's SC2 installation contain additional campaign-only unit variants.
