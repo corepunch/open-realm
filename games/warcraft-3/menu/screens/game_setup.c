@@ -569,8 +569,8 @@ static void GameSetup_SubmitChat(void) {
     char command[512];
     size_t used = 0;
 
-    if (!UI_EditHasFocus(setup.frames.ChatEditBox)) {
-        return;
+    if (setup.skirmish || !UI_EditHasFocus(setup.frames.ChatEditBox)) {
+        return; /* the solo screen has no lobby yet to talk to */
     }
     text = UI_EditValue(setup.frames.ChatEditBox);
     if (!text || !text[0]) {
@@ -1093,6 +1093,11 @@ bool GameSetup_StartGame(void) {
     size_t used = 0;
 
     if (!GameSetup_CanStart() || !setup.map_path[0]) {
+        return false;
+    }
+    if (setup.skirmish && !setup.have_map_info) {
+        /* Nothing can undo a lobby once `map` fails, so do not create one for a map that cannot be read. */
+        mi.Printf("GameSetup_StartGame: cannot read %s\n", setup.map_path);
         return false;
     }
     command[0] = '\0';
