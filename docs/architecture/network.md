@@ -388,6 +388,14 @@ Hide the whole game world implementation, including its state, rather than only 
 flag and routing queries; the existing client-world tests independently exercise the engine copy. On Linux,
 `readelf -Ws build/lib/libgame-wc3-test.so` should show game `CM_*` implementations and `world` as local symbols.
 
+The Warcraft III host UI opens explicitly when the operator runs `lobby_start`. The LAN create screen uses
+`lobby_prepare` to publish its map without requesting another screen transition. Lobby packets can open the
+setup screen for a joining guest. While leaving that screen, packets cannot replace the pending destination.
+
+Single-player Start uses `lobby_start_local` before publishing slot settings and issuing `map`. This starts
+a fresh loopback lobby even if the previous LAN lobby used the same map. It drops remote clients and closes
+the server UDP socket. Ordinary LAN starts still reuse same-map lobbies and carry connected clients into the map.
+
 For a bounded two-terminal reproduction, write a host script and start the second terminal during its wait:
 
 ```sh

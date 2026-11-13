@@ -141,6 +141,7 @@ extern struct game_export *ge;
 
 // sv_init.c
 void SV_StartLobby(cstring_t mapFilename);
+bool SV_StartLocalLobby(cstring_t mapFilename);
 void SV_Map(cstring_t pFilename);
 void SV_CreateBaseline(void);
 bool SV_LoadGame(cstring_t name, cstring_t map);

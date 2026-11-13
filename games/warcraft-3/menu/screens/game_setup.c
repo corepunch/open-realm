@@ -553,7 +553,7 @@ static void GameSetup_PublishLobby(void) {
         return;
     }
     command[0] = '\0';
-    GameSetup_AppendText(command, sizeof(command), &used, "lobby_start ");
+    GameSetup_AppendText(command, sizeof(command), &used, "lobby_prepare ");
     GameSetup_AppendQuotedValue(command, sizeof(command), &used, setup.map_path);
     GameSetup_AppendText(command, sizeof(command), &used, "\n");
     GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
@@ -1107,7 +1107,7 @@ bool GameSetup_StartGame(void) {
     command[0] = '\0';
     if (setup.skirmish) {
         /* The lobby does not exist yet: create it first, then configure it, then start the map. */
-        GameSetup_AppendText(command, sizeof(command), &used, "lobby_start ");
+        GameSetup_AppendText(command, sizeof(command), &used, "lobby_start_local ");
         GameSetup_AppendQuotedValue(command, sizeof(command), &used, setup.map_path);
         GameSetup_AppendText(command, sizeof(command), &used, "\n");
     }

@@ -280,6 +280,7 @@ void S_SetUserVolume(float volume);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void CL_Connect(cstring_t host, unsigned short port);
+void CL_UseLoopback(void);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(cstring_t mapName);

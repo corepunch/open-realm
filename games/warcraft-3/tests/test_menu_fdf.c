@@ -4827,6 +4827,57 @@ TEST(menu_fdf, guest_leaving_ignores_late_lobby_packets) {
     }
 }
 
+TEST(menu_fdf, explicit_host_lobby_opens_setup_from_main_menu) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m" };
+
+    test_glue_setup();
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_main");
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    menuExport_t api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    T_ASSERT(UI_GetCurrentScreen() != &gameSetupScreen);
+
+    Cmd_ExecuteString("menu_host_lobby");
+    api.UpdateLobbySetup(&echo);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    captured_command[0] = '\0';
+    T_ASSERT(GameSetup_StartGame());
+    T_NOT_NULL(strstr(captured_command, "map \"Maps\\\\Transport.w3m\""));
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
+TEST(menu_fdf, guest_echo_does_not_override_pending_lan_exit) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m" };
+
+    test_glue_setup();
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_joinserver");
+    test_glue_tick(1000);
+    snprintf(test_connect_target, sizeof(test_connect_target), "192.0.2.1");
+    menuExport_t api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+
+    Cmd_ExecuteString("menu_multiplayer");
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    api.UpdateLobbySetup(&echo);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+    T_EQ(test_connect_target[0], '\0');
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
 /* Entries with identical kind, path and name (two hosts of one map) at different rows are not a double click. */
 TEST(menu_fdf, map_list_double_click_needs_the_same_row) {
     uiMapListState_t list;
@@ -4916,13 +4967,18 @@ TEST(menu_fdf, skirmish_start_creates_lobby_in_order) {
     T_NULL(strstr(captured_command, "lobby_"));
     captured_command[0] = '\0';
     Cmd_ExecuteString("menu_game_setup_start");
-    lobby = strstr(captured_command, "lobby_start \"Maps\\\\Transport.w3m\"");
+    lobby = strstr(captured_command, "lobby_start_local \"Maps\\\\Transport.w3m\"");
     config = strstr(captured_command, "lobby_config ");
     map = strstr(captured_command, "map \"Maps\\\\Transport.w3m\"");
     T_NOT_NULL(lobby);
     T_NOT_NULL(config);
     T_NOT_NULL(map);
     T_ASSERT(lobby < config && config < map);
+    T_NULL(UI_GetCurrentScreen());
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m" };
+    menuExport_t api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    T_NULL(UI_GetCurrentScreen());
     mi = saved;
 }
 
@@ -5014,7 +5070,7 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     test_glue_tick(1000);
     T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
     Cmd_ExecuteString("menu_game_setup_map \"Maps\\Melee\\TwinRivers.w3m\"");
-    T_ASSERT(strstr(captured_command, "lobby_start \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
+    T_ASSERT(strstr(captured_command, "lobby_prepare \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
     lobbyState_t state = {
         .active = true, .map_path = "Maps\\Melee\\TwinRivers.w3m", .slot_count = 2,
         .slots = { { .visible = true, .type = LOBBY_SLOT_HUMAN }, { .visible = true, .type = LOBBY_SLOT_COMPUTER } },

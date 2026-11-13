@@ -1286,6 +1286,55 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     test_mapinfo = NULL;
 }
 
+TEST(server_net, local_lobby_start_discards_same_map_lan_guests) {
+    mapInfo_t info;
+    lobbySlot_t slot;
+    netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 14) };
+
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28041");
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    test_mapinfo = &info;
+
+    SV_StartLobby("Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(2, 2, "Test");
+    memset(&slot, 0, sizeof(slot));
+    slot.visible = true;
+    slot.client = MAX_CLIENTS;
+    slot.map_player = 0;
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.race = kPlayerRaceHuman;
+    snprintf(slot.name, sizeof(slot.name), "Host");
+    SV_LobbySetSlot(0, &slot);
+    slot.type = LOBBY_SLOT_OPEN;
+    slot.map_player = 1;
+    slot.race = kPlayerRaceOrc;
+    snprintf(slot.name, sizeof(slot.name), "Open");
+    SV_LobbySetSlot(1, &slot);
+    SV_DirectConnect(&remote, "\\name\\Remote");
+    T_EQ(svs.num_clients, 2);
+
+    T_ASSERT(SV_StartLocalLobby("Maps\\Melee\\Test.w3m"));
+    T_EQ(sv.state, ss_lobby);
+    T_EQ(svs.num_clients, 1);
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
+
+    SV_LobbySetConfig(2, 2, "Test");
+    slot.type = LOBBY_SLOT_HUMAN;
+    slot.map_player = 0;
+    SV_LobbySetSlot(0, &slot);
+    T_EQ(svs.clients[0].lobby_slot, 0);
+    SV_Map("Maps\\Melee\\Test.w3m");
+    T_EQ(sv.state, ss_game);
+    T_EQ(svs.num_clients, 1);
+    T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+
+    SV_Shutdown();
+    NET_Shutdown();
+    test_mapinfo = NULL;
+}
+
 TEST(server_net, lobby_map_transition_preserves_client_indices_with_holes) {
     mapInfo_t info = { 0 };
     lobbySlot_t slot = { 0 };

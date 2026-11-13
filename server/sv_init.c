@@ -485,23 +485,23 @@ void SV_Map(cstring_t mapFilename) {
     fprintf(stderr, "Server initialized.\n\n");
 }
 
-void SV_StartLobby(cstring_t mapFilename) {
-    if (!mapFilename || !mapFilename[0]) {
-        return;
-    }
-    if (sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) {
-        return;
-    }
-    fprintf(stderr, "SV_StartLobby: preparing lobby for %s\n", mapFilename);
-    if (!Cvar_Integer("online_mode", 0) && !SV_EnsureServerPort()) {
-        return;
-    }
+static bool SV_BeginLobby(cstring_t mapFilename, bool local_only) {
+    if (!mapFilename || !mapFilename[0]) return false;
+    if (!local_only && sv.state == ss_lobby && !strcmp(sv.configstrings[CS_WORLD], mapFilename)) return true;
+    if (!local_only && !Cvar_Integer("online_mode", 0) && !SV_EnsureServerPort()) return false;
     if (!svs.initialized) {
         SV_InitGame();
-        if (!svs.initialized) {
-            return;
-        }
+        if (!svs.initialized) return false;
     }
+    if (local_only) {
+        FOR_LOOP(i, svs.num_clients) {
+            if (svs.clients[i].netchan.remote_address.type != NA_LOOPBACK) SV_DropClient(&svs.clients[i]);
+        }
+        NET_ConfigSource(NS_SERVER, false);
+        NET_ClearLoopPackets(NS_CLIENT);
+        NET_ClearLoopPackets(NS_SERVER);
+    }
+    fprintf(stderr, "SV_StartLobby: preparing lobby for %s\n", mapFilename);
     SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     SV_ClearLobbyClients();
@@ -512,17 +512,32 @@ void SV_StartLobby(cstring_t mapFilename) {
     SV_InitMulticast();
     SV_ClientConnect();
     fprintf(stderr, "Lobby initialized for %s\n", mapFilename);
+    return true;
+}
+
+void SV_StartLobby(cstring_t mapFilename) {
+    SV_BeginLobby(mapFilename, false);
+}
+
+bool SV_StartLocalLobby(cstring_t mapFilename) {
+    return SV_BeginLobby(mapFilename, true);
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
 static void SV_StartLobby_f(void) {
     if (Cmd_Argc() < 2) {
-        fprintf(stderr, "usage: lobby_start <map>\n");
+        fprintf(stderr, "usage: %s <map>\n", Cmd_Argv(0));
         return;
     }
-    SV_StartLobby(Cmd_ArgsFrom(1));
+    bool const local_only = !strcmp(Cmd_Argv(0), "lobby_start_local");
+    if (local_only) {
+        CL_UseLoopback();
+        SV_StartLocalLobby(Cmd_ArgsFrom(1));
+    } else if (SV_BeginLobby(Cmd_ArgsFrom(1), false) &&
+               !strcmp(Cmd_Argv(0), "lobby_start") && Cmd_Exists("menu_host_lobby")) {
+        Cmd_ExecuteString("menu_host_lobby");
+    }
 }
-
 #endif
 
 void SV_InitGame(void) {
@@ -589,6 +604,8 @@ void SV_Init(void) {
 
 #ifndef TOOL_COMMON_NO_MPQ
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
+    Cmd_AddCommand("lobby_prepare", SV_StartLobby_f);
+    Cmd_AddCommand("lobby_start_local", SV_StartLobby_f);
     Cmd_AddCommand("save", SV_SaveGame_f);
     SV_LobbyAddCommands();
 #endif

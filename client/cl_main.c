@@ -246,6 +246,12 @@ static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu
     }
 }
 
+void CL_UseLoopback(void) {
+    if (cls.netchan.remote_address.type == NA_LOOPBACK) return;
+    CL_DisconnectInternal("Starting a local game.", false, false);
+    cls.netchan.remote_address = (netadr_t){ .type = NA_LOOPBACK };
+}
+
 void CL_Disconnect(cstring_t reason, bool notify) {
     CL_DisconnectInternal(reason, notify, true);
 }

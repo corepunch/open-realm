@@ -87,6 +87,7 @@ static void UI_RegisterClassicInstallerMaps(void) {
 typedef struct { cstring_t name; void (*func)(void); } menucommand_t;
 
 static void UI_MenuMain_f(void);
+static void UI_MenuHostLobby_f(void);
 static void UI_MenuGame_f(void);
 static void UI_MenuVideo_f(void);
 static void UI_MenuKeys_f(void);
@@ -125,6 +126,7 @@ static void UI_MenuSetupChat_f(void);
 /* All menu entry points are ordinary console commands; clicks only enqueue text. */
 static const menucommand_t menu_commands[] = {
     { "menu_main", UI_MenuMain_f },
+    { "menu_host_lobby", UI_MenuHostLobby_f },
     { "menu_game", UI_MenuGame_f },
     { "menu_multiplayer", M_ShowLanBrowserMenu },
     { "menu_online", M_ShowOnlineBrowserMenu },
@@ -746,6 +748,14 @@ static void UI_MenuSetupChat_f(void) {
     else fprintf(stderr, "UI: %s expects a chat message\n", mi.Cmd_Argv(0));
 }
 
+/* The explicit server command can open the host UI without trusting a late lobby packet. */
+static void UI_MenuHostLobby_f(void) {
+    if (ui_state.transition_action || UI_GetCurrentScreen() == &gameSetupScreen) return;
+    if (mi.Cvar_Set) mi.Cvar_Set("connect", "");
+    LAN_ShowBrowser();
+    UI_RequestGameSetup();
+}
+
 static void M_UpdateLobbySetup(lobbyState_t const *state) {
     /* No current standalone screen means loading/gameplay owns presentation;
      * late lobby packets must not resurrect the game-setup glue screen. */
@@ -760,10 +770,15 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) {
     cstring_t const connect = mi.Cvar_String ? mi.Cvar_String("connect", "") : "";
     bool const guest = connect && connect[0];
 
-    if (!guest && current != &gameSetupScreen) {
+    if (ui_state.transition_action ||
+        (current == &gameSetupScreen && ui_state.transition_screen &&
+         ui_state.transition_screen != &gameSetupScreen)) return;
+    if (!guest && current != &gameSetupScreen && ui_state.transition_screen != &gameSetupScreen) {
         return;
     }
-    if (UI_RequestGameSetup()) GameSetup_UpdateLobbySetup(state);
+    if (current == &gameSetupScreen || ui_state.transition_screen == &gameSetupScreen || UI_RequestGameSetup()) {
+        GameSetup_UpdateLobbySetup(state);
+    }
 }
 
 /* Export function table */
