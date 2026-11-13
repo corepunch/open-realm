@@ -114,6 +114,37 @@ TEST(wc3_doodad, looping_animation_wraps_to_sequence_start) {
     T_ASSERT(!(ent->aiflags & AI_HOLD_FRAME));
 }
 
+TEST(wc3_doodad, undead07_energy_field_stand_loops_but_death_still_holds) {
+    static Doodads_t energy_field_row = { .id = MAKEFOURCC('Y', 'Z', 'e', 'f') };
+    edict_t *ent = make_test_doodad(0, 0);
+    animation_t stand = { .name = "Stand", .interval = { 1000, 1300 }, .flags = 1 };
+    animation_t death = { .name = "Death", .interval = { 2000, 2300 }, .flags = 1 };
+    umove_t move = { "stand", NULL, G_DoodadAnimationEnd };
+
+    ent->class_id = energy_field_row.id;
+    ent->s.class_id = energy_field_row.id;
+    ent->data.Doodads = &energy_field_row;
+    ent->animation = &stand;
+    ent->currentmove = &move;
+    ent->s.frame = 1200;
+    ent->aiflags &= ~AI_HOLD_FRAME;
+
+    M_MoveFrame(ent);
+
+    T_EQ(ent->s.frame, 1000);
+    T_ASSERT(!(ent->aiflags & AI_HOLD_FRAME));
+
+    ent->animation = &death;
+    ent->currentmove = &move;
+    ent->s.frame = 2200;
+    ent->aiflags &= ~AI_HOLD_FRAME;
+
+    M_MoveFrame(ent);
+
+    T_EQ(ent->s.frame, 2299);
+    T_ASSERT(ent->aiflags & AI_HOLD_FRAME);
+}
+
 TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
     static char const *slk =
         "ID;PWXL;N;E\n"

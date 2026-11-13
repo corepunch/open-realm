@@ -23,6 +23,10 @@ void G_DoodadAnimationEnd(edict_t *ent) {
     animation_t const *anim;
 
     if (!ent || !(anim = ent->animation)) return;
+    /* Retail keeps Undead07's Energy Field active after its authored Stand
+     * sequence ends, even though that sequence carries the non-looping flag. */
+    if (ent->class_id == MAKEFOURCC('Y', 'Z', 'e', 'f') && !strcasecmp(anim->name, "Stand"))
+        return;
     if (!(anim->flags & 1)) return;
 
     /* Non-looping doodad animations persist on their authored last frame.

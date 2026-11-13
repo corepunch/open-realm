@@ -10,6 +10,12 @@ Numbered model sequences such as `Walk`, `Walk 2`, and tagged walk variants are 
 
 The stock Medivh model/data combination is unusual: the raven-form unit requests `alternateex`, while the shared model exposes `Alternate` sequences. Animation selection therefore falls back from a required `alternateex` tag to `alternate` only when no matching `AlternateEx` sequence exists. A genuine `AlternateEx` model remains distinct.
 
+## Scripted Idle Animation Variants
+
+`SetUnitAnimation` retains the requested sequence in `edict.animation_request`. For Orc07's Enchanted Gemstone Obelisk (`ngob`), the map script requests `stand second` before the gem is returned. The unit is already in the ordinary `ai_stand` move, so when that clip reaches its end, the stand completion callback normally installs the default `stand` animation and discards the script's choice. `unit_install_stand_move()` preserves `stand second` only for this unit while it remains idle; a later script request such as the post-gem `stand` replaces it normally. Other units continue to use the default stand transition.
+
+The regression `wc3_unit.orc07_obelisk_keeps_scripted_second_stand_through_idle_cycle` advances the real `M_MoveFrame()` path through the end callback and checks both the obelisk's looping sequence and an ordinary unit's default transition. This avoids relying on a visual map replay to detect the callback replacing the requested sequence.
+
 ## Raven Form Orders
 
 WC3 exposes two stock abilities that use the `ravenform` / `unravenform` order pair: Medivh Crow Form (`Amrf`) and Druid of the Talon Storm Crow Form (`Arav`). Each ability's object data owns its own transformation endpoints:

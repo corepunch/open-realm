@@ -79,6 +79,37 @@ TEST(wc3_unit, animation_names_are_shared_owned_and_not_truncated) {
     T_STREQ(G_InternAnimationName(NULL), "");
 }
 
+TEST(wc3_unit, orc07_obelisk_keeps_scripted_second_stand_through_idle_cycle) {
+    animation_t stand_second = { .name = "Stand Second", .interval = { 1000, 1100 }, .flags = 0 };
+    edict_t *obelisk, *ordinary;
+
+    setup_test_world();
+    obelisk = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    obelisk->class_id = MAKEFOURCC('n', 'g', 'o', 'b');
+    unit_stand(obelisk);
+    obelisk->animation = &stand_second;
+    obelisk->animation_request = G_InternAnimationName("stand second");
+    obelisk->s.frame = 1099;
+
+    M_MoveFrame(obelisk);
+
+    T_ASSERT(obelisk->animation == &stand_second);
+    T_STREQ(obelisk->animation_request, "stand second");
+    T_ASSERT(obelisk->currentmove && obelisk->currentmove->think == ai_stand);
+    T_EQ(obelisk->s.frame, 1000);
+
+    ordinary = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64, 0);
+    unit_stand(ordinary);
+    ordinary->animation = &stand_second;
+    ordinary->animation_request = G_InternAnimationName("stand second");
+    ordinary->s.frame = 1099;
+
+    M_MoveFrame(ordinary);
+
+    T_STREQ(ordinary->animation_request, "stand");
+    T_ASSERT(ordinary->currentmove && ordinary->currentmove->think == ai_stand);
+}
+
 /* Effects/waypoints must not acquire fixed unit ability buffers through queries. */
 TEST(wc3_unit, unrelated_entities_have_no_unit_state) {
     reset_entities();
