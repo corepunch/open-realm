@@ -486,11 +486,62 @@ TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
     T_ASSERT(FS_ArchiveFileVisible("data/War3.mpq", "Scripts\\human.ai"));
     T_ASSERT(!FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
     T_ASSERT(!FS_ArchiveFileVisible("data/War3xLocal.mpq", "UI\\war3skins.txt"));
+    /* The localized font lives in War3xLocal on 1.29 and RoC text needs its glyphs. */
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "Fonts\\Frizqt__.ttf"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "fonts\\FRIZQT__.TTF"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "Fonts/Frizqt__.ttf"));
+    T_ASSERT(!FS_ArchiveFileVisible("data/War3xLocal.mpq", "Fontsets\\x.txt"));
 
     Cvar_Set("fs_expansion", "1");
     T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
     T_ASSERT(FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
     T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "UI\\war3skins.txt"));
+}
+
+/* Reads through the FS layer: a font that a hidden expansion archive overrides is served in RoC
+ * mode, while any other file of that archive stays hidden. */
+static void write_probe_archive(cstring_t path, cstring_t font, cstring_t text) {
+    handle_t archive = NULL;
+
+    T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
+    T_NOT_NULL(archive);
+    if (!archive) return;
+    T_ASSERT(SFileAddFileFromBuffer(archive, "Fonts\\ProbeFont.ttf", font, (uint32_t)strlen(font)));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "UI\\ProbeText.txt", text, (uint32_t)strlen(text)));
+    T_ASSERT(SFileCloseArchive(archive));
+}
+
+static void expect_probe_file(cstring_t name, cstring_t expected) {
+    uint32_t size = 0;
+    char *data = FS_ReadFile(name, &size);
+
+    T_NOT_NULL(data);
+    if (!data) return;
+    T_EQ(size, strlen(expected));
+    T_ASSERT(!memcmp(data, expected, strlen(expected)));
+    FS_FreeFile(data);
+}
+
+TEST(commands, roc_reads_the_localized_font_from_a_hidden_expansion_archive) {
+    cstring_t const base_path = Test_TempPath("font-probe-base.mpq");
+    cstring_t const expansion_path = Test_TempPath("War3x-font-probe.mpq");
+
+    setup_command_tests();
+    write_probe_archive(base_path, "BASEFONT", "BASETEXT");
+    write_probe_archive(expansion_path, "XPACFONT", "XPACTEXT");
+    T_NOT_NULL(FS_AddArchive(base_path));
+    T_NOT_NULL(FS_AddArchive(expansion_path));
+
+    Cvar_Set("fs_expansion_archive_prefix", "War3x");
+    Cvar_Set("fs_expansion", "0");
+    expect_probe_file("Fonts\\ProbeFont.ttf", "XPACFONT");
+    expect_probe_file("Fonts/ProbeFont.ttf", "XPACFONT");
+    expect_probe_file("UI\\ProbeText.txt", "BASETEXT");
+
+    Cvar_Set("fs_expansion", "1");
+    expect_probe_file("Fonts\\ProbeFont.ttf", "XPACFONT");
+    expect_probe_file("UI\\ProbeText.txt", "XPACTEXT");
+    Cvar_Set("fs_expansion", "0");
 }
 
 TEST(commands, dash_cvars_are_not_command_line_cvars) {
