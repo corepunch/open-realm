@@ -960,6 +960,11 @@ bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename) {
     base = FS_BaseName(archive);
     if (!Cvar_Integer("fs_expansion", 0)) {
         expansion_prefix = Cvar_String("fs_expansion_archive_prefix", "");
+        /* Fonts are localization, not expansion content: 1.29 ships the font with the Latin Extended
+         * glyphs (Polish, Czech, ...) only in War3xLocal, and RoC text needs it as much as TFT text. */
+        if (!strncasecmp(filename, "Fonts\\", 6)) {
+            return true;
+        }
         if (expansion_prefix && *expansion_prefix &&
             !strncasecmp(base, expansion_prefix, strlen(expansion_prefix)))
             return false;
