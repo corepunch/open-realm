@@ -106,6 +106,7 @@ bool UI_HasActivePopup(void);
 void UI_EditboxFocusOnHit(frameDef_t const *frame);
 void UI_EditboxClearFocusOnMiss(void);
 void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y);
+bool UI_MapListIsDoubleClick(uiMapListState_t const *state, uint32_t index, uint32_t now);
 void UI_MapListScroll(frameDef_t const *frame, bool scroll_up);
 void UI_PopupCloseOnMiss(void);
 bool UI_PopupPointInside(float fdf_x, float fdf_y);

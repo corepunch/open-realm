@@ -535,7 +535,7 @@ static void GameSetup_PublishSlot(uint32_t slot) {
     char command[512];
     size_t used = 0;
 
-    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
+    if (!GameSetup_IsHost() || setup.skirmish || setup.applying_lobby || !setup.map_path[0]) {
         return;
     }
     command[0] = '\0';
@@ -548,7 +548,8 @@ static void GameSetup_PublishLobby(void) {
     size_t used = 0;
     uint32_t slot_count;
 
-    if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
+    /* Single-player browsing stays local; the lobby is created by Start (GameSetup_StartGame). */
+    if (!GameSetup_IsHost() || setup.skirmish || setup.applying_lobby || !setup.map_path[0]) {
         return;
     }
     command[0] = '\0';
@@ -568,8 +569,8 @@ static void GameSetup_SubmitChat(void) {
     char command[512];
     size_t used = 0;
 
-    if (!UI_EditHasFocus(setup.frames.ChatEditBox)) {
-        return;
+    if (setup.skirmish || !UI_EditHasFocus(setup.frames.ChatEditBox)) {
+        return; /* the solo screen has no lobby yet to talk to */
     }
     text = UI_EditValue(setup.frames.ChatEditBox);
     if (!text || !text[0]) {
@@ -991,8 +992,14 @@ static void GameSetup_ApplyLayout(void) {
 
 /* The map list selection moved: reload the map, its slots and its info. */
 void GameSetup_MapSelectionChanged(void) {
+    cstring_t selected;
+
     if (!setup.ready || !setup.skirmish || UI_GetCurrentScreen() != &gameSetupScreen) {
         return;
+    }
+    selected = LAN_SelectedMapPath();
+    if (!strcmp(selected ? selected : "", setup.map_path)) {
+        return; /* same map (or still no map): keep the edited slots */
     }
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
@@ -1045,6 +1052,10 @@ static void GameSetup_Init(void) {
 }
 
 static void GameSetup_Shutdown(void) {
+    /* A guest leaving the lobby must not stay a guest for late lobby packets. */
+    if (setup.ready && !setup.skirmish && !GameSetup_IsHost() && mi.Cvar_Set) {
+        mi.Cvar_Set("connect", "");
+    }
 }
 
 static void GameSetup_Refresh(int msec) {
@@ -1088,7 +1099,18 @@ bool GameSetup_StartGame(void) {
     if (!GameSetup_CanStart() || !setup.map_path[0]) {
         return false;
     }
+    if (setup.skirmish && !setup.have_map_info) {
+        /* Nothing can undo a lobby once `map` fails, so do not create one for a map that cannot be read. */
+        mi.Printf("GameSetup_StartGame: cannot read %s\n", setup.map_path);
+        return false;
+    }
     command[0] = '\0';
+    if (setup.skirmish) {
+        /* The lobby does not exist yet: create it first, then configure it, then start the map. */
+        GameSetup_AppendText(command, sizeof(command), &used, "lobby_start ");
+        GameSetup_AppendQuotedValue(command, sizeof(command), &used, setup.map_path);
+        GameSetup_AppendText(command, sizeof(command), &used, "\n");
+    }
     slot_count = GameSetup_LobbySlotCount();
     GameSetup_AppendLobbyConfig(command, sizeof(command), &used);
     FOR_LOOP(i, slot_count) {
@@ -1162,10 +1184,10 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
     if (!state || !state->active || !state->map_path[0]) {
         return;
     }
-    changed_map = strcmp(setup.map_path, state->map_path) != 0;
-    if (setup.skirmish && changed_map) {
-        return; /* a stale echo of an earlier selection */
+    if (setup.skirmish) {
+        return; /* the solo screen owns its choices; Start publishes them, so no echo can apply */
     }
+    changed_map = strcmp(setup.map_path, state->map_path) != 0;
     setup.applying_lobby = true;
     if (changed_map || !setup.ready) {
         GameSetup_LoadMap(state->map_path);

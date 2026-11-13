@@ -336,6 +336,7 @@ static bool LAN_FolderListed(uiMapListState_t const *list, cstring_t name) {
 }
 
 static void LAN_UpdateControls(void);
+static void LAN_ClearConnectTarget(void);
 
 /* The LAN create list reopens at the last folder and map, as the original client does. */
 static void LAN_RememberSelection(void) {
@@ -369,7 +370,10 @@ static void LAN_BuildMapView(cstring_t select_path) {
     uint32_t selected = UINT32_MAX;
     uint32_t first_map = UINT32_MAX;
 
+    uint32_t const generation = view->generation + 1;
+
     memset(view, 0, sizeof(*view));
+    view->generation = generation;
     if (lan.dir[0]) {
         uiMapListItem_t *item = &view->items[view->count++];
         memset(item, 0, sizeof(*item));
@@ -641,7 +645,10 @@ static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
 }
 
 static void LAN_ClearGames(void) {
+    uint32_t const generation = lan.games.generation + 1;
+
     memset(&lan.games, 0, sizeof(lan.games));
+    lan.games.generation = generation;
 }
 
 static void LAN_CopyGameMapInfo(uiMapListItem_t *item, menuLanGame_t const *game) {
@@ -1039,6 +1046,7 @@ uiMapListState_t *LAN_MapListState(void) {
 
 /* Entering the single-player custom-game screen: scan the maps and start at the Maps root. */
 void LAN_PrepareSkirmish(void) {
+    LAN_ClearConnectTarget(); /* a remote lobby left earlier must not keep the host controls locked */
     lan.mode = LAN_MODE_SINGLE_PLAYER_CREATE;
     lan.dir[0] = '\0';
     LAN_LoadMaps();
@@ -1084,15 +1092,19 @@ uint32_t LAN_SelectedGameSpeed(void) {
     return (uint32_t)value;
 }
 
-void LAN_StartSelectedMap(void) {
-    if (!LAN_SelectedMapPath() || (LAN_Internet() && (!mi.Online_Ready || !mi.Online_Ready()))) {
-        return;
-    }
+static void LAN_ClearConnectTarget(void) {
     if (mi.Cvar_Set) {
         mi.Cvar_Set("connect", "");
     } else if (mi.Cmd_ExecuteText) {
         mi.Cmd_ExecuteText("seta connect \"\"\n");
     }
+}
+
+void LAN_StartSelectedMap(void) {
+    if (!LAN_SelectedMapPath() || (LAN_Internet() && (!mi.Online_Ready || !mi.Online_Ready()))) {
+        return;
+    }
+    LAN_ClearConnectTarget();
     M_ShowGameSetupMenu();
 }
 

@@ -1164,6 +1164,38 @@ void UI_EditboxClearFocusOnMiss(void) {
     UI_FocusEdit(NULL);
 }
 
+/* Records a click on a map-list entry and tells whether it completes a double click: the same entry within
+ * half a second. The entry is compared by identity, since a rebuilt view may reuse its row indices. */
+bool UI_MapListIsDoubleClick(uiMapListState_t const *state, uint32_t index, uint32_t now) {
+    static uint32_t last_click_ms = 0;
+    static uiMapListItem_t last_click_item;
+    static bool last_click_valid = false;
+    static uiMapListState_t const *last_click_list = NULL;
+    static uint32_t last_click_generation = 0;
+    static uint32_t last_click_index = 0;
+    uiMapListItem_t const *item;
+
+    if (!state || index >= state->count) {
+        return false;
+    }
+    item = &state->items[index];
+    if (last_click_valid && last_click_list == state && last_click_generation == state->generation &&
+        last_click_index == index &&
+        now - last_click_ms < 500 &&
+        last_click_item.kind == item->kind && !strcmp(last_click_item.path, item->path) &&
+        !strcmp(last_click_item.name, item->name)) {
+        last_click_valid = false;
+        return true;
+    }
+    last_click_list = state;
+    last_click_generation = state->generation;
+    last_click_index = index;
+    last_click_item = *item;
+    last_click_valid = true;
+    last_click_ms = now;
+    return false;
+}
+
 void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
     if (!frame || !frame->MapListControl.State) {
         return;
@@ -1201,10 +1233,7 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
     uint32_t index = (uint32_t)floorf(state->visualScroll + row);
     if (row >= 0.0f && row < (float)visible_rows && index < state->count) {
         char command[128];
-        static uint32_t last_click_ms = 0;
-        static uint32_t last_click_index = UINT32_MAX;
-        static uiMapListState_t const *last_click_list = NULL;
-        uint32_t const now = M_Time();
+        uiMapListItem_t const *item = &state->items[index];
         bool const map_list = !control->SelectCommand[0] || !strncmp(control->SelectCommand, "menu_lan_select", 15);
 
         snprintf(command, sizeof(command),
@@ -1213,13 +1242,8 @@ void UI_MapListSelectRow(frameDef_t const *frame, float fdf_x, float fdf_y) {
         UI_QueueCommand(command);
         /* A second click on the same row within half a second opens a folder (or goes up through "[..]")
          * and accepts a map, as the original client does. */
-        if (map_list && last_click_list == state && last_click_index == index && now - last_click_ms < 500) {
-            UI_QueueCommand(state->items[index].kind == UI_MAP_ITEM_MAP ? "menu_lan_activate" : "menu_lan_open");
-            last_click_index = UINT32_MAX;
-        } else {
-            last_click_list = state;
-            last_click_index = index;
-            last_click_ms = now;
+        if (map_list && UI_MapListIsDoubleClick(state, index, M_Time())) {
+            UI_QueueCommand(item->kind == UI_MAP_ITEM_MAP ? "menu_lan_activate" : "menu_lan_open");
         }
     }
 }

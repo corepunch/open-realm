@@ -266,6 +266,9 @@ uiScreen_t *UI_GetCurrentScreen(void) {
 }
 
 BZ_HOST_HIDDEN void M_ShowMainMenu(void) {
+    /* Backing out to the main menu ends a join in progress; at startup there is no screen yet and a
+     * connect target given on the command line must stay. */
+    if (ui_current_screen && mi.Cvar_Set) mi.Cvar_Set("connect", "");
     if (mi.Cvar_String && !strcmp(mi.Cvar_String("online_mode", "0"), "1")) {
         if (mi.Online_Leave) mi.Online_Leave();
         if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "0");
@@ -286,6 +289,7 @@ void M_ShowLanCreateMenu(void) {
 
 /* One screen holds the map list, the player slots and the map info, as in the original client. */
 static void M_ShowSinglePlayerSkirmishMenu(void) {
+    if (ui_state.transition_action) return; /* the request would be refused: leave the list state alone */
     LAN_PrepareSkirmish();
     UI_RequestScreen(&gameSetupScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL);
 }
@@ -745,7 +749,18 @@ static void UI_MenuSetupChat_f(void) {
 static void M_UpdateLobbySetup(lobbyState_t const *state) {
     /* No current standalone screen means loading/gameplay owns presentation;
      * late lobby packets must not resurrect the game-setup glue screen. */
-    if (!UI_GetCurrentScreen()) {
+    uiScreen_t const *current = UI_GetCurrentScreen();
+
+    if (!current) {
+        return;
+    }
+    /* A guest (connect target set, by the LAN/online browser or at startup) follows the lobby from any
+     * screen. Otherwise only the lobby screen applies it: a stale packet, local or from a lobby the
+     * player already left, must not pull someone on the solo menus or the LAN list into the setup screen. */
+    cstring_t const connect = mi.Cvar_String ? mi.Cvar_String("connect", "") : "";
+    bool const guest = connect && connect[0];
+
+    if (!guest && current != &gameSetupScreen) {
         return;
     }
     if (UI_RequestGameSetup()) GameSetup_UpdateLobbySetup(state);
