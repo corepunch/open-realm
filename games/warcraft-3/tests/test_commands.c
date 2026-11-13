@@ -486,6 +486,10 @@ TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
     T_ASSERT(FS_ArchiveFileVisible("data/War3.mpq", "Scripts\\human.ai"));
     T_ASSERT(!FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
     T_ASSERT(!FS_ArchiveFileVisible("data/War3xLocal.mpq", "UI\\war3skins.txt"));
+    /* The localized font lives in War3xLocal on 1.29 and RoC text needs its glyphs. */
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "Fonts\\Frizqt__.ttf"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "fonts\\FRIZQT__.TTF"));
+    T_ASSERT(!FS_ArchiveFileVisible("data/War3xLocal.mpq", "Fontsets\\x.txt"));
 
     Cvar_Set("fs_expansion", "1");
     T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
