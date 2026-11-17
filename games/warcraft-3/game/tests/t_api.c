@@ -7280,6 +7280,48 @@ TEST(wc3_api, show_unit_visibility_transition_invalidates_hero_shortcuts) {
 }
 
 
+TEST(wc3_api, structure_show_unit_republishes_static_routing) {
+    edict_t *structure = NULL;
+    uint32_t revision;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit structure\n"
+        "endglobals\n"
+        "function hideStructure takes nothing returns nothing\n"
+        "  call ShowUnit(structure, false)\n"
+        "endfunction\n"
+        "function revealStructure takes nothing returns nothing\n"
+        "  call ShowUnit(structure, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set structure = CreateUnit(Player(0), 'hbar', 64.0, 64.0, 0.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','b','a','r')) {
+            structure = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(structure);
+    T_ASSERT(G_UnitIsStructure(structure));
+    revision = CM_GetPathRevision();
+    jass_callbyname(level.vm, "hideStructure", true);
+    jass_runevents(level.vm);
+    T_ASSERT(structure->s.renderfx & RF_HIDDEN);
+    T_NE(CM_GetPathRevision(), revision);
+    revision = CM_GetPathRevision();
+    jass_callbyname(level.vm, "hideStructure", true);
+    jass_runevents(level.vm);
+    T_EQ(CM_GetPathRevision(), revision);
+    jass_callbyname(level.vm, "revealStructure", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!(structure->s.renderfx & RF_HIDDEN));
+    T_NE(CM_GetPathRevision(), revision);
+}
+
 /* =========================================================================
  * Group — FirstOfGroup / IsUnitInGroup
  * ========================================================================= */

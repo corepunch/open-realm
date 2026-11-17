@@ -165,6 +165,26 @@ order begin.
 Navigation state (`MOVE_NAV_*`) is movement-owned; the original point and
 behavior target remain with the order.
 
+## Authoritative Static Footprints (PF-05)
+
+`CM_BakeStaticObstacles()` reconstructs pathing from immutable WPM terrain:
+walkable surfaces are applied first, then ordinary solid building and
+non-monster destructable footprints. This keeps path-texture channels and
+underlying terrain intact when overlapping blockers disappear. The router
+advances `CM_GetPathRevision()` and discards old flow fields, queued field
+requests and retained mover routes through the existing revision checks.
+
+The Warcraft III game publishes static changes at the authoritative lifecycle
+boundary: map-spawn completion, runtime structure creation, construction
+start/finish, destructable creation/death/restore/remove, Ancient root/unroot,
+structure morph, scripted structure positioning and `ShowUnit` visibility
+transitions. `RemoveUnit` publishes when the edict is hidden for deferred
+removal; direct `G_FreeEdict` publishes after removing a visible static edict.
+This deliberately does not rebake for moving actors, even when they obstruct a
+local route: their temporary occupancy belongs to WC3 steering/recovery.
+`SetUnitPathing(false)` still controls the unit's own collision admission,
+not terrain or other units' baked footprints.
+
 ## Flow-Field Lifecycle
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.

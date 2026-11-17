@@ -1120,6 +1120,11 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     if (play_birth && ent->birth) {
         ent->birth(ent);
     }
+    /* Map loading publishes its whole static map at the end of spawn. Runtime
+     * CreateUnit/training must also publish a new structure when its authored
+     * footprint becomes part of the world, including no-birth creation. */
+    if (G_UnitIsStructure(ent) && !(ent->s.flags & EF_NOT_SELECTABLE))
+        CM_BakeStaticObstacles();
     client = G_GetPlayerClientByNumber(player);
     if ((ent->svflags & SVF_MONSTER) && client && client->ps.number == player) {
         G_InvalidateCommands(client);

@@ -170,6 +170,8 @@ uint32_t ShowUnit(jass_t *j) {
     }
     is_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (was_hidden != is_hidden) {
+        /* Visibility is authoritative for static footprint stamping. */
+        if (whichUnit->s.flags & EF_BUILDING) CM_BakeStaticObstacles();
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         /* Visibility is part of both Hero-shortcut and idle-worker eligibility.
          * Rebuild only on a real transition; the shared hook cheaply rejects

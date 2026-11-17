@@ -430,6 +430,13 @@ static void G_TouchTriggers(edict_t *ent) {
 void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     if (!ent || !ent->inuse || !old_position ||
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
+    /* Scripted reposition of a structure (including a pathing-texture morph)
+     * changes static collision immediately. Ordinary moving units remain
+     * dynamic obstacles and must not invalidate shared flow fields. */
+    if (!(ent->s.renderfx & RF_HIDDEN) &&
+        ((ent->s.flags & EF_BUILDING) ||
+         (!(ent->svflags & SVF_MONSTER) && (ent->pathtex || ent->collision > 0.0f))))
+        CM_BakeStaticObstacles();
     ent->old_origin = *old_position;
     G_TouchTriggers(ent);
     ent->old_origin = ent->s.origin2;

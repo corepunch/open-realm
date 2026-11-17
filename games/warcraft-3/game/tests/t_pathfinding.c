@@ -1779,4 +1779,115 @@ TEST(wc3_pathfinding, blight_world_state_uses_wpm_seed_and_survives_static_rebui
     setup_test_world();
 }
 
+/* Scripted static-position changes must replace the stamped footprint without
+ * affecting the immutable terrain or treating ordinary unit movement as a
+ * static route-map change. */
+TEST(wc3_pathfinding, scripted_structure_reposition_updates_static_revision) {
+    uint8_t cells[12 * 12] = { 0 };
+    vec2_t old_point = { 3.5f, 3.5f }, new_point = { 8.5f, 8.5f };
+    edict_t *building, *moving;
+    pathTex_t *tex;
+    uint32_t revision;
+
+    setup_test_pathmap(12, 12, cells);
+    reset_entities();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), old_point.x, old_point.y);
+    tex = gi.MemAlloc(sizeof(*tex) + sizeof(color32_t));
+    T_NOT_NULL(tex);
+    tex->width = tex->height = 1;
+    tex->map[0] = (color32_t){ .b = 255 };
+    building->pathtex = tex;
+    CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadius(&old_point, 0));
+    T_ASSERT(CM_PointIsPathableForRadius(&new_point, 0));
+    revision = CM_GetPathRevision();
+
+    building->s.origin2 = new_point;
+    G_UnitPositionChanged(building, &old_point);
+    T_NE(CM_GetPathRevision(), revision);
+    T_ASSERT(CM_PointIsPathableForRadius(&old_point, 0));
+    T_ASSERT(!CM_PointIsPathableForRadius(&new_point, 0));
+
+    moving = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 1.5f, 1.5f);
+    moving->svflags |= SVF_MONSTER;
+    revision = CM_GetPathRevision();
+    {
+        vec2_t from = moving->s.origin2;
+        moving->s.origin2 = (vec2_t){ 2.5f, 2.5f };
+        G_UnitPositionChanged(moving, &from);
+    }
+    T_EQ(CM_GetPathRevision(), revision);
+    building->pathtex = NULL;
+    gi.MemFree(tex);
+    setup_test_world();
+}
+
+TEST(wc3_pathfinding, overlapping_static_frees_keep_remaining_and_terrain_obstacles) {
+    uint8_t cells[12 * 12] = { 0 };
+    vec2_t overlap = { 4.5f, 4.5f }, terrain = { 7.5f, 7.5f };
+    edict_t *one, *two;
+    pathTex_t *first, *second;
+    uint32_t generation, revision;
+
+    cells[7 + 7 * 12] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(12, 12, cells);
+    reset_entities();
+    one = alloc_test_unit(MAKEFOURCC('h','b','a','r'), overlap.x, overlap.y);
+    two = alloc_test_unit(MAKEFOURCC('h','b','a','r'), overlap.x, overlap.y);
+    first = gi.MemAlloc(sizeof(*first) + sizeof(color32_t));
+    second = gi.MemAlloc(sizeof(*second) + sizeof(color32_t));
+    T_NOT_NULL(first);
+    T_NOT_NULL(second);
+    first->width = first->height = second->width = second->height = 1;
+    first->map[0] = second->map[0] = (color32_t){ .b = 255 };
+    one->pathtex = first;
+    two->pathtex = second;
+    CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadius(&overlap, 0));
+    generation = CM_BuildHeatmap(Waypoint_add(&MAKE(vec2_t, 1.5f, 1.5f)));
+    T_NE(generation, 0);
+    revision = CM_GetPathRevision();
+
+    G_FreeEdict(one);
+    T_NE(CM_GetPathRevision(), revision);
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    T_ASSERT(!CM_PointIsPathableForRadius(&overlap, 0));
+    G_FreeEdict(two);
+    T_ASSERT(CM_PointIsPathableForRadius(&overlap, 0));
+    T_ASSERT(!CM_PointIsPathableForRadius(&terrain, 0));
+    gi.MemFree(first);
+    gi.MemFree(second);
+    setup_test_world();
+}
+
+TEST(wc3_pathfinding, deferred_removal_releases_static_footprint_at_hide) {
+    uint8_t cells[12 * 12] = { 0 };
+    vec2_t spot = { 5.5f, 5.5f };
+    edict_t *building;
+    pathTex_t *tex;
+    uint32_t revision;
+
+    setup_test_pathmap(12, 12, cells);
+    reset_entities();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), spot.x, spot.y);
+    tex = gi.MemAlloc(sizeof(*tex) + sizeof(color32_t));
+    T_NOT_NULL(tex);
+    tex->width = tex->height = 1;
+    tex->map[0] = (color32_t){ .b = 255 };
+    building->pathtex = tex;
+    CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadius(&spot, 0));
+    revision = CM_GetPathRevision();
+    G_DeferFreeEdict(building);
+    T_ASSERT(building->inuse && (building->s.renderfx & RF_HIDDEN));
+    T_NE(CM_GetPathRevision(), revision);
+    T_ASSERT(CM_PointIsPathableForRadius(&spot, 0));
+    revision = CM_GetPathRevision();
+    G_RunDeferredFrees();
+    T_EQ(CM_GetPathRevision(), revision);
+    T_ASSERT(CM_PointIsPathableForRadius(&spot, 0));
+    gi.MemFree(tex);
+    setup_test_world();
+}
+
 #endif /* BZ_TESTS */
