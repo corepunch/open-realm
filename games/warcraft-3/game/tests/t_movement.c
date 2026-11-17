@@ -4129,17 +4129,81 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     unit->unitinfo.MoveSpeed = 80.0f;
     gi.LinkEntity(unit);
     order_move(unit, Waypoint_add(&dest));
+    edict_t *const authored_waypoint = unit->goalentity;
 
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
         unit->currentmove->think(unit);
         CM_ProcessPathJobs(4096);
         T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+        /* A corrected endpoint must not rewrite the actual order target. */
+        T_FEQ(authored_waypoint->s.origin2.x, dest.x, 0.01f);
+        T_FEQ(authored_waypoint->s.origin2.y, dest.y, 0.01f);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");
     T_ASSERT(unit->s.origin2.x > start.x);
     T_ASSERT(unit->s.origin2.x < 7.0f * 32.0f);
     T_ASSERT(Vector2_distance(&unit->s.origin2, &dest) < Vector2_distance(&start, &dest));
+}
+
+/* A stale private waypoint must not become a new destination when its
+ * edict slot has been reallocated to an unrelated game entity. */
+TEST(wc3_movement, recycled_move_goal_does_not_retarget) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {200.0f, 0.0f};
+    order_move(unit, Waypoint_add(&dest));
+    edict_t *const waypoint = unit->goalentity;
+    T_EQ(unit->movement->active_move_goal_spawn, waypoint->spawn_time);
+    waypoint->spawn_time++;
+    waypoint->s.origin2 = (vec2_t){500.0f, 500.0f};
+    unit->currentmove->think(unit);
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_NULL(unit->movement);
+}
+
+/* A nearby clicked point across static pathing is not an arrival just
+ * because it fits inside one movement tick. */
+TEST(wc3_movement, blocked_near_point_cannot_complete_through_wall) {
+    enum { CELLS = 16 };
+    uint8_t cells[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(208.0f, 240.0f);
+    vec2_t dest = {240.0f, 240.0f};
+    cells[7 + 7 * CELLS] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, cells);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    unit->collision = 0.0f;
+    unit->unitinfo.MoveSpeed = 600.0f;
+    order_move(unit, Waypoint_add(&dest));
+    T_ASSERT(unit_movedistance(unit) > Vector2_distance(&unit->s.origin2, &dest));
+    T_ASSERT(!move_should_arrive(unit, unit_movedistance(unit)));
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+}
+
+/* A legal corrected endpoint finishes only the owning point Move, then
+ * advances the existing Shift queue. It never modifies the public waypoint. */
+TEST(wc3_movement, corrected_move_endpoint_advances_shift_queue) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {300.0f, 0.0f};
+    vec2_t const next = {50.0f, 100.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    edict_t *const authored = unit->goalentity;
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &next, true, unit->s.player, 0.0f));
+    T_EQ(unit->orders->queue.count, 1);
+
+    unit->movement->flow_fallback_goal = authored;
+    unit->movement->flow_fallback_goal_spawn = authored->spawn_time;
+    unit->movement->flow_fallback_revision = CM_GetPathRevision();
+    unit->movement->flow_fallback_state = MOVE_FALLBACK_APPLIED;
+    unit->movement->flow_fallback_target = dest;
+    unit->movement->flow_fallback_approach = (vec2_t){0.0f, 0.0f};
+    unit->currentmove->think(unit);
+
+    T_EQ(unit->orders->queue.count, 0);
+    T_ASSERT(unit->goalentity != authored);
+    T_FEQ(authored->s.origin2.x, dest.x, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.x, next.x, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.y, next.y, 0.01f);
 }
 
 /* Immobile is a single movement/facing contract, not just a command-menu filter. */
@@ -4431,12 +4495,18 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
     T_ASSERT(unit_issueorder(unit, "move", &dest));
     unit->currentmove->think(unit); /* queues the resumable radius field */
     CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit); /* completed field retargets the private waypoint */
+    unit->currentmove->think(unit); /* completed field chooses a private approach */
 
     T_STREQ(unit->currentmove->animation, "walk");
-    T_ASSERT(!unit->movement->flow_unreachable);
-    T_ASSERT(unit->goalentity->s.origin2.x > unit->s.origin2.x);
-    T_ASSERT(unit->goalentity->s.origin2.x < 0.0f);
+    T_ASSERT(!unit->movement->flow_unreachable ||
+             unit->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED);
+    /* Corrected navigation must not overwrite the authored per-unit waypoint. */
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.y, dest.y, 0.01f);
+    if (unit->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED) {
+        T_ASSERT(unit->movement->flow_fallback_approach.x < 0.0f);
+        T_ASSERT(unit->movement->flow_fallback_approach.x > unit->s.origin2.x);
+    }
 }
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {

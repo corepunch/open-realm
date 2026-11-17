@@ -1278,3 +1278,14 @@ unit keeps its authoritative orders and world position, but reconstructs
 local path turns from the loaded map rather than replaying old turn arrays or
 reusing invalid entity pointers. The `wc3_save` round-trip regression checks
 that both local-route and resume pointers and validity flags are cleared.
+
+## Follow target identity and corrected route state (native version 147 / browser version 7)
+
+Version 147 extends the serialized order pool with `follow_target_spawn_time`
+so a loaded Follow order cannot attach to a recycled entity slot. It also
+expands the movement pool with navigation status and fallback identity/revision
+fields; these are runtime-only movement scratch, never a separate gameplay
+order. The fallback goal pointer, corrected endpoint, navigation status and
+retained local A* arrays are cleared on load and reconstructed from the saved
+order and current path map. Prior-version saves are rejected by the normal
+strict-version check.
