@@ -1316,6 +1316,136 @@ TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
     HARVEST_RANGE = saved_range;
 }
 
+
+/* Patch 2: force a two-gate serpentine detour. A bounded A* search returns
+ * several turns; the WC3 mover must retain them while the shared field is
+ * pending, and must not lose them when that field becomes ready. */
+static edict_t *make_retained_route_corridor(vec2_t *dest, uint8_t *cells) {
+    enum { SIDE = 64 };
+    edict_t *unit = make_moving_unit(-368.0f, 16.0f);
+    /* Left wall can only be passed at the bottom; right wall only at top. */
+    for (int y = 0; y < SIDE; y++) {
+        if (y > 20) cells[24 + y * SIDE] = CM_PATHING_UNWALKABLE;
+        if (y < 44) cells[40 + y * SIDE] = CM_PATHING_UNWALKABLE;
+    }
+    CM_SetupTestPathmap(SIDE, SIDE, cells);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    unit->collision = 8.0f;
+    unit->unitinfo.MoveSpeed = 190.0f;
+    *dest = (vec2_t){400.0f, 16.0f};
+    order_move(unit, Waypoint_add(dest));
+    return unit;
+}
+
+TEST(wc3_movement, retained_route_advances_only_at_reached_turn) {
+    uint8_t cells[64 * 64] = {0};
+    vec2_t dest;
+    edict_t *unit = make_retained_route_corridor(&dest, cells);
+    uint32_t const first_revision = CM_GetPathRevision();
+    uint8_t count;
+    vec2_t first;
+
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_ASSERT(unit->movement->path.valid);
+    count = unit->movement->local_route.count;
+    T_ASSERT(count >= 3);
+    first = unit->movement->local_route.points[0];
+    T_FEQ(unit->movement->path.waypoint.x, first.x, 0.001f);
+    T_FEQ(unit->movement->path.waypoint.y, first.y, 0.001f);
+    T_EQ(unit->movement->local_route.cursor, 0);
+    T_EQ(unit->movement->local_route.map_revision, first_revision);
+    T_ASSERT(CM_LineIsPathableForRadiusFlags(&unit->s.origin2, &first,
+                                            unit->collision, CM_PATHING_UNWALKABLE));
+
+    /* Merely calculating/turning again does not consume a waypoint. */
+    unit_changeangle(unit);
+    T_EQ(unit->movement->local_route.cursor, 0);
+    T_EQ(unit->movement->local_route.count, count);
+
+    /* Commit the position as if a valid swept movement reached turn zero. */
+    unit->s.origin2 = first;
+    unit->s.origin.x = first.x;
+    unit->s.origin.y = first.y;
+    gi.LinkEntity(unit);
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_EQ(unit->movement->local_route.cursor, 1);
+    T_ASSERT(unit->movement->path.valid);
+    T_ASSERT(Vector2_distance(&unit->movement->path.waypoint, &first) > 1.0f);
+}
+
+TEST(wc3_movement, retained_route_survives_flow_completion) {
+    uint8_t cells[64 * 64] = {0};
+    vec2_t dest;
+    edict_t *unit = make_retained_route_corridor(&dest, cells);
+    vec2_t first;
+    uint8_t count;
+
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    first = unit->movement->local_route.points[0];
+    count = unit->movement->local_route.count;
+    /* A completed shared field must not replace this legal retained turn. */
+    CM_ProcessPathJobs(UINT_MAX);
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_EQ(unit->movement->local_route.cursor, 0);
+    T_EQ(unit->movement->local_route.count, count);
+    T_FEQ(unit->movement->path.waypoint.x, first.x, 0.001f);
+    T_FEQ(unit->movement->path.waypoint.y, first.y, 0.001f);
+    T_ASSERT(!unit->movement->flow_direct);
+}
+
+TEST(wc3_movement, retained_route_rechecks_goal_identity_and_footprint) {
+    uint8_t cells[64 * 64] = {0};
+    vec2_t dest;
+    edict_t *unit = make_retained_route_corridor(&dest, cells);
+    edict_t *goal;
+
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    goal = unit->goalentity;
+    T_ASSERT(goal);
+    goal->spawn_time++; /* same entity address, different incarnation */
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_EQ(unit->movement->local_route.goal_spawn_time, goal->spawn_time);
+
+    unit->collision = 12.0f;
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_FEQ(unit->movement->local_route.radius, 12.0f, 0.001f);
+
+    goal->s.origin2.y += 64.0f; /* change beyond the sub-cell cache tolerance */
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_FEQ(unit->movement->local_route.requested_goal.y, goal->s.origin2.y, 0.001f);
+}
+
+TEST(wc3_movement, retained_route_invalidated_on_static_change_and_reset) {
+    uint8_t cells[64 * 64] = {0};
+    vec2_t dest;
+    edict_t *unit = make_retained_route_corridor(&dest, cells);
+    uint32_t previous_revision;
+
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    previous_revision = unit->movement->local_route.map_revision;
+    /* The pathmap generation is authoritative, even if the bits happen to
+     * remain the same in this synthetic test-world replacement. */
+    CM_SetupTestPathmap(64, 64, cells);
+    T_ASSERT(CM_GetPathRevision() != previous_revision);
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_EQ(unit->movement->local_route.map_revision, CM_GetPathRevision());
+
+    move_reset_progress(unit);
+    T_ASSERT(!unit->movement->local_route.valid);
+    T_ASSERT(!unit->movement->path.valid);
+}
+
 /* A nearby static detour uses the bounded per-mover accelerator immediately;
  * it must not wait for the destination field to cover the whole pathmap. */
 TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
@@ -1696,10 +1826,9 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
 }
 
 /* Resumable routing returns generation 0 until its shared flow job completes.
- * The bounded mover-owned accelerator is intentionally best-effort: a longer
- * detour may exceed its immediate work budget. Three miners must then hold their
- * starting positions instead of walking along stale facing, and resume once the
- * shared collision-sized field becomes available. */
+ * A bounded retained route may now provide safe partial progress while the
+ * field is pending. Otherwise the workers must hold, never step using stale
+ * facing, and continue when the shared collision-sized field becomes ready. */
 TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     enum { CELLS = 64, WORKERS = 3 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -1751,18 +1880,24 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
 
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
-        T_FEQ(Vector2_distance(&workers[i]->s.origin2, &origin[i]), 0.0f, 0.001f);
         T_EQ(workers[i]->movement->flow_generation, 0);
         T_ASSERT(!workers[i]->movement->flow_direct);
-        T_ASSERT(!workers[i]->movement->path.valid);
+        if (workers[i]->movement->path.valid) {
+            T_ASSERT(workers[i]->movement->local_route.valid);
+            T_ASSERT(CM_LineIsPathableForRadiusFlags(&workers[i]->s.origin2,
+                &workers[i]->movement->path.waypoint, workers[i]->collision,
+                CM_PATHING_UNWALKABLE));
+        } else {
+            T_FEQ(Vector2_distance(&workers[i]->s.origin2, &origin[i]), 0.0f, 0.001f);
+        }
     }
 
     CM_ProcessPathJobs(65536);
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
         T_ASSERT(workers[i]->movement->flow_generation != 0);
-        T_ASSERT(!workers[i]->movement->path.valid);
-        T_ASSERT(Vector2_distance(&workers[i]->s.origin2, &origin[i]) > 0.001f);
+        /* A ready field does not discard an already validated local turn. */
+        T_ASSERT(!workers[i]->movement->path.valid || workers[i]->movement->local_route.valid);
     }
 
     G_SetSLKRows("AbilityData", old_abilities);
@@ -1879,10 +2014,9 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     gi.MemFree(hall_pathtex);
 }
 
-/* Gold return can miss the shared cache independently of mine approach. The
- * bounded mover route is best-effort; when this long detour exceeds that local
- * accelerator, Return Resources must hold rather than use stale facing, then
- * resume from the shared collision-sized field when its job completes. */
+/* Gold return can miss the shared cache independently of mine approach.
+ * Return Resources may use safe local partial progress while waiting, or must
+ * hold (not reuse stale facing); the completed field supplies continuation. */
 TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -1915,16 +2049,21 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     origin = worker->s.origin2;
     worker->currentmove->think(worker);
 
-    T_FEQ(Vector2_distance(&worker->s.origin2, &origin), 0.0f, 0.001f);
     T_EQ(worker->movement->flow_generation, 0);
     T_ASSERT(!worker->movement->flow_direct);
-    T_ASSERT(!worker->movement->path.valid);
+    if (worker->movement->path.valid) {
+        T_ASSERT(worker->movement->local_route.valid);
+        T_ASSERT(CM_LineIsPathableForRadiusFlags(&worker->s.origin2,
+            &worker->movement->path.waypoint, worker->collision,
+            CM_PATHING_UNWALKABLE));
+    } else {
+        T_FEQ(Vector2_distance(&worker->s.origin2, &origin), 0.0f, 0.001f);
+    }
 
     CM_ProcessPathJobs(65536);
     worker->currentmove->think(worker);
     T_ASSERT(worker->movement->flow_generation != 0);
-    T_ASSERT(!worker->movement->path.valid);
-    T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.001f);
+    T_ASSERT(!worker->movement->path.valid || worker->movement->local_route.valid);
 }
 
 /* Right-click is also the cancel gesture for an active targeted command.

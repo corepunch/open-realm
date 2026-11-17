@@ -1267,3 +1267,14 @@ Version 136 extends `attackMissile_t` with `arrow_ability` and `arrow_level` for
 Black Arrow attack snapshotting. These fields survive save/load independently
 of later caster autocast, mana or ability-level changes; previous saves are
 rejected rather than migrated. See [Dark Ranger](dark-ranger.md).
+
+## Retained local navigation scratch (native version 146 / browser version 6)
+
+The WC3 movement pool now has a fixed-capacity, mover-owned multi-turn route
+(`movement_t.local_route`) and a path-revision guard for the short heading
+resume cache. Both are `F_IGNORE` runtime state. The save envelope version
+increases to 146 (browser 6) because the movement pool record size changes. On load the
+unit keeps its authoritative orders and world position, but reconstructs
+local path turns from the loaded map rather than replaying old turn arrays or
+reusing invalid entity pointers. The `wc3_save` round-trip regression checks
+that both local-route and resume pointers and validity flags are cleared.

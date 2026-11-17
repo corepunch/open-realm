@@ -41,10 +41,33 @@ an explicitly partial prefix rather than silently dropping remaining turns.
 
 `CM_GetPathRevision()` changes on static-pathmap setup/bake and explicit
 cache invalidation, not for transient unit occupancy. The revision is exposed
-for upcoming mover-owned retained-route invalidation; this patch does not yet
-replace WC3's existing `CM_AccelerateRoute()` single-waypoint handling.
-`CM_FindPathWaypoint()` deliberately keeps its completed-search-only behavior
-and remains available for existing movement and other-game callers.
+by WC3's retained-route invalidation. The generic `CM_AccelerateRoute()`
+remains unchanged for other games, while WC3's movement now uses the bounded
+multi-waypoint result. `CM_FindPathWaypoint()` deliberately keeps its
+completed-search-only behavior for existing generic callers.
+
+### WC3 mover-owned retained routes (Patch 2)
+
+`movement_t.local_route` retains up to 16 collision-validated turns produced by
+`CM_FindBoundedPath()` while the current travel order remains active. The unit
+advances its cursor only on reaching a turn; a newly ready shared flow field
+must not abruptly discard a still-safe local segment. A direct traversable
+line may replace the retained route. The router's `PARTIAL` output supplies
+progress but **never** signals gameplay arrival. An unfinished prefix can
+hand off to the shared field when exhausted.
+
+The route is invalidated on goal-entity incarnation change, movement of its
+requested destination by half a path cell, mover radius/pathing-mask change,
+static pathmap revision, failed segment legality, or `move_reset_progress()`.
+The existing `movement_t.path` mirrors only the currently active retained
+turn for compatible movement checks. Local route arrays are runtime-only in
+`g_save.c`: after a load they are reconstructed from the authoritative order
+and position; no A* parent/search data or flow generation is saved.
+
+The new state is Warcraft III-specific: `CM_AccelerateRoute()` remains
+available unchanged to StarCraft II. Dynamic stationary blocker detours,
+original-goal vs navigation-goal completion and group-route policy are later
+patches, not part of this mover-state change.
 
 ### Static interaction rectangles
 
