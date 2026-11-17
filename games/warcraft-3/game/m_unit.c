@@ -1290,6 +1290,19 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         return true;
     }
     if (!strcmp(order, "harvest")) {
+        /* Shift-Harvest uses the same validated, generation-guarded FIFO as
+         * Smart. It must never interrupt a still-active resource phase. */
+        bool const valid = (G_ActorHasSkill(self, "Awha") && G_ActorHasSkill(target, "Aegm")) ||
+            (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) ||
+            (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) ||
+            (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target));
+        if (!valid) return false;
+        if (queue && G_UnitHasActiveOrder(self)) {
+            bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY,
+                                                   NULL, target, issuer_player, 0.0f, 0);
+            if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+            return accepted;
+        }
         bool accepted = false;
         if (G_ActorHasSkill(self, "Awha") && G_ActorHasSkill(target, "Aegm"))
             accepted = S_CargoOrderBoard(self, target);
@@ -1298,8 +1311,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
         if (accepted) {
+            if (!queue) G_ClearUnitOrderQueue(self);
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
+            unit_set_active_order(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target, issuer_player, 0.0f);
+            unit_publish_target_order(self, order, target, issuer_player);
         }
         return accepted;
     }

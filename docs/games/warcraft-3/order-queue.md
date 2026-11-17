@@ -229,3 +229,12 @@ Runtime checks should additionally cover:
 
 - [Building Construction](building-construction.md) — construction placement validation, cursor ownership, arrival-time revalidation, and race-specific construction lifecycles.
 - [Issued Target and Point Order Events](issued-target-order-events.md) — submission-time trigger publication for immediate and queued orders.
+
+## Harvest handoffs (PF-HARVEST-09B)
+
+A queued player command outranks automatic gold/lumber return at a legal
+resource phase boundary. Ordinary hidden Gold Mine extraction completes before
+its deferred commands activate; full-load lumber cooldown, post-deposit, and
+carried-gold mine arrival use the same FIFO check. A stale queued entity
+incarnation is skipped rather than retargeting a replacement object. Internal
+automatic return/resume never inserts a new player FIFO entry.

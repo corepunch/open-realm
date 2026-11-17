@@ -705,6 +705,13 @@ static void ai_walktree(edict_t *ent) {
     }
 }
 
+/* Internal resource phases never overtake an accepted user successor.
+ * Invalid/recycled queued targets are discarded by the existing FIFO owner. */
+bool S_HarvestYieldQueuedOrder(edict_t *worker) {
+    return worker && G_UnitQueuedOrderCount(worker) &&
+        G_UnitStartNextQueuedOrder(worker);
+}
+
 static void harvest_finish_lumber_deposit(edict_t *ent) {
     edict_t *dropoff = ent->goalentity;
     edict_t *tree;
@@ -717,6 +724,7 @@ static void harvest_finish_lumber_deposit(edict_t *ent) {
                                (int32_t)(ent->harvest ? ent->harvest->lumber : 0));
     }
     S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
+    if (S_HarvestYieldQueuedOrder(ent)) return;
 
     /* Resolve the next live tree at the deposit boundary.  Resuming with the
      * felled tree left it as the worker's active goal for another tick. */
@@ -831,6 +839,7 @@ void harvest_cooldown(edict_t *ent) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
 
     if ((ent->harvest ? ent->harvest->lumber : 0) >= tuning.lumber_capacity) {
+        if (S_HarvestYieldQueuedOrder(ent)) return;
         harvest_walkback(ent);
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
