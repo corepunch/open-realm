@@ -169,6 +169,35 @@ Lumber's unreachable-interior-tree detection is the narrower exception: `unit_ch
 
 Plain right-click movement is different from an interaction order: `move_selectlocation()` already assigns a collision-safe final waypoint, so `ai_move_walk()` may safely route that order with the mover's real collision radius. A distant temporary block does not cancel a plain move order. The unit keeps the order and retries local movement while the static route remains reachable; the existing near-goal settle rule is retained for an occupied final slot. If a completed collision-sized flow field reports the mover's component unreachable, the move may stop.
 
+## Steering, live speed and mid-route recovery (PF-06)
+
+The selected route heading is distinct from the unit's physical facing. Each
+translation tick first checks the live `PropWindow` turn gate, then samples the
+current effective move speed (including status reductions and group caps).
+Waiting for a route or having zero available movement speed selects Stand rather
+than keeping the Walk pose while the origin is unchanged. The facing candidate
+and avoidance-resolved heading candidate still pass through the same swept
+collision policy before committing a position. Point Move's final near-goal snap and its
+corrected-endpoint snap also respect PropWindow: an in-range destination is not
+permission to translate while facing outside the movement window. A shared
+field handle alone does not authorize a stale-heading step when the current
+cell has no usable direction.
+
+For a retained local waypoint, displacement target, Wisp egress or corrected
+point-Move approach, the accepted step length is capped at the distance to
+that intermediate endpoint. This prevents a fast unit from stepping beyond a
+turn and immediately steering backward on the next tick. Waypoint progression
+still occurs only after the committed position reaches the current turn; route
+endpoints never replace an ability's own completion/range checks.
+
+The save format (version 127) stores the authoritative Move order,
+waypoint entity incarnation, committed position and group-leg identity. Local
+A* waypoints, transient fallback endpoints, flow handles and resume headings
+remain runtime scratch (`F_IGNORE`) and are cleared on read; routing resumes
+from the saved position after the restored static map is rebuilt. No serialized
+gameplay field changes are needed, but the added runtime-only group-speed
+sample changes the movement pool layout, so PF-06 increments version 126 to 127. A focused mid-route round-trip regression exercises this contract.
+
 ## Authored Goals And Navigation Endpoints (PF-03)
 
 A point Move owns an original waypoint/order goal, which must not be moved by

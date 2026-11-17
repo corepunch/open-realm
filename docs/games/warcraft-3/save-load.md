@@ -1307,3 +1307,13 @@ slots survive save/load so independently activated Shift orders remain
 related. The mover's group speed sampling stamps (`group_speed_checked_at`
 and `group_speed_checked`) are runtime-only and rebuilt on the first movement
 step after loading. As usual, old raw pool layouts are rejected.
+
+### Mid-route movement recovery
+
+PF-06 keeps `movement_t.local_route`, `movement_t.path`, and resume/flow
+scratch runtime-only. A mid-route save preserves the committed position,
+authoritative Move goal incarnation, queued group legs, and movement order;
+`ReadGame()` reconstructs static pathing and the next movement tick resolves a
+fresh route. The movement pool layout now includes a transient effective-speed sample;
+PF-06 bumps the format version from native 149 to 150 (browser 9 to 10). The sample is reset on load. Regression:
+`wc3_save.mid_route_move_rebuilds_transient_path_after_load`.

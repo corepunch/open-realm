@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 9: group Move identity and queued slots (native 149). */
-static uint32_t const save_version = 9;
+/* Browser version 10: live speed sampling and steering scratch (native 150). */
+static uint32_t const save_version = 10;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -188,7 +188,8 @@ static uint32_t const save_version = 9;
 /* Version 147 preserves follow target incarnation and corrected navigation state. */
 /* Version 148 stores runtime-only stationary-blocker retry/route scratch. */
 /* Version 149 retains per-map group Move identity and queued member slots. */
-static uint32_t const save_version = 149;
+/* Version 150 adds transient group speed sampling state. */
+static uint32_t const save_version = 150;
 #endif
 
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
@@ -843,6 +844,7 @@ static field_t const ancient_root_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(movement_t, group_last_effective_speed, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, group_speed_checked_at, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, group_speed_checked, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, dynamic_retry_time, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3404,6 +3406,63 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
     remove(filename); remove(bad_filename);
 }
 
+/* PF-06: save the active order and committed position, not a stale
+ * local route or a pre-load path-map generation. Rebuild navigation after
+ * loading without resetting the point order to its original starting spot. */
+TEST(wc3_save, mid_route_move_rebuilds_transient_path_after_load) {
+    cstring_t filename = Test_TempPath("wc3-mid-route-save.bin");
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    uint32_t const number = unit->s.number;
+    vec2_t const dest = {384.0f, 64.0f};
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    T_NOT_NULL(unit->movement);
+    T_NOT_NULL(unit->goalentity);
+    vec2_t const committed = {112.0f, 64.0f};
+    unit->s.origin2 = committed;
+    unit->s.origin.x = committed.x;
+    unit->s.origin.y = committed.y;
+    gi.LinkEntity(unit);
+    uint32_t const target_spawn = unit->movement->active_move_goal_spawn;
+    unit->movement->local_route.valid = true;
+    unit->movement->local_route.count = 1;
+    unit->movement->local_route.points[0] = (vec2_t){224, 128};
+    unit->movement->local_route.map_revision = UINT32_MAX;
+    unit->movement->path.valid = true;
+    unit->movement->path.waypoint = (vec2_t){224, 128};
+    unit->movement->route_resume_valid = true;
+    unit->movement->route_resume_active = true;
+    unit->movement->heading = 3.14159265f;
+
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + number;
+    T_NOT_NULL(unit->movement);
+    T_NOT_NULL(unit->goalentity);
+    T_FEQ(unit->s.origin2.x, committed.x, 0.01f);
+    T_FEQ(unit->s.origin2.y, committed.y, 0.01f);
+    T_EQ(unit->movement->active_move_goal_spawn, target_spawn);
+    T_EQ(unit->goalentity->spawn_time, target_spawn);
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+    T_ASSERT(!unit->movement->local_route.valid);
+    T_ASSERT(!unit->movement->path.valid);
+    T_ASSERT(!unit->movement->route_resume_valid);
+    T_ASSERT(!unit->movement->route_resume_active);
+    T_EQ(unit->movement->flow_generation, 0u);
+    T_NOT_NULL(unit->currentmove);
+    T_NOT_NULL(unit->currentmove->think);
+
+    /* The first resumed update must never move farther than the live step
+     * budget, regardless of whether routing has a result yet. */
+    float const max_step = unit_movedistance(unit);
+    unit->currentmove->think(unit);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &committed) <= max_step + 0.01f);
+    remove(filename);
+}
+
 TEST(wc3_save, group_move_queued_leg_survives_roundtrip) {
     cstring_t filename = Test_TempPath("wc3-group-move-save.bin");
     setup_test_world();
@@ -3435,6 +3494,7 @@ TEST(wc3_save, group_move_queued_leg_survives_roundtrip) {
     T_FEQ(unit->movement->group_goal.x, 400.0f, 0.01f);
     T_ASSERT(!unit->movement->group_speed_checked);
     T_EQ(unit->movement->group_speed_checked_at, 0u);
+    T_FEQ(unit->movement->group_last_effective_speed, 0.0f, 0.01f);
     T_NOT_NULL(unit->orders);
     T_EQ(unit->orders->queue.count, 1u);
     queued = &unit->orders->queue.entries[unit->orders->queue.head];

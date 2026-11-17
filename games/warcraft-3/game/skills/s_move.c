@@ -276,19 +276,27 @@ static void move_refresh_group_speed(edict_t *self) {
             member->movement->group_move_id != movement->group_move_id ||
             !move_is_active_order_walk(member)) continue;
         member->movement->group_speed = count > 1 ? slowest : 0;
+        member->movement->group_last_effective_speed = unit_effective_speed(member);
         member->movement->group_speed_checked_at = now;
         member->movement->group_speed_checked = true;
     }
 }
 
 static float unit_current_speed(edict_t const *self) {
-    if (self->movement && self->movement->group_move_id)
-        move_refresh_group_speed((edict_t *)self);
     float speed = unit_effective_speed((edict_t *)self);
-    if (self->movement && self->movement->group_speed > 0 && self->movement->group_speed < speed && unit_is_walking(self)) {
-        speed = self->movement->group_speed;
+    if (self->movement && self->movement->group_move_id) {
+        /* A member's speed modifier can change between scheduled 100 ms
+         * group refreshes. Immediately resample its active leg on any actual
+         * effective-speed change, including a slow expiring; all unchanged
+         * members still use the bounded refresh cadence. */
+        if (self->movement->group_speed_checked &&
+            fabsf(speed - self->movement->group_last_effective_speed) > 0.001f)
+            self->movement->group_speed_checked = false;
+        move_refresh_group_speed((edict_t *)self);
     }
-    return speed;
+    if (self->movement && self->movement->group_speed > 0 && self->movement->group_speed < speed && unit_is_walking(self))
+        speed = self->movement->group_speed;
+    return MAX(0.0f, speed);
 }
 
 float unit_movedistance(edict_t *self) {
@@ -660,6 +668,17 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     }
 }
 
+/* Walking is a translation pose, not a request pose. Preserve the
+ * existing Stand clip while a route is pending or movement speed is zero. */
+static void move_stand_without_translation(edict_t *self) {
+    /* An already requested Stand may not have become the current sequence
+     * yet. Do not restart the request while the model catches up. */
+    if (self->animation_request && !strcasecmp(self->animation_request, "stand"))
+        return;
+    if (!G_AnimationHasPrimary(self->animation, "stand") || self->animation_request)
+        unit_setanimation(self, "stand");
+}
+
 /* Advance the unit one tick.  Avoidance is decided ONCE per tick in
  * unit_changeangle (which picks a free heading via unit_desired_heading and
  * turns the facing toward it); this function only commits the step.  WC3 moves a
@@ -707,6 +726,20 @@ static void unit_moveindirection_policy(edict_t *self,
     if (!wisp_egress && !self->movement->flow_direct && !self->movement->path.valid && self->movement->flow_generation == 0 &&
         !self->movement->route_resume_active) {
         move_route_wait_diag(self, true, MOVE_DIAG_ROUTE_WAIT);
+        move_stand_without_translation(self);
+        return;
+    }
+
+    /* A field handle only identifies cached routing state. The current cell
+     * may have no descending direction yet (or may be blocked), so it is not
+     * proof that this tick has a valid heading. Keep the authored order and
+     * wait for a fresh steering decision instead of translating on old facing. */
+    if (!wisp_egress && !self->movement->displacement_active &&
+        (self->movement->nav_state == MOVE_NAV_WAITING ||
+         self->movement->nav_state == MOVE_NAV_BLOCKED_RETRY) &&
+        !self->movement->flow_direct && !self->movement->path.valid &&
+        !self->movement->route_resume_active) {
+        move_stand_without_translation(self);
         return;
     }
 
@@ -731,26 +764,43 @@ static void unit_moveindirection_policy(edict_t *self,
     float const delta = fabsf(angle_wrap(self->movement->heading - self->s.angle));
     if (delta >= window) {
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
-        if (!G_AnimationHasPrimary(self->animation, "stand"))
-            unit_setanimation(self, "stand");
+        move_stand_without_translation(self);
         return;
     }
 
-    /* ai_move_walk() requests Walk before this common propulsion check. Restore
-     * it here only after the heading is inside PropWindow, so a blocked turn
-     * can keep advancing its Stand clip instead of restarting it each tick. */
-    if (!G_AnimationHasPrimary(self->animation, "walk"))
-        unit_setanimation(self, "walk");
+    /* Only an admitted, positive-speed translation gets a Walk pose. Speed
+     * modifiers are sampled here on every tick, not captured at route setup. */
+    float dist = unit_movedistance(self);
+    if (dist <= 0.0f) {
+        move_stand_without_translation(self);
+        return;
+    }
 
-    float const dist = unit_movedistance(self);
     vec2_t const facing_dir = MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle));
     vec2_t const heading_dir = MAKE(vec2_t, cosf(self->movement->heading), sinf(self->movement->heading));
     vec2_t const origin = self->s.origin2;
     vec2_t const progress_goal = self->orders->wisp_egress_active && self->orders->wisp_egress_target_valid ?
         self->orders->wisp_egress_target : self->movement->displacement_active ? self->movement->displacement_target :
+        self->movement->path.valid && self->movement->local_route.valid ?
+            self->movement->path.waypoint :
         self->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED ?
             self->movement->flow_fallback_approach :
         self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
+    /* Never stride beyond the current retained turn or temporary approach.
+     * Heading deflection remains legal, and the swept collision check still
+     * chooses the accepted candidate. On the next tick the route cursor can
+     * advance only after the committed position actually reached this turn. */
+    if (wisp_egress || self->movement->displacement_active ||
+        (self->movement->path.valid && self->movement->local_route.valid) ||
+        self->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED)
+        dist = MIN(dist, Vector2_distance(&origin, &progress_goal));
+    if (dist <= 0.001f) {
+        move_stand_without_translation(self);
+        return;
+    }
+    if (!G_AnimationHasPrimary(self->animation, "walk"))
+        unit_setanimation(self, "walk");
+
     vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &facing_dir);
     bool const facing_progress = !self->goalentity ||
@@ -1021,6 +1071,12 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     /* Local avoidance resolves into ONE heading; the facing turns toward it and
      * the move step (unit_moveindirection) follows it, keeping facing and motion
      * aligned (no second, disagreeing search). */
+    /* A previously pending field becomes actionable only when a real
+     * direction was selected. Do not leave WAITING set after a successful
+     * shared-field lookup; the translation gate consumes that distinction. */
+    if (self->movement->nav_state == MOVE_NAV_WAITING ||
+        self->movement->nav_state == MOVE_NAV_BLOCKED_RETRY)
+        self->movement->nav_state = MOVE_NAV_MOVING;
     float const goal_angle = atan2f(dir->y, dir->x);
     float const desired = unit_desired_heading(self, goal_angle,
                                                 unit_movedistance(self), policy);
@@ -1961,6 +2017,7 @@ void move_reset_progress(edict_t *self) {
     self->movement->group_move_id = 0;
     self->movement->group_goal = (vec2_t){ 0, 0 };
     self->movement->group_speed_checked_at = 0;
+    self->movement->group_last_effective_speed = 0;
     self->movement->group_speed_checked = false;
 }
 
@@ -2298,6 +2355,15 @@ static void move_hold(edict_t *ent) {
     unit_setmove(ent, &move_move_hold);
 }
 
+/* Even a one-step Move must respect PropWindow. Arrival may snap a short
+ * legal segment, but may not translate that segment while facing away. */
+static bool move_arrival_turn_pending(edict_t *ent, vec2_t const *endpoint) {
+    vec2_t const delta = Vector2_sub(endpoint, &ent->s.origin2);
+    if (Vector2_len(&delta) <= 0.001f) return false; /* already there */
+    return fabsf(angle_wrap(atan2f(delta.y, delta.x) - ent->s.angle)) >=
+        ent->unitinfo.PropWindow;
+}
+
 static void ai_move_walk(edict_t *ent) {
     /* Move's destination may be a private waypoint or an interaction entity.
      * Reused edict slots must not silently become this order's destination. */
@@ -2337,6 +2403,12 @@ static void ai_move_walk(edict_t *ent) {
             M_UnitStaticPathingFlags(ent))) {
         /* Point movement accepts the best reachable endpoint. No shared
          * target or public clicked waypoint is moved to that endpoint. */
+        if (move_arrival_turn_pending(ent, &ent->movement->flow_fallback_approach)) {
+            vec2_t const direction = Vector2_sub(&ent->movement->flow_fallback_approach, &ent->s.origin2);
+            unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);
+            move_stand_without_translation(ent);
+            return;
+        }
         if (M_MoveIsValid(ent, &ent->movement->flow_fallback_approach))
             unit_commit_step(ent, &ent->movement->flow_fallback_approach);
         if (S_UnitAbilityMoveArrive(ent)) return;
@@ -2345,6 +2417,14 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_should_arrive(ent, move_distance)) {
+        if (move_arrival_turn_pending(ent, &ent->goalentity->s.origin2)) {
+            if (G_UnitHasFlag(ent, UNIT_FLAG_NO_PATHING))
+                unit_changeangle_towards_point(ent, &ent->goalentity->s.origin2);
+            else
+                unit_changeangle(ent);
+            move_stand_without_translation(ent);
+            return;
+        }
 #ifdef WC3_DEBUG_BUILD
         if (ent->class_id == MAKEFOURCC('h','p','e','a'))
             fprintf(stderr, "WC3_BUILD move-arrive unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",
@@ -2452,6 +2532,7 @@ static void ai_move_walk(edict_t *ent) {
         if (!ent->movement->flow_direct && !ent->movement->path.valid && !ent->movement->flow_generation &&
             !ent->movement->route_resume_active) {
             move_route_wait_diag(ent, true, MOVE_DIAG_ROUTE_WAIT);
+            move_stand_without_translation(ent);
             return; /* resumable route field is still being built */
         }
         move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
