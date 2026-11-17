@@ -5321,10 +5321,9 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
     free_slk_rows(rows);
 }
 
-/* Inside membership is authoritative: duplicate entry cannot increment the
- * mine twice, ordinary orders are rejected, and exit restores protection and
- * unregisters exactly once. */
-TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
+/* Inside membership is authoritative: accepted orders wait until exit;
+ * unaccepted commands do not erase them, and release is exactly once. */
+TEST(wc3_movement, gold_miner_inside_defers_orders_and_unregisters_once) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
@@ -5342,12 +5341,18 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     T_ASSERT(S_GoldMineWorkerIsInside(worker));
     harvestgold_minegold(worker);
     T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 1);
-    T_ASSERT(!unit_issueimmediateorder(worker, "stop"));
-    T_ASSERT(!unit_issueorder(worker, "move", &point));
+    T_ASSERT(unit_issueorder(worker, "move", &point));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u);
     T_ASSERT(!unit_issuetargetorder(worker, "attack", mine));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u);
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u); /* replacement wins */
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
     T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 1);
 
     harvestgold_walkback(worker);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0u);
+    T_STREQ(worker->currentmove->animation, "stand");
     T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 0);
     T_ASSERT(strstr(mine->animation_props, "work") == NULL);
     T_ASSERT(!S_GoldMineWorkerIsInside(worker));

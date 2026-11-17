@@ -1115,12 +1115,34 @@ uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
 
 static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed);
 
+/* Inside an ordinary mine only. Queue an already validated command instead
+ * of switching the worker's uninterruptible mining move or grant timing.
+ * Non-Shift replacements remove older successors only after validation. */
+static bool unit_defer_goldmine_order(edict_t *self, cstring_t order,
+                                       unitOrderTargetType_t type, vec2_t const *point,
+                                       edict_t *target, bool queue, uint32_t issuer,
+                                       float speed) {
+    if (!self || !self->orders || !S_GoldMineWorkerIsInside(self)) return false;
+    if (queue && G_UnitQueuedOrderCount(self) >= MAX_UNIT_ORDER_QUEUE) return false;
+    if (!queue) G_ClearUnitOrderQueue(self);
+    return G_QueueUnitOrder(self, order, type, point, target, issuer, speed, 0);
+}
+
 static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *target) {
     if (!self || !order || !target) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
 
     self->orders->holding_position = false;
+    if (!strcmp(order, "harvest")) {
+        if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target))
+            return harvest_gold_order(self, target);
+        if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target)) {
+            harvest_start(self, target);
+            return true;
+        }
+        return false;
+    }
     if (!strcmp(order, "repair")) {
         return S_OrderRepair(self, target, 0);
     }
@@ -1253,7 +1275,19 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) {
-        return false;
+        /* Only known safe movement/resource orders can be admitted while the
+         * miner is hidden. Spells, item pickup, construction and arbitrary
+         * Smart ability dispatch still require immediate validation. */
+        bool const harvest = !strcmp(order, "harvest") || !strcmp(order, "smart");
+        bool const resource = (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) ||
+            (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target));
+        bool const follow = !strcmp(order, "move") && (target->svflags & SVF_MONSTER) &&
+            S_UnitCanTranslate(self);
+        if ((!harvest || !resource) && !follow) return false;
+        if (!unit_defer_goldmine_order(self, order, UNIT_ORDER_TARGET_ENTITY,
+                                      NULL, target, queue, issuer_player, 0.0f)) return false;
+        unit_publish_target_order(self, order, target, issuer_player);
+        return true;
     }
     if (!strcmp(order, "harvest")) {
         bool accepted = false;
@@ -1332,7 +1366,18 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
         return accepted;
     }
-    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (S_GoldMineWorkerIsInside(self)) {
+        /* A point order can be legally admitted while its physical execution
+         * is deferred until after the current mine interval. */
+        if ((strcmp(order, "move") && strcmp(order, "smart") &&
+             strcmp(order, "patrol") && strcmp(order, "attack")) ||
+            !S_UnitCanTranslate(self) || (self->aiflags & AI_IMMOBILE) ||
+            (!strcmp(order, "attack") && S_UnitPolymorphed(self))) return false;
+        if (!unit_defer_goldmine_order(self, order, UNIT_ORDER_TARGET_POINT,
+                                      point, NULL, queue, issuer_player, group_speed)) return false;
+        G_PublishIssuedPointOrder(self, unit_order_event_id(order), point, issuer_player, order);
+        return true;
+    }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
@@ -1593,8 +1638,13 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!S_ManaFlareAllowsOrder(self, order)) return false;
     if (G_BuildingUpgradeActive(self)) return false;
     if (M_IsDead(self)) return false;
-    if (S_GoldMineWorkerIsInside(self))
-        return false;
+    if (S_GoldMineWorkerIsInside(self)) {
+        if (strcmp(order, "stop") && strcmp(order, "holdposition")) return false;
+        if (!unit_defer_goldmine_order(self, order, UNIT_ORDER_TARGET_NONE,
+                                      NULL, NULL, false, self->s.player, 0.0f)) return false;
+        G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return true;
+    }
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
