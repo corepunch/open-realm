@@ -232,7 +232,7 @@ void FS_RegisterArchiveMapSource(cstring_t archive, cstring_t manifest,
     strlcpy(source->archive_prefix, normalized_archive, sizeof(source->archive_prefix));
 }
 
-static handle_t FS_FindMapSourceArchive(cstring_t archive_name) {
+static handle_t FS_FindMountedArchive(cstring_t archive_name) {
     if (!archive_name || !*archive_name) return NULL;
     for (int i = MAX_ARCHIVES - 1; i >= 0; i--) {
         if (archives[i] && !strcasecmp(FS_BaseName(archiveNames[i]), archive_name)) return archives[i];
@@ -251,14 +251,14 @@ static bool FS_OpenMapSourceMember(fsMapArchiveSource_t const *source, cstring_t
     prefix_size = strlen(source->virtual_prefix);
     if (!prefix_size || strncasecmp(normalized, source->virtual_prefix, prefix_size) ||
         !normalized[prefix_size]) return false;
-    archive = FS_FindMapSourceArchive(source->archive);
+    archive = FS_FindMountedArchive(source->archive);
     if (!archive || snprintf(member, sizeof(member), "%s%s", source->archive_prefix,
                              normalized + prefix_size) >= (int)sizeof(member)) return false;
     return SFileOpenFileEx(archive, member, SFILE_OPEN_FROM_MPQ, out_file);
 }
 
 static void FS_ListArchiveMapSource(fsMapArchiveSource_t const *source, PATHSTR *maps, uint32_t *count) {
-    handle_t archive = source ? FS_FindMapSourceArchive(source->archive) : NULL;
+    handle_t archive = source ? FS_FindMountedArchive(source->archive) : NULL;
     handle_t file = NULL;
     uint32_t size, bytes_read = 0;
     char *contents;
@@ -948,6 +948,16 @@ bool FS_AddDataDirectory(cstring_t dirname) {
     return true;
 }
 
+static bool FS_IsFontPath(cstring_t filename) {
+    filename += strspn(filename, "/\\");
+    return !strncasecmp(filename, "Fonts", 5) &&
+           (filename[5] == '\\' || filename[5] == '/');
+}
+
+static bool FS_IsLocalizedExpansionArchive(cstring_t archive) {
+    return !strcasecmp(FS_BaseName(archive), "War3xLocal.mpq");
+}
+
 /* Optional expansion archive families remain mounted so front ends can switch
  * editions without closing archives underneath live renderer/UI resources. */
 /* War3Local from patched installs can carry TFT race AI; ROC must use the matching scripts from War3.mpq. */
@@ -960,14 +970,11 @@ bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename) {
     base = FS_BaseName(archive);
     if (!Cvar_Integer("fs_expansion", 0)) {
         expansion_prefix = Cvar_String("fs_expansion_archive_prefix", "");
-        /* Fonts are localization, not expansion content: 1.29 ships the font with the Latin Extended
-         * glyphs (Polish, Czech, ...) only in War3xLocal, and RoC text needs it as much as TFT text. */
-        if (!strncasecmp(filename, "Fonts", 5) && (filename[5] == '\\' || filename[5] == '/')) {
-            return true;
-        }
         if (expansion_prefix && *expansion_prefix &&
-            !strncasecmp(base, expansion_prefix, strlen(expansion_prefix)))
-            return false;
+            !strncasecmp(base, expansion_prefix, strlen(expansion_prefix))) {
+            /* Polish 1.29 RoC needs the localized font shipped in War3xLocal. */
+            return FS_IsLocalizedExpansionArchive(archive) && FS_IsFontPath(filename);
+        }
     } else {
         return true;
     }
@@ -1133,6 +1140,16 @@ handle_t FS_OpenFile(cstring_t fileName) {
         if (!FS_ArchiveFileVisible(archiveNames[i], fileName))
             continue;
         if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
+            if (FS_IsFontPath(fileName) && FS_IsLocalizedExpansionArchive(archiveNames[i]) &&
+                !Cvar_Integer("fs_expansion", 0)) {
+                /* Keep patched fonts ahead of the RoC localization exception. */
+                handle_t patch = FS_FindMountedArchive("War3Patch.mpq");
+                handle_t patchedFont;
+                if (patch && SFileOpenFileEx(patch, fileName, SFILE_OPEN_FROM_MPQ, &patchedFont)) {
+                    SFileCloseFile(file);
+                    return patchedFont;
+                }
+            }
             return file;
         }
     }
