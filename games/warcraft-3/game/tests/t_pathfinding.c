@@ -759,6 +759,117 @@ TEST(wc3_pathfinding, synchronous_path_distance_follows_static_detours_and_repor
     T_FEQ(CM_PathDistanceForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNWALKABLE), 0.0f, 0.001f);
 }
 
+/* A route must retain several legal corners rather than a single smoothed
+ * waypoint. Obstacles make two opposite passages necessary. */
+TEST(wc3_pathfinding, bounded_route_retains_s_corridor_turns) {
+    enum { W = 14, H = 13 };
+    uint8_t cells[W * H] = { 0 };
+    vec2_t from = { 2.5f, 2.5f }, target = { 11.5f, 9.5f };
+    vec2_t route[16], repeat[16], previous;
+    cmRoutePath_t result, again;
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+
+    for (int y = 0; y < 9; y++) cells[y * W + 4] = CM_PATHING_UNWALKABLE;
+    for (int y = 3; y < H; y++) cells[y * W + 8] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(W, H, cells);
+    T_ASSERT(!CM_LineIsWalkableForRadius(&from, &target, 0.0f));
+    T_ASSERT(CM_FindBoundedPath(&params, route, 16, &result));
+    T_EQ(result.status, CM_ROUTE_COMPLETE);
+    T_ASSERT(result.count >= 3);
+    T_ASSERT(result.count <= 16);
+    previous = from;
+    for (uint32_t i = 0; i < result.count; i++) {
+        T_ASSERT(CM_LineIsPathableForRadiusFlags(&previous, &route[i], 0.0f, CM_PATHING_UNWALKABLE));
+        previous = route[i];
+    }
+    T_FEQ(Vector2_distance(&previous, &target), 0.0f, 0.001f);
+
+    T_ASSERT(CM_FindBoundedPath(&params, repeat, 16, &again));
+    T_EQ(again.status, result.status);
+    T_EQ(again.count, result.count);
+    for (uint32_t i = 0; i < result.count; i++) {
+        T_FEQ(repeat[i].x, route[i].x, 0.001f);
+        T_FEQ(repeat[i].y, route[i].y, 0.001f);
+    }
+}
+
+TEST(wc3_pathfinding, bounded_route_rejects_diagonal_corner_cutting) {
+    uint8_t cells[] = { 0, CM_PATHING_UNWALKABLE,
+                        CM_PATHING_UNWALKABLE, 0 };
+    vec2_t from = { 0.5f, 0.5f }, target = { 1.5f, 1.5f }, points[4];
+    cmRoutePath_t route;
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+
+    setup_test_pathmap(2, 2, cells);
+    T_ASSERT(!CM_LineIsWalkableForRadius(&from, &target, 0.0f));
+    T_ASSERT(!CM_FindBoundedPath(&params, points, 4, &route));
+    T_EQ(route.status, CM_ROUTE_NONE);
+    T_EQ(route.count, 0);
+}
+
+TEST(wc3_pathfinding, bounded_route_partial_never_claims_arrival) {
+    enum { W = 72, H = 72 };
+    static uint8_t cells[W * H];
+    vec2_t from = { 5.5f, 35.5f }, target = { 43.5f, 35.5f }, points[16];
+    cmRoutePath_t route;
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+
+    memset(cells, 0, sizeof(cells));
+    for (int y = 0; y < H; y++) cells[y * W + 24] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(W, H, cells);
+    T_ASSERT(CM_FindBoundedPath(&params, points, 16, &route));
+    T_EQ(route.status, CM_ROUTE_PARTIAL);
+    T_ASSERT(route.count > 0);
+    T_ASSERT(route.endpoint.x > from.x);
+    T_ASSERT(route.endpoint.x < 24.0f);
+    T_ASSERT(!CM_FindPathWaypoint(&params, &points[0]));
+}
+
+TEST(wc3_pathfinding, bounded_route_reports_corrected_navigation_goal) {
+    uint8_t cells[MAP_W * MAP_H] = { 0 };
+    vec2_t from = { 2.5f, 5.5f }, target = { 7.5f, 5.5f }, points[8];
+    cmRoutePath_t route;
+    pathAccelParams_t params = { &from, &target, 0.0f, 0 };
+
+    cells[5 * MAP_W + 7] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(MAP_W, MAP_H, cells);
+    T_ASSERT(CM_FindBoundedPath(&params, points, 8, &route));
+    T_EQ(route.status, CM_ROUTE_COMPLETE);
+    T_ASSERT(route.goal_adjusted);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&route.navigation_goal, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(Vector2_distance(&route.navigation_goal, &target) > 0.01f);
+    T_FEQ(Vector2_distance(&route.endpoint, &points[route.count - 1]), 0.0f, 0.001f);
+}
+
+TEST(wc3_pathfinding, bounded_route_capacity_returns_safe_prefix) {
+    enum { W = 14, H = 13 };
+    uint8_t cells[W * H] = { 0 };
+    vec2_t from = { 2.5f, 2.5f }, target = { 11.5f, 9.5f }, points[1];
+    cmRoutePath_t route;
+    pathAccelParams_t params = { &from, &target, 0.0f, 0 };
+
+    for (int y = 0; y < 9; y++) cells[y * W + 4] = CM_PATHING_UNWALKABLE;
+    for (int y = 3; y < H; y++) cells[y * W + 8] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(W, H, cells);
+    T_ASSERT(CM_FindBoundedPath(&params, points, 1, &route));
+    T_EQ(route.status, CM_ROUTE_PARTIAL);
+    T_ASSERT(route.truncated);
+    T_EQ(route.count, 1);
+    T_ASSERT(CM_LineIsWalkableForRadius(&from, &points[0], 0.0f));
+    T_ASSERT(Vector2_distance(&points[0], &target) > 1.0f);
+}
+
+TEST(wc3_pathfinding, path_revision_changes_on_static_invalidation) {
+    uint8_t cells[4] = { 0 };
+    uint32_t before = CM_GetPathRevision();
+
+    setup_test_pathmap(2, 2, cells);
+    uint32_t const loaded = CM_GetPathRevision();
+    T_NE(loaded, before);
+    CM_InvalidatePathCache();
+    T_NE(CM_GetPathRevision(), loaded);
+}
+
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     vec2_t from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
     pathAccelParams_t params = { &from, &target, 0.0f, 0 };
