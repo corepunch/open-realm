@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 11: Patrol and attack-chase order ownership (native 151). */
-static uint32_t const save_version = 11;
+/* Browser version 12: harvest target identity and one-shot Return intent (native 152). */
+static uint32_t const save_version = 12;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -190,7 +190,8 @@ static uint32_t const save_version = 11;
 /* Version 149 retains per-map group Move identity and queued member slots. */
 /* Version 150 adds transient group speed sampling state. */
 /* Version 151 retains bounded Patrol continuation and chase suppression. */
-static uint32_t const save_version = 151;
+/* Version 152 persists harvest target incarnation and one-shot Return intent. */
+static uint32_t const save_version = 152;
 
 #endif
 
@@ -926,6 +927,8 @@ static field_t const order_fields[] = {
     TF(unitOrders_t, cargo_unload_goal, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, cargo_unload_goal_spawn_time, F_INT),
     TF(unitOrders_t, resource_goal, F_EDICT, 0, FIELD_NONE),
+    TF(unitOrders_t, resource_goal_spawn_time, F_INT),
+    TF(unitOrders_t, resource_return_explicit, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -3547,7 +3550,6 @@ TEST(wc3_save, patrol_continuation_and_follow_identity_roundtrip) {
     T_ASSERT(unit->orders->follow_target == ally);
     T_EQ(unit->orders->follow_target_spawn_time, ally->spawn_time);
     T_EQ(unit->orders->queue.count, 1u);
-
     remove(filename);
 }
 

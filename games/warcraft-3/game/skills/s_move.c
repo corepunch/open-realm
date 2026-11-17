@@ -2547,14 +2547,12 @@ static void ai_move_walk(edict_t *ent) {
                 Vector2_distance(&ent->s.origin2, &ent->goalentity->s.origin2) > settle_distance) {
                 if (!G_AnimationHasPrimary(ent->animation, "stand"))
                     unit_setanimation(ent, "stand");
+            } else {
+                /* The point Move owns its legal adjusted raster endpoint. Its
+                 * ability callback/queue, not the routing system, completes it. */
+                if (S_UnitAbilityMoveArrive(ent)) return;
+                ent->stand(ent);
             }
-            else {
-            /* The point Move owns its legal adjusted raster endpoint. Its
-             * ability callback/queue, not the routing system, completes it. */
-            if (S_UnitAbilityMoveArrive(ent)) return;
-            ent->stand(ent);
-            }
-
             return;
         }
 

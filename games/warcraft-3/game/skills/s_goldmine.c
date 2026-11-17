@@ -371,9 +371,12 @@ static void ai_walkmine(edict_t *ent) {
 
 static void goldmine_finish_deposit(edict_t *ent, edict_t *dropoff, int debug) {
     player_t *player;
+    uint32_t const owner_spawn = ent->spawn_time;
+    umove_t const *const return_move = ent->currentmove;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
-    ent->goalentity = ent->orders->resource_goal;
+    if (!ent->inuse || ent->spawn_time != owner_spawn) return;
+    /* Keep resource goal unchanged until the one-shot/queue decision below. */
     player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_GOLD,
@@ -383,13 +386,26 @@ static void goldmine_finish_deposit(edict_t *ent, edict_t *dropoff, int debug) {
         fprintf(stderr,
                 "WC3_GOLD_RETURN deposit worker=%d dropoff=%d resume_mine=%d gold=%u\n",
                 ent->s.number, dropoff->s.number,
-                ent->goalentity ? ent->goalentity->s.number : -1,
+                ent->orders->resource_goal ? ent->orders->resource_goal->s.number : -1,
                 (ent->harvest ? ent->harvest->gold : 0));
+    if (!ent->inuse || ent->spawn_time != owner_spawn) return;
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
+    /* Accepted orders issued by a synchronous event/callback outrank the
+     * resource owner's obsolete post-deposit continuation. */
+    if (ent->currentmove != return_move) return;
+    bool const one_shot = ent->orders->resource_return_explicit;
+    ent->orders->resource_return_explicit = false;
     if (S_HarvestYieldQueuedOrder(ent)) return;
+    if (one_shot) {
+        ent->stand(ent);
+        return;
+    }
+    edict_t *mine = ent->orders->resource_goal;
+    ent->goalentity = S_HarvestRememberedGoalValid(ent, mine) ? mine : NULL;
     if (S_GoldMineCanHarvest(ent->goalentity)) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
-        harvestgold_walk(ent);
+        if (ent->inuse && ent->spawn_time == owner_spawn && ent->currentmove == return_move)
+            harvestgold_walk(ent);
     } else {
         ent->stand(ent);
     }
@@ -613,7 +629,8 @@ void harvest_gold_start(edict_t *self, edict_t *target) {
                 target ? target->s.angle : 0.0f);
     }
     self->goalentity = target;
-    self->orders->resource_goal = target;
+    S_HarvestRememberGoal(self, target);
+    self->orders->resource_return_explicit = false;
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
     harvestgold_walk(self);
 }

@@ -2319,6 +2319,8 @@ typedef struct {
     edict_t *cargo_unload_goal; /* prevents a replacement point order from inheriting unload */
     uint32_t cargo_unload_goal_spawn_time;
     edict_t *resource_goal; /* original mine/tree while returning carried resources */
+    uint32_t resource_goal_spawn_time; /* reject recycled mine/tree edict */
+    bool resource_return_explicit; /* one-shot player Return, not automatic Resume */
     unitOrderQueue_t queue; /* Shift orders retained across travel/attack/work transitions */
     edict_t *item_drop; /* carried item owned by a pending point-drop/give approach */
 } unitOrders_t;
@@ -4170,6 +4172,9 @@ bool G_OrderDefinitionInfo(uint32_t index, uint32_t *id, cstring_t  *name, uint3
 bool G_UnitStartNextQueuedOrder(edict_t *);
 /* A user successor wins over internal gold/lumber auto-return and resume. */
 bool S_HarvestYieldQueuedOrder(edict_t *);
+void S_HarvestRememberGoal(edict_t *, edict_t *);
+bool S_HarvestRememberedGoalValid(edict_t const *, edict_t const *);
+bool S_HarvestIssueReturnResources(edict_t *);
 void G_ClearUnitOrderQueue(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);

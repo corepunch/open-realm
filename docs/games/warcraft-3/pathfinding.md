@@ -523,6 +523,7 @@ checks its spawn incarnation at each resume/tick, and finishes only when the
 followed target becomes invalid, not merely within stop range.
 
 Native save version 151 / browser version 11 records the bounded Patrol continuation and target identity;
+
 temporary chase timing is reset on load. No second task scheduler is added.
 
 ## Candidate dynamic spatial-link optimisation (PF-PERF-08)
