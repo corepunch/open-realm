@@ -1447,6 +1447,80 @@ TEST(wc3_pathfinding, attack_move_requests_collision_sized_route) {
  * CM_BuildHeatmap twice with a unit present returns the same generation.
  * --------------------------------------------------------------------- */
 
+/* PF-PERF-08 candidate: no-op entity relinks do not lose same-tick area
+ * visibility. Genuine movement and removal are still published immediately. */
+static bool spatial_test_contains(edict_t **objects, uint32_t count, edict_t const *target) {
+    FOR_LOOP(i, count) if (objects[i] == target) return true;
+    return false;
+}
+
+TEST(wc3_pathfinding, spatial_link_unchanged_and_reposition_same_tick) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    unit->collision = 16.0f;
+    edict_t *results[32];
+    box2_t old_area = { {96, 96}, {160, 160} };
+    box2_t new_area = { {496, 96}, {560, 160} };
+    gi.LinkEntity(unit);
+    T_ASSERT(spatial_test_contains(results,
+        gi.BoxEdicts(&old_area, results, 32, NULL), unit));
+    gi.LinkEntity(unit); /* same position/radius: safe no-op */
+    T_ASSERT(spatial_test_contains(results,
+        gi.BoxEdicts(&old_area, results, 32, NULL), unit));
+    unit->s.origin2.x = 528.0f;
+    unit->s.origin.x = 528.0f;
+    gi.LinkEntity(unit);
+    T_ASSERT(!spatial_test_contains(results,
+        gi.BoxEdicts(&old_area, results, 32, NULL), unit));
+    T_ASSERT(spatial_test_contains(results,
+        gi.BoxEdicts(&new_area, results, 32, NULL), unit));
+    gi.UnlinkEntity(unit);
+    T_ASSERT(!spatial_test_contains(results,
+        gi.BoxEdicts(&new_area, results, 32, NULL), unit));
+}
+
+TEST(wc3_pathfinding, spatial_overlap_radius_change_and_slot_reuse) {
+    reset_entities();
+    setup_test_world();
+    edict_t *a = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
+    edict_t *b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
+    edict_t *results[32];
+    box2_t overlap = { {248, 248}, {264, 264} };
+    a->collision = b->collision = 16;
+    gi.LinkEntity(a);
+    gi.LinkEntity(b);
+    uint32_t count = gi.BoxEdicts(&overlap, results, 32, NULL);
+    T_ASSERT(spatial_test_contains(results, count, a));
+    T_ASSERT(spatial_test_contains(results, count, b));
+    a->s.origin2.x = 700.0f;
+    a->s.origin.x = 700.0f;
+    gi.LinkEntity(a);
+    count = gi.BoxEdicts(&overlap, results, 32, NULL);
+    T_ASSERT(!spatial_test_contains(results, count, a));
+    T_ASSERT(spatial_test_contains(results, count, b));
+
+    /* Changing collision size at a fixed position must recompute bounds. */
+    b->collision = 3;
+    gi.LinkEntity(b);
+    box2_t edge = { {270, 255}, {278, 257} };
+    T_ASSERT(!spatial_test_contains(results,
+        gi.BoxEdicts(&edge, results, 32, NULL), b));
+    b->collision = 24;
+    gi.LinkEntity(b);
+    T_ASSERT(spatial_test_contains(results,
+        gi.BoxEdicts(&edge, results, 32, NULL), b));
+
+    G_FreeEdict(b);
+    T_ASSERT(!spatial_test_contains(results,
+        gi.BoxEdicts(&overlap, results, 32, NULL), b));
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 600, 500);
+    replacement->collision = 8;
+    gi.LinkEntity(replacement);
+    T_ASSERT(!spatial_test_contains(results,
+        gi.BoxEdicts(&overlap, results, 32, NULL), replacement));
+}
+
 TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

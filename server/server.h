@@ -218,6 +218,14 @@ void SV_LobbyBroadcastChatFrom(uint32_t sender_client, cstring_t sender, cstring
 void SV_HandleUnitUIRequest(client_t *client, sizeBuf_t *msg);
 
 // sv_world.c
+/* Opt-in BZ_PROFILE_SPATIAL counters for event-driven spatial maintenance.
+ * Without the compile flag the returned counters remain zero. */
+typedef struct {
+    uint64_t link_calls, unchanged_links, rebuilt_links;
+    uint64_t area_queries, area_candidates;
+} svSpatialProfile_t;
+void SV_ResetSpatialProfile(void);
+svSpatialProfile_t SV_GetSpatialProfile(void);
 void SV_LinkEntity(edict_t *ent);
 void SV_UnlinkEntity(edict_t *ent);
 uint32_t SV_AreaEdicts(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
