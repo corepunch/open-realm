@@ -1376,6 +1376,118 @@ TEST(wc3_movement, retained_route_advances_only_at_reached_turn) {
     T_ASSERT(Vector2_distance(&unit->movement->path.waypoint, &first) > 1.0f);
 }
 
+/* PF-06: a fast unit must not skip a retained turn simply because its
+ * maximum frame distance is longer than the remaining waypoint segment. */
+TEST(wc3_movement, retained_route_step_stops_at_current_turn) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {400.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    G_BeginMovement(unit);
+    unit->unitinfo.MoveSpeed = 3000.0f;
+    unit->s.angle = 0.0f;
+    unit->movement->heading = 0.0f;
+    unit->movement->flow_direct = false;
+    unit->movement->path.valid = true;
+    unit->movement->path.waypoint = (vec2_t){8.0f, 0.0f};
+    unit->movement->local_route.valid = true;
+    unit->movement->local_route.count = 2;
+    unit->movement->local_route.cursor = 0;
+    unit->movement->local_route.points[0] = (vec2_t){8.0f, 0.0f};
+    unit->movement->local_route.points[1] = dest;
+    T_ASSERT(unit_movedistance(unit) > 8.0f);
+
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, 8.0f, 0.01f);
+    T_FEQ(unit->s.origin2.y, 0.0f, 0.01f);
+    T_EQ(unit->movement->local_route.cursor, 0); /* advanced on next routing tick, not facing */
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+}
+
+TEST(wc3_movement, corrected_approach_step_does_not_overshoot) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {400.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit->unitinfo.MoveSpeed = 3000.0f;
+    unit->s.angle = unit->movement->heading = 0.0f;
+    unit->movement->flow_direct = true;
+    unit->movement->flow_fallback_state = MOVE_FALLBACK_APPLIED;
+    unit->movement->flow_fallback_approach = (vec2_t){7.0f, 0.0f};
+
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, 7.0f, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+}
+
+TEST(wc3_movement, near_goal_snap_respects_propwindow) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {8.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit->unitinfo.PropWindow = DEG2RAD(10.0f);
+    unit->unitinfo.MoveSpeed = 3000.0f;
+    unit->s.angle = 3.14159265f; /* face away from the goal */
+    T_ASSERT(unit_movedistance(unit) > 8.0f);
+    T_NOT_NULL(unit->currentmove->think);
+    unit->currentmove->think(unit);
+    T_FEQ(unit->s.origin2.x, 0.0f, 0.01f);
+    T_FEQ(unit->s.origin2.y, 0.0f, 0.01f);
+    T_NOT_NULL(unit->movement); /* the command was not completed through the turn gate */
+}
+
+TEST(wc3_movement, pending_route_does_not_keep_walk_pose) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {400.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit_setanimation(unit, "walk");
+    unit->movement->flow_direct = false;
+    unit->movement->flow_generation = 0;
+    unit->movement->path.valid = false;
+    unit->movement->route_resume_active = false;
+    unit_moveindirection(unit);
+    T_STREQ(unit->animation_request, "stand");
+    T_FEQ(unit->s.origin2.x, 0.0f, 0.01f);
+}
+
+TEST(wc3_movement, pending_field_with_no_heading_cannot_move) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {400.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit_setanimation(unit, "walk");
+    unit->movement->flow_direct = false;
+    unit->movement->flow_generation = 1234; /* cache handle, no usable heading */
+    unit->movement->path.valid = false;
+    unit->movement->route_resume_active = false;
+    unit->movement->nav_state = MOVE_NAV_WAITING;
+    unit->s.angle = unit->movement->heading = 0.0f;
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, 0.0f, 0.01f);
+    T_STREQ(unit->animation_request, "stand");
+}
+
+TEST(wc3_movement, current_speed_changes_next_committed_step) {
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    vec2_t const dest = {400.0f, 0.0f};
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit->unitinfo.MoveSpeed = 200.0f;
+    unit_changeangle_towards_point(unit, &dest);
+    float const first_step = unit_movedistance(unit);
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, first_step, 0.01f);
+
+    /* Simulates a live slow and then its expiry. No cached velocity or
+     * route-start speed may leak into the next accepted translation. */
+    unit->unitinfo.MoveSpeed = 60.0f;
+    unit_changeangle_towards_point(unit, &dest);
+    float const slowed_step = unit_movedistance(unit);
+    unit_moveindirection(unit);
+    T_ASSERT(slowed_step < first_step);
+    T_FEQ(unit->s.origin2.x, first_step + slowed_step, 0.01f);
+
+    unit->unitinfo.MoveSpeed = 200.0f;
+    unit_changeangle_towards_point(unit, &dest);
+    unit_moveindirection(unit);
+    T_FEQ(unit->s.origin2.x, 2.0f * first_step + slowed_step, 0.01f);
+}
+
 TEST(wc3_movement, retained_route_survives_flow_completion) {
     uint8_t cells[64 * 64] = {0};
     vec2_t dest;
@@ -4624,6 +4736,38 @@ TEST(wc3_movement, group_speed_refreshes_for_modifiers_and_leavers) {
 }
 
 /* A lone unit keeps its own speed (no group cap). */
+TEST(wc3_movement, group_speed_changes_without_waiting_for_refresh_window) {
+    reset_entities();
+    setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *fast = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    edict_t *slow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 64);
+    edict_t *members[] = { fast, slow };
+    FOR_LOOP(i, 2) {
+        members[i]->collision = 16.0f;
+        members[i]->selected = 1 << clent->client->ps.number;
+        members[i]->stand = unit_stand;
+        unit_stand(members[i]);
+    }
+    fast->unitinfo.MoveSpeed = 300.0f;
+    slow->unitinfo.MoveSpeed = 150.0f;
+    vec2_t dest = {480, 64};
+    clent->client->menu.order_queued = false;
+    T_ASSERT(move_selectlocation(clent, &dest));
+    T_FEQ(unit_movedistance(fast), 10.0f * 150.0f / FRAMETIME, 0.01f);
+    uint32_t const sampled_at = fast->movement->group_speed_checked_at;
+
+    slow->unitinfo.MoveSpeed = 80.0f;
+    T_FEQ(unit_movedistance(slow), 10.0f * 80.0f / FRAMETIME, 0.01f);
+    T_FEQ(unit_movedistance(fast), 10.0f * 80.0f / FRAMETIME, 0.01f);
+    T_EQ(fast->movement->group_speed_checked_at, sampled_at); /* same simulation tick */
+
+    slow->unitinfo.MoveSpeed = 200.0f; /* slow expired before the 100 ms refresh */
+    T_FEQ(unit_movedistance(slow), 10.0f * 200.0f / FRAMETIME, 0.01f);
+    T_FEQ(unit_movedistance(fast), 10.0f * 200.0f / FRAMETIME, 0.01f);
+}
+
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;

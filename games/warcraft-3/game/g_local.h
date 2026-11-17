@@ -2251,6 +2251,7 @@ typedef struct {
     float group_speed;  // dynamic slowest-active-member cap (0 = no cap)
     uint32_t group_move_id; /* zero for non-formation orders; persists across save */
     vec2_t group_goal; /* source click, distinct from this member's waypoint */
+    float group_last_effective_speed; /* transient speed-change detector */
     uint32_t group_speed_checked_at; /* transient refresh throttle */
     bool group_speed_checked; /* transient refresh throttle validity */
     float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
