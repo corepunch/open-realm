@@ -80,6 +80,10 @@ void reset_entities(void) {
     FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
     G_PoolsReset();
     memset(g_edicts, 0, sizeof(edict_t) * cap);
+    /* Waypoints occupy a fixed edict ring. Reset its identity whenever the
+     * fixture wipes the edict array so the next Waypoint_add reserves live
+     * slots instead of reusing zeroed, non-inuse records. */
+    memset(&level.waypoints, 0, sizeof(level.waypoints));
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
