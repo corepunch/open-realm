@@ -577,6 +577,9 @@ void harvestgold_walkback(edict_t *ent) {
     }
 
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, (ent->harvest ? ent->harvest->gold : 0) + amount);
+    /* A player's deferred mine-time command wins over this automatic return.
+     * Activate only after membership, hidden state and extraction settle. */
+    if (G_UnitQueuedOrderCount(ent) && G_UnitStartNextQueuedOrder(ent)) return;
     edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
     if (dropoff) {
         if (goldmine_path_debug_level() >= 1)
