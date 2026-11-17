@@ -10,6 +10,30 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 `games/warcraft-3/game/skills/s_move.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
+### Research inspiration
+
+The following commits were inspired by WC3 pathfinding research by [lofcz](https://github.com/lofcz) in [`lofcz/open-realm`](https://github.com/lofcz/open-realm/tree/wc3-pathfinding). They adapt that research to OpenRealm's routing APIs, WC3 movement lifecycle, and save/load contracts.
+
+| Commit | Commit message |
+|---|---|
+| `a87b32429272` | routing: expose bounded multi-waypoint path results |
+| `8b54d29ed248` | wc3: retain multi-turn routes across movement ticks |
+| `d60bfb626b62` | wc3: preserve order goals and distinguish navigation completion |
+| `b9aeeeaf2427` | wc3: publish static footprint changes to routing |
+| `fbb120791af6` | wc3: recover movement around stationary unit blockers |
+| `1b555fd80eac` | wc3: preserve group move slots and refresh formation speed |
+| `b58d5d96bb9c` | wc3: stabilize route steering and movement save recovery |
+| `415d478a4613` | wc3: preserve patrol and combat move order continuity |
+| `baa006e6340c` | server: skip unchanged spatial relinks and expose profiling counters |
+| `9b787bf058de` | wc3: defer admitted gold-mine orders until worker exit |
+| `6a4fe065ea8b` | wc3: prioritize queued worker orders at resource handoffs |
+| `f33e9b0b2307` | wc3: make resource return one-shot and guard harvest resume state |
+| `2784007a2eb0` | wc3: restore construction-aware move arrival check |
+| `58aa338d045e` | wc3: align movement regressions with retained routes |
+| `29b6da539b04` | tests: align movement assertions with routed destinations |
+| `86ff458e3842` | tests: reset waypoint ring with synthetic edicts |
+| `48a4a1763cf9` | docs(wc3): credit pathfinding research inspiration |
+
 Ground Move, Patrol, Attack-move location orders, and Attack chases use collision-size-aware static routing through direct-line checks, waypoint acceleration, and flow generation. Attack still owns its interaction range independently: reaching a collision-safe route endpoint does not complete the attack. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
 Normal movement uses the live `unitinfo.PropWindow`, initialized from `UnitData.propWin` / object field `uprw` and mutable through `SetUnitPropWindow`. The authored value is a propulsion window in degrees: steering may continue turning toward the avoidance-resolved heading every simulation tick, but `unit_moveindirection()` does not translate until the remaining facing error is strictly inside that window. This is shared movement behavior, so Attack chase, Follow, Patrol, Harvest, Repair, Way Gate approach, and ordinary Move inherit the same turn-before-propulsion rule rather than implementing Attack-specific steering. A zero runtime value prevents translation until facing exactly matches the resolved heading, so it can be used to hold movement while retaining turning.
