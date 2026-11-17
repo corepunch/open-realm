@@ -7960,7 +7960,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL, *target = NULL;
     event_t *rangeEvent = NULL;
-    bool queuedRangeCrossing = false;
+    bool queuedRangeCrossing = false, crossedRange = false;
     vec2_t destination = { 200.0f, 0.0f };
 
     G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
@@ -8006,9 +8006,18 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     target->unitinfo.MoveSpeed = 1000.0f;
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
-    G_RunEntities();
+    /* PropWindow can spend several simulation ticks turning before the unit
+     * crosses the range boundary. Advance the real entity path until it does. */
+    FOR_LOOP(frame, 100) {
+        float const before = Vector2_distance(&subject->s.origin2, &target->s.origin2);
+        G_RunEntities();
+        if (before > rangeEvent->range &&
+            Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range)
+            crossedRange = true;
+        if (crossedRange) break;
+    }
     T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0);
-    T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
+    T_ASSERT(crossedRange);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     T_ASSERT(level.events.write > level.events.read);
