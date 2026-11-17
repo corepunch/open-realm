@@ -4965,6 +4965,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->s.origin.y = 128.0f;
     first->owner = second;
     first->orders->follow_target = second;
+    first->orders->follow_target_spawn_time = second->spawn_time;
     first->orders->explicit_allied_attack = true;
     G_InitInventory(first);
     first->inventory->slots[2] = second;
@@ -5168,6 +5169,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.camera_bounds.max.y, 50.0f, 0.001f);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].orders->follow_target == &g_edicts[second - g_edicts]);
+    T_EQ(g_edicts[first - g_edicts].orders->follow_target_spawn_time,
+         g_edicts[second - g_edicts].spawn_time);
     T_ASSERT(g_edicts[first - g_edicts].orders->explicit_allied_attack);
     T_ASSERT(G_InventoryItem(&g_edicts[first - g_edicts], 2) == &g_edicts[second - g_edicts]);
     T_ASSERT(G_GetCargo(&g_edicts[first - g_edicts])->units[3] == &g_edicts[second - g_edicts]);
@@ -6207,6 +6210,12 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit->movement->path_wait_goal_spawn = goal->spawn_time;
     unit->movement->path_wait_origin = unit->s.origin2;
     unit->movement->route_resume_revision = CM_GetPathRevision();
+    unit->movement->flow_fallback_goal = goal;
+    unit->movement->flow_fallback_goal_spawn = goal->spawn_time;
+    unit->movement->flow_fallback_revision = CM_GetPathRevision();
+    unit->movement->flow_fallback_target = goal->s.origin2;
+    unit->movement->flow_fallback_state = MOVE_FALLBACK_APPLIED;
+    unit->movement->nav_state = MOVE_NAV_PARTIAL;
     unit->movement->local_route.valid = true;
     unit->movement->local_route.goal = goal;
     unit->movement->local_route.count = 2;
@@ -6222,6 +6231,9 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     T_ASSERT(!unit->movement->route_resume_valid);
     T_EQ(unit->movement->route_resume_revision, 0);
     T_ASSERT(!unit->movement->local_route.valid);
+    T_NULL(unit->movement->flow_fallback_goal);
+    T_EQ(unit->movement->flow_fallback_state, MOVE_FALLBACK_NONE);
+    T_EQ(unit->movement->nav_state, MOVE_NAV_NONE);
     T_NULL(unit->movement->local_route.goal);
     T_ASSERT(!unit->movement->path.valid);
     T_ASSERT(!unit->movement->route_resume_active);

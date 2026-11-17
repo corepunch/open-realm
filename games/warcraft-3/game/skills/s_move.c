@@ -177,7 +177,11 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
  * the same goal remains unreachable; order changes clear this state below. */
 static bool move_fallback_throttled(edict_t *self, vec2_t const *target, float radius) {
     if (self->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED &&
-        self->movement->flow_fallback_goal == self->goalentity) {
+        self->movement->flow_fallback_goal == self->goalentity &&
+        self->movement->flow_fallback_goal_spawn ==
+            (self->goalentity ? self->goalentity->spawn_time : 0) &&
+        self->movement->flow_fallback_revision == CM_GetPathRevision() &&
+        Vector2_distance(&self->movement->flow_fallback_target, target) < 0.01f) {
         self->movement->flow_unreachable = true;
         return true;
     }
@@ -187,22 +191,15 @@ static bool move_fallback_throttled(edict_t *self, vec2_t const *target, float r
         fabsf(self->movement->flow_fallback_target.x - target->x) >= 0.01f ||
         fabsf(self->movement->flow_fallback_target.y - target->y) >= 0.01f ||
         fabsf(self->movement->flow_fallback_radius - radius) >= 0.01f ||
+        self->movement->flow_fallback_goal_spawn !=
+            (self->goalentity ? self->goalentity->spawn_time : 0) ||
+        self->movement->flow_fallback_revision != CM_GetPathRevision() ||
         (uint32_t)(level.time - self->movement->flow_fallback_time) >= BZ_MOVE_FALLBACK_RETRY_MS) {
         self->movement->flow_fallback_state = MOVE_FALLBACK_NONE;
         return false;
     }
     self->movement->flow_unreachable = true;
     return true;
-}
-
-static bool move_has_active_construction(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *ent = &g_edicts[i];
-        if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            G_UnitIsStructure(ent) && G_GetConstruction(ent))
-            return true;
-    }
-    return false;
 }
 
 /* Wrap an angle delta into [-PI, PI]. */
@@ -710,6 +707,8 @@ static void unit_moveindirection_policy(edict_t *self,
     vec2_t const origin = self->s.origin2;
     vec2_t const progress_goal = self->orders->wisp_egress_active && self->orders->wisp_egress_target_valid ?
         self->orders->wisp_egress_target : self->movement->displacement_active ? self->movement->displacement_target :
+        self->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED ?
+            self->movement->flow_fallback_approach :
         self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
     vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &facing_dir);
@@ -1064,6 +1063,8 @@ static bool move_local_route_direction(edict_t *self, vec2_t const *target,
     self->movement->path.target = *target;
     self->movement->path.radius = radius;
     self->movement->path.valid = true;
+    self->movement->nav_state = route->status == CM_ROUTE_PARTIAL ?
+        MOVE_NAV_PARTIAL : MOVE_NAV_MOVING;
     *dir = Vector2_sub(&route->points[route->cursor], &self->s.origin2);
     return Vector2_len(dir) > 0.001f;
 }
@@ -1095,6 +1096,8 @@ static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
     route->count = (uint8_t)result.count;
     route->cursor = 0;
     route->status = result.status; /* PARTIAL is movement progress, never arrival */
+    self->movement->nav_state = result.status == CM_ROUTE_PARTIAL ?
+        MOVE_NAV_PARTIAL : MOVE_NAV_MOVING;
     route->valid = true;
     return move_local_route_direction(self, target, radius, flags, dir);
 }
@@ -1194,6 +1197,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     self->movement->flow_goal_reached = false;
     self->movement->flow_unreachable = false;
     self->movement->flow_direct = false;
+    self->movement->nav_state = MOVE_NAV_WAITING;
 
     /* Interaction range remains owned by the behavior. Routing can use a
      * collision-sized approach field without completing an attack at that
@@ -1202,6 +1206,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
         move_local_route_clear(self);
         self->movement->flow_direct = true;
+        self->movement->nav_state = MOVE_NAV_MOVING;
         dir = to_goal;
     } else {
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
@@ -1232,16 +1237,20 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
              * they steer toward the real entity target so the behavior's
              * range check can complete. */
             self->movement->flow_goal_reached = true;
+            /* The flow destination is a navigation result, not an ability
+             * arrival. A point order may settle here; interactions decide
+             * completion using their own authored range. */
+            self->movement->nav_state = MOVE_NAV_APPROACH_REACHED;
             dir = to_goal;
         } else {
             dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
             if (Vector2_len(&dir) <= 0.001f) {
                 self->movement->flow_unreachable = !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
-                /* Location targets are private waypoints.  When the clicked static
-                 * component is unreachable, replace the waypoint with the
-                 * closest legal point in this mover's component; aiming at the
-                 * raw click made local avoidance walk forever along walls.
-                 * Entity goals steer to that approach point instead. */
+                self->movement->nav_state = self->movement->flow_unreachable ?
+                    MOVE_NAV_BLOCKED_RETRY : MOVE_NAV_WAITING;
+                /* Keep the authoritative waypoint/entity at its authored
+                 * position. A disconnected component needs a temporary legal
+                 * approach stored only in this mover's navigation state. */
                 if (radius > 0.0f && self->movement->flow_unreachable) {
                     vec2_t const *from = &self->s.origin2, *target = &self->goalentity->s.origin2;
                     vec2_t closest;
@@ -1251,6 +1260,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                     self->movement->flow_fallback_radius = radius;
                     self->movement->flow_fallback_time = level.time;
                     self->movement->flow_fallback_goal = self->goalentity;
+                    self->movement->flow_fallback_goal_spawn = self->goalentity->spawn_time;
+                    self->movement->flow_fallback_revision = CM_GetPathRevision();
                     self->movement->flow_fallback_state = MOVE_FALLBACK_RETRY;
                     if (CM_ClosestReachablePointForRadiusFlags(from, target, radius, blocked_flags, &closest)) {
                         if (self->goalentity->route) {
@@ -1262,18 +1273,12 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                         self->movement->flow_fallback_approach = closest;
                         self->movement->flow_fallback_radius = radius;
                         self->movement->flow_fallback_goal = self->goalentity;
-                        /* Point orders own a private waypoint (cf. Q2 movetarget);
-                         * entity goals are shared gameplay objects and must never be moved. */
-                        bool const owns_goal = unit_routes_to_location(self) && !move_has_active_construction();
-                        if (owns_goal) {
-                            self->goalentity->s.origin2 = closest;
-                            if (self->goalentity->route) self->goalentity->route->shared_goal = NULL;
-                        } else if (Vector2_distance(&closest, target) > 1.0f) {
-                            dir = Vector2_sub(&closest, &self->s.origin2);
-                            self->movement->flow_direct = true;
-                            unit_apply_heading(self, &dir, policy);
-                        }
+                        self->movement->flow_fallback_goal_spawn = self->goalentity->spawn_time;
+                        self->movement->flow_fallback_revision = CM_GetPathRevision();
+                        /* Never rewrite the point waypoint or the shared entity
+                         * target: closest is a temporary route endpoint only. */
                         self->movement->flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                        self->movement->nav_state = MOVE_NAV_BLOCKED_RETRY;
                     }
                     return;
                 }
@@ -1501,14 +1506,47 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     if (!self || self->movement->flow_fallback_state != MOVE_FALLBACK_APPLIED ||
         self->movement->flow_fallback_goal != self->goalentity)
         return false;
+    self->movement->flow_generation = 0;
+    self->movement->flow_direct = false;
+    self->movement->route_resume_active = false;
+    if (!self->goalentity ||
+        self->movement->flow_fallback_goal_spawn != self->goalentity->spawn_time ||
+        self->movement->flow_fallback_revision != CM_GetPathRevision() ||
+        Vector2_distance(&self->movement->flow_fallback_target,
+                         &self->goalentity->s.origin2) >= 0.01f) {
+        self->movement->flow_fallback_state = MOVE_FALLBACK_NONE;
+        move_local_route_clear(self);
+        return false;
+    }
     if (Vector2_distance(&self->s.origin2, &self->movement->flow_fallback_approach) <=
-        unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE) {
+        unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE &&
+        CM_LineIsPathableForRadiusFlags(&self->s.origin2,
+            &self->movement->flow_fallback_approach, self->collision,
+            M_UnitStaticPathingFlags(self))) {
+        /* Only an ordinary point Move may settle at this endpoint. Follow,
+         * Attack, Harvest and Repair must consult their own target/range. */
+        if (unit_is_walking(self) && !self->orders->follow_target) {
+            self->movement->nav_state = MOVE_NAV_APPROACH_REACHED;
+            return true;
+        }
         self->movement->flow_fallback_state = MOVE_FALLBACK_NONE;
         self->movement->flow_fallback_goal = NULL;
         return false;
     }
-    dir = Vector2_sub(&self->movement->flow_fallback_approach, &self->s.origin2);
-    self->movement->flow_direct = true;
+    /* Route towards the legal approach, not through the blocked original goal.
+     * Failed/partial accelerator searches leave the owning order pending. */
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2,
+            &self->movement->flow_fallback_approach, self->collision,
+            M_UnitStaticPathingFlags(self))) {
+        move_local_route_clear(self);
+        dir = Vector2_sub(&self->movement->flow_fallback_approach, &self->s.origin2);
+        self->movement->flow_direct = true;
+        self->movement->nav_state = MOVE_NAV_MOVING;
+    } else if (!unit_accel_direction_to_point(self, &self->movement->flow_fallback_approach,
+                                               self->collision, &dir)) {
+        self->movement->nav_state = MOVE_NAV_WAITING;
+        return true;
+    }
     unit_apply_heading(self, &dir, policy);
     return true;
 }
@@ -1723,6 +1761,8 @@ void move_reset_progress(edict_t *self) {
     self->movement->flow_goal_reached = false;
     self->movement->flow_unreachable = false;
     self->movement->flow_direct = false;
+    self->movement->nav_state = MOVE_NAV_NONE;
+    self->movement->active_move_goal_spawn = 0;
     self->movement->flow_fallback_goal = NULL;
     self->movement->flow_fallback_state = MOVE_FALLBACK_NONE;
     self->movement->worker_avoid_origin = self->s.origin2;
@@ -1807,26 +1847,26 @@ float move_settle_distance(edict_t *ent) {
 
 bool move_should_arrive(edict_t *ent, float move_distance) {
     vec2_t to_goal = Vector2_sub(&ent->goalentity->s.origin2, &ent->s.origin2);
-    float distance = Vector2_len(&to_goal);
+    float const distance = Vector2_len(&to_goal);
+    bool near = distance <= move_distance;
 
-    if (distance <= move_distance) {
-        return true;
+    if (!near) {
+        /* A near-forward endpoint may be reached without a final turn, but
+         * an arbitrary point behind the unit may not be snapped to. */
+        vec2_t const direction = { cosf(ent->s.angle), sinf(ent->s.angle) };
+        float const projected = Vector2_dot(&to_goal, &direction);
+        float const lateral = fabsf(to_goal.x * direction.y - to_goal.y * direction.x);
+        near = projected >= 0.0f && projected <= move_distance + MOVE_ARRIVE_TOLERANCE &&
+               lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
     }
+    if (!near) return false;
 
-    /*
-     * If the goal lies within this frame's movement corridor, snap to it
-     * rather than letting the unit wobble around the destination.  This keeps
-     * short path segments and near-goal collision nudges from producing a
-     * visible back-and-forth at the endpoint.
-     */
-    vec2_t direction = { cosf(ent->s.angle), sinf(ent->s.angle) };
-    float projected = Vector2_dot(&to_goal, &direction);
-    if (projected < 0 || projected > move_distance + MOVE_ARRIVE_TOLERANCE) {
-        return false;
-    }
-
-    float lateral = fabsf(to_goal.x * direction.y - to_goal.y * direction.x);
-    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
+    /* Near in Euclidean distance is not necessarily reachable: the final
+     * segment must obey the same footprint-aware static legality as routing. */
+    return G_UnitHasFlag(ent, UNIT_FLAG_NO_PATHING) ||
+        CM_LineIsPathableForRadiusFlags(&ent->s.origin2,
+            &ent->goalentity->s.origin2, ent->collision,
+            M_UnitStaticPathingFlags(ent));
 }
 
 bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
@@ -1960,8 +2000,10 @@ static void ai_follow_walk(edict_t *ent) {
     float follow_range;
     bool standing;
 
-    if (!follow_target_is_valid(ent, target)) {
+    if (!follow_target_is_valid(ent, target) ||
+        ent->orders->follow_target_spawn_time != (target ? target->spawn_time : 0)) {
         ent->orders->follow_target = NULL;
+        ent->orders->follow_target_spawn_time = 0;
         if (ent->goalentity == target) ent->goalentity = NULL;
         unit_stand(ent);
         return;
@@ -2004,8 +2046,10 @@ void order_follow_resume(edict_t *self) {
         return;
     }
     target = self->orders->follow_target;
-    if (!follow_target_is_valid(self, target)) {
+    if (!follow_target_is_valid(self, target) ||
+        self->orders->follow_target_spawn_time != (target ? target->spawn_time : 0)) {
         self->orders->follow_target = NULL;
+        self->orders->follow_target_spawn_time = 0;
         if (self->goalentity == target) self->goalentity = NULL;
         unit_stand(self);
         return;
@@ -2027,6 +2071,7 @@ void order_follow(edict_t *self, edict_t *target) {
     self->orders->patrol_b = NULL;
     self->orders->patrol_target = NULL;
     self->orders->follow_target = target;
+    self->orders->follow_target_spawn_time = target->spawn_time;
     self->orders->holding_position = false;
     order_follow_resume(self);
 }
@@ -2063,6 +2108,13 @@ static void move_hold(edict_t *ent) {
 }
 
 static void ai_move_walk(edict_t *ent) {
+    /* Move's destination may be a private waypoint or an interaction entity.
+     * Reused edict slots must not silently become this order's destination. */
+    if (!ent->goalentity || !ent->goalentity->inuse || !ent->movement ||
+        ent->movement->active_move_goal_spawn != ent->goalentity->spawn_time) {
+        ent->stand(ent); /* includes FIFO handoff */
+        return;
+    }
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
@@ -2078,6 +2130,26 @@ static void ai_move_walk(edict_t *ent) {
     if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
+        return;
+    }
+
+    if (ent->movement && ent->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED &&
+        ent->movement->flow_fallback_goal == ent->goalentity &&
+        ent->movement->flow_fallback_goal_spawn == ent->goalentity->spawn_time &&
+        ent->movement->flow_fallback_revision == CM_GetPathRevision() &&
+        Vector2_distance(&ent->movement->flow_fallback_target,
+                         &ent->goalentity->s.origin2) < 0.01f &&
+        Vector2_distance(&ent->s.origin2, &ent->movement->flow_fallback_approach) <=
+            move_distance + MOVE_ARRIVE_TOLERANCE &&
+        CM_LineIsPathableForRadiusFlags(&ent->s.origin2,
+            &ent->movement->flow_fallback_approach, ent->collision,
+            M_UnitStaticPathingFlags(ent))) {
+        /* Point movement accepts the best reachable endpoint. No shared
+         * target or public clicked waypoint is moved to that endpoint. */
+        if (M_MoveIsValid(ent, &ent->movement->flow_fallback_approach))
+            unit_commit_step(ent, &ent->movement->flow_fallback_approach);
+        if (S_UnitAbilityMoveArrive(ent)) return;
+        ent->stand(ent);
         return;
     }
 
@@ -2140,15 +2212,18 @@ static void ai_move_walk(edict_t *ent) {
             }
         }
 
+        if (ent->movement->flow_unreachable &&
+            ent->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED) {
+            /* The correction was just selected; navigate towards it on the
+             * next tick rather than overriding it with a raw-click heading. */
+            return;
+        }
+
         if (ent->movement->flow_unreachable) {
             vec2_t approach;
             vec2_t direction;
-            /* A newly started construction can split the old route field while
-             * a cinematic Peasant is still travelling to a broad trigger
-             * region. Preserve the point order: retarget only the movement
-             * endpoint to the closest reachable cell, and never consume the
-             * order as a terminal hold merely because the original point is
-             * temporarily behind the construction footprint. */
+            /* A map edit may disconnect the authored point. Keep the order
+             * and use a legal approach if the bounded search can provide it. */
             if (CM_ClosestReachablePointForRadiusFlags(&ent->s.origin2,
                                                        &ent->goalentity->s.origin2,
                                                        ent->collision,
@@ -2177,10 +2252,10 @@ static void ai_move_walk(edict_t *ent) {
                 unit_moveindirection(ent);
                 return;
             }
-            ent->movement->flow_unreachable = false;
-            ent->movement->flow_direct = true;
-            unit_changeangle_towards_point(ent, &ent->goalentity->s.origin2);
-            unit_moveindirection(ent);
+            /* Disconnected or search-exhausted: never charge at the blocked
+             * click along the old heading. A subsequent revision/retry may
+             * produce a legal approach; the original order remains intact. */
+            ent->movement->nav_state = MOVE_NAV_BLOCKED_RETRY;
             return;
         }
         if (!ent->movement->flow_direct && !ent->movement->path.valid && !ent->movement->flow_generation &&
@@ -2196,11 +2271,18 @@ static void ai_move_walk(edict_t *ent) {
              * becomes reachable again.  Reachable waypoints always settle inside
              * `settle_distance` first, so this branch only covers offset route
              * ends such as a destination inside blocked pathing. */
-            if (unit_routes_to_location(ent) &&
+            if (move_has_active_construction() && unit_routes_to_location(ent) &&
                 Vector2_distance(&ent->s.origin2, &ent->goalentity->s.origin2) > settle_distance) {
                 if (!G_AnimationHasPrimary(ent->animation, "stand"))
                     unit_setanimation(ent, "stand");
             }
+            else {
+            /* The point Move owns its legal adjusted raster endpoint. Its
+             * ability callback/queue, not the routing system, completes it. */
+            if (S_UnitAbilityMoveArrive(ent)) return;
+            ent->stand(ent);
+            }
+
             return;
         }
 
@@ -2208,7 +2290,12 @@ static void ai_move_walk(edict_t *ent) {
          * the path.  Preserve the old near-goal settle behavior so an occupied
          * final slot does not orbit forever, but do not cancel a distant move
          * merely because local avoidance failed for a short period. */
-        if (blocked && ent->movement->last_distance <= settle_distance) {
+        if (blocked && ent->movement->last_distance <= settle_distance &&
+            ent->movement->flow_fallback_state != MOVE_FALLBACK_APPLIED &&
+            !(ent->movement->local_route.valid &&
+              ent->movement->local_route.status == CM_ROUTE_PARTIAL)) {
+            /* A partial/local approach or explicit corrected endpoint is
+             * still in progress, even when near the authored click. */
             move_hold(ent);
             return;
         }
@@ -2275,6 +2362,7 @@ void order_move(edict_t *self, edict_t *target) {
                 target->s.origin2.x, target->s.origin2.y, (long)(target - g_edicts));
 #endif
     move_reset_progress(self);
+    self->movement->active_move_goal_spawn = target->spawn_time;
     unit_setmove(self, &move_move_walk);
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */

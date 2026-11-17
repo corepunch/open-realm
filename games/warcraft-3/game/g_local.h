@@ -2213,6 +2213,11 @@ typedef struct {
 } wc3LocalRoute_t;
 
 /* Active travel scratch owned by Move steering; absent after arrival, Stop, death or a stationary move. */
+typedef enum {
+    MOVE_NAV_NONE, MOVE_NAV_MOVING, MOVE_NAV_WAITING, MOVE_NAV_PARTIAL,
+    MOVE_NAV_BLOCKED_RETRY, MOVE_NAV_APPROACH_REACHED
+} moveNavState_t;
+
 typedef struct {
     vec2_t last_origin;
     float last_distance;
@@ -2221,6 +2226,9 @@ typedef struct {
     bool flow_goal_reached; /* mover occupies the route's adjusted goal cell */
     bool flow_unreachable;  /* field exists but current cell has no route */
     bool flow_direct;       /* static path from mover to requested goal is clear */
+    /* Navigation progress, not an ability/order completion signal. */
+    moveNavState_t nav_state;
+    uint32_t active_move_goal_spawn; /* protects point/transport Move target incarnation */
     bool displacement_active; /* temporary construction exit is being walked */
     vec2_t displacement_target;
     vec2_t flow_fallback_target; /* last unreachable fallback request */
@@ -2228,6 +2236,8 @@ typedef struct {
     float flow_fallback_radius;
     uint32_t flow_fallback_time;
     edict_t *flow_fallback_goal;
+    uint32_t flow_fallback_goal_spawn;
+    uint32_t flow_fallback_revision;
     moveFallbackState_t flow_fallback_state;
     routePath_t path; /* compatibility view of WC3's current local waypoint */
     wc3LocalRoute_t local_route; /* retained multi-turn sequence, runtime only */
@@ -2266,6 +2276,7 @@ typedef struct {
     edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
     edict_t *patrol_a, *patrol_b, *patrol_target;
     edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
+    uint32_t follow_target_spawn_time; /* reject reused slots during follow/return */
     bool holding_position;
     /* Stop establishes a WC3 guard point. Automatic idle combat may leave
      * that point temporarily, then returns once the combat detour ends. */

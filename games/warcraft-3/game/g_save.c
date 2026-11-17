@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 6: retained local route scratch (native version 146). */
-static uint32_t const save_version = 6;
+/* Browser version 7: follow identity and corrected navigation (native version 147). */
+static uint32_t const save_version = 7;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -185,8 +185,10 @@ static uint32_t const save_version = 6;
  * flags, larger event tables, and new Misc hero constants. */
 /* Version 145 registers the Channel follow-through thinker. */
 /* Version 146 adds transient retained local route fields and a map-revision guard. */
-static uint32_t const save_version = 146;
+/* Version 147 preserves follow target incarnation and corrected navigation state. */
+static uint32_t const save_version = 147;
 #endif
+
 
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -854,7 +856,17 @@ static field_t const movement_fields[] = {
     TF(movement_t, path_wait_goal_number, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, path_wait_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, path_wait_origin, F_IGNORE, 0, FIELD_RUNTIME),
-    TF(movement_t, flow_fallback_goal, F_EDICT, 0, FIELD_NONE),
+    /* These fields identify a route on a particular live path map, not a
+     * persistent gameplay target. Recompute them after loading. */
+    TF(movement_t, flow_fallback_target, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_approach, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_radius, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_goal, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_revision, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, flow_fallback_state, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, nav_state, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, path, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, local_route, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
@@ -872,6 +884,7 @@ static field_t const order_fields[] = {
     TF(unitOrders_t, patrol_b, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, patrol_target, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, follow_target, F_EDICT, 0, FIELD_NONE),
+    TF(unitOrders_t, follow_target_spawn_time, F_INT),
     TF(unitOrders_t, wisp_egress_tree, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, wisp_egress_tree_spawn_time, F_INT),
     TF(unitOrders_t, wisp_egress_target, F_VECTOR),

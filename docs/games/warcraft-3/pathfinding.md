@@ -143,6 +143,28 @@ Lumber's unreachable-interior-tree detection is the narrower exception: `unit_ch
 
 Plain right-click movement is different from an interaction order: `move_selectlocation()` already assigns a collision-safe final waypoint, so `ai_move_walk()` may safely route that order with the mover's real collision radius. A distant temporary block does not cancel a plain move order. The unit keeps the order and retries local movement while the static route remains reachable; the existing near-goal settle rule is retained for an occupied final slot. If a completed collision-sized flow field reports the mover's component unreachable, the move may stop.
 
+## Authored Goals And Navigation Endpoints (PF-03)
+
+A point Move owns an original waypoint/order goal, which must not be moved by
+unreachable-path correction. The closest legal point from the static router is
+stored only as `movement_t.flow_fallback_approach`, guarded by goal incarnation
+and static path-map revision. The mover follows a collision-sized direct or
+bounded local route toward that approach. A corrected endpoint can complete
+only the owning plain Move through its normal ability-arrival/Shift-queue edge.
+An adjusted flow-cell endpoint may likewise complete that plain point Move;
+being near the goal in Euclidean distance alone is never sufficient to snap
+through static pathing.
+
+Follow, Attack, Harvest, Build and Repair retain their entity/range-specific
+completion rules. `flow_goal_reached`, partial A* results and pending fields
+are navigation observations, **not** ability success. The active Follow target
+is guarded by `follow_target_spawn_time`, and an active point/transport Move
+checks its waypoint incarnation with `active_move_goal_spawn`. If a slot is
+recycled, the old order ends through `unit_stand()` and lets the next queued
+order begin.
+Navigation state (`MOVE_NAV_*`) is movement-owned; the original point and
+behavior target remain with the order.
+
 ## Flow-Field Lifecycle
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.

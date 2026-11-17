@@ -126,6 +126,28 @@ TEST(wc3_order_lifecycle, stationary_follow_retains_intent_without_travel_scratc
     T_NULL(unit->movement);
 }
 
+/* The same edict address may be reassigned to another unit between
+ * follow frames. Target identity includes spawn_time, not only pointer. */
+TEST(wc3_order_lifecycle, follow_reused_target_advances_queued_move) {
+    reset_entities();
+    setup_test_world();
+    edict_t *follower = review_order_unit(0, 0);
+    edict_t *ally = review_order_unit(400, 0);
+    vec2_t const next = {150.0f, 0.0f};
+    T_ASSERT(unit_issuetargetorder(follower, "move", ally));
+    T_EQ(follower->orders->follow_target_spawn_time, ally->spawn_time);
+    T_ASSERT(G_IssueUnitPointOrder(follower, "move", &next, true, 0, 0.0f));
+    T_EQ(follower->orders->queue.count, 1);
+
+    ally->spawn_time++; /* slot now belongs to another incarnation */
+    follower->currentmove->think(follower);
+    T_NULL(follower->orders->follow_target);
+    T_EQ(follower->orders->follow_target_spawn_time, 0);
+    T_EQ(follower->orders->queue.count, 0);
+    T_ASSERT(follower->goalentity != ally);
+    T_FEQ(follower->goalentity->s.origin2.x, next.x, 0.01f);
+}
+
 TEST(wc3_order_lifecycle, hold_position_does_not_chase_acquired_enemy) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
