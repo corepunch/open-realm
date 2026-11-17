@@ -524,3 +524,26 @@ followed target becomes invalid, not merely within stop range.
 
 Native save version 151 / browser version 11 records the bounded Patrol continuation and target identity;
 temporary chase timing is reset on load. No second task scheduler is added.
+
+## Candidate dynamic spatial-link optimisation (PF-PERF-08)
+
+`server/sv_world.c` already maintains the spatial area tree incrementally
+through `SV_LinkEntity` / `SV_UnlinkEntity`. `SV_AreaEdicts` queries only
+intersected nodes; it does not scan the world to detect unchanged objects.
+A no-op `LinkEntity` with the exact same collision-sized bounds now keeps
+its existing membership instead of unlinking/reinserting. Genuine movement,
+size changes, spawn and removal still publish synchronously at their original
+call sites. There is **no** delayed read barrier, independent fine grid or
+new WC3 object registry. The reciprocal-link guard prevents unchanged-link
+reuse after a cleared world tree.
+
+Compile with `-DBZ_PROFILE_SPATIAL` to enable `SV_GetSpatialProfile()`
+counters (`link_calls`, `unchanged_links`, `rebuilt_links`, `area_queries`,
+`area_candidates`). They reset at `SV_ClearWorld` or by the explicit reset
+function; ordinary builds have no increment overhead. Compare an identical
+stationary-crowd workload and few movers before/after using route/frame
+CPU p95 and max, as well as these counts. **This is an unmeasured candidate
+fast path, not evidence that a global dirty-publication system is useful or
+that the 80/20 performance target was met.** Do not add a second dirty index
+unless these measurements demonstrate that the existing area tree is a
+reproducible hotspot.

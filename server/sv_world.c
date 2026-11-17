@@ -23,6 +23,19 @@ struct areanode_s {
 static areaNode_t sv_areanodes[AREA_NODES];
 static uint32_t sv_numareanodes;
 
+/* Optional inspection counters. No global scans or logs on ordinary builds.
+ * The server already publishes Link/Unlink immediately; measure redundant
+ * relinks before adding a second dirty-object registry. */
+static svSpatialProfile_t sv_spatial_profile;
+
+void SV_ResetSpatialProfile(void) { memset(&sv_spatial_profile, 0, sizeof(sv_spatial_profile)); }
+svSpatialProfile_t SV_GetSpatialProfile(void) { return sv_spatial_profile; }
+#ifdef BZ_PROFILE_SPATIAL
+#define SV_SPATIAL_COUNT(field) (++sv_spatial_profile.field)
+#else
+#define SV_SPATIAL_COUNT(field) ((void)0)
+#endif
+
 void ClearLink (link_t *l) {
     l->prev = l->next = l;
 }
@@ -70,6 +83,7 @@ areaNode_t *SV_CreateAreaNode(uint32_t depth, vec2_t const *mins, vec2_t const *
 void SV_ClearWorld(void) {
     memset(sv_areanodes, 0, sizeof(sv_areanodes));
     sv_numareanodes = 0;
+    SV_ResetSpatialProfile();
     box2_t bounds = ge->GetWorldBounds();
     SV_CreateAreaNode(0, &bounds.min, &bounds.max);
 }
@@ -82,25 +96,36 @@ void SV_UnlinkEntity(edict_t *ent) {
 }
 
 void SV_LinkEntity(edict_t *ent) {
-    SV_UnlinkEntity(ent);
-    
-    if (ent == ge->edicts)
-        return; // don't add the world
+    SV_SPATIAL_COUNT(link_calls);
+    if (ent == ge->edicts || !ent->inuse) {
+        SV_UnlinkEntity(ent);
+        return; // world and removed entities have no spatial representation
+    }
 
-    if (!ent->inuse)
+    vec2_t const size = { ent->collision + 1.0f, ent->collision + 1.0f };
+    box2_t const bounds = {
+        Vector2_sub(&ent->s.origin2, &size),
+        Vector2_add(&ent->s.origin2, &size)
+    };
+    /* The area tree is already incrementally maintained. If this link has
+     * not changed its collision-sized AABB, avoid unlink/reinsert entirely.
+     * Reciprocal links also reject stale membership after SV_ClearWorld().
+     * Query predicates inspect live flags/category, so visibility and unit
+     * pathing toggles do not require a geometry-only relink. */
+    if (ent->area.prev && ent->area.next &&
+        ent->area.prev->next == &ent->area &&
+        ent->area.next->prev == &ent->area &&
+        ent->bounds.min.x == bounds.min.x &&
+        ent->bounds.min.y == bounds.min.y &&
+        ent->bounds.max.x == bounds.max.x &&
+        ent->bounds.max.y == bounds.max.y) {
+        SV_SPATIAL_COUNT(unchanged_links);
         return;
-
-    vec2_t const size = { ent->collision, ent->collision };
-    vec2_t const eps = { 1, 1 };
-    
+    }
+    SV_SPATIAL_COUNT(rebuilt_links);
+    SV_UnlinkEntity(ent);
     ent->areanum = 0;
-    ent->bounds.min = Vector2_sub(&ent->s.origin2, &size);
-    ent->bounds.max = Vector2_add(&ent->s.origin2, &size);
-
-    // because movement is clipped an epsilon away from an actual edge,
-    // we must fully check even when bounding boxes don't quite touch
-    ent->bounds.min = Vector2_sub(&ent->bounds.min, &eps);
-    ent->bounds.max = Vector2_add(&ent->bounds.max, &eps);
+    ent->bounds = bounds;
 
     areaNode_t *node = sv_areanodes;
     while (1) {
@@ -130,6 +155,7 @@ void SV_AreaEdicts_r(areaNode_t const *node, areaworker_t *worker) {
     
     for (link_t const *l = start->next; l != start; l = l->next) {
         edict_t *check = EDICT_FROM_AREA(l);
+        SV_SPATIAL_COUNT(area_candidates);
 
         if (   check->bounds.min.x > worker->bounds.max.x
             || check->bounds.min.y > worker->bounds.max.y
@@ -159,6 +185,7 @@ void SV_AreaEdicts_r(areaNode_t const *node, areaworker_t *worker) {
 }
 
 uint32_t SV_AreaEdicts(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *)) {
+    SV_SPATIAL_COUNT(area_queries);
     areaworker_t w = {
         .bounds = *area,
         .list = list,
