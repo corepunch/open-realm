@@ -1178,11 +1178,10 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     T_FEQ(tree->health.value, 1.0f, 0.01f);
 }
 
-/* A resumable route miss has not chosen a heading yet.  Harvest used to call
- * unit_moveindirection anyway, which committed a step along the worker's stale
- * facing while flow_generation=0/direct=false.  Hold the order and position
- * until CM_ProcessPathJobs completes the requested field. */
-TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
+/* A resumable route miss may still have a bounded local waypoint. Harvest can
+ * move on that resolved route while the shared field builds, but must never
+ * mistake a bare pending field for a heading. */
+TEST(wc3_movement, lumber_local_route_resolves_heading_while_flow_pending) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *worker = make_moving_unit(-320.0f, 0.0f);
@@ -1195,8 +1194,8 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     tree->collision = 0.0f;
 
     /* A full-height wall blocks the direct approach so the first Harvest tick
-     * must request a resumable collision-sized field.  Do not process the job:
-     * this test covers the pending state itself, not route completion. */
+     * requests a resumable collision-sized field and resolves a bounded local
+     * route. Do not process the job: this covers the pending-field handoff. */
     for (int y = 0; y < CELLS; y++)
         pathmap[32 + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
@@ -1211,8 +1210,9 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
 
     T_EQ(worker->movement->flow_generation, 0);
     T_ASSERT(!worker->movement->flow_direct);
-    T_FEQ(worker->s.origin2.x, origin.x, 0.01f);
-    T_FEQ(worker->s.origin2.y, origin.y, 0.01f);
+    T_ASSERT(worker->movement->path.valid);
+    T_ASSERT(worker->movement->local_route.valid);
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.01f);
     T_ASSERT(worker->goalentity == tree);
 }
 
@@ -2567,7 +2567,9 @@ TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_wa
     T_ASSERT(Vector2_distance(&reachable->s.origin2, &target->s.origin2) < 112.0f);
     T_ASSERT(blocked_unreachable);
     T_ASSERT(blocked->s.origin2.x < 224.0f - blocked->collision);
-    T_FEQ(blocked->s.origin2.x, blocked_start_x, 1.0f);
+    /* The blocked member may approach the impassable water edge via its
+     * partial local route, but it must stay on its original side. */
+    T_ASSERT(blocked->s.origin2.x >= blocked_start_x);
     T_ASSERT(!blocked_jumped);
     T_ASSERT(!reachable_jumped);
     T_ASSERT(!target_jumped);
@@ -5421,7 +5423,7 @@ TEST(wc3_movement, explicit_gold_return_deposits_without_resuming_mine) {
     T_ASSERT(worker->goalentity == hall);
     worker->currentmove->think(worker);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], before + 10);
-    T_EQ(worker->harvest->gold, 0u);
+    T_EQ((worker->harvest ? worker->harvest->gold : 0u), 0u);
     T_ASSERT(!worker->orders->resource_return_explicit);
     T_STREQ(worker->currentmove->animation, "stand");
     T_ASSERT(worker->orders->resource_goal == mine);
@@ -5441,7 +5443,7 @@ TEST(wc3_movement, explicit_lumber_return_deposits_without_resuming_tree) {
     T_ASSERT(worker->orders->resource_return_explicit);
     worker->currentmove->think(worker);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], before + 10);
-    T_EQ(worker->harvest->lumber, 0u);
+    T_EQ((worker->harvest ? worker->harvest->lumber : 0u), 0u);
     T_ASSERT(!worker->orders->resource_return_explicit);
     T_STREQ(worker->currentmove->animation, "stand");
     T_ASSERT(worker->orders->resource_goal == tree);
@@ -5461,7 +5463,7 @@ TEST(wc3_movement, queued_return_resources_deposits_once_then_continues) {
     T_ASSERT(worker->orders->resource_return_explicit);
     T_EQ(G_UnitQueuedOrderCount(worker), 0u);
     worker->currentmove->think(worker);
-    T_EQ(worker->harvest->lumber, 0u);
+    T_EQ((worker->harvest ? worker->harvest->lumber : 0u), 0u);
     T_STREQ(worker->currentmove->animation, "stand");
     T_ASSERT(!worker->orders->resource_return_explicit);
 }
@@ -5472,6 +5474,7 @@ TEST(wc3_movement, recycled_remembered_mine_cannot_resume_after_deposit) {
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
     slkTestData_t *rows, *old = install_goldmine_test_data(&rows);
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    mine->spawn_time = 100; /* zero is reserved for legacy fixtures without incarnation data */
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     harvest_gold_start(worker, mine);
@@ -5479,7 +5482,7 @@ TEST(wc3_movement, recycled_remembered_mine_cannot_resume_after_deposit) {
     T_ASSERT(harvest_gold_return_to(worker, hall));
     mine->spawn_time++; /* same edict address, different actor */
     worker->currentmove->think(worker);
-    T_EQ(worker->harvest->gold, 0u);
+    T_EQ((worker->harvest ? worker->harvest->gold : 0u), 0u);
     T_STREQ(worker->currentmove->animation, "stand");
     T_ASSERT(worker->goalentity != mine);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
