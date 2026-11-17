@@ -6206,6 +6206,13 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit->movement->path_wait_goal_number = goal->s.number;
     unit->movement->path_wait_goal_spawn = goal->spawn_time;
     unit->movement->path_wait_origin = unit->s.origin2;
+    unit->movement->route_resume_revision = CM_GetPathRevision();
+    unit->movement->local_route.valid = true;
+    unit->movement->local_route.goal = goal;
+    unit->movement->local_route.count = 2;
+    unit->movement->local_route.cursor = 1;
+    unit->movement->local_route.points[1] = goal->s.origin2;
+    unit->movement->path.valid = true;
 
     T_ASSERT(WriteGame(filename));
     unit->movement->route_resume_goal = (edict_t *)(uintptr_t)1;
@@ -6213,6 +6220,10 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit = g_edicts + unit_index;
     T_NULL(unit->movement->route_resume_goal);
     T_ASSERT(!unit->movement->route_resume_valid);
+    T_EQ(unit->movement->route_resume_revision, 0);
+    T_ASSERT(!unit->movement->local_route.valid);
+    T_NULL(unit->movement->local_route.goal);
+    T_ASSERT(!unit->movement->path.valid);
     T_ASSERT(!unit->movement->route_resume_active);
     T_ASSERT(!unit->movement->path_wait_active);
     T_EQ(unit->movement->route_resume_time, 0);

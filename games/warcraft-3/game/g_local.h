@@ -2193,6 +2193,25 @@ typedef enum {
     AURA_EFFECT_SOURCE
 } auraEffectRole_t;
 
+/* WC3-owned multi-turn path. Generic search storage is caller-provided; no
+ * shared flow field or search-node pointers survive in this travel scratch.
+ * The legacy routePath_t below mirrors only the current turn for consumers
+ * that still inspect path.valid/path.waypoint. */
+#define WC3_LOCAL_ROUTE_CAPACITY 16
+typedef struct {
+    vec2_t points[WC3_LOCAL_ROUTE_CAPACITY];
+    vec2_t requested_goal;
+    vec2_t navigation_goal;
+    edict_t *goal;
+    uint32_t goal_spawn_time;
+    uint32_t map_revision;
+    float radius;
+    uint8_t blocked_flags;
+    uint8_t count, cursor;
+    cmRouteStatus_t status;
+    bool valid;
+} wc3LocalRoute_t;
+
 /* Active travel scratch owned by Move steering; absent after arrival, Stop, death or a stationary move. */
 typedef struct {
     vec2_t last_origin;
@@ -2210,13 +2229,15 @@ typedef struct {
     uint32_t flow_fallback_time;
     edict_t *flow_fallback_goal;
     moveFallbackState_t flow_fallback_state;
-    routePath_t path; /* persistent WC3 accelerator state shared with other server games */
+    routePath_t path; /* compatibility view of WC3's current local waypoint */
+    wc3LocalRoute_t local_route; /* retained multi-turn sequence, runtime only */
     float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
     float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
     vec2_t route_resume_direction;
     vec2_t route_resume_goal_origin;
     edict_t *route_resume_goal;
     uint32_t route_resume_goal_spawn, route_resume_time;
+    uint32_t route_resume_revision; /* prevent stale heading reuse after path-map rebuild */
     float route_resume_radius;
     uint8_t route_resume_flags;
     bool route_resume_valid, route_resume_active;

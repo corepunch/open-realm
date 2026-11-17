@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 5: as native version 145. */
-static uint32_t const save_version = 5;
+/* Browser version 6: retained local route scratch (native version 146). */
+static uint32_t const save_version = 6;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -184,8 +184,10 @@ static uint32_t const save_version = 5;
 /* Version 144 adds Hero item attribute bonuses, script reposition and enter-world
  * flags, larger event tables, and new Misc hero constants. */
 /* Version 145 registers the Channel follow-through thinker. */
-static uint32_t const save_version = 145;
+/* Version 146 adds transient retained local route fields and a map-revision guard. */
+static uint32_t const save_version = 146;
 #endif
+
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -842,6 +844,7 @@ static field_t const movement_fields[] = {
     TF(movement_t, route_resume_goal, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, route_resume_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_radius, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_flags, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_valid, F_IGNORE, 0, FIELD_RUNTIME),
@@ -853,6 +856,7 @@ static field_t const movement_fields[] = {
     TF(movement_t, path_wait_origin, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, flow_fallback_goal, F_EDICT, 0, FIELD_NONE),
     TF(movement_t, path, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, local_route, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 

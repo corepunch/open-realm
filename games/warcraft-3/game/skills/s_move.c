@@ -77,6 +77,7 @@ static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
 static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy_t policy);
 static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy);
 static bool move_displacement_steer(edict_t *self, moveAvoidPolicy_t policy);
+static void move_local_route_clear(edict_t *self);
 
 #define MOVE_ROUTE_RESUME_MS 500u
 
@@ -88,6 +89,7 @@ static void move_route_resume_save(edict_t *self, edict_t *goal, float radius,
     self->movement->route_resume_goal_origin = goal->s.origin2;
     self->movement->route_resume_goal_spawn = goal->spawn_time;
     self->movement->route_resume_time = level.time;
+    self->movement->route_resume_revision = CM_GetPathRevision();
     self->movement->route_resume_radius = radius;
     self->movement->route_resume_flags = blocked_flags;
     self->movement->route_resume_valid = true;
@@ -101,10 +103,15 @@ static bool move_route_resume(edict_t *self, edict_t *goal, float radius,
         Vector2_distance(&self->movement->route_resume_goal_origin, &goal->s.origin2) > 128.0f ||
         fabsf(self->movement->route_resume_radius - radius) >= 0.01f ||
         self->movement->route_resume_flags != blocked_flags ||
+        self->movement->route_resume_revision != CM_GetPathRevision() ||
         (uint32_t)(level.time - self->movement->route_resume_time) > MOVE_ROUTE_RESUME_MS)
         return false;
     *direction = self->movement->route_resume_direction;
-    return Vector2_len(direction) > 0.001f;
+    if (Vector2_len(direction) <= 0.001f) return false;
+    vec2_t const next = Vector2_mad(&self->s.origin2,
+                                     MIN(1.0f, 8.0f / Vector2_len(direction)), direction);
+    return CM_LineIsPathableForRadiusFlags(&self->s.origin2, &next,
+                                            radius, blocked_flags);
 }
 
 #ifdef WC3_DEBUG_ROUTING
@@ -1004,17 +1011,92 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
     self->movement->flow_goal_reached = false;
     self->movement->flow_unreachable = false;
     self->movement->flow_direct = true;
+    move_local_route_clear(self);
     dir = Vector2_sub(point, &self->s.origin2);
     unit_apply_heading(self, &dir, policy);
 }
 
-/* Keep the bounded point-route turn until it is reached; retail likewise owns
- * route progress on each mover instead of rebuilding from its current point. */
+/* A WC3 mover keeps a complete sequence of turns. The generic bounded A*
+ * owns only the search; movement owns task identity, progress and invalidation.
+ * Keep path.waypoint as a compatibility view (some movement tests inspect it).
+ * No pointers or search-generation handles from this state are serialized. */
+static void move_local_route_clear(edict_t *self) {
+    if (!self || !self->movement) return;
+    self->movement->local_route.valid = false;
+    self->movement->path.valid = false;
+}
+
+static bool move_local_route_matches(edict_t *self, vec2_t const *target,
+                                      float radius, uint8_t flags) {
+    wc3LocalRoute_t const *route = &self->movement->local_route;
+    edict_t const *goal = self->goalentity;
+    return route->valid && route->goal == goal &&
+        route->goal_spawn_time == (goal ? goal->spawn_time : 0) &&
+        route->map_revision == CM_GetPathRevision() &&
+        route->blocked_flags == flags &&
+        fabsf(route->radius - radius) < 0.01f &&
+        /* Moving targets need a new path after changing grid neighbourhood;
+         * sub-cell movement should not rebuild A* every frame. */
+        Vector2_distance(&route->requested_goal, target) <
+            MAX(1.0f, CM_PathCellWorldSize() * 0.5f);
+}
+
+static bool move_local_route_direction(edict_t *self, vec2_t const *target,
+                                        float radius, uint8_t flags, vec2_t *dir) {
+    wc3LocalRoute_t *route = &self->movement->local_route;
+    if (!move_local_route_matches(self, target, radius, flags)) {
+        move_local_route_clear(self);
+        return false;
+    }
+    /* Do not advance on facing changes or slide attempts: only actual unit
+     * position within the current waypoint's reach can advance the cursor. */
+    while (route->cursor < route->count &&
+           Vector2_distance(&self->s.origin2, &route->points[route->cursor]) <=
+               MIN(8.0f, CM_PathCellWorldSize() * 0.25f))
+        route->cursor++;
+    if (route->cursor >= route->count ||
+        !CM_LineIsPathableForRadiusFlags(&self->s.origin2,
+             &route->points[route->cursor], radius, flags)) {
+        move_local_route_clear(self);
+        return false;
+    }
+    self->movement->path.waypoint = route->points[route->cursor];
+    self->movement->path.target = *target;
+    self->movement->path.radius = radius;
+    self->movement->path.valid = true;
+    *dir = Vector2_sub(&route->points[route->cursor], &self->s.origin2);
+    return Vector2_len(dir) > 0.001f;
+}
+
 static bool unit_accel_direction_to_point(edict_t *self, vec2_t const *target,
                                           float radius, vec2_t *dir) {
-    if (!self || !target || !dir) return false;
-    pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
-    return CM_AccelerateRoute(&self->movement->path, &params, dir);
+    wc3LocalRoute_t *route;
+    cmRoutePath_t result;
+    uint8_t flags;
+    if (!self || !self->movement || !target || !dir) return false;
+    flags = M_UnitStaticPathingFlags(self);
+    if (move_local_route_direction(self, target, radius, flags, dir))
+        return true;
+
+    route = &self->movement->local_route;
+    pathAccelParams_t params = { &self->s.origin2, target, radius, flags };
+    if (!CM_FindBoundedPath(&params, route->points, WC3_LOCAL_ROUTE_CAPACITY, &result) ||
+        result.status == CM_ROUTE_NONE || !result.count) {
+        move_local_route_clear(self);
+        return false;
+    }
+    route->requested_goal = *target;
+    route->navigation_goal = result.navigation_goal;
+    route->goal = self->goalentity;
+    route->goal_spawn_time = self->goalentity ? self->goalentity->spawn_time : 0;
+    route->map_revision = result.map_revision;
+    route->radius = radius;
+    route->blocked_flags = flags;
+    route->count = (uint8_t)result.count;
+    route->cursor = 0;
+    route->status = result.status; /* PARTIAL is movement progress, never arrival */
+    route->valid = true;
+    return move_local_route_direction(self, target, radius, flags, dir);
 }
 
 static bool unit_accel_direction(edict_t *self, float radius, vec2_t *dir) {
@@ -1047,7 +1129,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision, M_UnitStaticPathingFlags(self))) {
-        self->movement->path.valid = false;
+        move_local_route_clear(self);
         self->movement->flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
     } else if (!unit_accel_direction_to_point(self, point, self->collision, &dir)) {
@@ -1076,6 +1158,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                                                    self->collision, flags))
                 move_wisp_egress_choose_target(self, flags);
             if (self->orders->wisp_egress_target_valid) {
+                move_local_route_clear(self);
                 vec2_t const dir = Vector2_sub(&self->orders->wisp_egress_target, &self->s.origin2);
                 self->movement->flow_direct = true;
                 self->movement->flow_generation = 0;
@@ -1117,7 +1200,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * field's adjusted endpoint; it continues toward the real target and the
      * attack range check decides when to engage. */
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
-        self->movement->path.valid = false;
+        move_local_route_clear(self);
         self->movement->flow_direct = true;
         dir = to_goal;
     } else {
@@ -1136,7 +1219,12 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
         }
-        self->movement->path.valid = false;
+        /* Prefer a still-safe local turn over an abrupt flow-field switch. */
+        if (move_local_route_direction(self, &self->goalentity->s.origin2,
+                                       radius, blocked_flags, &dir)) {
+            unit_apply_heading(self, &dir, policy);
+            return;
+        }
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
              * the owning behavior. Interaction goals may be blocked or have
@@ -1233,7 +1321,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         return;
 
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
-        self->movement->path.valid = false;
+        move_local_route_clear(self);
         self->movement->flow_direct = true;
         dir = to_goal;
     } else {
@@ -1250,7 +1338,11 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
         }
-        self->movement->path.valid = false;
+        if (move_local_route_direction(self, &self->goalentity->s.origin2,
+                                       radius, blocked_flags, &dir)) {
+            unit_apply_heading(self, &dir, policy);
+            return;
+        }
 
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             self->movement->flow_goal_reached = true;
@@ -1623,6 +1715,9 @@ void move_reset_progress(edict_t *self) {
     G_BeginMovement(self);
     self->movement->last_origin = self->s.origin2;
     self->movement->last_distance = -1;
+    move_local_route_clear(self);
+    self->movement->route_resume_valid = false;
+    self->movement->route_resume_active = false;
     self->movement->blocked_frames = 0;
     self->movement->flow_generation = 0;
     self->movement->flow_goal_reached = false;
