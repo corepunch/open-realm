@@ -230,6 +230,18 @@ static bool unit_routes_to_location(edict_t const *ent) {
     return ent->currentmove->proc == CAbilityAttack && ent->goalentity == ent->orders->attackmove_waypoint;
 }
 
+/* Construction can temporarily split a location order's route. Keep the
+ * mover standing at its best reachable endpoint until the footprint changes. */
+static bool move_has_active_construction(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = &g_edicts[i];
+        if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
+            G_UnitIsStructure(ent) && G_GetConstruction(ent))
+            return true;
+    }
+    return false;
+}
+
 static float unit_effective_speed(edict_t *ent);
 
 /* Unit's effective current move speed.  Group moves travel at the slowest
