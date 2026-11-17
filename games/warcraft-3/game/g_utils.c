@@ -61,7 +61,11 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 void G_FreeEdict(edict_t *ent) {
     cargo_t *hold = G_GetCargo(ent);
     mineOverlay_t *ovl = G_GetMineOverlay(ent);
+    bool static_footprint;
     if (!ent) return;
+    static_footprint = ent->inuse && !(ent->s.renderfx & RF_HIDDEN) &&
+        ((ent->s.flags & EF_BUILDING) ||
+         (!(ent->svflags & SVF_MONSTER) && (ent->pathtex || ent->collision > 0.0f)));
     S_BrewmasterOnUnitRemoved(ent);
     S_LavaSpawnRelease(ent);
     S_DevourUnitExit(ent);
@@ -114,10 +118,14 @@ void G_FreeEdict(edict_t *ent) {
     G_PoolsReleaseEdict(ent);
     memset(ent, 0, sizeof(*ent));
     ent->freetime = level.time;
+    /* Direct removal must not leave a footprint on pathmap.original. The
+     * deferred path already published on hide, so it does not rebake here. */
+    if (static_footprint) CM_BakeStaticObstacles();
 }
 
 /* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
 void G_DeferFreeEdict(edict_t *ent) {
+    bool static_footprint;
     if (!ent || !ent->inuse) return;
     FOR_LOOP(i, deferred_free_count)
         if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return;
@@ -125,7 +133,13 @@ void G_DeferFreeEdict(edict_t *ent) {
         fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
         return;
     }
+    static_footprint = !(ent->s.renderfx & RF_HIDDEN) &&
+        ((ent->s.flags & EF_BUILDING) ||
+         (!(ent->svflags & SVF_MONSTER) && (ent->pathtex || ent->collision > 0.0f)));
     ent->s.renderfx |= RF_HIDDEN;
+    /* RemoveUnit hides at call time, not at deferred end-of-tick free. Other
+     * movers must see the opened passage on their next static path query. */
+    if (static_footprint) CM_BakeStaticObstacles();
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);

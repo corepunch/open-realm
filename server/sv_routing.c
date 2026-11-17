@@ -629,9 +629,9 @@ static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransfo
 }
 #endif
 
-/* Rebuild current static obstacles from the immutable terrain baseline.  This
- * is normally called once after map spawning, and again only when a static
- * footprint changes (building creation or destructable death). */
+/* Rebuild static obstacles from the immutable terrain baseline whenever the
+ * game publishes an authoritative footprint change. Ordinary live-unit
+ * occupancy is transient and never triggers this shared cache rebuild. */
 void CM_BakeStaticObstacles(void) {
     uint32_t const cells = pathmap.width * pathmap.height;
 

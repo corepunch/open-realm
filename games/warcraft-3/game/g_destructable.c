@@ -417,8 +417,7 @@ bool G_RemoveDestructable(edict_t *ent) {
         return false;
     }
     unit_leavecombat(ent);
-    G_FreeEdict(ent);
-    CM_BakeStaticObstacles();
+    G_FreeEdict(ent); /* Publishes removal of the static footprint. */
     return true;
 }
 
