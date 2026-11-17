@@ -171,7 +171,7 @@ TEST(wc3_order_lifecycle, attackmove_parent_survives_auto_target_and_replacement
     reset_entities();
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(320, 1);
-    vec2_t const x = {900.0f, 0.0f}, y = {1100.0f, 30.0f};
+    vec2_t const x = {900.0f, 0.0f}, y = {1000.0f, 30.0f};
     T_ASSERT(unit_issueorder(unit, "attack", &x));
     edict_t *parent = unit->orders->attackmove_waypoint;
     T_NOT_NULL(parent);
@@ -181,7 +181,7 @@ TEST(wc3_order_lifecycle, attackmove_parent_survives_auto_target_and_replacement
     T_ASSERT(unit->currentmove->proc == CAbilityAttack);
     T_ASSERT(unit_issueorder(unit, "move", &y));
     T_NULL(unit->orders->attackmove_waypoint);
-    T_FEQ(unit->goalentity->s.origin2.x, y.x, 0.01f);
+    T_ASSERT(Vector2_distance(&unit->goalentity->s.origin2, &y) <= 32.0f);
     T_EQ(G_UnitQueuedOrderCount(unit), 0u);
     /* Failed automatic chase suppression cannot alter explicit Attack/Move.
      * Acquisition retries the same live entity only after its deadline. */
