@@ -245,7 +245,45 @@ static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
     return MIN(speed, MAX(EARTHQUAKE_MIN_MOVE_SPEED, speed * (1.0f - reduction)));
 }
 
+/* Group-cap refresh uses the live Move leg rather than original selection.
+ * A member that finished, died, or started another order stops contributing.
+ * Refresh the entire group together at most once per 100 simulation ms;
+ * do not retain a second physical-group registry or scan every move tick. */
+static void move_refresh_group_speed(edict_t *self) {
+    movement_t *movement = self->movement;
+    uint32_t count = 0;
+    float slowest = 0;
+    uint32_t const now = G_Time();
+    if (!movement || !movement->group_move_id || !move_is_active_order_walk(self)) return;
+    if (movement->group_speed_checked &&
+        (uint32_t)(now - movement->group_speed_checked_at) < 100u) return;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *member = globals.edicts + i;
+        if (!member->inuse || !member->movement || M_IsDead(member) ||
+            !move_is_active_order_walk(member) ||
+            member->movement->group_move_id != movement->group_move_id) continue;
+        float const speed = unit_effective_speed(member);
+        if (speed <= 0) continue;
+        if (!count || speed < slowest) slowest = speed;
+        count++;
+    }
+    /* All current members share the same cap and refresh stamp, so a speed
+     * modifier cannot give one selected unit a different formation cap. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *member = globals.edicts + i;
+        if (!member->inuse || !member->movement ||
+            member->movement->group_move_id != movement->group_move_id ||
+            !move_is_active_order_walk(member)) continue;
+        member->movement->group_speed = count > 1 ? slowest : 0;
+        member->movement->group_speed_checked_at = now;
+        member->movement->group_speed_checked = true;
+    }
+}
+
 static float unit_current_speed(edict_t const *self) {
+    if (self->movement && self->movement->group_move_id)
+        move_refresh_group_speed((edict_t *)self);
     float speed = unit_effective_speed((edict_t *)self);
     if (self->movement && self->movement->group_speed > 0 && self->movement->group_speed < speed && unit_is_walking(self)) {
         speed = self->movement->group_speed;
@@ -1920,6 +1958,10 @@ void move_reset_progress(edict_t *self) {
     self->movement->worker_avoid_active = false;
     self->movement->egress_valid = false;
     self->movement->group_speed = 0;  /* single-unit/default: travel at own speed */
+    self->movement->group_move_id = 0;
+    self->movement->group_goal = (vec2_t){ 0, 0 };
+    self->movement->group_speed_checked_at = 0;
+    self->movement->group_speed_checked = false;
 }
 
 void move_cancel_displacement(edict_t *self) {
@@ -2547,6 +2589,13 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     /* A multi-unit move travels at the slowest member's speed so the group
      * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
     float const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
+    /* Per-map monotonic IDs are saved with queued legs; no pointer-based group
+     * registry survives unit removal or save/load. A single unit needs no ID. */
+    uint32_t group_id = 0;
+    if (num_units > 1) {
+        group_id = ++level.next_group_move_id;
+        if (!group_id) group_id = ++level.next_group_move_id;
+    }
     route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
@@ -2574,8 +2623,9 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         if (clent->client->menu.order_queued) {
             /* Queued units may reach this leg at different times, so retain the
              * resolved per-unit slot and speed in the unit's own FIFO. */
-            if (G_IssueUnitPointOrder(ent, "move", &target, true,
-                                      clent->client->ps.number, group_speed)) {
+            if (G_IssueGroupMoveOrder(ent, &target, true,
+                                      clent->client->ps.number, group_speed,
+                                      group_id, location)) {
                 issued = true;
             }
         } else {
@@ -2586,6 +2636,9 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             order_move(ent, waypoint);
             G_CreepGuardExplicitOrder(ent);
             ent->movement->group_speed = group_speed;  /* after order_move, which resets it */
+            ent->movement->group_move_id = group_id;
+            ent->movement->group_goal = *location;
+            ent->movement->group_speed_checked = false;
             S_UnitAbilityOrderAccepted(ent, "move");
             issued = true;
         }

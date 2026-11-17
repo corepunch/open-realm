@@ -4462,6 +4462,167 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (float)FRAMETIME, 0.01f);
 }
 
+/* Each group command has its own retained slot identity. A Shift leg is
+ * admitted once, not recalculated when individual members finish leg A. */
+TEST(wc3_movement, group_shift_queue_keeps_distinct_slots_and_legs) {
+    reset_entities();
+    setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    edict_t *c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    edict_t *members[] = { a, b, c };
+    FOR_LOOP(i, 3) {
+        members[i]->collision = i == 2 ? 24.0f : 16.0f;
+        members[i]->selected = 1 << clent->client->ps.number;
+        members[i]->stand = unit_stand;
+        unit_stand(members[i]);
+    }
+    vec2_t first = { 400, 120 }, second = { 600, 180 };
+    clent->client->menu.order_queued = false;
+    T_ASSERT(move_selectlocation(clent, &first));
+    uint32_t first_id = a->movement->group_move_id;
+    T_ASSERT(first_id != 0);
+    T_EQ(b->movement->group_move_id, first_id);
+    T_EQ(c->movement->group_move_id, first_id);
+    FOR_LOOP(i, 3) {
+        T_FEQ(members[i]->movement->group_goal.x, first.x, 0.01f);
+        T_FEQ(members[i]->movement->group_goal.y, first.y, 0.01f);
+    }
+    clent->client->menu.order_queued = true;
+    T_ASSERT(move_selectlocation(clent, &second));
+    vec2_t slots[3];
+    uint32_t next_id = a->orders->queue.entries[a->orders->queue.head].group_move_id;
+    T_ASSERT(next_id != 0 && next_id != first_id);
+    FOR_LOOP(i, 3) {
+        unitOrderQueue_t *q = &members[i]->orders->queue;
+        T_EQ(q->count, 1u);
+        unitOrder_t *queued = &q->entries[q->head];
+        T_EQ(queued->group_move_id, next_id);
+        T_FEQ(queued->group_goal.x, second.x, 0.01f);
+        T_FEQ(queued->group_goal.y, second.y, 0.01f);
+        slots[i] = queued->point;
+        T_EQ(members[i]->movement->group_move_id, first_id);
+    }
+    FOR_LOOP(i, 3) for (uint32_t j = i + 1; j < 3; j++) {
+        float const min_distance = members[i]->collision + members[j]->collision + 1.0f;
+        T_ASSERT(Vector2_distance(&slots[i], &slots[j]) >= min_distance);
+    }
+    /* A second Shift leg gets another independent reservation snapshot. */
+    vec2_t third = { 720, 420 };
+    T_ASSERT(move_selectlocation(clent, &third));
+    vec2_t third_slots[3];
+    uint32_t third_id = 0;
+    FOR_LOOP(i, 3) {
+        unitOrderQueue_t *q = &members[i]->orders->queue;
+        T_EQ(q->count, 2u);
+        unitOrder_t *queued = &q->entries[(q->head + 1) % MAX_UNIT_ORDER_QUEUE];
+        if (!third_id) third_id = queued->group_move_id;
+        T_EQ(queued->group_move_id, third_id);
+        T_ASSERT(third_id != 0 && third_id != first_id && third_id != next_id);
+        T_FEQ(queued->group_goal.x, third.x, 0.01f);
+        T_FEQ(queued->group_goal.y, third.y, 0.01f);
+        third_slots[i] = queued->point;
+    }
+    /* The first member advances independently; other members retain A. */
+    T_ASSERT(G_UnitStartNextQueuedOrder(a));
+    T_EQ(a->movement->group_move_id, next_id);
+    T_FEQ(a->goalentity->s.origin2.x, slots[0].x, 0.01f);
+    T_FEQ(a->goalentity->s.origin2.y, slots[0].y, 0.01f);
+    T_EQ(b->movement->group_move_id, first_id);
+    T_ASSERT(G_UnitStartNextQueuedOrder(b));
+    T_EQ(b->movement->group_move_id, next_id);
+    T_FEQ(b->goalentity->s.origin2.x, slots[1].x, 0.01f);
+    T_FEQ(b->goalentity->s.origin2.y, slots[1].y, 0.01f);
+    T_ASSERT(G_UnitStartNextQueuedOrder(a));
+    T_EQ(a->movement->group_move_id, third_id);
+    T_FEQ(a->goalentity->s.origin2.x, third_slots[0].x, 0.01f);
+    T_FEQ(a->goalentity->s.origin2.y, third_slots[0].y, 0.01f);
+    T_EQ(b->movement->group_move_id, next_id);
+    T_ASSERT(G_UnitStartNextQueuedOrder(b));
+    T_EQ(b->movement->group_move_id, third_id);
+    T_FEQ(b->goalentity->s.origin2.x, third_slots[1].x, 0.01f);
+}
+
+/* A twelve-unit selection exercises deterministic reservations with mixed
+ * mover sizes, not just the common two/three-unit UI group cases. */
+TEST(wc3_movement, group_twelve_members_keep_collision_sized_slots) {
+    reset_entities();
+    setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *members[12];
+    FOR_LOOP(i, 12) {
+        members[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
+                                    (i % 4) * 48.0f, (i / 4) * 48.0f);
+        members[i]->collision = i % 3 ? 16.0f : 24.0f;
+        members[i]->selected = 1 << clent->client->ps.number;
+        members[i]->stand = unit_stand;
+        unit_stand(members[i]);
+    }
+    vec2_t click = { 560, 560 };
+    clent->client->menu.order_queued = false;
+    T_ASSERT(move_selectlocation(clent, &click));
+    uint32_t id = members[0]->movement->group_move_id;
+    T_ASSERT(id != 0);
+    FOR_LOOP(i, 12) {
+        T_EQ(members[i]->movement->group_move_id, id);
+        T_NOT_NULL(members[i]->goalentity);
+        FOR_LOOP(j, i) {
+            float const minimum = members[i]->collision + members[j]->collision;
+            T_ASSERT(Vector2_distance(&members[i]->goalentity->s.origin2,
+                                      &members[j]->goalentity->s.origin2) >= minimum);
+        }
+    }
+}
+
+/* The slowest *active* member controls travel, not the slowest originally
+ * selected member. A changed status/speed and an interrupted Move both
+ * refresh the remaining formation cap without changing destinations. */
+TEST(wc3_movement, group_speed_refreshes_for_modifiers_and_leavers) {
+    reset_entities();
+    setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0];
+    edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    edict_t *members[] = { fast, slow };
+    FOR_LOOP(i, 2) {
+        members[i]->collision = 16.0f;
+        members[i]->selected = 1 << clent->client->ps.number;
+        members[i]->stand = unit_stand;
+        unit_stand(members[i]);
+    }
+    fast->unitinfo.MoveSpeed = 300;
+    slow->unitinfo.MoveSpeed = 100;
+    vec2_t destination = { 480, 32 };
+    clent->client->menu.order_queued = false;
+    T_ASSERT(move_selectlocation(clent, &destination));
+    T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / FRAMETIME, 0.01f);
+    slow->unitinfo.MoveSpeed = 175;
+    level.time += 101;
+    T_FEQ(unit_movedistance(fast), 10.0f * 175.0f / FRAMETIME, 0.01f);
+    T_FEQ(slow->movement->group_speed, 175.0f, 0.01f);
+
+    /* New solo order removes the slow member from the original group. */
+    vec2_t solo = { 120, -64 };
+    T_ASSERT(unit_issueorder(slow, "move", &solo));
+    T_EQ(slow->movement->group_move_id, 0u);
+    level.time += 101;
+    T_FEQ(unit_movedistance(fast), 10.0f * 300.0f / FRAMETIME, 0.01f);
+    T_FEQ(fast->movement->group_speed, 0.0f, 0.01f);
+    T_FEQ(fast->movement->group_goal.x, destination.x, 0.01f);
+
+    /* Rejoin a fresh group; a dead member must no longer hold the cap. */
+    T_ASSERT(move_selectlocation(clent, &destination));
+    T_ASSERT(fast->movement->group_move_id != 0);
+    T_FEQ(unit_movedistance(fast), 10.0f * 175.0f / FRAMETIME, 0.01f);
+    slow->health.value = 0;
+    level.time += 101;
+    T_FEQ(unit_movedistance(fast), 10.0f * 300.0f / FRAMETIME, 0.01f);
+}
+
 /* A lone unit keeps its own speed (no group cap). */
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);

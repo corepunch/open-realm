@@ -1297,3 +1297,13 @@ route retry timer and the temporary dynamic-detour marker. Both are runtime
 state (registered `F_IGNORE`, or covered by the ignored `local_route`) and
 rebuild from the retained order after loading. They do not serialize live
 collider pointers or cached A* nodes. Older pool layouts remain rejected.
+
+## Formation Move metadata (native version 149 / browser version 9)
+
+Version 149 extends the level, movement and queued-order layouts with a
+monotonic per-map Move-leg identity, the original group click and each
+member's pre-reserved queued destination. The group identity and authored
+slots survive save/load so independently activated Shift orders remain
+related. The mover's group speed sampling stamps (`group_speed_checked_at`
+and `group_speed_checked`) are runtime-only and rebuilt on the first movement
+step after loading. As usual, old raw pool layouts are rejected.
