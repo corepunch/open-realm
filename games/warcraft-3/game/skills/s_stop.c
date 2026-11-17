@@ -48,7 +48,9 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
     ent->orders->patrol_a = NULL;
     ent->orders->patrol_b = NULL;
     ent->orders->patrol_target = NULL;
+    ent->orders->patrol_resume_pending = false;
     ent->orders->follow_target = NULL;
+    ent->orders->follow_target_spawn_time = 0;
     ent->orders->holding_position = false;
     if (record_guard) G_SetUnitGuardPosition(ent);
     unit_leavecombat(ent);

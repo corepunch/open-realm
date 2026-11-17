@@ -230,6 +230,12 @@ edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     uint32_t best_priority = 2;
     FOR_LOOP(i, numents) {
         edict_t *ent = sight_entities[i];
+        /* Retry a failed automatic chase later; explicit target Attack never
+         * consults this acquisition path and remains allowed immediately. */
+        if (self->orders && self->orders->failed_chase_target == ent &&
+            self->orders->failed_chase_target_spawn == ent->spawn_time &&
+            (int32_t)(self->orders->failed_chase_retry_at - level.time) > 0)
+            continue;
         float const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
         uint32_t const priority = self->orders && self->orders->creep_guard_enabled &&
             self->s.player == PLAYER_NEUTRAL_AGGRESSIVE ?

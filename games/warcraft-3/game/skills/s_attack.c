@@ -490,6 +490,14 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
         target ? Vector2_distance(&attacker->s.origin2, &target->s.origin2) : 0.0f,
         attacker->orders->attackmove_waypoint != NULL,
         attacker->orders->patrol_a != NULL, attacker->orders->follow_target != NULL);
+    if (reason && !strcmp(reason, "chase_unreachable") && attacker->orders &&
+        (attacker->orders->attackmove_waypoint || attacker->orders->patrol_a ||
+         attacker->orders->follow_target) && target) {
+        attacker->orders->failed_chase_target = (edict_t *)target;
+        attacker->orders->failed_chase_target_spawn = target->spawn_time;
+        attacker->orders->failed_chase_retry_at = level.time + 1500u;
+    }
+    if (attacker->orders) attacker->orders->chase_unreachable_since = 0;
     unit_leavecombat(attacker);
     attacker->goalentity = NULL;
     attacker->unit_state->attack_target_spawn_time = 0;
@@ -1320,6 +1328,22 @@ static void ai_attack_walk(edict_t *ent) {
             unit_changeangle(ent);
         else
             unit_changeangle_for_radius(ent, ent->collision);
+        /* A pending shared field is not a failed chase. For a confirmed
+         * unreachable automatic child, retry for a bounded interval, then
+         * return to the still-owned Patrol/Follow/Attack Move destination. */
+        if (ent->movement && ent->movement->flow_unreachable &&
+            ent->movement->flow_generation && ent->orders &&
+            (ent->orders->patrol_a || ent->orders->attackmove_waypoint ||
+             ent->orders->follow_target)) {
+            if (!ent->orders->chase_unreachable_since)
+                ent->orders->chase_unreachable_since = level.time ? level.time : 1;
+            if ((uint32_t)(level.time - ent->orders->chase_unreachable_since) >= 1200u) {
+                attack_finish_after_combat(ent, ent->goalentity, "chase_unreachable");
+                return;
+            }
+        } else if (ent->orders) {
+            ent->orders->chase_unreachable_since = 0;
+        }
         if (ent->movement->flow_unreachable) return;
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
@@ -1395,6 +1419,9 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     self->orders->attackmove_waypoint = NULL;
     self->orders->patrol_a = self->orders->patrol_b = self->orders->patrol_target = NULL;
     self->orders->follow_target = NULL;
+    self->orders->follow_target_spawn_time = 0;
+    self->orders->patrol_resume_pending = false;
+    self->orders->chase_unreachable_since = 0;
     self->orders->holding_position = false;
     order_attack(self, target);
     self->orders->explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);

@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 10: live speed sampling and steering scratch (native 150). */
-static uint32_t const save_version = 10;
+/* Browser version 11: Patrol and attack-chase order ownership (native 151). */
+static uint32_t const save_version = 11;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -189,7 +189,9 @@ static uint32_t const save_version = 10;
 /* Version 148 stores runtime-only stationary-blocker retry/route scratch. */
 /* Version 149 retains per-map group Move identity and queued member slots. */
 /* Version 150 adds transient group speed sampling state. */
-static uint32_t const save_version = 150;
+/* Version 151 retains bounded Patrol continuation and chase suppression. */
+static uint32_t const save_version = 151;
+
 #endif
 
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
@@ -891,8 +893,18 @@ static field_t const order_fields[] = {
     TF(unitOrders_t, patrol_a, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, patrol_b, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, patrol_target, F_EDICT, 0, FIELD_NONE),
+    TF(unitOrders_t, patrol_resume_a, F_VECTOR),
+    TF(unitOrders_t, patrol_resume_b, F_VECTOR),
+    TF(unitOrders_t, patrol_resume_to_b, F_INT),
+    TF(unitOrders_t, patrol_resume_pending, F_INT),
+    TF(unitOrders_t, patrol_resume_owner_spawn, F_INT),
     TF(unitOrders_t, follow_target, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, follow_target_spawn_time, F_INT),
+    TF(unitOrders_t, failed_chase_target, F_EDICT, 0, FIELD_NONE),
+    TF(unitOrders_t, failed_chase_target_spawn, F_INT),
+    TF(unitOrders_t, failed_chase_retry_at, F_INT),
+    TF(unitOrders_t, chase_unreachable_since, F_IGNORE, 0, FIELD_RUNTIME),
+
     TF(unitOrders_t, wisp_egress_tree, F_EDICT, 0, FIELD_NONE),
     TF(unitOrders_t, wisp_egress_tree_spawn_time, F_INT),
     TF(unitOrders_t, wisp_egress_target, F_VECTOR),
@@ -3501,6 +3513,41 @@ TEST(wc3_save, group_move_queued_leg_survives_roundtrip) {
     T_EQ(queued->group_move_id, 919u);
     T_FEQ(queued->point.y, 205.0f, 0.01f);
     T_FEQ(queued->group_goal.y, 200.0f, 0.01f);
+    remove(filename);
+}
+
+TEST(wc3_save, patrol_continuation_and_follow_identity_roundtrip) {
+    cstring_t filename = Test_TempPath("wc3-patrol-continuation-save.bin");
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 32);
+    edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 32);
+    uint32_t const slot = unit->s.number, target_slot = ally->s.number;
+    G_InitUnitOrders(unit);
+    unit->orders->patrol_resume_pending = true;
+    unit->orders->patrol_resume_owner_spawn = unit->spawn_time;
+    unit->orders->patrol_resume_a = (vec2_t){ 32, 32 };
+    unit->orders->patrol_resume_b = (vec2_t){ 800, 40 };
+    unit->orders->patrol_resume_to_b = false;
+    unit->orders->follow_target = ally;
+    unit->orders->follow_target_spawn_time = ally->spawn_time;
+    unit->orders->queue.count = 1;
+    strcpy(unit->orders->queue.entries[0].order, "move");
+    unit->orders->queue.entries[0].target_type = UNIT_ORDER_TARGET_POINT;
+    unit->orders->queue.entries[0].point = (vec2_t){ 450, 45 };
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + slot;
+    ally = g_edicts + target_slot;
+    T_NOT_NULL(unit->orders);
+    T_ASSERT(unit->orders->patrol_resume_pending);
+    T_FEQ(unit->orders->patrol_resume_b.x, 800.0f, 0.01f);
+    T_ASSERT(!unit->orders->patrol_resume_to_b);
+    T_EQ(unit->orders->patrol_resume_owner_spawn, unit->spawn_time);
+    T_ASSERT(unit->orders->follow_target == ally);
+    T_EQ(unit->orders->follow_target_spawn_time, ally->spawn_time);
+    T_EQ(unit->orders->queue.count, 1u);
+
     remove(filename);
 }
 

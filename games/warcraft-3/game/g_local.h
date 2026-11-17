@@ -2287,8 +2287,19 @@ typedef struct {
     bool wisp_egress_active, wisp_egress_target_valid;
     edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
     edict_t *patrol_a, *patrol_b, *patrol_target;
+    /* One deferred Patrol owner after its leg hands off to user Shift orders.
+     * World points survive queued Move/Attack resetting ordinary patrol fields.
+     * Never insert hidden continuation commands into the limited user FIFO. */
+    vec2_t patrol_resume_a, patrol_resume_b;
+    bool patrol_resume_to_b, patrol_resume_pending;
+    uint32_t patrol_resume_owner_spawn;
     edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
     uint32_t follow_target_spawn_time; /* reject reused slots during follow/return */
+    /* Suppress a failed automatic chase temporarily; explicit Attack bypasses it. */
+    edict_t *failed_chase_target;
+    uint32_t failed_chase_target_spawn, failed_chase_retry_at;
+    uint32_t chase_unreachable_since; /* temporary unreachable child, not parent completion */
+
     bool holding_position;
     /* Stop establishes a WC3 guard point. Automatic idle combat may leave
      * that point temporarily, then returns once the combat detour ends. */
@@ -4272,6 +4283,7 @@ void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
 void order_patrol_resume(edict_t *);
+bool G_ResumePatrolContinuation(edict_t *); /* after the authoritative FIFO empties */
 void order_follow(edict_t *, edict_t *);
 void order_follow_resume(edict_t *);
 extern umove_t holdpos_move_stand;

@@ -109,6 +109,115 @@ TEST(wc3_order_lifecycle, optional_movement_stop_pause_arrival_and_reuse) {
     T_NULL(unit->wander);
 }
 
+/* PF-ORDER-08: a Patrol leg boundary admits the user FIFO, then resumes
+ * with the same authored endpoints after the queued Move completes. */
+TEST(wc3_order_lifecycle, patrol_shift_move_has_finite_handoff_and_continuation) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    vec2_t const b = {600.0f, 0.0f}, c = {850.0f, 20.0f};
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &b, false, 0, 0));
+    edict_t *const original_a = unit->orders->patrol_a;
+    T_NOT_NULL(original_a);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &c, true, 0, 0));
+    T_EQ(G_UnitQueuedOrderCount(unit), 1u);
+    edict_t *const original_b = unit->orders->patrol_b;
+    unit->s.origin2 = original_b->s.origin2;
+    unit->s.origin.x = b.x;
+    unit->s.origin.y = b.y;
+    unit->currentmove->think(unit);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0u);
+    T_ASSERT(unit->orders->patrol_resume_pending);
+    T_NOT_NULL(unit->goalentity);
+    T_FEQ(unit->goalentity->s.origin2.x, c.x, 0.01f);
+    T_FEQ(unit->orders->patrol_resume_a.x, original_a->s.origin2.x, 0.01f);
+    T_FEQ(unit->orders->patrol_resume_b.x, original_b->s.origin2.x, 0.01f);
+
+    unit_stand(unit); /* Move C has finished; FIFO is empty */
+    T_ASSERT(!unit->orders->patrol_resume_pending);
+    T_ASSERT(unit->currentmove->proc == CAbilityPatrol);
+    T_NOT_NULL(unit->goalentity);
+    T_FEQ(unit->goalentity->s.origin2.x, original_a->s.origin2.x, 0.01f);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0u);
+}
+
+/* No queued successor: ordinary Patrol continues alternating A/B. A blocked
+ * intermediate route is never a successful endpoint crossing. */
+TEST(wc3_order_lifecycle, patrol_no_queue_reverses_only_on_real_arrival) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    vec2_t const b = {600.0f, 0.0f};
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &b, false, 0, 0));
+    edict_t *const original_b = unit->orders->patrol_b;
+    /* Failed local progress without endpoint arrival must not flip the leg. */
+    T_NOT_NULL(unit->movement);
+    unit->movement->last_distance = M_DistanceToGoal(unit);
+    unit->movement->last_origin = unit->s.origin2;
+    unit->movement->blocked_frames = 50;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->orders->patrol_target == original_b);
+    unit->s.origin2 = original_b->s.origin2;
+    unit->s.origin.x = b.x;
+    unit->s.origin.y = b.y;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->goalentity == unit->orders->patrol_a);
+    T_ASSERT(!unit->orders->patrol_resume_pending);
+}
+
+/* A failed automatic chase remains a child of Attack Move. Target death must
+ * return to X, while a later explicit replacement Move Y cancels that owner. */
+TEST(wc3_order_lifecycle, attackmove_parent_survives_auto_target_and_replacement) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(320, 1);
+    vec2_t const x = {900.0f, 0.0f}, y = {1100.0f, 30.0f};
+    T_ASSERT(unit_issueorder(unit, "attack", &x));
+    edict_t *parent = unit->orders->attackmove_waypoint;
+    T_NOT_NULL(parent);
+    order_attack(unit, enemy);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+    T_ASSERT(unit->goalentity == parent);
+    T_ASSERT(unit->currentmove->proc == CAbilityAttack);
+    T_ASSERT(unit_issueorder(unit, "move", &y));
+    T_NULL(unit->orders->attackmove_waypoint);
+    T_FEQ(unit->goalentity->s.origin2.x, y.x, 0.01f);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0u);
+    /* Failed automatic chase suppression cannot alter explicit Attack/Move.
+     * Acquisition retries the same live entity only after its deadline. */
+    edict_t *failed = review_order_unit(320, 1);
+    unit->orders->failed_chase_target = failed;
+    unit->orders->failed_chase_target_spawn = failed->spawn_time;
+    unit->orders->failed_chase_retry_at = level.time + 1500u;
+    T_ASSERT(G_FindNearestEnemy(unit, 600.0f) != failed);
+    level.time += 1501u;
+    T_ASSERT(G_FindNearestEnemy(unit, 600.0f) == failed);
+}
+
+/* Follow's target is an incarnation, not an edict address. After auto combat
+ * it tracks the latest position, then hands off the queued successor once. */
+TEST(wc3_order_lifecycle, follow_combat_resumes_live_target_then_rejects_reused_slot) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    edict_t *ally = review_order_unit(420, 0), *enemy = review_order_unit(70, 1);
+    vec2_t const c = {720.0f, 30.0f};
+    T_ASSERT(unit_issuetargetorder(unit, "move", ally));
+    T_EQ(unit->orders->follow_target_spawn_time, ally->spawn_time);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &c, true, 0, 0));
+    order_attack(unit, enemy);
+    ally->s.origin2.x = 600.0f;
+    T_Damage(enemy, unit, (int)enemy->health.value);
+    T_ASSERT(unit->goalentity == ally);
+    T_FEQ(unit->goalentity->s.origin2.x, 600.0f, 0.01f);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1u);
+    ally->spawn_time++;
+    unit->currentmove->think(unit);
+    T_NULL(unit->orders->follow_target);
+    T_EQ(G_UnitQueuedOrderCount(unit), 0u);
+    T_FEQ(unit->goalentity->s.origin2.x, c.x, 0.01f);
+}
+
 TEST(wc3_order_lifecycle, stationary_follow_retains_intent_without_travel_scratch) {
     reset_entities();
     setup_test_world();
