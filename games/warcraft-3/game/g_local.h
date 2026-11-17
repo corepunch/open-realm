@@ -828,6 +828,10 @@ typedef struct {
     uint32_t issuer_player;
     uint32_t order_id; /* rawcode payload for delayed orders such as construction */
     float group_speed;
+    /* A selected Move leg has one identity, even when members activate a
+     * Shift-queued leg on different ticks. Zero denotes an individual order. */
+    uint32_t group_move_id;
+    vec2_t group_goal; /* original group click; point is this member's reserved slot */
 } unitOrder_t;
 
 /* Per-unit Shift-order FIFO retained until completion, replacement, Stop or death. */
@@ -2244,7 +2248,11 @@ typedef struct {
     moveFallbackState_t flow_fallback_state;
     routePath_t path; /* compatibility view of WC3's current local waypoint */
     wc3LocalRoute_t local_route; /* retained multi-turn sequence, runtime only */
-    float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+    float group_speed;  // dynamic slowest-active-member cap (0 = no cap)
+    uint32_t group_move_id; /* zero for non-formation orders; persists across save */
+    vec2_t group_goal; /* source click, distinct from this member's waypoint */
+    uint32_t group_speed_checked_at; /* transient refresh throttle */
+    bool group_speed_checked; /* transient refresh throttle validity */
     float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
     vec2_t route_resume_direction;
     vec2_t route_resume_goal_origin;
@@ -2909,6 +2917,7 @@ struct level_locals {
     uint32_t next_weather_id;
     gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
+    uint32_t next_group_move_id; /* deterministic per-map identity for group Move legs */
     bot_t bots[MAX_PLAYERS];
     mapInfo_t const *mapinfo;
     PATHSTR map_path;
@@ -4125,6 +4134,10 @@ bool unit_issueimmediateorder(edict_t *, cstring_t);
 bool unit_issuetargetorder(edict_t *, cstring_t, edict_t *);
 bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
+/* Preserve a group's pre-reserved member slot through Shift FIFO activation. */
+bool G_IssueGroupMoveOrder(edict_t *, vec2_t const *slot, bool queued,
+                           uint32_t issuer_player, float group_speed,
+                           uint32_t group_move_id, vec2_t const *group_goal);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_UnitHasActiveOrder(edict_t const *);

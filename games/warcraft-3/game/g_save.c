@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 8: transient idle-blocker retries (native version 148). */
-static uint32_t const save_version = 8;
+/* Browser version 9: group Move identity and queued slots (native 149). */
+static uint32_t const save_version = 9;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -187,10 +187,9 @@ static uint32_t const save_version = 8;
 /* Version 146 adds transient retained local route fields and a map-revision guard. */
 /* Version 147 preserves follow target incarnation and corrected navigation state. */
 /* Version 148 stores runtime-only stationary-blocker retry/route scratch. */
-static uint32_t const save_version = 148;
+/* Version 149 retains per-map group Move identity and queued member slots. */
+static uint32_t const save_version = 149;
 #endif
-
-
 
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
@@ -612,6 +611,7 @@ static field_t const level_fields[] = {
     F(level_locals, setup.default_difficulty, F_INT),
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, next_group_move_id, F_INT),
     F(level_locals, stock.item_slots, F_INT),
     F(level_locals, stock.unit_slots, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
@@ -843,6 +843,8 @@ static field_t const ancient_root_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(movement_t, group_speed_checked_at, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, group_speed_checked, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, dynamic_retry_time, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, dynamic_retry_valid, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_direction, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3400,6 +3402,46 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
     T_ASSERT(!G_GetSaveMap(bad_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(bad_filename));
     remove(filename); remove(bad_filename);
+}
+
+TEST(wc3_save, group_move_queued_leg_survives_roundtrip) {
+    cstring_t filename = Test_TempPath("wc3-group-move-save.bin");
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    uint32_t const number = unit->s.number;
+    G_BeginMovement(unit);
+    G_InitUnitOrders(unit);
+    level.next_group_move_id = 919;
+    unit->movement->group_move_id = 918;
+    unit->movement->group_goal = (vec2_t){ 400, 200 };
+    unit->movement->group_speed = 190;
+    unit->movement->group_speed_checked = true;
+    unit->movement->group_speed_checked_at = 500;
+    unit->orders->queue.count = 1;
+    unitOrder_t *queued = &unit->orders->queue.entries[0];
+    strcpy(queued->order, "move");
+    queued->target_type = UNIT_ORDER_TARGET_POINT;
+    queued->point = (vec2_t){ 500, 205 };
+    queued->group_goal = (vec2_t){ 500, 200 };
+    queued->group_move_id = 919;
+    queued->group_speed = 175;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + number;
+    T_EQ(level.next_group_move_id, 919u);
+    T_NOT_NULL(unit->movement);
+    T_EQ(unit->movement->group_move_id, 918u);
+    T_FEQ(unit->movement->group_goal.x, 400.0f, 0.01f);
+    T_ASSERT(!unit->movement->group_speed_checked);
+    T_EQ(unit->movement->group_speed_checked_at, 0u);
+    T_NOT_NULL(unit->orders);
+    T_EQ(unit->orders->queue.count, 1u);
+    queued = &unit->orders->queue.entries[unit->orders->queue.head];
+    T_EQ(queued->group_move_id, 919u);
+    T_FEQ(queued->point.y, 205.0f, 0.01f);
+    T_FEQ(queued->group_goal.y, 200.0f, 0.01f);
+    remove(filename);
 }
 
 TEST(wc3_save, rejects_prior_save_versions) {

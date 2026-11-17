@@ -448,3 +448,30 @@ steps instead of repeatedly rejecting the same flow direction at a corner.
 See [SC2 selection and control](../starcraft-2/selection-and-control.md) for the
 separate snapshot-precision defect that made both ground and cinematic movement
 appear to advance in whole cells.
+
+## Stable formation Move legs (PF-04)
+
+`move_selectlocation()` assigns distinct legal, collision-radius-aware member
+slots at order admission, using deterministic edict iteration and candidate
+ordering. Each selected Move submission has a per-map `group_move_id` and
+original `group_goal`; the member's individual reserved slot remains its
+actual point-order target. This is not a physical group entity or a routing
+cache: individual movers retain their local paths and collision resolution.
+
+For Shift commands, `unitOrder_t` retains the group leg identity, authored
+click, individual slot and submission speed. Activation reuses the queued
+slot instead of calculating a new formation from the unit's later position.
+Members may therefore finish or begin a queued leg on different ticks without
+losing their original reservations or changing the order FIFO.
+
+The formation speed cap is refreshed from **live members currently executing
+the same Move leg**. Finished, dead, redirected, or otherwise nonparticipating
+units stop contributing; speed modifiers are sampled through the existing
+`unit_effective_speed()` function. To avoid a per-mover global scan every
+tick, one member refreshes the whole active leg at most once per 100 ms. A
+lone remaining member has no cap. The WC3 movement layer owns this policy;
+shared routing, workers, other abilities, and other games do not.
+
+Group identity and authored slots persist in existing order/movement pools,
+while the speed refresh stamps are transient and cleared on load. No route
+scratch, live group pointers, or separate physical-group scheduler is saved.

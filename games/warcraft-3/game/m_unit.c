@@ -1374,6 +1374,29 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
 }
 
+/* Assign formation metadata only after an order has actually been admitted.
+ * For Shift this may be a FIFO entry or an immediately activated Move when
+ * the unit is idle. Neither case modifies the pre-reserved destination. */
+bool G_IssueGroupMoveOrder(edict_t *self, vec2_t const *slot, bool queue,
+                           uint32_t issuer_player, float group_speed,
+                           uint32_t group_move_id, vec2_t const *group_goal) {
+    uint32_t const previous_count = self && self->orders ? self->orders->queue.count : 0;
+    if (!self || !slot || !group_goal ||
+        !G_IssueUnitPointOrder(self, "move", slot, queue, issuer_player, group_speed))
+        return false;
+    if (self->orders && self->orders->queue.count > previous_count) {
+        unitOrderQueue_t *fifo = &self->orders->queue;
+        unitOrder_t *entry = &fifo->entries[(fifo->head + fifo->count - 1) % MAX_UNIT_ORDER_QUEUE];
+        entry->group_move_id = group_move_id;
+        entry->group_goal = *group_goal;
+    } else if (self->movement) {
+        self->movement->group_move_id = group_move_id;
+        self->movement->group_goal = *group_goal;
+        self->movement->group_speed_checked = false;
+    }
+    return true;
+}
+
 static bool unit_start_next_queued_order(edict_t *self) {
     unitOrder_t queued;
 
@@ -1381,6 +1404,11 @@ static bool unit_start_next_queued_order(edict_t *self) {
     while (unit_queue_pop(self, &queued)) {
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
+                if (!strcmp(queued.order, "move") && self->movement) {
+                    self->movement->group_move_id = queued.group_move_id;
+                    self->movement->group_goal = queued.group_goal;
+                    self->movement->group_speed_checked = false;
+                }
                 S_UnitAbilityOrderAccepted(self, queued.order);
                 unit_set_active_order(self, queued.order, queued.target_type, &queued.point,
                                       queued.target_type == UNIT_ORDER_TARGET_ENTITY ? globals.edicts + queued.target_number : NULL,
