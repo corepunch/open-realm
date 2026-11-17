@@ -1320,8 +1320,20 @@ PF-06 bumps the format version from native 149 to 150 (browser 9 to 10). The sam
 
 ## Patrol and Follow continuation (native 151 / browser 11)
 
+
 The existing order pool now retains a single deferred Patrol A/B continuation
 and the Follow target's entity incarnation. An active auto-chase retry target
 may also survive a load, while its transient unreachable-progress timer is
 cleared. No hidden commands are inserted into the existing 16-entry FIFO.
 The normal strict version validation rejects earlier pool layouts.
+
+## Resource order handoff (native 152 / browser 12)
+
+The existing per-unit FIFO serializes accepted orders issued during an
+ordinary hidden Gold Mine extraction, including entity target slot and spawn
+incarnation. Native version 152 adds a resource-goal incarnation and one-shot manual
+Return Resources marker to the saved `orders` pool. The mining membership,
+remaining extraction timer and carried resources remain owned by the existing
+Gold Mine and harvest state; no second suspended-task queue is saved.
+
+Harvest order fields extend native 151 to 152 and browser 11 to 12 after the seven core routing patches and order-continuation work. Exact-version matching rejects earlier save layouts.

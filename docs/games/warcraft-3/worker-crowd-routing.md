@@ -159,3 +159,20 @@ Focused C regressions cover the policy primitives:
 - existing gold footprint tests continue to check mine entry, return, and deposit boundaries.
 
 The simulation is evidence for choosing the local policy; the C tests remain the executable engine contract.  Human02 gameplay is the end-to-end validation because static pathing, authored footprints, flow-field fallback, mine occupancy, return/deposit state, and renderer timing are intentionally outside the Python model.
+
+## Resource-order lifecycle (PF-HARVEST-09)
+
+Ordinary hidden Gold Mine workers accept validated Move/Stop/Patrol and
+resource-target commands into the existing bounded per-worker FIFO. Extraction,
+visibility and mine-slot ownership stay unchanged until the exit transition;
+then a pending player order wins over automatic return. Lumber full-load
+cooldown and either resource deposit use the same priority. An accepted
+replacement clears queued successors; invalid commands do not.
+
+An explicit `returnresources` order, including a queued Return admitted while
+carrying a current load, is one shot: if cargo and a compatible
+drop-off exist, the worker deposits once and idles or advances its queued
+successor without resuming a remembered mine or tree. Ordinary automatic
+returns still resume valid resource targets with incarnation checks. All of
+this uses WC3 game-owned order and harvesting state; no changes were made to
+the Wisp tree-egress, Acolyte ring or Entangled Mine behaviours.

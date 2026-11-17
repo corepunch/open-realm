@@ -707,6 +707,21 @@ static void ai_walktree(edict_t *ent) {
 
 /* Internal resource phases never overtake an accepted user successor.
  * Invalid/recycled queued targets are discarded by the existing FIFO owner. */
+/* A resource target belongs to its original edict incarnation, not merely
+ * its recyclable slot. A zero serial covers older direct map/fixture code
+ * which set resource_goal without going through the normal Harvest order. */
+void S_HarvestRememberGoal(edict_t *worker, edict_t *target) {
+    if (!worker || !worker->orders) return;
+    worker->orders->resource_goal = target;
+    worker->orders->resource_goal_spawn_time = target ? target->spawn_time : 0;
+}
+
+bool S_HarvestRememberedGoalValid(edict_t const *worker, edict_t const *target) {
+    return worker && worker->orders && target && target->inuse &&
+        (!worker->orders->resource_goal_spawn_time ||
+         worker->orders->resource_goal_spawn_time == target->spawn_time);
+}
+
 bool S_HarvestYieldQueuedOrder(edict_t *worker) {
     return worker && G_UnitQueuedOrderCount(worker) &&
         G_UnitStartNextQueuedOrder(worker);
@@ -716,26 +731,44 @@ static void harvest_finish_lumber_deposit(edict_t *ent) {
     edict_t *dropoff = ent->goalentity;
     edict_t *tree;
     player_t *player;
+    uint32_t const owner_spawn = ent->spawn_time;
+    umove_t const *const return_move = ent->currentmove;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
+    if (!ent->inuse || ent->spawn_time != owner_spawn) return;
     player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
                                (int32_t)(ent->harvest ? ent->harvest->lumber : 0));
     }
+    if (!ent->inuse || ent->spawn_time != owner_spawn) return;
     S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
+    if (ent->currentmove != return_move) return;
+    /* Clear the one-shot intent before a queued successor begins; otherwise a
+     * later automatic deposit from that successor could inherit it. */
+    bool const one_shot = ent->orders->resource_return_explicit;
+    ent->orders->resource_return_explicit = false;
     if (S_HarvestYieldQueuedOrder(ent)) return;
+    if (one_shot) {
+        ent->stand(ent);
+        return;
+    }
 
     /* Resolve the next live tree at the deposit boundary.  Resuming with the
      * felled tree left it as the worker's active goal for another tick. */
     tree = ent->orders->resource_goal;
-    if (tree && M_IsDead(tree))
+    if (tree && !S_HarvestRememberedGoalValid(ent, tree))
+        tree = NULL; /* recycled slot: never use its current coordinates */
+    else if (tree && M_IsDead(tree))
         tree = find_another_tree_near(ent, &tree->s.origin2);
     else if (!tree)
         tree = find_another_tree(ent);
-    ent->goalentity = ent->orders->resource_goal = tree;
+    S_HarvestRememberGoal(ent, tree);
+    ent->goalentity = tree;
     if (tree) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
+        if (!ent->inuse || ent->spawn_time != owner_spawn || ent->currentmove != return_move)
+            return;
         move_reset_progress(ent);
         harvest_walk(ent);
     } else {
@@ -894,7 +927,8 @@ void harvest_start(edict_t *self, edict_t *target) {
  * second time or it can immediately choose the failed tree again. */
 static void harvest_start_selected(edict_t *self, edict_t *target) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
-    self->orders->resource_goal = target;
+    S_HarvestRememberGoal(self, target);
+    self->orders->resource_return_explicit = false;
     if ((self->harvest ? self->harvest->lumber : 0) >= tuning.lumber_capacity && (self->harvest ? self->harvest->lumber : 0) > 0) {
         harvest_walkback(self);
         return;
@@ -1267,15 +1301,39 @@ BZ_COMMAND_PROC(AbilityAcolyteHarvest) {
 }
 
 /* ---- Return Resources: standalone command to deposit carried resources --- */
+bool S_HarvestIssueReturnResources(edict_t *worker) {
+    edict_t *dropoff;
+    if (!worker || !worker->orders || S_GoldMineWorkerIsInside(worker)) return false;
+    if ((worker->harvest ? worker->harvest->lumber : 0) > 0) {
+        dropoff = S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_LUMBER);
+        if (!harvest_lumber_return_to(worker, dropoff)) return false;
+    } else if ((worker->harvest ? worker->harvest->gold : 0) > 0) {
+        dropoff = S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD);
+        if (!harvest_gold_return_to(worker, dropoff)) return false;
+    } else return false;
+    worker->orders->resource_return_explicit = true;
+    return true;
+}
+
 BZ_COMMAND_PROC(AbilityReturn) {
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if ((ent->harvest ? ent->harvest->lumber : 0) > 0) {
-            harvest_walkback(ent);
-        } else if ((ent->harvest ? ent->harvest->gold : 0) > 0) {
-            edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
-            if (!harvest_gold_return_to(ent, dropoff))
-                ent->stand(ent);
+        if (clent->client->menu.order_queued && G_UnitHasActiveOrder(ent)) {
+            returnResource_t resource;
+            if (S_GoldMineWorkerIsInside(ent)) continue;
+            if ((ent->harvest ? ent->harvest->lumber : 0) > 0)
+                resource = RETURN_RESOURCE_LUMBER;
+            else if ((ent->harvest ? ent->harvest->gold : 0) > 0)
+                resource = RETURN_RESOURCE_GOLD;
+            else continue; /* never validate against cargo not yet extracted */
+            if (!S_FindNearestResourceDropoff(ent, resource) ||
+                !G_QueueUnitOrder(ent, "returnresources", UNIT_ORDER_TARGET_NONE,
+                                  NULL, NULL, clent->client->ps.number, 0.0f, 0)) continue;
+        } else {
+            if (!S_HarvestIssueReturnResources(ent)) continue;
+            G_ClearUnitOrderQueue(ent);
+            S_UnitAbilityOrderAccepted(ent, "returnresources");
         }
+        G_PublishIssuedImmediateOrder(ent, G_OrderId("returnresources"), ent->s.player, "returnresources");
     }
 }
 

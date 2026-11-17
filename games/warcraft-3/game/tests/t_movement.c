@@ -5373,6 +5373,155 @@ TEST(wc3_movement, gold_miner_inside_defers_orders_and_unregisters_once) {
     free_slk_rows(rows);
 }
 
+/* PF-HARVEST-09: a hidden worker retains Shift successors in the ordinary
+ * player FIFO, then dispatches them after resource extraction, not before. */
+TEST(wc3_movement, gold_miner_shift_successors_wait_for_exit) {
+    reset_entities(); setup_test_world();
+    slkTestData_t *rows, *old = install_goldmine_test_data(&rows);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0, 0);
+    edict_t *worker = add_gold_worker(0, 0);
+    edict_t *tree = make_harvest_tree(128, 128, 100);
+    worker->data.UnitAbilities = &harvest_abilities;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    worker->goalentity = mine;
+    S_HarvestRememberGoal(worker, mine);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    harvestgold_minegold(worker);
+    vec2_t const next = { 256, 128 };
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &next, true, worker->s.player, 0));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "harvest", tree, true, worker->s.player));
+    T_EQ(G_UnitQueuedOrderCount(worker), 2u);
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
+    harvestgold_walkback(worker);
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u);
+    T_ASSERT(worker->goalentity && worker->goalentity != mine);
+    T_FEQ(worker->goalentity->s.origin2.x, next.x, 0.01f);
+    T_EQ(worker->harvest->gold, 10u); /* no income before drop-off */
+    T_ASSERT(G_UnitStartNextQueuedOrder(worker));
+    T_EQ(G_UnitQueuedOrderCount(worker), 0u);
+    T_EQ(worker->orders->resource_goal, tree);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A one-shot Return on a worker with an older remembered mine must deposit
+ * once and stop, rather than automatically starting another mining trip. */
+TEST(wc3_movement, explicit_gold_return_deposits_without_resuming_mine) {
+    edict_t *worker = make_moving_unit(0, 0);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400, 0);
+    edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+    slkTestData_t *rows, *old = install_goldmine_test_data(&rows);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    harvest_gold_start(worker, mine);
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
+    uint32_t const before = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    T_ASSERT(unit_issueimmediateorder(worker, "returnresources"));
+    T_ASSERT(worker->orders->resource_return_explicit);
+    T_ASSERT(worker->goalentity == hall);
+    worker->currentmove->think(worker);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], before + 10);
+    T_EQ(worker->harvest->gold, 0u);
+    T_ASSERT(!worker->orders->resource_return_explicit);
+    T_STREQ(worker->currentmove->animation, "stand");
+    T_ASSERT(worker->orders->resource_goal == mine);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, explicit_lumber_return_deposits_without_resuming_tree) {
+    edict_t *worker = make_moving_unit(0, 0);
+    edict_t *tree = make_harvest_tree(200, 0, 200);
+    edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    harvest_start(worker, tree);
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
+    uint32_t const before = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+    T_ASSERT(unit_issueimmediateorder(worker, "returnresources"));
+    T_ASSERT(worker->orders->resource_return_explicit);
+    worker->currentmove->think(worker);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], before + 10);
+    T_EQ(worker->harvest->lumber, 0u);
+    T_ASSERT(!worker->orders->resource_return_explicit);
+    T_STREQ(worker->currentmove->animation, "stand");
+    T_ASSERT(worker->orders->resource_goal == tree);
+}
+
+TEST(wc3_movement, queued_return_resources_deposits_once_then_continues) {
+    edict_t *worker = make_moving_unit(0, 0);
+    edict_t *tree = make_harvest_tree(200, 0, 200);
+    edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    harvest_start(worker, tree);
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
+    T_ASSERT(G_QueueUnitOrder(worker, "returnresources", UNIT_ORDER_TARGET_NONE,
+                              NULL, NULL, worker->s.player, 0.0f, 0));
+    T_ASSERT(G_UnitStartNextQueuedOrder(worker));
+    T_ASSERT(worker->orders->resource_return_explicit);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0u);
+    worker->currentmove->think(worker);
+    T_EQ(worker->harvest->lumber, 0u);
+    T_STREQ(worker->currentmove->animation, "stand");
+    T_ASSERT(!worker->orders->resource_return_explicit);
+}
+
+TEST(wc3_movement, recycled_remembered_mine_cannot_resume_after_deposit) {
+    edict_t *worker = make_moving_unit(0, 0);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400, 0);
+    edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+    slkTestData_t *rows, *old = install_goldmine_test_data(&rows);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    harvest_gold_start(worker, mine);
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    mine->spawn_time++; /* same edict address, different actor */
+    worker->currentmove->think(worker);
+    T_EQ(worker->harvest->gold, 0u);
+    T_STREQ(worker->currentmove->animation, "stand");
+    T_ASSERT(worker->goalentity != mine);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Existing Wisp tree-egress and Acolyte/Entangled Mine tests below remain
+ * intentionally unchanged: these paths do not use the hidden gold FIFO. */
+TEST(wc3_movement, hidden_gold_miner_pending_move_roundtrips_once) {
+    cstring_t filename = Test_TempPath("wc3-hidden-miner-deferred-save.bin");
+    reset_entities(); setup_test_world();
+    slkTestData_t *rows, *old = install_goldmine_test_data(&rows);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0, 0);
+    edict_t *worker = add_gold_worker(0, 0);
+    uint32_t const mine_slot = mine->s.number, worker_slot = worker->s.number;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    worker->goalentity = mine;
+    S_HarvestRememberGoal(worker, mine);
+    harvestgold_minegold(worker);
+    vec2_t const next = { 256, 64 };
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &next, false, worker->s.player, 0));
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    mine = g_edicts + mine_slot;
+    worker = g_edicts + worker_slot;
+    /* Synthetic test ability pointers are reinstalled after map-data restore. */
+    mine->data.UnitAbilities = &test_goldmine_cap1;
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
+    T_EQ(G_GetGoldMine(mine)->occupants, 1u);
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u);
+    harvestgold_walkback(worker);
+    T_ASSERT(!S_GoldMineWorkerIsInside(worker));
+    T_EQ(G_GetGoldMine(mine)->occupants, 0u);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0u);
+    T_ASSERT(worker->goalentity && worker->goalentity != mine);
+    T_FEQ(worker->goalentity->s.origin2.x, next.x, 0.01f);
+    T_EQ(worker->harvest->gold, 10u);
+    remove(filename);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* The final trip is clamped to remaining mine gold. Draining the mine to zero
  * depletes it and prevents an already-waiting worker from entering. */
 TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {

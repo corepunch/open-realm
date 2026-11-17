@@ -1297,7 +1297,8 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) ||
             (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target));
         if (!valid) return false;
-        if (queue && G_UnitHasActiveOrder(self)) {
+        if (queue && G_UnitHasActiveOrder(self) &&
+            (S_HarvestCanGold(self) || S_HarvestCanLumber(self))) {
             bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY,
                                                    NULL, target, issuer_player, 0.0f, 0);
             if (accepted) unit_publish_target_order(self, order, target, issuer_player);
@@ -1308,8 +1309,12 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             accepted = S_CargoOrderBoard(self, target);
         else if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
             accepted = S_AcolyteHarvestOrder(self, target);
-        else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+        else if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
+        else if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE && !M_IsDead(target)) {
+            harvest_start(self, target);
+            accepted = true;
+        }
         if (accepted) {
             if (!queue) G_ClearUnitOrderQueue(self);
             G_CreepGuardExplicitOrder(self);
@@ -1492,6 +1497,15 @@ static bool unit_start_next_queued_order(edict_t *self) {
                 return true;
             }
         } else if (queued.target_type == UNIT_ORDER_TARGET_NONE) {
+            if (!strcmp(queued.order, "returnresources")) {
+                if (S_HarvestIssueReturnResources(self)) {
+                    S_UnitAbilityOrderAccepted(self, queued.order);
+                    unit_set_active_order(self, queued.order, UNIT_ORDER_TARGET_NONE,
+                                          NULL, NULL, queued.issuer_player, 0.0f);
+                    return true;
+                }
+                continue; /* cargo/drop-off no longer permits Return */
+            }
             if (!strcmp(queued.order, "stop")) {
                 order_stop_queued(self);
                 return true;
@@ -1658,6 +1672,15 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (strcmp(order, "stop") && strcmp(order, "holdposition")) return false;
         if (!unit_defer_goldmine_order(self, order, UNIT_ORDER_TARGET_NONE,
                                       NULL, NULL, false, self->s.player, 0.0f)) return false;
+        G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return true;
+    }
+    if (!strcmp(order, "returnresources")) {
+        if (!S_HarvestIssueReturnResources(self)) return false;
+        G_ClearUnitOrderQueue(self);
+        G_CreepGuardExplicitOrder(self);
+        S_UnitAbilityOrderAccepted(self, order);
+        unit_set_active_order(self, order, UNIT_ORDER_TARGET_NONE, NULL, NULL, self->s.player, 0.0f);
         G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
     }
