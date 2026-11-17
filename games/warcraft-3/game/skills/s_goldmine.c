@@ -386,6 +386,7 @@ static void goldmine_finish_deposit(edict_t *ent, edict_t *dropoff, int debug) {
                 ent->goalentity ? ent->goalentity->s.number : -1,
                 (ent->harvest ? ent->harvest->gold : 0));
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
+    if (S_HarvestYieldQueuedOrder(ent)) return;
     if (S_GoldMineCanHarvest(ent->goalentity)) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
         harvestgold_walk(ent);
@@ -515,6 +516,7 @@ void harvestgold_minegold(edict_t *ent) {
      * do not mine another load: return the existing gold to the nearest valid
      * drop-off, then resume this clicked mine after the deposit completes. */
     if ((ent->harvest ? ent->harvest->gold : 0) > 0) {
+        if (S_HarvestYieldQueuedOrder(ent)) return;
         dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
         if (!dropoff || !harvest_gold_return_to(ent, dropoff)) {
             ent->stand(ent);
@@ -579,7 +581,7 @@ void harvestgold_walkback(edict_t *ent) {
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, (ent->harvest ? ent->harvest->gold : 0) + amount);
     /* A player's deferred mine-time command wins over this automatic return.
      * Activate only after membership, hidden state and extraction settle. */
-    if (G_UnitQueuedOrderCount(ent) && G_UnitStartNextQueuedOrder(ent)) return;
+    if (S_HarvestYieldQueuedOrder(ent)) return;
     edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
     if (dropoff) {
         if (goldmine_path_debug_level() >= 1)

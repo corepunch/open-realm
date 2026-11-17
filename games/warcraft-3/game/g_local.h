@@ -4168,6 +4168,8 @@ cstring_t G_OrderId2String(uint32_t);
 uint32_t G_OrderDefinitionCount(void);
 bool G_OrderDefinitionInfo(uint32_t index, uint32_t *id, cstring_t  *name, uint32_t *ability);
 bool G_UnitStartNextQueuedOrder(edict_t *);
+/* A user successor wins over internal gold/lumber auto-return and resume. */
+bool S_HarvestYieldQueuedOrder(edict_t *);
 void G_ClearUnitOrderQueue(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);
