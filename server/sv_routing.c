@@ -114,6 +114,12 @@ static heatmapRequest_t *heatmap_pending = NULL;
 static uint32_t heatmap_pending_count = 0;
 static uint32_t heatmap_pending_capacity = 0;
 static uint32_t path_search_stamp = 0;
+/* Changes only when static pathing/cache authority is republished, not when
+ * an ordinary moving unit temporarily occupies a cell. Zero is reserved. */
+static uint32_t path_map_revision = 0;
+
+uint32_t CM_GetPathRevision(void) { return path_map_revision; }
+
 
 #define PATH_ACCEL_MAX_EXPANSIONS 2048 // nodes/request; bounds immediate point-route work before shared-field fallback
 #define PATH_ACCEL_MAX_DISTANCE 48 // pathing cells/axis; limits the accelerator to nearby obstacle detours
@@ -153,6 +159,8 @@ routePerfStats_t CM_GetTestPathPerfStats(void) {
 #endif
 
 static void heatmap_cache_invalidate(void) {
+    if (++path_map_revision == 0)
+        ++path_map_revision;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
         heatmap_cache[i].radius_cells = -1;
@@ -1078,31 +1086,36 @@ static uint32_t path_heap_pop(uint32_t *count) {
     return result;
 }
 
-/* Retail keeps a compact path object per mover and consults a separate pathing
- * accelerator before its longer-lived route state. This bounded A* supplies
- * the same useful behavior for nearby detours: return one persistent waypoint
- * immediately, while long searches remain on the shared incremental field. */
-bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
+/* Run the existing bounded A* once; reconstruction is separate so callers
+ * can request either a legacy single waypoint or a retained local route.
+ * Scratch nodes are generation-stamped; they are never a persistent route. */
+static bool path_search_bounded(pathAccelParams_t const *params,
+                                uint32_t *end_index, bool *complete) {
     point2_t start, target;
     uint32_t heap_count = 0, expanded = 0, cells = pathmap.width * pathmap.height;
-    int radius_cells;
+    uint32_t best_index, start_index, target_index;
+    int radius_cells, best_h = INT_MAX, best_g = -1;
     uint8_t blocked_flags;
 
-    if (!params || !params->from || !params->target || !out || !pathmap.pathnodes || !pathmap.pathheap || !cells)
+    if (!params || !params->from || !params->target || !end_index || !complete ||
+        !pathmap.pathnodes || !pathmap.pathheap || !cells)
         return false;
+    *complete = false;
     blocked_flags = normalize_blocked_flags(params->blocked_flags);
     radius_cells = (int)ceilf(MAX(0.f, params->radius) / pathmap_cell_world_size());
     if (!closest_pathable_node_original_flags(params->from, params->radius, blocked_flags, &start) ||
         !closest_pathable_node_original_flags(params->target, params->radius, blocked_flags, &target) ||
-        abs(start.x - target.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - target.y) > PATH_ACCEL_MAX_DISTANCE)
+        abs(start.x - target.x) > PATH_ACCEL_MAX_DISTANCE ||
+        abs(start.y - target.y) > PATH_ACCEL_MAX_DISTANCE)
         return false;
 
     if (++path_search_stamp == 0) {
         FOR_LOOP(i, cells) pathmap.pathnodes[i].stamp = 0;
         path_search_stamp = 1;
     }
-    uint32_t const start_index = (uint32_t)start.x + (uint32_t)start.y * pathmap.width;
-    uint32_t const target_index = (uint32_t)target.x + (uint32_t)target.y * pathmap.width;
+    start_index = (uint32_t)start.x + (uint32_t)start.y * pathmap.width;
+    target_index = (uint32_t)target.x + (uint32_t)target.y * pathmap.width;
+    best_index = start_index;
     pathNode_t *node = &pathmap.pathnodes[start_index];
     *node = (pathNode_t){ .parent = -1, .f = path_octile(start.x, start.y, target.x, target.y),
                          .g = 0, .heap_pos = 0, .stamp = path_search_stamp };
@@ -1111,21 +1124,20 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
     while (heap_count && expanded++ < PATH_ACCEL_MAX_EXPANSIONS) {
         uint32_t const current = path_heap_pop(&heap_count);
         int const cx = (int)(current % pathmap.width), cy = (int)(current / pathmap.width);
-        node = &pathmap.pathnodes[current]; node->closed = true;
+        int const h = path_octile(cx, cy, target.x, target.y);
+        node = &pathmap.pathnodes[current];
+        node->closed = true;
+        /* Deterministic closest explored progress, breaking equal-distance
+         * ties by actual path length, then stable heap/neighbor order. */
+        if (h < best_h || (h == best_h && node->g > best_g)) {
+            best_h = h;
+            best_g = node->g;
+            best_index = current;
+        }
         if (current == target_index) {
-            uint32_t count = 0;
-            for (int at = (int)current; at >= 0 && count < cells; at = pathmap.pathnodes[at].parent)
-                pathmap.pathheap[count++] = (uint32_t)at;
-            for (uint32_t i = 0; i + 1 < count; i++) {
-                uint32_t const at = pathmap.pathheap[i];
-                vec2_t candidate = CM_GetDenormalizedMapPosition(((float)(at % pathmap.width) + 0.5f) / pathmap.width,
-                    ((float)(at / pathmap.width) + 0.5f) / pathmap.height);
-                if (CM_LineIsPathableForRadiusFlags(params->from, &candidate, params->radius, blocked_flags)) {
-                    *out = candidate;
-                    return true;
-                }
-            }
-            return false;
+            *end_index = current;
+            *complete = true;
+            return true;
         }
         FOR_LOOP(dir, 8) {
             int const nx = cx + dx[dir], ny = cy + dy[dir];
@@ -1148,6 +1160,109 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
                 pathmap.pathheap[heap_count++] = next; path_heap_up(heap_count - 1);
             } else path_heap_up((uint32_t)next_node->heap_pos);
         }
+    }
+    if (best_index == start_index)
+        return false; /* A pending field may still find a route. No movement yet. */
+    *end_index = best_index;
+    return true;
+}
+
+/* The reconstruction buffer is the already-allocated path heap. Search is
+ * finished before it is reused. Index 0 is the search endpoint; the last
+ * index is the start. Parent links always move toward the start. */
+static uint32_t path_reconstruct(uint32_t end_index) {
+    uint32_t count = 0, cells = pathmap.width * pathmap.height;
+    for (int at = (int)end_index; at >= 0 && count < cells; at = pathmap.pathnodes[at].parent)
+        pathmap.pathheap[count++] = (uint32_t)at;
+    return count;
+}
+
+static vec2_t path_cell_center(uint32_t index) {
+    return CM_GetDenormalizedMapPosition(((float)(index % pathmap.width) + 0.5f) / pathmap.width,
+                                          ((float)(index / pathmap.width) + 0.5f) / pathmap.height);
+}
+
+/* Deliberately leave the legacy single-waypoint contract in place. It still
+ * returns only after a completed local search, never partial progress. */
+bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
+    uint32_t end_index, count;
+    bool complete;
+    if (!out || !path_search_bounded(params, &end_index, &complete) || !complete)
+        return false;
+    count = path_reconstruct(end_index);
+    for (uint32_t i = 0; i + 1 < count; i++) {
+        vec2_t candidate = path_cell_center(pathmap.pathheap[i]);
+        if (CM_LineIsPathableForRadiusFlags(params->from, &candidate, params->radius,
+                                            normalize_blocked_flags(params->blocked_flags))) {
+            *out = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Bounded route output is a collision-tested prefix, not an unbounded list
+ * of raw A* cells. Direct legal endpoints are preferred; otherwise look
+ * ahead a fixed number of parent cells per retained turn to bound shortcut
+ * checking even in long winding corridors. */
+#define PATH_ROUTE_LOOKAHEAD 16
+bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
+                        uint32_t capacity, cmRoutePath_t *result) {
+    uint32_t end_index, count, cursor;
+    bool complete;
+    vec2_t previous, goal;
+    uint8_t blocked_flags;
+
+    if (!result) return false;
+    memset(result, 0, sizeof(*result));
+    result->map_revision = CM_GetPathRevision();
+    if (!points || !capacity || !path_search_bounded(params, &end_index, &complete))
+        return false;
+
+    blocked_flags = normalize_blocked_flags(params->blocked_flags);
+    count = path_reconstruct(end_index);
+    if (!count) return false;
+    goal = path_cell_center(end_index);
+    if (complete && CM_PointIsPathableForRadiusFlags(params->target, params->radius, blocked_flags) &&
+        CM_LineIsPathableForRadiusFlags(&goal, params->target, params->radius, blocked_flags))
+        goal = *params->target;
+    result->navigation_goal = goal;
+    result->goal_adjusted = complete && Vector2_distance(&goal, params->target) >= 0.01f;
+    previous = *params->from;
+    cursor = count - 1;
+
+    while (result->count < capacity) {
+        uint32_t best = cursor;
+        vec2_t candidate;
+        /* For an A* result with a legal endpoint, never turn a direct
+         * collision-safe segment into gratuitous intermediate waypoints. */
+        if (CM_LineIsPathableForRadiusFlags(&previous, &goal, params->radius, blocked_flags)) {
+            points[result->count++] = goal;
+            result->endpoint = goal;
+            result->status = complete ? CM_ROUTE_COMPLETE : CM_ROUTE_PARTIAL;
+            return true;
+        }
+        if (!cursor) break;
+        for (uint32_t step = 1; step <= PATH_ROUTE_LOOKAHEAD && step <= cursor; step++) {
+            uint32_t const index = cursor - step;
+            candidate = path_cell_center(pathmap.pathheap[index]);
+            if (!CM_LineIsPathableForRadiusFlags(&previous, &candidate, params->radius, blocked_flags))
+                break;
+            best = index;
+        }
+        if (best == cursor) break;
+        candidate = path_cell_center(pathmap.pathheap[best]);
+        points[result->count++] = candidate;
+        result->endpoint = candidate;
+        previous = candidate;
+        cursor = best;
+    }
+    if (result->count) {
+        /* A full buffer can end exactly at the goal. Otherwise its last
+         * waypoint is only a prefix, even if A* itself found the target. */
+        result->truncated = cursor != 0 || Vector2_distance(&previous, &goal) >= 0.01f;
+        result->status = complete && !result->truncated ? CM_ROUTE_COMPLETE : CM_ROUTE_PARTIAL;
+        return true;
     }
     return false;
 }

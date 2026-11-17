@@ -14,6 +14,38 @@ Ground Move, Patrol, Attack-move location orders, and Attack chases use collisio
 
 Normal movement uses the live `unitinfo.PropWindow`, initialized from `UnitData.propWin` / object field `uprw` and mutable through `SetUnitPropWindow`. The authored value is a propulsion window in degrees: steering may continue turning toward the avoidance-resolved heading every simulation tick, but `unit_moveindirection()` does not translate until the remaining facing error is strictly inside that window. This is shared movement behavior, so Attack chase, Follow, Patrol, Harvest, Repair, Way Gate approach, and ordinary Move inherit the same turn-before-propulsion rule rather than implementing Attack-specific steering. A zero runtime value prevents translation until facing exactly matches the resolved heading, so it can be used to hold movement while retaining turning.
 
+### Bounded local multi-waypoint search (foundation)
+
+`server/sv_routing.c` exposes `CM_FindBoundedPath()` as an additive generic
+routing query. The caller supplies `pathAccelParams_t`, a fixed-capacity array
+of `vec2_t` waypoints, and receives a `cmRoutePath_t` result. Routing still uses
+static `pathmap.original`, a radius-expanded footprint and the existing
+blocked-channel mask; it does **not** bake moving units into the pathmap.
+
+The result's `status` is `CM_ROUTE_COMPLETE` only when local A* reached the
+legal navigation endpoint. `CM_ROUTE_PARTIAL` means either search stopped at
+its 2,048-expansion budget / explored only a disconnected component, or the
+output buffer is too short to carry the complete smoothed path. A partial
+route supplies safe forward progress **not** unit/task arrival. `CM_ROUTE_NONE`
+means the local search cannot supply any valid forward segment; the existing
+resumable shared field may still find a route. A target outside the 48-cell
+local envelope is deliberately deferred to that field.
+
+The result separates `navigation_goal` (which may be the closest legal cell)
+from the caller's authored destination, and includes the returned segment's
+`endpoint`, `count`, `truncated`, `goal_adjusted`, and `map_revision`. Waypoints
+are in start-to-end order; every emitted segment is checked by
+`CM_LineIsPathableForRadiusFlags()`, including its diagonal corner rule. A
+fixed 16-cell lookahead bounds smoothing work; a limited output array returns
+an explicitly partial prefix rather than silently dropping remaining turns.
+
+`CM_GetPathRevision()` changes on static-pathmap setup/bake and explicit
+cache invalidation, not for transient unit occupancy. The revision is exposed
+for upcoming mover-owned retained-route invalidation; this patch does not yet
+replace WC3's existing `CM_AccelerateRoute()` single-waypoint handling.
+`CM_FindPathWaypoint()` deliberately keeps its completed-search-only behavior
+and remains available for existing movement and other-game callers.
+
 ### Static interaction rectangles
 
 `G_ClosestStaticPathablePointInRectForRadiusFlags()` is a WC3-owned query for interactions whose legal destination is a world-space rectangle rather than one point or an entity footprint. It searches every pathmap cell intersecting the rectangle, applies the caller's collision radius and blocked-pathing mask to `pathmap.original`, and returns the closest point inside a legal intersecting cell. It does **not** stamp live units into the query. Temporary occupancy remains a move-time collision/local-avoidance concern, preventing a crowded interaction area from becoming unavailable at order submission. Way Gates use it for authored `Wrp1`/`Wrp2` entry rectangles; the shared router retains only generic pathing primitives.

@@ -90,6 +90,31 @@ bool CM_TerrainPointIsWalkable(vec2_t const *location);
 bool CM_TerrainPointIsSwimmable(vec2_t const *location);
 bool CM_LineIsWalkableForRadius(vec2_t const *a, vec2_t const *b, float radius);
 bool CM_LineIsPathableForRadiusFlags(vec2_t const *a, vec2_t const *b, float radius, uint8_t blocked_flags);
+/* A bounded local A* route. The caller owns the waypoint array and may
+ * continue a PARTIAL prefix with another query or a shared flow field.
+ * COMPLETE means A* reached the legal (possibly corrected) navigation goal,
+ * not that an order/ability has completed. NONE has no usable progress.
+ * Each emitted segment is checked with the same radius/mask line predicate
+ * as direct routing. The last point is result.endpoint. */
+typedef enum {
+    CM_ROUTE_NONE,
+    CM_ROUTE_COMPLETE,
+    CM_ROUTE_PARTIAL
+} cmRouteStatus_t;
+
+typedef struct {
+    cmRouteStatus_t status;
+    uint32_t count;
+    uint32_t map_revision;
+    vec2_t endpoint;
+    vec2_t navigation_goal;
+    bool goal_adjusted;
+    bool truncated;
+} cmRoutePath_t;
+
+bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
+                        uint32_t capacity, cmRoutePath_t *result);
+uint32_t CM_GetPathRevision(void);
 bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 bool CM_GetTerrainPathingFlagsAt(vec2_t const *location, uint8_t *flags);
 float CM_PathDistanceForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius, uint8_t blocked_flags);
