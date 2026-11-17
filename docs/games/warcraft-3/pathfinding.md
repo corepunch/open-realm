@@ -504,3 +504,23 @@ shared routing, workers, other abilities, and other games do not.
 Group identity and authored slots persist in existing order/movement pools,
 while the speed refresh stamps are transient and cleared on load. No route
 scratch, live group pointers, or separate physical-group scheduler is saved.
+
+## Patrol / Attack Move / Follow continuation (PF-ORDER-08)
+
+The authored parent order remains authoritative during opportunistic combat.
+Patrol reverses its original A/B legs only on actual endpoint arrival, not
+on a temporary blocked or partial routing result. When a Patrol leg reaches
+a boundary with queued commands, it retains exactly one owner-local
+continuation (both endpoints and the next leg) and admits the existing FIFO
+orders. Once that FIFO finishes normally, the continuation resumes without
+reallocating user queue slots. Explicit replacement, Stop and death clear it.
+
+Attack Move retains its original destination during combat. A confirmed
+unreachable auto-chase waits a bounded interval, then returns to its parent
+while briefly suppressing immediate reacquisition of the same target. Manual
+Attack still replaces the parent. Follow resumes toward the live target,
+checks its spawn incarnation at each resume/tick, and finishes only when the
+followed target becomes invalid, not merely within stop range.
+
+Native save version 151 / browser version 11 records the bounded Patrol continuation and target identity;
+temporary chase timing is reset on load. No second task scheduler is added.

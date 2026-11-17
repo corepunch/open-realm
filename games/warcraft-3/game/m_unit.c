@@ -230,9 +230,8 @@ void unit_stand(edict_t *self) {
      * then let a pending Shift order become authoritative before installing the
      * idle/default stand behavior. */
     unit_prepare_stand(self);
-    if (G_UnitStartNextQueuedOrder(self)) {
-        return;
-    }
+    if (G_UnitStartNextQueuedOrder(self)) return;
+    if (G_ResumePatrolContinuation(self)) return;
     unit_install_stand_move(self);
 }
 
@@ -1098,6 +1097,10 @@ void G_ClearUnitOrderQueue(edict_t *self) {
     unitOrderQueue_t *queue;
 
     if (!self || !self->orders) return;
+    /* Called by unqueued replacement/Stop/death, not by FIFO activation. */
+    self->orders->patrol_resume_pending = false;
+    self->orders->failed_chase_target = NULL;
+    self->orders->chase_unreachable_since = 0;
     queue = &self->orders->queue;
     FOR_LOOP(i, queue->count) {
         uint32_t const slot = (queue->head + i) % MAX_UNIT_ORDER_QUEUE;

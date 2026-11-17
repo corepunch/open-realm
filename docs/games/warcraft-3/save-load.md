@@ -1317,3 +1317,11 @@ authoritative Move goal incarnation, queued group legs, and movement order;
 fresh route. The movement pool layout now includes a transient effective-speed sample;
 PF-06 bumps the format version from native 149 to 150 (browser 9 to 10). The sample is reset on load. Regression:
 `wc3_save.mid_route_move_rebuilds_transient_path_after_load`.
+
+## Patrol and Follow continuation (native 151 / browser 11)
+
+The existing order pool now retains a single deferred Patrol A/B continuation
+and the Follow target's entity incarnation. An active auto-chase retry target
+may also survive a load, while its transient unreachable-progress timer is
+cleared. No hidden commands are inserted into the existing 16-entry FIFO.
+The normal strict version validation rejects earlier pool layouts.
