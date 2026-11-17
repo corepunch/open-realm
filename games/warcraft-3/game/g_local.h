@@ -2210,6 +2210,7 @@ typedef struct {
     uint8_t count, cursor;
     cmRouteStatus_t status;
     bool valid;
+    bool dynamic_detour; /* local idle-body snapshot only; never a shared flow */
 } wc3LocalRoute_t;
 
 /* Active travel scratch owned by Move steering; absent after arrival, Stop, death or a stationary move. */
@@ -2222,6 +2223,8 @@ typedef struct {
     vec2_t last_origin;
     float last_distance;
     uint32_t blocked_frames;
+    uint32_t dynamic_retry_time; /* rate-limit local idle-body A* attempts */
+    bool dynamic_retry_valid;
     uint32_t flow_generation; /* active static-route field selected this tick */
     bool flow_goal_reached; /* mover occupies the route's adjusted goal cell */
     bool flow_unreachable;  /* field exists but current cell has no route */

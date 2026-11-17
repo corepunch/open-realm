@@ -1289,3 +1289,11 @@ order. The fallback goal pointer, corrected endpoint, navigation status and
 retained local A* arrays are cleared on load and reconstructed from the saved
 order and current path map. Prior-version saves are rejected by the normal
 strict-version check.
+
+## Dynamic route-retry scratch (native version 148 / browser version 8)
+
+Version 148 changes the `movement_t` pool layout for a per-unit idle-body
+route retry timer and the temporary dynamic-detour marker. Both are runtime
+state (registered `F_IGNORE`, or covered by the ignored `local_route`) and
+rebuild from the retained order after loading. They do not serialize live
+collider pointers or cached A* nodes. Older pool layouts remain rejected.

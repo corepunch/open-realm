@@ -46,6 +46,32 @@ remains unchanged for other games, while WC3's movement now uses the bounded
 multi-waypoint result. `CM_FindPathWaypoint()` deliberately keeps its
 completed-search-only behavior for existing generic callers.
 
+### Local stationary-body detours (Patch 5)
+
+A stalled WC3 mover may request an additional bounded A* search with a
+**caller-owned, temporary stationary-unit obstruction snapshot**. The generic
+`CM_FindBoundedPathWithBlockers()` API accepts an optional predicate that
+vetoes occupied cell centres, diagonal corner neighbours, and simplified
+segments without inserting live occupancy into `pathmap.original`, changing
+`CM_GetPathRevision()`, or invalidating shared flow fields. The unfiltered
+`CM_FindBoundedPath()` interface retains its earlier static-only behavior.
+
+Only eligible idle solid units in the same movement collision domain are
+included. Moving units remain handled by move-time slide/avoidance; workers
+using resource queueing or static-only resource return do not use this
+additional detour query. A short local route is installed after the existing
+24-frame displacement-stall threshold and at most once per 500 ms retry
+window. Routes stop at a bounded staging leg if the original goal is distant;
+they never claim that a partial search has completed the gameplay order.
+
+The original goal and target incarnation remain authoritative. A valid
+stationary-body detour is retained while occupied; if the obstacle departs
+and a direct static/dynamic segment becomes clear, ordinary routing resumes.
+A temporary near-goal body blocker does not force a permanent Hold, so a
+previously blocked movement order can recover without a second click.
+The detour and retry throttle are transient movement state, cleared on
+order reset and save/load; the pool layout change bumps save format to 125.
+
 ### WC3 mover-owned retained routes (Patch 2)
 
 `movement_t.local_route` retains up to 16 collision-validated turns produced by

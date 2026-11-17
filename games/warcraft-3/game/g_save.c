@@ -173,8 +173,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 135 persists Locust expiry recall phase, deadline and caster cancellation. */
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
-/* Browser version 7: follow identity and corrected navigation (native version 147). */
-static uint32_t const save_version = 7;
+/* Browser version 8: transient idle-blocker retries (native version 148). */
+static uint32_t const save_version = 8;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -186,8 +186,10 @@ static uint32_t const save_version = 7;
 /* Version 145 registers the Channel follow-through thinker. */
 /* Version 146 adds transient retained local route fields and a map-revision guard. */
 /* Version 147 preserves follow target incarnation and corrected navigation state. */
-static uint32_t const save_version = 147;
+/* Version 148 stores runtime-only stationary-blocker retry/route scratch. */
+static uint32_t const save_version = 148;
 #endif
+
 
 
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
@@ -841,6 +843,8 @@ static field_t const ancient_root_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(movement_t, dynamic_retry_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(movement_t, dynamic_retry_valid, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_direction, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_goal_origin, F_IGNORE, 0, FIELD_RUNTIME),
     TF(movement_t, route_resume_goal, F_IGNORE, 0, FIELD_RUNTIME),

@@ -4509,6 +4509,76 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
     }
 }
 
+/* An idle body with an allocated movement record is still stationary.
+ * Once the unit fails to displace, use a local route rather than changing
+ * cached static flow fields or cancelling the original Move. */
+TEST(wc3_movement, stationary_body_recovery_preserves_order_and_clears_after_departure) {
+    enum { CELLS = 64 };
+    uint8_t cells[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(-320.0f, 0.0f);
+    vec2_t const goal = {320.0f, 0.0f};
+    edict_t *body = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -200.0f, 0.0f);
+    body->s.model = 1;
+    body->svflags |= SVF_MONSTER;
+    body->collision = 24.0f;
+    body->health.value = body->health.max_value = 100.0f;
+    G_BeginMovement(body); /* allocated state, but not a travelling unit */
+    gi.LinkEntity(body);
+    unit->collision = 16.0f;
+    CM_SetupTestPathmap(CELLS, CELLS, cells);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    T_ASSERT(unit_issueorder(unit, "move", &goal));
+    unit->movement->blocked_frames = 24;
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement->local_route.valid);
+    T_ASSERT(unit->movement->local_route.dynamic_detour);
+    T_ASSERT(unit->movement->path.valid);
+    bool deviates = false;
+    FOR_LOOP(i, unit->movement->local_route.count)
+        if (fabsf(unit->movement->local_route.points[i].y) > 0.1f) deviates = true;
+    T_ASSERT(deviates);
+    T_FEQ(unit->goalentity->s.origin2.x, goal.x, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.y, goal.y, 0.01f);
+
+    /* A body leaving does not change the static revision; normal direct
+     * navigation automatically resumes the original authored destination. */
+    uint32_t const revision = CM_GetPathRevision();
+    body->s.origin2.y = 300.0f;
+    body->s.origin.y = 300.0f;
+    gi.LinkEntity(body);
+    unit_changeangle(unit);
+    T_EQ(CM_GetPathRevision(), revision);
+    T_ASSERT(!unit->movement->local_route.dynamic_detour);
+    T_ASSERT(unit->movement->flow_direct);
+    T_FEQ(unit->goalentity->s.origin2.x, goal.x, 0.01f);
+}
+
+TEST(wc3_movement, moving_body_does_not_enter_local_route_snapshot) {
+    enum { CELLS = 64 };
+    uint8_t cells[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(-320.0f, 0.0f);
+    edict_t *body = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -200.0f, 0.0f);
+    vec2_t const goal = {320.0f, 0.0f}, moving_goal = {-100.0f, 0.0f};
+    body->s.model = 1;
+    body->svflags |= SVF_MONSTER;
+    body->collision = 24.0f;
+    body->stand = unit_stand;
+    body->health.value = body->health.max_value = 100.0f;
+    gi.LinkEntity(body);
+    unit->collision = 16.0f;
+    CM_SetupTestPathmap(CELLS, CELLS, cells);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    T_ASSERT(unit_issueorder(unit, "move", &goal));
+    T_ASSERT(unit_issueorder(body, "move", &moving_goal));
+    T_ASSERT(body->currentmove && body->currentmove->travel);
+    unit->movement->blocked_frames = 24;
+    unit_changeangle(unit);
+    T_ASSERT(!unit->movement->local_route.dynamic_detour);
+    T_ASSERT(unit->movement->flow_direct);
+}
+
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t origin = unit->s.origin2;

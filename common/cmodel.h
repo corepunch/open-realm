@@ -112,6 +112,12 @@ typedef struct {
     bool truncated;
 } cmRoutePath_t;
 
+/* Optional local-only occupancy veto; true means the candidate footprint is
+ * blocked. No state is inserted into the shared pathmap or flow cache. */
+typedef bool (*cmRouteBlocked_t)(vec2_t const *point, void *context);
+bool CM_FindBoundedPathWithBlockers(pathAccelParams_t const *params, vec2_t *points,
+                                    uint32_t capacity, cmRoutePath_t *result,
+                                    cmRouteBlocked_t blocked, void *context);
 bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
                         uint32_t capacity, cmRoutePath_t *result);
 uint32_t CM_GetPathRevision(void);
