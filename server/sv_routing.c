@@ -1089,8 +1089,39 @@ static uint32_t path_heap_pop(uint32_t *count) {
 /* Run the existing bounded A* once; reconstruction is separate so callers
  * can request either a legacy single waypoint or a retained local route.
  * Scratch nodes are generation-stamped; they are never a persistent route. */
-static bool path_search_bounded(pathAccelParams_t const *params,
-                                uint32_t *end_index, bool *complete) {
+/* Test transient occupancy along the actual edge as well as at the
+ * cell centres. A small body can sit between two centres on an otherwise
+ * legal static segment. Never accept that shortcut without a swept veto. */
+static bool path_dynamic_segment_clear(vec2_t const *from, vec2_t const *to,
+                                       float radius, cmRouteBlocked_t blocked,
+                                       void *context) {
+    if (!blocked) return true;
+    float const distance = Vector2_distance(from, to);
+    float const step = MAX(1.0f, MIN(pathmap_cell_world_size() * 0.5f,
+                                      MAX(1.0f, radius * 0.5f)));
+    int const samples = MAX(1, (int)ceilf(distance / step));
+    for (int i = 1; i <= samples; i++) {
+        float const t = (float)i / (float)samples;
+        vec2_t const point = { from->x + (to->x - from->x) * t,
+                               from->y + (to->y - from->y) * t };
+        if (blocked(&point, context)) return false;
+    }
+    return true;
+}
+
+/* The optional veto is used only for a caller-owned local search. All
+ * permanent/cacheable pathing remains in pathmap.original. */
+static bool path_dynamic_cell_ok(int x, int y, cmRouteBlocked_t blocked, void *context) {
+    if (!blocked) return true;
+    if (x < 0 || y < 0 || !is_valid_point((uint32_t)x, (uint32_t)y)) return false;
+    vec2_t const centre = CM_GetDenormalizedMapPosition(
+        ((float)x + 0.5f) / pathmap.width, ((float)y + 0.5f) / pathmap.height);
+    return !blocked(&centre, context);
+}
+
+static bool path_search_bounded_filtered(pathAccelParams_t const *params,
+                                         uint32_t *end_index, bool *complete,
+                                         cmRouteBlocked_t blocked, void *context) {
     point2_t start, target;
     uint32_t heap_count = 0, expanded = 0, cells = pathmap.width * pathmap.height;
     uint32_t best_index, start_index, target_index;
@@ -1141,11 +1172,22 @@ static bool path_search_bounded(pathAccelParams_t const *params,
         }
         FOR_LOOP(dir, 8) {
             int const nx = cx + dx[dir], ny = cy + dy[dir];
-            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, radius_cells, blocked_flags)) continue;
+            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, radius_cells, blocked_flags) ||
+                !path_dynamic_cell_ok(nx, ny, blocked, context)) continue;
             if (dir >= 4) {
-                bool const side_x = path_ok(nx, cy, radius_cells, blocked_flags);
-                bool const side_y = path_ok(cx, ny, radius_cells, blocked_flags);
+                bool const side_x = path_ok(nx, cy, radius_cells, blocked_flags) &&
+                    path_dynamic_cell_ok(nx, cy, blocked, context);
+                bool const side_y = path_ok(cx, ny, radius_cells, blocked_flags) &&
+                    path_dynamic_cell_ok(cx, ny, blocked, context);
                 if (!(side_x && side_y)) continue;
+            }
+            if (blocked) {
+                vec2_t const a = CM_GetDenormalizedMapPosition(
+                    ((float)cx + 0.5f) / pathmap.width, ((float)cy + 0.5f) / pathmap.height);
+                vec2_t const b = CM_GetDenormalizedMapPosition(
+                    ((float)nx + 0.5f) / pathmap.width, ((float)ny + 0.5f) / pathmap.height);
+                if (!path_dynamic_segment_clear(&a, &b, params->radius, blocked, context))
+                    continue;
             }
             uint32_t const next = (uint32_t)nx + (uint32_t)ny * pathmap.width;
             pathNode_t *next_node = &pathmap.pathnodes[next];
@@ -1165,6 +1207,22 @@ static bool path_search_bounded(pathAccelParams_t const *params,
         return false; /* A pending field may still find a route. No movement yet. */
     *end_index = best_index;
     return true;
+}
+
+static bool path_search_bounded(pathAccelParams_t const *params,
+                                uint32_t *end_index, bool *complete) {
+    return path_search_bounded_filtered(params, end_index, complete, NULL, NULL);
+}
+
+/* A simplified segment must also clear temporary obstacles. Use subcell
+ * samples so shortcuts cannot skip an occupied cell or slice a footprint. */
+static bool path_segment_clear_filtered(pathAccelParams_t const *params,
+                                        vec2_t const *from, vec2_t const *to,
+                                        cmRouteBlocked_t blocked, void *context) {
+    if (!CM_LineIsPathableForRadiusFlags(from, to, params->radius,
+                                         normalize_blocked_flags(params->blocked_flags)))
+        return false;
+    return path_dynamic_segment_clear(from, to, params->radius, blocked, context);
 }
 
 /* The reconstruction buffer is the already-allocated path heap. Search is
@@ -1206,8 +1264,9 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
  * ahead a fixed number of parent cells per retained turn to bound shortcut
  * checking even in long winding corridors. */
 #define PATH_ROUTE_LOOKAHEAD 16
-bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
-                        uint32_t capacity, cmRoutePath_t *result) {
+bool CM_FindBoundedPathWithBlockers(pathAccelParams_t const *params, vec2_t *points,
+                                    uint32_t capacity, cmRoutePath_t *result,
+                                    cmRouteBlocked_t blocked, void *context) {
     uint32_t end_index, count, cursor;
     bool complete;
     vec2_t previous, goal;
@@ -1216,7 +1275,7 @@ bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
     if (!result) return false;
     memset(result, 0, sizeof(*result));
     result->map_revision = CM_GetPathRevision();
-    if (!points || !capacity || !path_search_bounded(params, &end_index, &complete))
+    if (!points || !capacity || !path_search_bounded_filtered(params, &end_index, &complete, blocked, context))
         return false;
 
     blocked_flags = normalize_blocked_flags(params->blocked_flags);
@@ -1224,7 +1283,7 @@ bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
     if (!count) return false;
     goal = path_cell_center(end_index);
     if (complete && CM_PointIsPathableForRadiusFlags(params->target, params->radius, blocked_flags) &&
-        CM_LineIsPathableForRadiusFlags(&goal, params->target, params->radius, blocked_flags))
+        path_segment_clear_filtered(params, &goal, params->target, blocked, context))
         goal = *params->target;
     result->navigation_goal = goal;
     result->goal_adjusted = complete && Vector2_distance(&goal, params->target) >= 0.01f;
@@ -1236,7 +1295,7 @@ bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
         vec2_t candidate;
         /* For an A* result with a legal endpoint, never turn a direct
          * collision-safe segment into gratuitous intermediate waypoints. */
-        if (CM_LineIsPathableForRadiusFlags(&previous, &goal, params->radius, blocked_flags)) {
+        if (path_segment_clear_filtered(params, &previous, &goal, blocked, context)) {
             points[result->count++] = goal;
             result->endpoint = goal;
             result->status = complete ? CM_ROUTE_COMPLETE : CM_ROUTE_PARTIAL;
@@ -1246,7 +1305,7 @@ bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
         for (uint32_t step = 1; step <= PATH_ROUTE_LOOKAHEAD && step <= cursor; step++) {
             uint32_t const index = cursor - step;
             candidate = path_cell_center(pathmap.pathheap[index]);
-            if (!CM_LineIsPathableForRadiusFlags(&previous, &candidate, params->radius, blocked_flags))
+            if (!path_segment_clear_filtered(params, &previous, &candidate, blocked, context))
                 break;
             best = index;
         }
@@ -1265,6 +1324,11 @@ bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
         return true;
     }
     return false;
+}
+
+bool CM_FindBoundedPath(pathAccelParams_t const *params, vec2_t *points,
+                        uint32_t capacity, cmRoutePath_t *result) {
+    return CM_FindBoundedPathWithBlockers(params, points, capacity, result, NULL, NULL);
 }
 
 /*Synchronous point-to-point distance query for external/tool callers.  It

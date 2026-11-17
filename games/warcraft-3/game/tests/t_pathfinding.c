@@ -793,6 +793,90 @@ TEST(wc3_pathfinding, bounded_route_retains_s_corridor_turns) {
     }
 }
 
+/* Caller-owned dynamic obstacles must influence local A* and every
+ * emitted shortcut, without modifying the shared static path revision. */
+typedef struct {
+    vec2_t centers[2];
+    float radii[2];
+    uint32_t count;
+} testRouteBlockers_t;
+
+static bool test_route_blocked(vec2_t const *point, void *context) {
+    testRouteBlockers_t const *b = context;
+    FOR_LOOP(i, b->count)
+        if (Vector2_distance(point, &b->centers[i]) < b->radii[i]) return true;
+    return false;
+}
+
+static bool test_route_segment_blocked(vec2_t const *from, vec2_t const *to,
+                                       testRouteBlockers_t const *b) {
+    vec2_t const delta = Vector2_sub(to, from);
+    float const length2 = Vector2_dot(&delta, &delta);
+    FOR_LOOP(i, b->count) {
+        vec2_t const offset = Vector2_sub(&b->centers[i], from);
+        float t = length2 > 0.0001f ? Vector2_dot(&offset, &delta) / length2 : 0.0f;
+        t = MAX(0.0f, MIN(1.0f, t));
+        vec2_t const p = Vector2_mad(from, t, &delta);
+        if (Vector2_distance(&p, &b->centers[i]) < b->radii[i]) return true;
+    }
+    return false;
+}
+
+TEST(wc3_pathfinding, local_idle_body_query_detours_without_static_stamping) {
+    uint8_t cells[16 * 16] = {0};
+    vec2_t from = {2.5f, 7.5f}, target = {12.5f, 7.5f}, points[16], previous;
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+    testRouteBlockers_t blockers = { .centers = {{7.5f, 7.5f}},
+                                     .radii = {1.4f}, .count = 1 };
+    cmRoutePath_t result;
+    setup_test_pathmap(16, 16, cells);
+    uint32_t const revision = CM_GetPathRevision();
+    T_ASSERT(CM_LineIsPathableForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(CM_FindBoundedPathWithBlockers(&params, points, 16, &result,
+                                            test_route_blocked, &blockers));
+    T_EQ(result.status, CM_ROUTE_COMPLETE);
+    T_ASSERT(result.count >= 2);
+    previous = from;
+    FOR_LOOP(i, result.count) {
+        T_ASSERT(!test_route_segment_blocked(&previous, &points[i], &blockers));
+        previous = points[i];
+    }
+    T_FEQ(Vector2_distance(&previous, &target), 0.0f, 0.001f);
+    T_EQ(CM_GetPathRevision(), revision);
+    T_ASSERT(CM_FindBoundedPath(&params, points, 16, &result));
+    T_EQ(result.status, CM_ROUTE_COMPLETE);
+    T_EQ(result.count, 1); /* no permanent occupancy baked into static routes */
+}
+
+TEST(wc3_pathfinding, idle_body_at_target_is_partial_not_complete) {
+    uint8_t cells[16 * 16] = {0};
+    vec2_t from = {2.5f, 7.5f}, target = {12.5f, 7.5f}, points[16];
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+    testRouteBlockers_t blockers = { .centers = {{12.5f, 7.5f}},
+                                     .radii = {1.1f}, .count = 1 };
+    cmRoutePath_t result;
+    setup_test_pathmap(16, 16, cells);
+    T_ASSERT(CM_FindBoundedPathWithBlockers(&params, points, 16, &result,
+                                            test_route_blocked, &blockers));
+    T_EQ(result.status, CM_ROUTE_PARTIAL);
+    T_ASSERT(result.count > 0);
+    T_ASSERT(!test_route_blocked(&result.endpoint, &blockers));
+    T_ASSERT(Vector2_distance(&result.endpoint, &target) > 0.1f);
+}
+
+TEST(wc3_pathfinding, dynamic_blockers_respect_diagonal_corner_sides) {
+    uint8_t cells[2 * 2] = {0};
+    vec2_t from = {0.5f, 0.5f}, target = {1.5f, 1.5f}, points[4];
+    pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
+    testRouteBlockers_t blockers = { .centers = {{1.5f, 0.5f}, {0.5f, 1.5f}},
+                                     .radii = {0.4f, 0.4f}, .count = 2 };
+    cmRoutePath_t result;
+    setup_test_pathmap(2, 2, cells);
+    T_ASSERT(!CM_FindBoundedPathWithBlockers(&params, points, 4, &result,
+                                             test_route_blocked, &blockers));
+    T_EQ(result.status, CM_ROUTE_NONE);
+}
+
 TEST(wc3_pathfinding, bounded_route_rejects_diagonal_corner_cutting) {
     uint8_t cells[] = { 0, CM_PATHING_UNWALKABLE,
                         CM_PATHING_UNWALKABLE, 0 };

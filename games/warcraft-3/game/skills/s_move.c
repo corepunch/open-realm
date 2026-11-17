@@ -43,6 +43,9 @@ typedef struct {
 #define MOVE_WORKER_ESCAPE_DEVIATION 6.0f                      /* collision radii */
 #define MOVE_WORKER_MAX_RETREAT 4.0f                           /* collision radii behind the corridor origin */
 #define MAX_MOVE_COLLIDERS     256
+#define MOVE_LOCAL_IDLE_BLOCKERS 64
+#define MOVE_DETOUR_RETRY_MS 500u
+#define MOVE_DETOUR_REACH_CELLS 20.0f
 
 typedef enum {
     MOVE_AVOID_GENERIC,
@@ -1022,6 +1025,7 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
 static void move_local_route_clear(edict_t *self) {
     if (!self || !self->movement) return;
     self->movement->local_route.valid = false;
+    self->movement->local_route.dynamic_detour = false;
     self->movement->path.valid = false;
 }
 
@@ -1143,6 +1147,144 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
     return true;
 }
 
+/* Idle solids are a temporary local constraint, not part of the WPM or
+ * shared flow field. Snapshot only after a genuine blocked-movement window. */
+typedef struct {
+    vec2_t positions[MOVE_LOCAL_IDLE_BLOCKERS];
+    float radii[MOVE_LOCAL_IDLE_BLOCKERS];
+    uint32_t count;
+} moveIdleSnapshot_t;
+
+static bool move_idle_blocked(vec2_t const *point, void *opaque) {
+    moveIdleSnapshot_t const *snapshot = opaque;
+    FOR_LOOP(i, snapshot->count) {
+        if (Vector2_distance(point, &snapshot->positions[i]) < snapshot->radii[i])
+            return true;
+    }
+    return false;
+}
+
+static void move_idle_snapshot(edict_t *self, vec2_t const *target, float radius,
+                               moveIdleSnapshot_t *snapshot) {
+    float const reach = MOVE_DETOUR_REACH_CELLS * CM_PathCellWorldSize();
+    float const padding = radius + 64.0f;
+    vec2_t delta = Vector2_sub(target, &self->s.origin2);
+    float const dist = Vector2_len(&delta);
+    vec2_t const end = dist > reach ?
+        Vector2_mad(&self->s.origin2, reach / dist, &delta) : *target;
+    box2_t const box = {
+        { MIN(self->s.origin2.x, end.x) - padding, MIN(self->s.origin2.y, end.y) - padding },
+        { MAX(self->s.origin2.x, end.x) + padding, MAX(self->s.origin2.y, end.y) + padding }
+    };
+    snapshot->count = 0;
+    trymove_self = self;
+    uint32_t const count = gi.BoxEdicts(&box, trymove_colliders,
+                                        MAX_MOVE_COLLIDERS, filter_blockers);
+    FOR_LOOP(i, count) {
+        edict_t const *body = trymove_colliders[i];
+        if (!body->inuse || (body->s.renderfx & RF_HIDDEN) ||
+            (!(body->svflags & SVF_MONSTER) && !G_UnitIsStructure(body)) ||
+            M_IsDead(body) || (body->currentmove && body->currentmove->travel) ||
+            body == self->goalentity)
+            continue;
+        float const separation = radius + body->collision;
+        /* Already overlapping bodies are resolved by move-time separation;
+         * a local cell veto must not trap the mover inside its start node. */
+        if (Vector2_distance(&self->s.origin2, &body->s.origin2) < separation)
+            continue;
+        if (snapshot->count == MOVE_LOCAL_IDLE_BLOCKERS) break;
+        uint32_t const at = snapshot->count++;
+        snapshot->positions[at] = body->s.origin2;
+        snapshot->radii[at] = separation;
+    }
+}
+
+static bool move_idle_segment_blocked(vec2_t const *start, vec2_t const *goal,
+                                      moveIdleSnapshot_t const *snapshot) {
+    FOR_LOOP(i, snapshot->count) {
+        if (point_segment_distance(start, goal, &snapshot->positions[i]) < snapshot->radii[i])
+            return true;
+    }
+    return false;
+}
+
+/* Only normal live-unit collision uses this recovery. Worker resource return
+ * and the authored worker queue policy deliberately keep their own rules. */
+static bool move_idle_detour_steer(edict_t *self, vec2_t const *target, float radius,
+                                   uint8_t flags, moveAvoidPolicy_t policy) {
+    wc3LocalRoute_t *route = &self->movement->local_route;
+    moveIdleSnapshot_t snapshot;
+    vec2_t direction;
+    if (policy != MOVE_AVOID_GENERIC || G_UnitHasFlag(self, UNIT_FLAG_NO_PATHING))
+        return false;
+    float const settle_distance = unit_movedistance(self) + radius + MOVE_SLOT_MARGIN;
+    uint32_t const stuck_threshold = self->movement->last_distance >= 0 &&
+        self->movement->last_distance <= settle_distance ? MOVE_SETTLE_FRAMES : MOVE_BLOCKED_FRAMES;
+    bool const retry_due = !self->movement->dynamic_retry_valid ||
+        (uint32_t)(level.time - self->movement->dynamic_retry_time) >= MOVE_DETOUR_RETRY_MS;
+
+    if (route->valid && route->dynamic_detour) {
+        /* A later idle body can obstruct the retained segment. Re-search only
+         * after a real movement stall and the bounded retry window. */
+        if (self->movement->blocked_frames >= stuck_threshold && retry_due) {
+            move_local_route_clear(self);
+        } else {
+            move_idle_snapshot(self, target, radius, &snapshot);
+            if (!move_idle_segment_blocked(&self->s.origin2, target, &snapshot) &&
+                CM_LineIsPathableForRadiusFlags(&self->s.origin2, target, radius, flags)) {
+                move_local_route_clear(self); /* blocker left: recover the authored goal */
+            } else if (move_local_route_direction(self, target, radius, flags, &direction)) {
+                self->movement->flow_generation = 0;
+                self->movement->flow_direct = false;
+                self->movement->flow_unreachable = false;
+                self->movement->route_resume_active = false;
+                unit_apply_heading(self, &direction, policy);
+                return true;
+            }
+        }
+    }
+    if (self->movement->blocked_frames < stuck_threshold || !retry_due)
+        return false;
+    self->movement->dynamic_retry_valid = true;
+    self->movement->dynamic_retry_time = level.time;
+    move_idle_snapshot(self, target, radius, &snapshot);
+    if (!snapshot.count || !move_idle_segment_blocked(&self->s.origin2, target, &snapshot))
+        return false;
+    vec2_t delta = Vector2_sub(target, &self->s.origin2);
+    float const distance = Vector2_len(&delta);
+    if (distance <= 0.001f) return false;
+    float const max_leg = MOVE_DETOUR_REACH_CELLS * CM_PathCellWorldSize();
+    vec2_t const local_target = distance > max_leg ?
+        Vector2_mad(&self->s.origin2, max_leg / distance, &delta) : *target;
+    pathAccelParams_t const params = { &self->s.origin2, &local_target, radius, flags };
+    cmRoutePath_t result;
+    if (!CM_FindBoundedPathWithBlockers(&params, route->points,
+                                        WC3_LOCAL_ROUTE_CAPACITY, &result,
+                                        move_idle_blocked, &snapshot) || !result.count)
+        return false;
+    route->requested_goal = *target;
+    route->navigation_goal = result.navigation_goal;
+    route->goal = self->goalentity;
+    route->goal_spawn_time = self->goalentity ? self->goalentity->spawn_time : 0;
+    route->map_revision = result.map_revision;
+    route->radius = radius;
+    route->blocked_flags = flags;
+    route->count = (uint8_t)result.count;
+    route->cursor = 0;
+    /* The local target may be a staging point, never task completion. */
+    route->status = distance > max_leg ? CM_ROUTE_PARTIAL : result.status;
+    route->valid = true;
+    route->dynamic_detour = true;
+    if (!move_local_route_direction(self, target, radius, flags, &direction))
+        return false;
+    self->movement->flow_generation = 0;
+    self->movement->flow_direct = false;
+    self->movement->flow_unreachable = false;
+    self->movement->route_resume_active = false;
+    unit_apply_heading(self, &direction, policy);
+    return true;
+}
+
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     if (!self) return;
     if (self->aiflags & AI_IMMOBILE) { unit_facegoal(self); return; }
@@ -1192,6 +1334,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         ? self->collision : 0.0f;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
 
+    if (self->goalentity && move_idle_detour_steer(self, &self->goalentity->s.origin2,
+            radius, blocked_flags, policy))
+        return;
     self->movement->heading = self->s.angle;  /* default if no heading is resolved this tick */
     self->movement->flow_generation = 0;
     self->movement->flow_goal_reached = false;
@@ -1323,6 +1468,8 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     self->movement->flow_direct = false;
 
     if (move_steer_egress(self))
+        return;
+    if (move_idle_detour_steer(self, &self->goalentity->s.origin2, radius, blocked_flags, policy))
         return;
 
     if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
@@ -1757,6 +1904,8 @@ void move_reset_progress(edict_t *self) {
     self->movement->route_resume_valid = false;
     self->movement->route_resume_active = false;
     self->movement->blocked_frames = 0;
+    self->movement->dynamic_retry_valid = false;
+    self->movement->dynamic_retry_time = 0;
     self->movement->flow_generation = 0;
     self->movement->flow_goal_reached = false;
     self->movement->flow_unreachable = false;
@@ -2293,7 +2442,15 @@ static void ai_move_walk(edict_t *ent) {
         if (blocked && ent->movement->last_distance <= settle_distance &&
             ent->movement->flow_fallback_state != MOVE_FALLBACK_APPLIED &&
             !(ent->movement->local_route.valid &&
-              ent->movement->local_route.status == CM_ROUTE_PARTIAL)) {
+              (ent->movement->local_route.status == CM_ROUTE_PARTIAL ||
+               ent->movement->local_route.dynamic_detour))) {
+            moveIdleSnapshot_t stationary;
+            move_idle_snapshot(ent, &ent->goalentity->s.origin2, ent->collision, &stationary);
+            /* A temporarily occupied final lane must not turn the order into
+             * permanent Hold: retry after the body leaves or find a detour. */
+            if (move_idle_segment_blocked(&ent->s.origin2,
+                                           &ent->goalentity->s.origin2, &stationary))
+                return;
             /* A partial/local approach or explicit corrected endpoint is
              * still in progress, even when near the authored click. */
             move_hold(ent);
