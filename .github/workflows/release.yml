@@ -87,6 +87,8 @@ jobs:
             mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-libepoxy
             mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-ffmpeg
+            mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-python
             make
             zip
@@ -120,7 +122,16 @@ jobs:
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: make BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
+        run: |
+          set -euo pipefail
+          make BUILD=release FFMPEG=1 EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
+          # FFmpeg decodes pre-rendered movies and compressed music; fail if it was
+          # silently compiled out instead of shipping a media-less build.
+          ldd build/bin/openwarcraft3.exe | grep -i -E 'avcodec|avformat|avutil|swscale|swresample'
+          if grep -aq "playback is disabled in this build" build/bin/openwarcraft3.exe; then
+            echo "FFmpeg was not compiled into the binary" >&2
+            exit 1
+          fi
 
       - name: Verify EOS session regressions (Unix)
         if: runner.os != 'Windows'
@@ -163,12 +174,14 @@ jobs:
           cp -r build/lib/. release/
           cp -r build/share release/
           cp data/eos/ThirdPartyNotices/ThirdPartySoftwareNotice.txt release/licenses/EOS/
-          # Bundle the MinGW runtime closure (SDL2, zlib, libepoxy plus
+          # Bundle the MinGW runtime closure (SDL2, zlib, libepoxy, FFmpeg plus
           # transitive deps like libgcc/libwinpthread) beside the exe: a
           # clean Windows install has no MSYS2. Fails the job when a
           # dependency is unresolved or a required DLL is absent (issue #462).
           bash dist-scripts/windows/bundle_mingw_dlls.sh release \
             build/bin/openwarcraft3.exe build/lib/*.dll release/EOSSDK-Win64-Shipping.dll
+          # The FFmpeg DLLs the binary imports must actually be in the archive.
+          ls release/avcodec-*.dll release/avformat-*.dll >/dev/null
           cd release && zip -r ../${{ matrix.archive }} .
 
       - name: Determine release tag
