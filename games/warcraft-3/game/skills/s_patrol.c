@@ -66,10 +66,7 @@ static void ai_patrol_walk(edict_t *ent) {
     }
     /* A blocked or partial route is not endpoint arrival. In particular,
      * never reverse because a legal partial approach was reached. */
-    if (move_is_blocked(ent, distance, move_distance)) {
-        unit_changeangle(ent); /* retry on static revision / fresh route */
-        return;
-    }
+    move_is_blocked(ent, distance, move_distance); /* feed dynamic recovery */
     unit_changeangle(ent);
     if (!ent->movement || ent->movement->flow_unreachable) return;
     unit_moveindirection(ent);

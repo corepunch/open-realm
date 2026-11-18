@@ -238,11 +238,15 @@ Follow, Attack, Harvest, Build and Repair retain their entity/range-specific
 completion rules. `flow_goal_reached`, partial A* results and pending fields
 are navigation observations, **not** ability success. The active Follow target
 is guarded by `follow_target_spawn_time`, and an active point/transport Move
-checks its waypoint incarnation with `active_move_goal_spawn`. If a slot is
+checks `active_move_goal_generation` against the waypoint ring serial or the
+entity spawn time. Navigation resets preserve that identity. If a slot is
 recycled, the old order ends through `unit_stand()` and lets the next queued
 order begin.
 Navigation state (`MOVE_NAV_*`) is movement-owned; the original point and
-behavior target remain with the order.
+behavior target remain with the order. Patrol and Attack Move retain their
+leg while blocked and translate once a legal heading is available. A Move
+staging at a temporary construction detour waits for the path revision
+before it can complete or start a Shift successor.
 
 ## Authoritative Static Footprints (PF-05)
 

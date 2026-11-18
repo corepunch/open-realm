@@ -2017,7 +2017,6 @@ void move_reset_progress(edict_t *self) {
     self->movement->flow_unreachable = false;
     self->movement->flow_direct = false;
     self->movement->nav_state = MOVE_NAV_NONE;
-    self->movement->active_move_goal_spawn = 0;
     self->movement->flow_fallback_goal = NULL;
     self->movement->flow_fallback_state = MOVE_FALLBACK_NONE;
     self->movement->worker_avoid_origin = self->s.origin2;
@@ -2376,11 +2375,18 @@ static bool move_arrival_turn_pending(edict_t *ent, vec2_t const *endpoint) {
         ent->unitinfo.PropWindow;
 }
 
+static uint32_t move_goal_generation(edict_t const *goal) {
+    if (goal->route && goal->s.number >= level.waypoints.base &&
+        goal->s.number - level.waypoints.base < level.waypoints.count)
+        return goal->route->serial;
+    return goal->spawn_time;
+}
+
 static void ai_move_walk(edict_t *ent) {
     /* Move's destination may be a private waypoint or an interaction entity.
      * Reused edict slots must not silently become this order's destination. */
     if (!ent->goalentity || !ent->goalentity->inuse || !ent->movement ||
-        ent->movement->active_move_goal_spawn != ent->goalentity->spawn_time) {
+        ent->movement->active_move_goal_generation != move_goal_generation(ent->goalentity)) {
         ent->stand(ent); /* includes FIFO handoff */
         return;
     }
@@ -2413,16 +2419,25 @@ static void ai_move_walk(edict_t *ent) {
         CM_LineIsPathableForRadiusFlags(&ent->s.origin2,
             &ent->movement->flow_fallback_approach, ent->collision,
             M_UnitStaticPathingFlags(ent))) {
-        /* Point movement accepts the best reachable endpoint. No shared
-         * target or public clicked waypoint is moved to that endpoint. */
+        /* A construction detour is staging, so the authored destination
+         * remains active until the footprint changes. */
+        bool const staging = move_has_active_construction();
         if (move_arrival_turn_pending(ent, &ent->movement->flow_fallback_approach)) {
             vec2_t const direction = Vector2_sub(&ent->movement->flow_fallback_approach, &ent->s.origin2);
             unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);
             move_stand_without_translation(ent);
             return;
         }
-        if (M_MoveIsValid(ent, &ent->movement->flow_fallback_approach))
+        if (!M_MoveIsValid(ent, &ent->movement->flow_fallback_approach)) {
+            move_stand_without_translation(ent);
+            return;
+        }
+        if (Vector2_distance(&ent->s.origin2, &ent->movement->flow_fallback_approach) <= move_distance)
             unit_commit_step(ent, &ent->movement->flow_fallback_approach);
+        if (staging) {
+            move_stand_without_translation(ent);
+            return;
+        }
         if (S_UnitAbilityMoveArrive(ent)) return;
         ent->stand(ent);
         return;
@@ -2472,28 +2487,6 @@ static void ai_move_walk(edict_t *ent) {
             return;
         }
         unit_changeangle(ent);
-
-        /* An unreachable private waypoint resolves to the closest legal point
-         * in unit_changeangle().  While an active construction keeps that
-         * waypoint authoritative, snap onto the staging point when it is within
-         * this tick's budget and wait there in the stand pose: without the snap
-         * the mover overshoots it every tick and steps back, which is the
-         * visible left/right sway behind blocked paths.  The order stays alive
-         * and resumes as soon as the construction ends. */
-        if (move_has_active_construction() && unit_routes_to_location(ent) &&
-            ent->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED &&
-            ent->movement->flow_fallback_goal == ent->goalentity) {
-            float const approach_distance = Vector2_distance(&ent->s.origin2,
-                                                              &ent->movement->flow_fallback_approach);
-            if (approach_distance <= unit_movedistance(ent) + MOVE_ARRIVE_TOLERANCE) {
-                if (approach_distance <= unit_movedistance(ent) &&
-                    M_MoveIsValid(ent, &ent->movement->flow_fallback_approach))
-                    unit_commit_step(ent, &ent->movement->flow_fallback_approach);
-                if (!G_AnimationHasPrimary(ent->animation, "stand"))
-                    unit_setanimation(ent, "stand");
-                return;
-            }
-        }
 
         if (ent->movement->flow_unreachable &&
             ent->movement->flow_fallback_state == MOVE_FALLBACK_APPLIED) {
@@ -2555,8 +2548,7 @@ static void ai_move_walk(edict_t *ent) {
              * becomes reachable again.  Reachable waypoints always settle inside
              * `settle_distance` first, so this branch only covers offset route
              * ends such as a destination inside blocked pathing. */
-            if (move_has_active_construction() && unit_routes_to_location(ent) &&
-                Vector2_distance(&ent->s.origin2, &ent->goalentity->s.origin2) > settle_distance) {
+            if (move_has_active_construction()) {
                 if (!G_AnimationHasPrimary(ent->animation, "stand"))
                     unit_setanimation(ent, "stand");
             } else {
@@ -2652,7 +2644,7 @@ void order_move(edict_t *self, edict_t *target) {
                 target->s.origin2.x, target->s.origin2.y, (long)(target - g_edicts));
 #endif
     move_reset_progress(self);
-    self->movement->active_move_goal_spawn = target->spawn_time;
+    self->movement->active_move_goal_generation = move_goal_generation(target);
     unit_setmove(self, &move_move_walk);
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */

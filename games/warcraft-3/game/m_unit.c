@@ -1371,8 +1371,18 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
 }
 
-bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
-                           bool queue, uint32_t issuer_player, float group_speed) {
+static void unit_set_queued_group_move(edict_t *self, uint32_t group_move_id,
+                                       vec2_t const *group_goal) {
+    if (!group_goal) return;
+    unitOrderQueue_t *fifo = &self->orders->queue;
+    unitOrder_t *entry = &fifo->entries[(fifo->head + fifo->count - 1) % MAX_UNIT_ORDER_QUEUE];
+    entry->group_move_id = group_move_id;
+    entry->group_goal = *group_goal;
+}
+
+static bool unit_issue_point_order(edict_t *self, cstring_t order, vec2_t const *point,
+                           bool queue, uint32_t issuer_player, float group_speed,
+                                   uint32_t group_move_id, vec2_t const *group_goal) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
     if (!S_ManaFlareAllowsOrder(self, order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
@@ -1396,6 +1406,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             (!strcmp(order, "attack") && S_UnitPolymorphed(self))) return false;
         if (!unit_defer_goldmine_order(self, order, UNIT_ORDER_TARGET_POINT,
                                       point, NULL, queue, issuer_player, group_speed)) return false;
+        unit_set_queued_group_move(self, group_move_id, group_goal);
         G_PublishIssuedPointOrder(self, unit_order_event_id(order), point, issuer_player, order);
         return true;
     }
@@ -1424,9 +1435,11 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
-        if (accepted)
+        if (accepted) {
+            unit_set_queued_group_move(self, group_move_id, group_goal);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
+        }
         return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
@@ -1436,6 +1449,11 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             unit_set_active_order(self, order, UNIT_ORDER_TARGET_POINT, point, NULL, issuer_player, group_speed);
+            if (self->movement && group_goal) {
+                self->movement->group_move_id = group_move_id;
+                self->movement->group_goal = *group_goal;
+                self->movement->group_speed_checked = false;
+            }
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -1443,27 +1461,17 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
 }
 
-/* Assign formation metadata only after an order has actually been admitted.
- * For Shift this may be a FIFO entry or an immediately activated Move when
- * the unit is idle. Neither case modifies the pre-reserved destination. */
+bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
+                           bool queue, uint32_t issuer_player, float group_speed) {
+    return unit_issue_point_order(self, order, point, queue, issuer_player,
+                                  group_speed, 0, NULL);
+}
+
 bool G_IssueGroupMoveOrder(edict_t *self, vec2_t const *slot, bool queue,
                            uint32_t issuer_player, float group_speed,
                            uint32_t group_move_id, vec2_t const *group_goal) {
-    uint32_t const previous_count = self && self->orders ? self->orders->queue.count : 0;
-    if (!self || !slot || !group_goal ||
-        !G_IssueUnitPointOrder(self, "move", slot, queue, issuer_player, group_speed))
-        return false;
-    if (self->orders && self->orders->queue.count > previous_count) {
-        unitOrderQueue_t *fifo = &self->orders->queue;
-        unitOrder_t *entry = &fifo->entries[(fifo->head + fifo->count - 1) % MAX_UNIT_ORDER_QUEUE];
-        entry->group_move_id = group_move_id;
-        entry->group_goal = *group_goal;
-    } else if (self->movement) {
-        self->movement->group_move_id = group_move_id;
-        self->movement->group_goal = *group_goal;
-        self->movement->group_speed_checked = false;
-    }
-    return true;
+    return group_goal && unit_issue_point_order(self, "move", slot, queue, issuer_player,
+                                               group_speed, group_move_id, group_goal);
 }
 
 static bool unit_start_next_queued_order(edict_t *self) {

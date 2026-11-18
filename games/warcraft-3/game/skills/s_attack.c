@@ -1719,12 +1719,11 @@ static void ai_attackmove_walk(edict_t *ent) {
         }
         ent->orders->attackmove_waypoint = NULL;
         ent->stand(ent);
-    } else if (move_is_blocked(ent, distance, move_distance)) {
-        ent->orders->attackmove_waypoint = NULL;
-        ent->stand(ent);
     } else {
+        move_is_blocked(ent, distance, move_distance); /* feed dynamic recovery */
         unit_changeangle(ent);
-        unit_moveindirection(ent);
+        if (!ent->movement->flow_unreachable)
+            unit_moveindirection(ent);
     }
 }
 

@@ -1337,3 +1337,7 @@ remaining extraction timer and carried resources remain owned by the existing
 Gold Mine and harvest state; no second suspended-task queue is saved.
 
 Harvest order fields extend native 151 to 152 and browser 11 to 12 after the seven core routing patches and order-continuation work. Exact-version matching rejects earlier save layouts.
+
+Native version 153 and browser version 13 store the waypoint ring serial
+as the active Move goal generation. Entity goals retain their spawn-time
+identity. The order identity survives navigation resets and save/load.

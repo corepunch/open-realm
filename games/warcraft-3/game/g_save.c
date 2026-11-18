@@ -174,7 +174,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 #ifdef __EMSCRIPTEN__
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
 /* Browser version 12: harvest target identity and one-shot Return intent (native 152). */
-static uint32_t const save_version = 12;
+/* Browser version 13 uses waypoint generations for active Move (native 153). */
+static uint32_t const save_version = 13;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -191,7 +192,8 @@ static uint32_t const save_version = 12;
 /* Version 150 adds transient group speed sampling state. */
 /* Version 151 retains bounded Patrol continuation and chase suppression. */
 /* Version 152 persists harvest target incarnation and one-shot Return intent. */
-static uint32_t const save_version = 152;
+/* Version 153 uses the ring serial for active Move waypoint identity. */
+static uint32_t const save_version = 153;
 
 #endif
 
@@ -3441,7 +3443,7 @@ TEST(wc3_save, mid_route_move_rebuilds_transient_path_after_load) {
     unit->s.origin.x = committed.x;
     unit->s.origin.y = committed.y;
     gi.LinkEntity(unit);
-    uint32_t const target_spawn = unit->movement->active_move_goal_spawn;
+    uint32_t const target_generation = unit->movement->active_move_goal_generation;
     unit->movement->local_route.valid = true;
     unit->movement->local_route.count = 1;
     unit->movement->local_route.points[0] = (vec2_t){224, 128};
@@ -3459,8 +3461,8 @@ TEST(wc3_save, mid_route_move_rebuilds_transient_path_after_load) {
     T_NOT_NULL(unit->goalentity);
     T_FEQ(unit->s.origin2.x, committed.x, 0.01f);
     T_FEQ(unit->s.origin2.y, committed.y, 0.01f);
-    T_EQ(unit->movement->active_move_goal_spawn, target_spawn);
-    T_EQ(unit->goalentity->spawn_time, target_spawn);
+    T_EQ(unit->movement->active_move_goal_generation, target_generation);
+    T_EQ(unit->goalentity->route->serial, target_generation);
     T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
     T_ASSERT(!unit->movement->local_route.valid);
     T_ASSERT(!unit->movement->path.valid);

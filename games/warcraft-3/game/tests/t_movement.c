@@ -4260,16 +4260,18 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     T_ASSERT(Vector2_distance(&unit->s.origin2, &dest) < Vector2_distance(&start, &dest));
 }
 
-/* A stale private waypoint must not become a new destination when its
- * edict slot has been reallocated to an unrelated game entity. */
+/* Wrapping the real waypoint ring must not retarget an active Move. */
 TEST(wc3_movement, recycled_move_goal_does_not_retarget) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t const dest = {200.0f, 0.0f};
     order_move(unit, Waypoint_add(&dest));
     edict_t *const waypoint = unit->goalentity;
-    T_EQ(unit->movement->active_move_goal_spawn, waypoint->spawn_time);
-    waypoint->spawn_time++;
-    waypoint->s.origin2 = (vec2_t){500.0f, 500.0f};
+    uint32_t const spawn = waypoint->spawn_time;
+    edict_t *recycled = NULL;
+    FOR_LOOP(i, MAX_WAYPOINTS)
+        recycled = Waypoint_add(&MAKE(vec2_t, .x = 500, .y = 500));
+    T_ASSERT(recycled == waypoint);
+    T_EQ(waypoint->spawn_time, spawn);
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "stand");
     T_NULL(unit->movement);
@@ -4311,6 +4313,16 @@ TEST(wc3_movement, corrected_move_endpoint_advances_shift_queue) {
     unit->movement->flow_fallback_state = MOVE_FALLBACK_APPLIED;
     unit->movement->flow_fallback_target = dest;
     unit->movement->flow_fallback_approach = (vec2_t){0.0f, 0.0f};
+    edict_t *builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 640, 0);
+    edict_t *site = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 640, 0);
+    T_ASSERT(G_StartHumanConstruction(builder, site));
+    T_ASSERT(G_UnitIsStructure(site));
+    unit->movement->flow_fallback_revision = CM_GetPathRevision();
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->goalentity == authored);
+    T_EQ(unit->orders->queue.count, 1);
+    G_StopConstruction(site);
+    unit->movement->flow_fallback_revision = CM_GetPathRevision();
     unit->currentmove->think(unit);
 
     T_EQ(unit->orders->queue.count, 0);
@@ -5345,6 +5357,12 @@ TEST(wc3_movement, gold_miner_inside_defers_orders_and_unregisters_once) {
     T_EQ((G_GetGoldMine(mine) ? G_GetGoldMine(mine)->occupants : 0), 1);
     T_ASSERT(unit_issueorder(worker, "move", &point));
     T_EQ(G_UnitQueuedOrderCount(worker), 1u);
+    vec2_t const group_goal = {120, 100};
+    T_ASSERT(G_IssueGroupMoveOrder(worker, &point, false, 0, 190, 42, &group_goal));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1u);
+    unitOrder_t const *entry = &worker->orders->queue.entries[worker->orders->queue.head];
+    T_EQ(entry->group_move_id, 42u);
+    T_FEQ(entry->group_goal.x, group_goal.x, 0.01f);
     T_ASSERT(!unit_issuetargetorder(worker, "attack", mine));
     T_EQ(G_UnitQueuedOrderCount(worker), 1u);
     T_ASSERT(unit_issueimmediateorder(worker, "stop"));

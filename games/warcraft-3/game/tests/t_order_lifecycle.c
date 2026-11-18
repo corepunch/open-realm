@@ -157,12 +157,29 @@ TEST(wc3_order_lifecycle, patrol_no_queue_reverses_only_on_real_arrival) {
     unit->movement->blocked_frames = 50;
     unit->currentmove->think(unit);
     T_ASSERT(unit->orders->patrol_target == original_b);
+    T_ASSERT(unit->s.origin2.x > 0.0f); /* resolved heading must allow recovery */
     unit->s.origin2 = original_b->s.origin2;
     unit->s.origin.x = b.x;
     unit->s.origin.y = b.y;
     unit->currentmove->think(unit);
     T_ASSERT(unit->goalentity == unit->orders->patrol_a);
     T_ASSERT(!unit->orders->patrol_resume_pending);
+}
+
+TEST(wc3_order_lifecycle, attackmove_stuck_keeps_shift_successor_pending) {
+    reset_entities();
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    vec2_t const first = {600, 0}, successor = {900, 0};
+    T_ASSERT(G_IssueUnitPointOrder(unit, "attack", &first, false, 0, 0));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &successor, true, 0, 0));
+    edict_t *const goal = unit->goalentity;
+    unit->movement->last_distance = M_DistanceToGoal(unit);
+    unit->movement->last_origin = unit->s.origin2;
+    unit->movement->blocked_frames = 50;
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->goalentity == goal);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1u);
 }
 
 /* A failed automatic chase remains a child of Attack Move. Target death must

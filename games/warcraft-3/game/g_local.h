@@ -2235,7 +2235,7 @@ typedef struct {
     bool flow_direct;       /* static path from mover to requested goal is clear */
     /* Navigation progress, not an ability/order completion signal. */
     moveNavState_t nav_state;
-    uint32_t active_move_goal_spawn; /* protects point/transport Move target incarnation */
+    uint32_t active_move_goal_generation; /* protects point/transport Move target incarnation */
     bool displacement_active; /* temporary construction exit is being walked */
     vec2_t displacement_target;
     vec2_t flow_fallback_target; /* last unreachable fallback request */
