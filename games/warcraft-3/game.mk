@@ -93,14 +93,19 @@ $(WC3_SC2API_BUILD_CONFIG): wc3-sc2api-build-config-force | $(LIB_DIR)
 
 # Optional long-form media support (pre-rendered movies and background music).
 # Keep the dependency surface to the five FFmpeg libraries required for container
-# demux, decode, pixel conversion and audio resampling; the default build has no
-# FFmpeg dependency.
+# demux, decode, pixel conversion and audio resampling.
+# Windows builds enable it by default when the MSYS2 FFmpeg packages are present,
+# so local builds keep movie/music playback; pass FFMPEG=0 to build without it.
+FFMPEG_PKGS := libavformat libavcodec libavutil libswscale libswresample
+ifeq ($(OS),Windows_NT)
+FFMPEG ?= $(shell pkg-config --exists $(FFMPEG_PKGS) 2>/dev/null && echo 1 || echo 0)
+else
 FFMPEG ?= 0
+endif
 WC3_FFMPEG_LIBS :=
 ifeq ($(FFMPEG),1)
-FFMPEG_PKGS := libavformat libavcodec libavutil libswscale libswresample
 ifeq ($(shell pkg-config --exists $(FFMPEG_PKGS) && echo yes),)
-$(error FFMPEG=1 requires pkg-config packages: $(FFMPEG_PKGS))
+$(error FFMPEG=1 requires pkg-config packages: $(FFMPEG_PKGS). On MSYS2 install mingw-w64-x86_64-ffmpeg and mingw-w64-x86_64-pkgconf, or pass FFMPEG=0)
 endif
 WC3_CFLAGS += -DBZ_FFMPEG $(shell pkg-config --cflags $(FFMPEG_PKGS))
 WC3_FFMPEG_LIBS := $(shell pkg-config --libs $(FFMPEG_PKGS))

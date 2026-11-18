@@ -52,13 +52,15 @@ cd open-realm
 make build
 ```
 
-To include Warcraft III video playback and background music, install the FFmpeg development libraries and `pkg-config`, then build with:
+To include Warcraft III video playback and background music, install the FFmpeg development libraries and `pkg-config`. Windows builds enable it by default when these packages are installed; pass `FFMPEG=0` to build without it.
 
 ```bash
 # Ubuntu/Debian
 sudo apt-get install pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev
 # Manjaro/Arch
 sudo pacman -S --needed pkgconf ffmpeg
+# MSYS2 (Windows)
+pacman -S --needed mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-pkgconf
 
 make clean
 make build -j4 FFMPEG=1
