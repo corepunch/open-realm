@@ -429,6 +429,7 @@ void M_Init(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
+    UI_RegisterDiagnosticCommands();
 #if BZ_COMPAT_WORKAROUNDS
     UI_RegisterClassicInstallerMaps();
 #endif
