@@ -180,7 +180,8 @@ bool S_PlaySoundPolicy(cstring_t path, vec3_t const *origin, bool positioned, in
     S_PlaySoundPacket(path, origin, positioned, channel, volume, attenuation, timeofs);
     return true;
 }
-void Cbuf_AddText(cstring_t text) { (void)text; }
+uint32_t test_cbuf_adds;
+void Cbuf_AddText(cstring_t text) { (void)text; test_cbuf_adds++; }
 void Cbuf_ClearDefer(void) {}
 void Cbuf_InsertFromDefer(void) {}
 int Cmd_Argc(void) { return 0; }

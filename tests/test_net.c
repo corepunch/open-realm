@@ -2609,6 +2609,66 @@ TEST(net, set_selection_empty_clears_client_cache) {
     T_EQ(cl.selection.num_selected, 0);
 }
 
+extern uint32_t test_cbuf_adds;   /* test_client_stubs.c: Cbuf_AddText call count */
+static uint32_t test_lobby_chat_calls;
+static bool test_lobby_chat_own;
+static char test_lobby_chat_text[512];
+static void capture_lobby_chat(cstring_t text, bool own) {
+    test_lobby_chat_calls++;
+    test_lobby_chat_own = own;
+    snprintf(test_lobby_chat_text, sizeof(test_lobby_chat_text), "%s", text);
+}
+
+/* Feed one svc_lobby_chat through the real parser; test_cbuf_adds counts anything queued as console text. */
+static void test_lobby_chat_feed(uint8_t own, cstring_t text) {
+    uint8_t buf[1024];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_lobby_chat_calls = test_cbuf_adds = 0;
+    test_lobby_chat_text[0] = '\0';
+    MSG_WriteByte(&sb, svc_lobby_chat);
+    MSG_WriteByte(&sb, own);
+    MSG_WriteString(&sb, text);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+}
+
+TEST(net, lobby_chat_text_never_reaches_command_buffer) {
+    static cstring_t const hostile[] = {
+        "hi; probe", "hi\nprobe", "hi\rprobe\n", "\"; probe; \"", "a\\\"; probe",
+        "x\x01\x1b;probe", "// probe", "hi;\nprobe;probe",
+    };
+
+    test_client_stubs_init();
+    menu.LobbyChat = capture_lobby_chat;
+    FOR_LOOP(i, sizeof(hostile) / sizeof(hostile[0])) {
+        test_lobby_chat_feed(i & 1, hostile[i]);
+        T_EQ(test_cbuf_adds, 0);                /* no byte of the text may be queued as console text */
+        T_EQ(test_lobby_chat_calls, 1);         /* and the line is still delivered to the menu */
+        T_EQ(test_lobby_chat_own, (i & 1) != 0);
+        T_ASSERT(strstr(test_lobby_chat_text, "probe") != NULL);
+        T_ASSERT(!strpbrk(test_lobby_chat_text, "\n\r\x01\x1b"));
+    }
+    menu.LobbyChat = NULL;
+}
+
+TEST(net, lobby_chat_keeps_utf8_and_full_length) {
+    char long_text[511 + 1];
+    cstring_t const polish = "Zażółć gęślą jaźń; ŁÓDŹ // ok";
+
+    test_client_stubs_init();
+    menu.LobbyChat = capture_lobby_chat;
+    test_lobby_chat_feed(0, polish);
+    T_STREQ(test_lobby_chat_text, polish);              /* UTF-8 and ';' / '//' are displayed verbatim */
+    memset(long_text, 'a', sizeof(long_text) - 1);
+    long_text[sizeof(long_text) - 1] = '\0';
+    test_lobby_chat_feed(1, long_text);
+    T_EQ(strlen(test_lobby_chat_text), sizeof(long_text) - 1);
+    test_lobby_chat_feed(1, "\x01\x02");                /* only control bytes: still delivered as blanks, no crash */
+    menu.LobbyChat = NULL;
+    test_lobby_chat_feed(0, "no menu loaded");          /* menu without a chat hook must be tolerated */
+}
+
 TEST(net, legacy_unit_ui_consumes_payload_without_menu) {
     uint8_t buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

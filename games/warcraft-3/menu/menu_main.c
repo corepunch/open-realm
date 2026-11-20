@@ -756,6 +756,10 @@ static void UI_MenuHostLobby_f(void) {
     UI_RequestGameSetup();
 }
 
+static void M_LobbyChat(cstring_t text, bool own) {
+    if (text && *text) GameSetup_AddChatMessage(text, own);
+}
+
 static void M_UpdateLobbySetup(lobbyState_t const *state) {
     /* No current standalone screen means loading/gameplay owns presentation;
      * late lobby packets must not resurrect the game-setup glue screen. */
@@ -796,6 +800,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
     exp.MouseEvent = M_MouseEvent;
     exp.GamepadNavigate = M_GamepadNavigate;
     exp.UpdateLobbySetup = M_UpdateLobbySetup;
+    exp.LobbyChat = M_LobbyChat;
     
     return exp;
 }

@@ -5099,6 +5099,11 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     T_ASSERT(strstr(chat->Text, "|cffffcc00hello everyone|r") != NULL);
     Cmd_ExecuteString("menu_game_setup_chat 0 \"123abc stays text\"");
     T_ASSERT(strstr(chat->Text, "123abc stays text") != NULL);
+    /* A received line arrives as data: separators, quotes and UTF-8 are shown as typed. */
+    menuExport_t chat_api = M_GetAPI(mi);
+    T_NOT_NULL(chat_api.LobbyChat);
+    chat_api.LobbyChat("Zażółć; \"gęślą\" // jaźń", false);
+    T_ASSERT(strstr(chat->Text, "|cffffcc00Zażółć; \"gęślą\" // jaźń|r") != NULL);
     captured_command[0] = 0;
     Cmd_ExecuteString("menu_game_setup_start");
     T_NULL(UI_GetCurrentScreen());
