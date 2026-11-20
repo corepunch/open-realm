@@ -109,6 +109,14 @@ bool UI_FrameContainsPoint(frameDef_t const *frame, float fdf_x, float fdf_y) {
         UI_PointInRect(fdf_x, fdf_y, &runtimes[index].rect);
 }
 
+/* Solved rectangle of a frame drawn in the last pass; false for frames that were not laid out (hidden subtrees). */
+bool UI_FrameLaidOutRect(frameDef_t const *frame, rect_t *out) {
+    uint32_t index;
+    if (!UI_FrameIndex(frame, &index) || !runtimes[index].calculated) return false;
+    *out = runtimes[index].rect;
+    return true;
+}
+
 static bool UI_FrameIsInteractive(frameDef_t const *frame) {
     if (!frame || frame->hidden || frame->disabled || (frame->ui_flags & UIFLAG_PASSTHROUGH)) {
         return false;
@@ -131,6 +139,8 @@ static bool UI_FrameIsInteractive(frameDef_t const *frame) {
             return false;
     }
 }
+
+bool UI_FrameCanReceiveClick(frameDef_t const *frame) { return UI_FrameIsInteractive(frame); }
 
 /* Walk the layout cache back-to-front and return the topmost interactive frame
  * at the given FDF-space coordinates. Returns NULL if nothing was hit. */

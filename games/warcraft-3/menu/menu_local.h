@@ -185,6 +185,14 @@ bool M_EditKey(int key, uint32_t mods);
 void UI_EditDragEvent(menuMouseEvent_t event, float x, int32_t param, uint32_t mods);
 bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods);
 bool UI_FrameContainsPoint(frameDef_t const *frame, float fdf_x, float fdf_y);
+bool UI_FrameLaidOutRect(frameDef_t const *frame, rect_t *out);
+bool UI_FrameCanReceiveClick(frameDef_t const *frame);
+
+/* menu_uidump.c — console diagnostics: uidump always, click only when OPENREALM_UI_TEST=1 at startup. */
+void UI_RegisterDiagnosticCommands(void);
+uint32_t UI_DumpFrames(cstring_t filter, void (*emit)(cstring_t line, void *user), void *user);
+bool UI_ClickFrame(cstring_t spec, uint32_t button, string_t result, size_t result_size);
+bool UI_ClickEnabledByEnvironment(cstring_t value);
 void M_TextInput(cstring_t text);
 void UI_EditTextInput(cstring_t text);
 bool UI_EditHasFocus(frameDef_t const *frame);
