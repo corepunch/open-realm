@@ -1,0 +1,56 @@
+// test_queries.ai with every rawcode written as the decimal integer scripts see (big-endian).
+function main takes nothing returns nothing
+    call DisplayText(GetAiPlayer(), "query test\n")
+    call DisplayTextI(GetAiPlayer(), "one %d\n", 1)
+    call DisplayTextII(GetAiPlayer(), "two %d %d\n", 1, 2)
+    call DisplayTextIII(GetAiPlayer(), "three %d %d %d\n", 1, 2, 3)
+    if GetUnitCount(1751543663) != 3 then
+        call MissingAIAction()
+    endif
+    if GetUnitCountDone(1751543663) != 1 then
+        call MissingAIAction()
+    endif
+    if GetTownUnitCount(1751543663, 0, false) != 3 or GetTownUnitCount(1751543663, 0, true) != 1 then
+        call MissingAIAction()
+    endif
+    if GetTownUnitCount(1751543663, 1, false) != 0 then
+        call MissingAIAction()
+    endif
+    if GetPlayerUnitTypeCount(Player(2), 1751543663) != 3 then
+        call MissingAIAction()
+    endif
+    if GetPlayerUnitTypeCount(Player(1), 1751543663) != 1 then
+        call MissingAIAction()
+    endif
+    if GetUnitGoldCost(1751277938) != 235 or GetUnitWoodCost(1751277938) != 85 then
+        call MissingAIAction()
+    endif
+    if GetUnitGoldCost(2021161080) != 0 or GetUnitWoodCost(2021161080) != 0 then
+        call MissingAIAction()
+    endif
+    if GetUnitBuildTime(1751543663) != 60 or GetUnitBuildTime(2021161080) != 0 then
+        call MissingAIAction()
+    endif
+    if GetUnitCount(1751277938) != 1 or GetUnitCountDone(1751277938) != 0 then
+        call MissingAIAction()
+    endif
+    if GetUpgradeLevel(1382575461) != 2 then
+        call MissingAIAction()
+    endif
+    if GetUpgradeGoldCost(1382575461) != 250 or GetUpgradeWoodCost(1382575461) != 300 then
+        call MissingAIAction()
+    endif
+    if GetUpgradeLumberCost(1382575461) != 300 then
+        call MissingAIAction()
+    endif
+    if GetMinesOwned() != 1 or GetGoldOwned() != 1000 then
+        call MissingAIAction()
+    endif
+    if TownWithMine() != 0 or not TownHasMine(0) or not TownHasHall(0) then
+        call MissingAIAction()
+    endif
+    if TownHasMine(1) or TownHasHall(1) then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

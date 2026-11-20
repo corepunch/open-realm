@@ -24,6 +24,24 @@ struct jass_module {
     jassCFunction_t func;
 };
 
+/* Natives whose integer arguments or result are object rawcodes ('hfoo').
+ * Scripts see the big-endian value (the original game's convention), the
+ * engine keeps its little-endian four-character ids; the VM converts at the
+ * native call boundary. Argument n (1-based) is bit n-1, the result is bit 31.
+ * Order ids share an integer with rawcodes (a build or train order carries the
+ * unit's rawcode): `order_mask` converts only values that cannot be a numeric
+ * order id (>= 0x01000000). */
+#define JASS_RAWCODE_ARG(n) (1u << ((n) - 1))
+#define JASS_RAWCODE_RESULT 0x80000000u
+typedef struct {
+    cstring_t name;
+    uint32_t mask;
+    uint32_t order_mask;
+} jassRawcode_t;
+
+/* Byte-swap a rawcode between the script (big-endian) and engine (little-endian) form. */
+uint32_t jass_rawcode_swap(uint32_t value);
+
 typedef enum {
     JASS_MODE_JASS   = 0,
     JASS_MODE_GALAXY = 1,
@@ -39,6 +57,7 @@ typedef struct {
     handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
     jassModule_t const *natives;
     jassModule_t const *galaxy_natives;
+    jassRawcode_t const *rawcodes; /* terminated by a NULL name */
     struct playerState_s *(*GetPlayerByNumber)(uint32_t number);
     void (*RuntimeError)(cstring_t message);
     bool (*SaveHandle)(cstring_t type, handle_t value, uint32_t *id);

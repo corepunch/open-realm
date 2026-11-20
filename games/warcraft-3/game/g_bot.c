@@ -2260,7 +2260,7 @@ static void G_BotHeroChooseSkill(bot_t *bot, edict_t *hero) {
     bot->hero_id = hero->class_id;
     bot->hero_level = hero->unit_state->hero.level;
     if (jass_evaluateplayerinteger(bot->vm, bot->hero_levels, bot->player, &skill) && skill > 0)
-        (void)G_HeroLearnSkill(hero, (uint32_t)skill);
+        (void)G_HeroLearnSkill(hero, jass_rawcode_swap((uint32_t)skill)); /* scripts return the big-endian rawcode */
     bot->hero_id = 0;
     bot->hero_level = 0;
 }

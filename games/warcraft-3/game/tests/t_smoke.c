@@ -31,6 +31,7 @@ TEST(wc3_smoke, region_rejects_outside) {
 }
 /* This also runs in the Android APK: its allocated type pointers carry heap tags. */
 extern jassModule_t jass_funcs[];
+extern jassRawcode_t jass_rawcodes[];
 
 TEST(wc3_smoke, declared_handle_types_survive_copy_clear_and_reassignment) {
     char source[] =
@@ -49,7 +50,7 @@ TEST(wc3_smoke, declared_handle_types_survive_copy_clear_and_reassignment) {
         "call BJassAssert(copied == ConvertMapControl(7), \"reassigned enum type lost\")\n"
         "call BJassAssert(copied != USER, \"different enum values compare equal\")\n"
         "endfunction\n";
-    jass_sethost(&(jassHost_t){ .MemAlloc = gi.MemAlloc, .MemFree = gi.MemFree, .natives = jass_funcs });
+    jass_sethost(&(jassHost_t){ .MemAlloc = gi.MemAlloc, .MemFree = gi.MemFree, .natives = jass_funcs, .rawcodes = jass_rawcodes });
     jass_t *vm = jass_newstate();
     jass_dobuffer(vm, source);
     jass_callbyname(vm, "main", true);

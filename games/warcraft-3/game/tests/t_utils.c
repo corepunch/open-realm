@@ -11,6 +11,7 @@
 #include "jass/jass.h"
 
 extern jassModule_t jass_funcs[];
+extern jassRawcode_t jass_rawcodes[];
 
 void test_sound_event(edict_t *ent, uint32_t request, uint32_t event) {
     edict_t *player = g_edicts;
@@ -242,6 +243,7 @@ static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
         .GetTime          = gi.GetTime,
         .ReadFile         = gi.ReadFile,
         .natives          = jass_funcs,
+        .rawcodes         = jass_rawcodes,
         .GetPlayerByNumber = G_GetPlayerByNumber,
         .TimerCoroutineValid = G_TimerCoroutineValid,
         .RuntimeError     = ignore_jass_error,

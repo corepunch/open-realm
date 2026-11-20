@@ -7,6 +7,7 @@
 #define MAX_REPOSITION_BLOCKERS 256 // entities; bounded broad-phase results, any hit rejects the point
 
 extern jassModule_t jass_funcs[];
+extern jassRawcode_t jass_rawcodes[];
 static edict_t *reposition_unit;
 static vec2_t const *reposition_point;
 
@@ -144,6 +145,7 @@ void G_InitJassHost(void) {
         .GetTime = gi.GetTime,
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
+        .rawcodes = jass_rawcodes,
         .GetPlayerByNumber = G_GetPlayerByNumber,
         .TimerCoroutineValid = G_TimerCoroutineValid,
         .SaveHandle = G_SaveJassHandle,

@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 extern jassModule_t jass_funcs[];
+extern jassRawcode_t jass_rawcodes[];
 void CM_ReadMapScript(handle_t archive);
 
 static cstring_t const kMinimalMapScript =
@@ -64,6 +65,7 @@ TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
         .GetTime = gi.GetTime,
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
+        .rawcodes = jass_rawcodes,
         .GetPlayerByNumber = G_GetPlayerByNumber,
         .TimerCoroutineValid = G_TimerCoroutineValid,
         .RuntimeError = mapscript_ignore_error,

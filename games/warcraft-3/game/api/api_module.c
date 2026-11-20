@@ -18,6 +18,7 @@
 #include "api_quest.h"
 #include "api_cinefilter.h"
 #include "api_hashtable.h"
+#include "api_rawcode.h"
 
 jassModule_t jass_funcs[] = {
     { "DisplayText", DisplayText },
