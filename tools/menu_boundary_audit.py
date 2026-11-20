@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPORTS = {"Init", "Shutdown", "Refresh", "KeyEvent", "TextInput", "MouseEvent", "GamepadNavigate", "UpdateLobbySetup"}
+EXPORTS = {"Init", "Shutdown", "Refresh", "KeyEvent", "TextInput", "MouseEvent", "GamepadNavigate", "UpdateLobbySetup", "LobbyChat"}
 FORBIDDEN = re.compile(r"\b(?:LPCPLAYER|LPPLAYER|playerState_t|entityState_t|menuUnitData_t|UpdateUnitUI|UpdatePlayerState|game_mode)\b")
 
 
