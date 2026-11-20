@@ -5044,6 +5044,39 @@ TEST(wc3_combat, publish_event_sequential) {
     T_EQ((int)evt2->type, (int)EVENT_PLAYER_UNIT_TRAIN_FINISH);
 }
 
+TEST(wc3_combat, publish_event_holds_init_burst) {
+    /* A map init script can publish well over 1024 events before the first drain. */
+    enum { BURST = 2000 };
+    level.events.write = 0;
+    level.events.read  = 0;
+
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    int dropped = 0;
+    for (int i = 0; i < BURST; i++) {
+        if (!G_PublishEventWithValue(ent, EVENT_GAME_ENTER_REGION, NULL, i)) dropped++;
+    }
+
+    T_EQ(dropped, 0);
+    T_EQ((int)(level.events.write - level.events.read), (int)BURST);
+    T_EQ(level.events.queue[0].value, 0);
+    T_EQ(level.events.queue[(BURST - 1) % MAX_EVENT_QUEUE].value, BURST - 1);
+}
+
+TEST(wc3_combat, publish_event_full_queue_drops_new_event) {
+    level.events.write = 0;
+    level.events.read  = 0;
+
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    for (int i = 0; i < MAX_EVENT_QUEUE; i++) {
+        T_NOT_NULL(G_PublishEventWithValue(ent, EVENT_UNIT_DEATH, NULL, i));
+    }
+
+    /* The full queue refuses the next event and keeps the oldest one intact. */
+    T_ASSERT(G_PublishEventWithValue(ent, EVENT_UNIT_DEATH, NULL, -1) == NULL);
+    T_EQ((int)(level.events.write - level.events.read), (int)MAX_EVENT_QUEUE);
+    T_EQ(level.events.queue[0].value, 0);
+}
+
 /* ==========================================================================
  * Win conditions — EVENT_PLAYER_VICTORY / EVENT_PLAYER_DEFEAT
  * ========================================================================== */

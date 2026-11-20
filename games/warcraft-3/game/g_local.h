@@ -31,7 +31,7 @@
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
-#define MAX_EVENT_QUEUE 1024
+#define MAX_EVENT_QUEUE 4096 // pending events; a map's init script can publish thousands before the first drain (power of two)
 #define MAX_JASS_DIALOGS 64 // dialogs; bounds live handles, freed slots are reused; used by the JASS registry
 #define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds live handles, freed slots are reused; used by the JASS registry
 #define JASS_DIALOG_SLOT_BITS 16 // bits; low id bits hold slot+1 (fits 256 buttons), high bits the reuse generation
