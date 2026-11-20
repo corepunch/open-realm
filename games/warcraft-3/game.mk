@@ -223,6 +223,9 @@ WC3_HERO_SAVELOAD_ARGS ?=
 audit-wc3-hero-saveload: $(BINARY) mpqtool
 	python3 tools/wc3_hero_saveload_audit.py --data "$(subst \,,$(WC3DATA))" --binary "$(BINARY)" --mpqtool "$(BIN_DIR)/mpqtool$(EXE_EXT)" $(WC3_HERO_SAVELOAD_ARGS)
 
+test-jass-rawcodes:
+	python3 tests/test_jass_rawcodes.py
+
 test-wc3-hero-saveload-audit:
 	python3 tests/test_wc3_hero_saveload_audit.py
 
@@ -368,7 +371,7 @@ TEST_BROWSER_SUITE := # test-browser
 		$(TEST_BROWSER_SUITE) \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-jass-rawcodes test-render-harness test-mpq-compression
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
@@ -524,7 +527,7 @@ $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass wc3-sc2api-proto \
-	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
+	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test-jass-rawcodes test \
 	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download
 
