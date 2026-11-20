@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 10 // format version; v10 persists event type and filter unit
+#define BZ_JASS_SNAPSHOT_VERSION 11 // format version; v10 persists event type and filter unit, v11 big-endian rawcodes
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -65,8 +65,13 @@ static void jass_store_value(jassVar_t *var, void const *value, uint32_t size) {
     memcpy(var->value, value, size);
 }
 
+/* Integers compare exactly: rawcodes exceed the 24-bit float mantissa, so 'A000' < 'A001'
+ * is false when both are converted to float. */
 #define JASS_CMPOP(NAME, OP) \
 uint32_t NAME(jass_t *j) { \
+    if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) { \
+        return jass_pushboolean(j, jass_checkinteger(j, 1) OP jass_checkinteger(j, 2)); \
+    } \
     return jass_pushboolean(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
 }
 
@@ -1939,6 +1944,40 @@ uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
     return 1;
 }
 
+/* Scripts hold rawcodes big-endian ('hfoo' == 0x68666F6F); the engine packs the
+ * four characters little-endian. The conversion is its own inverse. */
+uint32_t jass_rawcode_swap(uint32_t value) {
+    return (value >> 24) | ((value >> 8) & 0xFF00u) | ((value << 8) & 0xFF0000u) | (value << 24);
+}
+
+/* Convert the masked integer arguments of a native in place before the call.
+ * Stack entries own their integers, so variables are not touched. */
+static void jass_rawcode_swap_var(jassVar_t *var, bool order) {
+    uint32_t value;
+    if (!var->value || jass_getvarbasetype(var) != jasstype_integer) return;
+    value = *(uint32_t *)var->value;
+    if (!order || value >= 0x01000000u) *(uint32_t *)var->value = jass_rawcode_swap(value);
+}
+
+static void jass_rawcode_swap_args(jass_t *j, jassVar_t *args, uint32_t mask, uint32_t order_mask) {
+    for (uint32_t i = 0; i < 31; i++) {
+        if (!((mask | order_mask) & (1u << i))) continue;
+        if (args + i >= j->stack + j->num_stack) break;
+        jass_rawcode_swap_var(args + i, !(mask & (1u << i)));
+    }
+}
+
+static bool jass_rawcode_lookup(cstring_t name, uint32_t *mask, uint32_t *order_mask) {
+    if (!jass_host.rawcodes) return false;
+    for (jassRawcode_t const *rc = jass_host.rawcodes; rc->name; rc++) {
+        if (strcmp(rc->name, name)) continue;
+        *mask = rc->mask;
+        *order_mask = rc->order_mask;
+        return true;
+    }
+    return false;
+}
+
 uint32_t VM_EvalFourCC(jass_t *j, token_t const *token) {
     size_t const len = strlen(token->primary);
     if (len < 4) {
@@ -1948,7 +1987,7 @@ uint32_t VM_EvalFourCC(jass_t *j, token_t const *token) {
         for (size_t i = 0; i < len; i++) value = value * 256u + (unsigned char)token->primary[i];
         return jass_pushinteger(j, value);
     }
-    return jass_pushinteger(j, *(uint32_t *)token->primary);
+    return jass_pushinteger(j, jass_rawcode_swap(*(uint32_t *)token->primary));
 }
 
 uint32_t VM_EvalCall(jass_t *j, token_t const *token) {
@@ -1992,7 +2031,7 @@ uint32_t VM_EvalCall(jass_t *j, token_t const *token) {
 #endif
         return j->num_stack - stacksize;
     } else if ((cf = find_cfunction(j, token->primary))) {
-        uint32_t args = 0;
+        uint32_t args = 0, mask = 0, order_mask = 0;
         jass_pushcfunction(j, cf);
         FOR_EACH_LIST(token_t, arg, token->args) {
             if (!jass_dotoken(j, arg)) {
@@ -2000,7 +2039,13 @@ uint32_t VM_EvalCall(jass_t *j, token_t const *token) {
             }
             args++;
         }
+        /* A native the scripts do not declare is bound by name here; it needs the
+         * same rawcode conversion as a declared one. */
+        if (jass_rawcode_lookup(token->primary, &mask, &order_mask))
+            jass_rawcode_swap_args(j, &j->stack[j->num_stack - args], mask, order_mask);
         jass_call(j, args);
+        if ((mask | order_mask) & JASS_RAWCODE_RESULT && j->num_stack > stacksize)
+            jass_rawcode_swap_var(&j->stack[j->num_stack - 1], !(mask & JASS_RAWCODE_RESULT));
         return j->num_stack - stacksize;
     } else {
         jass_missingcall(j, token->primary, false);
@@ -2198,6 +2243,7 @@ TOKENFUNC(FUNCTION) {
             jassModule_t const *mod = find_in_array(jass_host.natives, sizeof(jassModule_t), func->name);
             if (mod) func->nativefunc = mod->func;
         }
+        if (func->nativefunc) jass_rawcode_lookup(func->name, &func->rawcode_mask, &func->rawcode_order_mask);
         if (!func->nativefunc && jass_host.galaxy_natives) {
             jassModule_t const *mod = find_in_array(jass_host.galaxy_natives, sizeof(jassModule_t), func->name);
             if (mod) func->nativefunc = mod->func;
@@ -3183,7 +3229,11 @@ static uint32_t jass_call_impl(jass_t *j, uint32_t args) {
         printf("%s\n", func->name);
 #endif
         if (func->nativefunc) {
+            uint32_t const rawcodes = func->rawcode_mask | func->rawcode_order_mask;
+            if (rawcodes) jass_rawcode_swap_args(j, &j->stack_pointer[1], func->rawcode_mask, func->rawcode_order_mask);
             ret = func->nativefunc(j);
+            if ((rawcodes & JASS_RAWCODE_RESULT) && ret)
+                jass_rawcode_swap_var(&j->stack[j->num_stack - ret], !(func->rawcode_mask & JASS_RAWCODE_RESULT));
         } else {
             FOR_EACH_LIST(jassarg_t, arg, func->args) {
                 jassdict_t *local = JASSALLOC(jassdict_t);

@@ -64,6 +64,7 @@ struct jass_function {
     cstring_t name;
     token_t const *code;
     uint32_t (*nativefunc)(jass_t *j);
+    uint32_t rawcode_mask, rawcode_order_mask; /* JASS_RAWCODE_* bits of the host table */
     bool constant, native;
 };
 

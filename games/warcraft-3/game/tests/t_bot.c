@@ -113,7 +113,7 @@ TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
     T_NOT_NULL(level.bots[1].vm);
 }
 
-TEST(wc3_bot, query_natives_read_authoritative_player_state) {
+static void query_natives_read_authoritative_player_state(cstring_t script) {
     edict_t *done = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     edict_t *building = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
     edict_t *training = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
@@ -133,11 +133,20 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     mine->resources = 1000;
     G_SetPlayerTechResearched(&game.clients[2], MAKEFOURCC('R','h','m','e'), 2);
 
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_queries.ai", BOT_CAMPAIGN));
+    T_ASSERT(G_BotStart(&game.clients[2].ps, script, BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[2].vm);
     if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
     T_EQ(G_BotTown(&game.clients[2].ps, 0), hall); T_EQ(G_BotTownMine(&game.clients[2].ps, 0), mine);
+}
+
+TEST(wc3_bot, query_natives_read_authoritative_player_state) {
+    query_natives_read_authoritative_player_state("test_queries.ai");
+}
+
+/* Scripts write rawcodes as big-endian integers; the natives must accept them. */
+TEST(wc3_bot, query_natives_accept_decimal_rawcode_literals) {
+    query_natives_read_authoritative_player_state("test_queries_decimal.ai");
 }
 
 TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town) {
