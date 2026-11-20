@@ -175,7 +175,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Browser version 3 adds runtime-only Hero HUD vital sweep state. */
 /* Browser version 12: harvest target identity and one-shot Return intent (native 152). */
 /* Browser version 13 uses waypoint generations for active Move (native 153). */
-static uint32_t const save_version = 13;
+/* Browser version 14: JASS rawcode integers are big-endian (native 154). */
+static uint32_t const save_version = 14;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -193,7 +194,8 @@ static uint32_t const save_version = 13;
 /* Version 151 retains bounded Patrol continuation and chase suppression. */
 /* Version 152 persists harvest target incarnation and one-shot Return intent. */
 /* Version 153 uses the ring serial for active Move waypoint identity. */
-static uint32_t const save_version = 153;
+/* Version 154 stores JASS rawcode integers big-endian, as scripts see them. */
+static uint32_t const save_version = 154;
 
 #endif
 
