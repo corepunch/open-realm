@@ -1061,17 +1061,19 @@ void (*cl_test_lobby_chat)(cstring_t text, bool own);
 #endif
 static void CL_ParseLobbyChat(sizeBuf_t *msg) {
     char text[512] = { 0 };
-    char command[sizeof(text) + 32];
     int own;
 
     own = MSG_ReadByte(msg);
     MSG_ReadStringN(msg, text, sizeof(text));
+    /* The text came off the wire: show it, never run it. Control bytes become spaces and the line is
+     * handed to the menu directly, so no console separator or quote in it can reach the command buffer. */
+    for (char *p = text; *p; p++) {
+        if ((unsigned char)*p < 32 || *p == 127) *p = ' ';
+    }
     if (!text[0]) {
         return;
     }
-    snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
-    Cbuf_AddText(command);
-    Cbuf_AddText("\n");
+    if (menu.LobbyChat) menu.LobbyChat(text, own != 0);
 #ifdef BZ_TESTS
     if (cl_test_lobby_chat) cl_test_lobby_chat(text, own);
 #endif

@@ -132,6 +132,8 @@ typedef struct {
     bool (*GamepadNavigate)(int direction, int x, int y, int *out_x, int *out_y);
     
     void (*UpdateLobbySetup)(lobbyState_t const *state);
+    /* One received lobby chat line, passed as data (never through the command buffer). Optional. */
+    void (*LobbyChat)(cstring_t text, bool own);
 } menuExport_t;
 
 /* Entry point called by the client to get the UI function table.
