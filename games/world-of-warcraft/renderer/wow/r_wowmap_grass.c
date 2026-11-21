@@ -371,7 +371,7 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
             }
         }
         Wow_EnsureGrassCtrlTexture();
-        R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
+        R_BindGLTexture(GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
         R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0,
                (GLint)(chunk->alpha_index_x * WOW_GRASS_CTRL_CELLS),
                (GLint)(chunk->alpha_index_y * WOW_GRASS_CTRL_CELLS),
@@ -535,12 +535,12 @@ void Wow_DrawGrass(void) {
     wow_grass_shader.state.ctrlCellSize = (GLfloat)WOW_ADT_UNIT_SIZE;
 
     /* Height atlas on texture unit 5 */
-    R_Call(glActiveTexture, GL_TEXTURE5);
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.height_atlas->texid);
+    R_ActiveTexture(GL_TEXTURE5);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.height_atlas->texid);
     /* Grass control texture on unit 6 */
-    R_Call(glActiveTexture, GL_TEXTURE6);
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_ActiveTexture(GL_TEXTURE6);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
+    R_ActiveTexture(GL_TEXTURE0);
     wow_grass_shader.state.heightAtlas = 5;
     wow_grass_shader.state.grassCtrl = 6;
 

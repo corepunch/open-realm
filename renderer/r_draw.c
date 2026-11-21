@@ -348,7 +348,7 @@ void R_DrawCinematicFrame(drawCinematicFrame_t const *frame) {
         if (!tr.cinematic) return;
         R_LoadTextureMipLevel(tr.cinematic, &(texMip_t){ frame->pixels, frame->width, frame->height, 0, PIXEL_RGBA });
     } else {
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.cinematic->texid);
+        R_BindGLTexture(GL_TEXTURE_2D, tr.cinematic->texid);
         if (!R_MapCinematicFrame(frame))
             R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, frame->pixels);
     }

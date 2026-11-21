@@ -243,7 +243,7 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
 }
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
-    mat4_t matrixPalette[MDX_MATRIX_PALETTE];
+    modelProg_t *shader = mdlx.shader;
     /* Skin indices are geoset-local (0..num_matrixPalette-1), so only the
      * palette entries the geoset actually references need to reach the shader.
      * Uploading the full BZ_BONE_PALETTE_MAX per geoset was wasted uniform
@@ -253,14 +253,13 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
     FOR_LOOP(i, count) {
         int node_id = geoset->matrixPalette[i];
         if (node_id >= 0 && node_id < MDX_MAX_NODES && model->nodes[node_id]) {
-            matrixPalette[i] = node_matrices[node_id];
+            shader->state.bones[i] = node_matrices[node_id];
         } else {
-            Matrix4_identity(&matrixPalette[i]);
+            Matrix4_identity(&shader->state.bones[i]);
         }
     }
 
-    memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(mat4_t));
-    mdlx.shader->state.boneCount = count;
+    shader->state.boneCount = count;
 }
 
 static vec4_t MDLX_EvaluateGeosetColor(mdxModel_t const *model,
@@ -967,9 +966,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_SetModelLighting(shader, &lighting);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
-        R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-        R_Call(glActiveTexture, GL_TEXTURE0);
+        R_ActiveTexture(GL_TEXTURE2);
+        R_BindGLTexture(GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+        R_ActiveTexture(GL_TEXTURE0);
     }
     MDLX_RenderGeosets(entity, model);
 
@@ -982,9 +981,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
     }
 
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
-        R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
-        R_Call(glActiveTexture, GL_TEXTURE0);
+        R_ActiveTexture(GL_TEXTURE2);
+        R_BindGLTexture(GL_TEXTURE_2D, R_GetFogOfWarTexture());
+        R_ActiveTexture(GL_TEXTURE0);
     }
     MDLX_PopEntityAnimationTime(&animation_time_scope);
 }

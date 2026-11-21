@@ -357,6 +357,12 @@ typedef struct {
 void R_InitTextureFormats(void);
 void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip);
 void R_BindTexture(texture_t const *texture, uint32_t unit);
+void R_ActiveTexture(GLenum texture);
+void R_BindGLTexture(GLenum target, GLuint texture);
+void R_DeleteGLTextures(GLsizei count, GLuint const *textures);
+void R_InvalidateTextureBindingCache(void);
+void R_SetTextureBindingCacheEnabled(bool enabled);
+void R_GetTextureBindingCacheStats(uint32_t *requests, uint32_t *skipped, uint32_t *bind_calls, uint32_t *unit_calls);
 void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);
 void R_DrawSupportedEntityOverlays(void);

@@ -466,7 +466,7 @@ rendertarget_t *R_AllocateRenderTexture(GLsizei width,
     R_Call(glGenFramebuffers, 1, &rt->buffer);
     R_Call(glGenTextures, 1, &rt->texture);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
-    R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
+    R_BindGLTexture(GL_TEXTURE_2D, rt->texture);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, format, width, height, 0, format, type, NULL);
@@ -487,7 +487,7 @@ void R_ReleaseRenderTexture(rendertarget_t *rt) {
         rt->buffer = 0;
     }
     if (rt->texture) {
-        glDeleteTextures(1, &rt->texture);
+        R_DeleteGLTextures(1, &rt->texture);
         rt->texture = 0;
     }
     ri.MemFree(rt);
@@ -538,8 +538,8 @@ void R_SetupGL(bool drawLight) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
         R_BindDefaultFramebuffer();
-        R_Call(glActiveTexture, GL_TEXTURE1);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
+        R_ActiveTexture(GL_TEXTURE1);
+        R_BindGLTexture(GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
 #else
     (void)drawLight;
@@ -1202,6 +1202,7 @@ void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {
 /* Emit one averaged line per second so profiling logs remain readable. */
 static void R_FinishFrameStats(void) {
     uint32_t now = SDL_GetTicks(), elapsed;
+    uint32_t texture_requests, texture_skipped, texture_binds, texture_units;
     shaderBindStats_t programs = R_GetShaderBindStats();
 
     r_stats_accum.draws += r_frame_stats.draws; r_stats_accum.vertices += r_frame_stats.vertices;
@@ -1211,12 +1212,15 @@ static void R_FinishFrameStats(void) {
     if (!r_stats_start) r_stats_start = now;
     elapsed = now - r_stats_start;
     if (elapsed < 1000) return;
+    R_GetTextureBindingCacheStats(&texture_requests, &texture_skipped, &texture_binds, &texture_units);
     if (R_CvarEnabled("r_stats", "0")) {
         fprintf(stderr, "[R_STATS] fps=%.1f draws=%.1f vertices=%.0f triangles=%.0f instances=%.0f frames=%u elapsed_ms=%u program_requests=%.1f program_binds=%.1f\n",
                 r_stats_frames * 1000.0 / elapsed, (double)r_stats_accum.draws / r_stats_frames,
                 (double)r_stats_accum.vertices / r_stats_frames, (double)r_stats_accum.triangles / r_stats_frames,
                 (double)r_stats_accum.instances / r_stats_frames, r_stats_frames, elapsed,
                 (double)r_stats_accum.program_requests / r_stats_frames, (double)r_stats_accum.program_binds / r_stats_frames);
+        fprintf(stderr, "[R_TEXCACHE] requests=%u skipped=%u binds=%u active_calls=%u\n",
+                texture_requests, texture_skipped, texture_binds, texture_units);
     }
     memset(&r_stats_accum, 0, sizeof(r_stats_accum)); r_stats_frames = 0; r_stats_start = now;
 }
@@ -1225,6 +1229,8 @@ void R_BeginFrame(void) {
 #ifdef __EMSCRIPTEN__
     R_WebSyncCanvasSize();
 #endif
+    R_SetTextureBindingCacheEnabled(R_CvarEnabled("r_texture_bind_cache", "1"));
+    R_InvalidateTextureBindingCache();
     R_ResetShaderBinding(R_CvarEnabled("r_program_cache", "1"));
     R_ProfileBeginFrame();
     if (drawable_dirty) {

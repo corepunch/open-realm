@@ -346,8 +346,8 @@ static GLboolean R_BeginParticleDraws(mat4_t const *matrix) {
     particles_resources.shader.state.eye = tr.viewDef.camerastate[0].eye;
     particles_resources.shader.state.textureMatrix = tr.viewDef.textureMatrix;
 #ifdef USE_FOGOFWAR
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : R_GetFogOfWarTexture());
+    R_ActiveTexture(GL_TEXTURE2);
+    R_BindGLTexture(GL_TEXTURE_2D, (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : R_GetFogOfWarTexture());
 #endif
     if (cull_enabled) R_Call(glDisable, GL_CULL_FACE);
     return cull_enabled;
@@ -359,11 +359,11 @@ static void R_DrawParticleBatch(particleBatch_t const *batch, texture_t const **
     FOR_LOOP(i, BZ_PARTICLE_TEXTURES) {
         texture_t const *texture = batch->textures[i < batch->texcount ? i : 0];
         if (bound[i] == texture) continue;
-        R_Call(glActiveTexture, GL_TEXTURE0 + particle_texunits[i]);
-        R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+        R_ActiveTexture(GL_TEXTURE0 + particle_texunits[i]);
+        R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
         bound[i] = texture;
     }
-    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_ActiveTexture(GL_TEXTURE0);
     particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;
     particles_resources.shader.state.alphaCutoff = 0.5f;
     R_SetAlphaKeyState(blend_mode == BLEND_MODE_ALPHAKEY);
