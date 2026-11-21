@@ -1525,6 +1525,70 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 0 +set r_vsync
 build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 120 +map 'Maps/Campaign/Human02.w3m'
 ```
 
+## Human02 FPS and hotspot baseline on Mali-G72 MC3 (November 21, 2026)
+
+This is a machine-specific result for the Linux ARM64 host `krane`, using
+Mesa 26.2.7 and the Panfrost `Mali-G72 MC3` OpenGL 3.1 driver. The native
+display was 1920×1200. The capture used the ROC map from
+`data/warcraft-3-1.29`, `+map 'Maps\\Campaign\\Human02.w3m'`, and
+`+set skip_cutscene 1`; rendering was uncapped with VSync off and MSAA off.
+The measurements cover Human02's opening scene, not a controlled 30-Peasant
+harvesting workload.
+
+With game logic and normal rendering enabled, the one-second gameplay FPS
+samples were generally about **17–19 FPS**. A 60-second `perf record -F 99
+-e cpu-clock -g --call-graph dwarf` capture collected 4,643 samples with no
+lost samples. Top exclusive sampled CPU shares were:
+
+| Hot path | Sample share | Scope |
+|---|---:|---|
+| `G_TouchTriggers` | 9.30% | Region and unit trigger processing; required for map behavior. |
+| `G_FowFaerieFireRevealsUnit` | 2.76% | Unit visibility rules; required for Faerie Fire behavior. |
+| `R_EmitSplatTriangle` | 2.39% | Shadow-splat geometry; can be disabled with `r_unit_shadows 0`. |
+| `memcpy` under `MDLX_RenderGeoset` | 2.18% | Unit model rendering. |
+| `S_UnitHasStatus` under `G_ClientVertexColor` | 2.07% | Status-derived presentation tint. |
+| `G_CheckTimeOfDayEvents` | 1.94% | Scripted time-of-day events. |
+| `regen_aura_cache_update` | 1.36% | Aura mechanics and presentation. |
+| `G_UpdateClientSelections` | 1.34% | Selection validation and cleanup. |
+| `G_SetHealth` | 1.25% | Health changes, including damage and healing. |
+| `V_AddClientEntity` | 1.36% | Client entity collection. |
+| `Frustum_ContainsBox` | 1.14% | Entity frustum culling. |
+
+The optional visual controls alone did not reach 30 FPS. With shadows,
+fog-of-war overlay, particles, and status tint presentation disabled and the
+3D scene scaled to 50% (960×600), samples peaked around **28.4 FPS** while
+game logic stayed enabled. Disabling trigger processing alone raised some
+windows to about 29.9 FPS, still without a sustained 30 FPS result.
+
+For bottleneck isolation, six `wc3_perf_*` cvars were added. They default to
+`1`, and their values are read once per simulation frame and reused across
+hot loops. Setting one to `0` deliberately suppresses that behavior; these
+are diagnostic switches and invalidate gameplay results:
+
+| Cvar | Work suppressed when set to `0` |
+|---|---|
+| `wc3_perf_trigger_events` | Region, unit, and range trigger checks. |
+| `wc3_perf_faerie_fire_visibility` | Faerie Fire shared-vision reveal. |
+| `wc3_perf_auras` | Aura mechanics and presentation updates. |
+| `wc3_perf_client_selections` | Client selection validation and cleanup. |
+| `wc3_perf_health_writes` | All unit health changes, including damage and healing. |
+| `wc3_perf_time_of_day_events` | Scripted time-of-day event dispatch. |
+
+With all six diagnostic switches off, the visual controls above off, and
+unit models still rendered at 50% 3D scale, FPS hovered around **29–30** with
+short dips below 30. Setting `r_entities 0` at native scale kept terrain and
+UI rendering active but hid units/buildings; that upper-bound run produced
+mostly **30–31 FPS**, with occasional readings below 30. This does not show
+that normal Human02 gameplay reaches 30 FPS. The opening scene, absence of a
+30-worker workload, disabled simulation systems, and hidden entity models
+limit the conclusion.
+
+With the game-logic work suppressed, the largest remaining sampled shares
+were `S_UnitHasStatus` (3.01%), `memcpy` under `MDLX_RenderGeoset` (2.50%),
+`Frustum_ContainsBox` (2.09%), and `V_AddClientEntity` (1.95%). A subsequent
+optimization should preserve normal gameplay and compare fixed scenes with
+unit models visible. The saved profile was `/tmp/openwarcraft3-human02-toggles.perf.data`.
+
 ## MDX per-pose sequence resolution (patch twenty-four, x86 low-performance cores)
 
 The x86 Human02, NightElf07 and Undead07 profiles continued to attribute
