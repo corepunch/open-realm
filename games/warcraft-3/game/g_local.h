@@ -2660,6 +2660,8 @@ typedef struct {
     event_t handlers[MAX_EVENTS];
     gameEvent_t queue[MAX_EVENT_QUEUE];
     uint32_t write, read;
+    uint32_t registry_high_water; /* derived: highest occupied handler slot plus one */
+    uint64_t touch_trigger_mask[MAX_EVENTS / 64]; /* derived slots for region and unit-range subscriptions */
 } levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -4126,6 +4128,8 @@ void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 event_t *G_MakeEvent(EVENTTYPE);
 void G_RetireEvent(event_t *);
+uint32_t G_EventRegistryHighWater(void);
+void G_RebuildEventRegistryCache(void);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 void G_UnitEnteredWorld(edict_t *ent);
