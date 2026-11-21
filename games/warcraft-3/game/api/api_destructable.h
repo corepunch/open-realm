@@ -20,6 +20,21 @@ uint32_t CreateDestructableZ(jass_t *j) {
     edict_t *d = G_CreateDestructable(objectid, x, y, z, DEG2RAD(face), scale, variation);
     return jass_pushlighthandle(j, d, "destructable");
 }
+/* Reforged map helper used by generated placement code. The dedicated
+ * extraction host keeps the authored identity, position, facing, scale and
+ * variation; pitch/roll/color are presentation-only and skin aliases are not
+ * resolved by this runtime yet. */
+uint32_t BlzCreateDestructableWithSkinPitchRollColor(jass_t *j) {
+    uint32_t objectid = (uint32_t)jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float face = jass_checknumber(j, 4);
+    float scale = jass_checknumber(j, 7);
+    int32_t variation = jass_checkinteger(j, 8);
+    edict_t *d = G_CreateDestructable(objectid, x, y, CM_GetHeightAtPoint(x, y),
+                                     DEG2RAD(face), scale, (uint32_t)MAX(0, variation));
+    return jass_pushlighthandle(j, d, "destructable");
+}
 uint32_t CreateDeadDestructable(jass_t *j) {
     int32_t objectid = jass_checkinteger(j, 1);
     float x = jass_checknumber(j, 2);
@@ -46,6 +61,18 @@ uint32_t CreateDeadDestructableZ(jass_t *j) {
 uint32_t RemoveDestructable(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     G_RemoveDestructable(d);
+    return 0;
+}
+uint32_t SetDestructableVertexColor(jass_t *j) {
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    int32_t red = jass_checkinteger(j, 2), green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4), alpha = jass_checkinteger(j, 5);
+    if (d) {
+        d->vertex_color = MAKE(color32_t, BZ_CLAMP_U8(red), BZ_CLAMP_U8(green),
+                               BZ_CLAMP_U8(blue), BZ_CLAMP_U8(alpha));
+        G_SetUnitFlag(d, UNIT_FLAG_VERTEX_COLOR_SET, true);
+        G_SetUnitFlag(d, UNIT_FLAG_VERTEX_COLOR_OVERRIDE_SET, true);
+    }
     return 0;
 }
 uint32_t KillDestructable(jass_t *j) {

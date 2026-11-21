@@ -72,6 +72,13 @@ uint32_t SetPlayerRacePreference(jass_t *j) {
     if (player && pref) PLAYER_CLIENT(player)->jass.race_pref |= *pref;
     return 0;
 }
+/* Reforged maps may call SetPlayerRaceSkin during player setup. OpenRealm's
+ * runtime has no selectable race-skin catalog yet; accept the call as a
+ * presentation-only boundary so map initialization can continue. */
+uint32_t SetPlayerRaceSkin(jass_t *j) {
+    (void)j;
+    return 0;
+}
 uint32_t SetPlayerRaceSelectable(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     if (player) PLAYER_CLIENT(player)->jass.race_selectable = jass_checkboolean(j, 2);

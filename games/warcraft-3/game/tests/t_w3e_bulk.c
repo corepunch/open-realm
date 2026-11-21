@@ -41,7 +41,7 @@ static bool Test_ReadW3EVertices(cstring_t filename, uint8_t const *payload, uin
 TEST(wc3_terrain, w3e_vertex_decodes_all_packed_flags) {
     uint8_t const raw[MAP_VERTEX_FILE_SIZE] = { 0x34, 0x12, 0x67, 0x55, 0xff, 0xb5, 0xa3 };
     war3mapVertex_t vertex;
-    W3E_DecodeVertex(raw, &vertex);
+    W3E_DecodeVertex(raw, 11, &vertex);
     T_EQ(vertex.accurate_height, 0x1234);
     T_EQ(vertex.waterlevel, 0x1567);
     T_EQ(vertex.mapedge, 1);
@@ -54,17 +54,35 @@ TEST(wc3_terrain, w3e_vertex_decodes_all_packed_flags) {
     T_EQ(vertex.cliffVariation, 5);
     T_EQ(vertex.cliff, 10);
     T_EQ(vertex.level, 3);
-    W3E_DecodeVertex((uint8_t[7]){ 0 }, &vertex);
+    W3E_DecodeVertex((uint8_t[7]){ 0 }, 11, &vertex);
     T_EQ(vertex.accurate_height, 0);
     T_EQ(vertex.waterlevel, 0);
     T_EQ(vertex.ramp, 0);
     T_EQ(vertex.mapedge, 0);
 }
 
+TEST(wc3_terrain, w3e_v12_decodes_expanded_texture_and_flag_bits) {
+    uint8_t const raw[W3E_VERTEX_FILE_SIZE_V12] = { 0x34, 0x12, 0x67, 0x55, 0xe5, 0x03, 0xad, 0xa3 };
+    war3mapVertex_t vertex;
+    W3E_DecodeVertex(raw, 12, &vertex);
+    T_EQ(vertex.accurate_height, 0x1234);
+    T_EQ(vertex.waterlevel, 0x1567);
+    T_EQ(vertex.mapedge, 1);
+    T_EQ(vertex.ground, 37);
+    T_EQ(vertex.ramp, 1);
+    T_EQ(vertex.blight, 1);
+    T_EQ(vertex.water, 1);
+    T_EQ(vertex.boundary, 1);
+    T_EQ(vertex.groundVariation, 21);
+    T_EQ(vertex.cliffVariation, 5);
+    T_EQ(vertex.cliff, 10);
+    T_EQ(vertex.level, 3);
+}
+
 TEST(wc3_terrain, w3e_bulk_reader_crosses_batch_boundary) {
     enum { VERTICES = W3E_VERTEX_BATCH + 4 };
     uint8_t *payload = Test_W3EAlloc(VERTICES * MAP_VERTEX_FILE_SIZE);
-    war3map_t map = { .width = 100, .height = 41 };
+    war3map_t map = { .version = 11, .width = 100, .height = 41 };
     war3mapVertex_t *vertices;
     payload[0] = 0x12;
     payload[W3E_VERTEX_BATCH * MAP_VERTEX_FILE_SIZE] = 0x56;
@@ -78,6 +96,21 @@ TEST(wc3_terrain, w3e_bulk_reader_crosses_batch_boundary) {
     T_EQ(vertices[VERTICES - 1].accurate_height, 0x78);
     Test_W3EFree(map.vertices);
     Test_W3EFree(payload);
+}
+
+TEST(wc3_terrain, w3e_v12_reader_uses_eight_byte_vertices) {
+    uint8_t payload[4 * W3E_VERTEX_FILE_SIZE_V12] = { 0 };
+    war3map_t map = { .version = 12, .width = 2, .height = 2 };
+    war3mapVertex_t *vertices;
+    payload[0] = 0x34;
+    payload[1] = 0x12;
+    payload[W3E_VERTEX_FILE_SIZE_V12] = 0x78;
+    T_ASSERT(Test_ReadW3EVertices("w3e-v12.mpq", payload, sizeof(payload), &map));
+    vertices = map.vertices;
+    T_NOT_NULL(vertices);
+    T_EQ(vertices[0].accurate_height, 0x1234);
+    T_EQ(vertices[1].accurate_height, 0x0078);
+    Test_W3EFree(map.vertices);
 }
 
 
@@ -133,7 +166,7 @@ TEST(wc3_terrain, w3e_header_reads_palettes_and_vertices_from_current_offset) {
 
 TEST(wc3_terrain, w3e_bulk_reader_rejects_truncated_and_invalid_geometry) {
     uint8_t const payload[3 * MAP_VERTEX_FILE_SIZE] = { 0 };
-    war3map_t map = { .width = 2, .height = 2 };
+    war3map_t map = { .version = 11, .width = 2, .height = 2 };
     T_ASSERT(!Test_ReadW3EVertices("w3e-short.mpq", payload, sizeof(payload), &map));
     T_NULL(map.vertices);
     map.width = 0;

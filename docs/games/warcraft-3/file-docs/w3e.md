@@ -72,21 +72,20 @@ center_offset_y = -(My - 1) * 128 / 2
 
 One tile = 128 world-space units.
 
-## Tilepoint data (7 bytes each)
+## Tilepoint data (version 11: 7 bytes; version 12: 8 bytes)
 
 Total tilepoints = `Mx * My`. Each tilepoint:
 
 ```
 short   ground height       raw value; see formula below
-short   water level + flag  high bit (0x8000) = boundary flag 1; low 15 bits = water level
-nibble  flags               upper 4 bits of next byte (see flag table)
-nibble  ground texture      lower 4 bits — index into ground tileset table
-byte    texture details     sub-tile detail texture (rocks, bones, holes, etc.)
-nibble  cliff texture       upper 4 bits of last byte — index into cliff tileset table
-nibble  layer height        lower 4 bits — cliff layer (0..N)
+short   water level + flag  boundary flag 1 is bit 14; low 14 bits are water level
+byte/short flags + ground   v11: flags in high nibble, ground index in low nibble
+                            v12: flags in bits 6..15, ground index in bits 0..5
+byte    ground/cliff variation; field bit order changes in v12
+byte    cliff texture       high nibble = index; low nibble = layer height
 ```
 
-> **Byte layout:** bytes 3–4 are a `short` for water level. Byte 5 packs flags (high nibble) and ground texture (low nibble). Byte 6 is texture detail. Byte 7 packs cliff texture (high nibble) and layer height (low nibble).
+Version 11 uses 7 bytes per tilepoint. Version 12 uses 8 bytes: its ground/flag field is a `ushort`, allowing 64 ground tiles, and the ground/cliff variation bits are reversed. Do not decode version 12 with the 7-byte stride; this shifts every vertex after the first.
 
 ### Ground height formula
 
@@ -106,15 +105,15 @@ display_water_level = (water_level - 0x2000) / 4 - 89.6
 
 - `−89.6` = water zero (from `Water.slk`, height `−0.7`, scaled by 128)
 
-### Tilepoint flags (4-bit field, shown as 16-bit positions in the short)
+### Tilepoint flags
 
 | Bit (in the full 2-byte group) | Value | Meaning |
 |-------------------------------|-------|---------|
 | Bit 15 of water short | `0x8000` / `0x4000` | Boundary flag 1 (WE shadow on map edge) |
-| Bit 4 of flag nibble | `0x0010` | Ramp flag |
-| Bit 5 of flag nibble | `0x0020` | Blight flag (Undead ground appearance) |
-| Bit 6 of flag nibble | `0x0040` | Water flag (enables water rendering) |
-| Bit 7 of flag nibble | `0x0080` | Boundary flag 2 (camera bounds area) |
+| Flags field | `0x0010` (v11), `0x0040` (v12) | Ramp flag |
+| Flags field | `0x0020` (v11), `0x0080` (v12) | Blight flag (Undead ground appearance) |
+| Flags field | `0x0040` (v11), `0x0100` (v12) | Water flag (enables water rendering) |
+| Flags field | `0x0080` (v11), `0x0200` (v12) | Boundary flag 2 (camera bounds area) |
 
 ### Example tilepoint decode
 

@@ -1466,6 +1466,10 @@ static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModificat
     case BZ_FIELD_FLOAT:
         if (mod->type == mod_real || mod->type == mod_unreal)
             *(float *)dest = *(float const *)mod->data;
+        else if (mod->type == mod_int)
+            /* Warcraft object data stores many integral-valued real fields
+             * (for example UnitBalance uhpm) as W3U integer modifications. */
+            *(float *)dest = (float)*(int32_t const *)mod->data;
         break;
     case BZ_FIELD_BOOL:
         if (mod->type == mod_int)

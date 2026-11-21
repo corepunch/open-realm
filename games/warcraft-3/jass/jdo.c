@@ -2313,18 +2313,26 @@ TOKENFUNC(TOKENS) {
  * ========================================================================= */
 
 static void jass_remove_comments(string_t buf) {
-    bool in_line  = false;
+    bool in_line = false;
     bool in_block = false;
-    uint32_t quotes  = 0;
+    bool in_string = false;
+    bool escaped = false;
     char *src = buf, *dst = buf;
     while (*src) {
         if (!in_line && !in_block) {
-            if (*src == '"') { quotes++; *dst++ = *src++; }
-            else if (quotes & 1) { *dst++ = *src++; }
+            if (in_string) {
+                char const ch = *src++;
+                *dst++ = ch;
+                if (escaped) escaped = false;
+                else if (ch == '\\') escaped = true;
+                else if (ch == '"') in_string = false;
+            }
+            else if (*src == '"') { in_string = true; *dst++ = *src++; }
             else if (src[0] == '/' && src[1] == '/') { in_line  = true;  src += 2; }
             else if (src[0] == '/' && src[1] == '*') { in_block = true;  src += 2; }
             else { *dst++ = *src++; }
         } else if (in_line && (*src == '\n' || *src == '\r')) { in_line = false; *dst++ = *src++; }
+          else if (in_block && (*src == '\n' || *src == '\r')) { *dst++ = *src++; }
           else if (in_block && src[0] == '*' && src[1] == '/')      { in_block = false; src += 2; }
           else { src++; }
     }

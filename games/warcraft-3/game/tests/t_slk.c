@@ -1234,6 +1234,7 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
     uint32_t const base_id = MAKEFOURCC('n','m','e','r');
     uint32_t const custom_id = MAKEFOURCC('x','m','e','r');
     uint32_t stock_max = 1, stock_regen = 7, stock_start = 0, gold = 321;
+    int32_t custom_hp = 9999;
     mapInfo_t const *saved_mapinfo;
     UnitBalance_t const *base;
     int32_t saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
@@ -1242,9 +1243,10 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
         { .modID = MAKEFOURCC('u','s','r','g'), .type = mod_int, .data = &stock_regen },
         { .modID = MAKEFOURCC('u','s','s','t'), .type = mod_int, .data = &stock_start },
         { .modID = MAKEFOURCC('u','g','o','l'), .type = mod_int, .data = &gold },
+        { .modID = MAKEFOURCC('u','h','p','m'), .type = mod_int, .data = &custom_hp },
     };
     unitData_t original = {
-        .originalUnitID = base_id, .numbeOfModifications = 4, .modifications = mods
+        .originalUnitID = base_id, .numbeOfModifications = 5, .modifications = mods
     };
     unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
     mapInfo_t mapinfo = {
@@ -1266,10 +1268,12 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
     T_EQ(G_UnitBalance(base_id)->stockRegen, 7);
     T_EQ(G_UnitBalance(base_id)->stockStart, 0);
     T_EQ(G_UnitBalance(base_id)->goldCost, 321);
+    T_FEQ(G_UnitBalance(base_id)->maxHealth, 9999.0f, 0.001f);
     T_EQ(G_UnitBalance(custom_id)->stockMax, 1);
     T_EQ(G_UnitBalance(custom_id)->stockRegen, 7);
     T_EQ(G_UnitBalance(custom_id)->stockStart, 0);
     T_EQ(G_UnitBalance(custom_id)->goldCost, 321);
+    T_FEQ(G_UnitBalance(custom_id)->maxHealth, 9999.0f, 0.001f);
     {
         edict_t unit = { .class_id = custom_id };
         G_BindEntityData(&unit);

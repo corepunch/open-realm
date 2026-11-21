@@ -392,9 +392,10 @@ void CM_SetupTestWorldBounds(box2_t const *bounds) {
 }
 #endif
 
-static war3mapVertex_t const *CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
-	if (!world.map || !world.map->vertices) return NULL;
-	int const index = x + y * world.map->width;
+static war3mapVertex_t const *CM_GetWar3MapVertex(int64_t x, int64_t y) {
+	if (!world.map || !world.map->vertices || x < 0 || y < 0 ||
+	    x >= world.map->width || y >= world.map->height) return NULL;
+	int const index = (int)x + (int)y * world.map->width;
 	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(war3mapVertex_t);
 	return (war3mapVertex_t const *)ptr;
 }
