@@ -5183,3 +5183,158 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     UI_ResetGlueSceneModels();
     mi = saved;
 }
+
+/* ---- uidump / click diagnostics --------------------------------------------------------------------------- */
+
+static char uidump_lines[8192];
+static void uidump_collect(cstring_t line, void *user) {
+    (void)user;
+    strlcat(uidump_lines, line, sizeof(uidump_lines));
+    strlcat(uidump_lines, "\n", sizeof(uidump_lines));
+}
+
+static void uidump_parse_fixture(void) {
+    reset_ui_state();
+    parse_fdf("uidump.fdf",
+              "Frame \"FRAME\" \"UiRoot\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"GLUETEXTBUTTON\" \"UiBtn\" {"
+              "  Width 0.2, Height 0.1,"
+              "  SetPoint TOPLEFT, \"UiRoot\", TOPLEFT, 0.1, -0.1,"
+              " }"
+              " Frame \"GLUETEXTBUTTON\" \"UiHiddenBtn\" {"
+              "  Width 0.1, Height 0.05,"
+              "  SetPoint TOPLEFT, \"UiRoot\", TOPLEFT, 0.5, -0.1,"
+              " }"
+              " Frame \"GLUETEXTBUTTON\" \"Dup\" {"
+              "  Width 0.1, Height 0.05,"
+              "  SetPoint TOPLEFT, \"UiRoot\", TOPLEFT, 0.1, -0.4,"
+              " }"
+              " Frame \"GLUETEXTBUTTON\" \"Dup\" {"
+              "  Width 0.1, Height 0.05,"
+              "  SetPoint TOPLEFT, \"UiRoot\", TOPLEFT, 0.5, -0.4,"
+              " }"
+              "}");
+}
+
+TEST(menu_fdf, uidump_prints_one_stable_line_per_frame) {
+    menuImport_t saved = mi;
+    size2_t const saved_window = test_window_size;
+    frameDef_t *button, *hidden;
+    unsigned id;
+    char name[64], type[64], fdf[64], parent[64];
+    float x, y, w, h, px, py, pw, ph;
+
+    uidump_parse_fixture();
+    mi.GetRenderer = test_get_renderer;
+    test_window_size = MAKE(size2_t, 1280, 800);
+    button = UI_FindFrame("UiBtn");
+    hidden = UI_FindFrame("UiHiddenBtn");
+    if (!require_not_null(button) || !require_not_null(hidden)) { test_window_size = saved_window; mi = saved; return; }
+    UI_SetTextPointer(button, "say \"hi\"\nnow");
+    UI_SetHidden(hidden, true);
+    UI_DrawFrame(UI_FindFrame("UiRoot"));
+
+    uidump_lines[0] = '\0';
+    T_EQ(UI_DumpFrames("Btn", uidump_collect, NULL), 2);
+    T_ASSERT(strstr(uidump_lines, "UIDUMP screen=- window=1280x800 scene=0.000000,0.000000,0.800000,0.600000\n") == uidump_lines);
+    T_ASSERT(strstr(uidump_lines, "UIDUMP end n=2\n") != NULL);
+    T_ASSERT(strstr(uidump_lines, " name=UiRoot ") == NULL); /* the filter is a substring of the name */
+    T_EQ(sscanf(strstr(uidump_lines, "UIFRAME id="), "UIFRAME id=%u name=%63s type=%63s fdf=%63s parent=%63s", &id, name, type, fdf, parent), 5);
+    T_STREQ(name, "UiBtn"); T_STREQ(type, "GLUETEXTBUTTON"); T_STREQ(fdf, "uidump.fdf"); T_STREQ(parent, "UiRoot");
+    T_ASSERT(strstr(uidump_lines, " visible=1 enabled=1 interactive=1 hit=1 text=\"say \\\"hi\\\"\\nnow\" tex=- rect=0.100000,0.100000,0.200000,0.100000 px=") != NULL);
+    T_EQ(sscanf(strstr(uidump_lines, " rect="), " rect=%f,%f,%f,%f px=%f,%f,%f,%f", &x, &y, &w, &h, &px, &py, &pw, &ph), 8);
+    T_ASSERT(fabsf(px - 160.0f) < 0.06f && fabsf(py - 800.0f * 0.1f / 0.6f) < 0.06f);
+    T_ASSERT(fabsf(pw - 320.0f) < 0.06f && fabsf(ph - 800.0f * 0.1f / 0.6f) < 0.06f);
+    /* A hidden frame is listed, but it has no geometry and cannot be hit. */
+    T_ASSERT(strstr(uidump_lines, "name=UiHiddenBtn type=GLUETEXTBUTTON fdf=uidump.fdf parent=UiRoot visible=0 enabled=1 interactive=0 hit=0 text=\"\" tex=- rect=- px=-\n") != NULL ||
+             strstr(uidump_lines, "name=UiHiddenBtn type=GLUETEXTBUTTON fdf=uidump.fdf parent=UiRoot visible=0 enabled=1 interactive=1 hit=0 text=\"\" tex=- rect=- px=-\n") != NULL);
+    test_window_size = saved_window;
+    mi = saved;
+}
+
+static bool uidump_click_ok(cstring_t spec, uint32_t button, int *px, int *py) {
+    char result[256];
+    bool ok = UI_ClickFrame(spec, button, result, sizeof(result));
+    if (ok) T_EQ(sscanf(strstr(result, " px="), " px=%d,%d", px, py), 2);
+    else *px = *py = -1;
+    return ok;
+}
+
+TEST(menu_fdf, click_by_name_lands_on_the_frame_centre_at_any_window_size) {
+    menuImport_t saved = mi;
+    size2_t const saved_window = test_window_size;
+    UICANVASPOLICY const saved_policy = test_canvas_policy;
+    struct { size2_t window; UICANVASPOLICY policy; } const cases[] = {
+        { { 1280, 800 }, UI_CANVAS_STRETCH }, { { 1920, 1080 }, UI_CANVAS_STRETCH },
+        { { 1600, 700 }, UI_CANVAS_EXPAND }, { { 1920, 1080 }, UI_CANVAS_EXPAND_CENTER },
+    };
+
+    uidump_parse_fixture();
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    UI_SetOnClick(UI_FindFrame("UiBtn"), "test_click_button");
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        rect_t rect, scene;
+        int px, py;
+        test_window_size = cases[i].window;
+        test_canvas_policy = cases[i].policy;
+        scene = test_get_scene_rect();
+        UI_DrawFrame(UI_FindFrame("UiRoot"));
+        T_ASSERT(UI_FrameLaidOutRect(UI_FindFrame("UiBtn"), &rect));
+        captured_command[0] = '\0';
+        T_ASSERT(uidump_click_ok("UiBtn", 1, &px, &py));
+        T_ASSERT(abs(px - (int)lroundf((rect.x + rect.w * 0.5f - scene.x) / scene.w * (float)test_window_size.width)) <= 1);
+        T_ASSERT(abs(py - (int)lroundf((rect.y + rect.h * 0.5f - scene.y) / scene.h * (float)test_window_size.height)) <= 1);
+        T_STREQ(captured_command, "test_click_button");
+    }
+    test_window_size = saved_window;
+    test_canvas_policy = saved_policy;
+    mi = saved;
+}
+
+TEST(menu_fdf, click_refuses_frames_a_pointer_could_not_reach) {
+    menuImport_t saved = mi;
+    char result[256];
+    int px, py, first_x, second_x;
+
+    uidump_parse_fixture();
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    UI_DrawFrame(UI_FindFrame("UiRoot"));
+
+    T_ASSERT(!UI_ClickFrame("NoSuchFrame", 1, result, sizeof(result)));
+    T_STREQ(result, "UICLICK fail name=NoSuchFrame reason=not-found");
+    T_ASSERT(!UI_ClickFrame("UiBtn", 4, result, sizeof(result)));
+    T_ASSERT(strstr(result, "reason=bad-arguments") != NULL);
+
+    UI_SetEnabled(UI_FindFrame("UiBtn"), false);
+    UI_DrawFrame(UI_FindFrame("UiRoot"));
+    T_ASSERT(!UI_ClickFrame("UiBtn", 1, result, sizeof(result)));
+    T_STREQ(result, "UICLICK fail name=UiBtn reason=disabled");
+    UI_SetEnabled(UI_FindFrame("UiBtn"), true);
+
+    UI_SetHidden(UI_FindFrame("UiHiddenBtn"), true);
+    UI_DrawFrame(UI_FindFrame("UiRoot"));
+    T_ASSERT(!UI_ClickFrame("UiHiddenBtn", 1, result, sizeof(result)));
+    T_ASSERT(strstr(result, "reason=hidden") != NULL || strstr(result, "reason=not-laid-out") != NULL);
+
+    /* Same name twice: #n is explicit, a bare name takes the topmost (last drawn) one. */
+    T_ASSERT(uidump_click_ok("Dup#1", 1, &first_x, &py));
+    T_ASSERT(uidump_click_ok("Dup#2", 1, &second_x, &py));
+    T_ASSERT(first_x < second_x);
+    T_ASSERT(uidump_click_ok("Dup", 1, &px, &py));
+    T_EQ(px, second_x);
+    T_ASSERT(!UI_ClickFrame("Dup#3", 1, result, sizeof(result)));
+    T_STREQ(result, "UICLICK fail name=Dup#3 reason=not-found");
+    mi = saved;
+}
+
+TEST(menu_fdf, click_command_is_enabled_only_by_the_exact_environment_value) {
+    T_ASSERT(UI_ClickEnabledByEnvironment("1"));
+    T_ASSERT(!UI_ClickEnabledByEnvironment(NULL));
+    T_ASSERT(!UI_ClickEnabledByEnvironment(""));
+    T_ASSERT(!UI_ClickEnabledByEnvironment("0"));
+    T_ASSERT(!UI_ClickEnabledByEnvironment("true"));
+    T_ASSERT(!UI_ClickEnabledByEnvironment("11"));
+}

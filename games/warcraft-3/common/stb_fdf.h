@@ -425,6 +425,8 @@ void UI_ClearTextures(void);
 frameDef_t *UI_Spawn(FRAMETYPE type, frameDef_t *parent);
 frameDef_t *UI_CloneFrameTree(frameDef_t const *source, frameDef_t *parent);
 void UI_FreeFrameTree(frameDef_t *root);
+/* FDF file a frame was parsed from, or "-" for frames created at runtime. */
+cstring_t UI_FrameSourceFile(frameDef_t const *frame);
 uint32_t UI_FindFrameNumber(cstring_t name);
 void UI_SetText(frameDef_t *frame, cstring_t format, ...);
 void UI_SetTextPointer(frameDef_t *frame, cstring_t text);
@@ -1112,6 +1114,11 @@ cstring_t CornerFlags[] = {
 
 static PATHSTR ui_loaded_fdfs[128] = { 0 };
 static uint32_t ui_num_loaded_fdfs = 0;
+/* Provenance for diagnostics: parsing records which file spawned each frame, so a dump can name its FDF. */
+static PATHSTR ui_source_files[128];
+static uint32_t ui_num_source_files;
+static uint16_t ui_frame_source[MAX_UI_CLASSES]; /* index + 1 into ui_source_files, 0 = created at runtime */
+static uint16_t ui_current_source;
 static uintptr_t ui_camera_event_instance_id = 1;
 static void (*ui_release_camera_event_instance)(uintptr_t);
 
@@ -1137,6 +1144,8 @@ void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
     memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
     ui_num_loaded_fdfs = 0;
+    memset(ui_frame_source, 0, sizeof(ui_frame_source));
+    ui_num_source_files = 0;
     UI_ClearStringList();
     UI_ClearTheme();
     UI_ClearTextures();
@@ -1156,6 +1165,7 @@ frameDef_t *UI_Spawn(FRAMETYPE type, frameDef_t *parent) {
             if (!ui_camera_event_instance_id) ui_camera_event_instance_id = 1;
             UI_WireFrameTypeFunctions(frame);
             frame->Parent = parent;
+            ui_frame_source[i] = ui_current_source;
             return frame;
         }
     }
@@ -1169,7 +1179,21 @@ static void UI_ReleaseFrame(frameDef_t *frame) {
         ui_release_camera_event_instance(frame->camera_event_instance_id);
     UI_FreeFrameDynamicText(frame);
     UI_FreeFrameMenuItems(frame);
+    ui_frame_source[frame - frames] = 0;
     memset(frame, 0, sizeof(*frame));
+}
+
+cstring_t UI_FrameSourceFile(frameDef_t const *frame) {
+    uint32_t source = frame >= frames && frame < frames + MAX_UI_CLASSES ? ui_frame_source[frame - frames] : 0;
+    return source ? ui_source_files[source - 1] : "-";
+}
+
+static uint16_t UI_InternSourceFile(cstring_t fileName) {
+    FOR_LOOP(i, ui_num_source_files)
+        if (!strcmp(ui_source_files[i], fileName)) return (uint16_t)(i + 1);
+    if (ui_num_source_files >= sizeof(ui_source_files) / sizeof(ui_source_files[0])) return 0;
+    snprintf(ui_source_files[ui_num_source_files], sizeof(ui_source_files[0]), "%s", fileName);
+    return (uint16_t)++ui_num_source_files;
 }
 
 /* Reclaim a serialized temporary tree so repeated server-authored windows do not exhaust the shared FDF frame pool. */
@@ -2014,12 +2038,15 @@ void FDF_ParseScene(wordExtractor_t *parser) {
 bool UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
     string_t buffer = buffer2;
     UI_RemoveBom(buffer);
+    uint16_t const previous_source = ui_current_source;
+    ui_current_source = fileName ? UI_InternSourceFile(fileName) : 0;
     wordExtractor_t parser = {
         .buffer = buffer,
         .delimiters = ",;{}",
         .eat_quotes = true,
     };
     FDF_ParseScene(&parser);
+    ui_current_source = previous_source;
     if (parser.error) {
         fprintf(stderr, "Failed to parse %s\n", fileName);
     }

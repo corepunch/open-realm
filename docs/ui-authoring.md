@@ -108,3 +108,48 @@ and repeated layout of a compact pane does not keep shrinking it. No replacement
 Capture the settled browser with `+menu_multiplayer +screenshot 120 +com_frame_limit 135`, using
 `-vid_hidden 1` for a hidden window, in both ROC and TFT. Very early screenshots capture the glue
 opening animation with the panels still offscreen and cannot verify the final layout.
+
+## Console Diagnostics: `uidump` and `click`
+
+Glue screens (libmenu, `games/warcraft-3/menu/menu_uidump.c`) expose two console commands so tests and bug reports name
+frames instead of screen coordinates. They act on the menu frame table only; the in-game HUD (`svc_layout` `uiFrame_t`)
+carries frame numbers, not names, so it is not covered. Both need the menu to be active.
+
+| Command | Effect |
+|---------|--------|
+| `uidump [filter]` | One line per frame whose name contains `filter` (case-sensitive), written to stderr (`game.log`) and the console. |
+| `click <name>[#n] [button]` | Move, press and release at the frame centre. `button` is `1`/`left` (default), `2`/`middle`, `3`/`right`. |
+
+`click` exists only when the process starts with the environment variable `OPENREALM_UI_TEST=1` (exact value). The check runs
+once when the menu library registers its commands. It is deliberately not a cvar: the command buffer can be fed from other
+sources than the local console, and a cvar can be set from it. `uidump` is read-only and always registered.
+
+### Output format
+
+```text
+UIDUMP screen=<name|-> window=<W>x<H> scene=<x>,<y>,<w>,<h>
+UIFRAME id=<index> name=<Name> type=<FDF type> fdf=<file|-> parent=<Name|-> visible=0|1 enabled=0|1 interactive=0|1 hit=0|1 text="<escaped>" tex=<path|-> rect=<x>,<y>,<w>,<h> px=<x>,<y>,<w>,<h>
+UIDUMP end n=<count>
+```
+
+- `rect` is in scene units: 0..0.8 x 0..0.6 for a 4:3 canvas, wider in x under an expanding canvas policy
+  (`docs/architecture/ui-canvas.md`). `px` is the same rectangle in window pixels, computed from the live scene and window.
+- `visible=1` means the frame was laid out in the last draw and has no hidden ancestor. Undrawn frames print `rect=- px=-`.
+- `hit=1` means `UI_HitTest` at the frame centre returns this frame, i.e. a click there reaches it now.
+- `fdf` is the file being parsed when the frame was created (`UI_FrameSourceFile`); runtime-created frames print `-`.
+- `text` is truncated at 120 characters; `"`, `\` and newlines are escaped.
+
+### Click rules
+
+`click` goes through `M_MouseEvent` (MOVE, DOWN, UP), the function the client calls for real pointer input while the menu owns
+input, at the pixel of the frame centre. It never clicks through: the result line is `UICLICK ok name=<n> id=<i> px=<x>,<y>
+button=<b>` or `UICLICK fail name=<n> reason=<r>` with `not-found`, `hidden`, `not-laid-out`, `disabled`, `not-interactive`,
+`obscured-by:<Name>`, `input-refused` (screen transition running), `no-window` or `bad-arguments`. Screens keep their frames, so
+one name can exist several times: a bare name picks the topmost clickable one (and warns if there are several), `Name#2` picks
+the second in frame-table order. The command does not move the SDL cursor and sends no key events, so keyboard and gamepad
+focus are unaffected.
+
+### Verification
+
+`games/warcraft-3/tests/test_menu_fdf.c` (`uidump_*`, `click_*`) covers the line format, the click pixel at 1280x800, 1920x1080,
+a 1600x700 expanding canvas and an expand-center canvas, refusals, duplicate names and the environment gate.
