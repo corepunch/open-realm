@@ -757,6 +757,11 @@ static void UI_MenuHostLobby_f(void) {
 }
 
 static void M_LobbyChat(cstring_t text, bool own) {
+    /* A delayed chat line must not mutate the cached lobby after we leave it. */
+    if (ui_state.transition_action ||
+        (ui_state.transition_screen ? ui_state.transition_screen : UI_GetCurrentScreen()) != &gameSetupScreen) {
+        return;
+    }
     if (text && *text) GameSetup_AddChatMessage(text, own);
 }
 

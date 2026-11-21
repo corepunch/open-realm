@@ -5108,6 +5108,9 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     Cmd_ExecuteString("menu_game_setup_start");
     T_NULL(UI_GetCurrentScreen());
     T_ASSERT(strstr(captured_command, "map \"Maps\\\\Melee\\\\TwinRivers.w3m\"") != NULL);
+    chat_api.LobbyChat("Message received after leaving the lobby", false);
+    T_NULL(UI_GetCurrentScreen());
+    T_ASSERT(strstr(chat->Text, "Message received after leaving the lobby") == NULL);
     /* Reuse the loaded lobby fixture to check the solo presentation contract. */
     Cmd_ExecuteString("menu_single_player_skirmish");
     test_glue_tick(1000);
