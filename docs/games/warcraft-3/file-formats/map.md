@@ -147,7 +147,7 @@ DWORD  num_custom_records
 [custom record × num_custom_records]
 ```
 
-Each record contains a four-character unit ID followed by a list of `(field_tag, value)` pairs, terminated by a zero DWORD.
+Each record contains the original rawcode, the replacement rawcode, two reserved DWORDs, a modification count, and that many modifications. A modification stores a four-character field ID, a value type, the typed value, and an end-token rawcode. Ability, doodad, and upgrade modifications also carry level and data-pointer DWORDs. Keep the reserved DWORDs: treating the first one as the modification count misaligns every field and can make the map loader abort.
 
 OpenRealm currently applies registered `UnitBalance_t`, `UnitProfile_t`, and `UnitUI_t` fields at map load. Stable per-map rows
 preserve balance fields such as `usma`/`usrg`/`usst`, custom `uani` Required Animation Names, `umdl` model paths, and the other

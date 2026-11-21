@@ -1415,6 +1415,15 @@ uint32_t CreateUnit(jass_t *j) {
     edict_t *unit = unit_create(PLAYER_NUM(player), unitid, &location, facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
+uint32_t BlzCreateUnitWithSkin(jass_t *j) {
+    player_t *player = jass_checkhandle(j, 1, "player");
+    uint32_t unitid = (uint32_t)jass_checkinteger(j, 2);
+    vec2_t location = MAKE(vec2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
+    float facing = jass_checknumber(j, 5);
+    (void)jass_checkinteger(j, 6); /* presentation skin alias */
+    edict_t *unit = player ? unit_create(PLAYER_NUM(player), unitid, &location, facing) : NULL;
+    return jass_pushlighthandle(j, unit, "unit");
+}
 uint32_t CreateUnitByName(jass_t *j) {
     //handle_t whichPlayer = jass_checkhandle(j, 1, "player");
     //cstring_t unitname = jass_checkstring(j, 2);

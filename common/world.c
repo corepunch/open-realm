@@ -351,7 +351,7 @@ static bool CM_ReadPlacementHeader(handle_t file, cstring_t filename, cmPlacemen
         return false;
     }
     if (header->version != CM_PLACEMENT_ROC_VERSION &&
-        header->version != CM_PLACEMENT_TFT_VERSION) {
+        header->version != CM_PLACEMENT_TFT_VERSION && header->version != 13) {
         fprintf(stderr,
                 "CM_ReadPlacementHeader: unsupported %s version %u subversion %u\n",
                 filename,
@@ -359,7 +359,8 @@ static bool CM_ReadPlacementHeader(handle_t file, cstring_t filename, cmPlacemen
                 (unsigned)header->subversion);
         return false;
     }
-    header->tft = header->version == CM_PLACEMENT_TFT_VERSION;
+    /* Version 13 is the Reforged placement format; sub-version controls several records. */
+    header->tft = header->version >= CM_PLACEMENT_TFT_VERSION;
     return true;
 }
 
@@ -468,6 +469,7 @@ static bool CM_ReadDroppedItemSets(handle_t file, uint32_t *num_sets, droppableI
 static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
     handle_t file;
     cmPlacementHeader_t header;
+    uint32_t skippedEmptyV13Placements = 0;
 
     if (!SFileOpenFileEx(archive, "war3map.doo", SFILE_OPEN_FROM_MPQ, &file)) {
         fprintf(stderr, "CM_ReadDoodads: missing war3map.doo\n");
@@ -478,7 +480,7 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         return;
     }
 
-    FOR_LOOP(index, header.count) {
+    for (uint32_t index = 0; index < header.count;) {
         uint32_t count;
         doodad_t *doodad = MemAlloc(sizeof(doodad_t));
         char context[128];
@@ -491,11 +493,33 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         doodad->droppedItemSetPtr = (uint32_t)-1;
         doodad->goldAmount = 12500;
         doodad->targetAcquisition = -1.0f;
-        SFileReadFile(file, &doodad->doodID, sizeof(uint32_t), NULL, NULL);
+        if (!SFileReadFile(file, &doodad->doodID, sizeof(uint32_t), NULL, NULL)) {
+            MemFree(doodad);
+            break;
+        }
+        if (header.version >= 13 && doodad->doodID == 0) {
+            /* Reforged 3.0 maps may interleave a 36-byte empty placement slot.
+             * It has no rawcode and is not included in the header's doodad count. */
+            uint8_t emptyPlacementTail[32];
+            uint32_t actual = 0;
+            if (!SFileReadFile(file, emptyPlacementTail, sizeof(emptyPlacementTail), &actual, NULL) ||
+                actual != sizeof(emptyPlacementTail)) {
+                MemFree(doodad);
+                break;
+            }
+            skippedEmptyV13Placements++;
+            MemFree(doodad);
+            continue;
+        }
         SFileReadFile(file, &doodad->variation, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &doodad->position, sizeof(vec3_t), NULL, NULL);
         SFileReadFile(file, &doodad->angle, sizeof(float), NULL, NULL);
         SFileReadFile(file, &doodad->scale, sizeof(vec3_t), NULL, NULL);
+        if (header.version >= 13) {
+            uint32_t skin_id;
+            SFileReadFile(file, &skin_id, sizeof(skin_id), NULL, NULL);
+            SFileReadFile(file, &doodad->color, sizeof(doodad->color), NULL, NULL);
+        }
         SFileReadFile(file, &doodad->flags, sizeof(uint8_t), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(uint8_t), NULL, NULL);
         if (header.tft) {
@@ -508,9 +532,18 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
             doodad->num_droppedItemSets = count;
         }
         SFileReadFile(file, &doodad->unitID, sizeof(uint32_t), NULL, NULL);
+        if (header.version >= 13) {
+            uint32_t extension[4];
+            SFileReadFile(file, extension, sizeof(extension), NULL, NULL);
+        }
         
         ADD_TO_LIST(doodad, world.doodads);
+        index++;
     }
+
+    if (skippedEmptyV13Placements)
+        fprintf(stderr, "CM_ReadDoodads: skipped %u empty version-13 placement slots\n",
+                (unsigned)skippedEmptyV13Placements);
 
     /* The tail of war3map.doo stores cliff/special doodads separately from
      * regular placements. Their X/Y are W3E vertex coordinates, not world
@@ -615,13 +648,17 @@ static bool CM_ReadUnit(handle_t file, struct Doodad *unit, cmPlacementHeader_t 
     SFileReadFile(file, &unit->position, sizeof(vec3_t), NULL, NULL);
     SFileReadFile(file, &unit->angle, sizeof(float), NULL, NULL);
     SFileReadFile(file, &unit->scale, sizeof(vec3_t), NULL, NULL);
+    if (header->version >= 13) {
+        uint32_t skin_id;
+        SFileReadFile(file, &skin_id, sizeof(skin_id), NULL, NULL);
+    }
     SFileReadFile(file, &unit->flags, sizeof(uint8_t), NULL, NULL);
     SFileReadFile(file, &unit->player, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->unknown1, sizeof(uint8_t), NULL, NULL);
     SFileReadFile(file, &unit->unknown2, sizeof(uint8_t), NULL, NULL);
     SFileReadFile(file, &unit->hitPoints, sizeof(uint32_t), NULL, NULL); // (-1 = use default)
     SFileReadFile(file, &unit->manaPoints, sizeof(uint32_t), NULL, NULL); // (-1 = use default, 0 = unit doesn't have mana)
-    if (header->tft) {
+    if (header->subversion >= 11) {
         SFileReadFile(file, &unit->droppedItemSetPtr, sizeof(uint32_t), NULL, NULL);
     } else {
         unit->droppedItemSetPtr = (uint32_t)-1;
@@ -636,7 +673,7 @@ static bool CM_ReadUnit(handle_t file, struct Doodad *unit, cmPlacementHeader_t 
     // war3mapUnits.doo stores only the file-format hero fields here.  The
     // runtime doodadHero_t has extra state, so do not read sizeof(hero).
     SFileReadFile(file, &unit->hero.level, sizeof(uint32_t), NULL, NULL);
-    if (header->tft) {
+    if (header->subversion >= 11) {
         SFileReadFile(file, &unit->hero.str, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &unit->hero.agi, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &unit->hero.intel, sizeof(uint32_t), NULL, NULL);
@@ -775,12 +812,21 @@ void CM_ReadModification(handle_t file, unitModification_t *mod) {
 
 static unitData_t *CM_ReadObjectOverrides(handle_t file, uint32_t *numObjects) {
     uint32_t unknown;
+    uint32_t modificationCount;
     SFileReadFile(file, numObjects, 4, NULL, NULL);
     unitData_t *objects = MemAlloc(*numObjects * sizeof(unitData_t));
     for (unitData_t *object = objects; object - objects < *numObjects; object++) {
         SFileReadFile(file, &object->originalUnitID, 4, NULL, NULL);
         SFileReadFile(file, &object->newUnitID, 4, NULL, NULL);
-        SFileReadFile(file, &object->numbeOfModifications, 4, NULL, NULL);
+        /* Object records contain two reserved DWORDs before the modification count. */
+        SFileReadFile(file, &unknown, 4, NULL, NULL);
+        SFileReadFile(file, &unknown, 4, NULL, NULL);
+        SFileReadFile(file, &modificationCount, 4, NULL, NULL);
+        if (modificationCount > UINT16_MAX) {
+            Com_Error(ERR_DROP, "CM_ReadObjectOverrides: invalid modification count %u\n", modificationCount);
+            return objects;
+        }
+        object->numbeOfModifications = (uint16_t)modificationCount;
         object->modifications = MemAlloc(object->numbeOfModifications * sizeof(unitModification_t));
         FOR_LOOP(j, object->numbeOfModifications) {
             CM_ReadModification(file, &object->modifications[j]);
@@ -863,6 +909,9 @@ static unitData_t *CM_ReadAbilityOverrides(handle_t file, uint32_t *numUnits) {
         uint32_t mod_count = 0;
         SFileReadFile(file, &unit->originalUnitID, 4, NULL, NULL);
         SFileReadFile(file, &unit->newUnitID, 4, NULL, NULL);
+        /* Object records contain two reserved DWORDs before the modification count. */
+        SFileReadFile(file, &unknown, 4, NULL, NULL);
+        SFileReadFile(file, &unknown, 4, NULL, NULL);
         SFileReadFile(file, &mod_count, 4, NULL, NULL);
         unit->numbeOfModifications = (uint16_t)mod_count;
         unit->modifications = MemAlloc(unit->numbeOfModifications * sizeof(unitModification_t));
