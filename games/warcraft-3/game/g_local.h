@@ -3301,6 +3301,7 @@ void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
 void G_FillMapPlacedUnitMana(edict_t *);
 void G_SpawnEntities(cstring_t map_path);
+void G_RunMapConfig(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif

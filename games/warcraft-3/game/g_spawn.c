@@ -914,6 +914,16 @@ TEST(wc3_doodad, special_height_samples_remain_inside_heightmap) {
 }
 #endif
 
+/* Warcraft executes config before main; this phase owns authored player colors, teams, and slots. */
+void G_RunMapConfig(void) {
+    if (level.scriptsConfigured || !level.vm || !level.mapinfo || !level.mapinfo->mapscript ||
+        !strstr(level.mapinfo->mapscript, "function config")) {
+        return;
+    }
+    jass_callbyname(level.vm, "config", false);
+    if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
+}
+
 void G_SpawnEntities(cstring_t map_path) {
     mapInfo_t const *mapinfo = CM_GetMapInfo();
     doodad_t const *entities = CM_GetDoodads();
@@ -1072,12 +1082,7 @@ void G_SpawnEntities(cstring_t map_path) {
         fprintf(stderr, "G_SpawnEntities: missing mapscript; skipping jass_dobuffer\n");
     gi.LoadingFrame();
 
-    /* Warcraft executes config before main; this phase owns authored player colors, teams, and slots. */
-    if (!level.scriptsConfigured && level.mapinfo && level.mapinfo->mapscript &&
-        strstr(level.mapinfo->mapscript, "function config")) {
-        jass_callbyname(level.vm, "config", false);
-        if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
-    }
+    G_RunMapConfig();
 
     UI_Init();
     CM_BakeStaticObstacles();
