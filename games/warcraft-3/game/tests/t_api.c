@@ -3181,6 +3181,21 @@ TEST(wc3_environment_fog, set_terrain_fog_ex_publishes_runtime_state) {
     gi.configstring = old_configstring;
 }
 
+TEST(wc3_environment_fog, reforged_fog_uses_shared_distances_and_trailing_rgb) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetTerrainFogExV(0, 1200.0, 4500.0, 0.25, 100.0, 300.0, 400.0, 600.0, 0.2, 0.3, 0.4)\n"
+        "endfunction\n"));
+    wc3EnvironmentFogState_t const *fog = &level.environment_fog.active;
+    T_EQ(fog->style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(fog->start, 1200.0f, 0.001f);
+    T_FEQ(fog->end, 4500.0f, 0.001f);
+    T_FEQ(fog->density, 0.25f, 0.001f);
+    T_FEQ(fog->color.x, 0.2f, 0.001f);
+    T_FEQ(fog->color.y, 0.3f, 0.001f);
+    T_FEQ(fog->color.z, 0.4f, 0.001f);
+}
+
 TEST(wc3_environment_fog, reset_terrain_fog_restores_default_state) {
     void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 

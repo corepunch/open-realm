@@ -292,6 +292,7 @@ TEST(wc3_jass_map, escaped_quotes_do_not_expose_trailing_line_comment) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "    call BJassAssert(StringLength(\"say \\\"hi\\\"\") == 8, \"escaped quotes work\") // for the parser\n"
+        "    call BJassAssert(StringLength(\"a\\\" // b\") == 7, \"slashes inside string\") // trailing comment\n"
         "endfunction\n"));
 }
 
@@ -661,12 +662,19 @@ TEST(wc3_jass_map, map_metadata_and_start_priority_persist) {
         "  call SetStartLocPrioCount(2, 2)\n"
         "  call SetStartLocPrio(2, 0, 5, MAP_LOC_PRIO_HIGH)\n"
         "  call SetStartLocPrio(2, 1, 7, MAP_LOC_PRIO_NOT)\n"
+        "  call SetEnemyStartLocPrioCount(2, 1)\n"
+        "  call SetEnemyStartLocPrio(2, 0, 8, MAP_LOC_PRIO_HIGH)\n"
+        "  call SetEnemyStartLocPrio(2, 1, 9, MAP_LOC_PRIO_NOT)\n"
         "  call BJassAssert(GetStartLocPrioSlot(2, 0) == 5, \"priority location\")\n"
         "  call BJassAssert(GetStartLocPrio(2, 0) == MAP_LOC_PRIO_HIGH, \"high priority\")\n"
         "  call BJassAssert(GetStartLocPrioSlot(2, 1) == 7, \"excluded location\")\n"
         "  call BJassAssert(GetStartLocPrio(2, 1) == MAP_LOC_PRIO_NOT, \"excluded priority\")\n"
         "endfunction\n"
     ));
+    T_EQ(level.setup.enemy_start_prio[2].count, 1);
+    T_EQ(level.setup.enemy_start_prio[2].slots[0].location, 8);
+    T_EQ(level.setup.enemy_start_prio[2].slots[0].priority, 1);
+    T_EQ(level.setup.enemy_start_prio[2].slots[1].location, 0);
     T_STREQ(level.setup.name, "Native Test Map");
     T_STREQ(level.setup.description, "Native setup state");
 }

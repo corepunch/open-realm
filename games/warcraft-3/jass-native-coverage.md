@@ -319,9 +319,10 @@ The following callbacks form one coherent setup subsystem:
 `SetPlayerStartLocation`: it also reserves that location so random placement
 cannot assign it to another player.
 
-The bundled declarations also expose three setup natives not currently present
-in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
-`SetPlayerName`. Add them when their owning setup state is implemented.
+`SetEnemyStartLocPrioCount` and `SetEnemyStartLocPrio` store ordered enemy
+preferences separately from allied preferences. Both tables survive save/load.
+Automatic melee start assignment using these priorities remains unimplemented.
+`SetPlayerName` updates the player's name.
 
 ## Player Configuration Contract
 

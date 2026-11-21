@@ -2899,6 +2899,16 @@ typedef struct {
 } wc3EnvironmentFogParams_t;
 
 /* Current-map registries, script VM and simulation clocks reset at map replacement. */
+typedef struct {
+    int32_t location;
+    uint32_t priority;
+} startLocationSlot_t;
+
+typedef struct startLocationPriorities_s {
+    uint32_t count;
+    startLocationSlot_t slots[MAX_START_PRIO];
+} startLocationPriorities_t;
+
 struct level_locals {
     jass_t *vm;
     ggroup_t **groups;
@@ -2941,12 +2951,7 @@ struct level_locals {
         uint32_t teams, players, game_types, game_type, map_flags;
         uint32_t placement, speed, difficulty, default_difficulty, resource_density, creature_density;
         uint32_t forced_start_locations;
-        /* Per-player ordered start-location priorities used by spawn placement. */
-        struct {
-            uint32_t count;
-            /* One authored preference; priority ranks this candidate start location. */
-            struct { int32_t location; uint32_t priority; } slots[MAX_START_PRIO];
-        } start_prio[MAX_PLAYERS];
+        startLocationPriorities_t start_prio[MAX_PLAYERS], enemy_start_prio[MAX_PLAYERS];
     } setup;
     levelEvents_t events;
     bool pending_consumed_item_cleanup;

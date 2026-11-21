@@ -14,7 +14,11 @@ static void TutorialTextDebugContextMisc(jass_t *j, int32_t *trigger_ordinal, cs
         *caller = context && context->func ? jass_functionname(context->func) : NULL;
 }
 
-uint32_t class_id(cstring_t str) { return *(uint32_t *)str; }
+static uint32_t class_id(cstring_t str) {
+    if (!str || strnlen(str, 4) < 4) return 0;
+    return (uint8_t)str[0] | (uint32_t)(uint8_t)str[1] << 8 |
+           (uint32_t)(uint8_t)str[2] << 16 | (uint32_t)(uint8_t)str[3] << 24;
+}
 
 /* Converted enums are owned JASS handles; enum equality compares their uint32_t payload. */
 static uint32_t JassPushEnumHandle(jass_t *j, cstring_t type, int32_t value) {
@@ -219,22 +223,31 @@ uint32_t DefineStartLocationLoc(jass_t *j) {
     }
     return 0;
 }
-uint32_t SetStartLocPrioCount(jass_t *j) {
+static uint32_t JassSetStartPrioCount(jass_t *j, startLocationPriorities_t *locations) {
     int32_t loc = jass_checkinteger(j, 1), count = jass_checkinteger(j, 2);
-    if (loc >= 0 && loc < MAX_PLAYERS) level.setup.start_prio[loc].count = MIN(MAX(0, count), MAX_START_PRIO);
+    if (loc < 0 || loc >= MAX_PLAYERS) return 0;
+    uint32_t size = MIN(MAX(0, count), MAX_START_PRIO);
+    startLocationPriorities_t *list = &locations[loc];
+    if (size > list->count)
+        memset(list->slots + list->count, 0, (size - list->count) * sizeof(list->slots[0]));
+    list->count = size;
     return 0;
 }
-uint32_t SetStartLocPrio(jass_t *j) {
+
+static uint32_t JassSetStartPrio(jass_t *j, startLocationPriorities_t *locations) {
     int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2), other = jass_checkinteger(j, 3);
     uint32_t *priority = jass_checkhandle(j, 4, "startlocprio");
-    if (loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count && priority)
-        level.setup.start_prio[loc].slots[slot] = (typeof(*level.setup.start_prio[loc].slots)){ other, *priority };
+    if (loc >= 0 && loc < MAX_PLAYERS && (uint32_t)slot < locations[loc].count && priority) {
+        locations[loc].slots[slot].location = other;
+        locations[loc].slots[slot].priority = *priority;
+    }
     return 0;
 }
-/* Enemy start-location priorities only guide the melee lobby's random
- * placement. They have no simulation effect in a dedicated map capture. */
-uint32_t SetEnemyStartLocPrioCount(jass_t *j) { (void)j; return 0; }
-uint32_t SetEnemyStartLocPrio(jass_t *j) { (void)j; return 0; }
+
+uint32_t SetStartLocPrioCount(jass_t *j) { return JassSetStartPrioCount(j, level.setup.start_prio); }
+uint32_t SetStartLocPrio(jass_t *j) { return JassSetStartPrio(j, level.setup.start_prio); }
+uint32_t SetEnemyStartLocPrioCount(jass_t *j) { return JassSetStartPrioCount(j, level.setup.enemy_start_prio); }
+uint32_t SetEnemyStartLocPrio(jass_t *j) { return JassSetStartPrio(j, level.setup.enemy_start_prio); }
 uint32_t GetStartLocPrioSlot(jass_t *j) {
     int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
     int32_t value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count ?
@@ -1547,25 +1560,26 @@ uint32_t SetUnitFog(jass_t *j) {
     //float e = jass_checknumber(j, 5);
     return 0;
 }
-uint32_t SetTerrainFogEx(jass_t *j) {
+static uint32_t JassSetTerrainFog(jass_t *j, int color_arg) {
     int32_t style = jass_checkinteger(j, 1);
     float zstart = jass_checknumber(j, 2);
     float zend = jass_checknumber(j, 3);
     float density = jass_checknumber(j, 4);
-    float red = jass_checknumber(j, 5);
-    float green = jass_checknumber(j, 6);
-    float blue = jass_checknumber(j, 7);
+    float red = jass_checknumber(j, color_arg);
+    float green = jass_checknumber(j, color_arg + 1);
+    float blue = jass_checknumber(j, color_arg + 2);
 
     G_EnvironmentFogSet(&(wc3EnvironmentFogParams_t){
         .style = style, .start = zstart, .end = zend, .density = density,
         .color = { red, green, blue } });
     return 0;
 }
-/* Reforged's vector form carries extra fog color/distance parameters. The
- * dedicated extraction runtime has no renderer state to apply them to. */
+uint32_t SetTerrainFogEx(jass_t *j) {
+    return JassSetTerrainFog(j, 5);
+}
 uint32_t SetTerrainFogExV(jass_t *j) {
-    (void)j;
-    return 0;
+    /* The four height/linear controls precede RGB in Reforged common.j. */
+    return JassSetTerrainFog(j, 9);
 }
 uint32_t BlzSetTerrainFogMaxLinearDensity(jass_t *j) { (void)j; return 0; }
 uint32_t BlzSetTerrainFogDrawOverSky(jass_t *j) { (void)j; return 0; }

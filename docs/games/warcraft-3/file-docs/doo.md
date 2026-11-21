@@ -41,6 +41,12 @@ int[4]   v13_extension    version 13 only; first value is the placement ID in ob
 
 Version 13 adds a skin ID and color before flags, then four integers after the editor ID. Some 3.0 maps also interleave zero-rawcode, 36-byte placement slots that are not included in `doodad_count`; these carry no renderable doodad ID and must be skipped as a whole. OpenRealm's reader handles these slots when loading version 13 maps.
 
+The 36-byte slot was reported for Werewolf Transylvania on Reforged 3.0.
+The exact editor build is unknown. The generated regression fixture uses
+version 13, subversion 11 and distinct object and skin IDs. It checks two
+doodads and two units for alignment, then truncates each final record to
+verify the loader keeps only complete placements.
+
 ### Doodad flags
 
 | Value | Meaning |

@@ -135,7 +135,7 @@ UIDUMP end n=<count>
 - `rect` is in scene units: 0..0.8 x 0..0.6 for a 4:3 canvas, wider in x under an expanding canvas policy
   (`docs/architecture/ui-canvas.md`). `px` is the same rectangle in window pixels, computed from the live scene and window.
 - `visible=1` means the frame was laid out in the last draw and has no hidden ancestor. Undrawn frames print `rect=- px=-`.
-- `hit=1` means `UI_HitTest` at the frame centre returns this frame, i.e. a click there reaches it now.
+- `hit=1` means the centre rounds to a pixel inside the window and that pixel hits this frame.
 - `fdf` is the file being parsed when the frame was created (`UI_FrameSourceFile`); runtime-created frames print `-`.
 - `text` is truncated at 120 characters; `"`, `\` and newlines are escaped.
 
@@ -144,7 +144,7 @@ UIDUMP end n=<count>
 `click` goes through `M_MouseEvent` (MOVE, DOWN, UP), the function the client calls for real pointer input while the menu owns
 input, at the pixel of the frame centre. It never clicks through: the result line is `UICLICK ok name=<n> id=<i> px=<x>,<y>
 button=<b>` or `UICLICK fail name=<n> reason=<r>` with `not-found`, `hidden`, `not-laid-out`, `disabled`, `not-interactive`,
-`obscured-by:<Name>`, `input-refused` (screen transition running), `no-window` or `bad-arguments`. Screens keep their frames, so
+`outside-window`, `obscured-by:<Name>`, `input-refused` (screen transition running), `no-window` or `bad-arguments`. Screens keep their frames, so
 one name can exist several times: a bare name picks the topmost clickable one (and warns if there are several), `Name#2` picks
 the second in frame-table order. Names must fit in the frame-name field and ordinals cannot exceed the frame-table size.
 The command does not move the SDL cursor and sends no key events, so keyboard and gamepad

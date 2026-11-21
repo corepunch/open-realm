@@ -18,7 +18,7 @@
 
 extern cstring_t FrameType[];
 
-typedef struct { float x, y; int px, py; } uiClickPoint_t;
+typedef struct { int px, py; } uiClickPoint_t;
 
 static bool ui_diagnostics_registered;
 
@@ -72,6 +72,15 @@ static vec2_t UI_PixelToScene(int px, int py, rect_t const *scene, size2_t windo
                         scene->y + (float)py / (float)window.height * scene->h);
 }
 
+/* Both diagnostics must sample a pixel a real pointer can reach. */
+static bool UI_FrameCenterPixel(rect_t rect, rect_t scene, size2_t window, uiClickPoint_t *point) {
+    float x = roundf((rect.x + rect.w * 0.5f - scene.x) / scene.w * window.width);
+    float y = roundf((rect.y + rect.h * 0.5f - scene.y) / scene.h * window.height);
+    if (!(x >= 0 && x < window.width && y >= 0 && y < window.height)) return false;
+    *point = (uiClickPoint_t){ (int)x, (int)y };
+    return true;
+}
+
 uint32_t UI_DumpFrames(cstring_t filter, void (*emit)(cstring_t line, void *user), void *user) {
     char line[1024], text[2 * UI_DUMP_TEXT_MAX + 4];
     size2_t window;
@@ -102,8 +111,12 @@ uint32_t UI_DumpFrames(cstring_t filter, void (*emit)(cstring_t line, void *user
         if (!texture) texture = UI_TextureName(frame->Backdrop.Background);
         UI_DumpEscape(text, sizeof(text), frame->Text);
         bool hit = false;
-        if (laid && UI_FrameCanReceiveClick(frame))
-            hit = UI_HitTest(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f) == frame;
+        uiClickPoint_t point;
+        if (laid && have_window && scene.w > 0 && scene.h > 0 && UI_FrameCanReceiveClick(frame) &&
+            UI_FrameCenterPixel(rect, scene, window, &point)) {
+            vec2_t at = UI_PixelToScene(point.px, point.py, &scene, window);
+            hit = UI_HitTest(at.x, at.y) == frame;
+        }
         snprintf(line, sizeof(line),
                  "UIFRAME id=%u name=%s type=%s fdf=%s parent=%s visible=%u enabled=%u interactive=%u hit=%u text=\"%s\" tex=%s %s",
                  (unsigned)i, frame->Name[0] ? frame->Name : "-", UI_DumpTypeName(frame), UI_FrameSourceFile(frame),
@@ -156,10 +169,9 @@ static frameDef_t const *UI_FindClickTarget(cstring_t spec, rect_t const *scene,
         if (!UI_FrameLaidOutRect(frame, &rect)) { failure = "not-laid-out"; continue; }
         if (frame->disabled) { failure = "disabled"; continue; }
         if (!UI_FrameCanReceiveClick(frame)) { failure = "not-interactive"; continue; }
-        float const cx = rect.x + rect.w * 0.5f, cy = rect.y + rect.h * 0.5f;
-        int const px = (int)lroundf((cx - scene->x) / scene->w * (float)window.width);
-        int const py = (int)lroundf((cy - scene->y) / scene->h * (float)window.height);
-        vec2_t const at = UI_PixelToScene(px, py, scene, window);
+        uiClickPoint_t candidate;
+        if (!UI_FrameCenterPixel(rect, *scene, window, &candidate)) { failure = "outside-window"; continue; }
+        vec2_t const at = UI_PixelToScene(candidate.px, candidate.py, scene, window);
         frameDef_t const *hit = UI_HitTest(at.x, at.y);
         if (hit != frame) {
             failure = "obscured";
@@ -168,7 +180,7 @@ static frameDef_t const *UI_FindClickTarget(cstring_t spec, rect_t const *scene,
         }
         clickable++;
         best = frame; /* ascending index: the last match is the topmost, the one a pointer would reach */
-        *point = (uiClickPoint_t){ cx, cy, px, py };
+        *point = candidate;
     }
     if (!best) {
         snprintf(reason, reason_size, "%s", !strcmp(failure, "obscured") ? blocker : failure);

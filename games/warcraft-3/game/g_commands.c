@@ -3130,7 +3130,7 @@ static uint32_t gamepad_hall_cycle[MAX_CLIENTS];
 CLIENTCOMMAND(GamepadBase) {
     gameClient_t *client = clent ? clent->client : NULL;
     gamepadHall_t halls[64];
-    uint32_t halls_count = ARRAY_COUNT(halls);
+    size_t const hall_capacity = sizeof(halls) / sizeof(halls[0]);
     uint32_t count = 0;
     uint32_t index;
     (void)argc; (void)argv;
@@ -3139,7 +3139,7 @@ CLIENTCOMMAND(GamepadBase) {
         edict_t *ent = &globals.edicts[i];
         if (!ent->inuse || !G_UnitCanControl(client, ent) ||
             !G_UnitIsStructure(ent) || !gamepad_is_town_hall(ent->class_id) ||
-            M_IsDead(ent) || count >= halls_count) continue;
+            M_IsDead(ent) || count >= hall_capacity) continue;
         gamepadHall_t item = { ent, gamepad_town_hall_remaining(ent->class_id, 0) };
         uint32_t pos = count++;
         while (pos && gamepad_hall_before(item, halls[pos - 1])) {

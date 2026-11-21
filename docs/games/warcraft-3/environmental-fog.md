@@ -162,3 +162,8 @@ after the comparison. On macOS, a sandbox that denies access to the display serv
 
 See [Fog And Cinematic Visibility](fog-and-cinematics.md) for the independent gameplay fog-of-war system and
 [Sky Models and `CS_SKY`](../../architecture/skybox-and-cs-sky.md) for the separate camera-relative sky path.
+
+`SetTerrainFogExV` shares the distance-fog state and publication path with
+`SetTerrainFogEx`. Reforged inserts four height and linear controls between
+density and RGB. The renderer currently uses the common distances, density
+and trailing RGB values. The four additional controls have no visual effect.
