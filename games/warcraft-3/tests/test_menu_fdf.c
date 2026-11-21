@@ -5123,6 +5123,8 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+    chat_api.LobbyChat("Delayed multiplayer chat in solo setup", false);
+    T_ASSERT(strstr(chat->Text, "Delayed multiplayer chat in solo setup") == NULL);
     /* Select real popup rows: a visible title change alone must not conceal a rejected command. */
     struct { cstring_t popup, menu; uint32_t value; } const picks[] = {
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_COMPUTER },
@@ -5313,6 +5315,11 @@ TEST(menu_fdf, click_refuses_frames_a_pointer_could_not_reach) {
     T_ASSERT(!UI_ClickFrame("UiBtn", 1, result, sizeof(result)));
     T_STREQ(result, "UICLICK fail name=UiBtn reason=disabled");
     UI_SetEnabled(UI_FindFrame("UiBtn"), true);
+
+    UI_SetPoint(UI_FindFrame("UiBtn"), FRAMEPOINT_TOPLEFT, UI_FindFrame("UiRoot"), FRAMEPOINT_TOPLEFT, 1.5f, -0.1f);
+    UI_DrawFrame(UI_FindFrame("UiRoot"));
+    T_ASSERT(!UI_ClickFrame("UiBtn", 1, result, sizeof(result)));
+    T_STREQ(result, "UICLICK fail name=UiBtn reason=outside-window");
 
     UI_SetHidden(UI_FindFrame("UiHiddenBtn"), true);
     UI_DrawFrame(UI_FindFrame("UiRoot"));

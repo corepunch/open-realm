@@ -62,6 +62,11 @@ void SFileReadString(handle_t file, string_t *lppString) {
     (*lppString)[stringLength - 1] = '\0';
 }
 
+static bool CM_ReadExact(handle_t file, void *out, uint32_t size) {
+    uint32_t actual = 0;
+    return SFileReadFile(file, out, size, &actual, NULL) && actual == size;
+}
+
 static uint32_t SFileBytesRemaining(handle_t file) {
     uint32_t position = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
     uint32_t size = SFileGetFileSize(file, NULL);
@@ -534,7 +539,11 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         SFileReadFile(file, &doodad->unitID, sizeof(uint32_t), NULL, NULL);
         if (header.version >= 13) {
             uint32_t extension[4];
-            SFileReadFile(file, extension, sizeof(extension), NULL, NULL);
+            if (!CM_ReadExact(file, extension, sizeof(extension))) {
+                CM_FreeDoodadPlacementData(doodad);
+                MemFree(doodad);
+                break;
+            }
         }
         
         ADD_TO_LIST(doodad, world.doodads);
@@ -717,8 +726,7 @@ static bool CM_ReadUnit(handle_t file, struct Doodad *unit, cmPlacementHeader_t 
     }
     SFileReadFile(file, &unit->color, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->waygate, sizeof(uint32_t), NULL, NULL);
-    SFileReadFile(file, &unit->unitID, sizeof(uint32_t), NULL, NULL);
-    return true;
+    return CM_ReadExact(file, &unit->unitID, sizeof(unit->unitID));
 }
 
 static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
@@ -765,27 +773,16 @@ static void __attribute__((unused)) CM_ReadHeightmap(handle_t archive) {
         Com_Error(ERR_DROP, "CM_ReadHeightmap: invalid or truncated W3E vertex block\n");
 }
 
-static bool CM_ReadObjectField(handle_t file, void *out, uint32_t size) {
-    uint32_t actual = 0;
-    return SFileReadFile(file, out, size, &actual, NULL) && actual == size;
-}
-
-static uint32_t CM_ObjectBytesRemaining(handle_t file) {
-    uint32_t size = SFileGetFileSize(file, NULL);
-    uint32_t pos = SFileSetFilePointer(file, 0, NULL, FILE_CURRENT);
-    return pos <= size ? size - pos : 0;
-}
-
 static bool CM_ReadObjectModification(handle_t file, unitModification_t *mod, bool extended) {
     uint32_t size;
     uint32_t terminator;
     bool string_value = false;
 
-    if (!CM_ReadObjectField(file, &mod->modID, 4) ||
-        !CM_ReadObjectField(file, &mod->type, 4)) return false;
+    if (!CM_ReadExact(file, &mod->modID, 4) ||
+        !CM_ReadExact(file, &mod->type, 4)) return false;
     /* Ability and extended doodad records include level and data-pointer words. */
-    if (extended && (!CM_ReadObjectField(file, &mod->level, 4) ||
-                     !CM_ReadObjectField(file, &mod->dataPointer, 4))) return false;
+    if (extended && (!CM_ReadExact(file, &mod->level, 4) ||
+                     !CM_ReadExact(file, &mod->dataPointer, 4))) return false;
     switch (mod->type) {
         case mod_int:
         case mod_real:
@@ -819,33 +816,33 @@ static bool CM_ReadObjectModification(handle_t file, unitModification_t *mod, bo
         default:
             return false;
     }
-    if (size > CM_ObjectBytesRemaining(file)) return false;
+    if (size > SFileBytesRemaining(file)) return false;
     mod->data = MemAlloc(size);
-    return CM_ReadObjectField(file, mod->data, size) &&
+    return CM_ReadExact(file, mod->data, size) &&
            (!string_value || ((char *)mod->data)[size - 1] == '\0') &&
-           CM_ReadObjectField(file, &terminator, 4);
+           CM_ReadExact(file, &terminator, 4);
 }
 
 static bool CM_ReadObjectHeader(handle_t file, unitData_t *object, uint32_t version,
                                 uint32_t *mod_count) {
-    if (!CM_ReadObjectField(file, &object->originalUnitID, 4) ||
-        !CM_ReadObjectField(file, &object->newUnitID, 4)) return false;
+    if (!CM_ReadExact(file, &object->originalUnitID, 4) ||
+        !CM_ReadExact(file, &object->newUnitID, 4)) return false;
     if (version == 3) {
         uint32_t extra_words;
-        if (!CM_ReadObjectField(file, &extra_words, 4) ||
-            extra_words > CM_ObjectBytesRemaining(file) / 4 ||
+        if (!CM_ReadExact(file, &extra_words, 4) ||
+            extra_words > SFileBytesRemaining(file) / 4 ||
             extra_words > INT32_MAX / 4 ||
             SFileSetFilePointer(file, (int32_t)(extra_words * 4), NULL, FILE_CURRENT) == SFILE_INVALID_POS)
             return false;
     }
-    return CM_ReadObjectField(file, mod_count, 4) && *mod_count <= UINT16_MAX;
+    return CM_ReadExact(file, mod_count, 4) && *mod_count <= UINT16_MAX;
 }
 
 static bool CM_ReadObjectOverrides(handle_t file, uint32_t version, bool extended,
                                    uint32_t *num_objects, unitData_t **objects) {
     uint32_t count;
-    if (!CM_ReadObjectField(file, &count, 4) || count > CM_ObjectBytesRemaining(file) / 12 ||
-        count > LONG_MAX / sizeof(**objects)) return false;
+    if (!CM_ReadExact(file, &count, 4) || count > SFileBytesRemaining(file) / 12 ||
+        (uint64_t)count * sizeof(**objects) > LONG_MAX) return false;
     if (count == 0) return true;
 
     *objects = MemAlloc(count * sizeof(**objects));
@@ -853,7 +850,7 @@ static bool CM_ReadObjectOverrides(handle_t file, uint32_t version, bool extende
         unitData_t *object = &(*objects)[i];
         uint32_t mod_count;
         if (!CM_ReadObjectHeader(file, object, version, &mod_count) ||
-            mod_count > CM_ObjectBytesRemaining(file) / (extended ? 21 : 13)) return false;
+            mod_count > SFileBytesRemaining(file) / (extended ? 21 : 13)) return false;
         (*num_objects)++;
         if (mod_count == 0) continue;
         object->modifications = MemAlloc(mod_count * sizeof(*object->modifications));
@@ -894,7 +891,7 @@ static void CM_ReadObjectData(handle_t archive, cstring_t filename, cmObjectLayo
     *original = *custom = NULL;
     if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) return;
 
-    if (!CM_ReadObjectField(file, &version, 4) || version < 1 || version > 3) {
+    if (!CM_ReadExact(file, &version, 4) || version < 1 || version > 3) {
         fprintf(stderr, "CM_ReadObjectData: invalid or unsupported %s version\n", filename);
         SFileCloseFile(file);
         return;

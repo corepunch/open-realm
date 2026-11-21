@@ -9,8 +9,8 @@ operating-system access.
 build/bin/openwarcraft3 \
   -data /path/to/warcraft-iii-data \
   -tft +dedicated 1 \
-  +map 'Maps/Test/map.w3x' \
   +set wc3_runtime_export /path/to/map-unitstats.tsv \
+  +map 'Maps/Test/map.w3x' \
   +com_frame_limit 100
 ```
 
@@ -28,3 +28,11 @@ It contains units created during map initialization; later gameplay spawns are
 not included. Renderer-only skin, fog, water, pitch/roll, and tint settings may
 be ignored by the dedicated capture host. Event processing after the snapshot
 continues normally and may report separate runtime limits.
+
+## Verification
+
+Headless runs with the installed 1.29.2.9231 data reached server initialization
+and exported 321 live units from the classic WarChasers scenario and 155 from
+the TFT Monolith scenario. These exercise the classic object-data readers.
+The Reforged placement checks use generated v13 fixtures. The original Werewolf
+Transylvania map and its editor build were unavailable for this follow-up.

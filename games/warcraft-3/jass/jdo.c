@@ -1979,15 +1979,10 @@ static bool jass_rawcode_lookup(cstring_t name, uint32_t *mask, uint32_t *order_
 }
 
 uint32_t VM_EvalFourCC(jass_t *j, token_t const *token) {
-    size_t const len = strlen(token->primary);
-    if (len < 4) {
-        /* 'd' / 'ab' are plain base-256 integers ('d' == 100); reading 4 bytes
-         * picked up the NUL and whatever followed it. */
-        uint32_t value = 0;
-        for (size_t i = 0; i < len; i++) value = value * 256u + (unsigned char)token->primary[i];
-        return jass_pushinteger(j, value);
-    }
-    return jass_pushinteger(j, jass_rawcode_swap(*(uint32_t *)token->primary));
+    uint32_t value = 0;
+    for (size_t i = 0; i < 4 && token->primary[i]; i++)
+        value = (value << 8) | (unsigned char)token->primary[i];
+    return jass_pushinteger(j, value);
 }
 
 uint32_t VM_EvalCall(jass_t *j, token_t const *token) {

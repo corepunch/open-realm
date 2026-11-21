@@ -84,6 +84,8 @@ TEST(wc3_rawcode, reforged_creation_natives_accept_big_endian_ids) {
 TEST(wc3_rawcode, string_conversions_use_big_endian_ids) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
+        "  call BJassAssert(UnitId(\"h\") == 0, \"incomplete unit rawcode\")\n"
+        "  call BJassAssert(AbilityId(\"\") == 0, \"empty ability rawcode\")\n"
         "  call BJassAssert(UnitId2String(1751543663) == \"hfoo\", \"UnitId2String\")\n"
         "  call BJassAssert(UnitId(\"hfoo\") == 1751543663, \"UnitId\")\n"
         "  call BJassAssert(AbilityId(\"A000\") == 1093677104, \"AbilityId\")\n"

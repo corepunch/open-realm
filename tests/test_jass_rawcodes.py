@@ -4,7 +4,7 @@ Scripts see rawcodes as big-endian integers; the VM converts the arguments and
 results of the natives listed in the table. A native that takes an id-like
 integer but is missing from the table would silently receive a byte-swapped id.
 
-By default the check reads the fixture scripts of the repository. To check the
+By default the check reads the fixture scripts and bundled declarations for registered natives. To check the
 real game scripts, point JASS_SCRIPTS_DIRS at directories holding common.j,
 common.ai and Blizzard.j (path separator ':'), for example the files extracted
 from War3.mpq and War3x.mpq of 1.29.
@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WC3 = ROOT / "games/warcraft-3"
 TABLE = WC3 / "game/api/api_rawcode.h"
+REGISTRY = WC3 / "game/api/api_module.c"
+DECLARATIONS = WC3 / "game/common.txt"
 ORDERS = WC3 / "game/m_unit.c"
 FIXTURES = WC3 / "tests/resources-src/Scripts"
 
@@ -64,6 +66,8 @@ def parse_table():
     text = TABLE.read_text()
     for m in re.finditer(r'\{\s*"(\w+)",\s*([^,]+?),\s*([^}]+?)\s*\}', text):
         name, mask, order = m.groups()
+        if name in table:
+            raise ValueError(f"duplicate rawcode native: {name}")
         def bits(expr):
             value = 0
             for arg in re.findall(r"JASS_RAWCODE_ARG\((\d+)\)", expr):
@@ -85,12 +89,15 @@ def script_files():
 
 
 def signatures():
-    for path in script_files():
+    registered = set(re.findall(r'\{\s*"(\w+)"\s*,', REGISTRY.read_text()))
+    for path in [DECLARATIONS, *script_files()]:
         for line in path.read_text(errors="replace").splitlines():
             m = NATIVE.search(line)
             if not m:
                 continue
             name, params, result = m.groups()
+            if path == DECLARATIONS and name not in registered:
+                continue
             args = [p.split() for p in params.split(",")] if params != "nothing" else []
             yield path, name, [(i + 1, t, n) for i, (t, n) in enumerate(args)], result
 
@@ -99,7 +106,6 @@ class RawcodeTableTest(unittest.TestCase):
     def test_table_is_sorted_and_names_are_unique(self):
         names = list(parse_table())
         self.assertEqual(names, sorted(names))
-        self.assertEqual(len(names), len(set(names)))
 
     def test_every_id_like_parameter_is_in_the_table(self):
         table = parse_table()

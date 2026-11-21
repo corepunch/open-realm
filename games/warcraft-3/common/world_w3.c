@@ -392,16 +392,7 @@ void CM_SetupTestWorldBounds(box2_t const *bounds) {
 }
 #endif
 
-static war3mapVertex_t const *CM_GetWar3MapVertex(int64_t x, int64_t y) {
-	if (!world.map || !world.map->vertices || x < 0 || y < 0 ||
-	    x >= world.map->width || y >= world.map->height) return NULL;
-	int const index = (int)x + (int)y * world.map->width;
-	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(war3mapVertex_t);
-	return (war3mapVertex_t const *)ptr;
-}
-
 static float CM_GetWar3MapVertexHeight(war3mapVertex_t const *vert) {
-	if (!vert) return 0;
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
@@ -416,7 +407,6 @@ float CM_W3WaterHeight(void) {
 }
 
 static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const *vert) {
-    if (!vert) return -FLT_MAX;
     return W3_WaterSurfaceHeight(vert->waterlevel, cm_w3_water_height);
 }
 
@@ -610,38 +600,26 @@ bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
     return true;
 }
 
+static float CM_W3SampleHeight(float sx, float sy, float (*height)(war3mapVertex_t const *), float missing) {
+    war3map_t const *map = world.map;
+    if (!map || !map->vertices || !map->width || !map->height) return missing;
+    float x = fminf(fmaxf((sx - map->center.x) / TILE_SIZE, 0), map->width - 1);
+    float y = fminf(fmaxf((sy - map->center.y) / TILE_SIZE, 0), map->height - 1);
+    uint32_t x0 = (uint32_t)x, y0 = (uint32_t)y;
+    uint32_t x1 = MIN(x0 + 1, map->width - 1), y1 = MIN(y0 + 1, map->height - 1);
+    war3mapVertex_t const *vertices = map->vertices;
+    war3mapVertex_t const *top = vertices + (size_t)y0 * map->width;
+    war3mapVertex_t const *bottom = vertices + (size_t)y1 * map->width;
+    return LerpNumber(LerpNumber(height(top + x0), height(top + x1), x - x0),
+                      LerpNumber(height(bottom + x0), height(bottom + x1), x - x0), y - y0);
+}
+
 float CM_GetHeightAtPoint(float sx, float sy) {
-	if (!world.map || !world.map->vertices) return 0;
-	float x = (sx - world.map->center.x) / TILE_SIZE;
-    float y = (sy - world.map->center.y) / TILE_SIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    war3mapVertex_t const *va = CM_GetWar3MapVertex(fx, fy);
-    war3mapVertex_t const *vb = CM_GetWar3MapVertex(fx + 1, fy);
-    war3mapVertex_t const *vc = CM_GetWar3MapVertex(fx, fy + 1);
-    war3mapVertex_t const *vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
-    float a = CM_GetWar3MapVertexHeight(va);
-    float b = CM_GetWar3MapVertexHeight(vb);
-    float c = CM_GetWar3MapVertexHeight(vc);
-    float d = CM_GetWar3MapVertexHeight(vd);
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
-    return LerpNumber(ab, cd, y - fy);
+    return CM_W3SampleHeight(sx, sy, CM_GetWar3MapVertexHeight, 0);
 }
 
 float CM_GetWaterHeightAtPoint(float sx, float sy) {
-    if (!world.map || !world.map->vertices) return -FLT_MAX;
-    float x = (sx - world.map->center.x) / TILE_SIZE;
-    float y = (sy - world.map->center.y) / TILE_SIZE;
-    float fx = floorf(x);
-    float fy = floorf(y);
-    float a = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy));
-    float b = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy));
-    float c = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy + 1));
-    float d = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
-    return LerpNumber(ab, cd, y - fy);
+    return CM_W3SampleHeight(sx, sy, CM_GetWar3MapVertexWaterHeight, -FLT_MAX);
 }
 
 vec2_t CM_GetNormalizedMapPosition(float x, float y) {
@@ -724,6 +702,72 @@ static void W3_TestWriteLE32(uint8_t *p, uint32_t value) {
     p[1] = (uint8_t)(value >> 8);
     p[2] = (uint8_t)(value >> 16);
     p[3] = (uint8_t)(value >> 24);
+}
+
+/* Synthetic Reforged v13/subversion 11 placements following the Werewolf layout.
+ * Two records make the next rawcode a check on the preceding extension's size. */
+TEST(client_world, reads_reforged_doodads_and_units_with_distinct_skin_ids) {
+    uint8_t doodads[16 + 36 + 2 * 74 + 8] = { 'W','3','d','o', 13,0,0,0, 11,0,0,0, 2 };
+    uint8_t units[16 + 2 * 111] = { 'W','3','d','o', 13,0,0,0, 11,0,0,0, 2 };
+    for (unsigned i = 0; i < 2; i++) {
+        uint8_t *d = doodads + 16 + 36 + i * 74; /* uncounted empty slot follows header */
+        memcpy(d, "LTlt", 4);
+        memcpy(d + 36, "skin", 4);
+        W3_TestWriteLE32(d + 40, 0xff887766);
+        d[44] = 2;
+        d[45] = 85;
+        W3_TestWriteLE32(d + 46, UINT32_MAX); /* drop table, zero item sets */
+        W3_TestWriteLE32(d + 54, 100 + i); /* editor ID */
+        W3_TestWriteLE32(d + 58, 200 + i); /* four extension words follow the editor ID */
+
+        uint8_t *u = units + 16 + i * 111;
+        memcpy(u, "hfoo", 4);
+        memcpy(u + 36, "skin", 4);
+        u[40] = 1;
+        W3_TestWriteLE32(u + 41, 5); /* owner */
+        W3_TestWriteLE32(u + 47, 350); /* HP */
+        W3_TestWriteLE32(u + 55, UINT32_MAX); /* drop table */
+        W3_TestWriteLE32(u + 95, UINT32_MAX); /* no random unit data */
+        W3_TestWriteLE32(u + 107, 300 + i); /* editor ID */
+    }
+    for (unsigned truncated = 0; truncated <= 1; truncated++) {
+        handle_t archive = NULL;
+        cstring_t path = Test_TempPath(truncated ? "short-v13.mpq" : "placements-v13.mpq");
+        if (!SFileCreateArchive(path, 0, 16, &archive)) { T_ASSERT(false); return; }
+        T_ASSERT(SFileAddFileFromBuffer(archive, "war3map.doo", doodads,
+                                       sizeof(doodads) - (truncated ? 9 : 0)));
+        T_ASSERT(SFileAddFileFromBuffer(archive, "war3mapUnits.doo", units, sizeof(units) - truncated));
+        T_ASSERT(SFileCloseArchive(archive));
+        if (!SFileOpenArchive(path, 0, 0, &archive)) { T_ASSERT(false); return; }
+        doodad_t *saved = world.doodads;
+        world.doodads = NULL;
+        CM_ReadDoodads(archive);
+        CM_ReadUnitDoodads(archive);
+        SFileCloseArchive(archive);
+        unsigned nd = 0, nu = 0;
+        while (world.doodads) {
+            doodad_t *d = world.doodads;
+            world.doodads = d->next;
+            if (d->doodID == MAKEFOURCC('h','f','o','o')) {
+                T_EQ(d->unitID, 301u - truncated - nu);
+                nu++;
+                T_EQ(d->player, 5);
+                T_EQ(d->hitPoints, 350);
+            } else {
+                T_EQ(d->doodID, MAKEFOURCC('L','T','l','t'));
+                T_EQ(d->unitID, 101u - truncated - nd);
+                nd++;
+                T_EQ(d->color, 0xff887766u);
+                T_EQ(d->treeLife, 85);
+                T_EQ(d->flags, 2);
+            }
+            CM_W3FreeDoodadPlacement(d);
+            MemFree(d);
+        }
+        world.doodads = saved;
+        T_EQ(nd, 2u - truncated);
+        T_EQ(nu, 2u - truncated);
+    }
 }
 
 static size_t W3_TestVersionBlob(uint8_t *blob, size_t size) {

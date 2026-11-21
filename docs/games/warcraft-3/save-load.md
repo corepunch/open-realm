@@ -1342,6 +1342,10 @@ Native version 153 and browser version 13 store the waypoint ring serial
 as the active Move goal generation. Entity goals retain their spawn-time
 identity. The order identity survives navigation resets and save/load.
 
+Native version 155 and browser version 15 save the counted allied and enemy
+start-location priorities for each location. The regression
+`wc3_save.allied_and_enemy_start_priorities_round_trip` restores both tables.
+
 Native version 154, browser version 14, and JASS snapshot version 11 store JASS
 rawcodes as big-endian integers. JASS integers in globals and hashtables carry
 no rawcode type marker, so older values cannot be converted independently of

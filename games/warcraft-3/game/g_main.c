@@ -1582,8 +1582,8 @@ static void G_StartScripts(void) {
     level.scriptsStarted = true;
     jass_runevents(level.vm);
 
-    /* Optional offline capture for map-runtime research. Only the engine
-     * opens this explicitly configured path; JASS receives no file API. */
+    /* Optional offline capture for map-runtime research. The game module opens
+     * the configured path after map initialization. */
     {
         cstring_t path = gi.CvarString ? gi.CvarString("wc3_runtime_export", "") : "";
         if (path && *path) {

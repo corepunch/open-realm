@@ -176,7 +176,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Browser version 12: harvest target identity and one-shot Return intent (native 152). */
 /* Browser version 13 uses waypoint generations for active Move (native 153). */
 /* Browser version 14: JASS rawcode integers are big-endian (native 154). */
-static uint32_t const save_version = 14;
+/* Browser version 15 persists allied and enemy start priorities (native 155). */
+static uint32_t const save_version = 15;
 #else
 /* Version 137 appends Stampede channel, beast and blast callbacks to the save roster. */
 /* Version 138 registers the Lava Spawn split controller callback. */
@@ -195,7 +196,8 @@ static uint32_t const save_version = 14;
 /* Version 152 persists harvest target incarnation and one-shot Return intent. */
 /* Version 153 uses the ring serial for active Move waypoint identity. */
 /* Version 154 stores JASS rawcode integers big-endian, as scripts see them. */
-static uint32_t const save_version = 154;
+/* Version 155 persists both start-location priority tables. */
+static uint32_t const save_version = 155;
 
 #endif
 
@@ -614,7 +616,19 @@ static fieldRing_t const game_event_ring = {
     FOFS(level_locals, events.write) - (handle_t)NULL
 };
 
+static field_t const start_slot_fields[] = {
+    TF(startLocationSlot_t, location, F_INT),
+    TF(startLocationSlot_t, priority, F_INT),
+    { 0 }
+};
+static field_t const start_priority_fields[] = {
+    FC(startLocationPriorities_s, slots, F_STRUCT, MAX_START_PRIO, start_slot_fields, count),
+    { 0 }
+};
+
 static field_t const level_fields[] = {
+    F(level_locals, setup.start_prio, F_STRUCT, MAX_PLAYERS, start_priority_fields),
+    F(level_locals, setup.enemy_start_prio, F_STRUCT, MAX_PLAYERS, start_priority_fields),
     F(level_locals, setup.difficulty, F_INT),
     F(level_locals, setup.default_difficulty, F_INT),
     F(level_locals, framenum, F_INT),
@@ -3056,6 +3070,25 @@ TEST(wc3_save, current_and_default_difficulty_round_trip_independently) {
     T_EQ(level.setup.difficulty, 3u);
     T_EQ(level.setup.default_difficulty, 0u);
     remove(filename);
+}
+
+TEST(wc3_save, allied_and_enemy_start_priorities_round_trip) {
+    cstring_t filename = Test_TempPath("start-priorities.bin");
+    reset_entities();
+    setup_test_world();
+    level.setup.start_prio[2].count = 1;
+    level.setup.start_prio[2].slots[0].location = 4;
+    level.setup.enemy_start_prio[2].count = 2;
+    level.setup.enemy_start_prio[2].slots[1].location = 8;
+    level.setup.enemy_start_prio[2].slots[1].priority = 1;
+    T_ASSERT(WriteGame(filename));
+    memset(&level.setup, 0, sizeof(level.setup));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.start_prio[2].count, 1);
+    T_EQ(level.setup.start_prio[2].slots[0].location, 4);
+    T_EQ(level.setup.enemy_start_prio[2].count, 2);
+    T_EQ(level.setup.enemy_start_prio[2].slots[1].location, 8);
+    T_EQ(level.setup.enemy_start_prio[2].slots[1].priority, 1);
 }
 
 TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {

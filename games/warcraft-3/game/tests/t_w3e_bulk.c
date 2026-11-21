@@ -38,6 +38,26 @@ static bool Test_ReadW3EVertices(cstring_t filename, uint8_t const *payload, uin
     return ok;
 }
 
+TEST(wc3_terrain, ground_and_water_sample_the_nearest_map_edge) {
+    war3mapVertex_t vertices[4] = { 0 };
+    for (unsigned i = 0; i < 4; i++) {
+        vertices[i].accurate_height = vertices[i].waterlevel = 0x2000 + 40 * (i + 1);
+        vertices[i].level = 2;
+    }
+    war3map_t map = { .width = 2, .height = 2, .vertices = vertices };
+    war3map_t *saved = world.map;
+    world.map = &map;
+    float water_base = CM_GetWaterHeightAtPoint(0, 0) - 10;
+    struct { float x, y, height; } cases[] = {
+        { -64, -64, 10 }, { 64, 64, 25 }, { 192, 64, 30 }, { 192, 192, 40 }
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        T_FEQ(CM_GetHeightAtPoint(cases[i].x, cases[i].y), cases[i].height, 0.001f);
+        T_FEQ(CM_GetWaterHeightAtPoint(cases[i].x, cases[i].y), water_base + cases[i].height, 0.001f);
+    }
+    world.map = saved;
+}
+
 TEST(wc3_terrain, w3e_vertex_decodes_all_packed_flags) {
     uint8_t const raw[MAP_VERTEX_FILE_SIZE] = { 0x34, 0x12, 0x67, 0x55, 0xff, 0xb5, 0xa3 };
     war3mapVertex_t vertex;

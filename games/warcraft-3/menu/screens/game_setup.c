@@ -279,7 +279,7 @@ void GameSetup_AddChatMessage(cstring_t text, bool own) {
     char buffer[GAME_SETUP_CHAT_LINES * GAME_SETUP_CHAT_LINE];
     size_t used = 0;
 
-    if (!text || !text[0]) {
+    if (setup.skirmish || !text || !text[0]) {
         return;
     }
     if (setup.num_chat_lines >= GAME_SETUP_CHAT_LINES) {
