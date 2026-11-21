@@ -154,3 +154,5 @@ focus are unaffected.
 
 `games/warcraft-3/tests/test_menu_fdf.c` (`uidump_*`, `click_*`) covers the line format, the click pixel at 1280x800, 1920x1080,
 a 1600x700 expanding canvas and an expand-center canvas, refusals, duplicate names and the environment gate.
+To drive a real game process by frame name on a headless display (scenario files, `uiwait`, screenshots), see
+[`tools/parity/wc3_drive.sh`](https://github.com/corepunch/open-realm/blob/main/tools/parity/README.md#headless-ui-driver-linux-wc3_drivesh).

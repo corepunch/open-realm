@@ -241,6 +241,7 @@ profile-map: $(BINARY) xctraceprof
 test-render-harness: fdfbindgen mpqtool
 	python3 tools/test_list_setup_mpq.py
 	python3 tests/test_parity_launcher.py
+	python3 tests/test_parity_drive.py
 	python3 tests/test_parity_maps.py
 	python3 tests/test_fdfbindgen.py
 

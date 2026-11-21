@@ -138,6 +138,70 @@ difference becomes understood, encode it in a fixture-backed regression; do not 
 repeated manual launches. Existing sound-path regressions and known limits are documented in
 [WC3 sounds](../../games/warcraft-3/sounds.md).
 
+## Headless UI driver (Linux): `wc3_drive.sh`
+
+`wc3_drive.sh` runs OpenRealm on its own headless [gamescope](https://github.com/ValveSoftware/gamescope) display and
+sends real X11 pointer and keyboard input with `xdotool`. Nothing appears on, or reads from, your desktop session, so it
+also works over SSH. Use it for what the headless test suite cannot see: the full process with real data archives, real
+SDL input, screen transitions over many frames and a chosen resolution. Typical uses are reproducing a menu bug report as
+a replayable file, checking a UI change at several resolutions, and attaching identical screenshots to a PR. When a
+difference is understood, still encode it in a fixture-backed test.
+
+Menu steps address frames by name through the `uidump` and `click` console commands
+([UI authoring](../../docs/ui-authoring.md#console-diagnostics-uidump-and-click)). `start` exports
+`OPENREALM_UI_TEST=1`, which the game requires before it registers `click`. A name-based step does not depend on
+layout, resolution or aspect, and `uiwait` polls the frame table instead of sleeping for a guessed time.
+
+```bash
+make BUILD=release openwarcraft3                 # needs gamescope, gamescopectl and xdotool installed
+export WC3DATA='/path/to/Warcraft III'
+tools/parity/wc3_drive.sh start -roc             # returns once the engine has initialized
+tools/parity/wc3_drive.sh uiwait SinglePlayerButton 40
+tools/parity/wc3_drive.sh ui Button              # UIFRAME lines: name, visibility, hit test, rects
+tools/parity/wc3_drive.sh uiclick SinglePlayerButton
+tools/parity/wc3_drive.sh shot single-player     # prints build/parity/drive/shots/single-player.png
+tools/parity/wc3_drive.sh run tools/parity/scenarios/menu-custom-game.txt
+tools/parity/wc3_drive.sh stop
+```
+
+A scenario is a text file with one driver verb per line (`uiwait`, `uiclick`, `ui`, `click X Y`, `key`, `type`,
+`chat`, `cmd`, `shot`, ...), `wait SECONDS` and `#` comments. Lines are split on whitespace without shell quoting;
+verbs that take text (`type`, `chat`, `cmd`, `waitlog`) use the rest of the line. `run` stops at the first failing
+line and names it: `uiclick` fails unless the game answers `UICLICK ok`, `uiwait` fails when the frame is not visible,
+enabled and hittable in time, and `waitlog SECONDS REGEX` fails when no `game.log` line matches the extended regex.
+`as NAME VERB ...` runs one verb on a second instance whose state is `$WC3_DRIVE_STATE-NAME`, so one file can drive
+a LAN host and guest. `wc3_drive.sh --help` lists every verb.
+
+| Scenario | Start with | Checks |
+|----------|------------|--------|
+| `menu-custom-game.txt` | `start -roc` or `-tft` | main menu, Single Player, custom game, map list, back |
+| `options-round-trip.txt` | `start -roc` or `-tft` | Video, Sound and Gameplay panels lay out their controls; Cancel returns |
+| `lan-join.txt` | `start -roc` | host creates a LAN game, a second instance joins, the host lobby reports the guest |
+| `map-start.txt` | nothing (it starts the game) | `+map` start reaches `G_ClientBegin`, screenshot of the opening view |
+
+All scenarios use frame names and English engine log lines only, so they do not depend on the data's language or
+on which maps are installed.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `WC3DATA` | required for `start` | Warcraft III installation passed as `-data` |
+| `WC3_BINARY` | `build/bin/openwarcraft3` | engine binary |
+| `WC3_DRIVE_STATE` | `build/parity/drive` | game log, screenshots and an isolated `XDG_DATA_HOME`; use one per instance |
+| `WC3_DRIVE_WIDTH`, `WC3_DRIVE_HEIGHT` | `1280`, `800` | virtual screen size; pixel coordinates refer to it |
+| `WC3_DRIVE_TIMEOUT` | `60` | seconds `start` waits for `OpenWarcraft3 initialized` |
+
+Engine arguments after `start` are passed through (`-roc`, `-tft`, `+map ...`). Two instances, e.g. a LAN host and
+guest, need two `WC3_DRIVE_STATE` directories. Screenshots come from `gamescopectl screenshot`, i.e. the composited
+output. Console output reaches the driver through the game's stderr, which `start` writes to `game.log`.
+The console opens with the key that types `` ` `` on a US keyboard, so `start` pins the private display to the US
+layout (`XKB_DEFAULT_LAYOUT=us`); a German or French desktop layout would otherwise remap that key and every console
+verb would time out.
+
+Limits: Linux only. The in-game HUD has no frame names yet, so in-game steps still need `click X Y` in virtual-screen
+pixels. The retail client is not driven by this script. The first click right after a screen change can be lost;
+`uiwait` before `uiclick` avoids that. `make test-render-harness` runs `tests/test_parity_drive.py`, which checks the
+command contract with fake `gamescope`/`xdotool` executables and needs neither a display nor game data.
+
 ## 1. `shot.sh` — live window capture (macOS)
 
 Launches a client, captures its GL window to a PNG by window-id (reliable even

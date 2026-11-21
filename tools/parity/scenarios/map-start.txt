@@ -1,0 +1,8 @@
+# Direct map start without menus: (re)starts the game with +map, waits until the local player has entered
+# the world (engine log line, locale independent), then takes a screenshot of the opening view.
+# (2)Harrow.w3m is a Reign of Chaos melee map shipped in War3.mpq; replace the path to test another map.
+#   WC3DATA=... tools/parity/wc3_drive.sh run tools/parity/scenarios/map-start.txt
+start -roc +map Maps/(2)Harrow.w3m
+waitlog 90 ^G_ClientBegin:
+wait 3
+shot map-start
