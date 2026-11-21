@@ -1,0 +1,17 @@
+# Main menu -> Single Player -> custom game -> select the map list -> back to the main menu, by frame name only.
+# No coordinates, no fixed sleeps and no text: frame names are the same in every locale, and the list click does not
+# depend on which maps are installed or their order. uiwait polls uidump; any failed step stops the run.
+#   WC3DATA=... tools/parity/wc3_drive.sh start -roc
+#   tools/parity/wc3_drive.sh run tools/parity/scenarios/menu-custom-game.txt
+uiwait SinglePlayerButton 40
+uiclick SinglePlayerButton
+uiwait SkirmishButton 10
+uiclick SkirmishButton
+uiwait MapListBox 10
+ui MapListBox
+uiclick MapListBox
+shot menu-custom-game
+uiclick CancelButton
+uiwait SkirmishButton 10
+uiclick CancelButton
+uiwait SinglePlayerButton 10

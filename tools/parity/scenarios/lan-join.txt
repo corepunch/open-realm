@@ -1,0 +1,26 @@
+# LAN pair on one machine: the host creates a game, a second instance ("guest") finds it and joins,
+# and the host's lobby reports the guest in slot 2. Frame names and engine log lines only (locale independent).
+# The guest uses the same WC3DATA; its state is "$WC3_DRIVE_STATE-guest". The first game in the guest's
+# list is selected automatically, so close other LAN games on the network first.
+#   WC3DATA=... tools/parity/wc3_drive.sh start -roc
+#   tools/parity/wc3_drive.sh run tools/parity/scenarios/lan-join.txt
+# Host: LAN -> Create Game -> default map -> lobby.
+uiwait LocalAreaNetworkButton 40
+uiclick LocalAreaNetworkButton
+uiwait CreateButton 10
+uiclick CreateButton
+uiwait PlayButton 10
+uiclick PlayButton
+uiwait StartGameButton 15
+# Guest: same edition, LAN -> Join.
+as guest start -roc
+as guest uiwait LocalAreaNetworkButton 40
+as guest uiclick LocalAreaNetworkButton
+as guest uiwait JoinButton 15
+as guest uiclick JoinButton
+as guest uiwait ChatEditBox 15
+# The host's client sees a second human player in slot index 1.
+waitlog 15 client lobby slot 1: occupied=1 client=1 .*type=human
+shot lan-join-host
+as guest shot lan-join-guest
+as guest stop

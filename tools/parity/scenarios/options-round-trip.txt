@@ -1,0 +1,22 @@
+# Main menu -> Options -> Video, Sound and Gameplay panels -> Cancel -> main menu, by frame name only.
+# Checks that each Options panel opens with its own controls laid out and clickable, and that Cancel returns.
+# Changes no setting. Locale independent: no text is read.
+#   WC3DATA=... tools/parity/wc3_drive.sh start -roc
+#   tools/parity/wc3_drive.sh run tools/parity/scenarios/options-round-trip.txt
+uiwait OptionsButton 40
+uiclick OptionsButton
+uiwait VideoButton 10
+uiclick VideoButton
+uiwait GammaSlider 10
+uiwait ResolutionMenu 5
+shot options-video
+uiclick SoundButton
+uiwait SoundVolumeSlider 10
+uiwait MusicVolumeSlider 5
+shot options-sound
+uiclick GameplayButton
+uiwait MouseScrollSlider 10
+uiwait KeyScrollSlider 5
+shot options-gameplay
+uiclick CancelButton
+uiwait SinglePlayerButton 10
