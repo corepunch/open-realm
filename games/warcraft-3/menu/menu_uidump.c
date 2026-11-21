@@ -128,13 +128,25 @@ static frameDef_t const *UI_FindClickTarget(cstring_t spec, rect_t const *scene,
     char blocker[sizeof(UINAME) + 16] = "";
     char const *hash = strrchr(spec, '#');
 
-    snprintf(name, sizeof(name), "%s", spec);
+    size_t name_length = strlen(spec);
     if (hash && hash[1] >= '1' && hash[1] <= '9') {
         char *end;
-        ordinal = (uint32_t)strtoul(hash + 1, &end, 10);
-        if (!*end) name[hash - spec] = '\0';
-        else ordinal = 0;
+        unsigned long const parsed = strtoul(hash + 1, &end, 10);
+        if (!*end) {
+            if (parsed > MAX_UI_CLASSES) {
+                snprintf(reason, reason_size, "not-found");
+                return NULL;
+            }
+            ordinal = (uint32_t)parsed;
+            name_length = (size_t)(hash - spec);
+        }
     }
+    if (name_length == 0 || name_length >= sizeof(name)) {
+        snprintf(reason, reason_size, "bad-arguments");
+        return NULL;
+    }
+    memcpy(name, spec, name_length);
+    name[name_length] = '\0';
     FOR_LOOP(i, MAX_UI_CLASSES) {
         frameDef_t const *frame = &frames[i];
         rect_t rect;

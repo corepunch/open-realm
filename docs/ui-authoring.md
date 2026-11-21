@@ -146,7 +146,8 @@ input, at the pixel of the frame centre. It never clicks through: the result lin
 button=<b>` or `UICLICK fail name=<n> reason=<r>` with `not-found`, `hidden`, `not-laid-out`, `disabled`, `not-interactive`,
 `obscured-by:<Name>`, `input-refused` (screen transition running), `no-window` or `bad-arguments`. Screens keep their frames, so
 one name can exist several times: a bare name picks the topmost clickable one (and warns if there are several), `Name#2` picks
-the second in frame-table order. The command does not move the SDL cursor and sends no key events, so keyboard and gamepad
+the second in frame-table order. Names must fit in the frame-name field and ordinals cannot exceed the frame-table size.
+The command does not move the SDL cursor and sends no key events, so keyboard and gamepad
 focus are unaffected.
 
 ### Verification

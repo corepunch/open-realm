@@ -5327,6 +5327,14 @@ TEST(menu_fdf, click_refuses_frames_a_pointer_could_not_reach) {
     T_EQ(px, second_x);
     T_ASSERT(!UI_ClickFrame("Dup#3", 1, result, sizeof(result)));
     T_STREQ(result, "UICLICK fail name=Dup#3 reason=not-found");
+    T_ASSERT(!UI_ClickFrame("Dup#4294967297", 1, result, sizeof(result)));
+    T_STREQ(result, "UICLICK fail name=Dup#4294967297 reason=not-found");
+
+    char long_name[sizeof(UINAME) + 1];
+    memset(long_name, 'A', sizeof(long_name) - 1);
+    long_name[sizeof(long_name) - 1] = '\0';
+    T_ASSERT(!UI_ClickFrame(long_name, 1, result, sizeof(result)));
+    T_ASSERT(strstr(result, "reason=bad-arguments") != NULL);
     mi = saved;
 }
 
