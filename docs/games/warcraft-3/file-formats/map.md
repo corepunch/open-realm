@@ -147,7 +147,13 @@ DWORD  num_custom_records
 [custom record × num_custom_records]
 ```
 
-Each record contains the original rawcode, the replacement rawcode, two reserved DWORDs, a modification count, and that many modifications. A modification stores a four-character field ID, a value type, the typed value, and an end-token rawcode. Ability, doodad, and upgrade modifications also carry level and data-pointer DWORDs. Keep the reserved DWORDs: treating the first one as the modification count misaligns every field and can make the map loader abort.
+Each record begins with the original and new rawcodes. Versions 1 and 2 place the modification count immediately
+after the rawcodes. Version 3 places a count followed by that many extra DWORDs before the modification count.
+The one-word extension found in some Reforged maps produces two DWORDs on disk, including its count. The loader
+skips the version 3 extension and reads the modifications in order. W3A and versions 2–3 of W3D read a level and
+data pointer before each value. W3U, W3T, W3H, W3B, and W3D version 1 use the simple modification layout.
+Each modification ends with a DWORD marker. The loader discards both tables for a file with malformed records.
+[War3Net's object data reader](https://github.com/Drake53/War3Net/blob/master/src/War3Net.Build.Core/Serialization/Binary/Object/SimpleObjectModification.cs) also documents the version 3 prefix.
 
 OpenRealm currently applies registered `UnitBalance_t`, `UnitProfile_t`, and `UnitUI_t` fields at map load. Stable per-map rows
 preserve balance fields such as `usma`/`usrg`/`usst`, custom `uani` Required Animation Names, `umdl` model paths, and the other

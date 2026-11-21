@@ -17,6 +17,7 @@ void setup_test_world(void);
 void reset_entities(void);
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void CM_ReadDoodadOverrides(handle_t archive);
+void CM_ReadUnits(handle_t archive);
 
 static void wc3_slk_write_u32(uint8_t **cursor, uint32_t value) {
     memcpy(*cursor, &value, sizeof(value));
@@ -136,6 +137,82 @@ TEST(wc3_slk, doodad_w3d_uses_ability_style_modification_layout) {
     gi.MemFree(world.info.userCreatedDoodads);
     world.info.num_originalDoodads = world.info.num_userCreatedDoodads = 0;
     world.info.originalDoodads = world.info.userCreatedDoodads = NULL;
+}
+
+TEST(wc3_slk, object_overrides_use_the_archive_version_for_w3u_and_w3a) {
+    uint32_t const original_id = MAKEFOURCC('h','f','o','o');
+    uint32_t const custom_id = MAKEFOURCC('h','0','0','1');
+    uint32_t const field = MAKEFOURCC('u','h','p','m');
+    uint32_t const value = 125;
+
+    for (uint32_t version = 2; version <= 3; version++) {
+        char name[64];
+        snprintf(name, sizeof(name), "object-overrides-v%u.mpq", (unsigned)version);
+        cstring_t path = Test_TempPath(name);
+        handle_t archive = NULL;
+        if (!SFileCreateArchive(path, 0, 16, &archive)) { T_ASSERT(false); return; }
+
+        FOR_LOOP(extended, 2) {
+            uint8_t bytes[128], *cursor = bytes;
+            wc3_slk_write_u32(&cursor, version);
+            wc3_slk_write_u32(&cursor, 0); /* original objects */
+            wc3_slk_write_u32(&cursor, 1); /* custom objects */
+            wc3_slk_write_u32(&cursor, original_id);
+            wc3_slk_write_u32(&cursor, custom_id);
+            if (version == 3) {
+                wc3_slk_write_u32(&cursor, extended ? 2 : 0);
+                if (extended) {
+                    wc3_slk_write_u32(&cursor, 0);
+                    wc3_slk_write_u32(&cursor, 1);
+                }
+            }
+            wc3_slk_write_u32(&cursor, 1); /* modifications */
+            if (extended) {
+                wc3_slk_write_w3d_mod(&cursor, field, mod_int, 2, 1, &value, sizeof(value));
+            } else {
+                wc3_slk_write_u32(&cursor, field);
+                wc3_slk_write_u32(&cursor, mod_int);
+                wc3_slk_write_u32(&cursor, value);
+                wc3_slk_write_u32(&cursor, 0);
+            }
+            T_ASSERT(SFileAddFileFromBuffer(archive, extended ? "war3map.w3a" : "war3map.w3u",
+                                            bytes, (uint32_t)(cursor - bytes)));
+        }
+        T_ASSERT(SFileCloseArchive(archive));
+        if (!SFileOpenArchive(path, 0, 0, &archive)) { T_ASSERT(false); return; }
+        CM_ReadUnits(archive);
+        CM_ReadAbilities(archive);
+        SFileCloseArchive(archive);
+
+        FOR_LOOP(extended, 2) {
+            uint32_t *count = extended ? &world.info.num_userCreatedAbilities : &world.info.num_userCreatedUnits;
+            unitData_t **objects = extended ? &world.info.userCreatedAbilities : &world.info.userCreatedUnits;
+            T_EQ(*count, 1);
+            if (*count == 1 && *objects) {
+                unitData_t const *object = *objects;
+                T_EQ(object->originalUnitID, original_id);
+                T_EQ(object->newUnitID, custom_id);
+                T_EQ(object->numbeOfModifications, 1);
+                if (object->numbeOfModifications == 1) {
+                    unitModification_t const *mod = object->modifications;
+                    T_EQ(mod->modID, field);
+                    T_EQ(mod->type, mod_int);
+                    T_EQ(mod->level, extended ? 2 : 0);
+                    T_EQ(mod->dataPointer, extended ? 1 : 0);
+                    T_ASSERT(mod->data != NULL);
+                    if (mod->data) T_EQ(*(uint32_t *)mod->data, value);
+                }
+            }
+            FOR_LOOP(i, *count) {
+                FOR_LOOP(j, (*objects)[i].numbeOfModifications)
+                    gi.MemFree((*objects)[i].modifications[j].data);
+                gi.MemFree((*objects)[i].modifications);
+            }
+            gi.MemFree(*objects);
+            *objects = NULL;
+            *count = 0;
+        }
+    }
 }
 
 TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
