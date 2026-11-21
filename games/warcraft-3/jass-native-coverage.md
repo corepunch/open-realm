@@ -44,6 +44,15 @@ behavior, and town discovery remain owned by the construction and town systems. 
 a failed request for retries. Candidate ranking, blocker radius/priority, worker preference, and hall placement offset
 are `BZ_COMPAT_GUESS` policies documented in [Player AI](../../docs/games/warcraft-3/player-ai.md).
 
+## Rawcode conversion checks
+
+`make test-jass-rawcodes` checks native arguments and results against each
+bundled script declaration and runs `Scripts/test_host_rawcodes.j` through
+the standalone `+set jass_test` entry point. The script verifies both
+directions using the JASS integer 1751543663 and the unit ID `hfoo`.
+This entry point runs before map and entity initialization. The in-engine
+`wc3_rawcode` suite exercises orders on spawned units.
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source

@@ -71,7 +71,10 @@ def parse_table():
         def bits(expr):
             value = 0
             for arg in re.findall(r"JASS_RAWCODE_ARG\((\d+)\)", expr):
-                value |= 1 << (int(arg) - 1)
+                index = int(arg)
+                if not 1 <= index <= 31:
+                    raise ValueError(f"{name}: rawcode argument {index} outside 1..31")
+                value |= 1 << (index - 1)
             if "JASS_RAWCODE_RESULT" in expr:
                 value |= 1 << 31
             return value
@@ -133,40 +136,35 @@ class RawcodeTableTest(unittest.TestCase):
         # would swap an innocent value. Natives absent from the scanned scripts
         # (OpenRealm-only ones) are skipped.
         table = parse_table()
-        seen = {}
-        for path, name, args, result in signatures():
-            seen[name] = (args, result)
         wrong = []
-        for name, (mask, order) in table.items():
-            if name not in seen:
+        for path, name, args, result in signatures():
+            if name not in table:
                 continue
-            args, result = seen[name]
+            mask, order = table[name]
             for kind_name, bits in (("rawcode", mask), ("order", order)):
-                for index in range(1, 31):
+                for index in range(1, 32):
                     if not bits & (1 << (index - 1)):
                         continue
                     if index > len(args):
-                        wrong.append(f"{name}:{index} ({kind_name}) has no such parameter")
+                        wrong.append(f"{path}: {name}:{index} ({kind_name}) has no such parameter")
                         continue
                     _, kind, param = args[index - 1]
                     lowered = param.lower()
-                    if (name, index) in EXTRA_BITS:
-                        continue
                     if kind != "integer":
-                        wrong.append(f"{name}:{index} ({param}) is {kind}, not integer")
+                        wrong.append(f"{path}: {name}:{index} ({param}) is {kind}, not integer")
                     elif kind_name == "order":
                         if lowered not in ORDER_PARAMS:
-                            wrong.append(f"{name}:{index} ({param}) marked as order id")
-                    elif not (lowered in RAWCODE_PARAMS
+                            wrong.append(f"{path}: {name}:{index} ({param}) marked as order id")
+                    elif not ((name, index) in EXTRA_BITS or lowered in RAWCODE_PARAMS
                               or (lowered in ("id", "a", "b", "make") and name in AI_ID_PARAMS)):
-                        wrong.append(f"{name}:{index} ({param}) marked as rawcode")
+                        wrong.append(f"{path}: {name}:{index} ({param}) marked as rawcode")
                 if bits & (1 << 31):
                     if result != "integer":
-                        wrong.append(f"{name} result ({result}) is not integer")
+                        wrong.append(f"{path}: {name} result ({result}) is not integer")
                     elif kind_name == "order" and name not in ORDER_RESULTS:
-                        wrong.append(f"{name} result marked as order id")
+                        wrong.append(f"{path}: {name} result marked as order id")
                     elif kind_name == "rawcode" and name not in RAWCODE_RESULTS:
-                        wrong.append(f"{name} result marked as rawcode")
+                        wrong.append(f"{path}: {name} result marked as rawcode")
         self.assertEqual(wrong, [])
 
     def test_every_script_host_passes_the_rawcode_table(self):

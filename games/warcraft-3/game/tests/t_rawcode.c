@@ -105,7 +105,7 @@ TEST(wc3_rawcode, order_ids_convert_only_rawcode_values) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder;
     edict_t *footman;
-    UnitProfile_t profile = { .builds = "hbar" };
+    static UnitProfile_t const profile = { .builds = "hbar" };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -133,6 +133,7 @@ TEST(wc3_rawcode, order_ids_convert_only_rawcode_values) {
     footman = rawcode_find_unit(MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(builder);
     T_NOT_NULL(footman);
+    if (!builder || !footman) return;
     builder->data.UnitProfile = &profile;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
@@ -141,7 +142,8 @@ TEST(wc3_rawcode, order_ids_convert_only_rawcode_values) {
     jass_callbyname(level.vm, "buildByDecimal", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    T_EQ(builder->orders->build_project, barracks);
+    T_NOT_NULL(builder->orders);
+    if (builder->orders) T_EQ(builder->orders->build_project, barracks);
     T_EQ(G_GetIssuedOrderId(builder), barracks);
 
     jass_callbyname(level.vm, "numericOrder", true);

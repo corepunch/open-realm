@@ -223,9 +223,6 @@ WC3_HERO_SAVELOAD_ARGS ?=
 audit-wc3-hero-saveload: $(BINARY) mpqtool
 	python3 tools/wc3_hero_saveload_audit.py --data "$(subst \,,$(WC3DATA))" --binary "$(BINARY)" --mpqtool "$(BIN_DIR)/mpqtool$(EXE_EXT)" $(WC3_HERO_SAVELOAD_ARGS)
 
-test-jass-rawcodes:
-	python3 tests/test_jass_rawcodes.py
-
 test-wc3-hero-saveload-audit:
 	python3 tests/test_wc3_hero_saveload_audit.py
 
@@ -305,6 +302,10 @@ $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
+
+test-jass-rawcodes: $(WC3_TEST_BINARY) test-assets
+	python3 tests/test_jass_rawcodes.py
+	$(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +set jass_test Scripts/test_host_rawcodes.j +com_frame_limit 10
 
 .PHONY: test-eos-service
 ifeq ($(EOS),1)
