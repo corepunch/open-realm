@@ -1341,3 +1341,9 @@ Harvest order fields extend native 151 to 152 and browser 11 to 12 after the sev
 Native version 153 and browser version 13 store the waypoint ring serial
 as the active Move goal generation. Entity goals retain their spawn-time
 identity. The order identity survives navigation resets and save/load.
+
+Native version 154, browser version 14, and JASS snapshot version 11 store JASS
+rawcodes as big-endian integers. JASS integers in globals and hashtables carry
+no rawcode type marker, so older values cannot be converted independently of
+ordinary integers. The exact-version check rejects earlier saves. Engine rawcodes
+retain their existing layout, and this change introduces no network wire fields.

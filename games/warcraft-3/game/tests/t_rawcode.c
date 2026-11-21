@@ -60,6 +60,20 @@ TEST(wc3_rawcode, unit_natives_take_and_return_big_endian_ids) {
     ));
 }
 
+TEST(wc3_rawcode, reforged_creation_natives_accept_big_endian_ids) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = BlzCreateUnitWithSkin(Player(0), 'hbar', 0.0, 0.0, 0.0, 'hbar')\n"
+        "  local item i = BlzCreateItemWithSkin('spro', 64.0, 64.0, 'spro')\n"
+        "  local destructable d = BlzCreateDestructableWithSkinPitchRollColor('DTsb', 128.0, 128.0, 0.0, 0.0, 0.0, 1.0, 0, 'DTsb', PLAYER_COLOR_RED)\n"
+        "  call BJassAssert(GetUnitTypeId(u) == 'hbar', \"unit rawcode\")\n"
+        "  call BJassAssert(GetItemTypeId(i) == 'spro', \"item rawcode\")\n"
+        "  call BJassAssert(GetDestructableTypeId(d) == 'DTsb', \"destructable rawcode\")\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_rawcode, string_conversions_use_big_endian_ids) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

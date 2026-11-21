@@ -28,7 +28,7 @@ NATIVE = re.compile(r"native\s+(\w+)\s+takes\s+(.*?)\s+returns\s+(\w+)")
 # Integer parameters with these names carry object rawcodes.
 RAWCODE_PARAMS = {
     "abilcode", "abilid", "abilityid", "buffid", "doodadid", "effectid", "itemid", "objectid",
-    "portraitunitid", "techid", "unitid", "unittype", "terraintype", "uid",
+    "portraitunitid", "skinid", "techid", "unitid", "unittype", "terraintype", "uid",
 }
 # Integer parameters named "id" in common.ai that are unit, upgrade or building rawcodes.
 AI_ID_PARAMS = {
