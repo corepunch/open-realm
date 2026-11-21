@@ -32,7 +32,7 @@ RAWCODE_PARAMS = {
 }
 # Integer parameters named "id" in common.ai that are unit, upgrade or building rawcodes.
 AI_ID_PARAMS = {
-    "GetTownUnitCount", "GetUpgradeLevel", "GetUpgradeGoldCost", "GetUpgradeWoodCost", "SetProduce",
+    "GetTownUnitCount", "GetUpgradeLevel", "GetUpgradeGoldCost", "GetUpgradeWoodCost", "GetUpgradeLumberCost", "SetProduce",
     "SetExpansion", "SetUpgrade", "ConvertUnits", "AddAssault", "AddDefenders", "AddGuardPost", "MergeUnits",
 }
 # Integer parameters that look id-like but are NOT rawcodes (native, 1-based index). Keep each with its reason.
@@ -40,6 +40,11 @@ NOT_RAWCODE = {
     ("CommandAI", 2): "AI command code, a script-defined number",
     ("CommandAI", 3): "AI command data, opaque to the engine",
     ("GetPlayerId", 0): "player index",
+}
+# Table bits that point at an integer whose name is not in the sets above (native, 1-based index).
+# Keep each with its reason; empty means every bit matches a rawcode-like or order-like name.
+EXTRA_BITS = {
+    ("DebugUnitID", 2): "common.ai debug print of a unit rawcode, parameter is named val",
 }
 # Natives that return rawcodes.
 RAWCODE_RESULTS = {
@@ -116,6 +121,61 @@ class RawcodeTableTest(unittest.TestCase):
             if name in ORDER_RESULTS and not order & (1 << 31):
                 missing.append(f"{name} order result in {path.name}")
         self.assertEqual(missing, [])
+
+    def test_every_table_bit_points_at_a_rawcode_or_order_slot(self):
+        # The reverse check: a bit on the wrong parameter (or on a non-integer one)
+        # would swap an innocent value. Natives absent from the scanned scripts
+        # (OpenRealm-only ones) are skipped.
+        table = parse_table()
+        seen = {}
+        for path, name, args, result in signatures():
+            seen[name] = (args, result)
+        wrong = []
+        for name, (mask, order) in table.items():
+            if name not in seen:
+                continue
+            args, result = seen[name]
+            for kind_name, bits in (("rawcode", mask), ("order", order)):
+                for index in range(1, 31):
+                    if not bits & (1 << (index - 1)):
+                        continue
+                    if index > len(args):
+                        wrong.append(f"{name}:{index} ({kind_name}) has no such parameter")
+                        continue
+                    _, kind, param = args[index - 1]
+                    lowered = param.lower()
+                    if (name, index) in EXTRA_BITS:
+                        continue
+                    if kind != "integer":
+                        wrong.append(f"{name}:{index} ({param}) is {kind}, not integer")
+                    elif kind_name == "order":
+                        if lowered not in ORDER_PARAMS:
+                            wrong.append(f"{name}:{index} ({param}) marked as order id")
+                    elif not (lowered in RAWCODE_PARAMS
+                              or (lowered in ("id", "a", "b", "make") and name in AI_ID_PARAMS)):
+                        wrong.append(f"{name}:{index} ({param}) marked as rawcode")
+                if bits & (1 << 31):
+                    if result != "integer":
+                        wrong.append(f"{name} result ({result}) is not integer")
+                    elif kind_name == "order" and name not in ORDER_RESULTS:
+                        wrong.append(f"{name} result marked as order id")
+                    elif kind_name == "rawcode" and name not in RAWCODE_RESULTS:
+                        wrong.append(f"{name} result marked as rawcode")
+        self.assertEqual(wrong, [])
+
+    def test_every_script_host_passes_the_rawcode_table(self):
+        # A host that has the natives but no rawcode table runs literals big-endian
+        # and natives little-endian (the +set jass_test mode once did).
+        bad = []
+        for path in sorted(WC3.rglob("*.c")):
+            text = path.read_text(errors="replace")
+            for m in re.finditer(r"jass_sethost\(", text):
+                block = text[m.start():m.start() + 700]
+                end = block.find("));")
+                block = block[:end if end >= 0 else len(block)]
+                if ".natives" in block and "jass_funcs" in block and ".rawcodes" not in block:
+                    bad.append(f"{path.relative_to(ROOT)}:{text[:m.start()].count(chr(10)) + 1}")
+        self.assertEqual(bad, [])
 
     def test_numeric_order_ids_stay_below_the_rawcode_range(self):
         # Order-id slots convert only values >= 0x01000000; every order id of the

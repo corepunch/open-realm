@@ -13,6 +13,13 @@
 bool run_test_jass(cstring_t src);
 void setup_test_world(void);
 
+static edict_t *rawcode_find_unit(uint32_t class_id) {
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == class_id) return g_edicts + i;
+    }
+    return NULL;
+}
+
 TEST(wc3_rawcode, literals_are_big_endian) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -87,20 +94,57 @@ TEST(wc3_rawcode, string_conversions_use_big_endian_ids) {
 
 /* Order ids and rawcodes share one integer (build and train orders carry the
  * unit's rawcode). Only values that no numeric order id can reach are
- * converted: the largest id of the order table is 852597 (0xD0275), the
- * smallest four-character rawcode with a printable first letter is 0x30303030. */
+ * converted (order_mask): the largest id of the order table is 852597
+ * (0xD0275), the smallest four-character rawcode with a printable first
+ * letter is 0x30303030. Tested end to end through the order natives; the
+ * string conversions of OrderId2String are deliberately not pinned, they
+ * differ from retail outside the order table. */
 TEST(wc3_rawcode, order_ids_convert_only_rawcode_values) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *builder;
+    edict_t *footman;
+    UnitProfile_t profile = { .builds = "hbar" };
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
     T_ASSERT(run_test_jass(
-        "function main takes nothing returns nothing\n"
-        "  call BJassAssert(OrderId(\"manaflareon\") == 852512, \"numeric order id\")\n"
-        "  call BJassAssert(OrderId2String(852512) == \"manaflareon\", \"numeric order id back\")\n"
-        "  call BJassAssert(OrderId(\"hfoo\") == 1751543663, \"rawcode order\")\n"
-        "  call BJassAssert(OrderId2String(1751543663) == \"hfoo\", \"rawcode order back\")\n"
-        "  call BJassAssert(OrderId2String(808464432) == \"0000\", \"smallest printable rawcode\")\n"
-        "  call BJassAssert(StringLength(OrderId2String(16777215)) == 3, \"largest unconverted value\")\n"
-        "  call BJassAssert(StringLength(OrderId2String(16777216)) == 1, \"smallest converted value\")\n"
+        "globals\n"
+        "  unit testBuilder = null\n"
+        "  unit testFootman = null\n"
+        "endglobals\n"
+        "function buildByDecimal takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrderById(testBuilder, 1751277938, 64.0, 64.0), \"build order with the decimal rawcode\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testBuilder) == 1751277938, \"current order is the decimal rawcode\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testBuilder) == 'hbar', \"current order is the literal rawcode\")\n"
         "endfunction\n"
-    ));
+        "function numericOrder takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrderById(testFootman, 851986, 200.0, 200.0), \"move order by number\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testFootman) == 851986, \"numeric order id is not converted\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(testFootman) == OrderId(\"move\"), \"same as the order string\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testBuilder = CreateUnit(Player(0), 'hpea', -128.0, -128.0, 0.0)\n"
+        "  set testFootman = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "endfunction\n"));
+
+    builder = rawcode_find_unit(MAKEFOURCC('h','p','e','a'));
+    footman = rawcode_find_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(builder);
+    T_NOT_NULL(footman);
+    builder->data.UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    jass_callbyname(level.vm, "buildByDecimal", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(builder->orders->build_project, barracks);
+    T_EQ(G_GetIssuedOrderId(builder), barracks);
+
+    jass_callbyname(level.vm, "numericOrder", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_rawcode, table_is_sorted_and_terminated) {
