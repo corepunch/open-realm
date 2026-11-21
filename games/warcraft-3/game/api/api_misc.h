@@ -231,6 +231,10 @@ uint32_t SetStartLocPrio(jass_t *j) {
         level.setup.start_prio[loc].slots[slot] = (typeof(*level.setup.start_prio[loc].slots)){ other, *priority };
     return 0;
 }
+/* Enemy start-location priorities only guide the melee lobby's random
+ * placement. They have no simulation effect in a dedicated map capture. */
+uint32_t SetEnemyStartLocPrioCount(jass_t *j) { (void)j; return 0; }
+uint32_t SetEnemyStartLocPrio(jass_t *j) { (void)j; return 0; }
 uint32_t GetStartLocPrioSlot(jass_t *j) {
     int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
     int32_t value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count ?
@@ -1557,6 +1561,14 @@ uint32_t SetTerrainFogEx(jass_t *j) {
         .color = { red, green, blue } });
     return 0;
 }
+/* Reforged's vector form carries extra fog color/distance parameters. The
+ * dedicated extraction runtime has no renderer state to apply them to. */
+uint32_t SetTerrainFogExV(jass_t *j) {
+    (void)j;
+    return 0;
+}
+uint32_t BlzSetTerrainFogMaxLinearDensity(jass_t *j) { (void)j; return 0; }
+uint32_t BlzSetTerrainFogDrawOverSky(jass_t *j) { (void)j; return 0; }
 uint32_t SetWaterBaseColor(jass_t *j) {
     int32_t red = jass_checkinteger(j, 1);
     int32_t green = jass_checkinteger(j, 2);
@@ -1566,6 +1578,9 @@ uint32_t SetWaterBaseColor(jass_t *j) {
     G_WaterBaseColorSet(red, green, blue, alpha);
     return 0;
 }
+/* Reforged water parameter vector is renderer-only; preserve script control
+ * flow on the dedicated capture host without synthesizing graphics state. */
+uint32_t SetHDWaterParamsEx(jass_t *j) { (void)j; return 0; }
 uint32_t SetWaterDeforms(jass_t *j) {
     //bool val = jass_checkboolean(j, 1);
     return 0;

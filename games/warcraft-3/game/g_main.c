@@ -1579,6 +1579,45 @@ static void G_StartScripts(void) {
     level.scriptsStarted = true;
     jass_runevents(level.vm);
 
+    /* Optional offline capture for map-runtime research. Only the engine
+     * opens this explicitly configured path; JASS receives no file API. */
+    {
+        cstring_t path = gi.CvarString ? gi.CvarString("wc3_runtime_export", "") : "";
+        if (path && *path) {
+            FILE *out = fopen(path, "w");
+            if (!out) {
+                fprintf(stderr, "WC3 runtime export: cannot open %s\n", path);
+            } else {
+                uint32_t rows = 0;
+                fprintf(out, "rawcode\tentity\tplayer\thp_current\thp_max\tarmor\tattack1_base\tattack1_dice\tattack1_sides\tattack1_cooldown\tgold_bounty_base\tgold_bounty_dice\tgold_bounty_sides\tlumber_bounty_base\tlumber_bounty_dice\tlumber_bounty_sides\n");
+                FOR_LOOP(i, globals.num_edicts) {
+                    edict_t const *ent = g_edicts + i;
+                    UnitBalance_t const *balance;
+                    unitAttack_t const *attack;
+                    unsigned char rawcode[4];
+                    if (!ent->inuse || !(ent->s.flags & EF_UNIT)) continue;
+                    balance = ent->data.UnitBalance;
+                    attack = ent->unit_state ? &ent->unit_state->attack1 : NULL;
+                    rawcode[0] = (unsigned char)(ent->class_id & 0xff);
+                    rawcode[1] = (unsigned char)((ent->class_id >> 8) & 0xff);
+                    rawcode[2] = (unsigned char)((ent->class_id >> 16) & 0xff);
+                    rawcode[3] = (unsigned char)((ent->class_id >> 24) & 0xff);
+                    fprintf(out, "%.4s\t%u\t%u\t%.3f\t%.3f\t%.3f\t%u\t%u\t%u\t%.4f\t%d\t%d\t%d\t%d\t%d\t%d\n",
+                        rawcode, i, ent->s.player, ent->health.value, ent->health.max_value,
+                        ent->unit_state ? ent->unit_state->armor_value : (balance ? balance->armor : 0.0f),
+                        attack ? attack->damageBase : 0, attack ? attack->numberOfDice : 0,
+                        attack ? attack->sidesPerDie : 0, attack ? attack->cooldown : 0.0f,
+                        balance ? balance->goldBountyBase : 0, balance ? balance->goldBountyDice : 0,
+                        balance ? balance->goldBountySides : 0, balance ? balance->lumberBountyBase : 0,
+                        balance ? balance->lumberBountyDice : 0, balance ? balance->lumberBountySides : 0);
+                    rows++;
+                }
+                fclose(out);
+                fprintf(stderr, "WC3 runtime export: wrote %u live unit rows to %s\n", rows, path);
+            }
+        }
+    }
+
     G_SetDestructableScriptBinding(false);
 }
 

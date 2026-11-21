@@ -5,11 +5,11 @@ Stores placed doodads: trees, rocks, barrels, crates, and other destructable/dec
 
 Doodad type IDs come from `doodads.slk` inside `war3.mpq`.
 
-## Header [TFT format, version 8]
+## Header [TFT format, versions 8 and 13]
 
 ```
 char[4]  file ID          "W3do"
-int      version          8
+int      version          8 (classic TFT) or 13 (Reforged 3.0+)
 int      subversion        0x0000000B  (always 11; purpose unclear)
 int      doodad_count      number of doodad records that follow
 ```
@@ -26,6 +26,8 @@ float    angle            rotation in radians  (degrees = radians * 180 / π)
 float    scale_x
 float    scale_y
 float    scale_z
+char[4]  skin_id          version 13 only
+int      v13_color        version 13 only; raw value retained
 byte     flags            visibility/solidity (see below)
 byte     life             HP percentage (0x64 = 100%, 0xAA = 170%)
 int      item_table_ptr   random item table index, or -1 for none
@@ -34,7 +36,10 @@ int      item_table_ptr   random item table index, or -1 for none
 int      item_set_count   number of item sets (only > 0 if item_table_ptr == -1)
 [item_set_count * item_set]
 int      editor_id        unique editor ID for this doodad instance
+int[4]   v13_extension    version 13 only; first value is the placement ID in observed maps
 ```
+
+Version 13 adds a skin ID and color before flags, then four integers after the editor ID. Some 3.0 maps also interleave zero-rawcode, 36-byte placement slots that are not included in `doodad_count`; these carry no renderable doodad ID and must be skipped as a whole. OpenRealm's reader handles these slots when loading version 13 maps.
 
 ### Doodad flags
 

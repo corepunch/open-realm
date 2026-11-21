@@ -288,6 +288,13 @@ TEST(wc3_jass_map, bjassassert_false_is_caught) {
     , "assertion failed: intentional failure"));
 }
 
+TEST(wc3_jass_map, escaped_quotes_do_not_expose_trailing_line_comment) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "    call BJassAssert(StringLength(\"say \\\"hi\\\"\") == 8, \"escaped quotes work\") // for the parser\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_jass_map, bjassassert_error_message_must_match) {
     T_ASSERT(!run_test_jass_error(
         "function main takes nothing returns nothing\n"

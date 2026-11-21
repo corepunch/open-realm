@@ -16,6 +16,7 @@ generic; no engine code tests a map rawcode.
 | --- | --- | --- |
 | Hero max HP, mana and armor derive from `HP`/`manaN`/`def` plus `StrHitPointBonus`, `IntManaBonus`, `AgiDefenseBonus` and `AgiDefenseBase` (stock 25 / 15 / 0.3 / -2). `realHP`/`realM`/`realdef` are World Editor previews made with stock constants and are only a fallback for rows without `HP`. | `G_RecomputeHeroStats` (`m_unit.c`), constants in `InitConstants` (`g_main.c`) | `wc3_spell.hero_vitals_follow_map_misc_attribute_constants` |
 | `war3map.w3h` custom buffs (simple object-modification layout, like `w3u`). Unset fields (`fart`, `ftip`, ...) inherit from the base buff, as the World Editor does. | `CM_ReadBuffs` (`common/world.c`), `MapBuffText` in `FindConfigValue` (`g_metadata.c`) | `wc3_api.map_buff_text_inherits_unset_fields_from_base_buff` |
+| A map may encode an integral-valued real field such as `uhpm` as a W3U integer modification. Convert it to the metadata field's real type before binding the runtime row. | `ApplyMapObjectTypedField` (`g_metadata.c`) | `wc3_slk.map_unit_balance_overrides_stock_fields_and_custom_inheritance` |
 | A missing `Researchbuttonpos` means `0,0` in the learn menu. | `ui_selectskill` (`s_selectskill.c`) | - |
 | Hero command `Tip`/`Ubertip` are per-level lists. Live buttons show the learned rank, or level 1 before it is learned. | `G_BuildCommandButtonState` (`hud_unit.c`) | `wc3_spell.hero_command_tooltip_shows_only_the_learned_level` |
 
@@ -38,6 +39,7 @@ generic; no engine code tests a map rawcode.
 | `GetUnitAbilityLevel(u, buff)` returns the buff level when the unit has that status; `UnitRemoveAbility(u, buff)` removes it. | `api_unit.h` | `wc3_api.ability_natives_read_and_remove_buff_rawcodes` |
 | A group filter run inside a trigger action keeps `GetTriggerUnit()`; `GetFilterUnit()` is separate (`jassContext_t.filter_unit`). | `jass_evaluateboolexpr` (`jdo.c`) | `wc3_api.group_filter_keeps_trigger_unit_separate_from_filter_unit` |
 | `And`/`Or`/`Not` composites, null triggers as no-ops, locals shadowing globals, `\"` escapes. | `jdo.c`, `jlex.c` | `wc3_api.boolexpr_composites_and_event_id`, `wc3_api.custom_map_jass_semantics` |
+| Comment removal tracks escaped quotes inside JASS strings and preserves line breaks in line/block comments; otherwise a `//` comment after `\"` text can be parsed as code. | `jass_remove_comments` (`jdo.c`) | `wc3_jass_map.escaped_quotes_do_not_expose_trailing_line_comment` |
 | `GetTriggerEventId` exposes the current event type, including player chat. | `api_trigger.h`, `g_commands.c` | `wc3_api.player_chat_fires_matching_triggers` |
 | Legacy player-unit event numbering is selected from the parsed `EVENT_PLAYER_UNIT_SELL` initializer; unrecognized forms warn and use the modern layout. | `g_spawn.c`, `jdo.c` | `wc3_api.legacy_event_detection_reads_parsed_constant` |
 

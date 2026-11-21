@@ -20,6 +20,15 @@ uint32_t CreateItem(jass_t *j) {
     edict_t *item = SP_SpawnAtLocation(itemid, 0, &MAKE(vec2_t, x, y));
     return jass_pushlighthandle(j, item, "item");
 }
+uint32_t BlzCreateItemWithSkin(jass_t *j) {
+    int32_t itemid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2), y = jass_checknumber(j, 3);
+    (void)jass_checkinteger(j, 4); /* presentation skin alias */
+    ItemData_t const *data = G_ItemData((uint32_t)itemid);
+    edict_t *item = itemid && data && data->file
+        ? SP_SpawnAtLocation((uint32_t)itemid, 0, &MAKE(vec2_t, x, y)) : NULL;
+    return jass_pushlighthandle(j, item, "item");
+}
 uint32_t RemoveItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 1, "item");
     if (whichItem) G_RemoveItem(whichItem);
@@ -34,6 +43,10 @@ uint32_t GetItemPlayer(jass_t *j) {
 uint32_t GetItemTypeId(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     return jass_pushinteger(j, item ? (int32_t)item->class_id : 0);
+}
+uint32_t SetItemColor(jass_t *j) {
+    (void)j; /* item player-color tint is presentation-only in dedicated mode */
+    return 0;
 }
 /* GetItemType: the item's classification (itemtype enum), read data-driven from
  * ItemData's "icla"/itemClass column and mapped to the ITEM_TYPE_* indices
