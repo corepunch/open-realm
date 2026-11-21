@@ -1000,6 +1000,8 @@ static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo) {
 #endif
 }
 
+extern jassRawcode_t jass_rawcodes[];
+
 static void G_RunJassTests(cstring_t script, cstring_t entry) {
     if (!entry || !*entry) {
         entry = "run_tests";
@@ -1012,6 +1014,7 @@ static void G_RunJassTests(cstring_t script, cstring_t entry) {
         .GetTime            = gi.GetTime,
         .ReadFile = gi.ReadFile,
         .natives            = jass_funcs,
+        .rawcodes           = jass_rawcodes,
         .GetPlayerByNumber  = G_GetPlayerByNumber,
         .TimerCoroutineValid = G_TimerCoroutineValid,
     ));
