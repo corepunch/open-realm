@@ -899,6 +899,75 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
     T_ASSERT(game.clients[0].jass.on_score_screen);
 }
 
+/* Runs the map's config() phase for players whose resolved slot types are given,
+ * with controllers primed as G_InitMapPlayer leaves them. */
+static void run_map_config(cstring_t script, playerType_t const *types, uint32_t count) {
+    static char config_marker[] = "function config takes nothing returns nothing\n";
+    mapInfo_t *info = (mapInfo_t *)level.mapinfo;
+
+    T_ASSERT(run_test_jass(script));
+    info->mapscript = config_marker;
+    FOR_LOOP(i, count) {
+        info->players[i].used = types[i] != kPlayerTypeNone;
+        info->players[i].playerType = types[i];
+        game.clients[i].mapplayer = &info->players[i];
+    }
+    FOR_LOOP(i, count) {
+        game.clients[i].jass.controller = types[i] == kPlayerTypeHuman ? 0 :
+            types[i] == kPlayerTypeComputer ? 1 : types[i] == kPlayerTypeNeutral ? 3 : 5;
+    }
+    G_RunMapConfig();
+    T_ASSERT(level.scriptsConfigured);
+    info->mapscript = NULL;
+}
+
+static void clear_map_config_players(uint32_t count) {
+    FOR_LOOP(i, count) game.clients[i].mapplayer = NULL;
+}
+
+/* WorldEdit's InitCustomPlayerSlots marks every melee slot MAP_CONTROL_USER.
+ * Retail 1.29 still reports MAP_CONTROL_COMPUTER for a lobby Computer slot in
+ * main, which is what lets MeleeStartingAI start the melee AI. */
+TEST(wc3_jass_map, lobby_computer_slot_keeps_controller_after_config) {
+    playerType_t const types[] = { kPlayerTypeHuman, kPlayerTypeComputer, kPlayerTypeNone };
+
+    run_map_config(
+        "function config takes nothing returns nothing\n"
+        "  call SetPlayerController(Player(0), MAP_CONTROL_USER)\n"
+        "  call SetPlayerController(Player(1), MAP_CONTROL_USER)\n"
+        "  call SetPlayerController(Player(2), MAP_CONTROL_USER)\n"
+        "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_USER, \"config default\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "endfunction\n",
+        types, 3);
+    T_EQ(game.clients[0].jass.controller, 0);
+    T_EQ(game.clients[1].jass.controller, 1);
+    T_EQ(game.clients[2].jass.controller, 5);
+    clear_map_config_players(3);
+}
+
+/* Without a lobby the slot types are the W3I types, which stock 1.29 maps
+ * (all campaigns and Maps\) repeat in config(); the result is unchanged. */
+TEST(wc3_jass_map, map_config_controllers_follow_w3i_slot_types) {
+    playerType_t const types[] = { kPlayerTypeHuman, kPlayerTypeNeutral, kPlayerTypeComputer };
+
+    run_map_config(
+        "function config takes nothing returns nothing\n"
+        "  call SetPlayerController(Player(0), MAP_CONTROL_USER)\n"
+        "  call SetPlayerController(Player(1), MAP_CONTROL_NEUTRAL)\n"
+        "  call SetPlayerController(Player(2), MAP_CONTROL_COMPUTER)\n"
+        "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_NEUTRAL, \"config neutral\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "endfunction\n",
+        types, 3);
+    T_EQ(game.clients[0].jass.controller, 0);
+    T_EQ(game.clients[1].jass.controller, 3);
+    T_EQ(game.clients[2].jass.controller, 1);
+    clear_map_config_players(3);
+}
+
 TEST(wc3_jass_map, region_rectangles_add_query_and_clear) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
