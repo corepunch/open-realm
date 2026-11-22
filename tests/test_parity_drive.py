@@ -217,12 +217,31 @@ class ParityDriveTest(unittest.TestCase):
         self.assertIn('key --clearmodifiers F9', self.xdotool())
 
     def alive(self, instance):
+        """True while the instance's game runs; a zombie counts as stopped, since CI's PID 1 never reaps orphans."""
         pid = int((self.fake / f'pid-{instance}').read_text())
         try:
             os.kill(pid, 0)
-        except ProcessLookupError:
+            stat = Path(f'/proc/{pid}/stat').read_text()
+        except (ProcessLookupError, FileNotFoundError):
             return False
-        return True
+        return stat.rsplit(')', 1)[1].split()[0] != 'Z'
+
+    def test_zombie_game_counts_as_stopped(self):
+        # A game nobody reaps stays a zombie; status must not report it and stop must not wait it out.
+        self.attach()
+        zombie = subprocess.Popen(['true'])
+        deadline = time.monotonic() + 10
+        while Path(f'/proc/{zombie.pid}/stat').read_text().rsplit(')', 1)[1].split()[0] != 'Z':
+            self.assertLess(time.monotonic(), deadline, 'child never exited')
+            time.sleep(0.05)
+        try:
+            (self.state / 'pid').write_text(f'{zombie.pid}\n')
+            self.assertNotEqual(self.drive('status').returncode, 0)
+            started = time.monotonic()
+            self.assertEqual(self.drive('stop').returncode, 0)
+            self.assertLess(time.monotonic() - started, 1.5, 'stop waited for a zombie')
+        finally:
+            zombie.wait()
 
     def test_run_rejects_invalid_wait(self):
         self.attach()

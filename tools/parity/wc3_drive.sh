@@ -26,6 +26,15 @@ state=${WC3_DRIVE_STATE:-$root/build/parity/drive}
 log=$state/game.log
 W=${WC3_DRIVE_WIDTH:-1280} H=${WC3_DRIVE_HEIGHT:-800}
 fail() { echo "wc3_drive: $*" >&2; exit 1; }
+# A killed game whose parent is gone stays a zombie when PID 1 never reaps orphans (a container started with
+# `tail -f /dev/null`, as CI does); kill -0 still succeeds for it, so a zombie counts as stopped.
+alive() {
+    local stat
+    kill -0 "$1" 2>/dev/null || return 1
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 0
+    stat=${stat##*) }
+    [[ ${stat%% *} != Z ]]
+}
 attach() {
     [[ -s $state/env ]] || fail 'not running (use start)'
     set -a; . "$state/env"; set +a
@@ -99,11 +108,11 @@ stop)
     if [[ -s $state/pid ]]; then
         pid=$(cat "$state/pid")
         kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null
-        for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+        for _ in 1 2 3 4 5 6 7 8 9 10; do alive "$pid" || break; sleep 0.2; done
         kill -9 -- -"$pid" 2>/dev/null
     fi
     rm -f "$state/pid" "$state/env"; echo stopped ;;
-status) [[ -s $state/pid ]] && kill -0 "$(cat "$state/pid")" 2>/dev/null && echo running || { echo 'not running'; exit 1; } ;;
+status) [[ -s $state/pid ]] && alive "$(cat "$state/pid")" && echo running || { echo 'not running'; exit 1; } ;;
 log) tail -n "${1:-20}" "$log" ;;
 shot)
     attach; f=$state/shots/${1:-$(date +%H%M%S)}.png; rm -f "$f"
