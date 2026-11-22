@@ -1,9 +1,10 @@
-# LAN pair on one machine: the host creates a game, a second instance ("guest") finds it and joins,
-# and the host's lobby reports the guest in slot 2. Frame names and engine log lines only (locale independent).
-# The guest uses the same WC3DATA; its state is "$WC3_DRIVE_STATE-guest". The first game in the guest's
-# list is selected automatically, so close other LAN games on the network first.
-#   WC3DATA=... tools/parity/wc3_drive.sh start -roc
-#   tools/parity/wc3_drive.sh run tools/parity/scenarios/lan-join.txt
+# LAN pair on one machine: the scenario starts a host, the host creates a game, a second instance ("guest") finds it
+# and joins, and the host's lobby reports that guest by name. Frame names and engine log lines only (locale independent).
+# Both instances use their own UDP game_port, so only this host answers the guest's LAN query and other LAN games on
+# the network are not listed. The guest uses the same WC3DATA; its state is "$WC3_DRIVE_STATE-guest". If a step fails,
+# `run` stops both instances and keeps their logs.
+#   WC3DATA=... tools/parity/wc3_drive.sh run tools/parity/scenarios/lan-join.txt
+start -roc +set game_port 28111
 # Host: LAN -> Create Game -> default map -> lobby.
 uiwait LocalAreaNetworkButton 40
 uiclick LocalAreaNetworkButton
@@ -12,15 +13,18 @@ uiclick CreateButton
 uiwait PlayButton 10
 uiclick PlayButton
 uiwait StartGameButton 15
-# Guest: same edition, LAN -> Join.
-as guest start -roc
+# Only lobby updates after this point count, so an earlier guest's line cannot satisfy the check below.
+mark
+# Guest: same edition and port, LAN -> Join.
+as guest start -roc +set game_port 28111 +set name wc3drive-guest
 as guest uiwait LocalAreaNetworkButton 40
 as guest uiclick LocalAreaNetworkButton
 as guest uiwait JoinButton 15
 as guest uiclick JoinButton
 as guest uiwait ChatEditBox 15
-# The host's client sees a second human player in slot index 1.
-waitlog 15 client lobby slot 1: occupied=1 client=1 .*type=human
+# The host's client sees this guest as a human player in an occupied slot.
+waitlog 15 ^ +client lobby slot [0-9]+: occupied=1 .* type=human .*name="wc3drive-guest"$
 shot lan-join-host
 as guest shot lan-join-guest
 as guest stop
+stop

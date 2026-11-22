@@ -167,16 +167,19 @@ tools/parity/wc3_drive.sh stop
 A scenario is a text file with one driver verb per line (`uiwait`, `uiclick`, `ui`, `click X Y`, `key`, `type`,
 `chat`, `cmd`, `shot`, ...), `wait SECONDS` and `#` comments. Lines are split on whitespace without shell quoting;
 verbs that take text (`type`, `chat`, `cmd`, `waitlog`) use the rest of the line. `run` stops at the first failing
-line and names it: `uiclick` fails unless the game answers `UICLICK ok`, `uiwait` fails when the frame is not visible,
-enabled and hittable in time, and `waitlog SECONDS REGEX` fails when no `game.log` line matches the extended regex.
-`as NAME VERB ...` runs one verb on a second instance whose state is `$WC3_DRIVE_STATE-NAME`, so one file can drive
-a LAN host and guest. `wc3_drive.sh --help` lists every verb.
+line and names it: `uiclick` fails unless the game answers `UICLICK ok`, `uiwait` fails when no frame with exactly
+that name reports `visible=1 enabled=1 interactive=1 hit=1` in time (the same checks `click` makes), and
+`waitlog SECONDS REGEX` fails when no `game.log` line after the last `mark` matches the extended regex. Any failed
+input action fails its step, and so does a malformed `wait`. `as NAME VERB ...` runs one verb on a second instance
+whose state is `$WC3_DRIVE_STATE-NAME`, so one file can drive a LAN host and guest. When a step fails or the run is
+interrupted, `run` stops every instance the scenario itself started (`start`, `as NAME start`) and keeps their logs
+and screenshots. `wc3_drive.sh --help` lists every verb.
 
 | Scenario | Start with | Checks |
 |----------|------------|--------|
 | `menu-custom-game.txt` | `start -roc` or `-tft` | main menu, Single Player, custom game, map list, back |
 | `options-round-trip.txt` | `start -roc` or `-tft` | Video, Sound and Gameplay panels lay out their controls; Cancel returns |
-| `lan-join.txt` | `start -roc` | host creates a LAN game, a second instance joins, the host lobby reports the guest |
+| `lan-join.txt` | nothing (it starts host and guest) | host creates a LAN game on a private `game_port`, a second instance joins, the host lobby reports that guest by name |
 | `map-start.txt` | nothing (it starts the game) | `+map` start reaches `G_ClientBegin`, screenshot of the opening view |
 
 All scenarios use frame names and English engine log lines only, so they do not depend on the data's language or
