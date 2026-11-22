@@ -575,6 +575,7 @@ void Cvar_Init(void) {
     Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");
     Cvar_GetD("r_texture_quality","2",                 CVAR_ARCHIVE, "texture mip level: 0=low, 1=medium, 2=full");
     Cvar_GetD("r_particles",      "2",                 CVAR_ARCHIVE, "particle effect density: 0=off, 1=reduced, 2=full");
+    Cvar_GetD("r_ground_cull",    "1",                 CVAR_ARCHIVE, "skip off-screen Warcraft III ground segments");
     Cvar_GetD("r_lights",         "2",                 CVAR_ARCHIVE, "dynamic light count: 0=off, 1=minimal, 2=max");
     Cvar_GetD("r_unit_shadows",   "1",                 CVAR_ARCHIVE, "render blob shadows under units");
     Cvar_GetD("r_occlusion",      "1",                 CVAR_ARCHIVE, "frustum-cull off-screen entities");
