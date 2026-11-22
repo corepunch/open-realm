@@ -1527,6 +1527,11 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 120 +map 'Maps
 
 ## Human02 FPS and hotspot baseline on Mali-G72 MC3 (November 21, 2026)
 
+### ARM64 hardware profiling tools
+
+Arm Performance Studio downloads are at [developer.arm.com/tools-and-software/arm-performance-studio#Downloads](https://developer.arm.com/tools-and-software/arm-performance-studio#Downloads).
+The Streamline daemon for this machine's architecture is `streamline/bin/linux/arm64/gatord` inside the extracted package.
+
 This is a machine-specific result for the Linux ARM64 host `krane`, using
 Mesa 26.2.7 and the Panfrost `Mali-G72 MC3` OpenGL 3.1 driver. The native
 display was 1920×1200. The capture used the ROC map from
