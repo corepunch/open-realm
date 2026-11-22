@@ -176,6 +176,8 @@ event_t *G_MakeEvent(EVENTTYPE type) {
         if (i >= level.events.registry_high_water) level.events.registry_high_water = i + 1;
         if (type == EVENT_GAME_ENTER_REGION || type == EVENT_GAME_LEAVE_REGION || type == EVENT_UNIT_IN_RANGE)
             level.events.touch_trigger_mask[i / 64] |= UINT64_C(1) << (i % 64);
+        if (type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[i / 64] |= UINT64_C(1) << (i % 64);
         return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
@@ -205,6 +207,8 @@ void G_RetireEvent(event_t *event) {
         if (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION ||
             event->type == EVENT_UNIT_IN_RANGE)
             level.events.touch_trigger_mask[slot / 64] &= ~(UINT64_C(1) << (slot % 64));
+        if (event->type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[slot / 64] &= ~(UINT64_C(1) << (slot % 64));
         if (slot + 1 == level.events.registry_high_water) {
             while (level.events.registry_high_water &&
                    !level.events.handlers[level.events.registry_high_water - 1].inuse)
@@ -220,6 +224,7 @@ uint32_t G_EventRegistryHighWater(void) {
 void G_RebuildEventRegistryCache(void) {
     uint32_t high_water = MAX_EVENTS;
     memset(level.events.touch_trigger_mask, 0, sizeof(level.events.touch_trigger_mask));
+    memset(level.events.game_state_event_mask, 0, sizeof(level.events.game_state_event_mask));
     while (high_water && !level.events.handlers[high_water - 1].inuse) high_water--;
     level.events.registry_high_water = high_water;
     FOR_LOOP(i, high_water) {
@@ -227,6 +232,8 @@ void G_RebuildEventRegistryCache(void) {
         if (event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION ||
                              event->type == EVENT_UNIT_IN_RANGE))
             level.events.touch_trigger_mask[i / 64] |= UINT64_C(1) << (i % 64);
+        if (event->inuse && event->type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[i / 64] |= UINT64_C(1) << (i % 64);
     }
 }
 

@@ -242,11 +242,20 @@ void G_SetHealth(edict_t *ent, float value) {
     uint8_t next;
     ent->health.value = value;
     next = compress_stat(&ent->health);
-    if (old_value != value) FOR_EACH_EVENT(evt) {
-        if (evt->type == EVENT_GAME_STATE_LIMIT && G_EventSubjectIsCurrent(evt) && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
-            !G_LimitMatches(evt->limitop, old_value, evt->limitval) &&
-             G_LimitMatches(evt->limitop, value, evt->limitval))
-            G_PublishEventResponse(ent, EVENT_GAME_STATE_LIMIT, evt);
+    if (old_value != value) {
+        uint32_t const registry_high_water = G_EventRegistryHighWater();
+        for (uint32_t word = 0; word < (registry_high_water + 63) / 64; ++word) {
+            uint64_t events = level.events.game_state_event_mask[word];
+            while (events) {
+                uint32_t const event_index = word * 64 + (uint32_t)__builtin_ctzll(events);
+                event_t *evt = &level.events.handlers[event_index];
+                events &= events - 1;
+                if (G_EventSubjectIsCurrent(evt) && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
+                    !G_LimitMatches(evt->limitop, old_value, evt->limitval) &&
+                    G_LimitMatches(evt->limitop, value, evt->limitval))
+                    G_PublishEventResponse(ent, EVENT_GAME_STATE_LIMIT, evt);
+            }
+        }
     }
     if (G_UnitIsStructure(ent) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
@@ -2050,7 +2059,8 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
 #define TIMED_STATUS_UPDATE_VALID (1u << MAX_UNIT_STATUSES)
 #define TIMED_STATUS_UPDATE_BITS (TIMED_STATUS_UPDATE_VALID - 1u)
 
-static inline uint32_t unit_status_occupied_bits(unitState_t const *state) {
+uint32_t unit_status_occupied_mask(unitState_t const *state) {
+    if (!state) return 0;
     return (state->timed_status_update_mask & TIMED_STATUS_UPDATE_VALID) ?
         state->status_occupied_mask : TIMED_STATUS_UPDATE_BITS;
 }
@@ -2068,7 +2078,7 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
      * dispelling Banish cannot erase the form's immunity. */
     if (state == WC3_STATUS_STATE_ETHEREAL &&
         ent->class_id == MAKEFOURCC('o','s','p','m')) return true;
-    occupied = unit_status_occupied_bits(ent->unit_state);
+    occupied = unit_status_occupied_mask(ent->unit_state);
     while (occupied) {
         uint32_t const i = (uint32_t)__builtin_ctz(occupied);
         heroabilitystatus_t const *status = ent->unit_state->statuses + i;
@@ -2595,7 +2605,7 @@ uint32_t G_UnitStatusBuffCode(heroabilitystatus_t const *status) {
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
     uint32_t occupied;
     if (!ent || !code || !ent->unit_state) return 0;
-    occupied = unit_status_occupied_bits(ent->unit_state);
+    occupied = unit_status_occupied_mask(ent->unit_state);
     while (occupied) {
         uint32_t const i = (uint32_t)__builtin_ctz(occupied);
         heroabilitystatus_t const *status;

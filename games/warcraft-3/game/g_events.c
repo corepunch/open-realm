@@ -88,7 +88,9 @@ bool G_LimitMatches(uint32_t op, float value, float limit) {
 }
 
 void G_JassVariableChanged(cstring_t name, float before, float after) {
-    FOR_EACH_EVENT(evt) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *evt = &level.events.handlers[event_index];
+        if (!evt->inuse) continue;
         if (evt->type == EVENT_GAME_VARIABLE_LIMIT && evt->variable && !strcmp(evt->variable, name) &&
             !G_LimitMatches(evt->limitop, before, evt->limitval) && G_LimitMatches(evt->limitop, after, evt->limitval))
             G_PublishEventResponse(NULL, EVENT_GAME_VARIABLE_LIMIT, evt);
@@ -199,7 +201,9 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
             subject ? (unsigned)subject->s.player : 0u);
     }
 
-    FOR_EACH_EVENT(e) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *e = &level.events.handlers[event_index];
+        if (!e->inuse) continue;
         if (!G_EventSubjectIsCurrent(e)) continue;
         switch (e->type) {
             case EVENT_DIALOG_CLICK:
@@ -551,7 +555,9 @@ void G_RunEvents(void) {
  * lethal hit. Only a handler bound to this very unit needs that order; everything else stays queued. */
 void G_RunDamagedHandlersNow(edict_t *target) {
     bool direct = false;
-    FOR_EACH_EVENT(evt) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *evt = &level.events.handlers[event_index];
+        if (!evt->inuse) continue;
         if (evt->type == EVENT_UNIT_DAMAGED && evt->subject == target) { direct = true; break; }
     }
     if (direct) G_RunEvents();

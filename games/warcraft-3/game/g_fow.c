@@ -314,12 +314,6 @@ bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer) {
     return false;
 }
 
-static uint32_t G_FowOccupiedStatusSlots(unitState_t const *state) {
-    uint32_t const valid_bit = 1u << MAX_UNIT_STATUSES;
-    return state && (state->timed_status_update_mask & valid_bit) ?
-        state->status_occupied_mask : valid_bit - 1u;
-}
-
 /* Faerie Fire temporarily shares the marked unit's sight with its caster.
  * Bfae records the applying player in status.data (+1). Reading the live
  * buff avoids a separate visibility reference which could survive dispel,
@@ -327,7 +321,7 @@ static uint32_t G_FowOccupiedStatusSlots(unitState_t const *state) {
 bool G_FowFaerieFireRevealsUnit(uint32_t viewer, edict_t const *unit) {
     uint32_t occupied;
     if (!unit || !unit->unit_state || M_IsDead(unit) || viewer >= MAX_PLAYERS) return false;
-    occupied = G_FowOccupiedStatusSlots(unit->unit_state);
+    occupied = unit_status_occupied_mask(unit->unit_state);
     while (occupied) {
         uint32_t const i = (uint32_t)__builtin_ctz(occupied);
         heroabilitystatus_t const *status = unit->unit_state->statuses + i;
@@ -1567,7 +1561,7 @@ void G_FowUpdate(void) {
         }
         radius = G_FowEntitySightRadius(ent);
         if (radius <= 0.0f) continue;
-        uint32_t occupied = G_FowOccupiedStatusSlots(ent->unit_state);
+        uint32_t occupied = unit_status_occupied_mask(ent->unit_state);
         while (occupied) {
             uint32_t const status_index = (uint32_t)__builtin_ctz(occupied);
             occupied &= occupied - 1;

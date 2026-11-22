@@ -16,10 +16,16 @@ void whirlwind_think(edict_t *ent);
 static umove_t whirlwind_blade_storm_move = { "attack walk stand spin", NULL, NULL };
 
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code) {
-    if (!unit) return false;
-    FOR_LOOP(i, unit->unit_state ? MAX_UNIT_STATUSES : 0)
-        if (unit->unit_state->statuses[i].level && unit->unit_state->statuses[i].code == code &&
-            (!unit->unit_state->statuses[i].timestamp || unit->unit_state->statuses[i].timestamp > G_Time())) return true;
+    uint32_t occupied;
+    if (!unit || !unit->unit_state) return false;
+    occupied = unit_status_occupied_mask(unit->unit_state);
+    while (occupied) {
+        uint32_t const i = (uint32_t)__builtin_ctz(occupied);
+        heroabilitystatus_t const *status = unit->unit_state->statuses + i;
+        occupied &= occupied - 1;
+        if (status->level && status->code == code &&
+            (!status->timestamp || status->timestamp > G_Time())) return true;
+    }
     return false;
 }
 

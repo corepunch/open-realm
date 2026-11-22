@@ -699,13 +699,19 @@ static void G_PublishTimeOfDayPhase(void) {
 }
 
 static void G_CheckTimeOfDayEvents(float before, float after) {
-    FOR_EACH_EVENT(evt) {
-        if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
-            continue;
-        if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
-            G_LimitMatches(evt->limitop, after, evt->limitval))
-        {
-            G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
+    uint32_t const registry_high_water = G_EventRegistryHighWater();
+    for (uint32_t word = 0; word < (registry_high_water + 63) / 64; ++word) {
+        uint64_t events = level.events.game_state_event_mask[word];
+        while (events) {
+            uint32_t const event_index = word * 64 + (uint32_t)__builtin_ctzll(events);
+            event_t *evt = &level.events.handlers[event_index];
+            events &= events - 1;
+            if (evt->state != WC3_GAME_STATE_TIME_OF_DAY) continue;
+            if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
+                G_LimitMatches(evt->limitop, after, evt->limitval))
+            {
+                G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
+            }
         }
     }
 }

@@ -348,6 +348,11 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
 #ifdef BZ_TESTS
     test_hero_aura_alias_resolves++;
 #endif
+    /* Entities without unit ability metadata or unit state cannot contribute
+     * authored, inventory, runtime-added, or ranked aura abilities. They are
+     * common in large maps (for example destructables), so avoid inventory
+     * and override probes for them during the per-frame provider scan. */
+    if (!ent->data.UnitAbilities && !ent->unit_state) return;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
             uint32_t alias = 0, mask;
@@ -375,7 +380,10 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
         if (G_ActorHasSkill(ent, alias_name))
             aura_record_owned_alias(resolved, alias, 1, mask);
     }
-    if (G_InventoryCanUseItems(ent)) {
+    /* Item-owned aura abilities require physical inventory state. Most map
+     * units have no inventory component; skip the inventory ability/data
+     * lookup entirely for them during the per-frame aura provider scan. */
+    if (ent->inventory && G_InventoryCanUseItems(ent)) {
         FOR_LOOP(slot, G_InventoryCapacity(ent)) {
             edict_t *item = G_InventoryItem(ent, slot);
             cstring_t abilities = item ? G_ItemAbilityList(item) : NULL;

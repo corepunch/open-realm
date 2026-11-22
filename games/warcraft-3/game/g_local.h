@@ -2662,6 +2662,7 @@ typedef struct {
     uint32_t write, read;
     uint32_t registry_high_water; /* derived: highest occupied handler slot plus one */
     uint64_t touch_trigger_mask[MAX_EVENTS / 64]; /* derived slots for region and unit-range subscriptions */
+    uint64_t game_state_event_mask[MAX_EVENTS / 64]; /* derived slots for game-state-limit subscriptions */
 } levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -3477,6 +3478,7 @@ bool unit_affectingcombat(edict_t *);
 bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint32_t now_ms);
 void unit_updatestatuses(edict_t *);
 void unit_status_invalidate_update_mask(edict_t *);
+uint32_t unit_status_occupied_mask(unitState_t const *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 /* For grouped removal/replacement; caller must reconcile flags once afterward. */
@@ -3615,6 +3617,7 @@ bool SV_CloseEnough(edict_t *, edict_t const *, float);
 void G_RunEntity(edict_t *);
 void G_SetHealth(edict_t *, float);
 void G_AddHealth(edict_t *, float);
+
 void G_ApplyPermanentMaxHealthBonus(edict_t *, float);
 void G_ApplyTemporaryMaxHealthBonus(edict_t *, float);
 void G_ApplyTemporaryMaxManaBonus(edict_t *, float);
