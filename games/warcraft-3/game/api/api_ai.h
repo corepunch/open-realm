@@ -67,13 +67,15 @@ uint32_t DisplayTextIII(jass_t *j) { return BotDisplayText(j, 3); }
 /* common.ai counts queued and constructing units toward desired totals; Done excludes both incomplete states. */
 static int32_t BotUnitCount(player_t *player, uint32_t unitid, bool done) {
     int32_t count = 0;
+    uint32_t const owner = player ? PLAYER_NUM(player) : MAX_PLAYERS;
     if (!player || !unitid) return 0;
-    FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == unitid &&
-                         ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER)) {
-        if (!done || (!G_GetConstruction(ent) && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING))) count++;
+    FILTER_EDICTS(ent, ent->inuse) {
+        if ((ent->svflags & SVF_MONSTER) && ent->class_id == unitid && ent->s.player == owner &&
+            !(ent->svflags & SVF_DEADMONSTER) &&
+            (!done || (!G_GetConstruction(ent) && !G_UnitHasFlag(ent, UNIT_FLAG_TRAINING)))) count++;
+        if (!done && G_BotUnitAlive(ent) && ent->s.player == owner &&
+            (ent->orders ? ent->orders->build_project : 0) == unitid) count++;
     }
-    if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
-                                      (builder->orders ? builder->orders->build_project : 0) == unitid) count++;
     return count;
 }
 

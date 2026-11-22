@@ -922,7 +922,7 @@ bool G_IsNight(void) {
              time < game.constants.duskTimeGameHours);
 }
 
-static float G_FowEntitySightRadius(edict_t const *ent) {
+static float G_FowEntitySightRadius(edict_t const *ent, bool is_night) {
     float day;
     float night;
 
@@ -939,7 +939,7 @@ static float G_FowEntitySightRadius(edict_t const *ent) {
      * custom units, instead of applying it to every unit owned by an Elf. */
     if (night <= 0.0f) night = day;
     if (day <= 0.0f) day = night;
-    if (G_IsNight() && day > night && ent->s.player < MAX_PLAYERS &&
+    if (is_night && day > night && ent->s.player < MAX_PLAYERS &&
         !G_UnitIsBuilding(ent->class_id) &&
         !(ent->runtime.flags & UNIT_BALANCE_BUILDING) &&
         G_UnitUsesUpgrade(ent, MAKEFOURCC('R', 'e', 'u', 'v'))) {
@@ -947,26 +947,15 @@ static float G_FowEntitySightRadius(edict_t const *ent) {
         if (owner && G_GetPlayerTechResearchedLevel(owner, MAKEFOURCC('R', 'e', 'u', 'v')) > 0)
             return day;
     }
-    return G_IsNight() ? night : day;
+    return is_night ? night : day;
 }
 
-static bool G_FowEntityIsRevealer(edict_t const *ent) {
-    if (!ent || !ent->inuse || ent->s.player >= MAX_PLAYERS) {
-        return false;
-    }
-    if (ent->svflags & SVF_NOCLIENT) {
-        return false;
-    }
+static bool G_FowEntityCanRevealToOwner(edict_t const *ent) {
+    if (!ent || ent->s.player >= MAX_PLAYERS) return false;
     /* Gameplay-invisible units still provide sight to their owner. Only
      * non-invisibility RF_HIDDEN states suppress a unit's fog reveal. */
-    if ((ent->s.renderfx & RF_HIDDEN) &&
-        S_UnitIsHiddenFromPlayer(ent, ent->s.player)) {
-        return false;
-    }
-    if (M_IsDead((edict_t *)ent)) {
-        return false;
-    }
-    return G_FowEntitySightRadius(ent) > 0.0f;
+    return !(ent->s.renderfx & RF_HIDDEN) ||
+           !S_UnitIsHiddenFromPlayer(ent, ent->s.player);
 }
 
 static bool G_FowEntityIsBlocker(edict_t const *ent) {
@@ -1481,6 +1470,7 @@ static void G_FowPerfPrintTypes(void) {
 void G_FowUpdate(void) {
     uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
     uint32_t viewers = 0;
+    bool is_night;
 
     g_fow_perf_enabled = gi.CvarString && atoi(gi.CvarString("wc3_perf_log", "0"));
     if (!g_fow_perf_enabled) {
@@ -1501,6 +1491,7 @@ void G_FowUpdate(void) {
             viewers |= 1u << player;
     if (!viewers)
         return;
+    is_night = G_IsNight();
 #ifdef WC3_FOW_PACKED_MASK
     g_fow_fast = atoi(gi.CvarString("wc3_fow_fast", "0"));
 #endif
@@ -1539,13 +1530,18 @@ void G_FowUpdate(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t const *ent = &g_edicts[i];
-        float radius;
+        bool const live_candidate = ent->inuse && !(ent->svflags & SVF_NOCLIENT) &&
+                                    (ent->s.player < MAX_PLAYERS || ent->unit_state);
+        bool const live_for_fog = live_candidate && !M_IsDead((edict_t *)ent);
+        bool const owner_revealer = live_for_fog && G_FowEntityCanRevealToOwner(ent);
+        bool const faerie_candidate = live_for_fog && ent->unit_state;
+        float radius = owner_revealer || faerie_candidate
+            ? G_FowEntitySightRadius(ent, is_night) : 0.0f;
         uint32_t unit_viewers;
 
-        if (ent->s.player < MAX_PLAYERS && G_FowEntityIsRevealer(ent)) {
+        if (owner_revealer && radius > 0.0f) {
             unit_viewers = owner_viewers[ent->s.player] | (ent->vision ? ent->vision->shared & viewers : 0);
             if (unit_viewers) {
-                radius = G_FowEntitySightRadius(ent);
                 g_fow_perf_kind = FOW_PERF_SIGHT;
                 G_FowRevealForViewers(ent, radius, unit_viewers);
             }
@@ -1555,11 +1551,7 @@ void G_FowUpdate(void) {
          * the player who cast it, as if the target belonged to that player.
          * Keep this separate from target ownership so it does not change
          * alliance, control, or the target's own vision sharing. */
-        if (!ent->inuse || M_IsDead((edict_t *)ent) || !ent->unit_state ||
-            (ent->svflags & SVF_NOCLIENT)) {
-            continue;
-        }
-        radius = G_FowEntitySightRadius(ent);
+        if (!faerie_candidate) continue;
         if (radius <= 0.0f) continue;
         uint32_t occupied = unit_status_occupied_mask(ent->unit_state);
         while (occupied) {
