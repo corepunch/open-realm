@@ -1841,6 +1841,9 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
 enum {
     TEST_MDX_ID_MDLX = MAKEFOURCC('M','D','L','X'),
     TEST_MDX_ID_VERS = MAKEFOURCC('V','E','R','S'),
+    TEST_MDX_ID_GEOS = MAKEFOURCC('G','E','O','S'),
+    TEST_MDX_ID_MTLS = MAKEFOURCC('M','T','L','S'),
+    TEST_MDX_ID_MATS = MAKEFOURCC('M','A','T','S'),
     TEST_MDX_ID_SEQS = MAKEFOURCC('S','E','Q','S'),
     TEST_MDX_ID_PIVT = MAKEFOURCC('P','I','V','T'),
     TEST_MDX_ID_RIBB = MAKEFOURCC('R','I','B','B'),
@@ -1851,6 +1854,43 @@ enum {
 static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_fourcc(uint8_t **p, uint32_t tag) { mdx_put_u32(p, tag); }
+
+TEST(renderer_model, mdx_loader_resolves_geoset_material_after_all_chunks) {
+    uint8_t blob[256] = {0};
+    uint8_t *p = blob, *block_size;
+    mdxModel_t *model;
+
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    /* Put GEOS before MTLS to ensure material resolution happens after parsing. */
+    mdx_put_fourcc(&p, TEST_MDX_ID_GEOS); block_size = p; mdx_put_u32(&p, 0);
+    mdx_put_u32(&p, 48); /* one geoset record */
+    mdx_put_fourcc(&p, TEST_MDX_ID_MATS);
+    mdx_put_u32(&p, 0); /* matrix count */
+    mdx_put_u32(&p, 1); /* material index */
+    mdx_put_u32(&p, 0); /* matrix group */
+    mdx_put_u32(&p, 1); /* selectable */
+    FOR_LOOP(i, 7) mdx_put_f32(&p, 0.0f); /* default bounds */
+    mdx_put_u32(&p, 0); /* per-sequence bounds count */
+    { uint32_t size = (uint32_t)(p - block_size - sizeof(uint32_t)); memcpy(block_size, &size, sizeof(size)); }
+
+    mdx_put_fourcc(&p, TEST_MDX_ID_MTLS); block_size = p; mdx_put_u32(&p, 0);
+    FOR_LOOP(i, 2) {
+        mdx_put_u32(&p, 8); /* material record size */
+        mdx_put_u32(&p, i); /* priority */
+        mdx_put_u32(&p, 0); /* flags */
+    }
+    { uint32_t size = (uint32_t)(p - block_size - sizeof(uint32_t)); memcpy(block_size, &size, sizeof(size)); }
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
+    model = R_LoadModelMDLX(blob, (uint32_t)(p - blob));
+    T_NOT_NULL(model);
+    T_NOT_NULL(model->materials);
+    T_NOT_NULL(model->materials->next);
+    T_EQ(model->geosets->materialID, 1);
+    T_EQ(model->geosets->material, model->materials->next);
+    MDLX_Release(model);
+}
 
 /* NewRoughCliffDoodadCave2 uses UV0 for replacement slot 11 and UV1 for its alpha-key cave overlay. */
 TEST(renderer_model, mdx_cave_uv_channels_do_not_overwrite_the_cliff_coordinates) {

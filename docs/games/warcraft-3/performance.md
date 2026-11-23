@@ -2303,3 +2303,20 @@ eight failures were in independent ground-batch slice update assertions. The
 MDX cache regression passed. A focused invocation of
 `build/bin/test_renderer_model 'renderer_model.mdx_local_pose_cache*'` passed
 9/9 assertions.
+
+## MDX geoset material lookup on Mali-G72
+
+Each visible geoset looked up its material by walking the model's MTLS linked
+list during the opaque pass and twice more while preparing the alpha pass. The
+loader now stores the model-owned material pointer on each geoset once after
+all MDX chunks have been parsed. Two release captures measured 23.4 and 23.7
+FPS, with no established end-to-end FPS gain. In the first run, draw count and
+vertex count matched the 353-draw baseline, while median entity time was
+13.09 ms versus 13.29 ms in the closest baseline; renderer frame time
+overlapped. The repeat had 377 draws as the map scene advanced and measured
+13.16 ms entity time, so it is not a strict workload match. Retain the exact
+load-time pointer reuse as a small entity-CPU reduction, not as an FPS claim.
+Captures are `build/profiles/nightelf-geoset-material-cache-20261123.log` and
+`build/profiles/nightelf-geoset-material-cache-repeat-20261123.log`. The focused
+`renderer_model.mdx_loader_resolves_geoset_material_after_all_chunks` regression
+loads GEOS before MTLS and verifies the resolved pointer targets material index 1.

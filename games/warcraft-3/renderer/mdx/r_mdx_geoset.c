@@ -127,11 +127,8 @@ typedef struct mdxGeosetDrawOrder_s {
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
-    mdxMaterial_t *material = model->materials;
-    for (uint32_t materialID = geoset->materialID; materialID > 0; materialID--) {
-        material = material->next;
-    }
-    return material;
+    (void)model;
+    return geoset ? geoset->material : NULL;
 }
 
 static int MDLX_CompareGeosetDrawOrder(void const *a, void const *b) {
