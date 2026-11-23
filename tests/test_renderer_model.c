@@ -476,6 +476,7 @@ static void test_drawarrays(GLenum mode, GLint first, GLsizei count) {
 static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsizei instances) {
     (void)mode; draw_test.calls++; draw_test.first = first; draw_test.count = count; draw_test.instances = instances;
 }
+static struct { uint32_t calls, full_count, range_count, range_first[128], range_vertices[128]; } ground_draw_test;
 /* The production MDX loader uploads and frees geometry; intercept only GL
  * calls so these headless tests also run on macOS without a current context. */
 static void test_bufdata(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
@@ -3693,7 +3694,19 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
-void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {}
+void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {
+    (void)buffer;
+    ground_draw_test.calls++;
+    ground_draw_test.full_count += count;
+}
+static void test_ground_draw_range(buffer_t const *buffer, drawRange_t const *draw) {
+    (void)buffer;
+    T_ASSERT(ground_draw_test.range_count < 128);
+    ground_draw_test.calls++;
+    ground_draw_test.range_first[ground_draw_test.range_count] = draw->first;
+    ground_draw_test.range_vertices[ground_draw_test.range_count] = draw->count;
+    ground_draw_test.range_count++;
+}
 line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
 texture_t const *R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(uint32_t id) { (void)id; return NULL; }
@@ -3777,6 +3790,10 @@ static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
 #define R_ApplyShader test_splat_apply_shader
 void R_TestProductionRenderRectSplatUV(rectSplatParams_t const *params);
 static struct { uint32_t calls, first, count; float z; } ground_update;
+static buffer_t *test_ground_buffer(vertex_t const *vertices, uint32_t count) {
+    (void)vertices; (void)count;
+    return test_alloc(sizeof(buffer_t));
+}
 static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
     (void)buffer;
     ground_update.calls++; ground_update.first = first; ground_update.count = count;
@@ -3786,12 +3803,17 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderFlatRectSplat R_TestProductionRenderFlatRectSplat
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
+#define R_MakeVertexArrayObject test_ground_buffer
+#include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 #define WC3_TERRAIN_NORMAL_TESTS
 #define WC3_SPLAT_GEOMETRY_CACHE_TESTS
+#define R_DrawBufferRange test_ground_draw_range
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
 #undef WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
+#undef R_MakeVertexArrayObject
+#undef R_DrawBufferRange
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
@@ -3901,7 +3923,8 @@ TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
 
 /* The ground stays one whole-map buffer per layer; a changed segment overwrites exactly its own slice. */
 TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
-    enum { W = 2 * SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1, SLICE = SEGMENT_SIZE * SEGMENT_SIZE * 6 };
+    enum { W = GROUND_SEGMENT_SIZE + 1, H = GROUND_SEGMENT_SIZE + 1,
+           SLICE = GROUND_SEGMENT_SIZE * GROUND_SEGMENT_SIZE * 6 };
     static war3mapVertex_t verts[W * H];
     war3map_t map = { .width = W, .height = H, .vertices = verts };
     texture_t texture = { .width = 256, .height = 256 };
@@ -3914,21 +3937,20 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     g_groundTextures[0] = &texture;
     layer = R_BuildGroundLayerGlobal(&map, 0);
     T_NOT_NULL(layer);
-    T_EQ(layer->num_vertices, 2 * SLICE);
+    T_EQ(layer->num_vertices, SLICE);
     T_EQ(g_groundBatches[0].first[0], 0);
     T_EQ(g_groundBatches[0].first[1], SLICE);
-    T_EQ(g_groundBatches[0].first[2], 2 * SLICE);
 
     memset(&ground_update, 0, sizeof(ground_update));
-    R_UpdateGroundSegment(&map, 1, 0);
+    R_UpdateGroundSegment(&map, 0, 0);
     flat_z = ground_update.z;
     T_EQ(ground_update.calls, 1);
-    T_EQ(ground_update.first, SLICE);
+    T_EQ(ground_update.first, 0u);
     T_EQ(ground_update.count, SLICE);
 
     /* Moving a corner height (what a deformation does) changes the baked height but not the slice size. */
-    verts[SEGMENT_SIZE].accurate_height += 2000;
-    R_UpdateGroundSegment(&map, 1, 0);
+    verts[0].accurate_height += 2000;
+    R_UpdateGroundSegment(&map, 0, 0);
     T_EQ(ground_update.calls, 2);
     T_EQ(ground_update.count, SLICE);
     T_ASSERT(ground_update.z > flat_z + 1.0f);
@@ -3936,6 +3958,88 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
     test_free(layer);
     R_ResetGroundTextures();
+}
+
+TEST(renderer_terrain, ground_visibility_culling_preserves_partial_edge_chunks) {
+    enum { W = GROUND_SEGMENT_SIZE + 5, H = GROUND_SEGMENT_SIZE + 3 };
+    static war3mapVertex_t verts[W * H];
+    uint32_t grounds[] = {0};
+    war3map_t map = { .width = W, .height = H, .center = { -10.0f * TILE_SIZE, -8.0f * TILE_SIZE },
+                      .grounds = grounds, .num_grounds = 1, .vertices = verts };
+    texture_t texture = { .width = 256, .height = 256 };
+    viewDef_t saved_view = tr.viewDef;
+    maplayer_t *layer;
+    mat4_t clip;
+    uint32_t total_vertices;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    FOR_LOOP(i, W * H) verts[i].accurate_height = 8192;
+    R_ResetGroundTextures();
+    g_groundTextures[0] = &texture;
+    layer = R_BuildGroundLayerGlobal(&map, 0);
+    T_NOT_NULL(layer);
+    T_EQ(g_groundBatches[0].columns, 2u);
+    T_EQ(g_groundBatches[0].rows, 2u);
+    /* Full 8x8 chunk, 4x8 right edge, 8x2 bottom edge, and 4x2 corner. */
+    T_EQ(layer->num_vertices, (8u * 8u + 4u * 8u + 8u * 2u + 4u * 2u) * 6u);
+    total_vertices = layer->num_vertices;
+
+    /* Retain each partial edge chunk in turn while rejecting its full-sized
+     * neighbor on the same row/column. */
+    box3_t const right_bounds = g_groundSegmentBounds[1];
+    box3_t const bottom_bounds = g_groundSegmentBounds[2];
+    float const right_mid_x = (right_bounds.min.x + right_bounds.max.x) * 0.5f;
+    float const all_mid_y = (g_groundSegmentBounds[0].min.y + g_groundSegmentBounds[2].max.y) * 0.5f;
+    float const bottom_mid_y = (bottom_bounds.min.y + bottom_bounds.max.y) * 0.5f;
+    float const all_mid_x = (g_groundSegmentBounds[0].min.x + g_groundSegmentBounds[1].max.x) * 0.5f;
+    Matrix4_identity(&clip);
+    clip.v[0] = 2.0f / ((right_bounds.max.x - right_bounds.min.x) * 0.9f);
+    clip.v[5] = 2.0f / ((g_groundSegmentBounds[2].max.y - g_groundSegmentBounds[0].min.y) * 1.2f);
+    clip.v[12] = -clip.v[0] * right_mid_x;
+    clip.v[13] = -clip.v[5] * all_mid_y;
+    clip.v[14] = 256.0f;
+    Frustum_Calculate(&clip, &tr.viewDef.frustum);
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(true);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 2u);
+    T_EQ(ground_draw_test.range_first[0], g_groundBatches[0].first[1]);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[2] - g_groundBatches[0].first[1]);
+    T_EQ(ground_draw_test.range_first[1], g_groundBatches[0].first[3]);
+    T_EQ(ground_draw_test.range_vertices[1], g_groundBatches[0].first[4] - g_groundBatches[0].first[3]);
+
+    Matrix4_identity(&clip);
+    clip.v[0] = 2.0f / ((g_groundSegmentBounds[1].max.x - g_groundSegmentBounds[0].min.x) * 1.2f);
+    clip.v[5] = 2.0f / ((bottom_bounds.max.y - bottom_bounds.min.y) * 0.9f);
+    clip.v[12] = -clip.v[0] * all_mid_x;
+    clip.v[13] = -clip.v[5] * bottom_mid_y;
+    clip.v[14] = 256.0f;
+    Frustum_Calculate(&clip, &tr.viewDef.frustum);
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(true);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 1u);
+    T_EQ(ground_draw_test.range_first[0], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[4] - g_groundBatches[0].first[2]);
+
+    /* Disable culling: every baked range, including both partial edges, is drawn. */
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(false);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 2u); /* One contiguous run per row. */
+    T_EQ(ground_draw_test.range_first[0], 0u);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_first[1], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_vertices[1], total_vertices - g_groundBatches[0].first[2]);
+
+    R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+    test_free(layer);
+    R_ResetGroundTextures();
+    tr.viewDef = saved_view;
 }
 
 TEST(renderer_terrain, terrain_normal_cache_hits_and_invalidates_between_bakes) {
@@ -4855,8 +4959,6 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
         if (rows[i].id == id) return &rows[i];
     T_ASSERT(false); return NULL;
 }
-#include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
-
 static wc3WaterStyle_t test_shore_style;
 static model_t test_shore_model;
 static uint32_t test_shore_loads, test_shore_draws, test_shore_last_frame;
