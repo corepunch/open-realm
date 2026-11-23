@@ -9525,6 +9525,44 @@ TEST(wc3_api, controller_input_preserves_scripted_ownership) {
     gc->no_control = old_ctrl;
 }
 
+TEST(wc3_api, client_begin_applies_local_camera_default_before_map_scripts) {
+    gameClient_t *gc = &game.clients[0];
+    bool scripts_started = level.scriptsStarted;
+    float old_target;
+
+    /* Exercise the real ClientInput -> ClientBegin path used by signon. */
+    setup_test_world();
+    gc = &game.clients[0];
+    gc->camera_preference_valid = false;
+    gc->camera_preference_default = 0.0f;
+    gc->camera_preference_maximum = 0.0f;
+    gc->camera.state.target_distance = 1650.0f;
+    gc->camera.old_state.target_distance = 1650.0f;
+    gc->ps.distance = 1650.0f;
+    level.scriptsStarted = true; /* Keep this regression independent of a JASS VM. */
+
+    inputCmd_t cmd = { .action = BZ_INPUT_CAMERA_PREFERENCE,
+        .camera_preference = { 2050.0f, 3100.0f } };
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_ASSERT(gc->camera_preference_valid);
+    T_FEQ(gc->camera_preference_default, 2050.0f, 0.001f);
+
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(gc->camera.state.target_distance, 2050.0f, 0.001f);
+    T_FEQ(gc->camera.old_state.target_distance, 2050.0f, 0.001f);
+    T_FEQ(gc->ps.distance, 2050.0f, 0.001f);
+
+    old_target = gc->camera.state.target_distance;
+    world.info.fileFormat = 32;
+    world.info.flags = force_default_camera_zoom;
+    world.info.defaultZoomOverride = 1800;
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(gc->camera.state.target_distance, 1800.0f, 0.001f);
+    T_ASSERT(gc->camera.state.target_distance != old_target);
+
+    level.scriptsStarted = scripts_started;
+}
+
 /* Minimap focus must reach the server camera, clear unit tracking, and respect scripted control. */
 TEST(wc3_api, controller_focus_updates_camera_and_respects_control) {
     gameClient_t *gc = &game.clients[0];

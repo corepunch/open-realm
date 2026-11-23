@@ -22,7 +22,12 @@ void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client) {
                     msg->readcount = msg->cursize;
                     return;
                 }
-                if (client->state == cs_spawned && client->edict) ge->ClientInput(client->edict, &cmd);
+                /* Camera preferences precede `begin` on the same ordered
+                 * message so the game can apply them before map scripts.
+                 * No gameplay input is accepted until the client is spawned. */
+                if (client->edict && (client->state == cs_spawned ||
+                    (client->state == cs_connected && cmd.action == BZ_INPUT_CAMERA_PREFERENCE)))
+                    ge->ClientInput(client->edict, &cmd);
                 break;
             }
             case clc_camera_position:

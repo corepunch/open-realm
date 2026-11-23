@@ -270,6 +270,7 @@ void CL_Init(void);
 void CL_Frame(uint32_t msec);
 void CL_FramePrepare(uint32_t msec);
 void CL_FrameRender(uint32_t msec);
+void CL_SendCameraPreference(void);
 bool CL_LocalServerWorkerReady(void); /* Client has completed local world loading and begin handshake. */
 void CL_Shutdown(void);
 
@@ -384,6 +385,9 @@ static inline void player_set_lens(player_t *ps, gameCamera_t const *cam) {
 void Game_StartupDiagnostics(void);
 
 bool CL_GameDefaultCamera(gameCamera_t *camera);
+/* The selected game may expose player-local zoom preferences to the universal
+ * client for input prediction and its typed signon preference message. */
+bool CL_GameCameraPreferences(float *user_default, float *user_maximum);
 typedef struct {
     float minimum, default_distance, maximum;
 } gameCameraZoomPolicy_t;

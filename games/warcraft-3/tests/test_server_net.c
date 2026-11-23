@@ -137,9 +137,11 @@ static uint32_t test_game_shutdowns;
 static uint32_t test_camera_calls;
 static edict_t *test_camera_ent;
 static vec2_t test_camera_pos;
+static inputCmd_t test_camera_cmd;
 
 static void test_set_camera(edict_t *ent, inputCmd_t const *cmd) {
-    test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
+    test_camera_calls++; test_camera_ent = ent; test_camera_cmd = *cmd;
+    if (cmd->action == BZ_INPUT_FOCUS) test_camera_pos = cmd->focus;
 }
 
 static uint32_t test_disconnect_calls;
@@ -543,19 +545,29 @@ TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
     uint8_t data[32];
     sizeBuf_t msg;
     inputCmd_t cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
+    inputCmd_t preference = { .action = BZ_INPUT_CAMERA_PREFERENCE,
+        .camera_preference = {2100.0f, 3000.0f} };
     reset_server_state(1);
     client_t *client = &svs.clients[0];
     client->state = cs_connected;
+    client->edict = &test_edicts[0];
     test_camera_calls = 0;
     SZ_Init(&msg, data, sizeof(data));
     MSG_WriteByte(&msg, clc_input); MSG_WriteInput(&msg, &cmd);
     SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 0);
-    client->state = cs_spawned; client->edict = &test_edicts[0];
-    msg.readcount = 0;
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, clc_input); MSG_WriteInput(&msg, &preference);
     SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 1);
+    T_EQ(test_camera_cmd.action, BZ_INPUT_CAMERA_PREFERENCE);
+    T_FEQ(test_camera_cmd.camera_preference.default_distance, 2100.0f, 0.001f);
+    T_FEQ(test_camera_cmd.camera_preference.maximum_distance, 3000.0f, 0.001f);
+    client->state = cs_spawned; client->edict = &test_edicts[0];
+    msg.readcount = 0; msg.cursize = 0;
+    MSG_WriteByte(&msg, clc_input); MSG_WriteInput(&msg, &cmd);
+    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 2);
     T_FEQ(test_camera_pos.x, 12, 0.001f); T_FEQ(test_camera_pos.y, -34, 0.001f);
     msg.readcount = 0; msg.cursize--;
-    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 1);
+    SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 2);
 }
 
 /* A UDP client sees the Q2 netchan header (sequence, acknowledge) in front of every in-game packet; return the payload. */

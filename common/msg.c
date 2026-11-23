@@ -577,15 +577,19 @@ void MSG_WriteInput(sizeBuf_t *buf, inputCmd_t const *cmd) {
     case BZ_INPUT_MOVE:
         MSG_WriteByte(buf, cmd->move.buttons); MSG_WriteShort(buf, cmd->move.msec);
         break;
+    case BZ_INPUT_CAMERA_PREFERENCE:
+        MSG_WriteFloat(buf, cmd->camera_preference.default_distance);
+        MSG_WriteFloat(buf, cmd->camera_preference.maximum_distance);
+        break;
     }
 }
 
 /* Validate the complete operation before the server passes it to an authoritative player edict. */
 bool MSG_ReadInput(sizeBuf_t *buf, inputCmd_t *cmd) {
-    static uint32_t const sizes[] = { 8, 16, 3 };
+    static uint32_t const sizes[] = { 8, 16, 3, 8 };
     if (buf->readcount >= buf->cursize) return false;
     *cmd = (inputCmd_t){ .action = MSG_ReadByte(buf) };
-    if (cmd->action > BZ_INPUT_MOVE || sizes[cmd->action] > buf->cursize - buf->readcount) return false;
+    if (cmd->action > BZ_INPUT_CAMERA_PREFERENCE || sizes[cmd->action] > buf->cursize - buf->readcount) return false;
     switch (cmd->action) {
     case BZ_INPUT_FOCUS:
         cmd->focus = (vec2_t){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
@@ -597,6 +601,11 @@ bool MSG_ReadInput(sizeBuf_t *buf, inputCmd_t *cmd) {
     case BZ_INPUT_MOVE:
         cmd->move.buttons = MSG_ReadByte(buf); cmd->move.msec = (uint16_t)MSG_ReadShort(buf);
         return !(cmd->move.buttons & ~BZ_INPUT_MOVE_MASK) && cmd->move.msec <= BZ_INPUT_MAX_MSEC;
+    case BZ_INPUT_CAMERA_PREFERENCE:
+        cmd->camera_preference.default_distance = MSG_ReadFloat(buf);
+        cmd->camera_preference.maximum_distance = MSG_ReadFloat(buf);
+        return isfinite(cmd->camera_preference.default_distance) && cmd->camera_preference.default_distance >= 0.0f &&
+            isfinite(cmd->camera_preference.maximum_distance) && cmd->camera_preference.maximum_distance >= 0.0f;
     }
     return false;
 }

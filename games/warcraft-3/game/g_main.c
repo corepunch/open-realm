@@ -1391,8 +1391,17 @@ static void G_CameraTraceFrame(void) { }
 /* The player controller has no model; its focus and orbit still belong to the game. */
 static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
     gameClient_t *client;
-    if (score_transition.terminal || !ent || !ent->client || !cmd) return;
+    if (!ent || !ent->client || !cmd) return;
     client = ent->client;
+    if (cmd->action == BZ_INPUT_CAMERA_PREFERENCE) {
+        if (!isfinite(cmd->camera_preference.default_distance) || cmd->camera_preference.default_distance < 0.0f ||
+            !isfinite(cmd->camera_preference.maximum_distance) || cmd->camera_preference.maximum_distance < 0.0f) return;
+        client->camera_preference_default = cmd->camera_preference.default_distance;
+        client->camera_preference_maximum = cmd->camera_preference.maximum_distance;
+        client->camera_preference_valid = true;
+        return;
+    }
+    if (score_transition.terminal) return;
     if (client->no_control) return;
     if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
     if (cmd->action == BZ_INPUT_VIEW) {
@@ -2168,6 +2177,11 @@ static void G_ClientDisconnect(edict_t *edict) {
      * stops G_RunFrame. Detect the final viewer here, not by polling the
      * simulation tail (which will never run again). */
     bool const was_paused = level.script_paused || level.modal_paused;
+    if (edict && edict->client) {
+        edict->client->camera_preference_valid = false;
+        edict->client->camera_preference_default = 0.0f;
+        edict->client->camera_preference_maximum = 0.0f;
+    }
     G_SetClientConnected(edict, false);
     if (score_transition.shown) {
         G_FlushScoreTransition();
@@ -2177,6 +2191,19 @@ static void G_ClientDisconnect(edict_t *edict) {
          * score transition was actually requested before draining anything. */
         G_FlushPausedScoreTransition();
     }
+}
+
+/* Apply only the player's interactive default before map scripts run. Scripted
+ * camera fields remain free to author their own initial or cinematic state. */
+static void G_ApplyClientCameraPreference(gameClient_t *client) {
+    gameCameraZoomPolicy_t policy;
+    if (!client || !client->camera_preference_valid ||
+        !CL_GameCameraZoomPolicy(&policy, client->camera_preference_default,
+                                 client->camera_preference_maximum)) return;
+    client->camera.state.target_distance = policy.default_distance;
+    client->camera.old_state.target_distance = policy.default_distance;
+    client->ps.distance = policy.default_distance;
+    client->camera.start_time = client->camera.end_time = G_Time();
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
@@ -2195,6 +2222,7 @@ static void G_ClientBegin(edict_t *edict) {
     if (!client->mapplayer) {
         client->ps.vieworigin = (vec3_t){ 0, 0, 0 };
     }
+    G_ApplyClientCameraPreference(client);
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
             (unsigned)(edict - globals.edicts),

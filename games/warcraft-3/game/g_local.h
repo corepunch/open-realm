@@ -782,6 +782,8 @@ struct client_s {
     menu_t menu;
     bool cursor_signal; /* transient locked overlay; preserves the underlying command menu */
     bool cursor_missing_reported; /* bounded missing-skin diagnostic; derived presentation state */
+    bool camera_preference_valid; /* client-local zoom preferences received before begin; runtime only */
+    float camera_preference_default, camera_preference_maximum;
     clientCamera_t camera;
     /* HUD identity/selection cache; live HP/mana are player-state bindings, not cached layout state. */
     infoPanelCache_t infopanel;

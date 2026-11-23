@@ -18,6 +18,12 @@ Warcraft III W3I format 32 adds default/max zoom override values and format 33 a
 
 `CL_GameCameraZoomPolicy()` resolves the effective player-controlled range.  Player preferences are read from archived `wc3_camera_default_distance` and `wc3_camera_max_distance` cvars.  Enabled W3I force values replace the corresponding preference and the resulting policy is normalized so `minimum <= default <= maximum`.
 
+After map media is ready, the shared client sends those two local preferences as a typed input before `begin`. The
+server accepts that preference during signon, stores it on the WC3 player client, and applies the effective default in
+`G_ClientBegin` before starting map scripts. This initializes the first camera sample with the selected default.
+W3I forced values still take precedence, and scripts that set camera fields after startup retain control. The generic
+client has no WC3 cvar names; each game supplies preferences through `CL_GameCameraPreferences()`.
+
 `CL_GameDefaultCamera()` uses the map-forced effective default when a map enables the relevant W3I flags.  This keeps server-authored spawn and `ResetToGameCamera` state compatible with maps that force camera zoom without teaching the generic client about Warcraft map flags.
 
 ## Player controls
@@ -54,8 +60,9 @@ JASS camera fields
     -> authored value, no player-zoom clamp
 ```
 
-## Known remaining gap
+## Startup coverage
 
-The archived player default is client-local, while the initial WC3 camera sample and JASS `ResetToGameCamera` are server-authored.  This patch does not add a new network/userinfo contract solely to transmit the player's preferred default distance to the server.  As a result, maps without a forced default still spawn/reset through the established `1650` server default until the player uses interactive zoom/F5.  Map-forced defaults are applied on both sides because they are part of authoritative W3I data.
-
-A future implementation can close the per-player start/reset gap only after defining a typed client-to-server preference contract; do not make the generic server inspect WC3 cvar names or clamp scripted camera fields as a shortcut.
+`wc3_api.client_begin_applies_local_camera_default_before_map_scripts` exercises the typed preference through the real
+`ClientInput` and `ClientBegin` callbacks and verifies both the user default and a forced W3I default. The shared
+`typed_controller_input_roundtrip_and_validation` test covers serialization and invalid values; the server network
+test verifies that the preference is accepted before spawn while ordinary input remains gated.

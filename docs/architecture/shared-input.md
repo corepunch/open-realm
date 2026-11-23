@@ -38,9 +38,13 @@ Malformed or truncated commands are diagnosed and terminate parsing of that pack
 | `BZ_INPUT_FOCUS` | 2 float coordinates | RTS changes/clamps its focus; an actor-follow game ignores free panning |
 | `BZ_INPUT_VIEW` | 3 float Euler degrees, float distance | Game applies orbit angles/distance and its limits |
 | `BZ_INPUT_MOVE` | byte direction bits, unsigned short milliseconds | Game moves its controller or actor |
+| `BZ_INPUT_CAMERA_PREFERENCE` | float default distance, float maximum distance | Game-local client preference; accepted during signon before `begin` |
 
-`clc_input` is opcode 4. `BZ_PROTOCOL_VERSION` is 2: clients and servers must be upgraded together. The old
-`clc_camera_position` opcode remains readable and maps to the focus operation. Existing game commands such as
+`clc_input` is opcode 4. `BZ_PROTOCOL_VERSION` is 25: clients and servers must be upgraded together. The server accepts
+only the camera-preference operation before a client is spawned; gameplay input remains gated on the assigned,
+spawned player edict. The client sends the preference before `begin` on the same reliable message stream. Each game
+can publish preferences through `CL_GameCameraPreferences`; the universal client does not inspect game-specific cvars.
+The old `clc_camera_position` opcode remains readable and maps to the focus operation. Existing game commands such as
 `select`, `smart`, `cast`, and WoW's legacy text `move` remain game commands. This is not a new arbitrary-command
 import/export callback.
 

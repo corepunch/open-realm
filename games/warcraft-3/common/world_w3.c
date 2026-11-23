@@ -340,6 +340,20 @@ bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default,
     return true;
 }
 
+#ifdef BZ_CLIENT_WORLD
+bool CL_GameCameraPreferences(float *user_default, float *user_maximum) {
+    float default_distance, maximum_distance;
+    if (!user_default || !user_maximum) return false;
+    default_distance = Cvar_Value("wc3_camera_default_distance", WC3_CAMERA_DEFAULT_DISTANCE);
+    maximum_distance = Cvar_Value("wc3_camera_max_distance", WC3_CAMERA_MAX_DISTANCE);
+    *user_default = isfinite(default_distance) && default_distance >= 0.0f
+        ? default_distance : WC3_CAMERA_DEFAULT_DISTANCE;
+    *user_maximum = isfinite(maximum_distance) && maximum_distance >= 0.0f
+        ? maximum_distance : WC3_CAMERA_MAX_DISTANCE;
+    return true;
+}
+#endif
+
 bool CL_GameDefaultCamera(gameCamera_t *camera) {
     gameCameraZoomPolicy_t const zoom = W3_CameraZoomPolicy(WC3_CAMERA_DEFAULT_DISTANCE, WC3_CAMERA_MAX_DISTANCE);
     if (!camera) return false;

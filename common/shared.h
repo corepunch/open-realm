@@ -643,7 +643,12 @@ _Static_assert(UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL < MAX_STATS,
 #define BZ_INPUT_MOVE_MASK 15u // bits; four directional buttons accepted on the wire
 #define BZ_BROAD_HEIGHT_SAMPLES 4 // taps per axis; shared terrain blur kernel; used by camera and air-height sampling
 
-typedef enum { BZ_INPUT_FOCUS, BZ_INPUT_VIEW, BZ_INPUT_MOVE } INPUTACTION;
+typedef enum {
+    BZ_INPUT_FOCUS,
+    BZ_INPUT_VIEW,
+    BZ_INPUT_MOVE,
+    BZ_INPUT_CAMERA_PREFERENCE,
+} INPUTACTION;
 enum {
     BZ_MOVE_FORWARD = 1 << 0,
     BZ_MOVE_BACK = 1 << 1,
@@ -656,6 +661,7 @@ typedef struct inputCmd_s {
         vec2_t focus;
         struct { vec3_t angles; float distance; } view;
         struct { uint32_t buttons, msec; } move;
+        struct { float default_distance, maximum_distance; } camera_preference;
     };
 } inputCmd_t;
 

@@ -1291,6 +1291,18 @@ static void CL_SendInput(inputCmd_t const *cmd) {
     MSG_WriteInput(&cls.netchan.message, cmd);
 }
 
+/* A game may publish player-local camera preferences without teaching the
+ * universal client its cvar names. Send them before `begin` so the game can
+ * apply them to the initial server-authored camera sample. */
+void CL_SendCameraPreference(void) {
+    float user_default, user_maximum;
+    if (!CL_GameCameraPreferences(&user_default, &user_maximum) ||
+        !isfinite(user_default) || user_default < 0.0f ||
+        !isfinite(user_maximum) || user_maximum < 0.0f) return;
+    CL_SendInput(&(inputCmd_t){ .action = BZ_INPUT_CAMERA_PREFERENCE,
+        .camera_preference = { user_default, user_maximum } });
+}
+
 /* Keep immediate orbit feedback separate from the authoritative delta-compressed player state. */
 static void CL_SendView(vec3_t angles, float dist) {
     cl.camera_prediction.view = true;
@@ -2702,13 +2714,13 @@ void IN_SelectUp(void) {
 static void CL_ApplyPlayerZoom(float dist, bool block_over_ui) {
     float min_dist = Cvar_Value("camera_min_distance", 0.0f);
     float max_dist = Cvar_Value("camera_max_distance", 0.0f);
+    float user_default, user_maximum;
     gameCameraZoomPolicy_t policy;
 
     if (!CL_GameplayInputReady() || (block_over_ui && CL_MouseOverGameplayUI()) ||
         !isfinite(dist)) return;
-    if (CL_GameCameraZoomPolicy(&policy,
-            Cvar_Value("wc3_camera_default_distance", 1650.0f),
-            Cvar_Value("wc3_camera_max_distance", 3000.0f))) {
+    if (CL_GameCameraPreferences(&user_default, &user_maximum) &&
+        CL_GameCameraZoomPolicy(&policy, user_default, user_maximum)) {
         min_dist = policy.minimum;
         max_dist = policy.maximum;
     }
@@ -2749,12 +2761,12 @@ static void CL_ZoomKey_f(void) {
 static void CL_ZoomDefault_f(void) {
     gameCameraZoomPolicy_t policy;
     gameCamera_t camera;
+    float user_default, user_maximum;
     float dist;
 
     if (!CL_GameplayInputReady()) { gamepad.last_a_released = 0; return; }
-    if (CL_GameCameraZoomPolicy(&policy,
-            Cvar_Value("wc3_camera_default_distance", 1650.0f),
-            Cvar_Value("wc3_camera_max_distance", 3000.0f))) dist = policy.default_distance;
+    if (CL_GameCameraPreferences(&user_default, &user_maximum) &&
+        CL_GameCameraZoomPolicy(&policy, user_default, user_maximum)) dist = policy.default_distance;
     else if (CL_GameDefaultCamera(&camera)) dist = camera.distance;
     else return;
     CL_SendView(cl.viewDef.camerastate[0].viewangles, MAX(0, dist));
