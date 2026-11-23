@@ -194,6 +194,33 @@ The bridge also provides:
 Authored boolexpr filters run with the event-specific filter unit before trigger
 conditions/actions are scheduled.
 
+## Registration indexes and retirement during dispatch
+
+The authoritative registry remains `level.events.handlers[MAX_EVENTS]`.
+`G_MakeEvent` and `G_RetireEvent` maintain derived acceleration fields in
+`level.events`: `registry_high_water`, `touch_trigger_mask` (region enter/leave
+and unit-in-range), and `game_state_event_mask` (game-state-limit handlers).
+Normal event dispatch iterates live registrations in slot order. The touch pass
+(`G_TouchTriggers`) scans its mask in ascending slot order, preserving filter
+and event ordering without checking every unused slot on unit movement.
+
+An authored JASS region filter can call `DestroyTrigger` and retire a later
+registration while the touch pass is executing. Because the pass has already
+copied the current 64-bit word, clearing the registry's mask is not enough:
+dispatch must also recheck `event->inuse` for each selected bit. Otherwise a
+destroyed registration can run a stale filter. Tests
+`wc3_api.region_filter_retirement_skips_later_snapshot_bit` and
+`wc3_api.event_registry_indexes_reuse_slots_and_rebuild_from_live_handlers`
+cover that ordering and same-slot reuse.
+
+The masks and high-water value are derived state, not an additional persistent
+authority. `ReadGame` invokes `G_RebuildEventRegistryCache` after restoring the
+serialized handlers. The
+`wc3_save.queued_event_reference_round_trips_after_region_slot_retirement`
+test checks reconstruction alongside a queued registration reference. When
+changing handler creation, retirement, or restoration, update these indexes as
+one lifecycle and preserve registration-slot dispatch order.
+
 ## Diagnostics
 
 `wc3_event_debug` is opt-in and must not affect gameplay:

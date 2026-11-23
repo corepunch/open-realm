@@ -36,6 +36,8 @@ static void test_particle_texture(GLenum target, GLuint texture) {
     if (pcap.unit >= GL_TEXTURE0 && pcap.unit < GL_TEXTURE0 + 8) pcap.bound[pcap.unit - GL_TEXTURE0] = texture;
 }
 static void test_particle_active(GLenum unit) { pcap.unit = unit; }
+void R_ActiveTexture(GLenum unit) { test_particle_active(unit); }
+void R_BindGLTexture(GLenum target, GLuint texture) { test_particle_texture(target, texture); }
 static void test_particle_attrib(GLuint index, GLint size, GLenum type, GLboolean norm, GLsizei stride, void const *data) {
     (void)type; (void)norm;
     if (index == attrib_texcoord) { pcap.uvsize = size; pcap.stride = stride; pcap.uvoffset = (uintptr_t)data; }

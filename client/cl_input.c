@@ -3912,6 +3912,7 @@ TEST(client_input, edge_scroll_cursor_lifecycle) {
     __typeof__(input) old_input = input;
     mouseEvent_t old_mouse = mouse;
     float old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_margin = Cvar_Value("cl_camera_edge_margin", 6);
+    float old_far_margin = Cvar_Value("cl_camera_far_edge_margin", 2);
     __typeof__(camera_drag) old_drag = camera_drag;
     bool old_west = cam_west;
     memcpy(saved, &cl, sizeof(cl));
@@ -3930,9 +3931,9 @@ TEST(client_input, edge_scroll_cursor_lifecycle) {
         T_FEQ(dir.x, (int)x - 1, 0.001f);
         T_FEQ(dir.y, 1 - (int)y, 0.001f);
     }
-    mouse.origin = (vec2_t){1022, 384};
+    mouse.origin = (vec2_t){1020, 384};
     T_FEQ(CL_MouseScroll().x, 0, 0.001f);
-    mouse.origin.x = 1023;
+    mouse.origin.x = 1021;
     T_FEQ(CL_MouseScroll().x, 1, 0.001f);
     T_ASSERT(!CL_MouseCaptured());
     camera_drag.active = true;
@@ -3965,6 +3966,7 @@ TEST(client_input, edge_scroll_cursor_lifecycle) {
     cam_west = old_west; camera_drag = old_drag;
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
     Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_camera_edge_margin", old_margin);
+    Cvar_SetValue("cl_camera_far_edge_margin", old_far_margin);
 }
 
 /* Direct touches own their single-finger click without SDL's mouse synthesis.

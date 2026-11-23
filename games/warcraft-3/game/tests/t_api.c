@@ -653,6 +653,77 @@ TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
     currentplayer = saved_currentplayer;
 }
 
+/* The indexed touch pass snapshots each 64-bit mask word. A JASS filter can
+ * retire another registration in that same word while the pass is running. */
+TEST(wc3_api, region_filter_retirement_skips_later_snapshot_bit) {
+    player_t *saved_player = currentplayer;
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger laterTrigger = null\n"
+        "  unit mover = null\n"
+        "  integer firstFilters = 0\n"
+        "  integer laterFilters = 0\n"
+        "endglobals\n"
+        "function first_filter takes nothing returns boolean\n"
+        "  set firstFilters = firstFilters + 1\n"
+        "  call DestroyTrigger(laterTrigger)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function later_filter takes nothing returns boolean\n"
+        "  set laterFilters = laterFilters + 1\n"
+        "  return true\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger firstTrigger = CreateTrigger()\n"
+        "  local region watched = CreateRegion()\n"
+        "  set laterTrigger = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RegionAddRect(watched, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(firstTrigger, watched, Condition(function first_filter))\n"
+        "  call TriggerRegisterEnterRegion(laterTrigger, watched, Condition(function later_filter))\n"
+        "endfunction\n"
+        "function move_in takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 40.0, 0.0)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(firstFilters == 1, \"first filter did not execute\")\n"
+        "  call BJassAssert(laterFilters == 0, \"retired filter executed from a stale mask word\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "move_in", false);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!(level.events.touch_trigger_mask[0] & (UINT64_C(1) << 1)));
+    currentplayer = saved_player;
+}
+
+TEST(wc3_api, event_registry_indexes_reuse_slots_and_rebuild_from_live_handlers) {
+    levelEvents_t previous = level.events;
+    event_t *region, *state, *range;
+    memset(&level.events, 0, sizeof(level.events));
+    region = G_MakeEvent(EVENT_GAME_ENTER_REGION);
+    state = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    T_NOT_NULL(region); T_NOT_NULL(state);
+    T_EQ(G_EventRegistryHighWater(), 2u);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    T_EQ(level.events.game_state_event_mask[0], UINT64_C(2));
+    G_RetireEvent(region);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(0));
+    range = G_MakeEvent(EVENT_UNIT_IN_RANGE);
+    T_ASSERT(range == region); /* Reuse the first retired slot without a stale type bit. */
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    level.events.registry_high_water = 0;
+    level.events.touch_trigger_mask[0] = level.events.game_state_event_mask[0] = 0;
+    G_RebuildEventRegistryCache(); /* Same derived-index reconstruction used by ReadGame. */
+    T_EQ(G_EventRegistryHighWater(), 2u);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    T_EQ(level.events.game_state_event_mask[0], UINT64_C(2));
+    G_RetireEvent(state); G_RetireEvent(range);
+    T_EQ(G_EventRegistryHighWater(), 0u);
+    level.events = previous;
+}
+
 TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;

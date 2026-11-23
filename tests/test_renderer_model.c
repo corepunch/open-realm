@@ -10,6 +10,30 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+/* The WC3 minimap batching tests compile r_game.c in a separate headless
+ * renderer translation unit. Capture the production submission geometry. */
+uint32_t test_marker_batch_calls;
+bool test_marker_batch_capture;
+uint32_t test_marker_batch_counts[3];
+uint32_t test_marker_batch_texture_ids[3];
+vertex_t test_marker_batch_vertices[3][12];
+void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shader, BLEND_MODE blend,
+                      float glow, float radial, bool has_clip, rect_t const *clip,
+                      vertex_t const *vertices, uint32_t count, bool repeat) {
+    if (!test_marker_batch_capture) return;
+    T_EQ(shader, SHADER_UI);
+    T_EQ(blend, BLEND_MODE_NONE);
+    T_FEQ(glow, 0.0f, 0.001f);
+    T_FEQ(radial, 0.0f, 0.001f);
+    T_ASSERT(!has_clip && !clip && !repeat);
+    T_ASSERT(texture && vertices && count && !(count % 6u));
+    uint32_t slot = test_marker_batch_calls++;
+    if (slot >= 3) return;
+    test_marker_batch_counts[slot] = count;
+    test_marker_batch_texture_ids[slot] = texture->texid;
+    memcpy(test_marker_batch_vertices[slot], vertices, MIN(count, 12u) * sizeof(*vertices));
+}
+
 static cparticle_t emitted[16];
 static uint32_t emit_count;
 cparticle_t *R_SpawnParticle(void) {
@@ -433,18 +457,26 @@ static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w,
     if (data) upload_pixel = *(color32_t const *)data;
 }
 static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
-static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
+static uint32_t texture_bind_calls, texture_active_calls;
+static GLenum texture_last_unit, texture_last_target;
+static GLuint texture_last_id;
+static void test_activetex(GLenum texture) { texture_active_calls++; texture_last_unit = texture; }
+static void test_bindtex(GLenum target, GLuint id) {
+    texture_bind_calls++; texture_last_target = target; texture_last_id = id;
+}
 static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
 static uint32_t texture_delete_count;
 static void test_deletetex(GLsizei n, GLuint const *ids) { (void)ids; texture_delete_count += n; }
 #undef glTexImage2D
 #undef glGenTextures
 #undef glBindTexture
+#undef glActiveTexture
 #undef glTexParameteri
 #undef glDeleteTextures
 #define glTexImage2D test_teximage
 #define glGenTextures test_gentex
 #define glBindTexture test_bindtex
+#define glActiveTexture test_activetex
 #define glTexParameteri test_texparam
 #define glDeleteTextures test_deletetex
 #undef glGetString
@@ -455,6 +487,46 @@ static void test_deletetex(GLsizei n, GLuint const *ids) { (void)ids; texture_de
 #include "renderer/r_blp2.c"
 #include "renderer/r_pcx.c"
 #include "renderer/r_dds.c"
+#undef glActiveTexture
+
+TEST(renderer_texture, binding_cache_keeps_units_separate_and_invalidates_deleted_ids) {
+    uint32_t requests, skipped, binds, units;
+    GLuint id = 12;
+    R_SetTextureBindingCacheEnabled(true);
+    R_InvalidateTextureBindingCache();
+    R_GetTextureBindingCacheStats(NULL, NULL, NULL, NULL);
+    texture_bind_calls = texture_active_calls = 0;
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_ActiveTexture(GL_TEXTURE1);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_last_unit, GL_TEXTURE0);
+    T_EQ(texture_last_target, GL_TEXTURE_2D);
+    T_EQ(texture_last_id, id);
+    T_EQ(texture_bind_calls, 2u);
+
+    R_DeleteGLTextures(1, &id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 3u);
+    R_SetTextureBindingCacheEnabled(false);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 5u);
+    R_SetTextureBindingCacheEnabled(true);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 5u);
+    R_InvalidateTextureBindingCache();
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 6u);
+    R_GetTextureBindingCacheStats(&requests, &skipped, &binds, &units);
+    T_EQ(requests, 9u); T_EQ(skipped, 3u); T_EQ(binds, 6u);
+    T_EQ(units, 4u); T_EQ(texture_active_calls, 4u);
+    R_InvalidateTextureBindingCache();
+}
 
 static struct { uint32_t calls, first, count, instances, stats_count, stats_instances; } draw_test;
 void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {

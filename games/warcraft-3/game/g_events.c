@@ -367,6 +367,9 @@ static void G_TouchTriggers(edict_t *ent) {
         uint32_t const event_index = word * 64 + (uint32_t)__builtin_ctzll(touch_events);
         event_t *evt = &level.events.handlers[event_index];
         touch_events &= touch_events - 1;
+        /* A prior region filter may have retired this registration after the
+         * word was copied. Never dispatch an event from a stale mask bit. */
+        if (!evt->inuse) continue;
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle, region_handle;

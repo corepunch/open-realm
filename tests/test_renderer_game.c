@@ -43,6 +43,11 @@
 extern void R_TestUseProductionModelLoader(bool enabled);
 extern cstring_t R_TestLastTextureLoad(void);
 extern void R_TestSetTextureLoadResult(texture_t *texture);
+extern uint32_t test_marker_batch_calls;
+extern bool test_marker_batch_capture;
+extern uint32_t test_marker_batch_counts[3];
+extern uint32_t test_marker_batch_texture_ids[3];
+extern vertex_t test_marker_batch_vertices[3][12];
 static uint32_t test_spn_render_count;
 static renderEntity_t test_spn_render_entity;
 static mat4_t test_spn_render_transform;
@@ -64,6 +69,59 @@ static bool test_walkable_hit_from_origin;
 static bool test_walkable_accept_hits = true;
 static uint32_t test_walkable_trace_calls;
 static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
+
+TEST(renderer_game, minimap_marker_batches_keep_texture_runs_and_painter_order) {
+    texture_t first = { .texid = 81 }, second = { .texid = 82 };
+    rect_t left = { 1, 2, 3, 4 }, middle = { 10, 20, 3, 4 }, right = { 30, 40, 3, 4 };
+    color32_t red = MAKE(color32_t, 255, 0, 0, 255);
+    color32_t blue = MAKE(color32_t, 0, 0, 255, 255);
+
+    R_FlushMinimapMarkerBatch();
+    test_marker_batch_calls = 0;
+    test_marker_batch_capture = true;
+    R_QueueMinimapMarker(&first, &left, red);
+    R_QueueMinimapMarker(&first, &middle, blue);
+    T_EQ(test_marker_batch_calls, 0u);
+    R_QueueMinimapMarker(&second, &right, red);
+    R_FlushMinimapMarkerBatch();
+    R_FlushMinimapMarkerBatch();
+    test_marker_batch_capture = false;
+
+    T_EQ(test_marker_batch_calls, 2u);
+    T_EQ(test_marker_batch_counts[0], 12u);
+    T_EQ(test_marker_batch_counts[1], 6u);
+    T_EQ(test_marker_batch_texture_ids[0], 81u);
+    T_EQ(test_marker_batch_texture_ids[1], 82u);
+    T_FEQ(test_marker_batch_vertices[0][0].position.x, 1.0f, 0.001f);
+    T_FEQ(test_marker_batch_vertices[0][0].position.y, 2.0f, 0.001f);
+    T_FEQ(test_marker_batch_vertices[0][6].position.x, 10.0f, 0.001f);
+    T_FEQ(test_marker_batch_vertices[0][6].position.y, 20.0f, 0.001f);
+    T_FEQ(test_marker_batch_vertices[1][0].position.x, 30.0f, 0.001f);
+    T_FEQ(test_marker_batch_vertices[1][0].position.y, 40.0f, 0.001f);
+    T_EQ(test_marker_batch_vertices[0][0].color.r, 255);
+    T_EQ(test_marker_batch_vertices[0][6].color.b, 255);
+}
+
+TEST(renderer_game, minimap_marker_batch_flushes_at_capacity_without_reordering) {
+    texture_t texture = { .texid = 92 };
+    rect_t rect = { 0, 0, 2, 2 };
+    R_FlushMinimapMarkerBatch();
+    test_marker_batch_calls = 0;
+    test_marker_batch_capture = true;
+    FOR_LOOP(i, R_MINIMAP_MARKER_BATCH_SIZE + 1u) {
+        rect.x = (float)i;
+        R_QueueMinimapMarker(&texture, &rect, COLOR32_WHITE);
+    }
+    R_FlushMinimapMarkerBatch();
+    test_marker_batch_capture = false;
+    T_EQ(test_marker_batch_calls, 2u);
+    T_EQ(test_marker_batch_counts[0], 6u * R_MINIMAP_MARKER_BATCH_SIZE);
+    T_EQ(test_marker_batch_counts[1], 6u);
+    T_EQ(test_marker_batch_texture_ids[0], 92u);
+    T_EQ(test_marker_batch_texture_ids[1], 92u);
+    T_FEQ(test_marker_batch_vertices[1][0].position.x,
+          (float)R_MINIMAP_MARKER_BATCH_SIZE, 0.001f);
+}
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
     wc3SplatData_t splat = { .name = "EmptySplat", .blend_mode = "0", .sound = "NULL" };
