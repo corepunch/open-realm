@@ -76,6 +76,7 @@ typedef struct mapPlayer_s {
     uint32_t enemyLowPrioritiesFlags; // 1.32+
     uint32_t enemyHighPrioritiesFlags; // 1.32+
     uint32_t color; // runtime only; war3map.w3i records are parsed field-by-field above
+    bool lobbyResolved; // runtime only: this load's lobby resolver chose playerType
 } mapPlayer_t;
 
 typedef struct {
