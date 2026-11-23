@@ -8,10 +8,14 @@ refImport_t ri;
 mdlx_state_t mdlx;
 mat4_t node_matrices[MDX_MAX_NODES];
 static uint32_t drawn[16], draw_count;
+static uint32_t depth_mask_calls;
 
 /* Keep material evaluation and submission intact; capture only the GPU boundary. */
 #undef R_Call
-#define R_Call(func, ...) ((void)0)
+static void TestRCall(cstring_t name) {
+    if (!strcmp(name, "glDepthMask")) depth_mask_calls++;
+}
+#define R_Call(func, ...) TestRCall(#func)
 #include "games/warcraft-3/renderer/mdx/r_mdx_geoset.c"
 
 texture_t const *R_FindTextureByID(uint32_t id) { (void)id; return NULL; }
@@ -85,9 +89,10 @@ TEST(mdx_geoset, portal_base_blends_before_additive_texture_at_same_priority) {
         geos[i] = (mdxGeoset_t){ .materialID = i, .num_triangles = i+1, .num_texcoordChannels = 1,
             .vaos = &vao, .vaos_count = 1, .next = i < 2 ? &geos[i+1] : NULL };
     }
-    tr.render_phase = RENDER_PHASE_ALPHA; mdlx.shader = &shader; draw_count = 0;
+    tr.render_phase = RENDER_PHASE_ALPHA; mdlx.shader = &shader; draw_count = 0; depth_mask_calls = 0;
     MDLX_RenderGeosets(&entity, &model);
     T_EQ(draw_count, 3); T_EQ(drawn[0], 3); T_EQ(drawn[1], 2); T_EQ(drawn[2], 1);
+    T_EQ(depth_mask_calls, 7); /* Six layer-state calls plus one model-level reset. */
 
     /* Authored priority still dominates filter order. Equal filters keep file order. */
     mats[0].priority = -1; layers[1].blendMode = BLEND_MODE_BLEND; draw_count = 0;

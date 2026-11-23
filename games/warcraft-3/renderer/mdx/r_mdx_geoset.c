@@ -426,6 +426,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, (void *)(uintptr_t)geoset->indexofs);
     }
 
+}
+
+/* Every geoset layer sets its draw state before submitting geometry. Restore
+ * the shared MDX baseline once after the model's opaque and ordered alpha
+ * submissions, instead of repeating five GL state calls after every geoset. */
+static void MDLX_ResetGeosetState(bool forceUnshaded) {
+    modelProg_t *shader = mdlx.shader;
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glEnable, GL_CULL_FACE);
     R_SetAlphaKeyState(false);
@@ -627,6 +634,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
 
     if (layerCount == 0 ||
         !MDLX_RenderPhaseIncludesPass(tr.render_phase, true, translucent_instance)) {
+        MDLX_ResetGeosetState(forceUnshaded);
         return;
     }
 
@@ -642,6 +650,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
                 MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true, -1);
             }
         }
+        MDLX_ResetGeosetState(forceUnshaded);
         return;
     }
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
@@ -675,6 +684,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
     if (drawOrder != stackDrawOrder) {
         ri.MemFree(drawOrder);
     }
+    MDLX_ResetGeosetState(forceUnshaded);
 }
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
