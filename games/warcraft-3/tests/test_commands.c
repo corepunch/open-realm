@@ -659,6 +659,8 @@ static cstring_t const fixture_maps[] = {
     "Maps\\FrozenThrone\\TwinRivers.w3x",
     "Maps\\MapOverlay.w3x",
     "Maps\\Transport.w3m",
+    "Maps\\Launch-lobby.w3m",
+    "Maps\\Launch-direct.w3m",
 };
 
 static void count_fixture_map(cstring_t path, void *userData) {

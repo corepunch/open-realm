@@ -193,6 +193,7 @@ native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns not
 native GetPlayerScore        takes player whichPlayer, playerscore whichPlayerScore returns integer
 native GetPlayerState         takes player whichPlayer, playerstate whichPlayerState returns integer
 native GetPlayerSlotState     takes player whichPlayer returns playerslotstate
+native StartMeleeAI            takes player num, string script returns nothing
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect
 native SetRect                takes rect whichRect, real minx, real miny, real maxx, real maxy returns nothing
 native GetRectMinX            takes rect whichRect returns real
@@ -509,6 +510,8 @@ globals
     constant playerscore PLAYER_SCORE_HERO_TOTAL = ConvertPlayerScore(22)
     constant playerscore PLAYER_SCORE_RESOURCE_TOTAL = ConvertPlayerScore(23)
     constant playerscore PLAYER_SCORE_TOTAL = ConvertPlayerScore(24)
+    constant playerslotstate PLAYER_SLOT_STATE_EMPTY = ConvertPlayerSlotState(0)
+    constant playerslotstate PLAYER_SLOT_STATE_PLAYING = ConvertPlayerSlotState(1)
     constant playerslotstate PLAYER_SLOT_STATE_LEFT = ConvertPlayerSlotState(2)
     constant playercolor PLAYER_COLOR_RED = ConvertPlayerColor(0)
     constant playercolor PLAYER_COLOR_BLUE = ConvertPlayerColor(1)
