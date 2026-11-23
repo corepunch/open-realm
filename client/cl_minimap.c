@@ -35,6 +35,7 @@ void CL_SetCameraPosition(vec2_t position) {
     position = CL_ClampCameraPosition(position);
     CL_PredictCameraPosition(position);
     cl.camera_prediction.active = true;
+    cl.camera_prediction.scrolling = false;
     cl.camera_prediction.origin = position;
     cl.camera_prediction.focus_ms = cl.time;
     MSG_WriteByte(&cls.netchan.message, clc_input);

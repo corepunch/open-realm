@@ -2014,6 +2014,7 @@ static void CL_ScrollFrame(void) {
     /* A server-authored modal owns input completely; terminate any world drag
      * that began before the modal arrived. */
     if (!CL_GameplayInputReady()) {
+        cl.camera_prediction.scrolling = false;
         camera_drag.active = false;
         CL_EndMinimapDrag();
         cl.selection.in_progress = false;
@@ -2022,6 +2023,7 @@ static void CL_ScrollFrame(void) {
     }
     /* Drag-pan takes over; don't fight it. */
     if (input.look || camera_drag.active || dt <= 0.0f) {
+        if (input.look || camera_drag.active) cl.camera_prediction.scrolling = false;
         return;
     }
 
@@ -2045,6 +2047,7 @@ static void CL_ScrollFrame(void) {
     dx += edge.x; dy += edge.y;
 
     if (dx == 0.0f && dy == 0.0f) {
+        cl.camera_prediction.scrolling = false;
         return;
     }
 
@@ -2054,6 +2057,7 @@ static void CL_ScrollFrame(void) {
     position.x = cl.viewDef.camerastate[0].origin.x + dir.x * step;
     position.y = cl.viewDef.camerastate[0].origin.y + dir.y * step;
     CL_SetCameraPosition(position);
+    cl.camera_prediction.scrolling = true;
 }
 
 
