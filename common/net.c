@@ -23,6 +23,7 @@
  *   needs internal length framing.
  */
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -61,6 +62,7 @@ typedef socklen_t net_socklen_t;
 struct loopback {
     ARRAY(uint8_t, data);
     uint32_t read, write;
+    atomic_flag lock;
 };
 
 // bufs[NS_CLIENT] holds client→server packets; bufs[NS_SERVER] holds
@@ -68,10 +70,20 @@ struct loopback {
 // receiver reads from bufs[!netsrc].
 static struct loopback loopbufs[2];
 
+static void NET_LockLoopback(struct loopback *buf) {
+    while (atomic_flag_test_and_set_explicit(&buf->lock, memory_order_acquire)) { }
+}
+
+static void NET_UnlockLoopback(struct loopback *buf) {
+    atomic_flag_clear_explicit(&buf->lock, memory_order_release);
+}
+
 static void NET_SendLoopPacket(NETSOURCE netsrc, int length, void const *data) {
     struct loopback *buf = &loopbufs[netsrc];
+    NET_LockLoopback(buf);
     if (length <= 0 || length > BZ_LOOPBACK_LIMIT - (int)sizeof(uint32_t)) {
         fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
+        NET_UnlockLoopback(buf);
         return;
     }
     uint32_t packet_size = length + sizeof(uint32_t), used = buf->write - buf->read;
@@ -86,6 +98,7 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, void const *data) {
         uint8_t *data = malloc(cap);
         if (!data) {
             fprintf(stderr, "NET_SendLoopPacket: could not grow queue to %u bytes\n", cap);
+            NET_UnlockLoopback(buf);
             return;
         }
         /* Keep wrapped pending packets in order; the old fixed queues touched 16 MiB at startup. */
@@ -100,18 +113,25 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, void const *data) {
     FOR_LOOP(i, length) {
         buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((char const *)data)[i];
     }
+    NET_UnlockLoopback(buf);
 }
 
 /* Discard everything queued for netsrc to read, e.g. a dead session's datagrams. */
 void NET_ClearLoopPackets(NETSOURCE netsrc) {
     struct loopback *buf = &loopbufs[!netsrc];
+    NET_LockLoopback(buf);
     buf->read = buf->write;
+    NET_UnlockLoopback(buf);
 }
 
 int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     struct loopback *buf = &loopbufs[!netsrc];
+    NET_LockLoopback(buf);
     if (buf->read == buf->write)
+    {
+        NET_UnlockLoopback(buf);
         return 0;
+    }
 
     uint32_t size = 0;
     FOR_LOOP(i, 4) {
@@ -126,6 +146,7 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
 
     memset(from, 0, sizeof(*from));
     from->type = NA_LOOPBACK;
+    NET_UnlockLoopback(buf);
     return (int)size;
 }
 
@@ -310,8 +331,11 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
 
 /* Initialization and shutdown release queue storage without changing the supported burst limit. */
 static void net_clear_loopback(void) {
-    FOR_LOOP(i, 2) free(loopbufs[i].data);
+    FOR_LOOP(i, 2) {
+        free(loopbufs[i].data);
+    }
     memset(loopbufs, 0, sizeof(loopbufs));
+    FOR_LOOP(i, 2) atomic_flag_clear(&loopbufs[i].lock);
 }
 
 void NET_Init(void) {
