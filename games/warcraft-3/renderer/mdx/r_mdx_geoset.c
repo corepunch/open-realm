@@ -127,8 +127,16 @@ typedef struct mdxGeosetDrawOrder_s {
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
-    (void)model;
-    return geoset ? geoset->material : NULL;
+    mdxMaterial_t *material;
+    uint32_t id;
+    if (geoset && geoset->material) return geoset->material;
+    /* Manually assembled/test models and legacy callers may not have passed
+     * through R_LoadModelMDLX's post-parse pointer resolution. */
+    material = model ? model->materials : NULL;
+    id = geoset ? (uint32_t)geoset->materialID : 0;
+    for (; material && id > 0; id--)
+        material = material->next;
+    return material;
 }
 
 static int MDLX_CompareGeosetDrawOrder(void const *a, void const *b) {
