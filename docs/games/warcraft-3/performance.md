@@ -1666,6 +1666,34 @@ were `S_UnitHasStatus` (3.01%), `memcpy` under `MDLX_RenderGeoset` (2.50%),
 optimization should preserve normal gameplay and compare fixed scenes with
 unit models visible. The saved profile was `/tmp/openwarcraft3-human02-toggles.perf.data`.
 
+### November 22 Human02 profile and entity-render isolation on Mali-G72
+
+A fresh release-build run used `Maps\\Campaign\\Human02.w3m`,
+`skip_cutscene 1`, 1920×1200 at 100% render scale, VSync off, and unit shadows
+off. The gameplay log is `build/profiles/human02-current-profile.log`; a
+30-second attached `cpu-clock:u` profile, with 770 samples and no losses, is
+`build/profiles/human02-current.data`. Its weighted stacks put
+`R_DrawEntities` at 24.2% inclusive process CPU, `MDLX_RenderGeoset` at 9.0%,
+`R_UploadShader`/`gs_apply` at 3.4%, and `Frustum_ContainsBox` at 2.1%.
+`SCR_DrawLayout` was 11.7% inclusive, with text layout/drawing at 2.7% and the
+minimap at 1.7%. On the simulation side, `G_RunEntities` was 16.2% inclusive,
+with `monster_think` at 4.6%. These sampled percentages overlap their parents
+and are not frame-time fractions. `R_CPU` reported about 8.9 ms in entity
+submission and 13.7 ms in swap/driver wait; the Panfrost timer query still
+cannot separate GPU execution from driver synchronization.
+
+The last 15 unprofiled `SCR_FPS` windows in that run had a 26.75 FPS median and
+about 335 draw calls/frame. A separate HUD-hidden diagnostic measured 27.65
+FPS and 249 draw calls/frame (`build/profiles/human02-no-hud.log`), showing
+that hiding the HUD alone does not reach 30 FPS. Hiding entity models with
+`r_entities 0` measured 31.86 FPS and about 140 draw calls/frame at the same
+resolution (`build/profiles/human02-no-entities-current.log`). This is an
+upper bound that breaks normal presentation, but it confirms that entity
+rendering contains enough headroom to recover the missing 3.3 FPS. The next
+renderer experiment should target MDX entity submission/state work and retain
+all models; static doodad instancing remains low priority because the earlier
+Human02 audit found only about five compatible static entities per frame.
+
 ### NightElf07 follow-up on the same Mali-G72 host (November 22, 2026)
 
 Matched NightElf07 captures used 1920×1200, 100% render scale, VSync off,
@@ -1809,6 +1837,42 @@ about 9.1% inclusive CPU, including JASS event work at 8.2%, while
 reducing MDX submission and map-script work stronger next candidates than
 further lookup-cache changes, though neither has a measured end-to-end gain
 yet.
+
+#### November 22 follow-up: client/server frame budget and GPU devfreq
+
+A fresh 80-second full-scene capture added `com_profile 1` at 100% render
+scale. The last 15 gameplay windows measured **20.48 FPS median**. `R_CPU`
+reported **31.75 ms** median renderer time, including **10.19 ms** entity
+submission and **8.05 ms** in swap/driver wait. The paired `[COM_FRAME]`
+windows averaged 20.8 main-loop iterations/s, **343 ms/s** in server calls
+(median maximum server call 42.97 ms), and **679 ms/s** in client calls.
+This shows that both client rendering and server work consume substantial
+time on the shared main thread; server/client milliseconds are totals per
+second and must not be added to renderer stage times, which are per rendered
+frame. The log is `build/profiles/nightelf-com-profile-100.log`.
+
+To check the resolution effect on this map, 70-second uncapped captures sampled
+`/sys/class/devfreq/13040000.gpu/cur_freq` every 200 ms. After the initial map
+load, the GPU clock read 800 MHz in 97.3% of 100%-scale samples and 95.1% of
+50%-scale samples (the device's maximum is 800 MHz). At 50% scale the last 15
+FPS windows measured **23.6 FPS median**; median renderer time fell to 28.58
+ms, with 2.85 ms spent in the scale pass and 1.86 ms in swap. Thus halving the
+render dimensions recovered only about 3 FPS on NightElf07 and did not reach
+30. These are separate campaign runs, not a replayed paired simulation, so
+the FPS difference is indicative. The devfreq reading reports clock, not GPU
+busy percentage, so the high clock is suggestive only and does not prove GPU
+saturation. Panfrost timer queries remain unusable on this driver, and its
+debugfs/tracefs counters are not readable to the current user. Captures are
+`build/profiles/nightelf-gpu-devfreq{,-50}.txt` and
+`build/profiles/nightelf-gpu-devfreq{,-50}-game.log`.
+
+A shader candidate then removed the helper-level normalizations because both
+vertex shader call sites already normalized their input. It measured **20.23
+FPS** and 31.84 ms renderer time versus the preceding 20.48 FPS and 31.75 ms
+baseline; entity submission changed from 10.19 to 9.99 ms while swap changed
+from 8.05 to 8.46 ms. This does not establish a gain, so the shader change was
+reverted. Logs are `build/profiles/nightelf-normalize-shader-candidate.log`
+and `build/profiles/nightelf-com-profile-100.log`.
 
 #### November 22 land-mine target precheck on Mali-G72
 
@@ -2391,7 +2455,93 @@ MDX cache regression passed. A focused invocation of
 `build/bin/test_renderer_model 'renderer_model.mdx_local_pose_cache*'` passed
 9/9 assertions.
 
-## MDX geoset material lookup on Mali-G72
+#### November 22 follow-up: per-model MDX GL state cache (rejected)
+
+An opt-in `r_mdx_gl_state_cache` experiment skipped repeated blend, depth, and
+cull state calls inside each model's geoset submission. It skipped about 35%
+of the tracked state requests, but the matched NightElf07 capture did not show
+a frame-time benefit: the cache-off median was 23.7 FPS / 39.90 ms renderer
+time / 13.19 ms entity time, and cache-on was 23.7 FPS / 40.02 ms / 13.55 ms.
+The last 15 FPS windows were 23.7 off and 23.9 on, within normal variation;
+the entity stage was slower with the cache. Remove the cache rather than keep
+its extra bookkeeping. Logs are
+`build/profiles/nightelf-mdx-state-cache-{off,on}-20261122.log`.
+
+#### November 22 follow-up: WC3 minimap contacts (rejected)
+
+The ARM profile attributed about 2% of sampled CPU to minimap contact drawing,
+so a temporary `r_wc3_minimap_contacts` switch skipped marker generation and
+draws while retaining the map, fog, camera rectangle, and border. At 100% scale,
+the off/on captures had identical 23.8 FPS medians and 39.77/39.94 ms median
+renderer times; the entity stage also overlapped at 13.61/13.53 ms. Disabling
+contacts removed about 38 draws and 900 vertices per frame, without measurable
+FPS or CPU savings. The diagnostic switch was removed. Logs are
+`build/profiles/nightelf-minimap-contacts-{off,on}-20261122.log`.
+
+The existing `r_hud 0` diagnostic (which skips all gameplay HUD layers) repeated
+at 24.9 FPS versus 24.0–24.2 FPS with `r_hud 1`, and reduced median renderer
+time from 39.89–39.91 ms to 38.36–38.46 ms. The UI stage fell from 0.82 to
+0.23 ms and draws from 364 to 241 per frame. This implicates the HUD/layout
+submission path, but disabling the HUD is not a shippable optimization and the
+gain remains under 1 FPS. Logs are `build/profiles/nightelf-hud-{off,
+off-repeat,on-repeat}-20261122.log`; the first HUD-on comparison is the
+`nightelf-minimap-contacts-on` log (the contacts switch was set to its default
+on value).
+
+An order-preserving `r_ui_quad_batch` experiment combined only adjacent images
+with identical texture, shader, blend, clip, and wrap state. It reduced draws
+from 364 to 357 per frame, but the matched runs were both 24.0 FPS in the last
+15 windows; median renderer time was 39.88 ms off and 40.02 ms on. The UI stage
+was unchanged at 0.78/0.79 ms. The switch and implementation were removed.
+Captures: `build/profiles/nightelf-ui-quad-batch-{off,on}-20261122.log`.
+
+An `r_fogofwar 0` capture at the same settings measured 23.6 FPS versus 24.0
+with the overlay enabled; renderer time and world submission time were unchanged
+within variation. Keep the overlay enabled. The `r_norefresh 1` diagnostic
+reached 58 main-loop iterations/s while the rendered run stayed near 24 FPS;
+`COM_FRAME` showed about 0.45 ms/s in client work without drawing versus about
+960 ms/s with rendering. This confirms the current gap is predominantly in
+render submission/driver/presentation, not game simulation. Logs are
+`build/profiles/nightelf-fogofwar-off-20261122.log` and
+`build/profiles/nightelf-norefresh-worker-20261122.log`.
+
+#### November 23 follow-up: water and terrain-segment diagnostics
+
+At 100% render scale with the local server worker, two full-scene `r_water`
+on/off pairs measured 23.8 and 23.9 FPS with water versus 23.3 and 23.7 FPS
+without it. Disabling water removed about 12 draws and 2.3k vertices and
+lowered median world-stage time from 8.9 ms to 7.8 ms, but renderer frame time
+and FPS did not improve consistently (median FPS was slightly lower). The
+water toggle was removed.
+
+A per-view cache for map-segment frustum results was also tested with water
+enabled. It measured 23.9 FPS, 39.94 ms renderer time, and 8.91 ms world time,
+within the water-on baseline range of 23.8–23.9 FPS, 39.78–40.20 ms, and
+8.88–8.93 ms. The cache was removed because the repeated segment tests were
+not a meaningful frame cost on this scene. Logs are
+`build/profiles/nightelf-water-{on,off}-20261122.log`,
+`build/profiles/nightelf-water-{on,off}-repeat-20261123.log`, and
+`build/profiles/nightelf-terrain-visibility-cache-20261123.log`.
+
+A texture wrap/filter parameter cache was tested with four matched 900-frame
+NightElf07 captures at 1920×1200, 100% render scale, VSync off, unit shadows
+off, and the local server worker enabled. The last 15 steady-state windows
+averaged 24.015 FPS with the cache off and 23.905 FPS with it on. Median
+renderer time was 39.574 ms off and 39.649 ms on; the UI stage changed from
+0.822 to 0.812 ms, while swap time increased from 9.663 to 10.211 ms. Draw
+counts were effectively identical. This shows no measurable CPU or end-to-end
+benefit, so the sampler parameter cache and its temporary toggle were removed.
+Captures are `build/profiles/nightelf-texture-param-{off,on}-{a,b}.log`.
+
+As a lower-bound diagnostic, hiding game entities, HUD, and minimap at native
+render scale measured 29.7 FPS over the last 15 one-second windows; also
+disabling particles measured 29.8 FPS. This still does not reach 30 FPS, and
+neither configuration is a valid full-game result. The remaining visible
+scene is dominated by world/alpha submission and presentation. Captures are
+`build/profiles/nightelf-lower-bound-no-entities-hud-minimap-20261122.log` and
+`build/profiles/nightelf-lower-bound-no-entities-hud-minimap-particles-20261122.log`.
+
+#### November 23 follow-up: resolve MDX geoset materials at load time
 
 Each visible geoset looked up its material by walking the model's MTLS linked
 list during the opaque pass and twice more while preparing the alpha pass. The
