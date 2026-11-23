@@ -586,9 +586,11 @@ void Cvar_Init(void) {
     Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
     Cvar_GetD("r_profile",        "0",                 0,            "frame timings: 0=off, 1=CPU/particles, 2=CPU and async GPU queries");
     Cvar_GetD("r_program_cache",  "1",                 0,            "skip unchanged GL program bindings; 0 enables uncached profiling");
+    Cvar_GetD("r_mdx_local_pose_cache", "1",            0,            "reuse exact MDX local poses between instances within a render view");
     Cvar_GetD("r_norefresh",      "0",                 0,            "skip all screen rendering while client/server processing continues");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
     Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");
+    Cvar_GetD("r_render_scale",   "100",               CVAR_ARCHIVE, "3D render scale percentage; UI remains at native resolution");
 #ifdef WOW
     /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
     Cvar_GetD("r_fog",            "1",                 CVAR_ARCHIVE, "render world distance fog");
