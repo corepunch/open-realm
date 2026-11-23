@@ -701,13 +701,6 @@ static buffer_t ribbon_buf;
 static bool ribbon_buf_ready;
 static vertex_t ribbon_verts[TRAIL_MAX_EDGES * 6];
 
-mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
-    mdxMaterial_t *material = model->materials;
-    for (; material && id > 0; id--)
-        material = material->next;
-    return material;
-}
-
 static void MDLX_EnsureRibbonBuffer(void) {
     static const struct { GLuint attr; GLint size; GLenum type; GLboolean norm; size_t ofs; } attrs[] = {
         { attrib_position, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, position) },
