@@ -11,7 +11,7 @@ BUILD_DIR="${REPO_ROOT}/build"
 IMAGE_NAME="openrealm-portmaster"
 CONTAINER_NAME="openrealm-portmaster-extract"
 ZIP_NAME="open-realm-wc3.zip"
-BUNDLE_FFMPEG_LIBS="${BUNDLE_FFMPEG_LIBS:-0}"
+BUNDLE_FFMPEG_LIBS="${BUNDLE_FFMPEG_LIBS:-1}"
 
 mkdir -p "${BUILD_DIR}"
 
