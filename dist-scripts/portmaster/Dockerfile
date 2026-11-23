@@ -4,9 +4,8 @@
 FROM ubuntu:22.04 AS builder
 
 ARG TARGETARCH
-# Set to 1 to package the FFmpeg runtime libraries with the PortMaster build.
-# Most supported systems already provide them, so keep this disabled by default.
-ARG BUNDLE_FFMPEG_LIBS=0
+# Set to 0 to omit the FFmpeg runtime libraries from the PortMaster package.
+ARG BUNDLE_FFMPEG_LIBS=1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # This PortMaster package currently targets aarch64 only.
@@ -96,6 +95,7 @@ RUN set -eux; \
     test -f "${PM_SRC}/openrealm-wc3.gptk2.ini"; \
     test -f "${PM_SRC}/port.json"; \
     test -f "${PM_SRC}/gameinfo.xml"; \
+    test -f "${PM_SRC}/README.md"; \
     \
     # Top-level PortMaster launcher.
     cp "${PM_SRC}/open-realm-wc3.sh" \
@@ -107,6 +107,7 @@ RUN set -eux; \
        "${PKG_DIR}/port.json"; \
     cp "${PM_SRC}/gameinfo.xml" \
        "${PKG_DIR}/gameinfo.xml"; \
+    cp "${PM_SRC}/README.md" "${PKG_DIR}/README.md"; \
     cp "${PM_SRC}/openrealm-wc3.gptk2.ini" \
        "${PKG_DIR}/openrealm-wc3.gptk2.ini"; \
     cp "${PM_SRC}/WC3-ISO-IMPORT.md" "${PKG_DIR}/WC3-ISO-IMPORT.md"; \
