@@ -15,6 +15,9 @@
 #include "games/starcraft-2/menu/menu_layout.h"
 #include "test.h"
 
+/* The focused SC2 adapter harness does not link common/main.c's optional worker. */
+void Com_ServerWorkerShutdown(void) {}
+
 /* Define the SC2 layout host table */
 extern sc2LayoutImport_t sc2_layout_import;
 

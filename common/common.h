@@ -268,6 +268,8 @@ void FS_SetSheetHost(sheetHost_t const *host);
 
 void CL_Init(void);
 void CL_Frame(uint32_t msec);
+void CL_FramePrepare(uint32_t msec);
+void CL_FrameRender(uint32_t msec);
 void CL_Shutdown(void);
 
 /* Sound (sound/s_sound.c) */
@@ -290,6 +292,10 @@ void CL_LoadingFrame(void);
 
 void SV_Init(void);
 void SV_Frame(uint32_t msec);
+void SV_FrameWorker(uint32_t msec);
+bool SV_ProcessPendingRequests(void);
+void SV_ApplyDeferredPauseCvar(void);
+void Com_ServerWorkerShutdown(void);
 void SV_Shutdown(void);
 void SV_StartLobby(cstring_t pFilename);
 void SV_Map(cstring_t pFilename);

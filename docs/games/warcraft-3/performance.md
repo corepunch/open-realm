@@ -2275,7 +2275,81 @@ NightElf07 `CAbilityBlightGrowth` → `G_SetBlightRadius` path, where
 profile hotspots, not a measured post-patch improvement; compare matched
 NightElf07 scenes and frame times on the target ARM64 device.
 
-## MDX local-pose reuse between instances on Mali-G72
+### NightElf07 local server/render overlap experiment (November 22, 2026)
+
+On the ARM64 Mali-G72 host, an opt-in `com_server_worker 1` mode moves the local
+server frame to a persistent SDL thread. Client input, packet parsing, and
+asset preparation remain on the main thread; the server frame then overlaps
+the client render. The serial default remains `com_server_worker 0`. Online
+and externally controlled sessions stay on the serial path. Pause-Cvar writes
+and map/quit requests are applied on the main thread after the worker joins.
+
+At 1920×1200, 100% render scale, VSync off, and unit shadows off, matched
+release builds measured the last 15 one-second `r_stats` windows as follows:
+
+| Mode | Median FPS | Renderer `frame_ms` | `entities_ms` | `swap_ms` | Draws/frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Serial | 19.7 | 32.2 | 10.8 | 7.8 | 358 |
+| Server worker | 23.7 | 39.7 | 13.6 | 9.7 | 353 |
+
+The worker mode gained about **4.0 FPS**, with scene work staying comparable
+(about 118k vertices/frame). Its server worker consumed about 415 ms/s, while
+the main thread spent about 35 ms/s waiting for a previous server job. The
+render frame itself slowed by about 7.5 ms, including higher entity and swap
+times, so the improvement is below 30 FPS and leaves the renderer as the next
+limit. Lowering worker priority did not change the result (23.8 FPS, 40.3 ms
+renderer frame). Pinning the worker to lower-capacity CPU 0 regressed to 16.8
+FPS because the server job could not keep up; pinning it to CPU 6 measured
+23.9 FPS, within run variation. Keep this as an opt-in experiment, not the
+default scheduler.
+
+With `r_entities 0` and the worker enabled, the last 15 windows reached 28.7
+FPS at 100% scale, with 230 draws/frame and 73k vertices/frame. Renderer time
+was still 31.8 ms, including 9.1 ms world, 8.2 ms alpha, and 11.5 ms swap.
+This diagnostic removes visible game entities but does not reach 30 FPS; the
+remaining limit includes map/alpha rendering and driver time. Restricting the
+whole process to the higher-capacity CPU cluster measured 24.0 FPS versus
+23.8 FPS unpinned, within run variation.
+
+The game ran through multiple NightElf07 AI waves without a process failure,
+and the network/server and renderer-frame focused tests passed. Visual and
+multiplayer correctness were not validated. Raw logs remain in
+`build/profiles/nightelf-server-worker-*.log`. The best next target is reducing
+the renderer entity/world frame time while keeping this mode available for
+matched follow-up measurements.
+
+#### November 22 follow-up: particle and CPU-affinity diagnostics
+
+Two further release captures used the same NightElf07 map, 1920×1200 native
+resolution, 100% render scale, VSync off, unit shadows off, cutscene skipping,
+and the local server worker. Disabling `r_particles` yielded a 23.9 FPS median
+over the last 15 one-second windows versus 23.7 FPS in the prior matched
+profile-enabled worker run. Median renderer time was 40.16 ms versus 39.72 ms,
+with no reduction in entity, world, or swap time. This small FPS difference
+does not establish a gain; keep particles enabled. Logs are
+`build/profiles/nightelf-particles-off-20261122.log` and
+`build/profiles/nightelf-server-worker-profile-enabled-20261122.log`.
+
+Pinning the render/main thread to high-capacity CPU 6 and the `server-frame`
+worker to CPU 4 measured 24.0 FPS and 40.42 ms renderer time, versus 23.7 FPS
+and 39.72 ms in the unpinned worker run. The higher renderer time and 0.3 FPS
+difference are within run variation; do not retain this affinity policy. The
+capture is `build/profiles/nightelf-split-affinity-20261122.log`.
+
+An `r_profile 2` capture produced no usable GPU timer result on this Panfrost
+driver (`R_GPU frame_ms=0.000`), and its renderer timing differed from the
+profile-1 capture, so it is excluded from A/B comparisons. Its raw log is
+`build/profiles/nightelf-gpu-baseline-20261122.log`.
+
+The latest usable symbolised ARM profile remains
+`build/profiles/nightelf-mdx-state-reset-batch.data`: `R_DrawEntities` sampled
+at 17.83% inclusive, including 6.19% in `MDLX_BindBoneMatrices` and 3.41% in
+`MDLX_RenderGeoset`. Those are profile sample shares, not elapsed-time savings.
+The existing renderer already has per-view cross-pass pose reuse and key-span
+caching, so any further MDX pose-cache work must target reuse between distinct
+instances and first prove that identical poses occur often enough in this map.
+
+#### November 22 follow-up: exact local-pose reuse between instances
 
 An opt-out `r_mdx_local_pose_cache` now reuses object-space node matrices across
 distinct instances only when the model, current/previous animation samples,

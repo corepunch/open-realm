@@ -559,6 +559,8 @@ void Cvar_Init(void) {
     Cvar_GetD("sv_rate",          "0",                 0,            "UDP client link in bytes/second; snapshots due while it drains are skipped; 0=unlimited");
     Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
     Cvar_GetD("com_frame_limit",  "0",                 0,            "exit after N main-loop iterations; 0=disabled");
+    Cvar_GetD("com_profile",      "0",                 0,            "log one-second client/server stage timings and gameplay FPS samples");
+    Cvar_GetD("com_server_worker","0",                 0,            "run the local game server frame on an SDL worker while rendering");
 #ifdef WC3
     Cvar_GetD("com_maxfps",       "64",                CVAR_ARCHIVE, "maximum client frame rate; 0=unlimited");
 #else

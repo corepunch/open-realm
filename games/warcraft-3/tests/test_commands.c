@@ -15,6 +15,9 @@
 #include "test.h"
 #include "common/video_modes.h"
 
+/* The focused command harness does not link common/main.c's optional worker. */
+void Com_ServerWorkerShutdown(void) {}
+
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
 static PATHSTR last_load_name;

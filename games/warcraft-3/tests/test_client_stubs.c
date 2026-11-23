@@ -21,6 +21,9 @@ struct client_static cls;
 refExport_t re;
 menuExport_t menu;
 mouseEvent_t mouse;
+static uint64_t test_performance_counter;
+uint64_t SDL_GetPerformanceCounter(void) { return ++test_performance_counter; }
+uint64_t SDL_GetPerformanceFrequency(void) { return 1000; }
 uint32_t test_fow_upload_calls;
 uint32_t test_cursor_draw_calls;
 uint32_t test_client_realtime, test_cursor_time;

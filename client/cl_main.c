@@ -1559,7 +1559,7 @@ static void CL_SendSoundEvents(void) {
     }
 }
 
-void CL_Frame(uint32_t msec) {
+void CL_FramePrepare(uint32_t msec) {
     cl_realtime += msec;
     cl.time += msec;
 
@@ -1595,7 +1595,15 @@ void CL_Frame(uint32_t msec) {
     } else if (cls.state == ca_active) {
         CL_PrepRefresh();
     }
+}
+
+void CL_FrameRender(uint32_t msec) {
     SCR_UpdateScreen(msec);
+}
+
+void CL_Frame(uint32_t msec) {
+    CL_FramePrepare(msec);
+    CL_FrameRender(msec);
 }
 
 #if defined(BZ_TESTS) && defined(BZ_CLIENT_WORLD)

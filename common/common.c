@@ -1780,6 +1780,7 @@ void MemFree(handle_t mem) {
 }
 
 void Com_Quit(void) {
+    Com_ServerWorkerShutdown();
     if (!Cvar_Integer("dedicated", 0)) {
         /* Frame-limited runs are diagnostics; writing them would persist command-line cvars into the user config. */
         if (Cvar_Integer("com_frame_limit", 0) <= 0)

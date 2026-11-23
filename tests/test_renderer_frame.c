@@ -7,8 +7,11 @@ extern SDL_Window *window;
 static struct {
     Uint64 clock;
     uint32_t swaps, delays, slept, sets, ends, stages, shader_resets;
+    uint32_t current_time, worker_frames, serial_frames;
+    uint32_t client_prepares, client_renders, client_frames, worker_msec;
     int vsync, applied, maxfps;
     bool shader_cache, cache_applied;
+    bool server_worker, online_mode, external_control, fast_forward;
     renderPass_t passes[8];
 } frame_test;
 
@@ -18,7 +21,11 @@ static cstring_t frame_cvar(cstring_t name, cstring_t fallback) {
     return fallback;
 }
 static int frame_integer(cstring_t name, int fallback) {
-    return !strcmp(name, "com_maxfps") ? frame_test.maxfps : fallback;
+    if (!strcmp(name, "com_maxfps")) return frame_test.maxfps;
+    if (!strcmp(name, "com_server_worker")) return frame_test.server_worker;
+    if (!strcmp(name, "online_mode")) return frame_test.online_mode;
+    if (!strcmp(name, "com_fast_forward")) return frame_test.fast_forward;
+    return fallback;
 }
 static Uint32 frame_ticks(void) { return (Uint32)(frame_test.clock / 1000); }
 static Uint64 frame_counter(void) { frame_test.clock += 100; return frame_test.clock; }
@@ -95,6 +102,28 @@ void R_ProfileStage(renderPass_t pass) {
 }
 void R_ProfileEndFrame(void) { frame_test.ends++; }
 void R_ProfileBeginFrame(void) {}
+void R_InvalidateTextureBindingCache(void) {}
+void R_SetTextureBindingCacheEnabled(bool enabled) { (void)enabled; }
+void R_GetTextureBindingCacheStats(uint32_t *requests, uint32_t *skipped, uint32_t *bind_calls, uint32_t *unit_calls) {
+    if (requests) *requests = 0;
+    if (skipped) *skipped = 0;
+    if (bind_calls) *bind_calls = 0;
+    if (unit_calls) *unit_calls = 0;
+}
+
+uint32_t Sys_Milliseconds(void) { return frame_test.current_time; }
+void Cbuf_AddText(cstring_t text) { (void)text; }
+void Cbuf_Execute(void) {}
+void Com_Quit(void) {}
+bool SV_NeedsFrame(void) { return true; }
+bool SV_HasExternalControl(void) { return frame_test.external_control; }
+bool SV_ProcessPendingRequests(void) { return false; }
+void SV_ApplyDeferredPauseCvar(void) {}
+void SV_Frame(uint32_t msec) { (void)msec; frame_test.serial_frames++; }
+void SV_FrameWorker(uint32_t msec) { frame_test.worker_frames++; frame_test.worker_msec = msec; }
+void CL_FramePrepare(uint32_t msec) { (void)msec; frame_test.client_prepares++; }
+void CL_FrameRender(uint32_t msec) { (void)msec; frame_test.client_renders++; }
+void CL_Frame(uint32_t msec) { (void)msec; frame_test.client_frames++; }
 
 /* The real frame entry owns external-state invalidation and samples the live diagnostic toggle once. */
 TEST(renderer_frame, begin_frame_resets_shader_binding_and_honors_live_cache_mode) {
@@ -145,19 +174,61 @@ TEST(renderer_frame, main_loop_limiter_waits_only_for_remaining_capped_budget) {
 
 TEST(renderer_frame, cpu_report_counts_complete_stage_windows_and_resets_when_disabled) {
     frame_profile_reports = 0; frame_profile_output[0] = 0;
-    Com_ProfileFrame(false, 0, 0, 0, 0);
-    Com_ProfileFrame(true, 10000, 20000, 50000, 100000);
+    Com_ProfileFrame(false, false, 0, 0, 0, 0, 0, 0, 0);
+    Com_ProfileFrame(true, false, 0, 10000, 10000, 20000, 20000, 50000, 100000);
     T_EQ(frame_profile_reports, 0);
-    Com_ProfileFrame(true, 1010000, 1020000, 1060000, 1110000);
+    Com_ProfileFrame(true, false, 0, 1010000, 1010000, 1020000, 1020000, 1060000, 1110000);
     T_EQ(frame_profile_reports, 1);
     T_ASSERT(strstr(frame_profile_output, "loops=2"));
     T_ASSERT(strstr(frame_profile_output, "elapsed_ms=1100.000"));
     T_ASSERT(strstr(frame_profile_output, "online_ms=20.000"));
-    T_ASSERT(strstr(frame_profile_output, "server_ms=70.000"));
-    T_ASSERT(strstr(frame_profile_output, "server_max_ms=40.000"));
+    T_ASSERT(strstr(frame_profile_output, "server_main_ms=70.000"));
+    T_ASSERT(strstr(frame_profile_output, "server_main_max_ms=40.000"));
     T_ASSERT(strstr(frame_profile_output, "client_ms=100.000"));
-    Com_ProfileFrame(false, 0, 0, 0, 0);
-    Com_ProfileFrame(true, 2000000, 2010000, 2020000, 2030000);
+    Com_ProfileFrame(false, false, 0, 0, 0, 0, 0, 0, 0);
+    Com_ProfileFrame(true, false, 0, 2000000, 2000000, 2010000, 2010000, 2020000, 2030000);
     T_EQ(frame_profile_reports, 1);
-    Com_ProfileFrame(false, 0, 0, 0, 0);
+    Com_ProfileFrame(false, false, 0, 0, 0, 0, 0, 0, 0);
+}
+
+TEST(renderer_frame, local_server_worker_waits_between_frames_and_shuts_down_cleanly) {
+    memset(&frame_test, 0, sizeof(frame_test));
+    frame_test.server_worker = true;
+    frame_test.fast_forward = true;
+    frame_test.current_time = 100;
+    frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+
+    OpenRealm_Frame(&frame_state);
+    T_EQ(frame_test.client_prepares, 1);
+    T_EQ(frame_test.client_renders, 1);
+    T_EQ(frame_test.client_frames, 0);
+    T_EQ(frame_test.serial_frames, 0);
+
+    frame_test.current_time = 120;
+    OpenRealm_Frame(&frame_state); /* joins the first worker tick, then queues the next */
+    Com_ServerWorkerShutdown();
+    Com_ServerWorkerShutdown();
+    T_EQ(frame_test.worker_frames, 2);
+    T_EQ(frame_test.worker_msec, FRAMETIME);
+    T_EQ(frame_test.client_prepares, 2);
+    T_EQ(frame_test.client_renders, 2);
+    T_EQ(frame_test.serial_frames, 0);
+}
+
+TEST(renderer_frame, online_and_externally_controlled_frames_stay_serial) {
+    FOR_LOOP(i, 2) {
+        memset(&frame_test, 0, sizeof(frame_test));
+        frame_test.server_worker = true;
+        frame_test.online_mode = i == 0;
+        frame_test.external_control = i != 0;
+        frame_test.current_time = 100;
+        frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+        OpenRealm_Frame(&frame_state);
+        T_EQ(frame_test.serial_frames, 1);
+        T_EQ(frame_test.worker_frames, 0);
+        T_EQ(frame_test.client_frames, 1);
+        T_EQ(frame_test.client_prepares, 0);
+        T_EQ(frame_test.client_renders, 0);
+        Com_ServerWorkerShutdown();
+    }
 }

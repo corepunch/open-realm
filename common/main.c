@@ -387,11 +387,72 @@ typedef struct {
 
 static openrealm_frame_state_t frame_state;
 
+typedef struct {
+    SDL_Thread *thread;
+    SDL_sem *work;
+    SDL_sem *done;
+    bool stop;
+    bool pending;
+    uint32_t msec;
+    double last_ms;
+} server_worker_t;
+
+static server_worker_t server_worker;
+
+static int Com_ServerWorkerMain(void *unused) {
+    (void)unused;
+    for (;;) {
+        SDL_SemWait(server_worker.work);
+        if (server_worker.stop) break;
+        Uint64 start = SDL_GetPerformanceCounter();
+        SV_FrameWorker(server_worker.msec);
+        Uint64 end = SDL_GetPerformanceCounter();
+        Uint64 frequency = SDL_GetPerformanceFrequency();
+        server_worker.last_ms = frequency ? (double)(end - start) * 1000.0 / frequency : 0.0;
+        SDL_SemPost(server_worker.done);
+    }
+    return 0;
+}
+
+static bool Com_ServerWorkerStart(void) {
+    if (server_worker.thread) return true;
+    server_worker.work = SDL_CreateSemaphore(0);
+    server_worker.done = SDL_CreateSemaphore(0);
+    if (!server_worker.work || !server_worker.done) goto fail;
+    server_worker.thread = SDL_CreateThread(Com_ServerWorkerMain, "server-frame", NULL);
+    if (!server_worker.thread) goto fail;
+    return true;
+fail:
+    if (server_worker.work) SDL_DestroySemaphore(server_worker.work);
+    if (server_worker.done) SDL_DestroySemaphore(server_worker.done);
+    server_worker.work = server_worker.done = NULL;
+    return false;
+}
+
+static double Com_ServerWorkerWait(void) {
+    if (!server_worker.pending) return 0.0;
+    SDL_SemWait(server_worker.done);
+    server_worker.pending = false;
+    return server_worker.last_ms;
+}
+
+void Com_ServerWorkerShutdown(void) {
+    if (!server_worker.thread) return;
+    Com_ServerWorkerWait();
+    server_worker.stop = true;
+    SDL_SemPost(server_worker.work);
+    SDL_WaitThread(server_worker.thread, NULL);
+    SDL_DestroySemaphore(server_worker.work);
+    SDL_DestroySemaphore(server_worker.done);
+    memset(&server_worker, 0, sizeof(server_worker));
+}
+
 /* Stage wall time includes driver waits; loop calls are not necessarily rendered frames. */
-static void Com_ProfileFrame(bool enabled, Uint64 start, Uint64 online_end, Uint64 server_end, Uint64 client_end) {
+static void Com_ProfileFrame(bool enabled, bool async_server, double worker_ms, Uint64 start, Uint64 wait_end, Uint64 online_end, Uint64 prepare_end, Uint64 server_end, Uint64 client_end) {
     static struct {
         bool active;
-        Uint64 start, frequency, online, server, client, server_max;
+        Uint64 start, frequency, wait, online, prepare, server, client, server_max;
+        double worker;
         uint32_t loops;
     } sample;
     if (!enabled) {
@@ -403,17 +464,20 @@ static void Com_ProfileFrame(bool enabled, Uint64 start, Uint64 online_end, Uint
     }
     if (!sample.frequency) return;
     sample.loops++;
-    sample.online += online_end - start;
-    sample.server += server_end - online_end;
+    sample.wait += wait_end - start;
+    sample.online += online_end - wait_end;
+    sample.prepare += prepare_end - online_end;
+    sample.server += server_end - prepare_end;
     sample.client += client_end - server_end;
-    sample.server_max = MAX(sample.server_max, server_end - online_end);
+    sample.worker += worker_ms;
+    sample.server_max = MAX(sample.server_max, server_end - prepare_end);
     Uint64 elapsed = client_end - sample.start;
     if (elapsed < sample.frequency) return;
     double ms = 1000.0 / sample.frequency;
-    fprintf(stderr, "[COM_FRAME] loops=%u elapsed_ms=%.3f online_ms=%.3f server_ms=%.3f server_max_ms=%.3f client_ms=%.3f\n",
-        sample.loops, elapsed * ms, sample.online * ms, sample.server * ms, sample.server_max * ms, sample.client * ms);
+    fprintf(stderr, "[COM_FRAME] loops=%u elapsed_ms=%.3f wait_ms=%.3f online_ms=%.3f prepare_ms=%.3f server_main_ms=%.3f server_main_max_ms=%.3f client_ms=%.3f server_worker_ms=%.3f async=%d\n",
+        sample.loops, elapsed * ms, sample.wait * ms, sample.online * ms, sample.prepare * ms, sample.server * ms, sample.server_max * ms, sample.client * ms, sample.worker, async_server);
     sample.start = client_end; sample.loops = 0;
-    sample.online = sample.server = sample.client = sample.server_max = 0;
+    sample.wait = sample.online = sample.prepare = sample.server = sample.client = sample.server_max = 0; sample.worker = 0.0;
 }
 
 static void OpenRealm_Frame(void *argument) {
@@ -422,13 +486,34 @@ static void OpenRealm_Frame(void *argument) {
     uint32_t elapsed = current_time - state->previous_time;
     bool profile = Cvar_Integer("com_profile", 0) != 0;
     Uint64 start = profile ? SDL_GetPerformanceCounter() : 0;
+    double worker_ms = Com_ServerWorkerWait();
+    if (server_worker.thread) {
+        SV_ApplyDeferredPauseCvar();
+        if (SV_ProcessPendingRequests()) {
+            state->previous_time = current_time;
+            state->frame_count++;
+            return;
+        }
+    }
+    Uint64 wait_end = profile ? SDL_GetPerformanceCounter() : 0;
     Online_Frame(elapsed);
     Uint64 online_end = profile ? SDL_GetPerformanceCounter() : 0;
-    if (SV_NeedsFrame())
+    Uint64 prepare_end = online_end;
+    bool async_server = !state->dedicated && Cvar_Integer("com_server_worker", 0) &&
+        !Cvar_Integer("online_mode", 0) && !SV_HasExternalControl() && SV_NeedsFrame() && Com_ServerWorkerStart();
+    if (async_server) {
+        CL_FramePrepare(elapsed);
+        prepare_end = profile ? SDL_GetPerformanceCounter() : 0;
+        server_worker.msec = Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed;
+        server_worker.pending = true;
+        SDL_SemPost(server_worker.work);
+    } else if (SV_NeedsFrame()) {
         SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed);
+    }
     Uint64 server_end = profile ? SDL_GetPerformanceCounter() : 0;
     if (!state->dedicated) {
-        CL_Frame(elapsed);
+        if (async_server) CL_FrameRender(elapsed);
+        else CL_Frame(elapsed);
     } else {
 #ifndef __EMSCRIPTEN__
         string_t cmd = Sys_ConsoleInput();
@@ -439,7 +524,7 @@ static void OpenRealm_Frame(void *argument) {
         }
 #endif
     }
-    Com_ProfileFrame(profile, start, online_end, server_end, profile ? SDL_GetPerformanceCounter() : 0);
+    Com_ProfileFrame(profile, async_server, worker_ms, start, wait_end, online_end, prepare_end, server_end, profile ? SDL_GetPerformanceCounter() : 0);
     state->previous_time = current_time;
     state->frame_count++;
     if (Cvar_Integer("com_frame_limit", 0) > 0 &&
