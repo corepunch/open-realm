@@ -47,6 +47,7 @@ export XDG_DATA_HOME="$CONFDIR"
 
 # Port specific additional libraries should be included within the port's directory in a separate subfolder named libs.aarch64, libs.armhf or libs.x64
 export LD_LIBRARY_PATH="$GAMEDIR/libs.${DEVICE_ARCH}:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$GAMEDIR/ffmpeg.${DEVICE_ARCH}:$LD_LIBRARY_PATH"
 
 # Provide appropriate controller configuration if it recognizes SDL controller input
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
