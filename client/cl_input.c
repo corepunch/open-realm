@@ -1929,6 +1929,7 @@ static void CL_RegisterCameraControls(void) {
     Cvar_Get("cl_camera_edge_scroll", "0", CVAR_ARCHIVE);
     Cvar_Get("cl_camera_scroll_speed", "0", CVAR_ARCHIVE);
     Cvar_Get("cl_camera_edge_margin", "6", CVAR_ARCHIVE);
+    Cvar_Get("cl_camera_far_edge_margin", "2", CVAR_ARCHIVE);
     Cvar_Get("cl_camera_pan_plane", "0", 0);
 }
 
@@ -1988,12 +1989,17 @@ vec2_t CL_MouseScroll(void) {
         return dir;
     size2_t win = re.GetWindowSize();
     float x = mouse.origin.x, y = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
+    /* At fullscreen edges, SDL/Wayland can report the pointer a couple of
+     * client pixels inside the right/bottom boundary even when it is at the
+     * physical edge. Keep the left/top threshold unchanged and tolerate that
+     * gap on the opposite boundaries. */
+    float const far_edge_margin = MAX(MAX(0.0f, margin), Cvar_Value("cl_camera_far_edge_margin", 2));
     if (win.width <= 0 || win.height <= 0 || x < 0 || y < 0 || x >= win.width || y >= win.height)
         return dir;
     if (x <= margin) dir.x -= 1;
-    if (x >= win.width - 1 - margin) dir.x += 1;
+    if (x >= win.width - 1 - far_edge_margin) dir.x += 1;
     if (y <= margin) dir.y += 1;
-    if (y >= win.height - 1 - margin) dir.y -= 1;
+    if (y >= win.height - 1 - far_edge_margin) dir.y -= 1;
     return dir;
 }
 
