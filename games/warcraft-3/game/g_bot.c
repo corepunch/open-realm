@@ -1719,15 +1719,70 @@ static bool G_BotIsHostile(player_t *player, edict_t *ent) {
  * items, waypoints, corpses, or the attackers themselves. A negative target
  * suicides against any hostile owner; otherwise only the named player's
  * forces qualify. */
-static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t target) {
+typedef struct {
+    edict_t **entities;
+    uint32_t count, capacity;
+} botAssaultTargets_t;
+
+/* A single SuicideUnit batch issues several orders synchronously. Target
+ * ownership, hostility and viewer visibility do not change between those
+ * orders, so evaluate the expensive player-local visibility predicate once
+ * per possible enemy and reuse the resulting ordered list for each attacker. */
+static void G_BotCollectAssaultTargets(player_t *player, int32_t target,
+                                      botAssaultTargets_t *targets) {
+    if (!player || !targets) return;
+    targets->count = 0;
+    if (!targets->entities) return;
+    FILTER_EDICTS(ent, ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
+        ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) &&
+        (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent)) &&
+        !S_UnitIsHiddenFromPlayer(ent, PLAYER_NUM(player))) {
+        if (targets->count == targets->capacity) {
+            uint32_t const capacity = MIN(globals.num_edicts, MAX(64u, targets->capacity * 2u));
+            edict_t **entities = gi.MemAlloc ? gi.MemAlloc(capacity * sizeof(*entities)) : NULL;
+            if (!entities) {
+                if (gi.MemFree) gi.MemFree(targets->entities);
+                targets->entities = NULL;
+                targets->count = targets->capacity = 0;
+                return;
+            }
+            if (targets->count) memcpy(entities, targets->entities, targets->count * sizeof(*entities));
+            if (gi.MemFree) gi.MemFree(targets->entities);
+            targets->entities = entities;
+            targets->capacity = capacity;
+        }
+        targets->entities[targets->count++] = ent;
+    }
+}
+
+static void G_BotAssaultTargetsInit(botAssaultTargets_t *targets) {
+    uint32_t const capacity = MIN(globals.num_edicts, 64u);
+    if (!targets || !capacity || !gi.MemAlloc) return;
+    targets->entities = gi.MemAlloc(capacity * sizeof(*targets->entities));
+    if (targets->entities) targets->capacity = capacity;
+}
+
+static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t target,
+                                   botAssaultTargets_t const *targets) {
     edict_t *best = NULL;
     float best_dist = 0;
-    if (!player || !G_BotUnitAlive(self)) return NULL;
-    FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
-        ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) &&
-        !S_UnitIsHiddenFromPlayer(ent, PLAYER_NUM(player)) &&
-        (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent))) {
-        float dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
+    if (!G_BotUnitAlive(self) || !targets) return NULL;
+    if (!targets->entities) {
+        if (!player) return NULL;
+        FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
+            ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) &&
+            (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent)) &&
+            !S_UnitIsHiddenFromPlayer(ent, PLAYER_NUM(player))) {
+            float dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
+            if (!best || dist < best_dist) { best = ent; best_dist = dist; }
+        }
+        return best;
+    }
+    FOR_LOOP(i, targets->count) {
+        edict_t *ent = targets->entities[i];
+        float dist;
+        if (ent == self) continue;
+        dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }
     }
     return best;
@@ -1735,9 +1790,10 @@ static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t targ
 
 /* Send one assault member at the enemy, falling back to an attack-move toward
  * the staged point so waves keep moving when no target is visible yet. */
-static void G_BotOrderAssaultMember(bot_t *bot, edict_t *unit, int32_t target) {
+static void G_BotOrderAssaultMember(bot_t *bot, edict_t *unit, int32_t target,
+                                    botAssaultTargets_t const *targets) {
     if (!bot || !unit) return;
-    edict_t *enemy = bot ? G_BotAssaultTarget(bot->player, unit, target) : NULL;
+    edict_t *enemy = G_BotAssaultTarget(bot->player, unit, target, targets);
 #ifdef WC3_TRACE_AI
     botTraceAssaultMove_t *trace = unit && unit->s.number < MAX_ENTITIES ? bot_trace_assault_moves + unit->s.number : NULL;
 #endif
@@ -1843,14 +1899,24 @@ static void G_BotTraceAssaultMovement(bot_t *bot) {
  * acceptance for tests, mirroring AddAssault. */
 bool G_BotSuicideUnits(player_t *player, int32_t qty, uint32_t class_id, int32_t target) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botAssaultTargets_t assault_targets = {0};
     bool accepted;
     if (!bot || qty <= 0 || !class_id) return qty <= 0;
     if (bot->captains[BOT_CAPTAIN_ATTACK].state == BOT_CAPTAIN_RETREATING) return false;
     accepted = G_BotAddAssault(player, qty, class_id);
+    bool has_matching_unit = false;
+    FOR_EACH_ARRAY(edict_t *, member, bot->captains[BOT_CAPTAIN_ATTACK].units)
+        if (G_BotUnitAlive(*member) && (*member)->class_id == class_id) { has_matching_unit = true; break; }
+    if (has_matching_unit) {
+        G_BotAssaultTargetsInit(&assault_targets);
+        if (assault_targets.entities) G_BotCollectAssaultTargets(player, target, &assault_targets);
+    }
     FOR_EACH_ARRAY(edict_t *, member, bot->captains[BOT_CAPTAIN_ATTACK].units) {
         edict_t *unit = *member;
-        if (G_BotUnitAlive(unit) && unit->class_id == class_id) G_BotOrderAssaultMember(bot, unit, target);
+        if (G_BotUnitAlive(unit) && unit->class_id == class_id)
+            G_BotOrderAssaultMember(bot, unit, target, &assault_targets);
     }
+    if (assault_targets.entities && gi.MemFree) gi.MemFree(assault_targets.entities);
     return accepted;
 }
 
@@ -1861,6 +1927,7 @@ bool G_BotSuicideUnits(player_t *player, int32_t qty, uint32_t class_id, int32_t
 bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
+    botAssaultTargets_t assault_targets = {0};
     bool any = false;
     if (!bot) return false;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
@@ -1868,8 +1935,13 @@ bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     FOR_EACH_ARRAY(edict_t *, member, captain->units) if (G_BotUnitAlive(*member)) { any = true; break; }
     if (!any) return false;
     if (check_full && !G_BotCaptainIsFull(player)) return false;
+    G_BotAssaultTargetsInit(&assault_targets);
+    if (assault_targets.entities)
+        G_BotCollectAssaultTargets(player, (int32_t)target, &assault_targets);
     FOR_EACH_ARRAY(edict_t *, member, captain->units)
-        if (G_BotUnitAlive(*member)) G_BotOrderAssaultMember(bot, *member, (int32_t)target);
+        if (G_BotUnitAlive(*member))
+            G_BotOrderAssaultMember(bot, *member, (int32_t)target, &assault_targets);
+    if (assault_targets.entities && gi.MemFree) gi.MemFree(assault_targets.entities);
     captain->state = BOT_CAPTAIN_ACTIVE;
     if (bot->stage_valid) captain->goal = bot->stage;
     return true;
