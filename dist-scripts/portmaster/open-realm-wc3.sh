@@ -310,7 +310,7 @@ pm_platform_helper "$GAMEDIR/openwarcraft3.${DEVICE_ARCH}"
 
 #./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3"  +menu_single_player_campaign +vid_mode 0
 #/opt/muos/bin/strace
-./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +set r_vsync 0 +set r_render_scale 100 +set r_unit_shadows 0 +set com_server_worker 1 +set cl_gamepad_nintendo 1 +r_cursor 1 +r_stats 1
+./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +set r_vsync 0 +set r_render_scale 100 +set r_unit_shadows 0 +set com_server_worker 1 +set cl_gamepad_nintendo 1 +set wc3_camera_default_distance 1250 +r_cursor 1 +r_stats 1
 # +set sv_debug_layout 1 +set wc3_harvest_path_debug 2  +set wc3_hero_skill_debug 3
 
 #  +r_entities 1 \
@@ -324,13 +324,6 @@ pm_platform_helper "$GAMEDIR/openwarcraft3.${DEVICE_ARCH}"
 # +set r_cursor 2 \
 #  +set g_debug_destructables 1 \
 #  +set r_debug_destructables 1 \
-
-
-#/opt/muos/bin/strace
-#./openwow.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/world-of-warcraft" +vid_mode 0 +set r_profile 0 +set r_cursor 1  \
-#   +map 1
-
-
 
 # Cleanup any running gptokeyb instances, and any platform specific stuff.
 pm_finish
