@@ -299,7 +299,7 @@ $(GAME_WC3_TEST_LIB): $(WC3_SC2API_BUILD_CONFIG)
 $(WC3_TEST_BINARY): tests/online_acceptance.h $(WC3_TEST_DIR)/online_gameplay.h
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_GAME_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) $(WC3_PROTOBUF_LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c $(WC3_TEST_DIR)/test_map_launch.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c $(WC3_TEST_DIR)/test_map_launch.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
@@ -332,6 +332,13 @@ $(WC3_ENGINE_SHARDS): test-wc3-engine-%: $(WC3_TEST_BINARY) test-assets | $(TEST
 .PHONY: test-client-camera
 test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-client-camera.xml" TEST_JUNIT_SUITE="test-client-camera" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'client_camera.*' +com_frame_limit 100
+
+# process_ suites load whole maps through SV_Map and own their process, so a
+# `*` run skips them; each launch path runs in its own process here.
+.PHONY: test-wc3-map-launch
+test-wc3-map-launch: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
+	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-map-launch-lobby.xml" TEST_JUNIT_SUITE="test-wc3-map-launch-lobby" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_map_launch.lobby*'
+	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-map-launch-direct.xml" TEST_JUNIT_SUITE="test-wc3-map-launch-direct" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_map_launch.direct*'
 
 .PHONY: test-jass-build
 test-jass-build: $(JASS_LIB)
@@ -372,7 +379,7 @@ TEST_BROWSER_SUITE := # test-browser
 		$(TEST_BROWSER_SUITE) \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-jass-rawcodes test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-wc3-map-launch test-client-camera test-wc3-hero-saveload-audit test-jass-rawcodes test-render-harness test-mpq-compression
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
@@ -474,9 +481,15 @@ $(TESTS_MPQ): | $(TESTS_DIR)
 	@set --; for f in $(TESTS_RES_DIR)/TransportMap/*; do \
 		set -- "$$@" "$$f" "$${f##*/}"; done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Transport.w3m pack "$$@"
+	@for kind in lobby direct; do \
+		python3 tools/wc3fixturegen.py $(TESTS_RES_DIR)/LaunchMap-$$kind $$kind || exit 1; \
+		set --; for f in $(TESTS_RES_DIR)/LaunchMap-$$kind/*; do \
+			set -- "$$@" "$$f" "$${f##*/}"; done; \
+		$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/Launch-$$kind.w3m pack "$$@" || exit 1; \
+	done
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
-		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*|RampTerrain/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
+		rel=$${f#$(TESTS_RES_DIR)/}; case "$$rel" in TransportMap/*|RampTerrain/*|LaunchMap-*/*) continue;; esac; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
 		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \

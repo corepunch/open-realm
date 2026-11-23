@@ -119,3 +119,21 @@ function WidgetDropItem takes widget inWidget, integer inItemID returns item
     set y = GetRandomReal(widgetY - radius, widgetY + radius)
     return CreateItem(inItemID, x, y)
 endfunction
+
+// Shaped like retail MeleeStartingAI: only a playing slot whose controller is
+// MAP_CONTROL_COMPUTER gets a melee AI. The fixture has one idle AI script
+// instead of the per-race scripts.
+function MeleeStartingAI takes nothing returns nothing
+    local integer index = 0
+    local player indexPlayer
+    loop
+        set indexPlayer = Player(index)
+        if (GetPlayerSlotState(indexPlayer) == PLAYER_SLOT_STATE_PLAYING) then
+            if (GetPlayerController(indexPlayer) == MAP_CONTROL_COMPUTER) then
+                call StartMeleeAI(indexPlayer, "test_idle.ai")
+            endif
+        endif
+        set index = index + 1
+        exitwhen index == 12
+    endloop
+endfunction

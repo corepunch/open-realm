@@ -271,6 +271,23 @@ static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
 bool run_test_jass(cstring_t src) { return run_test_jass_impl(src, NULL); }
 bool run_test_jass_error(cstring_t src, cstring_t expected) { return run_test_jass_impl(src, expected); }
 
+/* Engine-side map launch tests (games/warcraft-3/tests/test_map_launch.c) run
+ * SV_Map and read one player of the loaded match here. Returns false unless
+ * main() has run without a JASS runtime error, such as a failed BJassAssert. */
+bool G_TestLaunchedPlayer(uint32_t number, uint32_t *controller, bool *melee_ai) {
+    gameClient_t const *client;
+
+    if (number >= MAX_PLAYERS || !level.vm || !level.scriptsConfigured || !level.scriptsStarted ||
+        jass_rterror_pending(level.vm)) {
+        return false;
+    }
+    client = G_GetPlayerClientByNumber(number);
+    if (client->ps.number != number) return false;
+    *controller = client->jass.controller;
+    *melee_ai = level.bots[number].vm && level.bots[number].mode == BOT_MELEE;
+    return true;
+}
+
 __attribute__((constructor)) static void register_test_reset(void) { Test_SetBeforeEach(reset_test_state); }
 
 
