@@ -270,6 +270,7 @@ void CL_Init(void);
 void CL_Frame(uint32_t msec);
 void CL_FramePrepare(uint32_t msec);
 void CL_FrameRender(uint32_t msec);
+bool CL_LocalServerWorkerReady(void); /* Client has completed local world loading and begin handshake. */
 void CL_Shutdown(void);
 
 /* Sound (sound/s_sound.c) */

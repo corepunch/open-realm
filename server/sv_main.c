@@ -39,6 +39,19 @@ bool SV_NeedsFrame(void) {
     return SV_IsActive() || SV_HasExternalControl();
 }
 
+/* A fresh map can replace the server session while the local client still
+ * holds an active snapshot from the previous world. Wait for the new session
+ * to accept that client's begin handshake before enabling worker ticks. */
+bool SV_LocalClientReadyForWorker(void) {
+    if (sv.state != ss_game) return false;
+    FOR_LOOP(i, svs.num_clients) {
+        client_t const *client = &svs.clients[i];
+        if (client->state == cs_spawned && client->netchan.remote_address.type == NA_LOOPBACK)
+            return true;
+    }
+    return false;
+}
+
 bool SV_RequestMap(cstring_t map) {
     PATHSTR resolved;
 

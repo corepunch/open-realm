@@ -2361,6 +2361,24 @@ the client render. The serial default remains `com_server_worker 0`. Online
 and externally controlled sessions stay on the serial path. Pause-Cvar writes
 and map/quit requests are applied on the main thread after the worker joins.
 
+On slower hosts, the worker must not compete with the client's map registration
+or signon handshake. `CL_LocalServerWorkerReady` stays false until the client
+has completed precache/refresh, accepted its first playable world snapshot,
+and left the loading UI; `SV_LocalClientReadyForWorker` independently requires
+a spawned loopback client in the *current* server world. `OpenRealm_Frame`
+therefore runs `SV_Frame` serially during initial loading, loading-screen
+acknowledgement, disconnect, and map transitions. It rechecks both predicates
+after `CL_FramePrepare` because that call can execute a deferred map or quit
+request. If eligibility changes, the already-prepared client is rendered once
+after a serial tick; the worker receives no new job. A previously queued worker
+tick is joined before the next main-thread simulation step.
+Coverage: `client_loading.server_worker_requires_completed_client_activation`,
+`server_net.local_worker_requires_current_spawned_loopback_client`, and
+`renderer_frame.{loading_remains_serial_until_client_is_active,leaving_active_world_joins_worker_and_returns_to_serial,map_change_during_client_prepare_cancels_worker_submission,disabling_cvar_during_prepare_uses_serial_server_once}`.
+These deterministic scheduler/handshake regressions do not prove a stalled
+active worker can recover: once work is queued, `Com_ServerWorkerWait` still
+waits for its completion.
+
 At 1920×1200, 100% render scale, VSync off, and unit shadows off, matched
 release builds measured the last 15 one-second `r_stats` windows as follows:
 

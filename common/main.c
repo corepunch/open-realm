@@ -499,11 +499,21 @@ static void OpenRealm_Frame(void *argument) {
     Online_Frame(elapsed);
     Uint64 online_end = profile ? SDL_GetPerformanceCounter() : 0;
     Uint64 prepare_end = online_end;
-    bool async_server = !state->dedicated && Cvar_Integer("com_server_worker", 0) &&
-        !Cvar_Integer("online_mode", 0) && !SV_HasExternalControl() && SV_NeedsFrame() && Com_ServerWorkerStart();
-    if (async_server) {
+    /* Serial ticks own the entire signon and asset-loading handshake. Deferred
+     * map/menu commands can run in CL_FramePrepare, so eligibility is checked
+     * again before any work is submitted to the SDL thread. */
+    bool const prepare_for_worker = !state->dedicated && Cvar_Integer("com_server_worker", 0) &&
+        !Cvar_Integer("online_mode", 0) && !SV_HasExternalControl() &&
+        SV_NeedsFrame() && SV_LocalClientReadyForWorker() && CL_LocalServerWorkerReady();
+    if (prepare_for_worker) {
         CL_FramePrepare(elapsed);
         prepare_end = profile ? SDL_GetPerformanceCounter() : 0;
+    }
+    bool const async_server = prepare_for_worker && Cvar_Integer("com_server_worker", 0) &&
+        !Cvar_Integer("online_mode", 0) && !SV_HasExternalControl() &&
+        SV_NeedsFrame() && SV_LocalClientReadyForWorker() &&
+        CL_LocalServerWorkerReady() && Com_ServerWorkerStart();
+    if (async_server) {
         server_worker.msec = Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed;
         server_worker.pending = true;
         SDL_SemPost(server_worker.work);
@@ -512,7 +522,7 @@ static void OpenRealm_Frame(void *argument) {
     }
     Uint64 server_end = profile ? SDL_GetPerformanceCounter() : 0;
     if (!state->dedicated) {
-        if (async_server) CL_FrameRender(elapsed);
+        if (prepare_for_worker) CL_FrameRender(elapsed);
         else CL_Frame(elapsed);
     } else {
 #ifndef __EMSCRIPTEN__

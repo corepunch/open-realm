@@ -219,6 +219,31 @@ static void reset_server_state(int max_players) {
     reset_test_gi();
 }
 
+TEST(server_net, local_worker_requires_current_spawned_loopback_client) {
+    reset_server_state(2);
+    svs.num_clients = 2;
+    sv.state = ss_loading;
+    svs.clients[0].state = cs_spawned;
+    svs.clients[0].netchan.remote_address.type = NA_LOOPBACK;
+    T_ASSERT(!SV_LocalClientReadyForWorker());
+
+    sv.state = ss_game;
+    svs.clients[0].state = cs_connected;
+    T_ASSERT(!SV_LocalClientReadyForWorker());
+    svs.clients[0].state = cs_spawned;
+    T_ASSERT(SV_LocalClientReadyForWorker());
+    svs.clients[0].state = cs_connected;
+    T_ASSERT(!SV_LocalClientReadyForWorker());
+
+    svs.clients[1].state = cs_spawned;
+    svs.clients[1].netchan.remote_address.type = NA_IP;
+    T_ASSERT(!SV_LocalClientReadyForWorker());
+    svs.clients[1].netchan.remote_address.type = NA_LOOPBACK;
+    T_ASSERT(SV_LocalClientReadyForWorker());
+    sv.state = ss_lobby;
+    T_ASSERT(!SV_LocalClientReadyForWorker());
+}
+
 TEST(server_net, ready_wait_keeps_handshake_alive_without_advancing_simulation) {
     NET_Shutdown(); reset_server_state(1);
     test_client_stubs_set_cvar("sv_wait_for_begin", "1");

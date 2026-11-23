@@ -924,6 +924,40 @@ execute:
 }
 
 #ifdef BZ_TESTS
+TEST(client_loading, server_worker_requires_completed_client_activation) {
+    connstate_t const saved_state = cls.state;
+    bool const saved_prepped = cl.refresh_prepped, saved_precache = cl.precache_ready;
+    bool const saved_waiting = cl.loading_waiting, saved_frame = cl.frame.valid;
+    uint32_t const saved_ui = cl.playerstate.client_ui_state;
+
+    cls.state = ca_connected;
+    cl.refresh_prepped = cl.precache_ready = cl.frame.valid = false;
+    cl.loading_waiting = false;
+    cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
+    T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.precache_ready = true; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.refresh_prepped = true; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.frame.valid = true; T_ASSERT(!CL_LocalServerWorkerReady());
+    cls.state = ca_active; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    T_ASSERT(CL_LocalServerWorkerReady());
+    cl.playerstate.client_ui_state = CLIENT_UI_CINEMATIC;
+    T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    cl.loading_waiting = true; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.loading_waiting = false; T_ASSERT(CL_LocalServerWorkerReady());
+    cl.precache_ready = false; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.precache_ready = true; T_ASSERT(CL_LocalServerWorkerReady());
+    cl.refresh_prepped = false; T_ASSERT(!CL_LocalServerWorkerReady());
+    cl.refresh_prepped = true; T_ASSERT(CL_LocalServerWorkerReady());
+    cl.frame.valid = false; T_ASSERT(!CL_LocalServerWorkerReady());
+
+    cls.state = saved_state;
+    cl.refresh_prepped = saved_prepped; cl.precache_ready = saved_precache;
+    cl.loading_waiting = saved_waiting; cl.frame.valid = saved_frame;
+    cl.playerstate.client_ui_state = saved_ui;
+}
+
 TEST(client_loading, progress_is_clamped_and_monotonic) {
     float saved = cl.loading_progress;
     uint32_t saved_disable_screen = cls.disable_screen;
@@ -1557,6 +1591,14 @@ static void CL_SendSoundEvents(void) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, "sound_event %u %u %u", event.user, event.request, event.event);
     }
+}
+
+/* Only overlap a local server tick after the client has completed asset
+ * registration, the begin handshake, and its first playable snapshot. */
+bool CL_LocalServerWorkerReady(void) {
+    return cls.state == ca_active && cl.precache_ready && cl.refresh_prepped &&
+        cl.frame.valid && !cl.loading_waiting &&
+        cl.playerstate.client_ui_state == CLIENT_UI_GAME;
 }
 
 void CL_FramePrepare(uint32_t msec) {

@@ -14,6 +14,8 @@ static struct {
     bool shader_cache, cache_applied;
     bool server_worker, online_mode, external_control, fast_forward;
     bool pending_request, worker_release_timed_out;
+    bool client_worker_ready, server_client_ready, prepare_enters_loading;
+    bool prepare_replaces_server_world, prepare_disables_worker;
     renderPass_t passes[8];
 } frame_test;
 static SDL_sem *frame_test_release_worker;
@@ -120,6 +122,8 @@ void Cbuf_Execute(void) {}
 void Com_Quit(void) {}
 bool SV_NeedsFrame(void) { return true; }
 bool SV_HasExternalControl(void) { return frame_test.external_control; }
+bool SV_LocalClientReadyForWorker(void) { return frame_test.server_client_ready; }
+bool CL_LocalServerWorkerReady(void) { return frame_test.client_worker_ready; }
 bool SV_ProcessPendingRequests(void) {
     if (!frame_test.pending_request) return false;
     frame_test.pending_request = false;
@@ -134,7 +138,12 @@ void SV_FrameWorker(uint32_t msec) {
         frame_test.worker_release_timed_out = true;
     frame_test.worker_frames++; frame_test.worker_msec = msec;
 }
-void CL_FramePrepare(uint32_t msec) { (void)msec; frame_test.client_prepares++; }
+void CL_FramePrepare(uint32_t msec) {
+    (void)msec; frame_test.client_prepares++;
+    if (frame_test.prepare_enters_loading) frame_test.client_worker_ready = false;
+    if (frame_test.prepare_replaces_server_world) frame_test.server_client_ready = false;
+    if (frame_test.prepare_disables_worker) frame_test.server_worker = false;
+}
 void CL_FrameRender(uint32_t msec) {
     (void)msec; frame_test.client_renders++;
     if (frame_test_release_worker) SDL_SemPost(frame_test_release_worker);
@@ -210,6 +219,8 @@ TEST(renderer_frame, cpu_report_counts_complete_stage_windows_and_resets_when_di
 TEST(renderer_frame, local_server_worker_waits_between_frames_and_shuts_down_cleanly) {
     memset(&frame_test, 0, sizeof(frame_test));
     frame_test.server_worker = true;
+    frame_test.client_worker_ready = true;
+    frame_test.server_client_ready = true;
     frame_test.fast_forward = true;
     frame_test.current_time = 100;
     frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
@@ -238,6 +249,8 @@ TEST(renderer_frame, server_worker_can_overlap_client_render_without_a_frame_del
     frame_test_release_worker = SDL_CreateSemaphore(0);
     T_NOT_NULL(frame_test_release_worker);
     frame_test.server_worker = true;
+    frame_test.client_worker_ready = true;
+    frame_test.server_client_ready = true;
     frame_test.clock = 100000;
     frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
 
@@ -256,6 +269,8 @@ TEST(renderer_frame, server_worker_can_overlap_client_render_without_a_frame_del
 TEST(renderer_frame, disabling_local_server_worker_joins_before_serial_fallback) {
     memset(&frame_test, 0, sizeof(frame_test));
     frame_test.server_worker = true;
+    frame_test.client_worker_ready = true;
+    frame_test.server_client_ready = true;
     frame_test.clock = 100000;
     frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
     OpenRealm_Frame(&frame_state);
@@ -275,6 +290,8 @@ TEST(renderer_frame, disabling_local_server_worker_joins_before_serial_fallback)
 TEST(renderer_frame, pending_server_request_short_circuits_after_worker_join) {
     memset(&frame_test, 0, sizeof(frame_test));
     frame_test.server_worker = true;
+    frame_test.client_worker_ready = true;
+    frame_test.server_client_ready = true;
     frame_test.clock = 100000;
     frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
     OpenRealm_Frame(&frame_state);
@@ -296,6 +313,8 @@ TEST(renderer_frame, online_and_externally_controlled_frames_stay_serial) {
     FOR_LOOP(i, 2) {
         memset(&frame_test, 0, sizeof(frame_test));
         frame_test.server_worker = true;
+        frame_test.client_worker_ready = true;
+        frame_test.server_client_ready = true;
         frame_test.online_mode = i == 0;
         frame_test.external_control = i != 0;
         frame_test.current_time = 100;
@@ -308,4 +327,78 @@ TEST(renderer_frame, online_and_externally_controlled_frames_stay_serial) {
         T_EQ(frame_test.client_renders, 0);
         Com_ServerWorkerShutdown();
     }
+}
+
+TEST(renderer_frame, loading_remains_serial_until_client_is_active) {
+    memset(&frame_test, 0, sizeof(frame_test));
+    frame_test.server_worker = true;
+    frame_test.server_client_ready = true;
+    frame_test.clock = 100000;
+    frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+
+    OpenRealm_Frame(&frame_state);
+    T_EQ(frame_test.serial_frames, 1u); T_EQ(frame_test.worker_frames, 0u);
+    T_EQ(frame_test.client_frames, 1u); T_EQ(frame_test.client_prepares, 0u);
+    frame_test.client_worker_ready = true;
+    frame_test.server_client_ready = false;
+    frame_test.clock = 120000;
+    OpenRealm_Frame(&frame_state);
+    T_EQ(frame_test.serial_frames, 2u); T_EQ(frame_test.worker_frames, 0u);
+    frame_test.server_client_ready = true;
+    frame_test.clock = 140000;
+    OpenRealm_Frame(&frame_state);
+    Com_ServerWorkerShutdown();
+    T_EQ(frame_test.worker_frames, 1u); T_EQ(frame_test.serial_frames, 2u);
+    T_EQ(frame_test.client_prepares, 1u); T_EQ(frame_test.client_renders, 1u);
+}
+
+TEST(renderer_frame, leaving_active_world_joins_worker_and_returns_to_serial) {
+    memset(&frame_test, 0, sizeof(frame_test));
+    frame_test.server_worker = true;
+    frame_test.client_worker_ready = frame_test.server_client_ready = true;
+    frame_test.clock = 100000;
+    frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+    OpenRealm_Frame(&frame_state);
+    frame_test.client_worker_ready = false;
+    frame_test.clock = 120000;
+    OpenRealm_Frame(&frame_state);
+    Com_ServerWorkerShutdown();
+    T_EQ(frame_test.worker_frames, 1u); T_EQ(frame_test.serial_frames, 1u);
+    T_EQ(frame_test.client_prepares, 1u); T_EQ(frame_test.client_renders, 1u);
+    T_EQ(frame_test.client_frames, 1u);
+}
+
+TEST(renderer_frame, map_change_during_client_prepare_cancels_worker_submission) {
+    FOR_LOOP(i, 2) {
+        memset(&frame_test, 0, sizeof(frame_test));
+        frame_test.server_worker = true;
+        frame_test.client_worker_ready = frame_test.server_client_ready = true;
+        frame_test.prepare_enters_loading = i == 0;
+        frame_test.prepare_replaces_server_world = i != 0;
+        frame_test.clock = 100000;
+        frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+        OpenRealm_Frame(&frame_state);
+        T_EQ(frame_test.worker_frames, 0u); T_EQ(frame_test.serial_frames, 1u);
+        T_EQ(frame_test.client_prepares, 1u); T_EQ(frame_test.client_renders, 1u);
+        T_EQ(frame_test.client_frames, 0u);
+        frame_test.clock = 120000;
+        OpenRealm_Frame(&frame_state);
+        T_EQ(frame_test.serial_frames, 2u); T_EQ(frame_test.client_frames, 1u);
+        T_EQ(frame_test.worker_frames, 0u);
+        Com_ServerWorkerShutdown();
+    }
+}
+
+TEST(renderer_frame, disabling_cvar_during_prepare_uses_serial_server_once) {
+    memset(&frame_test, 0, sizeof(frame_test));
+    frame_test.server_worker = true;
+    frame_test.client_worker_ready = frame_test.server_client_ready = true;
+    frame_test.prepare_disables_worker = true;
+    frame_test.clock = 100000;
+    frame_state = (openrealm_frame_state_t){ .previous_time = 80 };
+    OpenRealm_Frame(&frame_state);
+    Com_ServerWorkerShutdown();
+    T_EQ(frame_test.worker_frames, 0u); T_EQ(frame_test.serial_frames, 1u);
+    T_EQ(frame_test.client_prepares, 1u); T_EQ(frame_test.client_renders, 1u);
+    T_EQ(frame_test.client_frames, 0u);
 }
