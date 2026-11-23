@@ -137,7 +137,15 @@ static bool land_mine_is_uprooted_ancient(edict_t const *target) {
  * trigger them, while a mobile uprooted Ancient behaves as a ground unit. */
 static bool land_mine_trigger_target(edict_t *mine, edict_t *target, float radius) {
 	bool structure;
+	float dx, dy;
 
+	if (!target) return false;
+	/* Most edicts cannot be inside a small mine trigger radius. Reject targets
+	 * outside its containing square before the more expensive validity and
+	 * ownership checks; the exact circular distance remains authoritative. */
+	dx = target->s.origin2.x - mine->s.origin2.x;
+	dy = target->s.origin2.y - mine->s.origin2.y;
+	if (dx < -radius || dx > radius || dy < -radius || dy > radius) return false;
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(mine, target)) return false;
 	if (target->targtype == TARG_AIR) return false;
 	structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);

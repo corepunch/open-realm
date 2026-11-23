@@ -1797,6 +1797,32 @@ reducing MDX submission and map-script work stronger next candidates than
 further lookup-cache changes, though neither has a measured end-to-end gain
 yet.
 
+#### November 22 land-mine target precheck on Mali-G72
+
+The current NightElf07 profile sampled `land_mine_think` at **2.55% inclusive**
+and `S_SpellIsAliveTarget` at **2.93% overall**, with 1.91 percentage points
+under the mine scan. A bounding-square rejection was added before the target
+alive, alliance and type checks. The original Euclidean distance comparison
+remains the final trigger rule, so targets in the square's corners are still
+rejected exactly as before.
+
+In a 49 Hz attached profile, the candidate's first capture sampled
+`land_mine_think` at 1.16% and no longer sampled `S_SpellIsAliveTarget` above
+the 0.5% report threshold. A repeat sampled the mine thinker at 0.26%; the
+campaign mine population differed between intervals, so these shares are
+indicative rather than a controlled paired CPU measurement. Perf captures
+were 784 baseline, 774 candidate, and 787 repeat samples. Files are
+`build/profiles/nightelf-mine-filter-{baseline,candidate,candidate-repeat}.data`
+and their corresponding `-report.txt` files.
+
+The last 15 unprofiled FPS windows measured 19.8 FPS in the fresh baseline and
+20.5 FPS in each candidate run, with approximately 360 draws/frame throughout.
+Other baseline runs on this same machine also measured 20.5 FPS, and renderer
+stage totals did not improve in the candidate runs; therefore the FPS change
+is not established. Keep the exact broad-phase check as a measured reduction
+in a simulation CPU path, not as a claimed overall FPS gain. Logs are
+`build/profiles/nightelf-mine-filter-{baseline,candidate,candidate-repeat}.log`.
+
 ## MDX per-pose sequence resolution (patch twenty-four, x86 low-performance cores)
 
 The x86 Human02, NightElf07 and Undead07 profiles continued to attribute
