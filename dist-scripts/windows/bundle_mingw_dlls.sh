@@ -15,13 +15,21 @@ set -euo pipefail
 
 # Required at runtime: windowing/input, compression (MPQ), GL dispatch.
 # Checked case-insensitively; a missing entry fails the release job instead
-# of shipping a zip that cannot start (issue #462).
-REQUIRED_DLLS="sdl2.dll zlib1.dll libepoxy-0.dll"
+# of shipping a zip that cannot start (issue #462). Alternatives are joined
+# with "|": MSYS2 zlib 1.4 links -lz against libz-1.dll, older packages
+# against zlib1.dll.
+REQUIRED_DLLS="sdl2.dll zlib1.dll|libz-1.dll libepoxy-0.dll"
 
 dest="${1:?usage: bundle_mingw_dlls.sh <dest_dir> <binary> ...}"
 shift
 [ "$#" -gt 0 ] || { echo "bundle_mingw_dlls.sh: no binaries given" >&2; exit 1; }
+# A Windows drive path (G:/dist) carries a colon, which splits a PATH entry
+# in two; use the POSIX form (/g/dist) where cygpath exists (MSYS2).
+if command -v cygpath >/dev/null 2>&1; then
+    dest="$(cygpath -u "$dest")"
+fi
 mkdir -p "$dest"
+dest="$(cd "$dest" && pwd)"
 
 # Our own engine DLLs are bundled separately; put $dest on PATH so ldd
 # resolves them there instead of reporting "not found" for them.
@@ -58,7 +66,8 @@ for want in $REQUIRED_DLLS; do
     found=0
     for have in "$dest"/*.dll; do
         [ -e "$have" ] || continue
-        if [ "$(echo "$(basename "$have")" | tr 'A-Z' 'a-z')" = "$want" ]; then found=1; break; fi
+        name="$(basename "$have" | tr 'A-Z' 'a-z')"
+        case "|$want|" in *"|$name|"*) found=1; break ;; esac
     done
     if [ "$found" -eq 0 ]; then echo "bundle_mingw_dlls.sh: required $want not bundled" >&2; missing=1; fi
 done

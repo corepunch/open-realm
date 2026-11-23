@@ -34,10 +34,14 @@ list, so new third-party links are picked up automatically:
 - `dist-scripts/windows/bundle_mingw_dlls.sh <dest> <binaries...>` — copies
   every `ldd`-resolved DLL under the MSYS2 environment prefix into `<dest>`,
   ignores system DLLs (`C:/Windows/...`), and fails loudly when a dependency
-  is unresolved (`not found`) or a required DLL (`SDL2.dll`, `zlib1.dll`,
+  is unresolved (`not found`) or a required DLL (`SDL2.dll`, zlib as
+  `libz-1.dll` from MSYS2 zlib 1.4 or `zlib1.dll` from older packages,
   `libepoxy-0.dll`) is absent. That failure is the regression guard for
   issue #462: the release job breaks instead of shipping a zip that cannot
-  start.
+  start. `<dest>` may be a drive path (`G:/...`); the script converts it with
+  `cygpath -u`, because its colon would split the `PATH` entry `ldd` needs to
+  find the engine DLLs. `tests/test_windows_bundle.py` (`make
+  test-windows-bundle`) covers both cases with a fake `ldd` on Linux.
 - `tools/build-windows.ps1` calls that script for local packages;
   `.github/workflows/release.yml` calls it for `openwarcraft3-windows-x64.zip`
   (MINGW64 runner packages `mingw-w64-x86_64-zlib` explicitly since the
