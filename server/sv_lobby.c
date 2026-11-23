@@ -429,6 +429,7 @@ void SV_ApplyLobbySettings(mapInfo_t *info) {
     }
     FOR_LOOP(i, MAX_PLAYERS) {
         info->players[i].color = i;
+        info->players[i].lobbyResolved = false;
     }
     if (!svs.lobby.active || svs.lobby.slot_count == 0) {
         return;
@@ -438,6 +439,7 @@ void SV_ApplyLobbySettings(mapInfo_t *info) {
             info->players[i].playerType != kPlayerTypeNeutral &&
             info->players[i].playerType != kPlayerTypeRescuable) {
             info->players[i].playerType = kPlayerTypeNone;
+            info->players[i].lobbyResolved = true;
             SV_LobbyClearPlayerTeams(info, i);
         }
     }
@@ -468,6 +470,7 @@ void SV_ApplyLobbySettings(mapInfo_t *info) {
                 (unsigned)slot->color,
                 slot->name);
         player->playerType = type;
+        player->lobbyResolved = true;
         player->playerRace = slot->race;
         player->color = slot->color % MAX_CLIENTS;
         if (slot->name[0]) {

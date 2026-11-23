@@ -1011,6 +1011,85 @@ TEST(server_net, lobby_team_selection_expands_map_forces) {
     test_mapinfo = NULL;
 }
 
+/* G_RunMapConfig keeps the lobby's controller only for slots the resolver
+ * marked for this load; every other player keeps its config() controller. */
+static void lobby_launch_map_info(mapInfo_t *info) {
+    memset(info, 0, sizeof(*info));
+    info->num_teams = 1;
+    info->teams = MemAlloc(sizeof(*info->teams));
+    memset(info->teams, 0, sizeof(*info->teams));
+    info->teams[0].playerMasks = 0x1f;
+    FOR_LOOP(i, 5) {
+        info->players[i].used = true;
+        info->players[i].playerType = i < 4 ? kPlayerTypeHuman : kPlayerTypeNeutral;
+        info->players[i].playerRace = kPlayerRaceHuman;
+    }
+}
+
+TEST(server_net, lobby_launch_marks_only_resolved_slots) {
+    static lobbySlotType_t const types[] = {
+        LOBBY_SLOT_HUMAN, LOBBY_SLOT_COMPUTER, LOBBY_SLOT_CLOSED, LOBBY_SLOT_OPEN,
+    };
+    mapInfo_t info;
+    lobbySlot_t slot;
+
+    reset_server_state(4);
+    lobby_launch_map_info(&info);
+    /* A stale flag from an earlier load must not survive the resolver. */
+    info.players[4].lobbyResolved = true;
+    test_mapinfo = &info;
+    sv.state = ss_lobby;
+    memset(&svs.lobby, 0, sizeof(svs.lobby));
+    svs.lobby.active = true;
+    snprintf(svs.lobby.map_path, sizeof(svs.lobby.map_path), "Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(4, 4, "Test");
+    FOR_LOOP(i, 4) {
+        memset(&slot, 0, sizeof(slot));
+        slot.visible = true;
+        slot.client = MAX_CLIENTS;
+        slot.map_player = i;
+        slot.type = types[i];
+        slot.race = kPlayerRaceHuman;
+        SV_LobbySetSlot(i, &slot);
+    }
+    svs.lobby.slots[0].occupied = true;
+    svs.lobby.slots[0].client = 0;
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+
+    T_EQ(info.players[0].playerType, kPlayerTypeHuman);
+    T_EQ(info.players[1].playerType, kPlayerTypeComputer);
+    T_EQ(info.players[2].playerType, kPlayerTypeNone);
+    T_EQ(info.players[3].playerType, kPlayerTypeNone);
+    T_EQ(info.players[4].playerType, kPlayerTypeNeutral);
+    FOR_LOOP(i, 4) T_ASSERT(info.players[i].lobbyResolved);
+    T_ASSERT(!info.players[4].lobbyResolved);
+
+    SV_Shutdown();
+    SAFE_DELETE(info.teams, MemFree);
+    FOR_LOOP(i, 5) SAFE_DELETE(info.players[i].playerName, MemFree);
+    test_mapinfo = NULL;
+}
+
+TEST(server_net, direct_launch_resolves_no_lobby_slots) {
+    mapInfo_t info;
+
+    reset_server_state(4);
+    lobby_launch_map_info(&info);
+    FOR_LOOP(i, 5) info.players[i].lobbyResolved = true;
+    test_mapinfo = &info;
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+
+    FOR_LOOP(i, 4) T_EQ(info.players[i].playerType, kPlayerTypeHuman);
+    T_EQ(info.players[4].playerType, kPlayerTypeNeutral);
+    FOR_LOOP(i, 5) T_ASSERT(!info.players[i].lobbyResolved);
+
+    SV_Shutdown();
+    SAFE_DELETE(info.teams, MemFree);
+    test_mapinfo = NULL;
+}
+
 TEST(server_net, local_map_uses_loopback_without_udp) {
     mapInfo_t info;
 

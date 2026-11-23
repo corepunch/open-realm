@@ -899,73 +899,95 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
     T_ASSERT(game.clients[0].jass.on_score_screen);
 }
 
-/* Runs the map's config() phase for players whose resolved slot types are given,
- * with controllers primed as G_InitMapPlayer leaves them. */
-static void run_map_config(cstring_t script, playerType_t const *types, uint32_t count) {
+typedef struct {
+    playerType_t type;
+    bool lobby; /* SV_ApplyLobbySettings resolved this slot for the current load */
+} testMapSlot_t;
+
+/* Runs config() and then launch_main() for players with the given slot types,
+ * with controllers primed as G_InitMapPlayer leaves them. run_test_jass's own
+ * main() is empty, so launch_main() is the first script code after config(). */
+static void run_map_config(cstring_t script, testMapSlot_t const *slots, uint32_t count) {
     static char config_marker[] = "function config takes nothing returns nothing\n";
     mapInfo_t *info = (mapInfo_t *)level.mapinfo;
 
     T_ASSERT(run_test_jass(script));
     info->mapscript = config_marker;
     FOR_LOOP(i, count) {
-        info->players[i].used = types[i] != kPlayerTypeNone;
-        info->players[i].playerType = types[i];
+        info->players[i].used = slots[i].type != kPlayerTypeNone;
+        info->players[i].playerType = slots[i].type;
+        info->players[i].lobbyResolved = slots[i].lobby;
         game.clients[i].mapplayer = &info->players[i];
-    }
-    FOR_LOOP(i, count) {
-        game.clients[i].jass.controller = types[i] == kPlayerTypeHuman ? 0 :
-            types[i] == kPlayerTypeComputer ? 1 : types[i] == kPlayerTypeNeutral ? 3 : 5;
+        game.clients[i].jass.controller = slots[i].type == kPlayerTypeHuman ? 0 :
+            slots[i].type == kPlayerTypeComputer ? 1 : slots[i].type == kPlayerTypeNeutral ? 3 : 5;
     }
     G_RunMapConfig();
     T_ASSERT(level.scriptsConfigured);
+    jass_callbyname(level.vm, "launch_main", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     info->mapscript = NULL;
-}
-
-static void clear_map_config_players(uint32_t count) {
     FOR_LOOP(i, count) game.clients[i].mapplayer = NULL;
 }
 
 /* WorldEdit's InitCustomPlayerSlots marks every melee slot MAP_CONTROL_USER.
  * Retail 1.29 still reports MAP_CONTROL_COMPUTER for a lobby Computer slot in
- * main, which is what lets MeleeStartingAI start the melee AI. */
+ * main, which is what lets MeleeStartingAI start the melee AI. A neutral
+ * player the lobby does not offer keeps its config() controller. */
 TEST(wc3_jass_map, lobby_computer_slot_keeps_controller_after_config) {
-    playerType_t const types[] = { kPlayerTypeHuman, kPlayerTypeComputer, kPlayerTypeNone };
+    testMapSlot_t const slots[] = {
+        { kPlayerTypeHuman, true }, { kPlayerTypeComputer, true },
+        { kPlayerTypeNone, true }, { kPlayerTypeNeutral, false },
+    };
 
     run_map_config(
         "function config takes nothing returns nothing\n"
         "  call SetPlayerController(Player(0), MAP_CONTROL_USER)\n"
         "  call SetPlayerController(Player(1), MAP_CONTROL_USER)\n"
         "  call SetPlayerController(Player(2), MAP_CONTROL_USER)\n"
+        "  call SetPlayerController(Player(3), MAP_CONTROL_CREEP)\n"
         "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_USER, \"config default\")\n"
+        "endfunction\n"
+        "function launch_main takes nothing returns nothing\n"
+        "  call BJassAssert(GetPlayerController(Player(0)) == MAP_CONTROL_USER, \"main human\")\n"
+        "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_COMPUTER, \"main computer\")\n"
+        "  call BJassAssert(GetPlayerController(Player(2)) == MAP_CONTROL_NONE, \"main closed\")\n"
+        "  call BJassAssert(GetPlayerController(Player(3)) == MAP_CONTROL_CREEP, \"main neutral\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "endfunction\n",
-        types, 3);
+        slots, 4);
     T_EQ(game.clients[0].jass.controller, 0);
     T_EQ(game.clients[1].jass.controller, 1);
     T_EQ(game.clients[2].jass.controller, 5);
-    clear_map_config_players(3);
+    T_EQ(game.clients[3].jass.controller, 4);
 }
 
-/* Without a lobby the slot types are the W3I types, which stock 1.29 maps
- * (all campaigns and Maps\) repeat in config(); the result is unchanged. */
-TEST(wc3_jass_map, map_config_controllers_follow_w3i_slot_types) {
-    playerType_t const types[] = { kPlayerTypeHuman, kPlayerTypeNeutral, kPlayerTypeComputer };
+/* Without a lobby no slot is lobby-resolved, so config() decides even where
+ * it disagrees with the W3I type: W3I Neutral plus MAP_CONTROL_CREEP stays
+ * Creep, and W3I Computer plus MAP_CONTROL_USER stays User. Stock 1.29 maps
+ * never disagree (a scan of 284 maps); this pins the custom-map case. */
+TEST(wc3_jass_map, direct_launch_keeps_config_controller_over_w3i) {
+    testMapSlot_t const slots[] = {
+        { kPlayerTypeHuman, false }, { kPlayerTypeNeutral, false }, { kPlayerTypeComputer, false },
+    };
 
     run_map_config(
         "function config takes nothing returns nothing\n"
         "  call SetPlayerController(Player(0), MAP_CONTROL_USER)\n"
-        "  call SetPlayerController(Player(1), MAP_CONTROL_NEUTRAL)\n"
-        "  call SetPlayerController(Player(2), MAP_CONTROL_COMPUTER)\n"
-        "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_NEUTRAL, \"config neutral\")\n"
+        "  call SetPlayerController(Player(1), MAP_CONTROL_CREEP)\n"
+        "  call SetPlayerController(Player(2), MAP_CONTROL_USER)\n"
+        "endfunction\n"
+        "function launch_main takes nothing returns nothing\n"
+        "  call BJassAssert(GetPlayerController(Player(0)) == MAP_CONTROL_USER, \"main human\")\n"
+        "  call BJassAssert(GetPlayerController(Player(1)) == MAP_CONTROL_CREEP, \"main creep\")\n"
+        "  call BJassAssert(GetPlayerController(Player(2)) == MAP_CONTROL_USER, \"main scripted user\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "endfunction\n",
-        types, 3);
+        slots, 3);
     T_EQ(game.clients[0].jass.controller, 0);
-    T_EQ(game.clients[1].jass.controller, 3);
-    T_EQ(game.clients[2].jass.controller, 1);
-    clear_map_config_players(3);
+    T_EQ(game.clients[1].jass.controller, 4);
+    T_EQ(game.clients[2].jass.controller, 0);
 }
 
 TEST(wc3_jass_map, region_rectangles_add_query_and_clear) {

@@ -922,13 +922,15 @@ void G_RunMapConfig(void) {
     }
     jass_callbyname(level.vm, "config", false);
     if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
-    /* config() controllers are the slot defaults offered to the lobby. The
-     * resolved slot (lobby choice, or the W3I type without a lobby) decides
-     * who controls the player in game, so a lobby Computer slot stays
-     * MAP_CONTROL_COMPUTER and MeleeStartingAI can start its AI. */
+    /* config() controllers are the slot defaults offered to the lobby. A slot
+     * the lobby resolved for this load keeps the lobby's choice, so a lobby
+     * Computer slot stays MAP_CONTROL_COMPUTER and MeleeStartingAI can start
+     * its AI. Slots without a lobby assignment (direct launches, campaign
+     * maps, neutral players the lobby does not offer) keep config()'s value. */
     FOR_LOOP(i, MAX_PLAYERS) {
         gameClient_t *client = game.clients + i;
-        client->jass.controller = G_MapControl(client->mapplayer);
+        if (client->mapplayer && client->mapplayer->lobbyResolved)
+            client->jass.controller = G_MapControl(client->mapplayer);
     }
 }
 
