@@ -254,6 +254,10 @@ test-eos-release:
 test-linux-media-release:
 	python3 tests/test_linux_media_release.py
 
+.PHONY: test-windows-bundle
+test-windows-bundle:
+	python3 tests/test_windows_bundle.py
+
 # Golden-image render regression test (deterministic MDX renders vs committed
 # references). Requires a display/GL, so it is opt-in and NOT part of `make test`
 # (CI is headless). Run locally after renderer changes.
@@ -376,7 +380,7 @@ TEST_BROWSER_SUITE := # test-browser
  test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-test-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
+	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-windows-bundle test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-test-build test-galaxy test-server-net test-sound test-music-mp3 test-wc3-iso-import \
 		$(TEST_BROWSER_SUITE) \
 		test-renderer-model test-mdx-geoset test-mdx-ui test-mdx-texture test-renderer-view test-renderer-frame test-renderer-font test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
