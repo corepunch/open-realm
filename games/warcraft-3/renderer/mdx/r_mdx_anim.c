@@ -131,6 +131,8 @@ static uint32_t entity_global_time;
  * no cross-frame/model-resource references, and no change to key evaluation. */
 #define MDLX_VIEW_POSE_ENTRIES 96
 #define MDLX_VIEW_POSE_NODES 4096
+#define MDLX_LOCAL_POSE_ENTRIES 128
+#define MDLX_LOCAL_POSE_NODES 8192
 
 typedef struct {
     renderEntity_t const *entity_ptr;
@@ -148,6 +150,17 @@ typedef struct {
     mat4_t matrix;
 } mdxViewPoseNode_t;
 
+/* Optional per-view reuse of object-space node matrices between instances of
+ * the same model at exactly the same animation sample. World/model transforms
+ * are deliberately excluded: R_GetNodeGlobalMatrix rebuilds the pose for the
+ * current instance after restoring these local matrices. */
+typedef struct {
+    mdxModel_t const *model;
+    uint32_t frame, oldframe, global_time, lerp_bits;
+    uint32_t start, count;
+    bool valid;
+} mdxLocalPoseEntry_t;
+
 /* Index by scene-array position, NOT by entity->number (which can be shared
  * by synthetic/instanced draw entities). A stamp avoids clearing 16,000 map
  * slots on every view; a wrapped stamp is the only full index reset. The
@@ -162,9 +175,27 @@ static struct {
     mdxViewPoseNode_t snapshots[MDLX_VIEW_POSE_NODES];
 } view_pose_cache;
 
+static struct {
+    bool enabled;
+    uint32_t count, nodes;
+    uint32_t lookups, hits, stores;
+    mdxLocalPoseEntry_t entries[MDLX_LOCAL_POSE_ENTRIES];
+    mat4_t matrices[MDLX_LOCAL_POSE_NODES];
+} local_pose_cache;
+
+#ifdef BZ_TESTS
+static int test_local_pose_cache_override = -1;
+static uint32_t test_local_pose_cache_hits;
+void MDLX_TestSetLocalPoseCache(bool enabled) { test_local_pose_cache_override = enabled ? 1 : 0; }
+void MDLX_TestClearLocalPoseCacheOverride(void) { test_local_pose_cache_override = -1; }
+void MDLX_TestResetLocalPoseCacheHits(void) { test_local_pose_cache_hits = 0; }
+uint32_t MDLX_TestLocalPoseCacheHits(void) { return test_local_pose_cache_hits; }
+#endif
+
 static void MDLX_KeySpanBegin(void);
 
 void MDLX_ViewPoseBegin(void) {
+    cstring_t setting = ri.CvarString ? ri.CvarString("r_mdx_local_pose_cache", "1") : "1";
     MDLX_KeySpanBegin();
     if (++view_pose_cache.epoch == 0) {
         memset(view_pose_cache.scene_epoch, 0, sizeof(view_pose_cache.scene_epoch));
@@ -172,11 +203,94 @@ void MDLX_ViewPoseBegin(void) {
     }
     view_pose_cache.count = view_pose_cache.nodes = 0;
     view_pose_cache.active = true;
+    local_pose_cache.enabled = setting && atoi(setting) != 0;
+#ifdef BZ_TESTS
+    if (test_local_pose_cache_override >= 0)
+        local_pose_cache.enabled = test_local_pose_cache_override != 0;
+#endif
+    local_pose_cache.count = local_pose_cache.nodes = 0;
+    local_pose_cache.lookups = local_pose_cache.hits = local_pose_cache.stores = 0;
+    if (local_pose_cache.enabled)
+        memset(local_pose_cache.entries, 0, sizeof(local_pose_cache.entries));
 }
 
 void MDLX_ViewPoseEnd(void) {
+    static uint32_t stats_start;
+    static uint32_t stats_frames, stats_lookups, stats_hits, stats_stores;
+    if (local_pose_cache.enabled) {
+        uint32_t const now = SDL_GetTicks();
+        if (!stats_start) stats_start = now;
+        stats_frames++;
+        stats_lookups += local_pose_cache.lookups;
+        stats_hits += local_pose_cache.hits;
+        stats_stores += local_pose_cache.stores;
+        if (now - stats_start >= 1000) {
+            if (ri.CvarString && atoi(ri.CvarString("r_stats", "0")))
+                fprintf(stderr, "[MDXPOSE_CACHE] frames=%u lookups=%u hits=%u stores=%u\n",
+                        stats_frames, stats_lookups, stats_hits, stats_stores);
+            stats_start = now;
+            stats_frames = stats_lookups = stats_hits = stats_stores = 0;
+        }
+    }
     view_pose_cache.active = false;
     view_pose_cache.count = view_pose_cache.nodes = 0;
+    local_pose_cache.enabled = false;
+}
+
+static uint32_t MDLX_LocalPoseHash(mdxModel_t const *model, uint32_t frame,
+                                   uint32_t oldframe, uint32_t global_time,
+                                   uint32_t lerp_bits) {
+    uintptr_t const addr = (uintptr_t)model;
+    uint32_t hash = (uint32_t)(addr >> 4) ^ (uint32_t)(addr >> 19);
+    hash ^= frame * 2654435761u;
+    hash ^= oldframe * 2246822519u;
+    hash ^= global_time * 3266489917u;
+    hash ^= lerp_bits * 668265263u;
+    hash ^= hash >> 16;
+    return hash & (MDLX_LOCAL_POSE_ENTRIES - 1);
+}
+
+static mdxLocalPoseEntry_t *MDLX_LocalPoseFind(mdxModel_t const *model,
+                                                uint32_t frame, uint32_t oldframe,
+                                                uint32_t global_time, uint32_t lerp_bits,
+                                                uint32_t *slot_out) {
+    uint32_t const slot = MDLX_LocalPoseHash(model, frame, oldframe, global_time, lerp_bits);
+    mdxLocalPoseEntry_t *entry = &local_pose_cache.entries[slot];
+    if (slot_out) *slot_out = slot;
+    if (entry->valid && entry->model == model && entry->frame == frame &&
+        entry->oldframe == oldframe && entry->global_time == global_time &&
+        entry->lerp_bits == lerp_bits && entry->count == (uint32_t)model->num_nodes &&
+        entry->start + entry->count <= local_pose_cache.nodes)
+        return entry;
+    return NULL;
+}
+
+static void MDLX_LocalPoseStore(mdxModel_t const *model, uint32_t frame,
+                                uint32_t oldframe, uint32_t global_time,
+                                uint32_t lerp_bits, uint32_t slot) {
+    mdxLocalPoseEntry_t *entry = &local_pose_cache.entries[slot];
+    uint32_t const count = (uint32_t)model->num_nodes;
+    if (!count || local_pose_cache.count >= MDLX_LOCAL_POSE_ENTRIES ||
+        count > MDLX_LOCAL_POSE_NODES - local_pose_cache.nodes)
+        return;
+    uint32_t const start = local_pose_cache.nodes;
+    FOR_LOOP(i, count)
+        local_pose_cache.matrices[start + i] = local_matrices[model->node_list[i]->node_id];
+    local_pose_cache.nodes += count;
+    local_pose_cache.count++;
+    *entry = (mdxLocalPoseEntry_t){
+        .model = model, .frame = frame, .oldframe = oldframe,
+        .global_time = global_time, .lerp_bits = lerp_bits,
+        .start = start, .count = count, .valid = true,
+    };
+    local_pose_cache.stores++;
+}
+
+static void MDLX_LocalPoseRestore(mdxModel_t const *model,
+                                  mdxLocalPoseEntry_t const *entry) {
+    FOR_LOOP(i, model->num_nodes)
+        local_matrices[model->node_list[i]->node_id] =
+            local_pose_cache.matrices[entry->start + i];
 }
 
 /* Never admit temporary child/sprite entities. Use pointer subtraction only
@@ -827,15 +941,36 @@ void AddSkin(vec3_t *pos, mat4_t const *mat, vec3_t const *org, float weight) {
 
 void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, uint32_t frame1, uint32_t frame0) {
     mdxPoseSequencePair_t sequences = { 0 };
+    mdxLocalPoseEntry_t *cached_pose = NULL;
+    uint32_t pose_slot = 0, lerp_bits = 0;
+    bool const can_cache_pose = local_pose_cache.enabled && entity_global_time_valid;
+    if (can_cache_pose) {
+        memcpy(&lerp_bits, &tr.viewDef.lerpfrac, sizeof(lerp_bits));
+        local_pose_cache.lookups++;
+        cached_pose = MDLX_LocalPoseFind(model, frame1, frame0, entity_global_time,
+                                         lerp_bits, &pose_slot);
+        if (cached_pose) {
+            local_pose_cache.hits++;
+#ifdef BZ_TESTS
+            test_local_pose_cache_hits++;
+#endif
+        }
+    }
     /* Only the nodes this model actually has need their global matrices
      * recomputed.  The old path memset the full 64KB node_matrices array and
      * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the
      * compact node_list built at load time is orders of magnitude smaller. */
-    FOR_LOOP(i, model->num_nodes) {
-        mdxNode_t *node = model->node_list[i];
-        memset(&node_matrices[node->node_id], 0, sizeof(mat4_t)); /* reset the "computed" flag (v[15]==0) */
-        R_CalculateNodeMatrix(model, node, frame1, frame0, &sequences, &local_matrices[node->node_id]);
-    }
+    if (cached_pose)
+        MDLX_LocalPoseRestore(model, cached_pose);
+    else
+        FOR_LOOP(i, model->num_nodes) {
+            mdxNode_t *node = model->node_list[i];
+            R_CalculateNodeMatrix(model, node, frame1, frame0, &sequences, &local_matrices[node->node_id]);
+        }
+    FOR_LOOP(i, model->num_nodes)
+        memset(&node_matrices[model->node_list[i]->node_id], 0, sizeof(mat4_t)); /* reset computed flag */
+    if (can_cache_pose && !cached_pose)
+        MDLX_LocalPoseStore(model, frame1, frame0, entity_global_time, lerp_bits, pose_slot);
     FOR_LOOP(i, model->num_nodes)
         R_GetNodeGlobalMatrix(model, model_matrix, model->node_list[i]);
     bound_bone_pose.generation++;

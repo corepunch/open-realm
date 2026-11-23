@@ -48,6 +48,10 @@ uint32_t MDLX_TestKeyframeBracketHits(void);
 uint32_t MDLX_TestKeyframeBracketAdvances(void);
 void MDLX_TestResetPoseTrackSamples(void);
 uint32_t MDLX_TestPoseTrackSamples(void);
+void MDLX_TestSetLocalPoseCache(bool enabled);
+void MDLX_TestClearLocalPoseCacheOverride(void);
+void MDLX_TestResetLocalPoseCacheHits(void);
+uint32_t MDLX_TestLocalPoseCacheHits(void);
 
 /* The pre-optimisation eight-corner implementation is intentionally kept
  * independent of the production support-point test. */
@@ -910,6 +914,59 @@ TEST(renderer_model, mdx_view_key_span_reuses_sequence_bounds_and_nearby_bracket
         MDLX_ViewPoseEnd();
     }
     tr.viewDef.lerpfrac = saved_lerp;
+}
+
+TEST(renderer_model, mdx_local_pose_cache_reuses_only_identical_instance_samples) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxKeyFrame_t *key0 = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *key1 = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(vec3_t));
+    mdxSequence_t sequence = {.interval = {0, 100}};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX, .translation = track};
+    mdxModel_t model = {.sequences = &sequence, .num_sequences = 1, .num_nodes = 1};
+    renderEntity_t first = {.number = 501, .generation = 1};
+    renderEntity_t second = {.number = 502, .generation = 1};
+    mdxAnimationTimeScope_t scope;
+    mat4_t identity;
+    viewDef_t const old_view = tr.viewDef;
+
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT3;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = UINT32_MAX;
+    key0->time = 0; key1->time = 100;
+    vec3_t const value0 = {0, 0, 0}, value1 = {10, 4, 2};
+    memcpy(key0->data, &value0, sizeof(value0));
+    memcpy(key1->data, &value1, sizeof(value1));
+    model.nodes[0] = model.node_list[0] = &node;
+    Matrix4_identity(&identity);
+    tr.viewDef.time = 77;
+    tr.viewDef.lerpfrac = 0.5f;
+
+    MDLX_TestSetLocalPoseCache(true);
+    MDLX_ViewPoseBegin();
+    MDLX_TestResetLocalPoseCacheHits();
+    MDLX_PushEntityAnimationTime(&first, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 75, 25);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(node_matrices[0].v[12], 5.0f, .0001f);
+    T_FEQ(node_matrices[0].v[13], 2.0f, .0001f);
+    T_FEQ(node_matrices[0].v[14], 1.0f, .0001f);
+
+    MDLX_PushEntityAnimationTime(&second, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 75, 25);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_EQ(MDLX_TestLocalPoseCacheHits(), 1u);
+    T_FEQ(node_matrices[0].v[12], 5.0f, .0001f);
+    T_FEQ(node_matrices[0].v[13], 2.0f, .0001f);
+    T_FEQ(node_matrices[0].v[14], 1.0f, .0001f);
+
+    MDLX_PushEntityAnimationTime(&second, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 90, 90);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_EQ(MDLX_TestLocalPoseCacheHits(), 1u);
+    T_FEQ(node_matrices[0].v[12], 9.0f, .0001f);
+    MDLX_ViewPoseEnd();
+    MDLX_TestClearLocalPoseCacheOverride();
+    tr.viewDef = old_view;
 }
 
 TEST(renderer_model, mdx_view_key_span_preserves_global_clock_wrap_and_duplicate_keys) {

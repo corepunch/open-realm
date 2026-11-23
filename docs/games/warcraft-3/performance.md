@@ -2274,3 +2274,32 @@ NightElf07 `CAbilityBlightGrowth` → `G_SetBlightRadius` path, where
 `G_IsDestructable` and `Box2_containsPoint` sampled heavily. These were
 profile hotspots, not a measured post-patch improvement; compare matched
 NightElf07 scenes and frame times on the target ARM64 device.
+
+## MDX local-pose reuse between instances on Mali-G72
+
+An opt-out `r_mdx_local_pose_cache` now reuses object-space node matrices across
+distinct instances only when the model, current/previous animation samples,
+pause-adjusted global-sequence time, and interpolation fraction match exactly.
+It restores local matrices only; parent/global transforms and billboards are
+rebuilt for every instance. Reuse is limited to one view, a direct-mapped
+128-entry table, and 8,192 matrices (512 KiB). Its setting is read once per
+view; set it to `0` to disable. The exact-result regression passed all 9
+assertions.
+
+Two paired 75–90 second captures compared the cache on and off using the same
+release binary and NightElf07 settings. The two on runs measured 23.9 and 23.7
+FPS medians; off runs measured 23.9 FPS in both. Median `entities_ms` was
+12.90–13.13 ms on versus 13.32–13.42 ms off, while total renderer frame time
+overlapped at 39.93–40.01 ms on and 40.03–40.16 ms off. The per-view reports
+show roughly 18% local-pose cache hits. This is a small, repeatable entity-stage
+CPU reduction, with no established end-to-end FPS gain; it does not close the
+30 FPS gap. The cache is enabled by default because the results are exact and
+the measured entity CPU stage fell by about 0.3–0.4 ms. The cvar allows an
+immediate fallback if another renderer path exposes an issue. Logs are
+`build/profiles/nightelf-local-pose-cache{,-off,-repeat,-off-repeat}-20261122.log`.
+
+The full `test-renderer-model` target passed 21,970 of 21,978 assertions; its
+eight failures were in independent ground-batch slice update assertions. The
+MDX cache regression passed. A focused invocation of
+`build/bin/test_renderer_model 'renderer_model.mdx_local_pose_cache*'` passed
+9/9 assertions.
