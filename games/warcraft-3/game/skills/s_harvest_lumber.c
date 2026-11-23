@@ -1083,15 +1083,32 @@ static bool wisp_tree_owned(edict_t const * tree, edict_t const * except) {
 
 static edict_t * wisp_find_nearest_tree(edict_t * worker, edict_t const * origin) {
     wispHarvestTuning_t const tuning = wisp_harvest_tuning(worker);
+    uint64_t owned_trees[(MAX_ENTITIES + 63u) / 64u] = {0};
     edict_t * best = NULL;
     float best_distance = tuning.search_range;
 
     if (!worker || !origin || !S_WispHarvestCanLumber(worker)) return NULL;
+    /* Build the active-tree ownership set once. Calling wisp_tree_owned from
+     * the candidate loop rescanned every edict for every tree, making this
+     * target acquisition O(trees * edicts) on large campaign maps. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *other = globals.edicts + i;
+        edict_t const *tree;
+        int32_t tree_number;
+        if (other == worker || !other->inuse ||
+            other->currentmove != &wisp_harvest_mine || M_IsDead(other)) continue;
+        tree = other->goalentity;
+        if (!tree) continue;
+        tree_number = tree->s.number;
+        if (tree_number < 0 || (uint32_t)tree_number >= globals.num_edicts ||
+            tree != globals.edicts + tree_number || !tree->inuse || tree->targtype != TARG_TREE) continue;
+        owned_trees[(uint32_t)tree_number >> 6] |= UINT64_C(1) << ((uint32_t)tree_number & 63u);
+    }
     FOR_LOOP(i, globals.num_edicts) {
         edict_t * tree = globals.edicts + i;
         float distance;
         if (!tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree) ||
-            wisp_tree_owned(tree, worker)) continue;
+            (owned_trees[i >> 6] & (UINT64_C(1) << (i & 63u)))) continue;
         distance = Vector2_distance(&origin->s.origin2, &tree->s.origin2);
         if (distance < best_distance) {
             best = tree;
