@@ -1504,6 +1504,19 @@ linear edict-bound pass and runtime ability removal/re-add. The stored profile h
 only about 4K CPU samples and no scene/build metadata; take a new weighted profile to
 measure the post-fix cycle share.
 
+### Per-unit aura ownership resolver cache
+
+The aura provider scan still reparsed each active unit's authored, runtime-added,
+inventory, and ranked ability sources every simulation frame. A per-edict cache
+now stores the resolved aura aliases/ranks and checks unit identity, spawn time,
+class, component/list pointers, AbilityData generation, and an ownership
+generation. Ability add/remove/level changes and direct rank copies during form
+changes, game-cache restore, Mirror Image, and Metamorphosis invalidate the entry.
+The focused cache test verifies repeated lookups hit the cached result and that
+skill removal/re-addition invalidates it. The aura-specific suite passed 44/44
+assertions. This confirms reduced repeated resolver work, but no matched map FPS
+or ARM profile comparison has yet isolated its end-to-end benefit.
+
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 
 ## Client frame-rate limiter

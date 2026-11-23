@@ -684,6 +684,7 @@ edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cst
     }
     unit->unit_state->hero = saved->hero;
     memcpy(unit->unit_state->ranks, saved->abilities, sizeof(unit->unit_state->ranks));
+    S_AuraProviderOwnershipChanged(unit);
     G_RecomputeHeroStats(unit);
     unit->health = saved->health;
     /* RestoreUnit creates a fresh living entity; a cached dead Hero must not

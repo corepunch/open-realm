@@ -456,7 +456,7 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status);
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except);
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
-void S_AuraInventoryChanged(void);
+void S_AuraProviderOwnershipChanged(edict_t *unit);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);

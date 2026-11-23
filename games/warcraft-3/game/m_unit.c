@@ -1644,6 +1644,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
         unit->unit_state->hero.intel = (uint32_t)MAX(0, target_balance->intelligence +
             (int32_t)(steps * target_balance->intelligencePerLevel) + (int32_t)saved_hero.intel - old_int_level);
         memcpy(unit->unit_state->ranks, saved_ranks, sizeof(saved_ranks));
+        S_AuraProviderOwnershipChanged(unit);
         G_RecomputeHeroStats(unit);
     }
     /* A transformation retains the same handle, owner, and guard post. Do not
@@ -2766,6 +2767,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
     existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level = (uint32_t)level;
+        S_AuraProviderOwnershipChanged(ent);
         return existing->level;
     }
     /* Unit owns the skill via abilList/added but has no heroabilities slot yet. */
@@ -2776,6 +2778,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
         if (ha->level == 0) {
             ha->code = abilcode;
             ha->level = (uint32_t)level;
+            S_AuraProviderOwnershipChanged(ent);
             return ha->level;
         }
     }
@@ -2793,6 +2796,7 @@ void unit_learnability(edict_t *ent, uint32_t abilcode) {
         if (ha->level == 0) {
             ha->level = 1;
             ha->code = abilcode;
+            S_AuraProviderOwnershipChanged(ent);
             return;
         }
     }
@@ -3238,6 +3242,7 @@ bool G_HeroStripLevels(edict_t *ent, uint32_t levels) {
     owner = G_GetPlayerClientByNumber(ent->s.player);
     if (owner && owner->ps.number == ent->s.player) G_InvalidateCommands(owner);
     G_InvalidateUnitShortcutsForUnit(ent);
+    S_AuraProviderOwnershipChanged(ent);
     /* Hero LEVEL events are gain events, so level loss publishes none. */
     return true;
 }

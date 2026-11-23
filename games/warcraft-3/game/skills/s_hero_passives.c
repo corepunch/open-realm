@@ -120,6 +120,27 @@ typedef struct {
     auraAbilityRef_t combat[HERO_AURA_CACHE_KEYS];
 } regenAuraSource_t;
 
+/* Ability ownership is stable across most simulation frames. Keep the resolved
+ * aura families per edict and invalidate at the narrow ownership mutation
+ * points; the live provider/effect snapshot below is still rebuilt per frame. */
+typedef struct {
+    edict_t *unit;
+    unitState_t *unit_state;
+    UnitAbilities_t const *unit_abilities;
+    cstring_t ability_list;
+    uint32_t spawn_time;
+    uint32_t class_id;
+    uint32_t ability_generation;
+    uint32_t ownership_generation;
+    uint32_t global_generation;
+    auraAbilityRef_t owned[AURA_OWNED_COUNT];
+    bool valid;
+} auraOwnedAbilityCacheEntry_t;
+
+static auraOwnedAbilityCacheEntry_t aura_owned_ability_cache[MAX_ENTITIES];
+static uint32_t aura_owned_ability_generation[MAX_ENTITIES];
+static uint32_t aura_owned_ability_global_generation = 1;
+
 typedef enum {
     REGEN_FAMILY_LIFE_ORC,
     REGEN_FAMILY_LIFE_BLIGHT,
@@ -290,12 +311,14 @@ static auraFamilyClassEntry_t aura_family_class_cache[AURA_FAMILY_CLASS_CACHE_SI
 
 #ifdef BZ_TESTS
 static uint32_t test_aura_class_resolves, test_aura_ownership_checks;
+static bool test_aura_owned_cache_enabled;
 void S_TestResetAuraClassificationCache(void) {
     memset(aura_family_class_cache, 0, sizeof(aura_family_class_cache));
     test_aura_class_resolves = test_aura_ownership_checks = 0;
 }
 uint32_t S_TestAuraClassResolves(void) { return test_aura_class_resolves; }
 uint32_t S_TestAuraOwnershipChecks(void) { return test_aura_ownership_checks; }
+void S_TestUseAuraOwnershipCache(bool enabled) { test_aura_owned_cache_enabled = enabled; }
 #endif
 
 static uint32_t aura_owned_family_mask(uint32_t alias) {
@@ -338,10 +361,9 @@ static void aura_record_owned_alias(auraAbilityRef_t resolved[AURA_OWNED_COUNT],
     }
 }
 
-/* Filter unrelated abilities before costly live ownership tests. The per-unit
- * lists, removals, morph data and hero ranks are never cached; changes become
- * visible on the next provider snapshot. */
-static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved[AURA_OWNED_COUNT]) {
+/* Filter unrelated abilities before costly live ownership tests. This resolver
+ * is the cache-miss path; its result is invalidated when ownership changes. */
+static void aura_resolve_owned_abilities_uncached(edict_t *ent, auraAbilityRef_t resolved[AURA_OWNED_COUNT]) {
     char alias_name[5] = {0};
     memset(resolved, 0, sizeof(*resolved) * AURA_OWNED_COUNT);
     if (!ent) return;
@@ -404,6 +426,50 @@ static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved
             if (mask) aura_record_owned_alias(resolved, hero->code, hero->level, mask);
         }
     }
+}
+
+static void aura_resolve_owned_abilities(edict_t *ent, auraAbilityRef_t resolved[AURA_OWNED_COUNT]) {
+#ifdef BZ_TESTS
+    if (!test_aura_owned_cache_enabled) {
+        aura_resolve_owned_abilities_uncached(ent, resolved);
+        return;
+    }
+#endif
+    auraOwnedAbilityCacheEntry_t *entry;
+    uint32_t index, ability_generation, ownership_generation;
+    cstring_t ability_list;
+
+    if (!ent || ent->s.number >= MAX_ENTITIES || !g_edicts || g_edicts + ent->s.number != ent) {
+        aura_resolve_owned_abilities_uncached(ent, resolved);
+        return;
+    }
+    index = ent->s.number;
+    ability_generation = G_AbilityDataGeneration();
+    ownership_generation = aura_owned_ability_generation[index];
+    ability_list = ent->data.UnitAbilities ? ent->data.UnitAbilities->abilList : NULL;
+    entry = aura_owned_ability_cache + index;
+    if (entry->valid && entry->unit == ent && entry->spawn_time == ent->spawn_time &&
+        entry->class_id == ent->class_id && entry->unit_state == ent->unit_state &&
+        entry->unit_abilities == ent->data.UnitAbilities && entry->ability_list == ability_list &&
+        entry->ability_generation == ability_generation &&
+        entry->global_generation == aura_owned_ability_global_generation &&
+        entry->ownership_generation == ownership_generation) {
+        memcpy(resolved, entry->owned, sizeof(entry->owned));
+        return;
+    }
+
+    aura_resolve_owned_abilities_uncached(ent, resolved);
+    entry->unit = ent;
+    entry->spawn_time = ent->spawn_time;
+    entry->class_id = ent->class_id;
+    entry->unit_state = ent->unit_state;
+    entry->unit_abilities = ent->data.UnitAbilities;
+    entry->ability_list = ability_list;
+    entry->ability_generation = ability_generation;
+    entry->ownership_generation = ownership_generation;
+    entry->global_generation = aura_owned_ability_global_generation;
+    memcpy(entry->owned, resolved, sizeof(entry->owned));
+    entry->valid = true;
 }
 
 #ifdef BZ_TESTS
@@ -576,10 +642,21 @@ typedef struct {
 
 static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][REGEN_FAMILY_COUNT][REGEN_VALUE_COUNT];
 
-/* Inventory acquisition/removal changes aura providers even within a frame.
- * Invalidate the source snapshot and recipients; don't manufacture a unit
- * ability or wait for a 2-second periodic refresh. */
-void S_AuraInventoryChanged(void) {
+/* Ability and inventory ownership can change within a frame. Invalidate the
+ * affected unit's resolved list and refresh recipients without waiting for the
+ * periodic aura-value deadline. */
+void S_AuraProviderOwnershipChanged(edict_t *unit) {
+    if (unit && unit->s.number < MAX_ENTITIES && g_edicts &&
+        g_edicts + unit->s.number == unit) {
+        if (++aura_owned_ability_generation[unit->s.number] == 0) {
+            memset(aura_owned_ability_generation, 0, sizeof(aura_owned_ability_generation));
+            memset(aura_owned_ability_cache, 0, sizeof(aura_owned_ability_cache));
+            aura_owned_ability_generation[unit->s.number] = 1;
+        }
+    } else if (++aura_owned_ability_global_generation == 0) {
+        memset(aura_owned_ability_cache, 0, sizeof(aura_owned_ability_cache));
+        aura_owned_ability_global_generation = 1;
+    }
     regen_cache_frame = UINT_MAX;
     memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
     memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
@@ -588,6 +665,9 @@ void S_AuraInventoryChanged(void) {
 
 void G_ResetHeroPassiveCaches(void) {
     memset(regen_sources, 0, sizeof(regen_sources));
+    memset(aura_owned_ability_cache, 0, sizeof(aura_owned_ability_cache));
+    memset(aura_owned_ability_generation, 0, sizeof(aura_owned_ability_generation));
+    aura_owned_ability_global_generation = 1;
     regen_source_count = 0;
     regen_cache_frame = UINT_MAX;
     regen_cache_generation = UINT_MAX;

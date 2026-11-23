@@ -1347,6 +1347,7 @@ static void AbilityMetamorphosis_Execute(edict_t *caster, spellTarget_t st, abil
             }
         }
         if (rank_slot < MAX_HERO_ABILITIES) caster->unit_state->ranks[rank_slot] = saved_rank;
+        S_AuraProviderOwnershipChanged(caster);
         /* These belong to the stock Demon Hunter forms only. Custom heroes can
          * morph through an AEme alias into their own form, which authors its
          * own hero list. overrides.added also outlives the

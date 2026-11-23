@@ -579,6 +579,7 @@ void G_BindEntityData(edict_t *edict) {
     edict->data.Doodads = G_Doodad(edict->class_id);
     edict->data.ItemData = G_ItemData(edict->class_id);
     edict->data.DestructableData = G_DestructableData(edict->class_id);
+    S_AuraProviderOwnershipChanged(edict);
 }
 
 /* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks

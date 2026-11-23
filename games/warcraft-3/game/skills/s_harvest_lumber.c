@@ -569,6 +569,7 @@ bool G_ActorAddSkill(edict_t *ent, uint32_t code) {
     }
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
     S_EnableAbility(ent, code);
+    S_AuraProviderOwnershipChanged(ent);
     { gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
@@ -587,6 +588,7 @@ bool G_ActorRemoveSkill(edict_t *ent, uint32_t code) {
     index = skill_index(ent->unit_state->overrides.permanent, ARRAY_COUNT(ent->unit_state->overrides.permanent), code);
     if (index >= 0) skill_remove(ent->unit_state->overrides.permanent, &ARRAY_COUNT(ent->unit_state->overrides.permanent), index);
     S_DisableAbility(ent, code);
+    S_AuraProviderOwnershipChanged(ent);
     { gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
@@ -606,7 +608,10 @@ bool G_ActorSkillPermanent(edict_t *ent, uint32_t code) {
 }
 
 void G_FreeActorSkills(edict_t *ent) {
-    if (ent && ent->unit_state) memset(&ent->unit_state->overrides, 0, sizeof(ent->unit_state->overrides));
+    if (ent && ent->unit_state) {
+        memset(&ent->unit_state->overrides, 0, sizeof(ent->unit_state->overrides));
+        S_AuraProviderOwnershipChanged(ent);
+    }
 }
 
 /* Nearest legal point inside chop range on the worker's own side of the tree.

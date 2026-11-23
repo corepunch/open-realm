@@ -132,7 +132,7 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
                                   .source_item_spawn_time = item->spawn_time);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
     }
-    S_AuraInventoryChanged();
+    S_AuraProviderOwnershipChanged(unit);
     /* The info panel shows the new stats right away, not at the next selection. */
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].connected && G_IsEntitySelected(game.clients + i, unit))

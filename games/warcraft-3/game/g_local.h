@@ -4114,6 +4114,7 @@ float AB_Data(cstring_t, uint32_t, uint32_t);
 uint32_t GetAbilityIndex(abilityProc_t);
 void S_SpellTargetApproachThink(edict_t *);
 void G_ResetHeroPassiveCaches(void);
+void S_AuraProviderOwnershipChanged(edict_t *unit);
 
 // g_combat.c
 int G_AttackDamage(edict_t *, edict_t *, int);
