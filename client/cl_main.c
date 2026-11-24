@@ -1080,6 +1080,40 @@ TEST(client_session, disconnect_command_from_menu_tells_server_and_keeps_screen)
     memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }
 
+/* "disconnect" typed into the console (or a menu click run from it) leaves the console open; closing it then lands
+ * on the menu, not on the gameplay input the console was opened from. It used to close the console under the user. */
+TEST(client_session, disconnect_from_open_console_keeps_it_open_and_returns_to_menu) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap;
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    cls.key_dest = key_game;
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+    CON_ToggleConsole();
+    T_EQ(cls.key_dest, key_console);
+
+    CL_Disconnect_f();
+    T_EQ(cls.state, ca_disconnected);
+    T_EQ(cls.key_dest, key_console);
+    CON_ToggleConsole();
+    T_EQ(cls.key_dest, key_menu);
+
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
 static uint32_t cl_test_menu_shutdown_count;
 static uint32_t cl_test_menu_init_count;
 static uint32_t cl_test_register_map_count;

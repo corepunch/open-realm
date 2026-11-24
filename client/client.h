@@ -253,6 +253,7 @@ void CON_DrawConsole(void);
 void CON_printf(cstring_t fmt, ...);
 void CON_Init(void);
 void CON_ToggleConsole(void);
+bool CON_SetReturnKeyDest(keydest_t dest);
 void CON_TextInput(cstring_t text);
 void CON_KeyEvent(int key, bool down);
 

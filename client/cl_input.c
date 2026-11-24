@@ -2499,6 +2499,7 @@ void CL_SetTransientTextInput(bool enabled) {
 }
 
 void CL_SetMenuBindings(void) {
+    if (CON_SetReturnKeyDest(key_menu)) return; /* the console stays open and closes to the menu */
     cls.key_dest = key_menu;
     CL_SetSDLTextInput(true);
 }
