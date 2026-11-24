@@ -690,8 +690,19 @@ static void CL_Quit_f(void) {
 
 /* "disconnect": leave the current server and tell it so. A LAN guest leaving a lobby used to only switch screens and
  * stayed connected, so the host kept its slot. From the menu the menu picks the next screen; from a world it returns
- * to the main menu like any other disconnect. */
-static void CL_Disconnect_f(void) { CL_DisconnectInternal("Disconnected.", false, !CL_MenuActive()); }
+ * to the main menu like any other disconnect. A host leaving its own local server ends it, as in Quake 2, and returns
+ * to the main menu (from a world through the game's own deferred exit); otherwise the server kept running for the
+ * guests with nobody hosting. */
+static void CL_Disconnect_f(void) {
+    bool const host = cls.netchan.remote_address.type == NA_LOOPBACK && SV_IsActive();
+
+    if (host && !CL_MenuActive()) {
+        MenuAction("menu", "menu_main");
+        return;
+    }
+    CL_DisconnectInternal("Disconnected.", false, host || !CL_MenuActive());
+    if (host) SV_Shutdown();
+}
 
 /* Game modules request session-boundary actions through gi.MenuAction while
  * their simulation/JASS call stack may still be active.  Never tear down or
@@ -1110,6 +1121,49 @@ TEST(client_session, disconnect_from_open_console_keeps_it_open_and_returns_to_m
 
     while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
     Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
+/* A host that runs "disconnect" ends its own local server instead of leaving it to the guests with nobody hosting:
+ * from a world through the deferred exit to the menu, from the lobby at once. It starts a real server, so it runs in
+ * its own process (process_ prefix, `make test-wc3-map-launch`). */
+TEST(process_client_session, host_disconnect_command_ends_its_local_server) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap;
+    memset(&cls, 0, sizeof(cls));
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    Cmd_ExecuteString("lobby_start_local Maps/Transport.w3m"); /* the single-player lobby: no UDP port */
+    T_ASSERT(SV_IsActive());
+
+    cls.state = ca_active; /* in a world: the exit is deferred to the next client frame */
+    T_ASSERT(!CL_MenuActive());
+    CL_Disconnect_f();
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_MENU);
+    T_STREQ(cl_pending_menu_action.arg, "menu_main");
+    T_EQ(cls.state, ca_active);
+    T_ASSERT(SV_IsActive());
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    cls.state = ca_connected; /* in the lobby: the server ends now and the client leaves */
+    Cvar_Set("map", "Maps\\Transport.w3m");
+    CL_Disconnect_f();
+    T_EQ(cls.state, ca_disconnected);
+    T_ASSERT(!SV_IsActive());
+    T_STREQ(Cvar_String("map", "x"), ""); /* back to the main menu */
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_NONE);
+
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    while (NET_GetLoopPacket(NS_CLIENT, &from, &packet)) {}
     re.RegisterMap = old_register_map;
     memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }
