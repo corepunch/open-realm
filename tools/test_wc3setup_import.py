@@ -82,8 +82,8 @@ def iso_record(extent, size, name, is_dir=False):
     return rec
 
 
-def iso_with_nested_setup(payload):
-    sectors = [bytearray(2048) for _ in range(20 + (len(payload) + 2047) // 2048)]
+def iso_with_nested_setup(payload, movie=None):
+    sectors = [bytearray(2048) for _ in range(24 + (len(payload) + 2047) // 2048)]
     pvd = sectors[16]
     pvd[0] = 1
     pvd[1:6] = b'CD001'
@@ -95,13 +95,26 @@ def iso_with_nested_setup(payload):
     root = (iso_record(18, 2048, b'\x00', True)
             + iso_record(18, 2048, b'\x01', True)
             + iso_record(19, 2048, b'DATA', True))
+    setup_extent = 20
+    if movie:
+        root += iso_record(20, 2048, b'MOVIES', True)
+        setup_extent = 21
     sectors[18][:len(root)] = root
     directory = (iso_record(19, 2048, b'\x00', True)
                  + iso_record(18, 2048, b'\x01', True)
-                 + iso_record(20, len(payload), b'SETUP.MPQ;1'))
+                 + iso_record(setup_extent, len(payload), b'SETUP.MPQ;1'))
     sectors[19][:len(directory)] = directory
+    if movie:
+        movies = (iso_record(20, 2048, b'\x00', True)
+                  + iso_record(18, 2048, b'\x01', True)
+                  + iso_record(22, len(movie[1]), movie[0].upper().encode('ascii') + b';1'))
+        sectors[20][:len(movies)] = movies
+        sectors[21][:len(payload)] = payload
+        sectors[22][:len(movie[1])] = movie[1]
+    else:
+        sectors[20][:len(payload)] = payload
     image = b''.join(sectors)
-    return image[:20 * 2048] + payload + image[20 * 2048 + len(payload):]
+    return image
 
 
 class TestImporter(unittest.TestCase):
@@ -136,6 +149,20 @@ class TestImporter(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(output.read_bytes(), data)
         proc = self.invoke(self.iso_tool, 'extract-file', image, 'War3x.mpq', output)
+        self.assertEqual(proc.returncode, 2, proc.stderr)
+
+    def test_iso_extracts_movies_directory_without_copying_other_disc_files(self):
+        setup = mpq([('SetupDat\\maps.lst', b'dummy')])
+        movie_bytes = b'RIFF classic movie payload'
+        image = self.root / 'roc.iso'
+        image.write_bytes(iso_with_nested_setup(setup, ('HumanEd.mpq', movie_bytes)))
+        output = self.root / 'gamefiles' / 'Movies'
+        proc = self.invoke(self.iso_tool, 'extract-dir', image, 'Movies', output)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((output / 'HUMANED.MPQ').read_bytes(), movie_bytes)
+        self.assertFalse((output / 'War3.mpq').exists())
+
+        proc = self.invoke(self.iso_tool, 'extract-dir', image, 'Trailers', self.root / 'trailers')
         self.assertEqual(proc.returncode, 2, proc.stderr)
 
     def test_iso_cyclic_directory_tree_is_bounded(self):

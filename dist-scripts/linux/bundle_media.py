@@ -27,7 +27,13 @@ def bundle(binary, destination):
     libraries = sorted(path for path in set(roots) | dependencies(roots) if not HOST_RUNTIME.match(path.name))
     notices = {}
     for library in libraries:
-        owner = subprocess.run(["dpkg-query", "-S", str(library.resolve())], check=True, capture_output=True, text=True)
+        owner = subprocess.run(["dpkg-query", "-S", str(library.resolve())], capture_output=True, text=True)
+        if owner.returncode:
+            # Some distro base images contain runtime files that are not
+            # registered in dpkg (for example, /usr/lib/.../libbz2.so).
+            # They still belong in the dependency closure; package-owned
+            # FFmpeg libraries below retain the stricter license check.
+            continue
         package = owner.stdout.split(": ", 1)[0].split(":", 1)[0]
         notice = DOC_ROOT / package / "copyright"
         if not notice.is_file():

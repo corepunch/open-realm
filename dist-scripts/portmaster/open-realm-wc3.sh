@@ -67,8 +67,8 @@ install() {
     local isoextract="$GAMEDIR/isoextract.${DEVICE_ARCH}"
     local setupreader="$GAMEDIR/wc3setup.${DEVICE_ARCH}"
     local staging="$GAMEDIR/gamefiles/.wc3import-staging"
-    local marker="$data/.portmaster-iso-import-v1"
-    local disc source name candidate rc index=0 keep_roc=0
+    local marker="$data/.portmaster-iso-import-v2"
+    local disc source name candidate movie_name rc index=0 keep_roc=0
     local disc_recognized signature old_count marker_matches=1
     local -a images=() signatures=() missing_before_setup=()
     local -a archives=(War3.mpq War3Local.mpq War3x.mpq War3xLocal.mpq War3Patch.mpq)
@@ -134,7 +134,7 @@ install() {
     # No source ISO is removed until ALL discs are processed and installed data
     # is verified. A failed import leaves the source ISOs untouched for retry.
     rm -rf -- "$staging"
-    mkdir -p "$staging/archives" || return 1
+    mkdir -p "$staging/archives" "$staging/movies" || return 1
     pm_message "Importing Warcraft III game data from ISO..."
     for disc in "${images[@]}"; do
         index=$((index + 1))
@@ -142,6 +142,24 @@ install() {
         mkdir -p "$source" || return 1
         disc_recognized=0
         echo "WC3 ISO: $disc"
+        # Classic campaign movies are loose AVI payloads under Movies/, despite
+        # their historical .mpq extension. Keep them separate from MPQ archives.
+        rc=0
+        "$isoextract" extract-dir "$disc" Movies "$source/movies" || rc=$?
+        if [ "$rc" -eq 0 ]; then
+            for candidate in "$source"/movies/*; do
+                [ -f "$candidate" ] || continue
+                movie_name=${candidate##*/}
+                case "${movie_name,,}" in *.mpq) ;; *) continue ;; esac
+                if [ ! -e "$staging/movies/$movie_name" ]; then
+                    mv -- "$candidate" "$staging/movies/$movie_name" || return 1
+                fi
+            done
+        elif [ "$rc" -ne 2 ]; then
+            pm_message "Failed reading Movies directory from ISO"
+            rm -rf -- "$staging"
+            return 1
+        fi
         for name in "${archives[@]}"; do
             # Never replace an archive already installed or recovered.
             if [ -s "$data/$name" ] || [ -s "$staging/archives/$name" ]; then
@@ -242,6 +260,22 @@ install() {
             }
         fi
     done
+
+    # Install loose movie payloads after the game archives have validated.
+    # Never overwrite movies already supplied by the user.
+    if [ -d "$staging/movies" ]; then
+        mkdir -p "$data/Movies" || return 1
+        for candidate in "$staging"/movies/*; do
+            [ -f "$candidate" ] || continue
+            movie_name=${candidate##*/}
+            if [ ! -e "$data/Movies/$movie_name" ] &&
+               ! mv -- "$candidate" "$data/Movies/$movie_name"; then
+                pm_message "Cannot install movie ${movie_name}"
+                rm -rf -- "$staging"
+                return 1
+            fi
+        done
+    fi
 
     # Verify the final files, including pre-existing MPQs. Do not delete disc
     # images if a destination archive is absent, truncated or unreadable.
