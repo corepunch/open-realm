@@ -1613,6 +1613,19 @@ static void CL_SendConnectRequest(netadr_t address) {
     Netchan_OutOfBandPrint(NS_CLIENT, address, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
 }
 
+/* A connect request is one datagram. Over UDP and EOS it is sent again every second until the host answers: a lost
+ * request used to leave a LAN guest connecting for good, and a host ignores a request from an address it dropped less
+ * than BZ_CLIENT_ZOMBIE_MSEC ago (a guest rejoining right after leaving). Loopback cannot lose it. */
+static void CL_ResendConnect(void) {
+    if (cls.state != ca_connecting || cls.netchan.remote_address.type == NA_LOOPBACK) return;
+    if (cl_realtime - cl_connect_started > CL_TIMEOUT_MSEC) {
+        CL_Disconnect(cls.netchan.remote_address.type == NA_EOS ? "Internet host connection timed out." : "Connection to host timed out.", true);
+    } else if (cl_realtime - cl_connect_retry >= 1000) {
+        cl_connect_retry = cl_realtime;
+        CL_SendConnectRequest(cls.netchan.remote_address);
+    }
+}
+
 void CL_Connect(cstring_t host, unsigned short port) {
     netadr_t adr;
 
@@ -1648,6 +1661,75 @@ void CL_Connect(cstring_t host, unsigned short port) {
     else
         fprintf(stderr, "CL_Connect: connecting to %s\n", NET_AdrToString(&adr));
 }
+
+#ifdef BZ_TESTS
+/* Wait briefly for one datagram on the test host socket; returns its length or 0. */
+static int CL_TestHostReceive(sizeBuf_t *packet, netadr_t *from) {
+    FOR_LOOP(i, 200) {
+        int r = NET_GetPacket(NS_SERVER, from, packet);
+        if (r) return r;
+        SDL_Delay(1);
+    }
+    return 0;
+}
+
+static bool CL_TestHostConnectRequest(sizeBuf_t *packet, netadr_t *from) {
+    packet->cursize = packet->readcount = 0;
+    if (CL_TestHostReceive(packet, from) <= 4 || MSG_ReadLong(packet) != -1) return false;
+    return !strncmp(MSG_ReadString2(packet), "connect ", 8);
+}
+
+/* A LAN guest that rejoins right after leaving reaches a host that still ignores its address, and a request can be
+ * lost: the connect request goes out again every second, and the guest gives up after CL_TIMEOUT_MSEC. */
+TEST(client_session, udp_connect_request_is_resent_until_answered) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint32_t const old_realtime = cl_realtime;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+    char port_text[16];
+    unsigned short port = 0;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap; /* the headless test binary has no renderer */
+    memset(&cls, 0, sizeof(cls));
+    NET_Config(false);
+    for (unsigned short p = 28190; p < 28210 && !port; p++) { /* classic and TFT shards run side by side */
+        snprintf(port_text, sizeof(port_text), "%u", (unsigned)p);
+        Cvar_Set("game_port", port_text);
+        NET_ConfigSource(NS_SERVER, true);
+        if (NET_IsConfigured(NS_SERVER)) port = p;
+    }
+    T_ASSERT(port);
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+
+    CL_Connect("127.0.0.1", port);
+    T_EQ(cls.state, ca_connecting);
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from));
+    cl_realtime += 999; CL_ResendConnect();
+    T_EQ(CL_TestHostReceive(&packet, &from), 0); /* not before a second has passed */
+    cl_realtime += 1; CL_ResendConnect();
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from));
+    cl_realtime += 1000; CL_ResendConnect();
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from)); /* every second */
+
+    cls.state = ca_connected; /* the host answered */
+    cl_realtime += 1000; CL_ResendConnect();
+    T_EQ(CL_TestHostReceive(&packet, &from), 0);
+
+    cls.state = ca_connecting; /* never answered: give up */
+    cl_realtime += CL_TIMEOUT_MSEC; CL_ResendConnect();
+    T_EQ(cls.state, ca_disconnected);
+
+    NET_Config(false);
+    Cvar_Set("game_port", ""); Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    cl_realtime = old_realtime;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+#endif
 
 void CL_Shutdown(void) {
     Sys_UpdateLoadingPresentation(false, 1.0f, true);
@@ -1706,14 +1788,7 @@ void CL_Frame(uint32_t msec) {
     CL_CanvasFrame(cl_realtime);
     CL_MovieUpdate();
     CL_ReadPackets();
-    if (cls.state == ca_connecting && cls.netchan.remote_address.type == NA_EOS) {
-        if (cl_realtime - cl_connect_started > CL_TIMEOUT_MSEC) {
-            CL_Disconnect("Internet host connection timed out.", true);
-        } else if (cl_realtime - cl_connect_retry >= 1000) {
-            cl_connect_retry = cl_realtime;
-            CL_SendConnectRequest(cls.netchan.remote_address);
-        }
-    }
+    CL_ResendConnect();
     CL_MusicUpdate();
     S_SetUserVolume(Cvar_Integer("s_sound", 1)
         ? Cvar_Value("s_volume", 1.0f) : 0.0f);
