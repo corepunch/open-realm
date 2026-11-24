@@ -189,7 +189,24 @@ static void SV_ProcessPacket(netadr_t *from, sizeBuf_t *net_message, int r) {
             if (!Netchan_Process(&client->netchan, net_message)) return;
             SV_AcknowledgeFrames(client);
         }
+        client->lastmessage = svs.realtime;
         SV_ParseClientMessage(net_message, client);
+    }
+}
+
+/* A LAN guest that left without a disconnect (killed, cable pulled) only goes silent; without this its lobby slot
+ * stayed taken for good. Only sequenced (UDP) channels are checked: there a live client acknowledges every keepalive,
+ * so silence means it is gone. Loopback and EOS send no bare acknowledgement, and in a game or while loading a
+ * client may be silent for other reasons, so the timeout covers the lobby only. */
+static void SV_CheckTimeouts(void) {
+    if (sv.state != ss_lobby) return;
+    FOR_LOOP(i, svs.num_clients) {
+        client_t *cl = &svs.clients[i];
+        if ((cl->state != cs_connected && cl->state != cs_spawned) || !Netchan_IsSequenced(&cl->netchan) ||
+            svs.realtime - cl->lastmessage <= BZ_LOBBY_TIMEOUT_MSEC)
+            continue;
+        fprintf(stderr, "SV_CheckTimeouts: lobby client %u (%s) timed out\n", i, NET_AdrToString(&cl->netchan.remote_address));
+        SV_DropClient(cl);
     }
 }
 
@@ -348,6 +365,7 @@ void SV_Frame(uint32_t msec) {
     svs.realtime += msec;
     SV_ReapZombieClients();
     SV_ReadPackets();
+    SV_CheckTimeouts(); /* after the reads, so packets queued during a long frame still count */
 
     /*External control is a game-export capability, but simulation advancement
      *remains server-owned. This poll runs before pause/clock scheduling so a

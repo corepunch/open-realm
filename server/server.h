@@ -11,6 +11,7 @@
 
 #define BZ_SIGNON_SIZE 1400 // bytes; fits a 1500-byte LAN MTU with UDP/IP headers; bounds remote startup batches
 #define BZ_CLIENT_ZOMBIE_MSEC 2000 // milliseconds; Quake 2 disconnect grace period before a client slot can be reused
+#define BZ_LOBBY_TIMEOUT_MSEC 45000 // milliseconds; retail 1.29 dropped a silent LAN lobby guest after 43-49 s
 
 /* Loopback accepts engine-sized messages; a UDP or EOS datagram must fit BZ_SIGNON_SIZE with its netchan header. */
 static inline uint32_t SV_DatagramLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE - (Netchan_IsSequenced(chan) ? NETCHAN_HEADER_SIZE : 0)); }
@@ -84,6 +85,7 @@ struct client {
     uint32_t playernum;
     uint32_t lobby_slot;
     uint32_t drop_time;
+    uint32_t lastmessage;         // svs.realtime of the last packet accepted from this client; lobby timeout
     char userinfo[256];
     UINAME name;
 };

@@ -334,6 +334,7 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
          * so the slot's must restart too, or each side drops the other's packets as stale. */
         Netchan_Reset(&existing->netchan);
         SV_ResetDeltaBase(existing);
+        existing->lastmessage = svs.realtime;
         Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
         return;
     }
@@ -350,6 +351,7 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
     cl->lastframe = (uint32_t)-1;
+    cl->lastmessage = svs.realtime;
     SV_LobbyClientInit(cl, userinfo);
     SV_InitMulticast();
     cl->netchan.remote_address = *from;

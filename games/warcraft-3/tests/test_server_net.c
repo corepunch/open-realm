@@ -1825,6 +1825,124 @@ TEST(server_net, idle_lobby_sends_keepalives_without_simulating) {
     close(sock); NET_Shutdown();
 }
 
+/* A host lobby with an Open slot 1 for one real UDP guest; returns the guest socket, joined and drained. */
+static int start_lobby_with_udp_guest(unsigned short port) {
+    lobbySlot_t slot = { .visible = true, .client = MAX_CLIENTS, .type = LOBBY_SLOT_HUMAN, .race = kPlayerRaceHuman };
+    static mapInfo_t info;
+    char text[16];
+    int sock;
+
+    NET_Shutdown();
+    snprintf(text, sizeof(text), "%u", (unsigned)port);
+    test_client_stubs_set_cvar("game_port", text);
+    reset_server_state(4);
+    memset(&info, 0, sizeof(info));
+    test_mapinfo = &info;
+    SV_StartLobby("Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(2, 2, "Test");
+    SV_LobbySetSlot(0, &slot);
+    slot.type = LOBBY_SLOT_OPEN, slot.map_player = 1, slot.race = kPlayerRaceOrc;
+    SV_LobbySetSlot(1, &slot);
+    sock = open_client_socket();
+    if (sock < 0) return -1;
+    send_connect_oob(sock, port); pump_server_connects();
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) | O_NONBLOCK);
+    return sock;
+}
+
+/* Read every datagram waiting on a guest socket; returns how many arrived, the last payload is left in buf. */
+static int drain_guest(int sock, uint8_t *buf, size_t size, int *last) {
+    int count = 0, r;
+    while ((r = (int)recv(sock, buf, size, 0)) > 0) count++, *last = r;
+    return count;
+}
+
+/* Send one sequenced client packet (header + payload) to the server's UDP port. */
+static void send_guest_packet(int sock, unsigned short port, uint32_t sequence, uint32_t ack, sizeBuf_t const *payload) {
+    uint8_t data[MAX_MSGLEN];
+    sizeBuf_t pkt = { data, sizeof(data), 0, 0 };
+    struct sockaddr_in to = { .sin_family = AF_INET, .sin_port = htons(port), .sin_addr.s_addr = htonl(INADDR_LOOPBACK) };
+    MSG_WriteLong(&pkt, (int)sequence); MSG_WriteLong(&pkt, (int)ack);
+    if (payload) SZ_Write(&pkt, payload->data, payload->cursize);
+    (void)sendto(sock, pkt.data, pkt.cursize, 0, (struct sockaddr *)&to, sizeof(to));
+}
+
+/* A guest that was killed only goes silent over UDP; its lobby slot used to stay taken forever. Retail 1.29 drops it
+ * after about 45 s, tells it so, and opens the slot again. */
+TEST(server_net, silent_udp_lobby_guest_times_out_and_frees_its_slot) {
+    uint8_t buf[MAX_MSGLEN];
+    int last = 0, sock = start_lobby_with_udp_guest(28071);
+    T_ASSERT(sock >= 0);
+    T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK); /* the host's own client */
+    T_EQ(svs.clients[1].state, cs_connected); T_EQ(svs.lobby.slots[1].occupied, true);
+    FOR_LOOP(i, BZ_LOBBY_TIMEOUT_MSEC / 1000) SV_Frame(1000), drain_client_packets();
+    T_EQ(svs.clients[1].state, cs_connected); /* exactly at the limit it is still waited for */
+    T_EQ(svs.lobby.slots[1].occupied, true);
+    drain_guest(sock, buf, sizeof(buf), &last);
+    SV_Frame(1);
+    T_EQ(svs.clients[1].state, cs_zombie);
+    T_EQ(svs.lobby.slots[1].occupied, false);
+    usleep(20000);
+    T_ASSERT(drain_guest(sock, buf, sizeof(buf), &last) > 0);
+    T_ASSERT(last > NETCHAN_HEADER_SIZE); T_EQ(buf[last - 1], svc_disconnect);
+    SV_Frame(BZ_CLIENT_ZOMBIE_MSEC); drain_client_packets();
+    T_EQ(svs.clients[1].state, cs_free);
+    T_EQ(svs.clients[0].state, cs_connected); /* the silent loopback host stays */
+    close(sock); SV_Shutdown(); NET_Shutdown(); test_mapinfo = NULL;
+}
+
+/* A live guest acknowledges every keepalive, so a long idle lobby must not drop it. */
+TEST(server_net, udp_lobby_guest_that_acknowledges_keepalives_stays) {
+    uint8_t buf[MAX_MSGLEN];
+    int last = 0, sock = start_lobby_with_udp_guest(28072);
+    uint32_t seq = 0;
+    T_ASSERT(sock >= 0);
+    FOR_LOOP(i, 120) {
+        SV_Frame(1000);
+        usleep(2000);
+        if (drain_guest(sock, buf, sizeof(buf), &last) && last >= NETCHAN_HEADER_SIZE) {
+            sizeBuf_t in = { buf, sizeof(buf), (uint32_t)last, 0 };
+            send_guest_packet(sock, 28072, ++seq, (uint32_t)MSG_ReadLong(&in), NULL); /* a bare acknowledge */
+        }
+    }
+    SV_Frame(1);
+    T_ASSERT(seq >= 100);
+    T_EQ(svs.clients[1].state, cs_connected); T_EQ(svs.lobby.slots[1].occupied, true);
+    close(sock); SV_Shutdown(); NET_Shutdown(); test_mapinfo = NULL;
+}
+
+/* In a game a silent player is waited for (retail shows a "waiting for player" dialog), so the lobby timeout must not
+ * drop it. The paused server only sends messages, so the guest stays silent for well past the lobby limit. */
+TEST(server_net, silent_udp_client_in_game_is_not_timed_out) {
+    uint8_t buf[MAX_MSGLEN];
+    int last = 0, sock = start_lobby_with_udp_guest(28076);
+    T_ASSERT(sock >= 0);
+    T_EQ(svs.clients[1].state, cs_connected);
+    sv.state = ss_game;
+    sv.paused = true;
+    FOR_LOOP(i, 2 * BZ_LOBBY_TIMEOUT_MSEC / 1000) SV_Frame(1000), drain_client_packets(), drain_guest(sock, buf, sizeof(buf), &last);
+    T_EQ(svs.clients[1].state, cs_connected);
+    sv.paused = false; sv.state = ss_lobby;
+    close(sock); SV_Shutdown(); NET_Shutdown(); test_mapinfo = NULL;
+}
+
+/* A guest that leaves sends "disconnect": its slot opens at once and the same address can join again. */
+TEST(server_net, udp_lobby_guest_disconnect_frees_slot_and_rejoins) {
+    uint8_t data[64];
+    sizeBuf_t cmd = { data, sizeof(data), 0, 0 };
+    int sock = start_lobby_with_udp_guest(28075);
+    T_ASSERT(sock >= 0);
+    MSG_WriteByte(&cmd, clc_stringcmd); MSG_WriteString(&cmd, "disconnect");
+    send_guest_packet(sock, 28075, 1, 0, &cmd);
+    usleep(20000);
+    SV_Frame(1);
+    T_EQ(svs.clients[1].state, cs_zombie); T_EQ(svs.lobby.slots[1].occupied, false);
+    SV_Frame(BZ_CLIENT_ZOMBIE_MSEC);
+    send_connect_oob(sock, 28075); pump_server_connects();
+    T_EQ(svs.clients[1].state, cs_connected); T_EQ(svs.lobby.slots[1].occupied, true);
+    close(sock); SV_Shutdown(); NET_Shutdown(); test_mapinfo = NULL;
+}
+
 /* Map creation populates the signon table; replaying it as a live multicast bypassed UDP paging. */
 TEST(server_net, loading_configstrings_do_not_queue_duplicate_live_updates) {
     NET_Shutdown(); reset_server_state(1);
