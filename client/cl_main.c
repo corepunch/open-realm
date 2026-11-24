@@ -688,6 +688,11 @@ static void CL_Quit_f(void) {
     Com_Quit();
 }
 
+/* "disconnect": leave the current server and tell it so. A LAN guest leaving a lobby used to only switch screens and
+ * stayed connected, so the host kept its slot. From the menu the menu picks the next screen; from a world it returns
+ * to the main menu like any other disconnect. */
+static void CL_Disconnect_f(void) { CL_DisconnectInternal("Disconnected.", false, !CL_MenuActive()); }
+
 /* Game modules request session-boundary actions through gi.MenuAction while
  * their simulation/JASS call stack may still be active.  Never tear down or
  * replace the current world inline from that callback.  Copy the request and
@@ -1039,6 +1044,42 @@ TEST(client_session, disconnect_always_tells_the_local_server_it_left) {
     cls = old_cls;
 }
 
+/* A LAN guest leaving its lobby from the menu runs "disconnect": the host hears it, the session ends, and the menu,
+ * not the disconnect, chooses the next screen (the main-menu reset in CL_DisconnectInternal does not run). */
+static void CL_TestNoRegisterMap(cstring_t map) { (void)map; }
+
+TEST(client_session, disconnect_command_from_menu_tells_server_and_keeps_screen) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap; /* the headless test binary has no renderer */
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+    T_ASSERT(CL_MenuActive());
+
+    CL_Disconnect_f();
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(cls.state, ca_disconnected);
+    T_STREQ(Cvar_String("map", ""), "Maps\\Lobby.w3m"); /* the menu-reset branch was not taken */
+    CL_Disconnect_f(); /* already disconnected: nothing is sent */
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0);
+
+    Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
 static uint32_t cl_test_menu_shutdown_count;
 static uint32_t cl_test_menu_init_count;
 static uint32_t cl_test_register_map_count;
@@ -1220,6 +1261,7 @@ void CL_Init(void) {
     CL_ClearState();
 
     Cmd_AddCommand("quit", CL_Quit_f);
+    Cmd_AddCommand("disconnect", CL_Disconnect_f);
     Cmd_AddCommand("screenshot", CL_Screenshot_f);
     Cmd_AddCommand("menu_restart", CL_MenuRestart_f);
 

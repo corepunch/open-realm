@@ -4878,6 +4878,71 @@ TEST(menu_fdf, guest_echo_does_not_override_pending_lan_exit) {
     mi = saved;
 }
 
+/* A LAN guest's Cancel and Escape end its session ("disconnect") and return to the game list, as in the original. They
+ * used to open the create screen (Cancel) or the list (Escape) and stay connected, so the host kept the guest's slot. */
+TEST(menu_fdf, lan_guest_lobby_exits_disconnect_and_open_the_game_list) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m" };
+    frameDef_t *cancel, *join;
+    rect_t rect;
+
+    FOR_LOOP(escape, 2) {
+        test_glue_setup();
+        mi.Cvar_Set = test_cvar_set;
+        Cmd_ExecuteString("menu_joinserver");
+        test_glue_tick(1000);
+        snprintf(test_connect_target, sizeof(test_connect_target), "192.0.2.1");
+        menuExport_t api = M_GetAPI(mi);
+        api.UpdateLobbySetup(&echo);
+        test_glue_tick(667);
+        test_glue_tick(1000);
+        T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+        cancel = UI_FindChildFrame(UI_FindFrame("GameChatroom"), "CancelButton");
+        T_NOT_NULL(cancel);
+        T_STREQ(cancel->OnClick, "menu_lobby_leave");
+        captured_command[0] = '\0';
+        if (escape) {
+            api.KeyEvent(27, 0, true, M_Time());
+            T_STREQ(captured_command, "menu_lobby_leave\n");
+        }
+        Cmd_ExecuteString("menu_lobby_leave");
+        T_STREQ(captured_command, "disconnect\n");
+        test_glue_tick(667);
+        test_glue_tick(1000);
+        T_ASSERT(UI_GetCurrentScreen() == &lanJoinScreen);
+        join = UI_FindFrame("JoinButton");
+        T_NOT_NULL(join);
+        T_ASSERT(UI_FrameLaidOutRect(join, &rect)); /* the game list, not the create screen */
+        T_EQ(test_connect_target[0], '\0');
+        Cmd_ExecuteString("menu_ingame");
+        mi = saved;
+    }
+}
+
+/* The host's own lobby exits are unchanged: no disconnect, Cancel to the create screen, Escape to the list. */
+TEST(menu_fdf, host_lobby_exits_keep_their_destinations) {
+    menuImport_t saved = mi;
+    lobbyState_t echo = { .active = true, .map_path = "Maps\\Transport.w3m" };
+    frameDef_t *cancel;
+
+    test_glue_setup();
+    mi.Cvar_Set = test_cvar_set;
+    Cmd_ExecuteString("menu_host_lobby");
+    menuExport_t api = M_GetAPI(mi);
+    api.UpdateLobbySetup(&echo);
+    test_glue_tick(667);
+    test_glue_tick(1000);
+    T_ASSERT(UI_GetCurrentScreen() == &gameSetupScreen);
+    cancel = UI_FindChildFrame(UI_FindFrame("GameChatroom"), "CancelButton");
+    T_NOT_NULL(cancel);
+    T_STREQ(cancel->OnClick, "menu_startserver");
+    captured_command[0] = '\0';
+    api.KeyEvent(27, 0, true, M_Time());
+    T_STREQ(captured_command, "menu_multiplayer\n");
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
 /* Entries with identical kind, path and name (two hosts of one map) at different rows are not a double click. */
 TEST(menu_fdf, map_list_double_click_needs_the_same_row) {
     uiMapListState_t list;

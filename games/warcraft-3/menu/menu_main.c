@@ -95,6 +95,7 @@ static void UI_MenuLoadGame_f(void);
 static void UI_MenuSaveGame_f(void);
 static void UI_MenuPlayerConfig_f(void);
 static void UI_MenuStartServer_f(void);
+static void UI_MenuLobbyLeave_f(void);
 static void UI_MenuQuit_f(void);
 static void UI_MenuDisconnected_f(void);
 static void UI_MenuRealmSelect_f(void);
@@ -137,6 +138,7 @@ static const menucommand_t menu_commands[] = {
     { "menu_savegame", UI_MenuSaveGame_f },
     { "menu_playerconfig", UI_MenuPlayerConfig_f },
     { "menu_startserver", UI_MenuStartServer_f },
+    { "menu_lobby_leave", UI_MenuLobbyLeave_f },
     { "menu_joinserver", M_ShowLanBrowserMenu },
     { "menu_credits", M_ShowCreditsMenu },
     { "menu_quit", UI_MenuQuit_f },
@@ -345,6 +347,14 @@ static void UI_MenuStartServer_f(void) {
     }
     LAN_ApplyPlayerName();
     M_ShowLanCreateMenu();
+}
+
+/* A LAN guest leaving the host's lobby (Cancel or Escape) returns to the game list, as in the original, and ends the
+ * session so the host frees its slot. It used to only switch screens and stayed connected. A refused screen request
+ * keeps the guest in the lobby, so it stays connected too. */
+static void UI_MenuLobbyLeave_f(void) {
+    if (UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser))
+        mi.Cmd_ExecuteText("disconnect\n");
 }
 
 static void UI_MenuQuit_f(void) {

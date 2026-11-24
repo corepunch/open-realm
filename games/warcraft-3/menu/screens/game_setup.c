@@ -197,6 +197,11 @@ static bool GameSetup_IsHost(void) {
     return !connect || !connect[0];
 }
 
+/* A LAN guest's lobby exits (Cancel, Escape) must end its session; the host's and the Internet room's do not change. */
+static bool GameSetup_IsLanGuest(void) {
+    return !setup.skirmish && !GameSetup_IsHost() && strcmp(mi.Cvar_String("online_mode", "0"), "1");
+}
+
 static bool GameSetup_CanStart(void) {
     bool const internet = !strcmp(mi.Cvar_String("online_mode", "0"), "1");
     return GameSetup_IsHost() && (!internet || (mi.Online_HostReady && mi.Online_HostReady()));
@@ -1042,7 +1047,7 @@ static void GameSetup_Init(void) {
     }
     setup.skirmish = LAN_IsSinglePlayerCreate();
     GameSetup_ApplyLayout();
-    UI_SetOnClick(setup.cancel_button, setup.skirmish ? "menu_game" : "menu_startserver");
+    UI_SetOnClick(setup.cancel_button, GameSetup_IsLanGuest() ? "menu_lobby_leave" : setup.skirmish ? "menu_game" : "menu_startserver");
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
@@ -1083,7 +1088,7 @@ static void GameSetup_KeyEvent(int key, bool down) {
     if (key == 27) { /* Escape leaves the screen, like the Cancel button (the LAN lobby returns to the LAN menu) */
         bool const internet = !strcmp(mi.Cvar_String("online_mode", "0"), "1");
 
-        mi.Cmd_ExecuteText(setup.skirmish ? "menu_game\n" : internet ? "menu_online\n" : "menu_multiplayer\n");
+        mi.Cmd_ExecuteText(GameSetup_IsLanGuest() ? "menu_lobby_leave\n" : setup.skirmish ? "menu_game\n" : internet ? "menu_online\n" : "menu_multiplayer\n");
         return;
     }
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
