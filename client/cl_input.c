@@ -57,7 +57,7 @@ typedef struct {
     int16_t web_axes[BZ_WEB_GAMEPAD_AXES];
 #endif
     bool a, b, x, x_radial, y, y_radial_hold, y_radial_closed, y_repeat_spell,
-         rt, rt_used, lt, lt_used, lb, lb_used, rb, rb_used, start, back,
+         rt, rt_used, lt, lt_used, lb, lb_used, rb, rb_used, start, start_used, back,
          paint, paint_additive, paint_remove, status_panel_mode, build_queue_mode;
     bool left_stick_neutral_required;
     bool down_dpad[4];
@@ -170,6 +170,7 @@ static void CL_GamepadReset(void) {
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     memset(gamepad.dpad_group_assigned, 0, sizeof(gamepad.dpad_group_assigned));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
+    gamepad.start_used = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.lb = gamepad.status_panel_mode = gamepad.build_queue_mode = false;
@@ -198,6 +199,7 @@ static void CL_GamepadResetHeld(void) {
     memset(gamepad.dpad_hero_shortcut, 0, sizeof(gamepad.dpad_hero_shortcut));
     memset(gamepad.dpad_group_assigned, 0, sizeof(gamepad.dpad_group_assigned));
     gamepad.rt = gamepad.rt_used = gamepad.lt = gamepad.lt_used = gamepad.start = false;
+    gamepad.start_used = false;
     gamepad.back = false;
     gamepad.rb = gamepad.rb_used = false;
     gamepad.lb = gamepad.status_panel_mode = gamepad.build_queue_mode = false;
@@ -779,6 +781,10 @@ static SDL_GameControllerButton CL_GamepadFace(SDL_GameControllerButton button) 
 /* Built-in controller roles. Nothing reaches them by button identity: config.cfg
  * binds each physical button to a verb with `bind`. */
 static void CL_GamepadRole(int button, bool down, uint32_t ts) {
+    /* A Start press is a tap unless another controller button joins it. This
+     * keeps the Start action deferred until release, so modifier chords win. */
+    if (down && gamepad.start && button != SDL_CONTROLLER_BUTTON_START)
+        gamepad.start_used = true;
     if (button == CL_GAMEPAD_LT) {
                 if (down && !gamepad.lt) {
                     gamepad.lt_used = gamepad.start || gamepad.rt || gamepad.y || SCR_GamepadRadialActive();
@@ -958,8 +964,16 @@ static void CL_GamepadRole(int button, bool down, uint32_t ts) {
             if (gamepad.start == down) break;
             gamepad.start = down;
             if (down && gamepad.back) {
+                gamepad.start_used = true;
                 Cmd_ExecuteString("quit");
             }
+            if (down && (gamepad.rb || gamepad.lb || gamepad.lt || gamepad.rt ||
+                         gamepad.down_dpad[0] || gamepad.down_dpad[1] ||
+                         gamepad.down_dpad[2] || gamepad.down_dpad[3]))
+                gamepad.start_used = true;
+            if (!down && !gamepad.start_used)
+                CL_GamepadExecuteAction("cl_gamepad_start_tap_action", false);
+            if (!down) gamepad.start_used = false;
             if (down && gamepad.rt) gamepad.rt_used = true;
             if (down && gamepad.lt) gamepad.lt_used = true;
             if (down && gamepad.rb) gamepad.rb_used = true;
@@ -2786,6 +2800,7 @@ void CL_InitInput(void) {
         "cl_gamepad_start_dpad_down_action", "cl_gamepad_start_dpad_left_action",
         "cl_gamepad_start_left_shoulder_action", "cl_gamepad_start_right_shoulder_action",
         "cl_gamepad_start_left_trigger_action", "cl_gamepad_start_right_trigger_action",
+        "cl_gamepad_start_tap_action",
         "cl_gamepad_left_trigger_tap_action", "cl_gamepad_right_trigger_tap_action",
         "cl_gamepad_repeat_cast_action",
     };
@@ -3733,6 +3748,39 @@ TEST(client_input, gamepad_dpad_moves_pointer_through_start_menu_controls) {
     menu = old_menu;
     gamepad = old_gamepad;
     mouse = old_mouse;
+}
+
+TEST(client_input, gamepad_start_tap_opens_menu_and_start_rb_uses_chord) {
+    __typeof__(gamepad) old_gamepad = gamepad;
+    char old_tap_action[CMDARG_LEN], old_rb_action[CMDARG_LEN];
+    cstring_t tap_action = Cvar_String("cl_gamepad_start_tap_action", "");
+    cstring_t rb_action = Cvar_String("cl_gamepad_start_right_shoulder_action", "");
+
+    strlcpy(old_tap_action, tap_action ? tap_action : "", sizeof(old_tap_action));
+    strlcpy(old_rb_action, rb_action ? rb_action : "", sizeof(old_rb_action));
+    Cvar_Set("cl_gamepad_start_tap_action", "set cl_gamepad_start_test 1");
+    Cvar_Set("cl_gamepad_start_right_shoulder_action", "set cl_gamepad_start_test 2");
+    Cvar_Set("cl_gamepad_start_test", "0");
+    gamepad = (__typeof__(gamepad)){ .status_panel_mode = true };
+
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_START, true, 100);
+    T_STREQ(Cvar_String("cl_gamepad_start_test", NULL), "0");
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_START, false, 110);
+    T_STREQ(Cvar_String("cl_gamepad_start_test", NULL), "1");
+
+    Cvar_Set("cl_gamepad_start_test", "0");
+    gamepad = (__typeof__(gamepad)){ .status_panel_mode = true };
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_START, true, 200);
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, true, 210);
+    T_STREQ(Cvar_String("cl_gamepad_start_test", NULL), "2");
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, false, 220);
+    CL_GamepadRole(SDL_CONTROLLER_BUTTON_START, false, 230);
+    T_STREQ(Cvar_String("cl_gamepad_start_test", NULL), "2");
+
+    Cvar_Set("cl_gamepad_start_tap_action", old_tap_action);
+    Cvar_Set("cl_gamepad_start_right_shoulder_action", old_rb_action);
+    Cvar_Set("cl_gamepad_start_test", "0");
+    gamepad = old_gamepad;
 }
 
 TEST(client_input, gamepad_reset_cancels_pending_modal_a_release) {
