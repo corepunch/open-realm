@@ -2193,16 +2193,27 @@ static void G_ClientDisconnect(edict_t *edict) {
     }
 }
 
+/* Resolve the gameplay/reset distance from this player's preference and the
+ * active map's W3I force-zoom policy. */
+float G_ClientCameraDefaultDistance(gameClient_t const *client) {
+    gameCameraZoomPolicy_t policy;
+    float default_distance = client && client->camera_preference_valid
+        ? client->camera_preference_default : WC3_CAMERA_DEFAULT_DISTANCE;
+    float maximum_distance = client && client->camera_preference_valid
+        ? client->camera_preference_maximum : WC3_CAMERA_MAX_DISTANCE;
+    if (!CL_GameCameraZoomPolicy(&policy, default_distance, maximum_distance))
+        return WC3_CAMERA_DEFAULT_DISTANCE;
+    return policy.default_distance;
+}
+
 /* Apply only the player's interactive default before map scripts run. Scripted
  * camera fields remain free to author their own initial or cinematic state. */
 static void G_ApplyClientCameraPreference(gameClient_t *client) {
-    gameCameraZoomPolicy_t policy;
-    if (!client || !client->camera_preference_valid ||
-        !CL_GameCameraZoomPolicy(&policy, client->camera_preference_default,
-                                 client->camera_preference_maximum)) return;
-    client->camera.state.target_distance = policy.default_distance;
-    client->camera.old_state.target_distance = policy.default_distance;
-    client->ps.distance = policy.default_distance;
+    float const default_distance = G_ClientCameraDefaultDistance(client);
+    if (!client || !client->camera_preference_valid) return;
+    client->camera.state.target_distance = default_distance;
+    client->camera.old_state.target_distance = default_distance;
+    client->ps.distance = default_distance;
     client->camera.start_time = client->camera.end_time = G_Time();
 }
 

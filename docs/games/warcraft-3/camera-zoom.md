@@ -24,7 +24,7 @@ server accepts that preference during signon, stores it on the WC3 player client
 W3I forced values still take precedence, and scripts that set camera fields after startup retain control. The generic
 client has no WC3 cvar names; each game supplies preferences through `CL_GameCameraPreferences()`.
 
-`CL_GameDefaultCamera()` uses the map-forced effective default when a map enables the relevant W3I flags.  This keeps server-authored spawn and `ResetToGameCamera` state compatible with maps that force camera zoom without teaching the generic client about Warcraft map flags.
+`CL_GameDefaultCamera()` supplies the built-in camera fallback. Server-side `ResetToGameCamera` resolves the connected player's `wc3_camera_default_distance` and `wc3_camera_max_distance` preferences through the same W3I policy, so a map-forced default still takes precedence. This makes cinematic exits such as Human02's intro reset to the player's configured gameplay zoom.
 
 ## Player controls
 

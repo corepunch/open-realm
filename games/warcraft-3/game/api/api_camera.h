@@ -462,6 +462,7 @@ uint32_t ResetToGameCamera(jass_t *j) {
     {
         gameCamera_t cam;
         CL_GameDefaultCamera(&cam);
+        cam.distance = G_ClientCameraDefaultDistance(gc);
         gc->camera.state.viewangles = (vec3_t){ cam.pitch, 0, cam.yaw };
         gc->camera.state.fov = cam.fov;
         gc->camera.state.target_distance = cam.distance;

@@ -3090,6 +3090,7 @@ bool G_ImageHeaderHasAlpha(uint8_t const *data, uint32_t size);
 vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
 vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
+float G_ClientCameraDefaultDistance(gameClient_t const *client);
 void G_ClearCameraTarget(gameClient_t *client, cstring_t func);
 void G_ClearCameraPan(gameClient_t *client);
 vec2_t G_CameraPanPositionAtTime(gameClient_t *client, uint32_t now, bool *complete);

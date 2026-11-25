@@ -1677,6 +1677,45 @@ TEST(wc3_api, default_camera_authors_lens) {
     T_FEQ(cam.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
 }
 
+TEST(wc3_api, reset_to_game_camera_uses_player_default_zoom) {
+    gameClient_t *gc;
+    player_t *saved_currentplayer = currentplayer;
+    mapInfo_t saved_info = world.info;
+    cstring_t script =
+        "function main takes nothing returns nothing\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n";
+
+    setup_test_world();
+    world.info = (mapInfo_t){0};
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    currentplayer = test_player(0);
+    gc->camera_preference_valid = false;
+    gc->camera_preference_default = 0.0f;
+    gc->camera_preference_maximum = 0.0f;
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f);
+
+    gc->camera_preference_valid = true;
+    gc->camera_preference_default = 2100.0f;
+    gc->camera_preference_maximum = 3000.0f;
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, 2100.0f, 0.001f);
+
+    world.info.fileFormat = 32;
+    world.info.flags = force_default_camera_zoom;
+    world.info.defaultZoomOverride = 2400;
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, 2400.0f, 0.001f);
+
+    world.info = saved_info;
+    currentplayer = saved_currentplayer;
+}
+
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     gameClient_t *gc = &game.clients[0];
