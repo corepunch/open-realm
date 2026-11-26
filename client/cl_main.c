@@ -205,13 +205,19 @@ static void CL_MenuCommand(cstring_t command) {
 }
 
 /* Q2 CL_Disconnect: always tell the server, even a local one about to shut down; the server
- * discards a dead session's loopback datagrams when it next initializes. */
+ * discards a dead session's loopback datagrams when it next initializes. Over UDP it goes out three times, as in Q2:
+ * a single lost datagram left the slot taken until the host's lobby timeout. The server ignores the copies that reach
+ * the slot after the first one has freed it. */
+#define CL_UDP_DISCONNECT_COPIES 3
 static void CL_SendDisconnect(void) {
     if (cls.state < ca_connected) return;
-    SZ_Clear(&cls.netchan.message);
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    MSG_WriteString(&cls.netchan.message, "disconnect");
-    Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    uint32_t const copies = Netchan_IsSequenced(&cls.netchan) ? CL_UDP_DISCONNECT_COPIES : 1;
+    FOR_LOOP(i, copies) {
+        SZ_Clear(&cls.netchan.message);
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        MSG_WriteString(&cls.netchan.message, "disconnect");
+        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    }
 }
 
 static void CL_CancelCinematicSession(void);
@@ -1051,6 +1057,41 @@ TEST(client_session, disconnect_always_tells_the_local_server_it_left) {
     T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
     T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
     T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0); /* loopback does not lose packets: one copy */
+
+    cls = old_cls;
+}
+
+static uint32_t cl_test_udp_disconnects, cl_test_udp_packets;
+
+static void CL_TestCaptureUdpDisconnect(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
+    uint8_t copy[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = copy, .maxsize = sizeof(copy) };
+    cl_test_udp_packets++;
+    if (netsrc != NS_CLIENT || to.type != NA_IP || length <= 8 || length > (int)sizeof(copy)) return;
+    memcpy(copy, data, (size_t)length);
+    msg.cursize = (uint32_t)length;
+    msg.readcount = 8; /* sequence and acknowledge */
+    if (MSG_ReadByte(&msg) == clc_stringcmd && !strcmp(MSG_ReadString2(&msg), "disconnect")) cl_test_udp_disconnects++;
+}
+
+/* A LAN guest's leave crosses a real network: one lost datagram used to leave its slot taken until the host's lobby
+ * timeout, so it goes out three times, each in its own sequenced packet the host accepts. */
+TEST(client_session, udp_disconnect_is_sent_three_times) {
+    struct client_static old_cls = cls;
+
+    memset(&cls, 0, sizeof(cls));
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_IP;
+    cls.state = ca_connected;
+    cl_test_udp_disconnects = cl_test_udp_packets = 0;
+    NET_SetPacketHook(CL_TestCaptureUdpDisconnect);
+
+    CL_SendDisconnect();
+    NET_SetPacketHook(NULL);
+    T_EQ(cl_test_udp_disconnects, 3);
+    T_EQ(cl_test_udp_packets, 3);
+    T_EQ(cls.netchan.outgoing_sequence, 3); /* distinct sequence numbers: none is dropped as a duplicate */
 
     cls = old_cls;
 }
