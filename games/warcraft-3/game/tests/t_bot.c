@@ -4,6 +4,7 @@
 #include "jass/jass.h"
 #include "../skills/s_skills.h"
 #include "shared/test.h"
+#include "common/mpq.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 bool run_test_jass(cstring_t src);
@@ -111,6 +112,57 @@ TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
     T_STREQ(level.bots[1].script, "Scripts\\test_idle.ai");
     G_BotRunFrame();
     T_NOT_NULL(level.bots[1].vm);
+}
+
+/* Starts a melee AI by bare name under a given game-data set and returns the resolved script path. */
+static cstring_t bot_script_for_data_set(cstring_t prefix, cstring_t script) {
+    strlcpy(game.data_prefix, prefix, sizeof(game.data_prefix));
+    G_BotStop(3);
+    return G_BotStart(&game.clients[3].ps, script, BOT_MELEE) ? level.bots[3].script : "";
+}
+
+/* 1.29 RoC keeps the melee AI in Melee_V0\Scripts; TFT (Melee_V1) and 1.27 have no such copy. */
+TEST(wc3_bot, melee_ai_uses_game_data_set_script) {
+    char saved[sizeof(game.data_prefix)];
+    strlcpy(saved, game.data_prefix, sizeof(saved));
+    T_STREQ(bot_script_for_data_set("Melee_V0", "test_dataset.ai"), "Melee_V0\\Scripts\\test_dataset.ai");
+    T_STREQ(bot_script_for_data_set("Melee_V1", "test_dataset.ai"), "Scripts\\test_dataset.ai");
+    T_STREQ(bot_script_for_data_set("", "test_dataset.ai"), "Scripts\\test_dataset.ai");
+    G_BotStop(3);
+    strlcpy(game.data_prefix, saved, sizeof(game.data_prefix));
+}
+
+/* No race AI exists under Scripts\ in a 1.29 RoC archive view; the data-set copy must start. */
+TEST(wc3_bot, melee_ai_starts_from_data_set_only_script) {
+    char saved[sizeof(game.data_prefix)];
+    strlcpy(saved, game.data_prefix, sizeof(saved));
+    T_STREQ(bot_script_for_data_set("Melee_V0", "test_v0only.ai"), "Melee_V0\\Scripts\\test_v0only.ai");
+    T_NOT_NULL(level.bots[3].vm);
+    T_STREQ(bot_script_for_data_set("", "test_v0only.ai"), "");
+    T_NULL(level.bots[3].vm);
+    strlcpy(game.data_prefix, saved, sizeof(game.data_prefix));
+}
+
+/* Retail 1.29 RoC runs a map's own Scripts\<name> ahead of the stock Melee_V0 copy. */
+TEST(wc3_bot, map_ai_script_beats_game_data_set_script) {
+    char saved[sizeof(game.data_prefix)];
+    handle_t archive = NULL, bytes;
+    uint32_t size = 0;
+    strlcpy(saved, game.data_prefix, sizeof(saved));
+    bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+    gi.SetPriorityArchive(archive);
+    T_STREQ(bot_script_for_data_set("Melee_V0", "test_dataset.ai"), "Scripts\\test_dataset.ai");
+    /* The map ships Melee_V1\Scripts\test_idle.ai but no Scripts\ copy; retail ignores a map's data-set copy. */
+    T_STREQ(bot_script_for_data_set("Melee_V1", "test_idle.ai"), "Scripts\\test_idle.ai");
+    /* An empty map entry at the data-set path is a placeholder and must not hide stock Scripts\<name>. */
+    T_STREQ(bot_script_for_data_set("Melee_V1", "test_placeholder.ai"), "Scripts\\test_placeholder.ai");
+    G_BotStop(3);
+    gi.SetPriorityArchive(NULL);
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
+    strlcpy(game.data_prefix, saved, sizeof(game.data_prefix));
 }
 
 static void query_natives_read_authoritative_player_state(cstring_t script) {

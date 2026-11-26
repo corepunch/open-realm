@@ -2276,13 +2276,40 @@ void G_BotUnitReady(edict_t *unit) {
     if (G_UnitIsHero(unit)) G_BotHeroChooseSkill(bot, unit);
 }
 
-/* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
+/* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one.
+ * 1.29 moved the RoC race AI out of Scripts\ into the game-data-set folders (Melee_V0\Scripts and
+ * Custom_V0\Scripts in War3Local.mpq/War3x.mpq). Retail 1.29 RoC runs that copy, but a map's own
+ * Scripts\<name> still wins. This used to build Scripts\<name> only, so no RoC melee AI loaded on 1.29 data.
+ * TFT (Melee_V1/Custom_V1) and 1.27 have no such folders and keep Scripts\<name>. */
 static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
+    char alt[MAX_PATHLEN];
+    handle_t own = NULL;
+    uint32_t bytes;
+    bool named;
     int len;
     if (!script || !*script) return false;
-    len = strchr(script, '\\') || strchr(script, '/') ? snprintf(path, size, "%s", script) :
-        snprintf(path, size, "Scripts\\%s", script);
-    return len >= 0 && (size_t)len < size;
+    named = strchr(script, '\\') || strchr(script, '/');
+    len = named ? snprintf(path, size, "%s", script) : snprintf(path, size, "Scripts\\%s", script);
+    if (len < 0 || (size_t)len >= size) return false;
+    if (named || !game.data_prefix[0]) return true;
+    if ((own = gi.ReadPriorityFile(path, &bytes))) {
+        gi.MemFree(own);
+        return true;
+    }
+    len = snprintf(alt, sizeof(alt), "%s\\Scripts\\%s", game.data_prefix, script);
+    if (len < 0 || (size_t)len >= MIN(size, sizeof(alt))) return true;
+    /* Retail reads the data-set path from the stock archives only and ignored a map's own Melee_V0 copy;
+     * the FS would open that map copy first, so such a map keeps Scripts\<name> as before. An empty map
+     * entry is a placeholder, not a copy: FileExists reports it but ReadFile skips it, so probe by reading. */
+    if ((own = gi.ReadPriorityFile(alt, &bytes))) {
+        gi.MemFree(own);
+        return true;
+    }
+    if ((own = gi.ReadFile(alt, &bytes))) {
+        gi.MemFree(own);
+        strlcpy(path, alt, size);
+    }
+    return true;
 }
 
 void G_BotStop(uint32_t player) {

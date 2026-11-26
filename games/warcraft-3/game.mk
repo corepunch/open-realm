@@ -471,6 +471,9 @@ $(TESTS_MPQ): | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapSkin.txt war3mapSkin.txt \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3b war3map.w3b \
+		$(TESTS_SRC_DIR)/MapOverlay/Scripts/test_dataset.ai "Scripts\\test_dataset.ai" \
+		$(TESTS_SRC_DIR)/MapOverlay/Scripts/test_dataset.ai "Melee_V1\\Scripts\\test_idle.ai" \
+		$(TESTS_SRC_DIR)/MapOverlay/Scripts/empty.ai "Melee_V1\\Scripts\\test_placeholder.ai" \
 		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
 	@echo "[test-assets] packing tileset-archive fixture MPQ"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/O.mpq pack \
