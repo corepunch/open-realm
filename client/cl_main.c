@@ -1055,6 +1055,39 @@ TEST(client_session, disconnect_always_tells_the_local_server_it_left) {
     cls = old_cls;
 }
 
+/* A LAN guest that quits (closes the window, Alt+F4, "quit") from the host's lobby tells the host, so its slot frees
+ * at once instead of at the host's lobby timeout. CL_Shutdown releases client subsystems for good, so the test runs in
+ * its own process (`make test-wc3-map-launch`). */
+static void CL_TestNoShutdown(void) {}
+
+TEST(process_client_session, quit_tells_the_server_it_left) {
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    menuExport_t old_menu = menu;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    memset(&cl, 0, sizeof(cl)); /* no models or images to release */
+    re.Shutdown = CL_TestNoShutdown; /* the headless test binary has no renderer */
+    menu.Shutdown = CL_TestNoShutdown;
+
+    CL_Shutdown();
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(cls.state, ca_disconnected);
+    CL_Shutdown(); /* "quit" runs CL_Shutdown and then Com_Quit runs it again: nothing more is sent */
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0);
+
+    menu = old_menu; re = old_re; cls = old_cls;
+}
+
 /* A LAN guest leaving its lobby from the menu runs "disconnect": the host hears it, the session ends, and the menu,
  * not the disconnect, chooses the next screen (the main-menu reset in CL_DisconnectInternal does not run). */
 static void CL_TestNoRegisterMap(cstring_t map) { (void)map; }
@@ -1731,7 +1764,11 @@ TEST(client_session, udp_connect_request_is_resent_until_answered) {
 }
 #endif
 
+/* Quitting (the window closed, Alt+F4, "quit") tells the server too, as Q2's CL_Quit_f does: a LAN guest that quit
+ * from the host's lobby used to keep its slot until the host's lobby timeout. */
 void CL_Shutdown(void) {
+    CL_SendDisconnect();
+    cls.state = ca_disconnected;
     Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     CL_SuspendMenu();

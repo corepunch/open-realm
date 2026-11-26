@@ -345,6 +345,7 @@ test-wc3-map-launch: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-map-launch-lobby.xml" TEST_JUNIT_SUITE="test-wc3-map-launch-lobby" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_map_launch.lobby*'
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-map-launch-direct.xml" TEST_JUNIT_SUITE="test-wc3-map-launch-direct" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_map_launch.direct*'
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-host-disconnect.xml" TEST_JUNIT_SUITE="test-wc3-host-disconnect" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_client_session.host_disconnect*'
+	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-quit-disconnect.xml" TEST_JUNIT_SUITE="test-wc3-quit-disconnect" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'process_client_session.quit*'
 
 .PHONY: test-jass-build
 test-jass-build: $(JASS_LIB)
