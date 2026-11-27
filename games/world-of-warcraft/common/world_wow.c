@@ -22,10 +22,6 @@ bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default,
     (void)policy; (void)user_default; (void)user_maximum; return false;
 }
 
-bool CL_GameCameraPreferences(float *user_default, float *user_maximum) {
-    (void)user_default; (void)user_maximum; return false;
-}
-
 bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 float CL_GameLerpDegrees(float a, float b, float fraction) { return a + (b - a) * fraction; }
@@ -117,6 +113,7 @@ typedef struct {
 
 typedef struct {
     bool    has_heights;
+    uint32_t area_id;
     vec3_t position;
     float   heights[CM_WOW_MCVT_COUNT];
 } cmWowChunkHeight_t;
@@ -566,6 +563,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
 
             if (index_x < 16 && index_y < 16) {
                 height_chunk = &cache->chunks[index_y][index_x];
+                height_chunk->area_id = Stb_DbcRead32(chunk + 0x34);
                 memcpy(&height_chunk->position, chunk + 0x68, sizeof(height_chunk->position));
             }
 
@@ -853,12 +851,12 @@ static bool CM_WowHeightInCell(float const *heights, int row, int col, float fx,
            CM_WowBarycentricHeight(fx, fy, 0.5f, 0.5f, h_c,  1.0f, 0.0f, h_bl, 1.0f, 1.0f, h_br, height);
 }
 
-static bool CM_WowTerrainHeightAtPoint(float sx, float sy, float *height) {
+static bool CM_WowTerrainSample(float sx, float sy, float *height, uint32_t *area) {
     cmWowAdtHeightCache_t *cache = NULL;
     int tile_x = Wow_TileIndex(sy);
     int tile_y = Wow_TileIndex(sx);
 
-    if (!height || tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64)
+    if (tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64)
         return false;
     FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
         if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x && cm_wow_height_cache[i].tile_y == tile_y) {
@@ -895,6 +893,8 @@ static bool CM_WowTerrainHeightAtPoint(float sx, float sy, float *height) {
             cell_col  = (int)floorf(MIN(local_col, 7.9999f));
             if (cell_row < 0 || cell_row >= 8 || cell_col < 0 || cell_col >= 8)
                 continue;
+            if (area) *area = ch->area_id;
+            if (!height) return true;
             if (CM_WowHeightInCell(ch->heights, cell_row, cell_col, local_row - cell_row, local_col - cell_col, &cell_height)) {
                 *height = ch->position.z + cell_height;
                 return true;
@@ -1079,9 +1079,15 @@ bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
     return true;
 }
 
+uint32_t CM_WowAreaAtPoint(float sx, float sy) {
+    uint32_t area = 0;
+    CM_WowTerrainSample(sx, sy, NULL, &area);
+    return area;
+}
+
 float CM_GetHeightAtPoint(float sx, float sy) {
     float terrain_height;
-    if (CM_WowTerrainHeightAtPoint(sx, sy, &terrain_height))
+    if (CM_WowTerrainSample(sx, sy, &terrain_height, NULL))
         return terrain_height;
     FOR_LOOP(i, MAX_PLAYERS) {
         if (world.info.players[i].used &&

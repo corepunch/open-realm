@@ -8,7 +8,7 @@ games/world-of-warcraft/serverdata/
 ├── quests.csv             ← 2737 quests (min_level ≤ 20) with full text/rewards
 ├── quest_spawns.csv       ← 741 quest giver positions + 2558 objective POIs
 ├── creatures.csv          ← all 29947 creature templates / 40213 model rows
-├── creature_spawns.csv    ← 13729 creature world positions on map 0
+├── creature_spawns.csv    ← 13729 creature world positions on map 0; joined with vendor/banker flags for NPC spawns
 ├── playercreateinfo.csv   ← 40 race/class spawn points (map, x, y, z, facing)
 └── README.md
 ```

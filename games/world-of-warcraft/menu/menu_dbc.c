@@ -11,6 +11,13 @@
 
 #include <string.h>
 #include <time.h>
+#include <errno.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 /* UI adapts mi.* onto stb_dbc.h's shared cache I/O table. */
 static void *UI_DbcRead(cstring_t filename, uint32_t *size) {
@@ -120,18 +127,19 @@ static void *base_info_buf; /* CharBaseInfo 2-byte records keep no string pointe
 
 /* Build the writable saved-characters path: ~/.<game>/characters.xml, falling
  * back to <base>/<game>/characters.xml when $HOME is unavailable. */
-static void CharList_Path(char *out, int sz) {
+static bool CharList_Path(char *out, int sz) {
     cstring_t home = mi.Cvar_String("fs_homepath", "");
 
     if (home && *home) {
-        snprintf(out, sz, "%s/characters.xml", home);
+        return snprintf(out, sz, "%s/characters.xml", home) < sz;
     } else {
-        snprintf(out, sz, "%s/%s/characters.xml", mi.Cvar_String("fs_basepath", "share"), BZ_GAME);
+        return snprintf(out, sz, "%s/%s/characters.xml", mi.Cvar_String("fs_basepath", "share"), BZ_GAME) < sz;
     }
 }
 
 typedef struct {
     char  name[64];
+    uint64_t character_id;
     uint32_t race_id;
     uint32_t sex_id;
     uint32_t class_id;
@@ -143,6 +151,37 @@ static struct {
     int            count;
     bool           loaded;
 } wow_charlist;
+
+static bool CharList_Save(void);
+
+/* Persist an opaque ID so renaming, duplicate names and deleting/recreating a
+ * character cannot silently select another character's progress. */
+static uint64_t CharList_NewId(void) {
+    static uint64_t serial;
+    uint64_t id;
+    do {
+        struct timespec now;
+        timespec_get(&now, TIME_UTC);
+        id = ((uint64_t)now.tv_sec << 32) ^ (uint64_t)now.tv_nsec ^ ((uint64_t)(unsigned)rand() << 1) ^ ++serial;
+        if (!id) continue;
+        bool used = false;
+        for (int i = 0; i < wow_charlist.count; i++)
+            if (wow_charlist.entries[i].character_id == id) used = true;
+        if (!used && mi.SavePath) {
+            char rel[64], path[512];
+            snprintf(rel, sizeof(rel), "wow-character-%016llx.sav", (unsigned long long)id);
+            mi.SavePath(rel, path, sizeof(path));
+            if (!path[0]) return 0;
+            FILE *existing = fopen(path, "rb");
+            if (existing) { fclose(existing); continue; }
+            if (errno != ENOENT) return 0;
+            return id;
+        }
+        if (!mi.SavePath) return 0;
+    } while (true);
+}
+
+void UIWow_ResetCharacterList(void) { memset(&wow_charlist, 0, sizeof(wow_charlist)); }
 
 /* Trim leading whitespace from s, return pointer past it. */
 static cstring_t CharList_TrimLeft(cstring_t s) {
@@ -165,10 +204,21 @@ static bool CharList_XmlAttr(cstring_t tag, cstring_t attr, char *buf, int len) 
     if (q != '"' && q != '\'') return false;
     p++;
     int i = 0;
-    while (*p && *p != q && i < len - 1)
-        buf[i++] = *p++;
+    while (*p && *p != q) {
+        char c = *p++;
+        if (c == '&') {
+            if (!strncmp(p, "amp;", 4)) { c = '&'; p += 4; }
+            else if (!strncmp(p, "lt;", 3)) { c = '<'; p += 3; }
+            else if (!strncmp(p, "gt;", 3)) { c = '>'; p += 3; }
+            else if (!strncmp(p, "quot;", 5)) { c = '"'; p += 5; }
+            else if (!strncmp(p, "apos;", 5)) { c = '\''; p += 5; }
+            else return false;
+        }
+        if (i >= len - 1) return false;
+        buf[i++] = c;
+    }
     buf[i] = '\0';
-    return true;
+    return *p == q;
 }
 
 static void CharList_Load(void) {
@@ -176,27 +226,29 @@ static void CharList_Load(void) {
     int   size;
     cstring_t p;
 
+    bool needs_ids = false;
     wow_charlist.count  = 0;
     wow_charlist.loaded = true;
 
     if (!mi.FS_ReadFile) return;
     char path[512];
-    CharList_Path(path, sizeof(path));
+    if (!CharList_Path(path, sizeof(path))) return;
     size = mi.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) { SAFE_DELETE(buf, mi.FS_FreeFile); return; }
 
     p = (cstring_t)buf;
-    while (*p && wow_charlist.count < WOW_MAX_CHARACTERS) {
-        p = CharList_TrimLeft(p);
+    cstring_t end = p + (size_t)size;
+    while (p < end && wow_charlist.count < WOW_MAX_CHARACTERS) {
         if (*p != '<') { p++; continue; }
         p++;
-        if (strncmp(p, "Character", 9) != 0) {
-            while (*p && *p != '>') p++;
-            if (*p) p++;
+        if ((size_t)(end - p) < 9 || memcmp(p, "Character", 9) != 0) {
+            cstring_t close = memchr(p, '>', (size_t)(end - p));
+            if (!close) break;
+            p = close + 1;
             continue;
         }
-        /* find end of tag */
-        cstring_t tag_end = strchr(p, '>');
+        /* The engine's read buffer is length-delimited, not guaranteed NUL-terminated. */
+        cstring_t tag_end = memchr(p, '>', (size_t)(end - p));
         if (!tag_end) break;
         int tag_len = (int)(tag_end - p);
         char tag[512];
@@ -207,6 +259,15 @@ static void CharList_Load(void) {
         wowCharEntry_t *e = &wow_charlist.entries[wow_charlist.count];
         char tmp[32];
         if (!CharList_XmlAttr(tag, "name", e->name, sizeof(e->name))) { p = tag_end + 1; continue; }
+        e->character_id = 0;
+        if (CharList_XmlAttr(tag, "id", tmp, sizeof(tmp)) && strlen(tmp) == 16) {
+            char *end;
+            unsigned long long parsed = strtoull(tmp, &end, 16);
+            if (!*end && tmp[0] != '-' && tmp[0] != '+') e->character_id = parsed;
+        }
+        for (int i = 0; i < wow_charlist.count; i++)
+            if (wow_charlist.entries[i].character_id == e->character_id) e->character_id = 0;
+        if (!e->character_id) { e->character_id = CharList_NewId(); needs_ids = true; }
         e->race_id    = CharList_XmlAttr(tag, "race",       tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
         e->sex_id     = CharList_XmlAttr(tag, "sex",        tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
         e->class_id   = CharList_XmlAttr(tag, "class",      tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
@@ -215,25 +276,69 @@ static void CharList_Load(void) {
         p = tag_end + 1;
     }
     mi.FS_FreeFile(buf);
+    if (needs_ids && !CharList_Save()) {
+        /* Do not publish identities that were not committed to the roster. */
+        for (int i = 0; i < wow_charlist.count; i++) wow_charlist.entries[i].character_id = 0;
+    }
 }
 
-static void CharList_Save(void) {
-    char xml[4096];
-    int  pos = 0;
-
-    if (!mi.FS_WriteFile) return;
-
-    pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "<Characters>\n");
+static bool CharList_Save(void) {
+    char xml[8192], path[512], tmp[640];
+    size_t used = 0;
+#define APPEND(...) do { \
+    int n = snprintf(xml + used, sizeof(xml) - used, __VA_ARGS__); \
+    if (n < 0 || (size_t)n >= sizeof(xml) - used) return false; \
+    used += (size_t)n; \
+} while (0)
+    APPEND("<Characters>\n");
     for (int i = 0; i < wow_charlist.count; i++) {
-        wowCharEntry_t *e = &wow_charlist.entries[i];
-        pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "  <Character name=\"%s\" race=\"%u\" sex=\"%u\"" " class=\"%u\" appearance=\"%u\" />\n", e->name, e->race_id, e->sex_id, e->class_id, e->appearance);
+        wowCharEntry_t const *e = &wow_charlist.entries[i];
+        if (!e->character_id) return false;
+        APPEND("  <Character name=\"");
+        for (char const *p = e->name; *p; p++) {
+            switch (*p) {
+            case '&': APPEND("&amp;"); break;
+            case '<': APPEND("&lt;"); break;
+            case '>': APPEND("&gt;"); break;
+            case '"': APPEND("&quot;"); break;
+            case '\'': APPEND("&apos;"); break;
+            default: APPEND("%c", *p); break;
+            }
+        }
+        APPEND("\" race=\"%u\" sex=\"%u\" class=\"%u\" appearance=\"%u\" id=\"%016llx\" />\n", e->race_id, e->sex_id, e->class_id, e->appearance, (unsigned long long)e->character_id);
     }
-    pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "</Characters>\n");
-    {
-        char path[512];
-        CharList_Path(path, sizeof(path));
-        mi.FS_WriteFile(path, xml, pos);
+    APPEND("</Characters>\n");
+#undef APPEND
+    if (!CharList_Path(path, sizeof(path))) return false;
+    static unsigned sequence;
+#ifdef _WIN32
+    unsigned long pid = GetCurrentProcessId();
+#else
+    unsigned long pid = (unsigned long)getpid();
+#endif
+    FILE *f = NULL;
+    for (unsigned attempt = 0; attempt < 100 && !f; attempt++) {
+        if (snprintf(tmp, sizeof(tmp), "%s.tmp.%lu.%u", path, pid, ++sequence) >= (int)sizeof(tmp)) return false;
+        f = fopen(tmp, "wbx");
+        if (!f && errno != EEXIST) return false;
     }
+    if (!f) return false;
+    bool ok = fwrite(xml, 1, used, f) == used && fflush(f) == 0;
+#ifdef _WIN32
+    if (ok) ok = _commit(_fileno(f)) == 0;
+#else
+    if (ok) ok = fsync(fileno(f)) == 0;
+#endif
+    if (fclose(f)) ok = false;
+    if (ok) {
+#ifdef _WIN32
+        ok = MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+        ok = rename(tmp, path) == 0;
+#endif
+    }
+    if (!ok) remove(tmp);
+    return ok;
 }
 
 /* -------------------------------------------------------------------------
@@ -667,6 +772,7 @@ void UIWow_SetSelectedCharCvars(void) {
     if (wow_ui.selected_char_idx < 0 || wow_ui.selected_char_idx >= wow_charlist.count)
         return;
     e = &wow_charlist.entries[wow_ui.selected_char_idx];
+    if (!e->character_id) { mi.Cvar_Set(WOW_CVAR_PLAYERINFO, ""); return; }
     sex = (e->sex_id == 2) ? "Female" : "Male";
     UIWow_LoadCharCreateDbc();
     FOR_LOOP(ri, wow_charcreate.num_races) {
@@ -676,7 +782,7 @@ void UIWow_SetSelectedCharCvars(void) {
             break;
         }
     }
-    snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u", race, sex, (unsigned)e->class_id, (unsigned)e->appearance);
+    snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u\\charid\\%016llx", race, sex, (unsigned)e->class_id, (unsigned)e->appearance, (unsigned long long)e->character_id);
     mi.Cvar_Set(WOW_CVAR_PLAYERINFO, userinfo);
 }
 
@@ -771,13 +877,19 @@ int UIWow_LuaCreateCharacter(lua_State *L) {
     sex_id  = wow_charcreate.sel_sex;
 
     e = &wow_charlist.entries[wow_charlist.count++];
+    e->character_id = CharList_NewId();
     snprintf(e->name, sizeof(e->name), "%s", name);
     e->race_id    = (uint32_t)race_id;
     e->sex_id     = (uint32_t)sex_id;
     e->class_id   = (uint32_t)wow_charcreate.sel_class;
     e->appearance = UIWow_GetCharacterCreateAppearance();
 
-    CharList_Save();
+    if (!CharList_Save()) {
+        wow_charlist.count--;
+        lua_pushstring(L, "ERR_CHAR_CREATE_ERROR");
+        lua_setglobal(L, "CharacterCreateResult");
+        return 0;
+    }
 
     /* Fire CharacterCreateResult("OKAY") so the Lua UI advances. */
     lua_getglobal(L, "CharacterCreateResult");

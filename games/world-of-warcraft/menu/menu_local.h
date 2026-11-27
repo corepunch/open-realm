@@ -100,6 +100,7 @@ bool UIWow_LoadLuaFile(cstring_t path, bool noisy_missing);
 
 /* ui_xml.c */
 void UIWow_XMLInitRuntime(void);
+void UIWow_XMLDispatchEvent(cstring_t event, int nargs);
 void UIWow_XMLShutdownRuntime(void);
 bool UIWow_XMLLoadGlueFromToc(cstring_t toc_path);
 bool UIWow_XMLLoadFile(cstring_t path);

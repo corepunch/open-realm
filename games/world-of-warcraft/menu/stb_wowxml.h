@@ -57,6 +57,8 @@ typedef enum {
     WOW_XML_FONTSTRING,
     WOW_XML_BUTTON,
     WOW_XML_EDITBOX,
+    WOW_XML_SLIDER,
+    WOW_XML_STATUSBAR,
 } uiWowXmlType_t;
 #endif
 
@@ -90,6 +92,8 @@ typedef enum {
     ELEM_ON_EDIT_FOCUS_GAINED,
     ELEM_ON_EDIT_FOCUS_LOST,
     ELEM_ON_MOUSE_WHEEL,
+    ELEM_ON_VALUE_CHANGED,
+    ELEM_ON_EVENT,
     ELEM_ON_UPDATE_MODEL,
     ELEM_ON_UPDATE,
     ELEM_SOURCE_FILE,
@@ -143,18 +147,25 @@ typedef enum {
     EF_HAS_TEXT_COLOR  = 1 << 25,
     EF_HAS_FONT_OUTLINE = 1 << 26,
     EF_NUMERIC = 1 << 27,
+    EF_SLIDER_THUMB = 1 << 28,
+    EF_STATUSBAR_TEXTURE = 1 << 29,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
     uint32_t flags;
     uiWowXmlType_t type;
     int id, parent, relative_to, relative_to2, draw_layer;
+    uint32_t serial;
+    int lua_ref;
     char *texts[ELEM_STRING_COUNT];
     fpoint_t pos, offset, text_off, offset2;
     char *point2, *relative_point2, *relative_name2;
     fsize_t size, edge, tile, text_inset;
     fsize_t measured;
     float alpha, font_size;
+    float min_value, max_value, value, value_step;
+    bool vertical;
+    char events[16][64];
     int font_outline; /* 0: none, 1: normal, 2: thick */
     float backdrop_insets[4];
     uiFontJustificationH_t halign;
@@ -171,11 +182,11 @@ typedef struct {
 
 struct wowXmlRuntime_s {
     uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
-    int count, focus, pressed_button, hovered_button;
+    int count, focus, pressed_button, hovered_button, slider_drag;
     bool lua_ready;
     menuTextInput_t text_input;
-    struct { float scroll_y, scroll_range; int scrollbar_child; } scroll[WOW_XML_MAX_ELEMS];
-    struct { int scrollbar_idx; float start_mouse_y, start_value; } drag;
+    struct { float scroll_x, scroll_y, scroll_range_x, scroll_range; int scrollbar_child; } scroll[WOW_XML_MAX_ELEMS];
+    struct { int scrollbar_idx; bool horizontal; float start_mouse_y, start_value, track_size; } drag;
 };
 
 #ifndef STB_WOW_XML_GLOBALS
@@ -195,6 +206,7 @@ extern int  UI_XmlFsReadFile(cstring_t path, void **buf);
 extern void UI_XmlFsFreeFile(void *buf);
 extern void UI_XmlPrintf(cstring_t fmt, ...);
 extern void UI_XmlOnFramePublish(int idx);
+extern void UI_XmlReleaseFrame(int idx);
 extern void UI_XmlOnShow(int idx);
 extern void UI_XmlOnScriptBody(cstring_t path, cstring_t body);
 extern void UI_XmlLoadScriptFile(cstring_t path);
@@ -345,6 +357,8 @@ static const struct {
     { "OnEditFocusGained", ELEM_ON_EDIT_FOCUS_GAINED },
     { "OnEditFocusLost", ELEM_ON_EDIT_FOCUS_LOST },
     { "OnMouseWheel",    ELEM_ON_MOUSE_WHEEL },
+    { "OnValueChanged",  ELEM_ON_VALUE_CHANGED },
+    { "OnEvent",         ELEM_ON_EVENT },
     { "OnUpdateModel",   ELEM_ON_UPDATE_MODEL },
     { "OnUpdate",        ELEM_ON_UPDATE },
     { NULL,              ELEM_STRING_COUNT }
@@ -380,7 +394,8 @@ static const struct {
 } uiwow_node_types[] = {
     { "Frame",            WOW_XML_FRAME,      0 },
     { "ScrollFrame",      WOW_XML_FRAME,      EF_IS_SCROLLFRAME },
-    { "Slider",           WOW_XML_FRAME,      0 },
+    { "Slider",           WOW_XML_SLIDER,     0 },
+    { "StatusBar",        WOW_XML_STATUSBAR,  0 },
     { "Model",            WOW_XML_MODEL,      0 },
     { "Texture",          WOW_XML_TEXTURE,    0 },
     { "Font",             WOW_XML_FONTSTRING, EF_VIRTUAL },
@@ -392,7 +407,8 @@ static const struct {
     { "PushedTexture",    WOW_XML_TEXTURE,    0 },
     { "DisabledTexture",  WOW_XML_TEXTURE,    0 },
     { "HighlightTexture", WOW_XML_TEXTURE,    0 },
-    { "ThumbTexture",     WOW_XML_TEXTURE,    0 },
+    { "ThumbTexture",     WOW_XML_TEXTURE,    EF_SLIDER_THUMB },
+    { "BarTexture",       WOW_XML_TEXTURE,    EF_STATUSBAR_TEXTURE },
     { "NormalText",       WOW_XML_FONTSTRING, 0 },
     { "DisabledText",     WOW_XML_FONTSTRING, 0 },
     { "HighlightText",    WOW_XML_FONTSTRING, 0 },
@@ -507,6 +523,7 @@ int UIWow_XmlFindByName(cstring_t name) {
     return -1;
 }
 
+static uint32_t uiwow_elem_serial;
 static int UIWow_XmlPushElem(uiWowXmlType_t type, cstring_t name, int parent, int draw_layer) {
     uiWowXmlElem_t *e;
     if (wow_xml.count >= WOW_XML_MAX_ELEMS) {
@@ -516,8 +533,9 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, cstring_t name, int parent, in
     e = &wow_xml.elems[wow_xml.count];
     memset(e, 0, sizeof(*e));
     e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP;
+    e->serial = ++uiwow_elem_serial;
     e->type = type; e->parent = parent; e->relative_to = -1; e->relative_to2 = -1; e->draw_layer = draw_layer;
-    e->alpha = 1.0f; e->font_size = 14.0f;
+    e->alpha = 1.0f; e->font_size = 14.0f; e->max_value = 1.0f;
     e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE;
     e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
     e->colors[ELEM_COLOR_BACKDROP] = MAKE(color32_t, 23, 23, 23, 120);
@@ -540,6 +558,10 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, cstring_t inherits) {
         int idx = UIWow_XmlFindByName(tok);
         if (idx < 0) continue;
         uiWowXmlElem_t const *src = &wow_xml.elems[idx];
+        if (e->type == WOW_XML_SLIDER || e->type == WOW_XML_STATUSBAR) {
+            e->min_value = src->min_value; e->max_value = src->max_value;
+            e->value = src->value; e->value_step = src->value_step; e->vertical = src->vertical;
+        }
         if (!(e->flags & EF_HAS_SIZE) && (src->flags & EF_HAS_SIZE)) { e->size = src->size; e->flags |= EF_HAS_SIZE; }
         FOR_LOOP(i, sizeof(uiwow_button_part_name_fields) / sizeof(uiwow_button_part_name_fields[0])) {
             uiWowXmlStr_t f = uiwow_button_part_name_fields[i];
@@ -676,7 +698,8 @@ bool UIWow_XMLIsVisible(int idx) {
 int UIWow_XMLHitFrame(float x, float y) {
     for (int i = wow_xml.count - 1; i >= 0; i--) {
         uiWowXmlElem_t const *e = &wow_xml.elems[i]; rect_t r;
-        if (!UIWow_XMLIsVisible(i) || (e->type != WOW_XML_BUTTON && e->type != WOW_XML_EDITBOX)) continue;
+        if (!UIWow_XMLIsVisible(i) || (e->type != WOW_XML_BUTTON && e->type != WOW_XML_EDITBOX && e->type != WOW_XML_SLIDER)) continue;
+        if (e->type == WOW_XML_SLIDER && (e->flags & EF_SCROLLBAR_PART)) continue;
         r = UIWow_XmlComputeRect(i);
         if (UIWow_XMLPointInRect(x, y, &r)) return i;
     }
@@ -988,6 +1011,16 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNode *node) {
 }
 
 static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNode *node) {
+    if (e->type == WOW_XML_SLIDER || e->type == WOW_XML_STATUSBAR) {
+        xmlChar *v;
+        v = xmlGetProp(node, BAD_CAST "minValue"); if (v) { e->min_value = (float)atof((char *)v); xmlFree(v); }
+        v = xmlGetProp(node, BAD_CAST "maxValue"); if (v) { e->max_value = (float)atof((char *)v); xmlFree(v); }
+        v = xmlGetProp(node, BAD_CAST "defaultValue"); if (v) { e->value = (float)atof((char *)v); xmlFree(v); }
+        v = xmlGetProp(node, BAD_CAST "valueStep"); if (v) { e->value_step = (float)atof((char *)v); xmlFree(v); }
+        v = xmlGetProp(node, BAD_CAST "orientation"); if (v) { e->vertical = !strcasecmp((char *)v, "VERTICAL"); xmlFree(v); }
+        if (e->max_value < e->min_value) e->max_value = e->min_value;
+        e->value = MIN(e->max_value, MAX(e->min_value, e->value));
+    }
     UIWow_XmlReadOutline(e, node);
     for (int i = 0; uiwow_shared_attrs[i].name; i++) {
         xmlChar *val = xmlGetProp(node, BAD_CAST uiwow_shared_attrs[i].name);
@@ -1046,7 +1079,7 @@ static void UIWow_XmlParseChildren(xmlNode *node, int parent) {
             }
             continue;
         }
-        if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture")) {
+        if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture") || !xmlStrcasecmp(c->name, BAD_CAST "BarTexture")) {
             UIWow_XmlParseNode(c, parent, WOW_XML_LAYER_ARTWORK);
             continue;
         }
@@ -1082,7 +1115,8 @@ static void UIWow_XmlCloneTemplateChildren(cstring_t inherits, int dst, cstring_
             if (!child_name[0] || UIWow_XmlFindByName(child_name) >= 0) continue;
             int clone = UIWow_XmlPushElem(csrc->type, child_name, dst, csrc->draw_layer);
             if (clone < 0) continue;
-            wow_xml.elems[clone] = *csrc;
+            uint32_t serial = wow_xml.elems[clone].serial;
+            wow_xml.elems[clone] = *csrc; wow_xml.elems[clone].serial = serial; wow_xml.elems[clone].lua_ref = 0;
             wow_xml.elems[clone].parent = dst; wow_xml.elems[clone].model = NULL;
             if (wow_xml.elems[clone].relative_to == tmpl) wow_xml.elems[clone].relative_to = dst;
             wow_xml.elems[clone].point2           = csrc->point2           ? strdup(csrc->point2)           : NULL;
@@ -1266,7 +1300,7 @@ static bool UIWow_XMLProcessXml(cstring_t path, int depth) {
 /* ---- Registry management ---- */
 
 void UIWow_XMLFreeElems(void) {
-    FOR_LOOP(i, wow_xml.count) UIWow_ElemFreeStrings(&wow_xml.elems[i]);
+    FOR_LOOP(i, wow_xml.count) { UI_XmlReleaseFrame(i); UIWow_ElemFreeStrings(&wow_xml.elems[i]); }
 }
 
 /* ---- Public API implementations ---- */
@@ -1311,7 +1345,7 @@ void UIWow_XMLClearFrames(void) {
     UIWow_XMLFreeElems();
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems));
     wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1;
-    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1; wow_xml.slider_drag = -1;
 }
 
 cstring_t UIWow_XMLHitButton(float nx, float ny) {

@@ -427,10 +427,28 @@ def gen_areatrigger_teleport(output_dir):
     print(f"  Wrote {path}")
 
 
+def gen_vendor_spawns(output_dir):
+    """Join physical world spawns to vendor-, banker- or flight-master-flagged creature templates."""
+    vendors = {int(row['entry']) for row in read_named_csv('creatures.csv')
+               if int(row['npcflag']) & (128 | 0x20000 | 0x2000)}
+    rows = [row for row in read_csv('creature_spawns.csv') if int(row[0]) in vendors]
+    lines = ['#include "g_wow_local.h"', '', 'static const wowVendorSpawn_t vendor_spawns[] = {']
+    for entry, map_id, zone, area, x, y, z, facing, wander in rows:
+        lines.append(f'    {{ {entry}, {map_id}, {{ {c_float(x)}, {c_float(y)}, {c_float(z)} }}, {c_float(facing)} }},')
+    lines.extend(['};',
+                  'uint32_t Wow_VendorSpawnCount(void) { return sizeof(vendor_spawns) / sizeof(vendor_spawns[0]); }',
+                  'wowVendorSpawn_t const *Wow_VendorSpawn(uint32_t index) {',
+                  '    return index < Wow_VendorSpawnCount() ? &vendor_spawns[index] : NULL;',
+                  '}', ''])
+    with open(os.path.join(output_dir, 'g_vendor_spawns.c'), 'w') as f:
+        f.write('\n'.join(lines))
+    print(f'  vendor spawns: {len(rows)} rows')
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate compiled WoW server-data tables")
     parser.add_argument('--only', choices=['playercreateinfo', 'weapons', 'quests', 'creatures',
-                                           'areatrigger_teleport'])
+                                           'areatrigger_teleport', 'vendor_spawns'])
     parser.add_argument('--output-dir', default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -439,6 +457,7 @@ def main():
     if args.only in (None, 'weapons'): gen_weapons(args.output_dir)
     if args.only in (None, 'quests'): gen_quests(args.output_dir)
     if args.only in (None, 'creatures'): gen_creatures(args.output_dir)
+    if args.only in (None, 'vendor_spawns'): gen_vendor_spawns(args.output_dir)
     if args.only in (None, 'areatrigger_teleport'): gen_areatrigger_teleport(args.output_dir)
     print("\n=== Done ===")
 

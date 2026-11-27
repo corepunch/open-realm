@@ -1408,6 +1408,7 @@ void CL_Init(void) {
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_RegisterArchiveMapSource = FS_RegisterArchiveMapSource,
         .FS_WriteFile = CL_UI_WriteFile,
+        .SavePath = FS_SavePath,
         .UserPath = FS_UserPath,
         .ListSaves = FS_ListSaves,
         .GetSaveMap = SV_GetSaveMap,

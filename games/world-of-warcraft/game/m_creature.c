@@ -312,6 +312,7 @@ void Wow_SpawnQuestLocations(vec2_t const *origin) {
         local = Wow_EntityLocal(ent);
         local->display_id = creature_model->display_id;
         local->quest_id = data->quest_id;
+        local->creature_entry = data->creature_entry;
         local->home = position;
         local->yaw = (float)RAD2DEG(data->orientation);
         local->health = 1;
@@ -395,4 +396,110 @@ void Wow_SpawnAmbientCreatures(vec2_t const *origin) {
     }
 
     fprintf(stderr, "WoW spawned %u ambient creatures from %u DBC display types\n", (unsigned)spawned, (unsigned)(sizeof(wow_ambient_creature_types) / sizeof(wow_ambient_creature_types[0])));
+}
+
+/* Imported vendor-only NPCs complement quest givers. Keep eight edicts free for
+ * projectiles and corpses, and do not spawn another copy of a quest giver. */
+void Wow_SpawnVendors(vec2_t const *origin) {
+    enum { VENDOR_BUDGET = 8, VENDOR_RESERVE = 8 };
+    wowGiverSort_t nearest[VENDOR_BUDGET];
+    uint32_t count = 0, spawned = 0, active = 0, occupied = 0;
+    bool closed = false;
+    if (!origin) return;
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
+        edict_t *ent = &wow_edicts[i];
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+        if (!ent->inuse) continue;
+        if (local && local->service_spawn) {
+            float dx = ent->s.origin2.x - origin->x, dy = ent->s.origin2.y - origin->y;
+            if (!local->quest_id && dx * dx + dy * dy > 2200.0f * 2200.0f) {
+                for (uint32_t c = 0; c < MAX_CLIENTS; c++) {
+                    wowClient_t *wc = &wow_clients[c];
+                    if (wc->merchant_target == ent->s.number && wc->merchant_spawn_serial == local->spawn_serial) {
+                        wc->merchant_target = wc->merchant_entry = 0; closed = true;
+                    }
+                    if (wc->bank_target == ent->s.number && wc->bank_spawn_serial == local->spawn_serial) {
+                        wc->bank_target = wc->bank_entry = 0; closed = true;
+                    }
+                }
+                if (gi.UnlinkEntity) gi.UnlinkEntity(ent);
+                ent->inuse = false;
+                continue;
+            }
+            active++;
+        }
+        occupied++;
+    }
+    if (closed && wow_edicts[0].inuse && wow_edicts[0].client) UI_WriteWowHud(&wow_edicts[0]);
+    for (uint32_t i = 0; i < Wow_VendorSpawnCount(); i++) {
+        wowVendorSpawn_t const *v = Wow_VendorSpawn(i);
+        float dx, dy, d2;
+        uint32_t pos;
+        if (v->map != CM_WowGetMapId()) continue;
+        dx = v->position.x - origin->x; dy = v->position.y - origin->y;
+        d2 = dx * dx + dy * dy;
+        if (d2 > 2000.0f * 2000.0f) continue;
+        /* Existing quest NPCs are already usable as merchants. */
+        bool duplicate = false;
+        for (uint32_t j = MAX_CLIENTS; j < (uint32_t)globals.num_edicts; j++) {
+            wowEntityLocal_t const *local = Wow_EntityLocal(&wow_edicts[j]);
+            if (!wow_edicts[j].inuse || !local || local->creature_entry != v->entry) continue;
+            float ex = wow_edicts[j].s.origin.x - v->position.x;
+            float ey = wow_edicts[j].s.origin.y - v->position.y;
+            float ez = wow_edicts[j].s.origin.z - v->position.z;
+            if (ex * ex + ey * ey + ez * ez < 1.0f) { duplicate = true; break; }
+        }
+        if (!duplicate) for (uint32_t j = 0; j < count; j++) {
+            wowVendorSpawn_t const *other = Wow_VendorSpawn(nearest[j].idx);
+            float ex = other->position.x - v->position.x, ey = other->position.y - v->position.y;
+            float ez = other->position.z - v->position.z;
+            if (other->entry == v->entry && ex * ex + ey * ey + ez * ez < 1.0f) { duplicate = true; break; }
+        }
+        if (duplicate) continue;
+        pos = 0;
+        while (pos < count && nearest[pos].dist2 <= d2) pos++;
+        if (pos >= VENDOR_BUDGET) continue;
+        if (count < VENDOR_BUDGET) count++;
+        memmove(&nearest[pos + 1], &nearest[pos], (count - pos - 1) * sizeof(nearest[0]));
+        nearest[pos] = (wowGiverSort_t){ d2, i };
+    }
+    for (uint32_t i = 0; i < count; i++) {
+        wowVendorSpawn_t const *v = Wow_VendorSpawn(nearest[i].idx);
+        wowCreature_t const *creature = Wow_CreatureByEntry(v->entry);
+        wowCreatureModel_t const *model = Wow_CreaturePrimaryModel(creature);
+        PATHSTR path;
+        float scale = 1.0f, radius = 1.0f;
+        edict_t *ent;
+        wowEntityLocal_t *local;
+        if (active >= VENDOR_BUDGET || occupied + MAX_CLIENTS >= (uint32_t)globals.max_edicts - VENDOR_RESERVE) break;
+        if (!model || !Wow_CachedCreatureModel(model->display_id, path, sizeof(path), &scale, &radius)) continue;
+        ent = Wow_Spawn();
+        if (!ent) break;
+        ent->s.model = G_RegisterModel(path);
+        if (!ent->s.model) { ent->inuse = false; continue; }
+        local = Wow_EntityLocal(ent);
+        local->creature_entry = v->entry;
+        local->service_spawn = true;
+        local->display_id = model->display_id;
+        local->home = (vec2_t){ v->position.x, v->position.y };
+        local->yaw = (float)RAD2DEG(v->orientation);
+        local->health = 1;
+        local->idle = Wow_AIIdle;
+        local->think = Wow_RunCreatureFrame;
+        ent->s.origin = v->position;
+        ent->s.origin2 = local->home;
+        ent->s.scale = scale * model->display_scale;
+        ent->s.radius = radius;
+        ent->s.player = 2;
+        ent->s.class_id = model->display_id;
+        ent->s.name = G_UnitNameConfigstring(creature->name);
+        ent->s.angle = v->orientation;
+        ent->s.flags = EF_GROUND_ANCHOR;
+        ent->svflags |= SVF_MONSTER;
+        Wow_SetStandMove(ent);
+        spawned++;
+        active++;
+        occupied++;
+    }
+    if (spawned) fprintf(stderr, "WoW: spawned %u nearby imported vendors\n", (unsigned)spawned);
 }
