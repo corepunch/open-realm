@@ -79,39 +79,23 @@ static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Coin_01.blp",         "Copper Coin",            10 },
 };
 
-/* Warrior action bar — abilities only.
- * Slots 0-2 map to WOW_SPELL_ATTACK; slot 3 to WOW_SPELL_HEALING_TOUCH.
- * Slots 4-11 are empty until the player earns more abilities. */
-static wowHudIcon_t const wow_actions_warrior[WOW_UI_ACTION_SLOTS] = {
-    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Heroic Strike",  1 },
-    { "Interface\\Icons\\Ability_Warrior_Charge.blp",      "Charge",         1 },
-    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout",   1 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch",  1 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
+typedef struct {
+    wowHudIcon_t icon;
+    uint32_t spell;
+} wowActionDef_t;
+
+/* Every visible icon and its command share this binding. An empty icon leaves
+ * the slot unbound, so unfinished abilities cannot invoke a different action. */
+static wowActionDef_t const wow_actions_warrior[WOW_UI_ACTION_SLOTS] = {
+    [0] = { { "Interface\\Icons\\Ability_Warrior_Cleave.blp", "Attack", 1 }, WOW_SPELL_ATTACK },
+    [3] = { { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 }, WOW_SPELL_HEALING_TOUCH },
 };
 
-/* Mage action bar — abilities only.
- * Slot 0 → auto-attack; slot 3 → heal; slots 4-5 → fire/frost. */
-static wowHudIcon_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
-    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",         1 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch",  1 },
-    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp",       "Fireball",       1 },
-    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp",     "Frostbolt",      1 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
-    { "",                                                   "",               0 },
+static wowActionDef_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
+    [0] = { { "Interface\\Icons\\Ability_Warrior_Cleave.blp", "Attack", 1 }, WOW_SPELL_ATTACK },
+    [3] = { { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 }, WOW_SPELL_HEALING_TOUCH },
+    [4] = { { "Interface\\Icons\\Spell_Fire_FireBolt02.blp", "Fireball", 1 }, WOW_SPELL_FIREBOLT },
+    [5] = { { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp", "Frostbolt", 1 }, WOW_SPELL_FROSTBOLT },
 };
 
 /* -------------------------------------------------------------------------
@@ -169,12 +153,15 @@ static wowItemDef_t const *Wow_ItemByEntry(uint32_t entry) {
     return NULL;
 }
 
+static uint64_t wow_loot_generation;
+
 /* Roll loot for a freshly-killed creature; results stored on the corpse entity. */
 void Wow_RollLoot(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowLootEntry_t const *tmpl = NULL;
 
     if (!local) return;
+    local->loot_generation = ++wow_loot_generation;
     local->loot_count = 0;
     local->loot_copper = 0;
     memset(local->loot_items, 0, sizeof(local->loot_items));
@@ -710,6 +697,13 @@ void Wow_AdvanceEntityFrame(edict_t *ent) {
 static edict_t *Wow_EdictByNumber(uint32_t number);
 static edict_t *Wow_FindNearestAttackTarget(edict_t *ent, float range);
 
+static bool Wow_IsAttackTarget(edict_t const *caster, edict_t const *target) {
+    wowEntityLocal_t *local = target ? Wow_EntityLocal(target) : NULL;
+    return target && target != caster && target->inuse && (target->svflags & SVF_MONSTER) &&
+        local && !local->dead && local->health > 0 &&
+        (local->hostile || (target->s.flags & EF_HOSTILE));
+}
+
 #define WOW_FIREBOLT_SPEED      25.0f
 #define WOW_FIREBOLT_DAMAGE     2
 #define WOW_FIREBOLT_RANGE      30.0f
@@ -723,7 +717,6 @@ static edict_t *Wow_FindNearestAttackTarget(edict_t *ent, float range);
 #define WOW_FROSTBOLT_CAST_TIME 2500  /* 2.5s cast time (Classic Frostbolt) */
 #define WOW_HEALING_TOUCH_HEAL  2
 #define WOW_HEALING_TOUCH_MANA_COST 8
-#define WOW_GCD_MS              1500  /* 1.5s global cooldown */
 #define WOW_MANA_MAX            100
 #define WOW_MANA_REGEN_PER_SEC  3
 
@@ -743,7 +736,7 @@ wowSpellDef_t const wow_spells[] = {
     [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL,               0   },
     [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected", 133 },
     [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected", 116 },
-    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,   15,  0.0f, NULL,                NULL,               0   },
+    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,    WOW_HEALING_TOUCH_MANA_COST,  0.0f, NULL, NULL, 0 },
 };
 uint32_t const wow_spell_count = sizeof(wow_spells) / sizeof(wow_spells[0]);
 
@@ -891,7 +884,7 @@ static void Wow_BeginSpellCast(edict_t *caster, uint32_t spell_id, uint32_t targ
         wowMove_t ready_move = { def->ready_anim, NULL, NULL };
         Wow_SetEntityMoveFirstAnimation(caster, &ready_move, anim_names);
     }
-    if (target) Wow_FaceTarget(caster, target);
+    if (target && target != caster) Wow_FaceTarget(caster, target);
     cl->gcd_time = WOW_GCD_MS;
 }
 
@@ -952,7 +945,11 @@ static bool Wow_RunSpellCast(edict_t *ent) {
     if (cl->cast_target) {
         edict_t *target = Wow_EdictByNumber(cl->cast_target);
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
-        if (!target || !target->inuse || (target_local && target_local->dead)) {
+        if (!target || !target->inuse || (target_local && target_local->dead) ||
+            (wow_spells[cl->cast_spell].range > 0 &&
+             (!Wow_IsAttackTarget(ent, target) ||
+              Vector2_len(&(vec2_t){ target->s.origin2.x - ent->s.origin2.x,
+                                     target->s.origin2.y - ent->s.origin2.y }) > wow_spells[cl->cast_spell].range))) {
             Wow_CancelSpellCast(ent);
             return false;
         }
@@ -1236,16 +1233,17 @@ void Wow_HealingTouch(edict_t *caster) {
 edict_t *Wow_FindSpellTarget(edict_t *ent, float range) {
     if (ent && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
         edict_t *t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
-        if (t && t != ent && t->inuse) {
+        if (Wow_IsAttackTarget(ent, t)) {
             vec2_t delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return t;
             }
         }
+        return NULL;
     }
     {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
-        if (local && local->enemy && local->enemy != ent && local->enemy->inuse) {
+        if (local && Wow_IsAttackTarget(ent, local->enemy)) {
             vec2_t delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return local->enemy;
@@ -1278,7 +1276,7 @@ static void Wow_UpdatePlayerHud(edict_t *ent) {
     ps->stats[WOW_STAT_POWER] = (uint16_t)local->mana;
     ps->stats[WOW_STAT_POWER_MAX] = WOW_MANA_MAX;
     ps->stats[WOW_STAT_LEVEL] = 1;
-    ps->stats[WOW_STAT_XP] = 120;
+    ps->stats[WOW_STAT_XP] = (uint16_t)MIN(local->experience, 0xFFFFu);
     ps->stats[WOW_STAT_XP_MAX] = 400;
     ps->stats[WOW_STAT_COPPER] = (uint16_t)MIN(local->copper, 0xFFFFu);
     /* Cast progress: remaining ms and total ms for client-side cast bar */
@@ -1323,7 +1321,7 @@ static edict_t *Wow_FindNearestAttackTarget(edict_t *ent, float range) {
         vec2_t delta;
         float dist2;
 
-        if (!candidate->inuse || candidate == ent || !(candidate->svflags & SVF_MONSTER)) {
+        if (!Wow_IsAttackTarget(ent, candidate)) {
             continue;
         }
 
@@ -1475,6 +1473,7 @@ static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_loca
         local->yaw = wow_move.yaw;
         local->health = 100;
         local->mana = WOW_MANA_MAX;
+        local->experience = 120;
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
         local->weapon_entry = WOW_START_WEAPON_ENTRY;
@@ -1505,10 +1504,13 @@ static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_loca
     ps->start_location = spawn_location;
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
     {
-        wowHudIcon_t const *actions = (class_id == WOW_CLASS_MAGE)
+        wowActionDef_t const *actions = (class_id == WOW_CLASS_MAGE)
             ? wow_actions_mage : wow_actions_warrior;
         memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
-        memcpy(wow_clients[0].actions, actions, WOW_UI_ACTION_SLOTS * sizeof(actions[0]));
+        FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
+            wow_clients[0].actions[i] = actions[i].icon;
+            wow_clients[0].action_spells[i] = actions[i].icon.icon[0] ? actions[i].spell : SPELL_NONE;
+        }
         Wow_EntityLocal(ent)->copper = 1234; /* starting copper balance */
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
@@ -1894,12 +1896,25 @@ static void Wow_RunFrame(void) {
     Wow_UpdatePlayerHud(ent);
 
 process_entities:
+    {
+        wowClient_t *wc = (wowClient_t *)ent->client;
+        if (wc->worldmap_open) {
+            wc->worldmap_refresh += FRAMETIME;
+            if (wc->worldmap_refresh >= 1000) {
+                wc->worldmap_refresh = 0;
+                UI_ResolveWorldMap(ent);
+                UI_WriteWorldMap(ent);
+            }
+        }
+    }
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         edict_t *e = &wow_edicts[i];
         wowEntityLocal_t *local = Wow_EntityLocal(e);
         if (e->inuse && local && local->think)
             local->think(e);
     }
+    if (ent->client->ps.client_ui_state == CLIENT_UI_GAME)
+        UI_WriteWowCombatFeedback(ent, false);
 }
 
 static cstring_t Wow_GetThemeValue(cstring_t filename) {
@@ -1958,15 +1973,31 @@ void Wow_QuestAwardKillCredit(edict_t *attacker, uint32_t display_id) {
     }
 }
 
-/* An accepted predecessor is still in progress; only completion unlocks the chain. */
+bool Wow_QuestWasRewarded(wowClient_t const *client, uint32_t quest_id) {
+    return quest_id < sizeof(client->rewarded_quests) * 8 &&
+        (client->rewarded_quests[quest_id / 8] & (1u << (quest_id % 8)));
+}
+
+static void Wow_RemoveQuest(wowClient_t *client, uint32_t slot) {
+    uint32_t remaining = client->quest_count - slot - 1;
+    memmove(&client->quest_log[slot], &client->quest_log[slot + 1],
+            remaining * sizeof(client->quest_log[0]));
+    memmove(&client->kill_progress[slot], &client->kill_progress[slot + 1],
+            remaining * sizeof(client->kill_progress[0]));
+    client->quest_count--;
+    memset(&client->quest_log[client->quest_count], 0, sizeof(client->quest_log[0]));
+    memset(&client->kill_progress[client->quest_count], 0, sizeof(client->kill_progress[0]));
+}
+
+/* Quest chains unlock after the predecessor's reward has been claimed. */
 static bool Wow_QuestPrereqMet(wowClient_t *client, uint32_t quest_id) {
-    svQuestEntry_t *prev = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
-    return !quest_id || (prev && prev->status == SV_QUEST_COMPLETE);
+    return !quest_id || Wow_QuestWasRewarded(client, quest_id);
 }
 
 static bool Wow_AddQuest(wowClient_t *client, uint32_t quest_id) {
     wowQuestDetail_t const *detail = Wow_QuestDetail(quest_id);
-    if (!detail) return false;
+    if (!detail || quest_id >= sizeof(client->rewarded_quests) * 8 ||
+        Wow_QuestWasRewarded(client, quest_id)) return false;
     if (!Wow_QuestPrereqMet(client, detail->prev_quest)) return false;
     return SV_QuestAdd(client->quest_log, &client->quest_count, SV_MAX_QUEST_LOG, quest_id);
 }
@@ -1976,27 +2007,43 @@ static bool Wow_AddQuest(wowClient_t *client, uint32_t quest_id) {
  * made overlapping duplicates select an arbitrary later quest. */
 static uint32_t Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *local) {
     uint32_t group = Wow_QuestGiverGroup(local->quest_id, &local->home);
-    if (group == WOW_QUEST_GIVER_GROUP_NONE) return local->quest_id;
+    uint32_t available = 0, active = 0;
+    if (group == WOW_QUEST_GIVER_GROUP_NONE)
+        return Wow_QuestWasRewarded(client, local->quest_id) ? 0 : local->quest_id;
     FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
         wowQuestGiver_t const *cur = Wow_QuestGiverInGroup(group, i);
         wowQuestDetail_t const *detail;
-        if (SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id)) continue;
+        if (Wow_QuestWasRewarded(client, cur->quest_id)) continue;
+        svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id);
+        if (state) {
+            if (state->status == SV_QUEST_COMPLETE) return cur->quest_id;
+            if (state->status == SV_QUEST_ACTIVE && !active) active = cur->quest_id;
+            continue;
+        }
         detail = Wow_QuestDetail(cur->quest_id);
-        if (detail && Wow_QuestPrereqMet(client, detail->prev_quest))
-            return cur->quest_id;
+        if (!available && detail && Wow_QuestPrereqMet(client, detail->prev_quest))
+            available = cur->quest_id;
     }
-    return 0;
+    return available ? available : active;
 }
 
-static void Wow_CompleteQuest(wowClient_t *client, uint32_t quest_id) {
+static void Wow_CompleteQuest(edict_t *player, uint32_t quest_id) {
+    if (!player || !player->client) return;
+    wowClient_t *client = (wowClient_t *)player->client;
     svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
     wowQuestDetail_t const *detail;
-    if (!state || state->status != SV_QUEST_ACTIVE) return;
+    if (!state || !local || !player->inuse ||
+        quest_id >= sizeof(client->rewarded_quests) * 8) return;
     detail = Wow_QuestDetail(quest_id);
     if (!detail) return;
-    state->status = SV_QUEST_COMPLETE;
-    client->client.ps.stats[WOW_STAT_XP] += detail->reward_xp;
-    client->client.ps.stats[WOW_STAT_COPPER] += detail->reward_gold;
+    if (state->status != SV_QUEST_COMPLETE) return;
+    uint32_t slot = (uint32_t)(state - client->quest_log);
+    client->rewarded_quests[quest_id / 8] |= 1u << (quest_id % 8);
+    Wow_RemoveQuest(client, slot);
+    local->experience += MIN(detail->reward_xp, UINT32_MAX - local->experience);
+    local->copper += MIN(detail->reward_gold, UINT32_MAX - local->copper);
+    Wow_UpdatePlayerHud(player);
     if (client->message_count < WOW_UI_MAX_MESSAGES) {
         wowUiMessage_t *message = &client->messages[client->message_count++];
         memset(message, 0, sizeof(*message));
@@ -2047,21 +2094,22 @@ static void Wow_GiveCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     if (!strcasecmp(argv[1], "all")) {
         local->health = 100;
         local->mana = WOW_MANA_MAX;
-        ent->client->ps.stats[WOW_STAT_XP] = ent->client->ps.stats[WOW_STAT_XP_MAX];
-        ent->client->ps.stats[WOW_STAT_COPPER] += 100000;
+        local->experience = ent->client->ps.stats[WOW_STAT_XP_MAX];
+        local->copper += MIN(100000u, UINT32_MAX - local->copper);
     } else if (!strcasecmp(argv[1], "health")) {
         local->health = MIN(100, amount ? amount : 100);
     } else if (!strcasecmp(argv[1], "mana")) {
         local->mana = MIN(WOW_MANA_MAX, amount ? amount : WOW_MANA_MAX);
     } else if (!strcasecmp(argv[1], "gold")) {
-        ent->client->ps.stats[WOW_STAT_COPPER] += amount;
+        local->copper += MIN(amount, UINT32_MAX - local->copper);
     } else if (!strcasecmp(argv[1], "xp")) {
-        ent->client->ps.stats[WOW_STAT_XP] += amount;
+        local->experience += MIN(amount, UINT32_MAX - local->experience);
     } else {
         Wow_CheatPrintf(ent, "WoW: unsupported give target '%s'", argv[1]);
         Wow_CheatHelp(ent);
         return;
     }
+    Wow_UpdatePlayerHud(ent);
     UI_WriteWowHud(ent);
     Wow_CheatPrintf(ent, "WoW: give %s applied", argv[1]);
 }
@@ -2089,6 +2137,57 @@ static void Wow_CheatCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     }
 }
 
+#define WOW_LOOT_RANGE 10.0f
+
+static bool Wow_CanLootCorpse(edict_t *ent, edict_t *corpse) {
+    wowEntityLocal_t *player = Wow_EntityLocal(ent);
+    wowEntityLocal_t *local = corpse ? Wow_EntityLocal(corpse) : NULL;
+    if (!ent || !ent->inuse || !ent->client || !player || player->dead ||
+        !corpse || !corpse->inuse || !local || local->think != Wow_RunCorpseFrame)
+        return false;
+    vec2_t delta = Vector2_sub(&corpse->s.origin2, &ent->s.origin2);
+    return delta.x * delta.x + delta.y * delta.y <= WOW_LOOT_RANGE * WOW_LOOT_RANGE;
+}
+
+static void Wow_CloseLoot(wowClient_t *client) {
+    client->loot_target = 0;
+    client->loot_generation = 0;
+    client->loot_snap_count = 0;
+    memset(client->loot_snap, 0, sizeof(client->loot_snap));
+}
+
+static wowEntityLocal_t *Wow_LootTarget(edict_t *ent) {
+    wowClient_t *client = (wowClient_t *)ent->client;
+    edict_t *corpse = client->loot_target ? Wow_EdictByNumber(client->loot_target) : NULL;
+    wowEntityLocal_t *local = corpse ? Wow_EntityLocal(corpse) : NULL;
+    if (!Wow_CanLootCorpse(ent, corpse) || !local || !client->loot_generation ||
+        local->loot_generation != client->loot_generation) {
+        Wow_CloseLoot(client);
+        return NULL;
+    }
+    return local;
+}
+
+static void Wow_RefreshLootSnapshot(wowClient_t *client, wowEntityLocal_t const *corpse) {
+    memcpy(client->loot_snap, corpse->loot_items, sizeof(client->loot_snap));
+    client->loot_snap_count = corpse->loot_count;
+    if (!client->loot_snap_count) Wow_CloseLoot(client);
+}
+
+static bool Wow_TakeLootSlot(wowClient_t *client, wowEntityLocal_t *corpse, uint32_t slot) {
+    if (slot >= WOW_MAX_LOOT_ITEMS || !client->loot_snap[slot].icon[0] ||
+        memcmp(&client->loot_snap[slot], &corpse->loot_items[slot], sizeof(wowHudIcon_t)))
+        return false;
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS) {
+        if (client->inventory[i].icon[0]) continue;
+        client->inventory[i] = corpse->loot_items[slot];
+        memset(&corpse->loot_items[slot], 0, sizeof(corpse->loot_items[slot]));
+        if (corpse->loot_count) corpse->loot_count--;
+        return true;
+    }
+    return false;
+}
+
 /* Open the loot window for a specific corpse entity.  Snapshots items into the
  * client struct, auto-takes copper, and triggers the player loot animation. */
 static void Wow_OpenLootTarget(edict_t *ent, edict_t *corpse) {
@@ -2096,16 +2195,20 @@ static void Wow_OpenLootTarget(edict_t *ent, edict_t *corpse) {
     wowEntityLocal_t *player_local = Wow_EntityLocal(ent);
     wowEntityLocal_t *corpse_local = corpse ? Wow_EntityLocal(corpse) : NULL;
 
-    if (!corpse_local || (corpse_local->loot_count == 0 && corpse_local->loot_copper == 0)) return;
+    if (!Wow_CanLootCorpse(ent, corpse) || !corpse_local ||
+        (corpse_local->loot_count == 0 && corpse_local->loot_copper == 0)) return;
 
     client->loot_target = corpse->s.number;
+    client->loot_generation = corpse_local->loot_generation;
     memcpy(client->loot_snap, corpse_local->loot_items, sizeof(client->loot_snap));
     client->loot_snap_count = corpse_local->loot_count;
 
     /* Copper auto-loots on open (classic WoW behaviour). */
     if (corpse_local->loot_copper > 0 && player_local) {
-        player_local->copper += corpse_local->loot_copper;
-        corpse_local->loot_copper = 0;
+        uint32_t amount = MIN(corpse_local->loot_copper, UINT32_MAX - player_local->copper);
+        player_local->copper += amount;
+        corpse_local->loot_copper -= amount;
+        ent->client->ps.stats[WOW_STAT_COPPER] = (uint16_t)MIN(player_local->copper, 0xFFFFu);
     }
 
     /* Loot animation: plays once then Wow_UpdatePlayerHud resets to Stand. */
@@ -2150,13 +2253,30 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_complete")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         uint32_t quest_id = argc >= 2 ? (uint32_t)strtoul(argv[1], NULL, 10) : client->quest_id;
-        Wow_CompleteQuest(client, quest_id);
+        Wow_CompleteQuest(ent, quest_id);
         client->quest_open = false;
         UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest_abandon")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        uint32_t quest_id = argc >= 2 ? (uint32_t)strtoul(argv[1], NULL, 10) : client->quest_id;
+        svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
+        if (state) {
+            Wow_RemoveQuest(client, (uint32_t)(state - client->quest_log));
+            client->quest_open = false;
+            UI_WriteWowHud(ent);
+        }
     } else if (argc >= 1 && !strcasecmp(argv[0], "questlog")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         client->questlog_open = !client->questlog_open;
         client->quest_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "questlog_page")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        if (!strcasecmp(argv[1], "next") &&
+            client->questlog_offset + WOW_QUEST_PAGE_SIZE < client->quest_count)
+            client->questlog_offset += WOW_QUEST_PAGE_SIZE;
+        else if (!strcasecmp(argv[1], "prev"))
+            client->questlog_offset -= MIN(client->questlog_offset, WOW_QUEST_PAGE_SIZE);
         UI_WriteWowHud(ent);
     } else if (argc >= 2 && !strcasecmp(argv[0], "message_open")) {
         wowClient_t *client = (wowClient_t *)ent->client;
@@ -2174,34 +2294,46 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "loot")) {
         /* Open loot window for the nearest corpse within melee+loot range. */
-        edict_t *corpse = Wow_FindNearestCorpse(ent, 10.0f);
+        edict_t *corpse = Wow_FindNearestCorpse(ent, WOW_LOOT_RANGE);
         if (corpse) Wow_OpenLootTarget(ent, corpse);
     } else if (argc >= 2 && !strcasecmp(argv[0], "loot_take")) {
-        /* Move one item from the loot snapshot into the first empty inventory slot. */
         wowClient_t *client = (wowClient_t *)ent->client;
-        uint32_t slot = (uint32_t)strtoul(argv[1], NULL, 10);
-        if (client->loot_target && slot < WOW_MAX_LOOT_ITEMS && client->loot_snap[slot].icon[0]) {
-            uint32_t inv_slot = WOW_UI_INVENTORY_SLOTS;
-            FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS)
-                if (!client->inventory[i].icon[0]) { inv_slot = i; break; }
-            if (inv_slot < WOW_UI_INVENTORY_SLOTS) {
-                client->inventory[inv_slot] = client->loot_snap[slot];
-                /* Sync removal back to corpse entity (keeps corpse state authoritative). */
-                edict_t *corpse = Wow_EdictByNumber(client->loot_target);
-                wowEntityLocal_t *cl = corpse ? Wow_EntityLocal(corpse) : NULL;
-                if (cl && cl->loot_items[slot].icon[0]) { cl->loot_items[slot].icon[0] = '\0'; cl->loot_count--; }
-            }
-            client->loot_snap[slot].icon[0] = '\0';
-            /* Close window when all items have been taken. */
-            bool all_gone = true;
-            FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) if (client->loot_snap[i].icon[0]) { all_gone = false; break; }
-            if (all_gone) client->loot_target = 0;
-            UI_WriteWowHud(ent);
+        char *end;
+        unsigned long slot = strtoul(argv[1], &end, 10);
+        if (!argv[1][0] || *end || slot >= WOW_MAX_LOOT_ITEMS) return;
+        if (argc >= 3) {
+            unsigned long long generation = strtoull(argv[2], &end, 10);
+            if (!argv[2][0] || *end || generation != client->loot_generation) return;
         }
+        wowEntityLocal_t *corpse = Wow_LootTarget(ent);
+        if (corpse) {
+            Wow_TakeLootSlot(client, corpse, (uint32_t)slot);
+            Wow_RefreshLootSnapshot(client, corpse);
+        }
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "loot_all")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        if (argc >= 2) {
+            char *end;
+            unsigned long long generation = strtoull(argv[1], &end, 10);
+            if (!argv[1][0] || *end || generation != client->loot_generation) return;
+        }
+        wowEntityLocal_t *corpse = Wow_LootTarget(ent);
+        if (corpse) {
+            FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) Wow_TakeLootSlot(client, corpse, i);
+            Wow_RefreshLootSnapshot(client, corpse);
+        }
+        UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "loot_close")) {
         wowClient_t *client = (wowClient_t *)ent->client;
-        client->loot_target = 0;
+        Wow_CloseLoot(client);
         UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "worldmap")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->worldmap_open = !client->worldmap_open;
+        client->worldmap_refresh = 0;
+        if (client->worldmap_open) UI_ResolveWorldMap(ent);
+        UI_WriteWorldMap(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "backpack")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         client->backpack_open = !client->backpack_open;
@@ -2282,14 +2414,14 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         uint32_t start = old > 0 ? old + 1 : MAX_CLIENTS;
         for (uint32_t i = start; i < (uint32_t)globals.num_edicts; i++) {
             edict_t *t = &wow_edicts[i];
-            if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
+            if (Wow_IsAttackTarget(ent, t)) {
                 Wow_SelectEntity(ent, t);
                 return;
             }
         }
         for (uint32_t i = MAX_CLIENTS; i < start && i < (uint32_t)globals.num_edicts; i++) {
             edict_t *t = &wow_edicts[i];
-            if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
+            if (Wow_IsAttackTarget(ent, t)) {
                 Wow_SelectEntity(ent, t);
                 return;
             }
@@ -2322,25 +2454,18 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             Wow_SetStandMove(ent);
         }
     } else if (argc >= 2 && !strcasecmp(argv[0], "wow_action")) {
-        uint32_t slot = (uint32_t)strtoul(argv[1], NULL, 10);
-
-        /* Map action bar slots to spell indices.
-         * Slots 0-2 = melee, 3 = heal, 4 = fire, 5 = frost. */
-        static uint32_t const slot_to_spell[] = {
-            [0] = WOW_SPELL_ATTACK,
-            [1] = WOW_SPELL_ATTACK,
-            [2] = WOW_SPELL_ATTACK,
-            [3] = WOW_SPELL_HEALING_TOUCH,
-            [4] = WOW_SPELL_FIREBOLT,
-            [5] = WOW_SPELL_FROSTBOLT,
-        };
-        if (slot >= sizeof(slot_to_spell) / sizeof(slot_to_spell[0])) return;
-        uint32_t spell = slot_to_spell[slot];
+        char *end;
+        unsigned long parsed;
+        if (!argv[1] || argv[1][0] < '0' || argv[1][0] > '9') return;
+        parsed = strtoul(argv[1], &end, 10);
+        if (*end || parsed >= WOW_UI_ACTION_SLOTS || !ent->client) return;
+        uint32_t slot = (uint32_t)parsed;
+        uint32_t spell = ((wowClient_t *)ent->client)->action_spells[slot];
         if (spell >= wow_spell_count) return;
         wowSpellDef_t const *def = &wow_spells[spell];
         wowEntityLocal_t *cl = Wow_EntityLocal(ent);
 
-        if (!cl || (cl->cast_spell != SPELL_NONE) || cl->cast_release_time || cl->gcd_time > 0) return;
+        if (!cl || cl->dead || !cl->health || (cl->cast_spell != SPELL_NONE) || cl->cast_release_time || cl->gcd_time > 0) return;
 
         if (def->cast_time > 0 && Wow_PlayerIsMoving()) {
             fprintf(stderr, "WoW: %s — cannot cast while moving\n", def->name);
@@ -2357,7 +2482,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
          * range — the auto-chase in Wow_RunFrame closes the gap automatically. */
         if (!def->cast_time && !target && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
             edict_t *t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
-            if (t && t != ent && t->inuse && (t->svflags & SVF_MONSTER))
+            if (Wow_IsAttackTarget(ent, t))
                 target = t;
         }
         if (def->range > 0 && !target) {
@@ -2384,14 +2509,25 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
     uint32_t group;
     questMarker_t best = QUEST_MARKER_NONE;
     if (!local->quest_id) return QUEST_MARKER_NONE;
-    if (Wow_QuestForGiver(client, local)) return QUEST_MARKER_AVAILABLE;
     group = Wow_QuestGiverGroup(local->quest_id, &local->home);
-    if (group == WOW_QUEST_GIVER_GROUP_NONE) return QUEST_MARKER_NONE;
+    if (group == WOW_QUEST_GIVER_GROUP_NONE) {
+        svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, local->quest_id);
+        if (Wow_QuestWasRewarded(client, local->quest_id)) return QUEST_MARKER_NONE;
+        if (state && state->status == SV_QUEST_COMPLETE) return QUEST_MARKER_COMPLETE;
+        if (state && state->status == SV_QUEST_ACTIVE) return QUEST_MARKER_ACTIVE;
+        return state ? QUEST_MARKER_NONE : QUEST_MARKER_AVAILABLE;
+    }
     FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
         wowQuestGiver_t const *cur = Wow_QuestGiverInGroup(group, i);
         svQuestEntry_t *e;
         e = SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id);
-        if (!e || e->status == SV_QUEST_REWARDED) continue;
+        if (!e) {
+            wowQuestDetail_t const *detail = Wow_QuestDetail(cur->quest_id);
+            if (!Wow_QuestWasRewarded(client, cur->quest_id) && detail && Wow_QuestPrereqMet(client, detail->prev_quest))
+                best = MAX(best, QUEST_MARKER_AVAILABLE);
+            continue;
+        }
+        if (e->status == SV_QUEST_REWARDED) continue;
         if (e->status == SV_QUEST_COMPLETE) return QUEST_MARKER_COMPLETE;
         if (e->status == SV_QUEST_ACTIVE) best = QUEST_MARKER_ACTIVE;
     }
@@ -2445,6 +2581,8 @@ static void Wow_ClientBegin(edict_t *ent) {
     ent->client = &wow_clients[0].client;
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
     UI_WriteWowHud(ent);
+    UI_WriteWorldMap(ent);
+    UI_WriteWowCombatFeedback(ent, true);
     UI_WriteWowHover(ent);
     UI_WriteWelcomeWindow(ent);
 }

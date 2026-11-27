@@ -20,7 +20,7 @@ typedef struct {
 } testModel_t;
 
 static testModel_t test_models[32];
-static testModel_t test_images[32];
+static testModel_t test_images[128];
 static uint32_t test_num_models;
 static uint32_t test_num_images;
 static uint32_t test_clear_world_calls;
@@ -37,6 +37,7 @@ static uint8_t test_selection_buf[6];
 static uint32_t test_selection_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
+static bool test_worldmap_fixture;
 
 typedef struct {
     uint8_t layer;
@@ -261,6 +262,21 @@ static bool path_eq(cstring_t a, cstring_t b) {
 }
 
 static handle_t test_read_file(cstring_t filename, uint32_t *size) {
+    if (test_worldmap_fixture && path_eq(filename, "DBFilesClient\\WorldMapArea.dbc")) {
+        uint8_t *data = alloc_dbc(2, 8, 32, size);
+        uint8_t *records = data + 20;
+        uint8_t *strings = records + 2 * 32;
+        uint32_t cursor = 1;
+        uint32_t continent = add_string(strings, &cursor, "Continent");
+        uint32_t zone = add_string(strings, &cursor, "TestZone");
+        putfield(records, 1, 1); putfield(records, 3, continent);
+        putfield_float(records, 4, 1000); putfield_float(records, 5, -1000);
+        putfield_float(records, 6, 1000); putfield_float(records, 7, -1000);
+        putfield(records + 32, 1, 1); putfield(records + 32, 3, zone);
+        putfield_float(records + 32, 4, 200); putfield_float(records + 32, 5, -200);
+        putfield_float(records + 32, 6, 100); putfield_float(records + 32, 7, -100);
+        return data;
+    }
     if (path_eq(filename, "DBFilesClient\\Map.dbc")) {
         return make_map_dbc(size);
     }
@@ -474,6 +490,14 @@ static edict_t *first_creature(void) {
     return NULL;
 }
 
+static void test_finish_quest_kills(edict_t *player, uint32_t quest_id) {
+    wowQuestDetail_t const *detail = Wow_QuestDetail(quest_id);
+    if (!detail) return;
+    FOR_LOOP(i, detail->kill_objective_count)
+        FOR_LOOP(j, detail->kill_objectives[i].required_count)
+            Wow_QuestAwardKillCredit(player, detail->kill_objectives[i].display_id);
+}
+
 int G_RegisterModel(cstring_t filename) {
     return gi.ModelIndex(filename);
 }
@@ -502,6 +526,7 @@ void PF_TextRemoveComments(string_t buffer) {
 }
 
 static void reset_test_state(void) {
+    test_worldmap_fixture = false;
     memset(test_models, 0, sizeof(test_models));
     memset(test_images, 0, sizeof(test_images));
     test_num_models = 0;
@@ -959,10 +984,13 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
 
     game->ClientCommand(player, 2, accept13);
     T_EQ((int)wc->quest_count, 1);
+    test_finish_quest_kills(player, 12);
+    game->ClientCommand(player, 2, accept13);
+    T_EQ((int)wc->quest_count, 1);
     game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "12" });
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->quest_count, 2);
-    T_EQ((int)wc->quest_log[1].quest_id, 13);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quest_log[0].quest_id, 13);
 }
 
 TEST(wow_game, quest_complete_delivers_rewards) {
@@ -976,6 +1004,8 @@ TEST(wow_game, quest_complete_delivers_rewards) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     ps = &player->client->ps;
+    Wow_EntityLocal(player)->experience = 0;
+    Wow_EntityLocal(player)->copper = 0;
     ps->stats[WOW_STAT_XP] = 0;
     ps->stats[WOW_STAT_COPPER] = 0;
 
@@ -983,6 +1013,7 @@ TEST(wow_game, quest_complete_delivers_rewards) {
     T_EQ((int)ps->stats[WOW_STAT_XP], 0);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
 
+    test_finish_quest_kills(player, 788);
     game->ClientCommand(player, 2, complete_command);
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
@@ -999,6 +1030,7 @@ TEST(wow_game, quest_completion_delivers_server_message_queue) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     game->ClientCommand(player, 2, accept_command);
+    test_finish_quest_kills(player, 788);
     test_ui_frame_count = 0;
     game->ClientCommand(player, 2, complete_command);
     FOR_LOOP(i, test_ui_frame_count) {
@@ -1025,6 +1057,7 @@ TEST(wow_game, message_open_and_close_are_server_owned) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     game->ClientCommand(player, 2, accept_command);
+    test_finish_quest_kills(player, 788);
     game->ClientCommand(player, 2, complete_command);
     game->ClientCommand(player, 2, open_command);
     T_EQ((int)((wowClient_t *)player->client)->message_open_id, 788);
@@ -1045,8 +1078,8 @@ TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     ps = &player->client->ps;
-    ps->stats[WOW_STAT_XP] = 0;
-    ps->stats[WOW_STAT_COPPER] = 0;
+    Wow_EntityLocal(player)->experience = 0;
+    Wow_EntityLocal(player)->copper = 0;
 
     game->ClientCommand(player, 2, accept788);
     game->ClientCommand(player, 2, open788);
@@ -1059,6 +1092,7 @@ TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
 
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    test_finish_quest_kills(player, 788);
     game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
@@ -1141,7 +1175,7 @@ TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
     game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)wc->kill_progress[0][0], 0);
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)wc->kill_progress[0][0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 1);
 }
 
 TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
@@ -1344,6 +1378,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     wowEntityLocal_t *local;
     cstring_t action_argv[] = { "wow_action", "4" };
 
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
@@ -1389,6 +1424,7 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     cstring_t move_argv[] = { "move", "1", "0", "328", "8.5" };
     cstring_t stop_argv[] = { "move", "0", "0", "328", "8.5" };
 
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
@@ -1512,6 +1548,8 @@ TEST(wow_game, quest_complete_without_accept_no_reward) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     ps = &player->client->ps;
+    Wow_EntityLocal(player)->experience = 0;
+    Wow_EntityLocal(player)->copper = 0;
     ps->stats[WOW_STAT_XP] = 0;
     ps->stats[WOW_STAT_COPPER] = 0;
 
@@ -1686,17 +1724,19 @@ TEST(wow_game, quest_chain_sequential_unlock) {
 
     game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "12"});
     T_EQ((int)wc->quest_count, 1);
+    test_finish_quest_kills(player, 12);
     game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "12"});
     T_ASSERT(ps->stats[WOW_STAT_XP] > 0);
 
     game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "13"});
-    T_EQ((int)wc->quest_count, 2);
+    T_EQ((int)wc->quest_count, 1);
+    test_finish_quest_kills(player, 13);
     game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "13"});
 
     game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "14"});
-    T_EQ((int)wc->quest_count, 3);
-    T_EQ((int)wc->quest_log[2].quest_id, 14);
-    T_EQ((int)wc->quest_log[2].status, SV_QUEST_ACTIVE);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quest_log[0].quest_id, 14);
+    T_EQ((int)wc->quest_log[0].status, SV_QUEST_ACTIVE);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1734,10 +1774,11 @@ TEST(wow_game, quest_complete_already_rewarded_no_double_reward) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     ps = &player->client->ps;
-    ps->stats[WOW_STAT_XP] = 0;
-    ps->stats[WOW_STAT_COPPER] = 0;
+    Wow_EntityLocal(player)->experience = 0;
+    Wow_EntityLocal(player)->copper = 0;
 
     game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
+    test_finish_quest_kills(player, 788);
     game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
@@ -2107,6 +2148,7 @@ TEST(wow_game, cast_progress_stat_shows_countdown) {
     edict_t *creature;
     wowEntityLocal_t *local;
 
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     creature = first_creature();
     T_NOT_NULL(creature);
@@ -2122,12 +2164,98 @@ TEST(wow_game, cast_progress_stat_shows_countdown) {
     T_EQ((int)local->cast_duration, 1500);
     T_EQ((int)local->cast_remaining, 1500);
 
-    /* After one frame cast_remaining ticks down; Wow_UpdatePlayerHud writes it to ps.stats. */
+    game->ClientBegin(player);
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    /* A real server tick publishes the opening cast and cooldown feedback. */
     game->RunFrame();
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_PROGRESS], 1400);
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 1500);
+    T_ASSERT(test_layout_seen[LAYER_INFOPANEL]);
+    bool found_countdown = false;
+    bool found_cooldown = false;
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_INFOPANEL) continue;
+        if (!strcmp(frame->text, "Fireball  1.4 s")) found_countdown = true;
+        if (frame->color.r == 190 && frame->color.g == 145 && frame->h > 0) {
+            T_FEQ(frame->w, (248.0f / 1024.0f) * (1400.0f / 1500.0f), 0.0001f);
+            found_cooldown = true;
+        }
+    }
+    T_ASSERT(found_countdown);
+    T_ASSERT(found_cooldown);
+
+    FOR_LOOP(i, 13) game->RunFrame();
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->RunFrame();
+    T_ASSERT(test_layout_seen[LAYER_INFOPANEL]);
+    T_EQ(test_ui_frame_count, 0);
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->RunFrame();
+    T_ASSERT(!test_layout_seen[LAYER_INFOPANEL]);
 
     if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, action_buttons_use_the_same_class_bindings_as_commands) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    bool attack_click = false, heal_click = false, empty_click = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    FOR_LOOP(i, test_ui_frame_count) {
+        if (!strcmp(test_ui_frames[i].onclick, "wow_action 0")) attack_click = true;
+        if (!strcmp(test_ui_frames[i].onclick, "wow_action 3")) heal_click = true;
+        if (!strcmp(test_ui_frames[i].onclick, "wow_action 4")) empty_click = true;
+    }
+    T_ASSERT(attack_click);
+    T_ASSERT(heal_click);
+    T_ASSERT(!empty_click);
+    T_EQ(((wowClient_t *)player->client)->action_spells[4], SPELL_NONE);
+    game->Shutdown();
+}
+
+TEST(wow_game, casts_reject_invalid_targets_and_cancel_when_target_moves_out_of_range) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *target = first_creature();
+    T_NOT_NULL(target);
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    wowEntityLocal_t *victim = Wow_EntityLocal(target);
+    ((wowClient_t *)player->client)->selected_entity = target->s.number;
+    target->s.origin2 = (vec2_t){ player->s.origin2.x + 10.0f, player->s.origin2.y };
+    victim->dead = true;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "4" });
+    T_EQ(local->cast_spell, SPELL_NONE);
+    T_EQ(local->gcd_time, 0);
+    victim->dead = false;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "4" });
+    T_EQ(local->cast_spell, WOW_SPELL_FIREBOLT);
+    target->s.origin2.x = player->s.origin2.x + 50.0f;
+    game->RunFrame();
+    T_EQ(local->cast_spell, SPELL_NONE);
+    T_EQ(local->mana, 100);
+    game->Shutdown();
+}
+
+TEST(wow_game, healing_touch_accepts_its_actual_mana_cost_without_turning) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    local->health = 50;
+    local->mana = 8;
+    player->s.angle = 1.25f;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
+    T_EQ(local->health, 52);
+    T_EQ(local->mana, 0);
+    T_FEQ(player->s.angle, 1.25f, 0.001f);
+    game->Shutdown();
 }
 
 /* Wow_MonsterStart sets RF_HOSTILE on all spawned creatures. */
@@ -2219,4 +2347,310 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     game->ClientInput(player, &(inputCmd_t){ .action = BZ_INPUT_VIEW, .view = {{-90, 0, 0}, 1000} });
     T_FEQ(player->client->ps.distance, WOW_CAMERA_MAX_DISTANCE, 0.001f);
     T_FEQ(player->client->ps.viewangles.x, 270 - WOW_CAMERA_MAX_PITCH, 0.001f);
+}
+
+TEST(wow_game, quest_turn_in_waits_for_kills_and_survives_frame_updates) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    uint32_t xp = player->client->ps.stats[WOW_STAT_XP];
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "788" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "788" });
+    T_EQ(player->client->ps.stats[WOW_STAT_XP], xp);
+
+    FOR_LOOP(i, 20) Wow_QuestAwardKillCredit(player, 503);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "788" });
+    game->RunFrame();
+    T_EQ(player->client->ps.stats[WOW_STAT_XP], xp + 1020);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "788" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "788" });
+    T_EQ(player->client->ps.stats[WOW_STAT_XP], xp + 1020);
+    game->Shutdown();
+}
+
+TEST(wow_game, quest_abandon_shifts_progress_and_allows_restart) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    wowClient_t *client = (wowClient_t *)player->client;
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "788" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "12" });
+    Wow_QuestAwardKillCredit(player, 503);
+    Wow_QuestAwardKillCredit(player, 2331);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_abandon", "788" });
+    T_EQ(client->quest_count, 1);
+    T_EQ(client->quest_log[0].quest_id, 12);
+    T_EQ(client->kill_progress[0][0], 1);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "788" });
+    T_EQ(client->quest_count, 2);
+    T_EQ(client->kill_progress[1][0], 0);
+    test_finish_quest_kills(player, 12);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "12" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_abandon", "12" });
+    T_EQ(client->quest_count, 1);
+    T_ASSERT(Wow_QuestWasRewarded(client, 12));
+    game->Shutdown();
+}
+
+TEST(wow_game, rewarded_quests_leave_room_in_journal_and_preserve_currency) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    wowClient_t *client = (wowClient_t *)player->client;
+    uint32_t initial_copper = local->copper;
+    uint32_t initial_xp = local->experience;
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "12" });
+    test_finish_quest_kills(player, 12);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "12" });
+    T_EQ(client->quest_count, 0);
+    T_ASSERT(Wow_QuestWasRewarded(client, 12));
+    T_EQ(local->copper, initial_copper + 500);
+    T_EQ(local->experience, initial_xp + 850);
+    game->RunFrame();
+    T_EQ(player->client->ps.stats[WOW_STAT_COPPER], initial_copper + 500);
+    T_EQ(player->client->ps.stats[WOW_STAT_XP], initial_xp + 850);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", "12" });
+    T_EQ(client->quest_count, 0);
+    game->Shutdown();
+}
+
+TEST(wow_game, quest_journal_paginates_and_clamps_after_abandon) {
+    static uint32_t const quests[] = { 1, 8, 16, 47, 60, 62, 73, 83, 85, 106, 108, 117, 137 };
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    wowClient_t *client = (wowClient_t *)player->client;
+    FOR_LOOP(i, sizeof(quests) / sizeof(quests[0])) {
+        char id[16];
+        snprintf(id, sizeof(id), "%u", quests[i]);
+        game->ClientCommand(player, 2, (cstring_t[]){ "quest_accept", id });
+    }
+    T_EQ(client->quest_count, 13);
+    game->ClientCommand(player, 1, (cstring_t[]){ "questlog" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "questlog_page", "next" });
+    T_EQ(client->questlog_offset, 12);
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_abandon", "137" });
+    T_EQ(client->questlog_offset, 0);
+    game->ClientCommand(player, 2, (cstring_t[]){ "questlog_page", "prev" });
+    T_EQ(client->questlog_offset, 0);
+    game->Shutdown();
+}
+
+TEST(wow_game, full_backpack_and_stale_loot_commands_do_not_remove_items) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *corpse = first_creature();
+    T_NOT_NULL(corpse);
+    wowClient_t *client = (wowClient_t *)player->client;
+    wowEntityLocal_t *local = Wow_EntityLocal(corpse);
+    Wow_AIDie(corpse, player);
+    local->think = Wow_RunCorpseFrame;
+    memset(local->loot_items, 0, sizeof(local->loot_items));
+    local->loot_count = 1;
+    local->loot_copper = 0;
+    local->loot_items[0] = (wowHudIcon_t){ "food.blp", "Meat", 1 };
+    corpse->s.origin2 = player->s.origin2;
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS)
+        client->inventory[i] = (wowHudIcon_t){ "bag.blp", "Bag", 1 };
+
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "loot_take", "0" });
+    T_EQ(local->loot_count, 1);
+    T_EQ(client->loot_target, corpse->s.number);
+
+    client->inventory[0] = (wowHudIcon_t){0};
+    corpse->s.origin2.y += 50.0f;
+    game->ClientCommand(player, 2, (cstring_t[]){ "loot_take", "0" });
+    T_EQ(client->inventory[0].count, 0);
+    T_EQ(local->loot_count, 1);
+    T_EQ(client->loot_target, 0);
+
+    corpse->s.origin2 = player->s.origin2;
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "loot_take", "no" });
+    T_EQ(local->loot_count, 1);
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot_all" });
+    T_STREQ(client->inventory[0].name, "Meat");
+    T_EQ(local->loot_count, 0);
+    game->Shutdown();
+}
+
+TEST(wow_game, loot_all_preserves_excess_items_and_rejects_stale_generation) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *corpse = first_creature();
+    T_NOT_NULL(corpse);
+    wowClient_t *client = (wowClient_t *)player->client;
+    wowEntityLocal_t *local = Wow_EntityLocal(corpse);
+    Wow_AIDie(corpse, player);
+    local->think = Wow_RunCorpseFrame;
+    memset(local->loot_items, 0, sizeof(local->loot_items));
+    local->loot_items[0] = (wowHudIcon_t){ "food.blp", "Meat", 1 };
+    local->loot_items[1] = (wowHudIcon_t){ "other.blp", "Hide", 1 };
+    local->loot_count = 2;
+    local->loot_copper = 0;
+    corpse->s.origin2 = player->s.origin2;
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS)
+        client->inventory[i] = (wowHudIcon_t){ "bag.blp", "Bag", 1 };
+    client->inventory[0] = (wowHudIcon_t){0};
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot" });
+    char stale_token[32];
+    snprintf(stale_token, sizeof(stale_token), "%llu", (unsigned long long)(client->loot_generation + 1));
+    game->ClientCommand(player, 2, (cstring_t[]){ "loot_all", stale_token });
+    T_EQ(local->loot_count, 2);
+    T_EQ(client->inventory[0].count, 0);
+    bool found_take_all = false;
+    FOR_LOOP(i, test_ui_frame_count)
+        if (!strncmp(test_ui_frames[i].onclick, "loot_all ", 9)) found_take_all = true;
+    T_ASSERT(found_take_all);
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot_all" });
+    T_STREQ(client->inventory[0].name, "Meat");
+    T_EQ(local->loot_count, 1);
+    T_STREQ(local->loot_items[1].name, "Hide");
+    T_EQ(client->loot_snap_count, 1);
+    client->inventory[1] = (wowHudIcon_t){0};
+    local->loot_generation++;
+    game->ClientCommand(player, 2, (cstring_t[]){ "loot_take", "1" });
+    T_EQ(client->inventory[1].count, 0);
+    T_EQ(local->loot_count, 1);
+    T_EQ(client->loot_target, 0);
+    game->Shutdown();
+}
+
+TEST(wow_game, loot_interaction_rejects_out_of_range_and_expired_corpses) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *corpse = first_creature();
+    T_NOT_NULL(corpse);
+    wowEntityLocal_t *local = Wow_EntityLocal(corpse);
+    wowClient_t *client = (wowClient_t *)player->client;
+    Wow_AIDie(corpse, player);
+    local->think = Wow_RunCorpseFrame;
+    local->loot_items[0] = (wowHudIcon_t){ "food.blp", "Meat", 1 };
+    local->loot_count = 1;
+    local->loot_copper = 0;
+    corpse->s.origin2 = player->s.origin2;
+    corpse->s.origin2.x += 11.0f;
+    char number[16];
+    snprintf(number, sizeof(number), "%u", corpse->s.number);
+    game->ClientCommand(player, 2, (cstring_t[]){ "interact", number });
+    T_EQ(client->loot_target, 0);
+    corpse->s.origin2 = player->s.origin2;
+    game->ClientCommand(player, 2, (cstring_t[]){ "interact", number });
+    T_EQ(client->loot_target, corpse->s.number);
+    corpse->inuse = false;
+    game->ClientCommand(player, 1, (cstring_t[]){ "loot_all" });
+    T_EQ(client->loot_target, 0);
+    T_EQ(local->loot_count, 1);
+    game->Shutdown();
+}
+
+TEST(wow_game, unbound_action_slots_and_malformed_commands_are_inert) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *target = first_creature();
+    T_NOT_NULL(target);
+    target->s.origin2 = player->s.origin2;
+    ((wowClient_t *)player->client)->selected_entity = target->s.number;
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "4" });
+    T_EQ(local->cast_spell, SPELL_NONE);
+    T_EQ(local->gcd_time, 0);
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "wrong" });
+    T_EQ(local->gcd_time, 0);
+    T_NULL(local->enemy);
+    game->Shutdown();
+}
+
+TEST(wow_game, world_map_displays_current_zone_and_live_position) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    test_worldmap_fixture = true;
+    player->s.origin.x = 0;
+    player->s.origin.y = 0;
+    player->s.origin2 = (vec2_t){ 0, 0 };
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+
+    wowClient_t *wc = (wowClient_t *)player->client;
+    T_ASSERT(wc->worldmap_open);
+    T_STREQ(wc->worldmap_area, "TestZone");
+    int map_tile = test_image_index("Interface\\WorldMap\\TestZone\\TestZone1.blp");
+    int marker = test_image_index("Interface\\WorldMap\\WorldMapPlayerIcon.blp");
+    bool found_tile = false, found_marker = false, found_close = false;
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->type == FT_TEXTURE && frame->image_index == map_tile) found_tile = true;
+        if (frame->type == FT_TEXTURE && frame->image_index == marker) {
+            found_marker = true;
+            T_FEQ(frame->x, (128.0f + 384.0f - 10.0f) / 1024.0f, 0.002f);
+            T_FEQ(frame->y, (95.0f + 256.0f - 10.0f) / 768.0f, 0.002f);
+        }
+        if (!strcmp(frame->onclick, "worldmap")) found_close = true;
+    }
+    T_ASSERT(found_tile);
+    T_ASSERT(found_marker);
+    T_ASSERT(found_close);
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    T_ASSERT(!wc->worldmap_open);
+    game->Shutdown();
+}
+
+TEST(wow_game, world_map_handles_missing_data_and_resolves_larger_area) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    wowClient_t *wc = (wowClient_t *)player->client;
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    T_ASSERT(wc->worldmap_open);
+    T_STREQ(wc->worldmap_area, "");
+
+    test_worldmap_fixture = true;
+    player->s.origin.x = 500;
+    player->s.origin.y = 500;
+    T_ASSERT(UI_ResolveWorldMap(player));
+    T_STREQ(wc->worldmap_area, "Continent");
+    player->s.origin.x = 2000;
+    T_ASSERT(!UI_ResolveWorldMap(player));
+    T_STREQ(wc->worldmap_area, "");
+    game->Shutdown();
+}
+
+TEST(wow_game, open_world_map_refreshes_position_and_area_from_scheduler) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    test_worldmap_fixture = true;
+    player->s.origin = (vec3_t){0, 0, 0};
+    player->s.origin2 = (vec2_t){0, 0};
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    wowClient_t *wc = (wowClient_t *)player->client;
+    T_STREQ(wc->worldmap_area, "TestZone");
+
+    player->s.origin.x = 500;
+    player->s.origin2.x = 500;
+    uint32_t before = test_unicast_calls;
+    FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
+    T_STREQ(wc->worldmap_area, "Continent");
+    T_ASSERT(test_unicast_calls > before);
+    player->s.origin.x = 0;
+    player->s.origin2.x = 0;
+    FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
+    T_STREQ(wc->worldmap_area, "TestZone");
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    before = test_unicast_calls;
+    FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
+    T_EQ(test_unicast_calls, before);
+    game->Shutdown();
 }

@@ -16,6 +16,8 @@ and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMEN
 - `uiwow_point_factors[]`: Maps anchor points (`TOPLEFT`, `TOP`, `CENTER`, `BOTTOMRIGHT`, etc.) to X and Y bounding-box interpolation factors, eliminating branching ladders in anchor math.
 - `uiwow_layer_levels[]`, `uiwow_justify_h[]`, `uiwow_justify_v[]`: Table-driven string-to-enum lookups.
 
+FrameXML `Font` definitions are non-drawing templates. Their `font`, `FontHeight`, color, and text justification flow through `inherits` into font strings and button text. An explicit property on the receiving element overrides the inherited value. Lua font strings support `GetFont`, `SetFont`, and `SetFontObject`, and a change invalidates natural text measurements. Fonts are cached by path and size. If an authored font cannot be loaded, the menu reports the failure and tries the default interface font.
+
 ## Geometry contract
 
 - `<Size><AbsDimension .../></Size>` supplies explicit axes after conversion from the native 1024x768 grid.
@@ -29,6 +31,8 @@ and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMEN
   also prevents an unresolved Button/EditBox from receiving a fabricated hit target.
 
 Lua scroll offsets and ranges use the same vertical UI units as frame sizes. The range reflects the content bounds at query time and can be zero. Children declared inside `ScrollChild` contribute regardless of their name. Shrinking content clamps the current offset to the new range.
+
+Lua `GetTime()` exposes the menu clock in seconds. The existing `ow3.time()` binding returns milliseconds.
 
 Focused verification:
 

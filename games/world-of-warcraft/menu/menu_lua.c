@@ -206,6 +206,11 @@ static int UIWow_LuaTime(lua_State *L) {
     return 1;
 }
 
+static int UIWow_LuaGetTime(lua_State *L) {
+    lua_pushnumber(L, (lua_Number)wow_ui.time / 1000.0);
+    return 1;
+}
+
 static int UIWow_LuaCommand(lua_State *L) {
     cstring_t text = luaL_checkstring(L, 1);
 
@@ -450,6 +455,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "DefaultServerLogin", UIWow_LuaDefaultServerLogin },
     { "TEXT",              UIWow_LuaTextCompat },
     { "GetBuildInfo",      UIWow_LuaGetBuildInfo },
+    { "GetTime",           UIWow_LuaGetTime },
     { "TOSAccepted",       UIWow_LuaTrue },
     { "ShowTOSNotice",     UIWow_LuaFalse },
     { "GetLastAccountName",UIWow_LuaNil },

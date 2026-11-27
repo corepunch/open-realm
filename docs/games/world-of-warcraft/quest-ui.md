@@ -33,8 +33,8 @@ The quest log is part of `playerState_s` — generic, game-agnostic per-player s
 |------|----------|---------|
 | `svQuestStatus_t` | `common/shared.h` | `NONE → ACTIVE → COMPLETE → REWARDED` |
 | `svQuestEntry_t` | `common/shared.h` | `quest_id` + `status` (one slot in the log) |
-| `ps.quest_log[SV_MAX_QUEST_LOG]` | `playerState_s` | Fixed-capacity per-player quest log |
-| `ps.quest_count` | `playerState_s` | Number of active log entries |
+| `wowClient_t.quest_log[SV_MAX_QUEST_LOG]` | WoW game module | Fixed-capacity active quest log |
+| `wowClient_t.quest_count` | WoW game module | Number of active log entries |
 | `SV_QuestFind(log, count, id)` | `server/sv_quest.h` | Linear search by quest_id |
 | `SV_QuestAdd(log, &count, max, id)` | `server/sv_quest.h` | Add with duplicate guard |
 
@@ -46,7 +46,8 @@ The quest log is part of `playerState_s` — generic, game-agnostic per-player s
 | `WOWQUESTOBJECTIVE` | quest_id → 2D objective position (server-side anchor) |
 | `WOWQUESTKILLOBJECTIVE` | creature display_id + required kill count |
 | `WOWQUESTDETAIL` | Full quest: title, description, objectives, reward text, XP, gold, prerequisites, kill objectives |
-| `wowClient_t.kill_progress[SV_MAX_QUEST_LOG][4]` | Per-slot kill progress counters (parallel to `ps.quest_log`) |
+| `wowClient_t.kill_progress[SV_MAX_QUEST_LOG][4]` | Per-slot kill progress counters (parallel to `quest_log`) |
+| `wowClient_t.rewarded_quests` | Quest-ID bitset for completed rewards, independent of active log capacity |
 
 ## Server Commands
 
@@ -54,9 +55,11 @@ The quest log is part of `playerState_s` — generic, game-agnostic per-player s
 |---------|--------|
 | `quest [id]` | Opens quest dialog. Without ID, uses selected NPC's quest_id. |
 | `quest_accept <id>` | Adds quest to log (checks prerequisites, max 16 slots). Closes dialog. |
-| `quest_complete <id>` | Awards XP + gold if quest status is ACCEPTED. Closes dialog. |
+| `quest_complete <id>` | Awards XP and copper once when all tracked objectives are complete. Closes dialog. |
+| `quest_abandon <id>` | Removes an active or completed quest from the log and clears its objective progress. |
 | `quest_close` | Hides dialog and quest log. |
 | `questlog` | Toggles quest log panel. |
+| `questlog_page next/prev` | Pages through active quests in the journal. |
 
 ## Quest Dialog UI
 
@@ -77,6 +80,8 @@ though game mode does not execute it:
 | Scrollbar | `(329, 81)`, 16×334; 16px arrows and thumb, cropped to the texture center |
 | Accept | `(23, 418)`, 77×22 |
 | Decline | `(267, 418)`, 78×22 |
+
+When the selected model has an authored camera, the renderer uses it for the portrait. Otherwise the renderer fits the visible model bounds to the portrait aspect ratio. Character models use the posed helm attachment to aim toward the face when it is available and within the model bounds. Their bounds provide the fallback aim point when that attachment is missing. The portrait viewport and scissor limit drawing to the authored aperture.
 
 `UIPanelButtonTemplate` does not use the complete 128×32 button texture. Its
 authoritative UV rectangle is `(0, 0)..(0.625, 0.6875)`, an 80×22 opaque region
@@ -129,7 +134,7 @@ build/bin/mpqtool -data data/world-of-warcraft cat 'Interface/FrameXML/UIPanelTe
 
 Buttons depend on quest state:
 - **New quest** (not in log): "Accept" button → `quest_accept <id>`
-- **In progress** (ACCEPTED, objectives incomplete): no action buttons
+- **In progress** (objectives incomplete): "Abandon" removes the quest and progress.
 - **Complete** (all objectives done): "Complete Quest" → `quest_complete <id>`
 - **Always**: top-right close icon and "Decline" button → `quest_close`
 
@@ -138,19 +143,21 @@ kill objectives and the player's progress is tracked.
 
 ## Quest Logic (g_wow.c)
 
-- `Wow_AddQuest(client, id)` — validates detail exists, prerequisite chain met
-  (`prev_quest` must be complete, not merely active); delegates to `SV_QuestAdd`
-  for log management.
-- `Wow_CompleteQuest(client, id)` — uses `SV_QuestFind`; only awards if
-  `status == SV_QUEST_ACTIVE`; adds `reward_xp` to `WOW_STAT_XP`, `reward_gold`
-  to `WOW_STAT_COPPER`.
+- `Wow_AddQuest(client, id)` validates the detail and requires the predecessor
+  to be rewarded. Rewarded IDs occupy a 65,536-bit history, while the active
+  log has 16 entries. IDs outside that history are rejected.
+- `Wow_CompleteQuest(player, id)` rewards only `SV_QUEST_COMPLETE` entries,
+  records the ID, removes the active entry, and credits authoritative player
+  XP and copper. The HUD projects those values each frame.
 - `Wow_QuestAwardKillCredit(attacker, display_id)` — called from AI death
-  handler; iterates `ps.quest_log`, matches display_id against kill objectives,
+  handler; iterates `wowClient_t.quest_log`, matches display_id against kill objectives,
   increments `wc->kill_progress[slot][j]`, auto-transitions to `SV_QUEST_COMPLETE`
   when all objectives are met.
 
-Quest log access: `ent->client->ps.quest_log` / `ent->client->ps.quest_count`
-(via the engine's `playerState_s` — available to any server game module).
+The generated detail table currently represents kill objectives. Quests whose
+item, interaction, exploration, or other objectives are not represented cannot
+yet transition to complete. Progress and reward history are in-memory state.
+Player-local XP and copper are initialized again by the map spawn path.
 
 ## Quest Spawning (m_creature.c)
 

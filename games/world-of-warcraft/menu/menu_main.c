@@ -170,33 +170,36 @@ texture_t *UIWow_LoadTexture(cstring_t name) {
     }
 }
 
-font_t const *UIWow_LoadFont(uint32_t size) {
+font_t const *UIWow_LoadNamedFont(cstring_t name, uint32_t size) {
+    cstring_t default_font = "Fonts\\FRIZQT__.TTF";
+    uiWowFont_t *empty = NULL;
+    if (!name || !*name) name = default_font;
     UIWow_EnsureRenderer();
-    if (!wow_ui.renderer) {
+    if (!wow_ui.renderer || !wow_ui.renderer->LoadFont) {
         return NULL;
     }
     FOR_LOOP(i, WOW_UI_MAX_FONTS) {
         uiWowFont_t *entry = &wow_ui.font_cache[i];
+        if (entry->name[0] && entry->size == size && !strcasecmp(entry->name, name)) {
+            return entry->font;
+        }
+        if (!entry->name[0] && !empty) empty = entry;
+    }
+    if (empty) {
+        empty->size = size;
+        snprintf(empty->name, sizeof(empty->name), "%s", name);
+    }
+    font_t const *font = wow_ui.renderer->LoadFont(name, size);
+    if (!font) {
+        UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", name, size);
+        if (strcasecmp(name, default_font)) font = UIWow_LoadNamedFont(default_font, size);
+    }
+    if (empty) empty->font = font;
+    return font;
+}
 
-        if (entry->font && entry->size == size) {
-            return entry->font;
-        }
-        if (!entry->font) {
-            entry->size = size;
-            entry->font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
-            if (!entry->font) {
-                UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
-            }
-            return entry->font;
-        }
-    }
-    {
-        font_t const *font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
-        if (!font) {
-            UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
-        }
-        return font;
-    }
+font_t const *UIWow_LoadFont(uint32_t size) {
+    return UIWow_LoadNamedFont(NULL, size);
 }
 
 static void UIWow_RegisterMenuCommands(void);
@@ -249,6 +252,7 @@ static void UIWow_ReleaseScreenAssets(void) {
     FOR_LOOP(i, WOW_UI_MAX_FONTS) {
         wow_ui.font_cache[i].font = NULL;
         wow_ui.font_cache[i].size = 0;
+        wow_ui.font_cache[i].name[0] = '\0';
     }
     FOR_LOOP(i, WOW_UI_TEX_COUNT) {
         SAFE_DELETE(wow_ui.textures[i], wow_ui.renderer->ReleaseTexture);

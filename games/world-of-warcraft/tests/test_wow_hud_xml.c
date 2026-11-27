@@ -27,6 +27,8 @@ static drawText_t last_draw_text;
 static char last_draw_text_value[128];
 static char last_draw_image_name[256];
 static uint32_t draw_text_calls;
+static bool test_missing_font;
+static uint32_t test_missing_font_loads;
 
 static cstring_t test_get_configstring(uint32_t index) {
     return index == WOW_CS_MAPINFO ? "\\title\\The Barrens\\preview\\normal.blp" : "";
@@ -62,6 +64,10 @@ static texture_t *test_load_texture(cstring_t name) {
     return t;
 }
 static font_t *test_load_font(cstring_t name, uint32_t sz) {
+    if (test_missing_font && !strcmp(name, "Fonts\\Missing.ttf")) {
+        test_missing_font_loads++;
+        return NULL;
+    }
     font_t *f = calloc(1, sizeof(*f));
     T_NOT_NULL(f);
     f->size = sz;
@@ -100,6 +106,8 @@ static void reset_state(void) {
     next_texture_id = 0;
     geometry_warnings = 0;
     draw_text_calls = 0;
+    test_missing_font = false;
+    test_missing_font_loads = 0;
     memset(&last_draw_text, 0, sizeof(last_draw_text));
     last_draw_text_value[0] = '\0';
     last_draw_image_name[0] = '\0';
@@ -166,6 +174,61 @@ TEST(wow_hud_xml, parse_fontstring_type_and_text) {
     T_EQ(UIWow_XmlElemType(idx), (int)WOW_XML_FONTSTRING);
     T_STREQ(UIWow_XmlElemText(idx), "Hello World");
     UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, font_inheritance_draws_authored_typeface_and_height) {
+    static const char xml[] =
+        "<Ui><Font name=\"BaseFont\" font=\"Fonts\\Base.ttf\" virtual=\"true\">"
+        "<FontHeight><AbsValue val=\"19\"/></FontHeight><Color r=\"1\" g=\"0\" b=\"0\"/></Font>"
+        "<Font name=\"ChildFont\" inherits=\"BaseFont\" virtual=\"true\"/>"
+        "<FontString name=\"Message\" inherits=\"ChildFont\" text=\"Hello\"/>"
+        "<FontString name=\"Override\" inherits=\"ChildFont\" font=\"Fonts\\Other.ttf\" text=\"Hi\">"
+        "<FontHeight><AbsValue val=\"21\"/></FontHeight></FontString></Ui>";
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "fonts"));
+    T_ASSERT(UIWow_XMLDrawFrame("Message"));
+    T_NOT_NULL(last_draw_text.font);
+    if (last_draw_text.font) {
+        T_STREQ(last_draw_text.font->name, "Fonts\\Base.ttf");
+        T_EQ(last_draw_text.font->size, 19);
+    }
+    T_EQ(last_draw_text.color.r, 255);
+    T_EQ(last_draw_text.color.g, 0);
+    T_ASSERT(UIWow_XMLDrawFrame("Override"));
+    T_NOT_NULL(last_draw_text.font);
+    if (last_draw_text.font) {
+        T_STREQ(last_draw_text.font->name, "Fonts\\Other.ttf");
+        T_EQ(last_draw_text.font->size, 21);
+    }
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, font_lua_methods_and_missing_font_fallback) {
+    static const char xml[] =
+        "<Ui><Font name=\"BaseFont\" font=\"Fonts\\Base.ttf\">"
+        "<FontHeight><AbsValue val=\"19\"/></FontHeight></Font>"
+        "<FontString name=\"Message\" text=\"Hello\"/></Ui>";
+    reset_state();
+    test_missing_font = true;
+    wow_ui.lua = luaL_newstate();
+    luaL_openlibs(wow_ui.lua);
+    init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "font methods"));
+    T_ASSERT(UIWow_RunLuaString("font methods",
+        "Message:SetFontObject(BaseFont)\n"
+        "local name, size = Message:GetFont(); assert(name == 'Fonts\\\\Base.ttf' and size == 19)\n"
+        "assert(not Message:SetFont('invalid', 0))\n"
+        "assert(Message:SetFont('Fonts\\\\Missing.ttf', 23))\n"
+        "name, size = Message:GetFont(); assert(name == 'Fonts\\\\Missing.ttf' and size == 23)"));
+    T_ASSERT(UIWow_XMLDrawFrame("Message"));
+    T_NOT_NULL(last_draw_text.font);
+    if (last_draw_text.font) T_STREQ(last_draw_text.font->name, "Fonts\\FRIZQT__.TTF");
+    T_EQ(test_missing_font_loads, 1);
+    T_ASSERT(UIWow_XMLDrawFrame("Message"));
+    T_EQ(test_missing_font_loads, 1);
+    UIWow_XMLClearFrames();
+    lua_close(wow_ui.lua);
+    wow_ui.lua = NULL;
 }
 
 TEST(wow_hud_xml, parse_button_onclick) {

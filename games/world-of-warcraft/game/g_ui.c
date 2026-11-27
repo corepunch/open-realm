@@ -9,6 +9,8 @@
 
 #include "g_wow_local.h"
 #include "common/wow_character_utils.h"
+#include <ctype.h>
+#include <math.h>
 
 #define VW 1024.0f
 #define VH 768.0f
@@ -338,7 +340,7 @@ static void UI_WriteQuestDialog(edict_t *ent) {
         char command[64], desc[2048], obj[1024], text[3072];
         float x = PX(0), y = PY(104);
         bool is_complete = state && state->status == SV_QUEST_COMPLETE;
-        bool is_accepted = state && state->status == SV_QUEST_ACTIVE;
+        bool is_accepted = (state && state->status == SV_QUEST_ACTIVE) || Wow_QuestWasRewarded(wc, wc->quest_id);
 
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(256), COLOR32_WHITE);
@@ -380,6 +382,9 @@ static void UI_WriteQuestDialog(edict_t *ent) {
         } else if (!is_accepted) {
             snprintf(command, sizeof(command), "quest_accept %u", (unsigned)wc->quest_id);
             UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(77), PH(22), "Accept", command);
+        } else if (state && state->status == SV_QUEST_ACTIVE) {
+            snprintf(command, sizeof(command), "quest_abandon %u", (unsigned)wc->quest_id);
+            UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(90), PH(22), "Abandon", command);
         }
         UI_WriteSimpleButton(x + PW(267), y + PH(418), PW(78), PH(22), "Decline", "quest_close");
     } else if (wc->questlog_open) {
@@ -395,9 +400,13 @@ static void UI_WriteQuestDialog(edict_t *ent) {
 
         UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
+        if (wc->questlog_offset >= wc->quest_count)
+            wc->questlog_offset = wc->quest_count
+                ? (wc->quest_count - 1) / WOW_QUEST_PAGE_SIZE * WOW_QUEST_PAGE_SIZE : 0;
         if (!wc->quest_count) {
             UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(color32_t, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
-        } else FOR_LOOP(i, wc->quest_count) {
+        }
+        for (uint32_t i = wc->questlog_offset; i < wc->quest_count && line_count < WOW_QUEST_PAGE_SIZE; i++) {
             svQuestEntry_t *qs = &wc->quest_log[i];
             wowQuestDetail_t const *detail = Wow_QuestDetail(qs->quest_id);
             cstring_t status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
@@ -406,8 +415,12 @@ static void UI_WriteQuestDialog(edict_t *ent) {
             snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
             UI_WriteSimpleButton(x + PW(28), line_y, PW(308), PH(22), buf, cmd);
             line_y += PH(28);
-            if (++line_count >= 14) break;
+            line_count++;
         }
+        if (wc->questlog_offset)
+            UI_WriteSimpleButton(x + PW(28), y + PH(410), PW(82), PH(22), "Previous", "questlog_page prev");
+        if (wc->questlog_offset + line_count < wc->quest_count)
+            UI_WriteSimpleButton(x + PW(120), y + PH(410), PW(82), PH(22), "Next", "questlog_page next");
         UI_WriteSimpleButton(x + PW(250), y + PH(450), PW(90), PH(28), "Close", "quest_close");
     }
 
@@ -654,7 +667,7 @@ static void UI_WriteTargetingFrame(edict_t *ent) {
  * -------------------------------------------------------------------------*/
 static void UI_WriteLootWindow(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
-    char buf[96];
+    char buf[96], loot_all_command[64];
     uint32_t visible = 0;
     float x, y, h;
 
@@ -682,6 +695,10 @@ static void UI_WriteLootWindow(edict_t *ent) {
     UI_WriteTextFrame(x + PW(8), y + PH(5), PW(200), PH(14), "Loot",
                       MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
 
+    snprintf(loot_all_command, sizeof(loot_all_command), "loot_all %llu",
+             (unsigned long long)wc->loot_generation);
+    UI_WriteSimpleButton(x + PW(240), y + PH(3), PW(74), PH(18), "Take all", loot_all_command);
+
     /* Close button — top right corner */
     UI_WriteSimpleButton(x + PW(320), y + PH(3), PW(56), PH(18), "Close", "loot_close");
 
@@ -690,7 +707,7 @@ static void UI_WriteLootWindow(edict_t *ent) {
     FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) {
         float row_y;
         uint32_t icon_img;
-        char cmd[32];
+        char cmd[64];
 
         if (!wc->loot_snap[i].icon[0]) continue;
         row_y = y + PH(26.0f + (float)row * 36.0f);
@@ -718,7 +735,8 @@ static void UI_WriteLootWindow(edict_t *ent) {
         UI_WriteTextFrame(x + PW(48), row_y + PH(9), PW(280), PH(16), buf, COLOR32_WHITE, FONT_JUSTIFYLEFT);
 
         /* Click region: "loot_take <slot>" */
-        snprintf(cmd, sizeof(cmd), "loot_take %u", (unsigned)i);
+        snprintf(cmd, sizeof(cmd), "loot_take %u %llu", (unsigned)i,
+                 (unsigned long long)wc->loot_generation);
         UI_WriteClickRegion(x + PW(8), row_y, PW(360.0f), PH(32.0f), cmd);
         row++;
     }
@@ -778,7 +796,134 @@ void UI_WriteWelcomeWindow(edict_t *ent) {
     UI_WriteWindowEnd(ent);
 }
 
-/* Build and unicast the WoW HUD layer for a player */
+/* Resolve the smallest map area containing the player's world coordinates.
+ * Classic map rows store the horizontal (world Y) bounds before vertical X.
+ * A continent-sized row provides a fallback when no smaller area contains the
+ * player. */
+bool UI_ResolveWorldMap(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    uint32_t size = 0;
+    uint8_t *data = gi.ReadFile("DBFilesClient\\WorldMapArea.dbc", &size);
+    stbDbc_t header;
+    float smallest_area = INFINITY;
+
+    wc->worldmap_area[0] = '\0';
+    if (!Stb_DbcValid(data, size, &header) || header.fields < 8 || header.record_size < 32) {
+        SAFE_DELETE(data, gi.MemFree);
+        return false;
+    }
+    uint8_t const *records = Stb_DbcRecords(data);
+    uint8_t const *strings = Stb_DbcStrings(data, &header);
+    FOR_LOOP(i, header.records) {
+        uint8_t const *record = Stb_DbcRecordAt(records, i, header.record_size);
+        if (Stb_DbcField(&header, record, 1) != CM_WowGetMapId()) continue;
+        float left = Stb_DbcReadFloat(record + 16), right = Stb_DbcReadFloat(record + 20);
+        float top = Stb_DbcReadFloat(record + 24), bottom = Stb_DbcReadFloat(record + 28);
+        float width = fabsf(right - left), height = fabsf(bottom - top);
+        float x = ent->s.origin.x, y = ent->s.origin.y;
+        if (!isfinite(width) || !isfinite(height) || width < 1.0f || height < 1.0f ||
+            y < MIN(left, right) || y > MAX(left, right) ||
+            x < MIN(top, bottom) || x > MAX(top, bottom) ||
+            width * height >= smallest_area)
+            continue;
+        uint32_t offset = Stb_DbcField(&header, record, 3);
+        cstring_t name = Stb_DbcString(strings, header.string_size, offset);
+        if (!name || !memchr(name, '\0', header.string_size - offset) || strlen(name) >= sizeof(wc->worldmap_area))
+            continue;
+        bool safe = true;
+        for (cstring_t p = name; *p; p++) {
+            if (!isalnum((unsigned char)*p) && *p != '_') { safe = false; break; }
+        }
+        if (!safe || !*name) continue;
+        snprintf(wc->worldmap_area, sizeof(wc->worldmap_area), "%s", name);
+        wc->worldmap_left = left;
+        wc->worldmap_right = right;
+        wc->worldmap_top = top;
+        wc->worldmap_bottom = bottom;
+        smallest_area = width * height;
+    }
+    gi.MemFree(data);
+    return wc->worldmap_area[0] != '\0';
+}
+
+void UI_WriteWorldMap(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    UI_WriteStart(LAYER_GAME_0);
+    if (!wc->worldmap_open) {
+        UI_WriteEnd();
+        gi.unicast(ent);
+        return;
+    }
+
+    float x = PX(128), y = PY(95), width = PW(768), height = PH(512);
+    UI_WriteColorRect(x - PW(8), y - PH(35), width + PW(16), height + PH(43),
+                      MAKE(color32_t, 18, 15, 12, 250));
+    UI_WriteTextFrame(x + PW(8), y - PH(27), PW(600), PH(20),
+                      wc->worldmap_area[0] ? wc->worldmap_area : "Map unavailable",
+                      MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + width - PW(65), y - PH(30), PW(62), PH(22), "Close", "worldmap");
+
+    if (!wc->worldmap_area[0]) {
+        UI_WriteEnd();
+        gi.unicast(ent);
+        return;
+    }
+    for (uint32_t row = 0; row < 3; row++) {
+        for (uint32_t col = 0; col < 4; col++) {
+            char path[MAX_PATHLEN];
+            float tile_w = col == 3 ? 234.0f : 256.0f;
+            float tile_h = row == 2 ? 156.0f : 256.0f;
+            snprintf(path, sizeof(path), "Interface\\WorldMap\\%s\\%s%u.blp",
+                     wc->worldmap_area, wc->worldmap_area, row * 4 + col + 1);
+            UI_WriteImageUV(path, x + width * (256.0f * col / 1002.0f),
+                            y + height * (256.0f * row / 668.0f),
+                            width * (tile_w / 1002.0f), height * (tile_h / 668.0f),
+                            0.0f, tile_w / 256.0f, 0.0f, tile_h / 256.0f, COLOR32_WHITE);
+        }
+    }
+    float u = (ent->s.origin.y - wc->worldmap_left) / (wc->worldmap_right - wc->worldmap_left);
+    float v = (ent->s.origin.x - wc->worldmap_top) / (wc->worldmap_bottom - wc->worldmap_top);
+    if (u >= 0 && u <= 1 && v >= 0 && v <= 1)
+        UI_WriteImage("Interface\\WorldMap\\WorldMapPlayerIcon.blp",
+                      x + width * u - PW(10), y + height * v - PH(10), PW(20), PH(20), COLOR32_WHITE);
+    UI_WriteEnd();
+    gi.unicast(ent);
+}
+
+/* Refresh the small feedback layout during a cast or cooldown, and clear it
+ * once when both timers have expired. The retained HUD stays in place. */
+void UI_WriteWowCombatFeedback(edict_t *ent, bool force) {
+    wowEntityLocal_t const *local = Wow_EntityLocal(ent);
+    wowClient_t *client = (wowClient_t *)ent->client;
+    bool casting = local->cast_spell < wow_spell_count && local->cast_duration > 0;
+    bool cooling = local->gcd_time > 0;
+    bool visible = casting || cooling;
+    if (!force && !visible && !client->combat_feedback_visible) return;
+
+    UI_WriteStart(LAYER_INFOPANEL);
+    if (casting) {
+        float progress = 1.0f - (float)local->cast_remaining / (float)local->cast_duration;
+        char text[96];
+        snprintf(text, sizeof(text), "%s  %.1f s", wow_spells[local->cast_spell].name,
+                 (float)local->cast_remaining / 1000.0f);
+        UI_WriteColorRect(PX(337), PY(674), PW(350), PH(25), MAKE(color32_t, 0, 0, 0, 224));
+        UI_WriteColorBar(PX(338), PY(675), PW(348), PH(23), progress, 1.0f,
+                         MAKE(color32_t, 182, 119, 30, 255));
+        UI_WriteTextFrame(PX(338), PY(676), PW(348), PH(20), text, COLOR32_WHITE,
+                          FONT_JUSTIFYCENTER);
+    }
+    if (cooling) {
+        float const x = PX(8), y = PY(764), width = PW(248);
+        float remaining = MIN(1.0f, (float)local->gcd_time / WOW_GCD_MS);
+        UI_WriteColorRect(x, y, width, PH(4), MAKE(color32_t, 0, 0, 0, 192));
+        UI_WriteColorRect(x, y, width * remaining, PH(4), MAKE(color32_t, 190, 145, 85, 255));
+    }
+    UI_WriteEnd();
+    gi.unicast(ent);
+    client->combat_feedback_visible = visible;
+}
+
+/* Build and unicast the retained WoW HUD layers for a player. */
 void UI_WriteWowHud(edict_t *ent) {
     player_t *ps;
     wowClient_t *wc;
@@ -814,7 +959,13 @@ void UI_WriteWowHud(edict_t *ent) {
     /* 12 action buttons, left row */
     FOR_LOOP(i, 12) {
         uint32_t img = wc->actions[i].icon[0] ? gi.ImageIndex(wc->actions[i].icon) : 0;
-        UI_WriteActionButtonSlot(PX(8.0f + (float)i * 42.0f), PY(728), img, wc->actions[i].count);
+        float x = PX(8.0f + (float)i * 42.0f);
+        UI_WriteActionButtonSlot(x, PY(728), img, wc->actions[i].count);
+        if (wc->action_spells[i] != SPELL_NONE && wc->actions[i].icon[0]) {
+            char command[32];
+            snprintf(command, sizeof(command), "wow_action %u", (unsigned)i);
+            UI_WriteClickRegion(x, PY(728), PW(36), PH(36), command);
+        }
     }
 
     /* First 6 inventory slots shown in the quick-access bar; all 16 visible in backpack window. */
@@ -839,30 +990,6 @@ void UI_WriteWowHud(edict_t *ent) {
     /* Copper display */
     snprintf(copper_buf, sizeof(copper_buf), "Copper %d", (int)ps->stats[WOW_STAT_COPPER]);
     UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20), copper_buf, MAKE(color32_t, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
-
-    /* Cast bar — centered above action bar, shown during spell casts */
-    {
-        uint16_t progress = ps->stats[WOW_STAT_CAST_PROGRESS];
-        uint16_t max_val = ps->stats[WOW_STAT_CAST_MAX];
-        if (max_val > 0) {
-            char text[64];
-            snprintf(text, sizeof(text), "%.1f s", (float)progress / 1000.0f);
-            /* Background */
-            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(28), MAKE(color32_t, 0, 0, 0, 192));
-            /* Fill bar: width * (1 - progress/max) since progress counts down */
-            {
-                float ratio = (float)(max_val - progress) / (float)max_val;
-                UI_WriteColorBar(PX(263), PY(691), PW(498), PH(26), ratio, 1.0f, MAKE(color32_t, 255, 200, 50, 255));
-            }
-            /* Border */
-            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(1), COLOR32_WHITE);
-            UI_WriteColorRect(PX(262), PY(717), PW(500), PH(1), COLOR32_WHITE);
-            UI_WriteColorRect(PX(262), PY(691), PW(1), PH(27), COLOR32_WHITE);
-            UI_WriteColorRect(PX(761), PY(691), PW(1), PH(27), COLOR32_WHITE);
-            /* Time text */
-            UI_WriteTextFrame(PX(462), PY(695), PW(100), PH(20), text, COLOR32_WHITE, FONT_JUSTIFYCENTER);
-        }
-    }
 
     /* Loot and backpack windows are HUD overlays on LAYER_CONSOLE.  They must be
      * written before the console terminator: writing them after a layer's

@@ -16,18 +16,19 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 | Healing Touch | `g_wow.c` | Self-heal via spell cast system |
 | Pain / death animations | `g_ai.c` | M2-event-derived damage_point; Death/Dead sequences |
 | Corpse entities | `g_gameobject.c` | 5-minute despawn timer |
-| Quest system | `g_wow.c`, `g_ui.c` | Accept, progress tracking, completion, reward items via inbox |
+| Quest system | `g_wow.c`, `g_ui.c` | Paginated journal, abandonment, kill tracking, and one-time XP and copper rewards |
 | Quest kill credit | `g_wow.c` | `Wow_QuestAwardKillCredit` dispatched on death |
 | Area triggers / dungeon loading | `g_wow.c` | `Wow_CheckAreaTriggers`; cross-map warp |
 | Spawn-point selection (per race/class) | `g_playercreateinfo.c` | Generated from `playercreateinfo.csv` |
-| Action bar (12 slots) | `g_ui.c` | Server-authored; spells mapped to slots |
+| Action bar (12 slots) | `g_wow.c`, `g_ui.c` | Class-specific bindings shared by icons, clicks, and hotkeys |
 | Backpack (16 slots) | `g_ui.c`, `g_wow.c` | Click backpack button to toggle; slots 0-5 also in HUD bar |
 | **Loot system** | `g_ai.c`, `g_wow.c`, `g_ui.c` | Rolled on death, copper auto-taken; item click-to-take |
 | **Damage flash overlay** | `g_ai.c`, `g_ui.c` | Yellow outgoing / red incoming; 1.5 s fade |
 | HUD: health/mana bars, player frame | `g_ui.c` | `PlayerFrame.xml` geometry; 119px textured bars at x=87, values, portrait/name/level; transient rest icon awaits server state |
-| HUD: cast bar | `g_ui.c` | Server-side progress; counts down from cast_max |
+| HUD: cast bar and global cooldown | `g_ui.c` | Live cast name, countdown and cooldown indicator |
 | HUD: copper display | `g_ui.c` | Persisted on `wowEntityLocal_t.copper` |
 | Minimap | `g_ui.c` | FT_MINIMAP viewport |
+| [Current-area world map](world-map.md) | `g_wow.c`, `g_ui.c` | Toggle with M and follow the player across supported areas |
 | Player portrait (2D per-race/sex) | `g_ui.c` | TemporaryPortrait-{sex}-{race}.blp |
 | Character creation / selection | `games/world-of-warcraft/menu/` | Race, sex, class, appearance |
 | First-login cinematics | `g_wow.c`, WoW UI XML | M2 camera playback via DBC chain |
@@ -47,7 +48,8 @@ the pooled name hidden until the creature is selected, so an unselected hover ca
 - Hard-coded loot table in `g_wow.c` keyed by `display_id` (wolf/boar/kobold/murloc)
 - On `interact` with a corpse → `Wow_OpenLootTarget`: snapshots items into `wowClient_t.loot_snap[]`, auto-takes copper, plays "Loot" animation (1.2 s)
 - `loot` command finds nearest corpse within 10 units and calls `Wow_OpenLootTarget`; right-clicking a corpse entity via `select <n>` also triggers it
-- `loot_take <slot>` command moves item to first free `inventory[]` slot; syncs removal back to corpse entity
+- `loot_take <slot>` moves the authoritative corpse item to the first empty inventory slot. Full inventories preserve the remaining items, and distance, corpse lifetime, and loot generation are validated before transfer.
+- `loot_all` transfers as many visible items as fit. The corpse and loot window retain any remaining items, and stale window actions cannot consume loot from a different corpse.
 - `loot_close` / auto-close when all items taken
 - `UI_WriteLootWindow` in `g_ui.c` renders the panel from the client snapshot
 
@@ -75,17 +77,17 @@ Features WoWee has that we do not, ranked roughly by gameplay importance:
 | Chat system | `ui/chat/` | Dozens of channel/command/tab sub-systems |
 | Social panel (friends/ignore) | `ui/social_panel.cpp`, `game/social_handler.cpp` | |
 | Minimap zones / POI | `rendering/world_map/layers/` | Zone text overlay, quest POI dots |
-| World map window | `rendering/world_map/world_map_facade.cpp` | Full map + layer overlays |
+| World map browsing and overlays | `rendering/world_map/world_map_facade.cpp` | Area selection, sub-zone boundaries, party markers |
 | Vendor interaction | `pipeline/wowee_npc_services.cpp` | Buy/sell items |
 | Trainer interaction | `pipeline/wowee_trainers.cpp` | Spend skill points |
 | Mounts | `pipeline/wowee_mounts.cpp`, `rendering/animation/mount_fsm.cpp` | Mount/dismount animation FSM |
 | Pets | `pipeline/wowee_pets.cpp` | Pet summon/feed/rename |
-| Experience + leveling | Implicit in combat | Currently XP is static (120/400) |
+| Experience and leveling | Implicit in combat | Quest XP accumulates during play. Level advancement and combat XP are pending |
 | Player level scaling (health, damage) | `pipeline/wowee_stat_curves.cpp` | Level-based stat curves |
 | Enemy level badges | Target frame | Level number + skull for ??-level |
 | Target health bar | Target frame | Show selected enemy's HP |
 | Buff/debuff display | `ui/combat_ui.cpp` | Aura icons above health bar |
-| Cooldown tracking | `ui/combat_ui.cpp` | Overlay on action button icons |
+| Per-action cooldowns | `ui/combat_ui.cpp` | Spell-specific timers and action-icon overlays |
 | Floating damage numbers (3D) | `rendering/spell_visual_system.cpp` | Our current version is 2D overlay near frame |
 | Emotes | `pipeline/wowee_emotes.cpp` | `/dance`, `/wave`, etc. |
 | Swim / flight animations | `rendering/animation/locomotion_fsm.cpp` | |

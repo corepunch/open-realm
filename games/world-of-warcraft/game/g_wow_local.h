@@ -155,6 +155,7 @@ typedef struct {
 #define WOW_QUEST_MAX_OBJECTIVE_TEXT 4
 #define WOW_QUEST_MAX_REWARD_ITEMS   2
 #define WOW_QUEST_MAX_KILL_OBJECTIVES 4
+#define WOW_QUEST_PAGE_SIZE 12
 
 typedef struct {
     uint32_t display_id;       /* CreatureDisplayInfo.dbc ID to kill */
@@ -245,6 +246,7 @@ extern uint32_t const wow_spell_count;
 #define WOW_SPELL_FIREBOLT      1
 #define WOW_SPELL_FROSTBOLT     2
 #define WOW_SPELL_HEALING_TOUCH 3
+#define WOW_GCD_MS 1500
 
 #define SPELL_NONE ((uint32_t)-1)  /* sentinel: no spell is casting */
 
@@ -318,6 +320,7 @@ typedef struct {
     /* Loot fields — valid on any entity (rolled at death, consumed on pickup). */
 #define WOW_MAX_LOOT_ITEMS 6
     wowHudIcon_t loot_items[WOW_MAX_LOOT_ITEMS];
+    uint64_t loot_generation; /* unique identity for this death's loot */
     uint32_t loot_count;    /* active slots (icon[0]!=0 entries) */
     uint32_t loot_copper;   /* copper coins rolled at death */
     uint32_t loot_anim_timer; /* ms remaining for player loot animation */
@@ -331,6 +334,7 @@ typedef struct {
     uint32_t dyn_duration;
     bool godmode;
     uint32_t copper;        /* player copper balance (written to WOW_STAT_COPPER each frame) */
+    uint32_t experience;    /* player experience, projected to the HUD */
     void (*think)(edict_t *);
     void (*idle)(edict_t *);
     void (*move)(edict_t *);
@@ -343,18 +347,22 @@ typedef struct {
     UINAME name;
     wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
+    uint32_t action_spells[WOW_UI_ACTION_SLOTS]; /* SPELL_NONE for an empty slot */
     uint32_t selected_entity;  /* entity this player has targeted (server-side only, not synced to client) */
     bool quest_open;
     uint32_t quest_id;
     svQuestEntry_t quest_log[SV_MAX_QUEST_LOG];
     uint32_t quest_count;
+    uint8_t rewarded_quests[8192]; /* quest IDs 0..65535, independent of active-log capacity */
     uint32_t kill_progress[SV_MAX_QUEST_LOG][WOW_QUEST_MAX_KILL_OBJECTIVES];
     uint32_t questlog_open;
+    uint32_t questlog_offset; /* first visible active quest in the journal */
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
     uint32_t message_count;
     uint32_t message_open_id;
     /* Loot window state: snapshot taken on loot open, consumed by loot_take. */
     uint32_t loot_target;                          /* entity# of open corpse (0=closed) */
+    uint64_t loot_generation;                       /* prevents stale requests after edict reuse */
     wowHudIcon_t loot_snap[WOW_MAX_LOOT_ITEMS]; /* item snapshot at open time */
     uint32_t loot_snap_count;                      /* non-zero slots remaining */
     /* Backpack window toggle. */
@@ -364,7 +372,17 @@ typedef struct {
     uint32_t incoming_dmg_timer;   /* ms remaining to display */
     uint32_t outgoing_damage;      /* last outgoing hit amount */
     uint32_t outgoing_dmg_timer;   /* ms remaining to display */
+    bool combat_feedback_visible;
+    bool worldmap_open;
+    uint32_t worldmap_refresh;
+    char worldmap_area[96];
+    float worldmap_left, worldmap_right, worldmap_top, worldmap_bottom;
 } wowClient_t;
+
+bool Wow_QuestWasRewarded(wowClient_t const *client, uint32_t quest_id);
+
+bool UI_ResolveWorldMap(edict_t *ent);
+void UI_WriteWorldMap(edict_t *ent);
 
 typedef struct wowDoodadDef_s {
     uint32_t name_id, unique_id;
@@ -440,6 +458,7 @@ uint32_t Wow_CachedCreatureType(uint32_t display_id);
 uint32_t Wow_CachedCreatureFamily(uint32_t display_id);
 uint32_t Wow_CachedCreatureRank(uint32_t display_id);
 void UI_WriteWowHud(edict_t *ent);
+void UI_WriteWowCombatFeedback(edict_t *ent, bool force);
 void UI_WriteWowHover(edict_t *ent);
 void UI_WriteWelcomeWindow(edict_t *ent);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);

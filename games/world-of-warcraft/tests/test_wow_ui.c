@@ -336,6 +336,7 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     T_EQ((int)last_inventory_width, 8);
     T_EQ((int)last_inventory_height, 8);
     T_STREQ(last_draw_text, "Login:33");
+    T_ASSERT(UIWow_RunLuaString("glue_clock", "assert(math.abs(GetTime() - 0.033) < 0.00001)"));
     T_STREQ(last_server_command, "");
 
     menu.Shutdown();

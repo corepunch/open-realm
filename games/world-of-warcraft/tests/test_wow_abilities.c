@@ -150,6 +150,9 @@ static handle_t test_read_file(cstring_t filename, uint32_t *size) {
 }
 
 void UI_WriteWowHud(edict_t *ent) { (void)ent; }
+void UI_WriteWowCombatFeedback(edict_t *ent, bool force) { (void)ent; (void)force; }
+bool UI_ResolveWorldMap(edict_t *ent) { (void)ent; return false; }
+void UI_WriteWorldMap(edict_t *ent) { (void)ent; }
 void UI_WriteWowHover(edict_t *ent) { (void)ent; }
 void UI_WriteWelcomeWindow(edict_t *ent) { (void)ent; }
 void UI_WriteLoadingLayout(edict_t *ent) { (void)ent; }
@@ -581,6 +584,24 @@ TEST(wow_abilities, find_spell_target_returns_null_when_out_of_range) {
     ((wowClient_t *)caster->client)->selected_entity = target->s.number;
     result = Wow_FindSpellTarget(caster, 10.0f);
     T_NULL(result);
+}
+
+TEST(wow_abilities, explicit_invalid_target_does_not_redirect_to_another_creature) {
+    edict_t *caster = make_player();
+    edict_t *nearby = make_creature(5.0f, 0.0f);
+    edict_t *selected = make_creature(10.0f, 0.0f);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(nearby);
+    T_NOT_NULL(selected);
+
+    ((wowClient_t *)caster->client)->selected_entity = selected->s.number;
+    Wow_EntityLocal(selected)->dead = true;
+    T_NULL(Wow_FindSpellTarget(caster, 40.0f));
+    Wow_EntityLocal(selected)->dead = false;
+    Wow_EntityLocal(selected)->hostile = false;
+    T_NULL(Wow_FindSpellTarget(caster, 40.0f));
+    ((wowClient_t *)caster->client)->selected_entity = 0;
+    T_ASSERT(Wow_FindSpellTarget(caster, 40.0f) == nearby);
 }
 
 /* ---- Frostbolt tests ---- */
