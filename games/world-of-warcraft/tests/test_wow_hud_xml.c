@@ -231,6 +231,83 @@ TEST(wow_hud_xml, parse_center_anchor) {
     UIWow_XMLClearFrames();
 }
 
+TEST(wow_hud_xml, reversed_anchors_span_the_same_rectangle) {
+    static const char xml[] =
+        "<Ui><Frame name=\"F\"><Anchors>"
+        "<Anchor point=\"BOTTOMRIGHT\"><Offset><AbsDimension x=\"-128\" y=\"96\"/></Offset></Anchor>"
+        "<Anchor point=\"TOPLEFT\"><Offset><AbsDimension x=\"128\" y=\"-96\"/></Offset></Anchor>"
+        "</Anchors></Frame></Ui>";
+    float x, y, w, h;
+
+    reset_state(); init_ui();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "anchors"));
+    UIWow_XmlComputeRectPub(UIWow_XmlFindByNamePub("F"), &x, &y, &w, &h);
+    T_FEQ(x, 0.125f, 0.001f);
+    T_FEQ(y, 0.125f, 0.001f);
+    T_FEQ(w, 0.75f, 0.001f);
+    T_FEQ(h, 0.75f, 0.001f);
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, relative_anchor_cycles_are_safe_and_parent_token_uses_anonymous_parent) {
+    static const char xml[] =
+        "<Ui><Frame><Size><AbsDimension x=\"512\" y=\"384\"/></Size>"
+        "<Frames><Frame name=\"Child\"><Anchors>"
+        "<Anchor point=\"TOPLEFT\" relativeTo=\"$parent\"/>"
+        "<Anchor point=\"BOTTOMRIGHT\" relativeTo=\"$parent\"/>"
+        "</Anchors></Frame></Frames></Frame>"
+        "<Frame name=\"A\"><Anchors><Anchor point=\"CENTER\" relativeTo=\"B\"/></Anchors></Frame>"
+        "<Frame name=\"B\"><Anchors><Anchor point=\"CENTER\" relativeTo=\"A\"/></Anchors></Frame>"
+        "<Frame name=\"Unconstrained\" setAllPoints=\"true\"/></Ui>";
+    float x, y, w, h;
+
+    reset_state(); init_ui();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "relative anchors"));
+    UIWow_XmlComputeRectPub(UIWow_XmlFindByNamePub("Child"), &x, &y, &w, &h);
+    T_FEQ(w, 0.5f, 0.001f);
+    T_FEQ(h, 0.5f, 0.001f);
+    UIWow_XmlComputeRectPub(UIWow_XmlFindByNamePub("A"), &x, &y, &w, &h);
+    T_FEQ(x, 0.5f, 0.001f);
+    T_FEQ(y, 0.5f, 0.001f);
+    UIWow_XmlComputeRectPub(UIWow_XmlFindByNamePub("Unconstrained"), &x, &y, &w, &h);
+    T_FEQ(w, 1.0f, 0.001f);
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, script_can_fill_and_clear_frames_and_scroll_in_ui_units) {
+    static const char xml[] =
+        "<Ui><Frame name=\"Host\"><Size><AbsDimension x=\"512\" y=\"384\"/></Size>"
+        "<Frames><Frame name=\"Child\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size>"
+        "<Anchors><Anchor point=\"CENTER\"/></Anchors></Frame></Frames></Frame>"
+        "<ScrollFrame name=\"Viewport\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size>"
+        "<ScrollChild><Frame name=\"Content\"><Size><AbsDimension x=\"256\" y=\"384\"/></Size>"
+        "</Frame></ScrollChild></ScrollFrame>"
+        "<ScrollFrame name=\"Empty\"/><Frame name=\"UIParent\"/></Ui>";
+    reset_state();
+    wow_ui.lua = luaL_newstate();
+    luaL_openlibs(wow_ui.lua);
+    init_ui();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "frame methods"));
+    T_ASSERT(UIWow_RunLuaString("frame methods",
+        "assert(UIParent:GetWidth() == 1024 and UIParent:GetHeight() == 768)\n"
+        "Child:SetAllPoints(); assert(Child:GetWidth() == 512 and Child:GetHeight() == 384)\n"
+        "Child:SetAllPoints(Child); assert(Child:GetHeight() == 384)\n"
+        "Child:SetAllPoints('UIParent'); assert(Child:GetWidth() == 1024)\n"
+        "Child:ClearAllPoints(); assert(Child:GetWidth() == 64 and Child:GetHeight() == 48)\n"
+        "Child:SetPoint('BOTTOMRIGHT', Host); assert(Child:GetWidth() == 64)\n"
+        "assert(Empty:GetVerticalScrollRange() == 0)\n"
+        "assert(Viewport:GetVerticalScrollRange() == 192)\n"
+        "Viewport:SetVerticalScroll(96); assert(Viewport:GetVerticalScroll() == 96)\n"
+        "Viewport:SetVerticalScroll(300); assert(Viewport:GetVerticalScroll() == 192)\n"
+        "Viewport:SetVerticalScroll(-20); assert(Viewport:GetVerticalScroll() == 0)\n"
+        "Viewport:SetVerticalScroll(192); Content:SetHeight(240)\n"
+        "assert(select('#', Viewport:UpdateScrollChildRect()) == 0)\n"
+        "assert(Viewport:GetVerticalScroll() == 48)"));
+    UIWow_XMLClearFrames();
+    lua_close(wow_ui.lua);
+    wow_ui.lua = NULL;
+}
+
 TEST(wow_hud_xml, parse_hidden_attribute) {
     static const char xml[] =
         "<Ui><Frame name=\"F\" hidden=\"true\"/></Ui>";

@@ -35,6 +35,7 @@
 /* Forward declarations for Lua code below (both build modes). */
 static void UIWow_XmlPublishFrame(int idx);
 static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_name);
+static void UIWow_XMLUpdateScrollRange(int idx);
 
 /* Host services for stb_wowxml.h — only compiled in the unity production build
  * where -DSTB_WOW_XML_IMPLEMENTATION is set globally. */
@@ -119,6 +120,43 @@ static int UIWow_LuaFrameSetPoint(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaFrameClearAllPoints(lua_State *L) {
+    int idx = UIWow_FrameFromSelf(L);
+    if (idx >= 0) {
+        uiWowXmlElem_t *e = &wow_xml.elems[idx];
+        e->flags &= ~(EF_HAS_ANCHOR | EF_HAS_ANCHOR2 | EF_SET_ALL_PTS);
+        UIWow_ElemSetStr(e, ELEM_POINT, NULL);
+        UIWow_ElemSetStr(e, ELEM_RELATIVE_POINT, NULL);
+        UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, NULL);
+        SAFE_DELETE(e->point2, free);
+        SAFE_DELETE(e->relative_point2, free);
+        SAFE_DELETE(e->relative_name2, free);
+        e->relative_to = e->relative_to2 = -1;
+    }
+    return 0;
+}
+
+static int UIWow_LuaFrameSetAllPoints(lua_State *L) {
+    int idx = UIWow_FrameFromSelf(L);
+    if (idx < 0) return 0;
+
+    int target = -1;
+    if (lua_istable(L, 2)) {
+        lua_getfield(L, 2, "__ow3_index");
+        target = (int)luaL_optinteger(L, -1, -1);
+        lua_pop(L, 1);
+    } else if (!lua_isnoneornil(L, 2)) {
+        target = UIWow_XmlFindByName(luaL_checkstring(L, 2));
+    }
+    if (target == idx || (!lua_isnoneornil(L, 2) && (target < 0 || target >= wow_xml.count)))
+        return 0;
+
+    UIWow_LuaFrameClearAllPoints(L);
+    wow_xml.elems[idx].relative_to = target;
+    wow_xml.elems[idx].flags |= EF_SET_ALL_PTS;
+    return 0;
+}
+
 static int UIWow_LuaFrameGetHeight(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     rect_t r = i >= 0 ? UIWow_XmlComputeRect(i) : MAKE(rect_t, 0, 0, 0, 0);
@@ -168,27 +206,29 @@ static int UIWow_LuaFrameGetButtonState(lua_State *L) {
 }
 static int UIWow_LuaFrameSetVerticalScroll(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    if (i >= 0) {
-        float val = (float)luaL_optnumber(L, 2, 0.0);
-        wow_xml.scroll[i].scroll_y = MAX(0, MIN(val, wow_xml.scroll[i].scroll_range));
+    if (i >= 0 && (wow_xml.elems[i].flags & EF_IS_SCROLLFRAME)) {
+        float val = UIWow_XmlY((float)luaL_optnumber(L, 2, 0.0));
+        UIWow_XMLUpdateScrollRange(i);
+        wow_xml.scroll[i].scroll_y = MAX(0.0f, MIN(val, wow_xml.scroll[i].scroll_range));
     }
     return 0;
 }
 static int UIWow_LuaFrameGetVerticalScroll(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_y : 0.0);
+    if (i >= 0) UIWow_XMLUpdateScrollRange(i);
+    lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_y * 768.0f : 0.0);
     return 1;
 }
+static int UIWow_LuaFrameUpdateScrollChildRect(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) UIWow_XMLUpdateScrollRange(i);
+    return 0;
+}
+
 static int UIWow_LuaFrameGetVerticalScrollRange(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    float range = i >= 0 ? wow_xml.scroll[i].scroll_range : 0.0;
-    /* Return frame height in pixels when no scroll range is computed yet,
-       matching the previous GetVerticalScrollRange → GetHeight fallback. */
-    if (range <= 0.0f && i >= 0) {
-        rect_t r = UIWow_XmlComputeRect(i);
-        range = r.h * 768.0f;
-    }
-    lua_pushnumber(L, range);
+    if (i >= 0) UIWow_XMLUpdateScrollRange(i);
+    lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_range * 768.0f : 0.0);
     return 1;
 }
 static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
@@ -416,11 +456,12 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "LockHighlight", UIWow_LuaFrameNoop }, { "UnlockHighlight", UIWow_LuaFrameNoop },
         { "GetButtonState", UIWow_LuaFrameGetButtonState }, { "IsShown", UIWow_LuaFrameIsVisible },
         { "GetFrameLevel", UIWow_LuaFrameGetID }, { "SetFrameLevel", UIWow_LuaFrameNoop },
-        { "SetPoint", UIWow_LuaFrameSetPoint }, { "ClearAllPoints", UIWow_LuaFrameNoop },
+        { "SetPoint", UIWow_LuaFrameSetPoint }, { "ClearAllPoints", UIWow_LuaFrameClearAllPoints },
+        { "SetAllPoints", UIWow_LuaFrameSetAllPoints },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
         { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameGetZero },
         { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
-        { "UpdateScrollChildRect", UIWow_LuaFrameNoop }, { "SetScrollChild", UIWow_LuaFrameNoop },
+        { "SetScrollChild", UIWow_LuaFrameNoop }, { "UpdateScrollChildRect", UIWow_LuaFrameUpdateScrollChildRect },
         { "GetVerticalScrollRange", UIWow_LuaFrameGetVerticalScrollRange },
         { "SetVerticalScroll", UIWow_LuaFrameSetVerticalScroll }, { "GetVerticalScroll", UIWow_LuaFrameGetVerticalScroll },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
@@ -533,10 +574,13 @@ bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const *in) {
     int idx = UIWow_XmlFindByName(name); uiWowXmlElem_t *e;
     if (idx < 0 || !in || !in->point || !in->point[0]) return false;
     e = &wow_xml.elems[idx];
+    int target = in->rel && in->rel[0] ? UIWow_XmlFindByName(in->rel) : -1;
+    if (target == idx) return false;
+    e->flags &= ~EF_SET_ALL_PTS;
     UIWow_ElemSetStr(e, ELEM_POINT, in->point);
     UIWow_ElemSetStr(e, ELEM_RELATIVE_POINT, in->rel_point && in->rel_point[0] ? in->rel_point : in->point);
     UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, in->rel);
-    e->relative_to = in->rel && in->rel[0] ? UIWow_XmlFindByName(in->rel) : -1;
+    e->relative_to = target;
     e->offset = MAKE(fpoint_t, UIWow_XmlX(in->x), -UIWow_XmlY(in->y)); e->flags |= EF_HAS_ANCHOR;
     return true;
 }
@@ -599,7 +643,7 @@ bool UIWow_XMLLoadGlueFromToc(cstring_t toc_path) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
         if (UIWow_ElemStr(e, ELEM_PARENT_NAME)) {
             int p = UIWow_XmlFindByName(e->texts[ELEM_PARENT_NAME]);
-            if (p >= 0) e->parent = p;
+            if (p >= 0) UIWow_XmlSetParent(i, p);
         }
         if (UIWow_ElemStr(e, ELEM_RELATIVE_NAME)) {
             int rel = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
@@ -693,28 +737,27 @@ static void UIWow_XMLExpandContentBounds(int idx, float *min_y, float *max_y) {
     }
 }
 
-static void UIWow_XMLComputeScrollRanges(void) {
-    FOR_LOOP(i, wow_xml.count) {
-        uiWowXmlElem_t *e = &wow_xml.elems[i];
-        rect_t vr;
-        float min_y, max_y;
-        if (!(e->flags & EF_USED) || !(e->flags & EF_IS_SCROLLFRAME)) continue;
-        vr = UIWow_XmlComputeRect(i);
-        min_y = vr.y + vr.h; /* start at viewport bottom */
-        max_y = vr.y;         /* start at viewport top */
-        FOR_LOOP(j, wow_xml.count) {
-            uiWowXmlElem_t *c = &wow_xml.elems[j];
-            if (!(c->flags & EF_USED) || c->parent != (int)i) continue;
-            /* Skip the ScrollBar child (Slider with narrow width). */
-            if (c->type == WOW_XML_FRAME && c->size.w > 0 && c->size.h > 0 && c->size.w < c->size.h * 0.5f)
-                continue;
-            UIWow_XMLExpandContentBounds(j, &min_y, &max_y);
-        }
-        wow_xml.scroll[i].scroll_range = MAX(0.0f, (max_y - min_y) - vr.h);
-        /* Clamp scroll_y to valid range. */
-        if (wow_xml.scroll[i].scroll_y > wow_xml.scroll[i].scroll_range)
-            wow_xml.scroll[i].scroll_y = wow_xml.scroll[i].scroll_range;
+static void UIWow_XMLUpdateScrollRange(int idx) {
+    uiWowXmlElem_t const *e = &wow_xml.elems[idx];
+    if (!(e->flags & EF_IS_SCROLLFRAME)) return;
+
+    rect_t viewport = UIWow_XmlComputeRect(idx);
+    float min_y = viewport.y;
+    float max_y = viewport.y + viewport.h;
+    FOR_LOOP(j, wow_xml.count) {
+        uiWowXmlElem_t const *child = &wow_xml.elems[j];
+        if (!(child->flags & EF_USED) || child->parent != idx ||
+            (child->flags & EF_SCROLLBAR_PART))
+            continue;
+        UIWow_XMLExpandContentBounds(j, &min_y, &max_y);
     }
+    float range = MAX(0.0f, max_y - min_y - viewport.h);
+    wow_xml.scroll[idx].scroll_range = range;
+    wow_xml.scroll[idx].scroll_y = MIN(wow_xml.scroll[idx].scroll_y, range);
+}
+
+static void UIWow_XMLComputeScrollRanges(void) {
+    FOR_LOOP(i, wow_xml.count) UIWow_XMLUpdateScrollRange(i);
 }
 
 static void UIWow_XMLDrawImage(texture_t *tex, rect_t const *screen, rect_t const *uv, color32_t color, BLEND_MODE mode) {
