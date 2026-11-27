@@ -6,6 +6,8 @@
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
 #include "common/stb_dbc.h"
+#include "g_taxi.h"
+#include "g_exploration.h"
 
 void UI_WriteLoadingLayout(edict_t *ent);
 extern char wow_loading_texture[MAX_PATHLEN];
@@ -102,6 +104,11 @@ typedef struct wowCreature_s {
 } wowCreature_t;
 
 
+
+typedef struct { uint32_t entry, map; vec3_t position; float orientation; } wowVendorSpawn_t;
+uint32_t Wow_VendorSpawnCount(void);
+wowVendorSpawn_t const *Wow_VendorSpawn(uint32_t index);
+void Wow_SpawnVendors(vec2_t const *origin);
 
 uint32_t Wow_CreatureCount(void);
 wowCreature_t const *Wow_CreatureByEntry(uint32_t entry);
@@ -248,7 +255,8 @@ extern uint32_t const wow_spell_count;
 #define WOW_SPELL_FROSTBOLT     2
 #define WOW_SPELL_HEALING_TOUCH 3
 #define WOW_SPELL_FIRE_BLAST    4
-#define WOW_SPELL_COUNT         5
+#define WOW_SPELL_FIREBALL_RANK2 5
+#define WOW_SPELL_COUNT         6
 #define WOW_GCD_MS 1500
 
 #define SPELL_NONE ((uint32_t)-1)  /* sentinel: no spell is casting */
@@ -268,6 +276,7 @@ typedef struct {
     char icon[256];
     char name[64];
     uint32_t count;
+    uint32_t item_id; /* stable item entry; zero for legacy/presentation icons */
 } wowHudIcon_t;
 
 /* Per-entity game state.  Entity behaviour is driven entirely by function
@@ -304,6 +313,7 @@ typedef struct {
     vec2_t cast_origin;     /* XY position when cast began (movement cancels) */
     uint32_t cast_release_time; /* ms remaining in the post-launch release animation */
     uint32_t gcd_time;          /* ms remaining on global cooldown */
+    uint32_t bandage_ticks, bandage_tick_ms, bandage_heal, recently_bandaged_ms;
     uint32_t spell_cooldown[WOW_SPELL_COUNT]; /* ms remaining, indexed by spell */
     uint32_t selected_action_slot;  /* highlighted action bar slot (0-11, 255=none) */
     /* Projectile fields (valid when think == Wow_RunProjectile) */
@@ -320,6 +330,9 @@ typedef struct {
     bool  go_interactive;
     uint32_t go_display_id;
     uint32_t quest_id;
+    uint32_t creature_entry; /* imported NPC template identity */
+    uint64_t spawn_serial;
+    bool service_spawn;
     uint32_t quest_available_model;  /* model index for yellow "!" (TalkToMe.m2) */
     /* Loot fields — valid on any entity (rolled at death, consumed on pickup). */
 #define WOW_MAX_LOOT_ITEMS 6
@@ -350,13 +363,25 @@ typedef struct {
     struct client_s client;
     UINAME name;
     wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
+    bool inventory_initialized;
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
     uint32_t action_spells[WOW_UI_ACTION_SLOTS]; /* SPELL_NONE for an empty slot */
     uint32_t selected_entity;  /* entity this player has targeted (server-side only, not synced to client) */
+    uint8_t taxi_known[8192];
+    uint32_t taxi_source;
+    uint32_t taxi_npc;
+    uint64_t taxi_npc_serial;
+    uint32_t taxi_page, taxi_wait_ms;
+    wowTaxiRoute_t taxi_flight;
+    size_t taxi_leg, taxi_point;
+    bool taxi_flying;
+    bool taxi_open;
     bool quest_open;
+    bool quest_journal_detail;
     uint32_t quest_id;
     svQuestEntry_t quest_log[SV_MAX_QUEST_LOG];
     uint32_t quest_count;
+    bool quest_tracked[SV_MAX_QUEST_LOG];
     uint8_t rewarded_quests[8192]; /* quest IDs 0..65535, independent of active-log capacity */
     uint32_t kill_progress[SV_MAX_QUEST_LOG][WOW_QUEST_MAX_KILL_OBJECTIVES];
     uint32_t questlog_open;
@@ -370,13 +395,32 @@ typedef struct {
     wowHudIcon_t loot_snap[WOW_MAX_LOOT_ITEMS]; /* item snapshot at open time */
     uint32_t loot_snap_count;                      /* non-zero slots remaining */
     /* Backpack window toggle. */
+    wowHudIcon_t bank[16];
+    uint32_t bank_target, bank_entry, bank_revision;
+    uint64_t bank_spawn_serial;
+    uint32_t merchant_target;
+    uint32_t merchant_entry;
+    uint64_t merchant_spawn_serial;
+    uint32_t merchant_revision;
+    bool merchant_buyback_view;
+    wowHudIcon_t merchant_buyback[12];
+    uint32_t merchant_buyback_price[12];
     bool backpack_open;
+    bool fireball_rank2_learned;
+    bool crafting_open;
+    bool spellbook_open;
+    uint32_t spellbook_selected;
+    uint32_t backpack_selected; /* slot + 1, zero means none */
+    bool backpack_splitting;
     /* Damage flash overlay: brief text near health/target frames (server-side timers). */
     uint32_t incoming_damage;      /* last incoming hit amount */
     uint32_t incoming_dmg_timer;   /* ms remaining to display */
     uint32_t outgoing_damage;      /* last outgoing hit amount */
     uint32_t outgoing_dmg_timer;   /* ms remaining to display */
     bool combat_feedback_visible;
+    wowExploration_t exploration;
+    uint32_t exploration_sample_ms;
+    uint32_t worldmap_area_record_id;
     bool worldmap_open;
     bool worldmap_continent;
     bool worldmap_has_continent;
@@ -384,6 +428,11 @@ typedef struct {
     uint32_t worldmap_selection; /* DBC row index + 1; zero follows player */
     uint32_t worldmap_page;
     bool worldmap_choosing;
+    bool worldmap_landmarks_visible;
+    bool worldmap_landmarks_list;
+    uint32_t worldmap_landmarks_page;
+    uint32_t worldmap_landmarks_selected; /* AreaPOI row + 1 */
+    bool worldmap_landmarks_next;
     bool worldmap_has_next_page;
     char worldmap_area[96];
     uint32_t worldmap_title_area_id;
@@ -391,8 +440,29 @@ typedef struct {
     float worldmap_left, worldmap_right, worldmap_top, worldmap_bottom;
 } wowClient_t;
 
+/* Insert is transactional, merging only recognized item IDs. Unknown or legacy
+ * stacks occupy one empty slot without guessing identity or a stack limit. */
+bool Wow_StorageAdd(wowHudIcon_t *slots, uint32_t slot_count, wowHudIcon_t const *item);
+bool Wow_StorageRemove(wowHudIcon_t *slots, uint32_t slot_count, uint32_t slot, uint32_t count);
+bool Wow_InventoryAdd(wowClient_t *client, wowHudIcon_t const *item);
+bool Wow_InventoryRemove(wowClient_t *client, uint32_t slot, uint32_t count);
+uint32_t Wow_InventoryStackLimit(uint32_t item_id);
+typedef struct { wowHudIcon_t item; uint32_t buy_price, sell_price; } wowMerchantItem_t;
+bool Wow_BankOpen(edict_t *player, edict_t *banker);
+bool Wow_BankValid(edict_t *player);
+bool Wow_BankTransfer(edict_t *player, bool deposit, uint32_t slot, bool half);
+uint32_t Wow_MerchantItemCount(void);
+wowMerchantItem_t const *Wow_MerchantItem(uint32_t index);
+bool Wow_MerchantOpen(edict_t *player, edict_t *npc);
+bool Wow_MerchantValid(edict_t *player);
+bool Wow_MerchantBuy(edict_t *player, uint32_t index);
+bool Wow_MerchantSell(edict_t *player, uint32_t slot);
+bool Wow_MerchantBuyback(edict_t *player, uint32_t slot);
+
 bool Wow_QuestWasRewarded(wowClient_t const *client, uint32_t quest_id);
 
+extern wowTaxiGraph_t wow_taxi_graph;
+void UI_WriteTaxi(edict_t *ent);
 bool UI_ResolveWorldMap(edict_t *ent);
 void UI_WriteWorldMap(edict_t *ent);
 
@@ -476,6 +546,9 @@ void UI_WriteWowHover(edict_t *ent);
 void UI_WriteWelcomeWindow(edict_t *ent);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
 uint32_t Wow_GetPlayerClass(void);
+bool Wow_SpellKnown(uint32_t class_id, uint32_t spell);
+bool Wow_PlayerKnowsSpell(edict_t *ent, uint32_t spell);
+cstring_t Wow_SpellIcon(uint32_t spell);
 void Wow_QuestAwardKillCredit(edict_t *attacker, uint32_t display_id);
 
 /* Ability/projectile system */

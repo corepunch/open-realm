@@ -1,4 +1,8 @@
+#include "g_landmarks.h"
+#include "g_crafting.h"
+#include "g_quest_tracker.h"
 #include "g_wow_local.h"
+#include "g_character_save.h"
 #include "../common/wow_config.h"
 #include "../common/wow_view.h"
 #include "common/stb_dbc.h"
@@ -11,9 +15,13 @@
 /* Generated server tables are included here so the unity source tree contains no generated files. */
 #include "build/generated/g_playercreateinfo.c"
 #include "build/generated/g_creatures.c"
+#include "build/generated/g_vendor_spawns.c"
 #include "build/generated/g_quests.c"
 #include "build/generated/g_weapons.c"
 #include "build/generated/g_areatrigger_teleport.c"
+
+wowTaxiGraph_t wow_taxi_graph;
+static bool wow_taxi_attempted;
 
 struct game_import gi;
 struct game_export globals;
@@ -66,6 +74,8 @@ static struct {
 #define WOW_MAX_SPAWNS_PER_FRAME 64
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
 uint32_t wow_spawns_this_frame = 0;
+static uint64_t wow_spawn_serial;
+static uint32_t wow_service_refresh_ms;
 
 /* Starting inventory — 16 slots total; first 6 shown in the HUD quick-access bar,
  * all 16 visible in the backpack window.  Slots 6-15 start empty and fill with loot.
@@ -73,8 +83,8 @@ uint32_t wow_spawns_this_frame = 0;
 static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
     { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
-    { "Interface\\Icons\\INV_Potion_51.blp",            "Minor Healing Potion",    2 },
-    { "Interface\\Icons\\INV_Misc_Food_24.blp",         "Tough Jerky",             5 },
+    { "Interface\\Icons\\INV_Potion_51.blp",            "Minor Healing Potion",    2, 118 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp",         "Tough Jerky",             5, 117 },
     { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Worn Shortsword",         1 },
     { "Interface\\Icons\\INV_Misc_Coin_01.blp",         "Copper Coin",            10 },
 };
@@ -104,16 +114,20 @@ static wowActionDef_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
  * Items use real WoW 1.12 entry IDs and icon paths from the MPQ archives.
  * Icon rendering falls back to the placeholder texture if the BLP is absent.
  * -------------------------------------------------------------------------*/
-typedef struct { uint32_t entry; cstring_t name; cstring_t icon; } wowItemDef_t;
+typedef struct { uint32_t entry; cstring_t name; cstring_t icon; uint32_t stack_limit, heal; } wowItemDef_t;
 static wowItemDef_t const wow_item_defs[] = {
-    { 2589,  "Linen Cloth",       "Interface\\Icons\\INV_Fabric_Linen_01.blp" },
-    { 4234,  "Light Leather",     "Interface\\Icons\\INV_Misc_Leather_01.blp" },
-    { 12208, "Raw Boar Ribs",     "Interface\\Icons\\INV_Misc_Food_11.blp" },
-    { 6083,  "Kobold Candle",     "Interface\\Icons\\INV_Misc_Candle_01.blp" },
-    { 7974,  "Murloc Eye",        "Interface\\Icons\\INV_Misc_MonsterScales_01.blp" },
-    { 811,   "Stringy Wolf Meat", "Interface\\Icons\\INV_Misc_Food_52.blp" },
-    { 2318,  "Wolf Pelt",         "Interface\\Icons\\INV_Misc_Pelt_Wolf_01.blp" },
-    { 5504,  "Boar Tusk",         "Interface\\Icons\\INV_Misc_BoneTusk_02.blp" },
+    { 118, "Minor Healing Potion", "Interface\\Icons\\INV_Potion_51.blp", 5, 35 },
+    { 117, "Tough Jerky", "Interface\\Icons\\INV_Misc_Food_24.blp", 20, 20 },
+    { 1251, "Linen Bandage", "Interface\\Icons\\INV_Misc_Bandage_18.blp", 20, 0 },
+    { 2581, "Heavy Linen Bandage", "Interface\\Icons\\INV_Misc_Bandage_18.blp", 20, 0 },
+    { 2589,  "Linen Cloth",       "Interface\\Icons\\INV_Fabric_Linen_01.blp", 20, 0 },
+    { 4234,  "Light Leather",     "Interface\\Icons\\INV_Misc_Leather_01.blp", 20, 0 },
+    { 12208, "Raw Boar Ribs",     "Interface\\Icons\\INV_Misc_Food_11.blp", 20, 0 },
+    { 6083,  "Kobold Candle",     "Interface\\Icons\\INV_Misc_Candle_01.blp", 20, 0 },
+    { 7974,  "Murloc Eye",        "Interface\\Icons\\INV_Misc_MonsterScales_01.blp", 20, 0 },
+    { 811,   "Stringy Wolf Meat", "Interface\\Icons\\INV_Misc_Food_52.blp", 20, 0 },
+    { 2318,  "Wolf Pelt",         "Interface\\Icons\\INV_Misc_Pelt_Wolf_01.blp", 20, 0 },
+    { 5504,  "Boar Tusk",         "Interface\\Icons\\INV_Misc_BoneTusk_02.blp", 20, 0 },
 };
 #define WOW_ITEM_DEF_COUNT (sizeof(wow_item_defs) / sizeof(wow_item_defs[0]))
 
@@ -188,6 +202,7 @@ void Wow_RollLoot(edict_t *ent) {
         snprintf(local->loot_items[slot].icon, sizeof(local->loot_items[slot].icon), "%s", item->icon);
         snprintf(local->loot_items[slot].name, sizeof(local->loot_items[slot].name), "%s", item->name);
         local->loot_items[slot].count = qty;
+        local->loot_items[slot].item_id = item->entry;
         local->loot_count++;
     }
 }
@@ -729,7 +744,9 @@ static void Wow_SpellAttack(edict_t *caster, edict_t *target) {
     if (cl) cl->enemy = target;
     if (cl && cl->attack) cl->attack(caster);
 }
+static void Wow_FireFireballRank(edict_t *caster, edict_t *target, uint32_t damage);
 static void Wow_SpellFireball(edict_t *caster, edict_t *target) { Wow_FireFirebolt(caster, target); }
+static void Wow_SpellFireballRank2(edict_t *caster, edict_t *target) { Wow_FireFireballRank(caster, target, 31 + (uint32_t)(rand() % 15)); }
 static void Wow_SpellFrostbolt(edict_t *caster, edict_t *target) { Wow_FireFrostbolt(caster, target); }
 static void Wow_SpellFireBlast(edict_t *caster, edict_t *target) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
@@ -746,8 +763,33 @@ wowSpellDef_t const wow_spells[WOW_SPELL_COUNT] = {
     [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected", 116, 0 },
     [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,    WOW_HEALING_TOUCH_MANA_COST,  0.0f, NULL, NULL, 0, 0 },
     [WOW_SPELL_FIRE_BLAST]    = { "Fire Blast", Wow_SpellFireBlast, 0, 40, 20.0f, NULL, NULL, 2136, 8000 },
+    [WOW_SPELL_FIREBALL_RANK2] = { "Fireball (Rank 2)", Wow_SpellFireballRank2, 2000, 45, 30.0f, "SpellCastDirected", "ReadySpellDirected", 143, 0 },
 };
 uint32_t const wow_spell_count = sizeof(wow_spells) / sizeof(wow_spells[0]);
+
+bool Wow_SpellKnown(uint32_t class_id, uint32_t spell) {
+    if (spell == WOW_SPELL_ATTACK || spell == WOW_SPELL_HEALING_TOUCH) return true;
+    return class_id == WOW_CLASS_MAGE && (spell == WOW_SPELL_FIREBOLT ||
+        spell == WOW_SPELL_FROSTBOLT || spell == WOW_SPELL_FIRE_BLAST || spell == WOW_SPELL_FIREBALL_RANK2);
+}
+
+bool Wow_PlayerKnowsSpell(edict_t *ent, uint32_t spell) {
+    if (!ent || !ent->client || !Wow_SpellKnown(Wow_GetPlayerClass(), spell)) return false;
+    return spell != WOW_SPELL_FIREBALL_RANK2 || ((wowClient_t *)ent->client)->fireball_rank2_learned;
+}
+
+cstring_t Wow_SpellIcon(uint32_t spell) {
+    static cstring_t const icons[WOW_SPELL_COUNT] = {
+        "Interface\\Icons\\Ability_Warrior_Cleave.blp",
+        "Interface\\Icons\\Spell_Fire_FireBolt02.blp",
+        "Interface\\Icons\\Spell_Frost_FrostBolt02.blp",
+        "Interface\\Icons\\Spell_Nature_HealingTouch.blp",
+        "Interface\\Icons\\Spell_Fire_Fireball.blp",
+        "Interface\\Icons\\Spell_Fire_FireBolt02.blp"
+    };
+    return spell < WOW_SPELL_COUNT ? icons[spell] : "";
+}
+
 
 /* SPELL_NONE / SPELL_FIREBOLT etc. defined in g_wow_local.h */
 
@@ -1036,6 +1078,10 @@ void Wow_RunProjectile(edict_t *ent) {
 }
 
 void Wow_FireFirebolt(edict_t *caster, edict_t *target) {
+    Wow_FireFireballRank(caster, target, WOW_FIREBOLT_DAMAGE);
+}
+
+static void Wow_FireFireballRank(edict_t *caster, edict_t *target, uint32_t damage) {
     wowEntityLocal_t *caster_local;
     wowEntityLocal_t *pl;
     edict_t *proj;
@@ -1066,7 +1112,7 @@ void Wow_FireFirebolt(edict_t *caster, edict_t *target) {
     pl->projectile_target = target->s.number;
     pl->projectile_caster = caster->s.number;
     pl->projectile_speed  = WOW_FIREBOLT_SPEED;
-    pl->projectile_damage = WOW_FIREBOLT_DAMAGE;
+    pl->projectile_damage = damage;
     pl->projectile_yaw = yaw;
     pl->projectile_pitch = 0.0f;
     {
@@ -1375,6 +1421,8 @@ edict_t *Wow_Spawn(void) {
     memset(ent, 0, sizeof(*ent));
     memset(&wow_entity_locals[index], 0, sizeof(wow_entity_locals[index]));
     ent->inuse = true;
+    wow_entity_locals[index].spawn_serial = ++wow_spawn_serial;
+    if (!wow_entity_locals[index].spawn_serial) wow_entity_locals[index].spawn_serial = ++wow_spawn_serial;
     ent->s.number = index;
     return ent;
 }
@@ -1464,6 +1512,65 @@ uint32_t Wow_GetPlayerClass(void) {
     return class_id;
 }
 
+/* Character progress is keyed by the opaque ID supplied by character select.
+ * No selected ID means transient development/preview sessions. */
+static char wow_character_id[17], wow_character_path[1024];
+static bool wow_character_started, wow_character_save_blocked, wow_character_same;
+static uint32_t wow_character_copper, wow_character_xp;
+
+static bool Wow_CharacterFlush(void) {
+    if (!wow_character_started || !wow_character_path[0] || wow_character_save_blocked) return true;
+    if (!Wow_CharacterSavePath(wow_character_path, &wow_clients[0], &wow_entity_locals[0])) {
+        fprintf(stderr, "WoW: could not save character progress\n");
+        return false;
+    }
+    return true;
+}
+
+static bool Wow_CharacterPrepare(void) {
+    char next[17] = {0}, path[1024] = {0};
+    cstring_t info = gi.CvarString(WOW_CVAR_PLAYERINFO, "");
+    cstring_t id = Wow_InfoValueForKey(info, "charid", "");
+    if (strlen(id) == 16) {
+        bool valid = true;
+        for (uint32_t i = 0; i < 16; i++)
+            if (!((id[i] >= '0' && id[i] <= '9') || (id[i] >= 'a' && id[i] <= 'f'))) valid = false;
+        if (valid) memcpy(next, id, 16);
+    }
+    wow_character_same = wow_character_started && !strcmp(next, wow_character_id);
+    if (!Wow_CharacterFlush() && !wow_character_same) return false;
+    if (wow_character_same) {
+        wow_character_copper = wow_entity_locals[0].copper;
+        wow_character_xp = wow_entity_locals[0].experience;
+        return true;
+    }
+    memset(&wow_clients[0], 0, sizeof(wow_clients[0]));
+    memcpy(wow_character_id, next, sizeof(next));
+    wow_character_save_blocked = false;
+    if (next[0] && gi.SavePath) {
+        char rel[64]; snprintf(rel, sizeof(rel), "wow-character-%s.sav", next);
+        gi.SavePath(rel, path, sizeof(path));
+    }
+    snprintf(wow_character_path, sizeof(wow_character_path), "%s", path);
+    wow_character_started = true;
+    return true;
+}
+
+static void Wow_CharacterFinish(edict_t *ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    if (wow_character_same) {
+        local->copper = wow_character_copper;
+        local->experience = wow_character_xp;
+    } else if (wow_character_path[0]) {
+        int result = Wow_CharacterLoadPath(wow_character_path, &wow_clients[0], local);
+        if (result < 0) {
+            fprintf(stderr, "WoW: character save invalid or unreadable; preserving file\n");
+            wow_character_save_blocked = true;
+        }
+    }
+    Wow_UpdatePlayerHud(ent);
+}
+
 static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_location) {
     player_t *ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -1519,8 +1626,14 @@ static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_loca
     {
         wowActionDef_t const *actions = (class_id == WOW_CLASS_MAGE)
             ? wow_actions_mage : wow_actions_warrior;
-        memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
-        FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
+        if (!wow_clients[0].inventory_initialized) {
+            memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
+            wow_clients[0].inventory_initialized = true;
+        }
+        wow_clients[0].bank_target = wow_clients[0].bank_entry = 0;
+        wow_clients[0].merchant_target = wow_clients[0].merchant_entry = 0;
+        wow_clients[0].merchant_buyback_view = false;
+        if (!wow_character_same) FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
             wow_clients[0].actions[i] = actions[i].icon;
             wow_clients[0].action_spells[i] = actions[i].icon.icon[0] ? actions[i].spell : SPELL_NONE;
         }
@@ -1534,6 +1647,8 @@ static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_loca
 }
 
 static void Wow_Init(void) {
+    wow_character_started = wow_character_save_blocked = false;
+    wow_character_id[0] = wow_character_path[0] = 0;
     memset(wow_edicts, 0, sizeof(wow_edicts));
     memset(wow_entity_locals, 0, sizeof(wow_entity_locals));
     memset(wow_clients, 0, sizeof(wow_clients));
@@ -1546,6 +1661,10 @@ static void Wow_Init(void) {
 }
 
 static void Wow_Shutdown(void) {
+    Wow_CharacterFlush();
+    Wow_ClearMapOverlayCache();
+    WowTaxi_Free(&wow_taxi_graph);
+    wow_taxi_attempted = false;
     G_FreeModels();
     globals.edicts = NULL;
     globals.num_edicts = 0;
@@ -1567,6 +1686,7 @@ static bool Wow_LoadMap(cstring_t mapFilename) {
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         return false;
     }
+    if (!Wow_CharacterPrepare()) return false;
     gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
     return Wow_SpawnEntities();
@@ -1672,6 +1792,10 @@ static uint32_t Wow_AnySpawnIndexForMap(uint32_t map_id) {
 }
 
 static bool Wow_SpawnEntities(void) {
+    for (uint32_t i = 0; i < MAX_CLIENTS; ++i) {
+        wow_clients[i].taxi_flying = false;
+        wow_clients[i].taxi_open = false;
+    }
     char race[64], sex[64];
     uint32_t class_id, appearance, spawn_index;
     int32_t spawn_location = -1;
@@ -1747,6 +1871,7 @@ static bool Wow_SpawnEntities(void) {
     wow_move.distance = 8.5f;
     wow_spawns_this_frame = 0;
     Wow_InitPlayer(&wow_edicts[0], spawn_origin, spawn_location);
+    Wow_CharacterFinish(&wow_edicts[0]);
     /* Apply authoritative z and orientation from pending teleport AFTER InitPlayer so
      * the SQL z overrides the terrain-height fallback used for dungeon interiors. */
     if (wow_pending_teleport.pending) {
@@ -1762,6 +1887,9 @@ static bool Wow_SpawnEntities(void) {
      * imported quest anchors do not starve ambient creatures or vice versa. */
     wow_spawns_this_frame = 0;
     Wow_SpawnQuestLocations(&spawn_origin);
+    wow_spawns_this_frame = 0;
+    Wow_SpawnVendors(&spawn_origin);
+    wow_service_refresh_ms = 0;
     Wow_SpawnGameObjects(&spawn_origin);
     /* Register spell impact models via DBC SpellVisual chain.
      * Falls back to hardcoded paths if DBC is unavailable. */
@@ -1787,6 +1915,183 @@ static bool Wow_TryPlayerStep(edict_t *ent, float dx, float dy) {
     return true;
 }
 
+
+static bool Wow_TaxiLoad(void) {
+    uint32_t ns = 0, ps = 0, qs = 0;
+    void *n, *p, *q;
+    if (wow_taxi_graph.node_count) return true;
+    if (wow_taxi_attempted) return false;
+    wow_taxi_attempted = true;
+    n = g_dbc_io.read("DBFilesClient\\TaxiNodes.dbc", &ns);
+    p = g_dbc_io.read("DBFilesClient\\TaxiPath.dbc", &ps);
+    q = g_dbc_io.read("DBFilesClient\\TaxiPathNode.dbc", &qs);
+    if (n && p && q) WowTaxi_Load(&wow_taxi_graph, n, ns, p, ps, q, qs);
+    if (n) g_dbc_io.free(n);
+    if (p) g_dbc_io.free(p);
+    if (q) g_dbc_io.free(q);
+    return wow_taxi_graph.node_count != 0;
+}
+static uint32_t Wow_TaxiNearest(edict_t *ent, float range) {
+    size_t i;
+    float best = range * range;
+    uint32_t id = 0;
+    for (i = 0; i < wow_taxi_graph.node_count; i++) {
+        wowTaxiNode_t const *n = &wow_taxi_graph.nodes[i];
+        float x = n->x - ent->s.origin.x;
+        float y = n->y - ent->s.origin.y;
+        float z = n->z - ent->s.origin.z;
+        float d = x*x + y*y + z*z;
+        if (n->map == CM_WowGetMapId() && n->id < 65536 && d < best) {
+            best = d;
+            id = n->id;
+        }
+    }
+    return id;
+}
+static bool Wow_TaxiNpcValid(edict_t *player, edict_t *npc) {
+    wowEntityLocal_t *p, *n;
+    wowCreature_t const *creature;
+    float dx, dy;
+    if (!player || !player->inuse || !player->client || !npc || !npc->inuse || player == npc)
+        return false;
+    p = Wow_EntityLocal(player);
+    n = Wow_EntityLocal(npc);
+    if (!p || p->dead || !n || n->dead || n->hostile || !n->creature_entry) return false;
+    creature = Wow_CreatureByEntry(n->creature_entry);
+    if (!creature || !(creature->npc_flags & 0x2000)) return false;
+    dx = player->s.origin.x - npc->s.origin.x;
+    dy = player->s.origin.y - npc->s.origin.y;
+    return dx * dx + dy * dy <= 100.0f;
+}
+
+static bool Wow_TaxiOpenNpc(edict_t *player, edict_t *npc) {
+    wowClient_t *client;
+    uint32_t source;
+    if (!Wow_TaxiNpcValid(player, npc) || !Wow_TaxiLoad()) return false;
+    source = Wow_TaxiNearest(npc, 100.0f);
+    client = (wowClient_t *)player->client;
+    client->taxi_source = source;
+    client->taxi_npc = npc->s.number;
+    client->taxi_npc_serial = Wow_EntityLocal(npc)->spawn_serial;
+    if (source) client->taxi_known[source / 8] |= (uint8_t)(1u << (source % 8));
+    client->taxi_page = 0;
+    client->taxi_open = true;
+    UI_WriteTaxi(player);
+    return true;
+}
+
+static void Wow_TaxiCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    wowClient_t *c = (wowClient_t *)ent->client;
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    uint32_t source;
+    wowTaxiRoute_t route;
+    if (!c || !local || local->dead || c->taxi_flying || !Wow_TaxiLoad()) return;
+    if (argc > 1 && !strcasecmp(argv[1], "close")) {
+        c->taxi_open = false;
+        c->taxi_npc = 0;
+        UI_WriteTaxi(ent);
+        return;
+    }
+    if (c->taxi_open && c->taxi_npc) {
+        edict_t *npc = Wow_EdictByNumber(c->taxi_npc);
+        wowEntityLocal_t *npc_local = npc ? Wow_EntityLocal(npc) : NULL;
+        source = npc_local && npc_local->spawn_serial == c->taxi_npc_serial &&
+                 Wow_TaxiNpcValid(ent, npc) ? Wow_TaxiNearest(npc, 100.0f) : 0;
+    } else {
+        source = Wow_TaxiNearest(ent, 10.0f);
+    }
+    if (!source) {
+        c->taxi_source = 0;
+        c->taxi_npc = 0;
+        c->taxi_open = true;
+        UI_WriteTaxi(ent);
+        return;
+    }
+    c->taxi_known[source / 8] |= (uint8_t)(1u << (source % 8));
+    if (argc > 1 && c->taxi_open && c->taxi_source == source &&
+        (!strcasecmp(argv[1], "next") || !strcasecmp(argv[1], "previous"))) {
+        if (!strcasecmp(argv[1], "next") && c->taxi_page < 65535) c->taxi_page++;
+        if (!strcasecmp(argv[1], "previous") && c->taxi_page) c->taxi_page--;
+        UI_WriteTaxi(ent);
+        return;
+    }
+    if (argc > 1) {
+        char *end;
+        unsigned long id = strtoul(argv[1], &end, 10);
+        if(*end || id>=65536 || !c->taxi_open || c->taxi_source!=source ||
+           !WowTaxi_Route(&wow_taxi_graph,source,(uint32_t)id,c->taxi_known,sizeof(c->taxi_known),&route) ||
+           route.price>local->copper) return;
+        local->copper -= (uint32_t)route.price;
+        c->taxi_flight = route;
+        c->taxi_leg = 0;
+        c->taxi_point = 0;
+        c->taxi_wait_ms = 0;
+        c->taxi_flying = true;
+        Wow_CancelSpellCast(ent);
+        local->enemy = NULL;
+        c->taxi_open = false;
+        UI_WriteTaxi(ent);
+    } else {
+        c->taxi_source = source;
+        c->taxi_npc = 0;
+        c->taxi_page = 0;
+        c->taxi_open = true;
+        UI_WriteTaxi(ent);
+    }
+}
+static bool Wow_TaxiStep(edict_t *ent) {
+    float budget = 32.0f * FRAMETIME / 1000.0f;
+    wowClient_t *c = (wowClient_t *)ent->client;
+    if (!c->taxi_flying) return false;
+    if (c->taxi_wait_ms) {
+        c->taxi_wait_ms -= c->taxi_wait_ms > FRAMETIME ? FRAMETIME : c->taxi_wait_ms;
+        Wow_UpdateCamera(ent);
+        Wow_UpdatePlayerHud(ent);
+        return true;
+    }
+    while (budget > 0 && c->taxi_leg < c->taxi_flight.count) {
+        wowTaxiPoint_t const *point = NULL;
+        for (size_t i = 0; i < wow_taxi_graph.path_count; i++) {
+            wowTaxiPath_t const *path = &wow_taxi_graph.paths[i];
+            if (path->id == c->taxi_flight.paths[c->taxi_leg] &&
+                c->taxi_point < path->point_count) {
+                point = &wow_taxi_graph.points[path->first_point + c->taxi_point];
+                break;
+            }
+        }
+        if (!point) {
+            c->taxi_leg++;
+            c->taxi_point = 0;
+            continue;
+        }
+        float x = point->x - ent->s.origin.x;
+        float y = point->y - ent->s.origin.y;
+        float z = point->z - ent->s.origin.z;
+        float d = sqrtf(x*x + y*y + z*z);
+        float amount = d < budget ? d : budget;
+        if (d > 0.0001f) {
+            ent->s.origin.x += x * amount / d;
+            ent->s.origin.y += y * amount / d;
+            ent->s.origin.z += z * amount / d;
+            ent->s.angle = atan2f(y, x);
+        }
+        budget -= amount;
+        if (d <= amount + 0.0001f) {
+            c->taxi_point++;
+            if (point->delay) {
+                c->taxi_wait_ms = point->delay > UINT32_MAX / 1000u
+                    ? UINT32_MAX : point->delay * 1000u;
+                break;
+            }
+        } else break;
+    }
+    ent->s.origin2 = (vec2_t){ent->s.origin.x, ent->s.origin.y};
+    if (c->taxi_leg >= c->taxi_flight.count) c->taxi_flying = false;
+    Wow_UpdateCamera(ent);
+    Wow_UpdatePlayerHud(ent);
+    return true;
+}
+
 static void Wow_RunFrame(void) {
     edict_t *ent = &wow_edicts[0];
     vec2_t forward;
@@ -1798,9 +2103,23 @@ static void Wow_RunFrame(void) {
 
     wow_spawns_this_frame = 0;
 
+    /* Flight state is per-client even though ordinary movement currently drives client 0. */
+    for (uint32_t i = 1; i < MAX_CLIENTS; ++i) {
+        edict_t *other = &wow_edicts[i];
+        if (other->inuse && other->client) Wow_TaxiStep(other);
+    }
+
     if (!ent->inuse || !ent->client) {
         return;
     }
+
+    wow_service_refresh_ms += FRAMETIME;
+    if (wow_service_refresh_ms >= 5000) {
+        wow_service_refresh_ms = 0;
+        Wow_SpawnVendors(&ent->s.origin2);
+    }
+
+    if (Wow_TaxiStep(ent)) goto process_entities;
 
     Wow_AngleVectors(wow_move.yaw, &forward, &right);
 
@@ -1832,6 +2151,17 @@ static void Wow_RunFrame(void) {
     {
         wowEntityLocal_t *cl = Wow_EntityLocal(ent);
         if (cl) {
+            if (cl->recently_bandaged_ms)
+                cl->recently_bandaged_ms -= MIN(cl->recently_bandaged_ms, FRAMETIME);
+            if (cl->bandage_ticks) {
+                if (moving || cl->dead || !cl->health) cl->bandage_ticks = 0;
+                else if (cl->bandage_tick_ms <= FRAMETIME) {
+                    cl->health = MIN(100u, cl->health + cl->bandage_heal);
+                    --cl->bandage_ticks;
+                    cl->bandage_tick_ms = 1000;
+                    Wow_UpdatePlayerHud(ent);
+                } else cl->bandage_tick_ms -= FRAMETIME;
+            }
             if (cl->gcd_time > 0)
                 cl->gcd_time -= cl->gcd_time > FRAMETIME ? FRAMETIME : cl->gcd_time;
             FOR_LOOP(i, WOW_SPELL_COUNT)
@@ -1913,7 +2243,12 @@ static void Wow_RunFrame(void) {
 process_entities:
     {
         wowClient_t *wc = (wowClient_t *)ent->client;
-        if (wc->worldmap_open && !wc->worldmap_choosing) {
+        wc->exploration_sample_ms += FRAMETIME;
+        if (wc->exploration_sample_ms >= 500) {
+            wc->exploration_sample_ms = 0;
+            Wow_ExploreArea(&wc->exploration, CM_WowAreaAtPoint(ent->s.origin.x, ent->s.origin.y));
+        }
+        if (wc->worldmap_open && !wc->worldmap_choosing && !wc->worldmap_landmarks_list) {
             wc->worldmap_refresh += FRAMETIME;
             if (wc->worldmap_refresh >= 1000) {
                 wc->worldmap_refresh = 0;
@@ -1960,6 +2295,7 @@ static void Wow_SelectEntity(edict_t *ent, edict_t *target) {
 
 void Wow_QuestAwardKillCredit(edict_t *attacker, uint32_t display_id) {
     wowClient_t *wc;
+    bool changed = false;
 
     if (!attacker || !attacker->client) return;
     wc = (wowClient_t *)attacker->client;
@@ -1978,14 +2314,17 @@ void Wow_QuestAwardKillCredit(edict_t *attacker, uint32_t display_id) {
                     all_done = false;
                 continue;
             }
-            if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count)
+            if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count) {
                 wc->kill_progress[i][j]++;
+                changed = true;
+            }
             if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count)
                 all_done = false;
         }
         if (all_done)
             qs->status = SV_QUEST_COMPLETE;
     }
+    if (changed) UI_WriteWowHud(attacker);
 }
 
 bool Wow_QuestWasRewarded(wowClient_t const *client, uint32_t quest_id) {
@@ -1995,6 +2334,7 @@ bool Wow_QuestWasRewarded(wowClient_t const *client, uint32_t quest_id) {
 
 static void Wow_RemoveQuest(wowClient_t *client, uint32_t slot) {
     uint32_t remaining = client->quest_count - slot - 1;
+    Wow_QuestTrackerRemove(client->quest_tracked, client->quest_count, slot);
     memmove(&client->quest_log[slot], &client->quest_log[slot + 1],
             remaining * sizeof(client->quest_log[0]));
     memmove(&client->kill_progress[slot], &client->kill_progress[slot + 1],
@@ -2014,7 +2354,9 @@ static bool Wow_AddQuest(wowClient_t *client, uint32_t quest_id) {
     if (!detail || quest_id >= sizeof(client->rewarded_quests) * 8 ||
         Wow_QuestWasRewarded(client, quest_id)) return false;
     if (!Wow_QuestPrereqMet(client, detail->prev_quest)) return false;
-    return SV_QuestAdd(client->quest_log, &client->quest_count, SV_MAX_QUEST_LOG, quest_id);
+    if (!SV_QuestAdd(client->quest_log, &client->quest_count, SV_MAX_QUEST_LOG, quest_id)) return false;
+    client->quest_tracked[client->quest_count - 1] = true;
+    return true;
 }
 
 /* Resolve one physical quest NPC's repeated queststarter rows to the first
@@ -2040,6 +2382,23 @@ static uint32_t Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *l
             available = cur->quest_id;
     }
     return available ? available : active;
+}
+
+/* Only a live nearby selected giver can authorize a quest transaction. */
+static bool Wow_QuestGiverValid(edict_t *player, uint32_t quest_id) {
+    wowClient_t *client = (wowClient_t *)player->client;
+    wowEntityLocal_t *player_local = Wow_EntityLocal(player);
+    edict_t *npc = client->selected_entity ? Wow_EdictByNumber(client->selected_entity) : NULL;
+    wowEntityLocal_t *local = npc ? Wow_EntityLocal(npc) : NULL;
+    if (!player->inuse || !player_local || player_local->dead || !npc || !npc->inuse ||
+        !local || local->dead || !local->quest_id || !(npc->s.flags & EF_HAS_QUEST)) return false;
+    vec2_t delta = Vector2_sub(&npc->s.origin2, &player->s.origin2);
+    if (delta.x * delta.x + delta.y * delta.y > 100.0f) return false;
+    uint32_t group = Wow_QuestGiverGroup(local->quest_id, &local->home);
+    if (group == WOW_QUEST_GIVER_GROUP_NONE) return local->quest_id == quest_id;
+    FOR_LOOP(i, Wow_QuestGiverGroupCount(group))
+        if (Wow_QuestGiverInGroup(group, i)->quest_id == quest_id) return true;
+    return false;
 }
 
 static void Wow_CompleteQuest(edict_t *player, uint32_t quest_id) {
@@ -2189,13 +2548,120 @@ static void Wow_RefreshLootSnapshot(wowClient_t *client, wowEntityLocal_t const 
     if (!client->loot_snap_count) Wow_CloseLoot(client);
 }
 
+uint32_t Wow_InventoryStackLimit(uint32_t item_id) {
+    wowItemDef_t const *def = Wow_ItemByEntry(item_id);
+    return def ? def->stack_limit : 0;
+}
+
+bool Wow_StorageAdd(wowHudIcon_t *slots, uint32_t slot_count, wowHudIcon_t const *item) {
+    if (!slots || !item || !item->count || !item->icon[0]) return false;
+    wowHudIcon_t source = *item; /* input may alias a destination slot */
+    item = &source;
+    uint32_t limit = Wow_InventoryStackLimit(item->item_id);
+    uint64_t capacity = 0;
+    for (uint32_t i = 0; i < slot_count; i++) {
+        wowHudIcon_t const *v = &slots[i];
+        if (!v->icon[0] && !v->count) capacity += limit ? limit : item->count;
+        else if (limit && v->item_id == item->item_id && v->count < limit)
+            capacity += limit - v->count;
+    }
+    if (capacity < item->count) return false;
+    uint32_t remaining = item->count;
+    if (limit) for (uint32_t i = 0; i < slot_count && remaining; i++) {
+        wowHudIcon_t *v = &slots[i];
+        if (!v->icon[0] || v->item_id != item->item_id || v->count >= limit) continue;
+        uint32_t n = MIN(remaining, limit - v->count);
+        v->count += n; remaining -= n;
+    }
+    for (uint32_t i = 0; i < slot_count && remaining; i++) {
+        wowHudIcon_t *v = &slots[i];
+        if (v->icon[0] || v->count) continue;
+        *v = *item;
+        v->count = limit ? MIN(remaining, limit) : remaining;
+        remaining -= v->count;
+    }
+    return true;
+}
+
+bool Wow_InventoryAdd(wowClient_t *client, wowHudIcon_t const *item) {
+    return client && Wow_StorageAdd(client->inventory, WOW_UI_INVENTORY_SLOTS, item);
+}
+
+bool Wow_StorageRemove(wowHudIcon_t *slots, uint32_t slot_count, uint32_t slot, uint32_t count) {
+    if (!slots || slot >= slot_count || !count || count > slots[slot].count) return false;
+    wowHudIcon_t *item = &slots[slot];
+    item->count -= count;
+    if (!item->count) memset(item, 0, sizeof(*item));
+    return true;
+}
+
+bool Wow_InventoryRemove(wowClient_t *client, uint32_t slot, uint32_t count) {
+    return client && Wow_StorageRemove(client->inventory, WOW_UI_INVENTORY_SLOTS, slot, count);
+}
+
+/* Inventory commands use server-owned slots. */
+static bool Wow_InventoryMove(wowClient_t *client, uint32_t from, uint32_t to, bool split) {
+    if (from >= WOW_UI_INVENTORY_SLOTS || to >= WOW_UI_INVENTORY_SLOTS || from == to) return false;
+    wowHudIcon_t *src = &client->inventory[from], *dst = &client->inventory[to];
+    if (!src->icon[0] || !src->count) return false;
+    if (split) {
+        if (src->count < 2 || dst->icon[0]) return false;
+        *dst = *src;
+        dst->count = src->count / 2;
+        src->count -= dst->count;
+    } else if (!dst->icon[0]) {
+        *dst = *src;
+        memset(src, 0, sizeof(*src));
+    } else if (src->item_id && src->item_id == dst->item_id && Wow_InventoryStackLimit(src->item_id)) {
+        uint32_t limit = Wow_InventoryStackLimit(src->item_id);
+        if (dst->count >= limit) return false;
+        uint32_t n = MIN(src->count, limit - dst->count);
+        dst->count += n;
+        src->count -= n;
+        if (!src->count) memset(src, 0, sizeof(*src));
+    } else {
+        wowHudIcon_t tmp = *src; *src = *dst; *dst = tmp;
+    }
+    return true;
+}
+
+static bool Wow_InventoryUse(edict_t *ent, uint32_t slot) {
+    if (slot >= WOW_UI_INVENTORY_SLOTS) return false;
+    wowClient_t *client = (wowClient_t *)ent->client;
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    wowHudIcon_t *item = &client->inventory[slot];
+    if (!local || local->dead || !local->health || local->health >= 100 || !item->count) return false;
+    if (item->item_id == 1251 || item->item_id == 2581) {
+        if (local->recently_bandaged_ms || local->bandage_ticks || local->cast_spell != SPELL_NONE ||
+            local->cast_release_time || Wow_PlayerIsMoving()) return false;
+        local->bandage_heal = item->item_id == 1251 ? 11 : 19;
+        local->bandage_ticks = 6;
+        local->bandage_tick_ms = 1000;
+        local->recently_bandaged_ms = 60000;
+        Wow_InventoryRemove(client, slot, 1);
+        return true;
+    }
+    wowItemDef_t const *def = Wow_ItemByEntry(item->item_id);
+    if (!def || !def->heal) return false;
+    local->health = MIN(100u, local->health + def->heal);
+    Wow_InventoryRemove(client, slot, 1);
+    return true;
+}
+
+static bool Wow_InventorySlotArg(cstring_t arg, uint32_t *slot) {
+    char *end;
+    if (!arg[0] || arg[0] < '0' || arg[0] > '9') return false;
+    unsigned long value = strtoul(arg, &end, 10);
+    if (*end || value >= WOW_UI_INVENTORY_SLOTS) return false;
+    *slot = (uint32_t)value;
+    return true;
+}
+
 static bool Wow_TakeLootSlot(wowClient_t *client, wowEntityLocal_t *corpse, uint32_t slot) {
     if (slot >= WOW_MAX_LOOT_ITEMS || !client->loot_snap[slot].icon[0] ||
         memcmp(&client->loot_snap[slot], &corpse->loot_items[slot], sizeof(wowHudIcon_t)))
         return false;
-    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS) {
-        if (client->inventory[i].icon[0]) continue;
-        client->inventory[i] = corpse->loot_items[slot];
+    if (Wow_InventoryAdd(client, &corpse->loot_items[slot])) {
         memset(&corpse->loot_items[slot], 0, sizeof(corpse->loot_items[slot]));
         if (corpse->loot_count) corpse->loot_count--;
         return true;
@@ -2235,7 +2701,10 @@ static void Wow_OpenLootTarget(edict_t *ent, edict_t *corpse) {
 }
 
 static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
-    if (argc >= 1 && !strcasecmp(argv[0], "give")) {
+    if (((wowClient_t *)ent->client)->taxi_flying) return;
+    if (argc >= 1 && !strcasecmp(argv[0], "taxi")) {
+        Wow_TaxiCommand(ent, argc, argv);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "give")) {
         Wow_GiveCommand(ent, argc, argv);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "god") || !strcasecmp(argv[0], "kill"))) {
         Wow_CheatCommand(ent, argc, argv);
@@ -2251,8 +2720,25 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             fprintf(stderr, "WoW: quest UI has no server data for quest %u\n", (unsigned)quest_id);
             return;
         }
+        if (!Wow_QuestGiverValid(ent, quest_id)) return;
         client->quest_id = quest_id;
+        client->quest_journal_detail = false;
         client->quest_open = true;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "quest_inspect")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        uint32_t id = (uint32_t)strtoul(argv[1], NULL, 10);
+        if (!SV_QuestFind(client->quest_log, client->quest_count, id)) return;
+        client->quest_id = id;
+        client->quest_journal_detail = true;
+        client->quest_open = true;
+        client->questlog_open = true;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest_back")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->quest_open = false;
+        client->quest_journal_detail = false;
+        client->questlog_open = true;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_close")) {
         wowClient_t *client = (wowClient_t *)ent->client;
@@ -2262,13 +2748,13 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_accept")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         uint32_t quest_id = argc >= 2 ? (uint32_t)strtoul(argv[1], NULL, 10) : client->quest_id;
-        if (quest_id) Wow_AddQuest(client, quest_id);
+        if (quest_id && client->quest_open && !client->quest_journal_detail && client->quest_id == quest_id && Wow_QuestGiverValid(ent, quest_id)) Wow_AddQuest(client, quest_id);
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_complete")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         uint32_t quest_id = argc >= 2 ? (uint32_t)strtoul(argv[1], NULL, 10) : client->quest_id;
-        Wow_CompleteQuest(ent, quest_id);
+        if (client->quest_open && !client->quest_journal_detail && client->quest_id == quest_id && Wow_QuestGiverValid(ent, quest_id)) Wow_CompleteQuest(ent, quest_id);
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_abandon")) {
@@ -2280,6 +2766,12 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             client->quest_open = false;
             UI_WriteWowHud(ent);
         }
+    } else if (argc >= 2 && !strcasecmp(argv[0], "quest_track")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        uint32_t id = (uint32_t)strtoul(argv[1], NULL, 10);
+        svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, id);
+        if (state) Wow_QuestTrackerToggle(client->quest_tracked, client->quest_count, (uint32_t)(state - client->quest_log));
+        UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "questlog")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         client->questlog_open = !client->questlog_open;
@@ -2350,18 +2842,47 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             client->worldmap_continent = false;
             client->worldmap_selection = 0;
             client->worldmap_choosing = false;
+            client->worldmap_landmarks_list = false;
             client->worldmap_page = 0;
         } else if (!client->worldmap_open) {
             return;
+        } else if (!strcasecmp(argv[1], "landmarks")) {
+            client->worldmap_landmarks_visible = !client->worldmap_landmarks_visible;
+        } else if (!strcasecmp(argv[1], "places")) {
+            client->worldmap_landmarks_list = !client->worldmap_landmarks_list;
+            client->worldmap_choosing = false;
+            client->worldmap_landmarks_page = 0;
+        } else if (!strcasecmp(argv[1], "landmark_prev") && client->worldmap_landmarks_list && client->worldmap_landmarks_page) {
+            --client->worldmap_landmarks_page;
+        } else if (!strcasecmp(argv[1], "landmark_next") && client->worldmap_landmarks_list && client->worldmap_landmarks_next) {
+            ++client->worldmap_landmarks_page;
+        } else if (!strcasecmp(argv[1], "landmark") && argc == 3 && client->worldmap_landmarks_list) {
+            char *end;
+            unsigned long row = strtoul(argv[2], &end, 10);
+            uint32_t size = 0;
+            if (!*argv[2] || *end || !row || row > UINT32_MAX) return;
+            uint8_t *data = gi.ReadFile("DBFilesClient\\AreaPOI.dbc", &size);
+            wowLandmark_t landmark;
+            bool valid = Wow_LandmarkRead(data, size, (uint32_t)row - 1, CM_WowGetMapId(),
+                                          client->worldmap_left, client->worldmap_right,
+                                          client->worldmap_top, client->worldmap_bottom, &landmark);
+            SAFE_DELETE(data, gi.MemFree);
+            if (!valid) return;
+            client->worldmap_landmarks_selected = (uint32_t)row;
+            client->worldmap_landmarks_visible = true;
+            client->worldmap_landmarks_list = false;
         } else if (!strcasecmp(argv[1], "continent")) {
+            client->worldmap_landmarks_list = false;
             client->worldmap_continent = true;
             client->worldmap_selection = 0;
             client->worldmap_choosing = false;
         } else if (!strcasecmp(argv[1], "current")) {
+            client->worldmap_landmarks_list = false;
             client->worldmap_continent = false;
             client->worldmap_selection = 0;
             client->worldmap_choosing = false;
         } else if (!strcasecmp(argv[1], "zones")) {
+            client->worldmap_landmarks_list = false;
             client->worldmap_choosing = !client->worldmap_choosing;
             client->worldmap_page = 0;
         } else if (!strcasecmp(argv[1], "previous") && client->worldmap_choosing && client->worldmap_page) {
@@ -2387,9 +2908,95 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         client->worldmap_refresh = 0;
         if (client->worldmap_open) UI_ResolveWorldMap(ent);
         UI_WriteWorldMap(ent);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "bag_select")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        uint32_t slot;
+        if (!client->backpack_open || !Wow_InventorySlotArg(argv[1], &slot)) return;
+        if (client->backpack_selected && client->backpack_selected != slot + 1) {
+            Wow_InventoryMove(client, client->backpack_selected - 1, slot, client->backpack_splitting);
+            client->backpack_splitting = false;
+            client->backpack_selected = 0;
+        } else {
+            client->backpack_selected = client->backpack_selected ? 0 : slot + 1;
+            client->backpack_splitting = false;
+        }
+        UI_WriteWowHud(ent);
+    } else if (argc == 1 && !strcasecmp(argv[0], "bag_split_select")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        if (!client->backpack_open || !client->backpack_selected) return;
+        client->backpack_splitting = true;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "bag_use")) {
+        uint32_t slot;
+        if (!Wow_InventorySlotArg(argv[1], &slot)) return;
+        Wow_InventoryUse(ent, slot);
+        UI_WriteWowHud(ent);
+    } else if (argc == 3 && (!strcasecmp(argv[0], "bag_move") || !strcasecmp(argv[0], "bag_split"))) {
+        uint32_t from, to;
+        if (!Wow_InventorySlotArg(argv[1], &from) || !Wow_InventorySlotArg(argv[2], &to)) return;
+        Wow_InventoryMove((wowClient_t *)ent->client, from, to, !strcasecmp(argv[0], "bag_split"));
+        ((wowClient_t *)ent->client)->backpack_selected = 0;
+        UI_WriteWowHud(ent);
+    } else if (argc == 1 && !strcasecmp(argv[0], "crafting")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->crafting_open = !client->crafting_open;
+        if (client->crafting_open) client->spellbook_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc == 2 && !strcasecmp(argv[0], "craft")) {
+        char *end;
+        if (!argv[1] || argv[1][0] < '0' || argv[1][0] > '9') return;
+        unsigned long spell = strtoul(argv[1], &end, 10);
+        if (*end || spell > UINT32_MAX) return;
+        Wow_Craft(ent, (uint32_t)spell);
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "spellbook")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->spellbook_open = !client->spellbook_open;
+        if (client->spellbook_open) client->crafting_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc == 1 && !strcasecmp(argv[0], "spellbook_train_fireball")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+        if (Wow_GetPlayerClass() != WOW_CLASS_MAGE || !local || local->experience < 400 || client->fireball_rank2_learned) return;
+        client->fireball_rank2_learned = true;
+        for (uint32_t i = 0; i < WOW_UI_ACTION_SLOTS; ++i) {
+            if (client->action_spells[i] != WOW_SPELL_FIREBOLT) continue;
+            client->action_spells[i] = WOW_SPELL_FIREBALL_RANK2;
+            snprintf(client->actions[i].name, sizeof(client->actions[i].name), "%s", wow_spells[WOW_SPELL_FIREBALL_RANK2].name);
+        }
+        client->spellbook_selected = WOW_SPELL_FIREBALL_RANK2;
+        UI_WriteWowHud(ent);
+    } else if (argc == 2 && !strcasecmp(argv[0], "spellbook_select")) {
+        char *end; unsigned long spell;
+        if (!argv[1] || argv[1][0] < '0' || argv[1][0] > '9') return;
+        spell = strtoul(argv[1], &end, 10);
+        if (*end || spell >= wow_spell_count || !Wow_PlayerKnowsSpell(ent, (uint32_t)spell)) return;
+        ((wowClient_t *)ent->client)->spellbook_selected = (uint32_t)spell;
+        UI_WriteWowHud(ent);
+    } else if (argc == 3 && !strcasecmp(argv[0], "spellbook_bind")) {
+        char *end; unsigned long slot, spell;
+        wowClient_t *client = (wowClient_t *)ent->client;
+        if (!argv[1] || argv[1][0] < '0' || argv[1][0] > '9' || !argv[2]) return;
+        slot = strtoul(argv[1], &end, 10);
+        if (*end || slot >= WOW_UI_ACTION_SLOTS) return;
+        if (!strcmp(argv[2], "clear")) {
+            client->action_spells[slot] = SPELL_NONE;
+            memset(&client->actions[slot], 0, sizeof(client->actions[slot]));
+        } else {
+            if (argv[2][0] < '0' || argv[2][0] > '9') return;
+            spell = strtoul(argv[2], &end, 10);
+            if (*end || spell >= wow_spell_count || !Wow_PlayerKnowsSpell(ent, (uint32_t)spell)) return;
+            client->action_spells[slot] = (uint32_t)spell;
+            snprintf(client->actions[slot].icon, sizeof(client->actions[slot].icon), "%s", Wow_SpellIcon((uint32_t)spell));
+            snprintf(client->actions[slot].name, sizeof(client->actions[slot].name), "%s", wow_spells[spell].name);
+            client->actions[slot].count = 1;
+        }
+        UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "backpack")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         client->backpack_open = !client->backpack_open;
+        client->backpack_selected = 0;
+        client->backpack_splitting = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; uint32_t class_id, appearance;
@@ -2442,6 +3049,67 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         wow_move.distance = Wow_Clamp((float)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
         Wow_SelectEntity(ent, argc >= 2 ? Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10)) : NULL);
+    } else if (argc == 1 && !strcasecmp(argv[0], "bank_close")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->bank_target = client->bank_entry = 0;
+        UI_WriteWowHud(ent);
+    } else if (argc == 6 && (!strcasecmp(argv[0], "bank_deposit") || !strcasecmp(argv[0], "bank_withdraw"))) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        uint32_t values[5];
+        for (uint32_t i = 0; i < 5; i++) {
+            char *end;
+            if (argv[i + 1][0] < '0' || argv[i + 1][0] > '9') return;
+            unsigned long value = strtoul(argv[i + 1], &end, 10);
+            if (*end || value > UINT32_MAX) return;
+            values[i] = (uint32_t)value;
+        }
+        bool deposit = !strcasecmp(argv[0], "bank_deposit");
+        if (values[0] >= (deposit ? WOW_UI_INVENTORY_SLOTS : 16) || values[1] != client->bank_revision || values[4] > 1) return;
+        wowHudIcon_t const *item = deposit ? &client->inventory[values[0]] : &client->bank[values[0]];
+        if (item->item_id != values[2] || item->count != values[3]) return;
+        Wow_BankTransfer(ent, deposit, values[0], values[4] != 0);
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "merchant_quest")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        edict_t *npc = Wow_MerchantValid(ent) ? Wow_EdictByNumber(client->merchant_target) : NULL;
+        wowEntityLocal_t *npc_local = npc ? Wow_EntityLocal(npc) : NULL;
+        uint32_t quest_id = npc_local ? Wow_QuestForGiver(client, npc_local) : 0;
+        if (!Wow_QuestGiverValid(ent, quest_id)) return;
+        if (!quest_id || !Wow_QuestDetail(quest_id)) return;
+        client->merchant_target = client->merchant_entry = 0;
+        client->quest_journal_detail = false;
+        client->quest_id = quest_id;
+        client->quest_open = true;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "merchant_view")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        if (!Wow_MerchantValid(ent)) return;
+        client->merchant_buyback_view = !client->merchant_buyback_view;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "merchant_close")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->merchant_target = client->merchant_entry = 0;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 3 && (!strcasecmp(argv[0], "merchant_buy") || !strcasecmp(argv[0], "merchant_sell") || !strcasecmp(argv[0], "merchant_buyback"))) {
+        char *end;
+        unsigned long slot = strtoul(argv[1], &end, 10);
+        if (!argv[1][0] || *end || slot > UINT32_MAX) return;
+        unsigned long revision = strtoul(argv[2], &end, 10);
+        if (!argv[2][0] || *end || revision > UINT32_MAX || revision != ((wowClient_t *)ent->client)->merchant_revision) return;
+        if (!strcasecmp(argv[0], "merchant_sell")) {
+            wowClient_t *client = (wowClient_t *)ent->client;
+            unsigned long id, count;
+            if (argc < 5 || slot >= WOW_UI_INVENTORY_SLOTS) return;
+            id = strtoul(argv[3], &end, 10);
+            if (!argv[3][0] || *end || id > UINT32_MAX) return;
+            count = strtoul(argv[4], &end, 10);
+            if (!argv[4][0] || *end || count > UINT32_MAX ||
+                client->inventory[slot].item_id != id || client->inventory[slot].count != count) return;
+        }
+        if (!strcasecmp(argv[0], "merchant_buy")) Wow_MerchantBuy(ent, (uint32_t)slot);
+        else if (!strcasecmp(argv[0], "merchant_sell")) Wow_MerchantSell(ent, (uint32_t)slot);
+        else Wow_MerchantBuyback(ent, (uint32_t)slot);
+        UI_WriteWowHud(ent);
     } else if (argc >= 2 && !strcasecmp(argv[0], "interact")) {
         edict_t *target = Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10));
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
@@ -2449,10 +3117,17 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         if (target_local && target_local->think == Wow_RunCorpseFrame) {
             /* Right-clicked a corpse: open loot window. */
             Wow_OpenLootTarget(ent, target);
+        } else if (target_local && Wow_TaxiOpenNpc(ent, target)) {
+            /* Flight-master interaction opens a server-validated route list. */
+        } else if (target_local && Wow_BankOpen(ent, target)) {
+            UI_WriteWowHud(ent);
+        } else if (target_local && Wow_MerchantOpen(ent, target)) {
+            UI_WriteWowHud(ent);
         } else if (target_local && target_local->quest_id) {
             wowClient_t *client = (wowClient_t *)ent->client;
             uint32_t quest_id = Wow_QuestForGiver(client, target_local);
-            if (!quest_id || !Wow_QuestDetail(quest_id)) return;
+            if (!quest_id || !Wow_QuestDetail(quest_id) || !Wow_QuestGiverValid(ent, quest_id)) return;
+            client->quest_journal_detail = false;
             client->quest_id = quest_id;
             client->quest_open = true;
             UI_WriteWowHud(ent);
@@ -2506,14 +3181,16 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         if (!local || !local->dead) {
             Wow_SetStandMove(ent);
         }
-    } else if (argc >= 2 && !strcasecmp(argv[0], "wow_action")) {
+    } else if (argc >= 2 && (!strcasecmp(argv[0], "wow_action") || !strcasecmp(argv[0], "spellbook_cast"))) {
         char *end;
         unsigned long parsed;
         if (!argv[1] || argv[1][0] < '0' || argv[1][0] > '9') return;
         parsed = strtoul(argv[1], &end, 10);
-        if (*end || parsed >= WOW_UI_ACTION_SLOTS || !ent->client) return;
-        uint32_t slot = (uint32_t)parsed;
-        uint32_t spell = ((wowClient_t *)ent->client)->action_spells[slot];
+        bool book_cast = !strcasecmp(argv[0], "spellbook_cast");
+        if (*end || !ent->client || (book_cast ? parsed >= wow_spell_count : parsed >= WOW_UI_ACTION_SLOTS)) return;
+        uint32_t slot = book_cast ? 255 : (uint32_t)parsed;
+        uint32_t spell = book_cast ? (uint32_t)parsed : ((wowClient_t *)ent->client)->action_spells[slot];
+        if (book_cast && !Wow_PlayerKnowsSpell(ent, spell)) return;
         if (spell >= wow_spell_count) return;
         wowSpellDef_t const *def = &wow_spells[spell];
         wowEntityLocal_t *cl = Wow_EntityLocal(ent);
@@ -2543,6 +3220,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             return;
         }
 
+        cl->bandage_ticks = 0; /* a successfully started spell interrupts First Aid */
         cl->selected_action_slot = slot;
         if (def->cast_time > 0) {
             Wow_BeginSpellCast(ent, spell, target ? target->s.number : 0);
@@ -2645,7 +3323,7 @@ static void Wow_ClientBegin(edict_t *ent) {
 
 /* WoW runs one persistent local character whose state outlives the connection, and Wow_ClientBegin rebuilds
  * every HUD layer on the next begin, so there is no connection-scoped state to release yet. */
-static void Wow_ClientDisconnect(edict_t *ent) { (void)ent; }
+static void Wow_ClientDisconnect(edict_t *ent) { if (ent == &wow_edicts[0]) Wow_CharacterFlush(); }
 
 /* Map.dbc/LoadingScreens.dbc identify loading art without loading WDT/ADT terrain or spawning entities. */
 static bool Wow_PrepareMap(cstring_t filename) {

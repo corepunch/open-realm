@@ -36,8 +36,36 @@
 static void UIWow_XmlPublishFrame(int idx);
 static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_name);
 static void UIWow_XMLUpdateScrollRange(int idx);
+static int UIWow_XMLEventSlot(int i, cstring_t event);
 static bool UIWow_XMLEditFocus(int idx);
 static void UIWow_XMLEditClearFocus(void);
+/* Arguments are the top nargs Lua stack values. Snapshot recipients so registration
+ * during a callback waits until the next dispatch; unregistration takes effect now. */
+void UIWow_XMLDispatchEvent(cstring_t event, int nargs) {
+    static int depth;
+    lua_State *L = wow_ui.lua; int recipients[WOW_XML_MAX_ELEMS], count = 0, top;
+    if (!L || !event || depth >= 16 || nargs < 0 || nargs > 9 || lua_gettop(L) < nargs) return;
+    top = lua_gettop(L);
+    for (int i = 0; i < wow_xml.count; i++) if (UIWow_XMLEventSlot(i, event) >= 0) recipients[count++] = i;
+    for (int n = 1; n <= 9; n++) {
+        char key[8]; snprintf(key, sizeof(key), "arg%d", n); lua_getglobal(L, key);
+    }
+    depth++;
+    for (int n = 0; n < count; n++) {
+        int i = recipients[n];
+        if (i < wow_xml.count && UIWow_XMLEventSlot(i, event) >= 0 && UIWow_ElemStr(&wow_xml.elems[i], ELEM_ON_EVENT)) {
+            for (int a = 1; a <= 9; a++) {
+                char key[8]; snprintf(key, sizeof(key), "arg%d", a);
+                if (a <= nargs) lua_pushvalue(L, top - nargs + a); else lua_pushnil(L);
+                lua_setglobal(L, key);
+            }
+            UIWow_XMLRunFrameScript(i, wow_xml.elems[i].texts[ELEM_ON_EVENT], event);
+        }
+    }
+    depth--;
+    for (int n = 9; n >= 1; n--) { char key[8]; snprintf(key, sizeof(key), "arg%d", n); lua_setglobal(L, key); }
+}
+
 static void UIWow_XMLEditTextChanged(int idx, bool user_input);
 
 /* Host services for stb_wowxml.h — only compiled in the unity production build
@@ -46,6 +74,15 @@ int  UI_XmlFsReadFile(cstring_t p, void **b) { return mi.FS_ReadFile ? mi.FS_Rea
 void UI_XmlFsFreeFile(void *b) { if (mi.FS_FreeFile) mi.FS_FreeFile(b); }
 void UI_XmlPrintf(cstring_t fmt, ...) { va_list ap; if (!mi.Printf) return; va_start(ap, fmt); mi.Printf(fmt); va_end(ap); }
 void UI_XmlOnFramePublish(int idx)  { UIWow_XmlPublishFrame(idx); }
+void UI_XmlReleaseFrame(int idx) {
+    if (wow_ui.lua && wow_xml.elems[idx].lua_ref > 0) luaL_unref(wow_ui.lua, LUA_REGISTRYINDEX, wow_xml.elems[idx].lua_ref);
+    wow_xml.elems[idx].lua_ref = 0;
+}
+static void UIWow_PushFrame(lua_State *L, int idx) {
+    if (idx < 0 || idx >= wow_xml.count) { lua_pushnil(L); return; }
+    if (wow_xml.elems[idx].lua_ref > 0) lua_rawgeti(L, LUA_REGISTRYINDEX, wow_xml.elems[idx].lua_ref);
+    else { cstring_t name = wow_xml.elems[idx].texts[ELEM_NAME]; if (name && *name) lua_getglobal(L, name); else lua_pushnil(L); }
+}
 void UI_XmlOnShow(int idx) {
     if (idx >= 0 && idx < wow_xml.count && UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_SHOW))
         UIWow_XMLRunFrameScript(idx, wow_xml.elems[idx].texts[ELEM_ON_SHOW], "OnShow");
@@ -58,11 +95,14 @@ void UI_XmlOnScriptBody(cstring_t path, cstring_t body) {
 void UI_XmlLoadScriptFile(cstring_t path) { UIWow_LoadLuaFile(path, false); }
 
 
-static int UIWow_FrameFromSelf(lua_State *L) {
-    int idx;
-    luaL_checktype(L, 1, LUA_TTABLE); lua_getfield(L, 1, "__ow3_index"); idx = (int)luaL_optinteger(L, -1, -1); lua_pop(L, 1);
-    return idx >= 0 && idx < wow_xml.count && (wow_xml.elems[idx].flags & EF_USED) ? idx : -1;
+static int UIWow_FrameFromArg(lua_State *L, int arg) {
+    int idx; uint32_t serial;
+    luaL_checktype(L, arg, LUA_TTABLE); lua_getfield(L, arg, "__ow3_index"); idx = (int)luaL_optinteger(L, -1, -1); lua_pop(L, 1);
+    lua_getfield(L, arg, "__ow3_serial"); serial = (uint32_t)luaL_optinteger(L, -1, 0); lua_pop(L, 1);
+    return idx >= 0 && idx < wow_xml.count && (wow_xml.elems[idx].flags & EF_USED) && wow_xml.elems[idx].serial == serial ? idx : -1;
 }
+
+static int UIWow_FrameFromSelf(lua_State *L) { return UIWow_FrameFromArg(L, 1); }
 
 static void UIWow_XmlPublishSyntheticFrame(cstring_t name) {
     if (!wow_ui.lua || !name || !name[0]) return;
@@ -158,8 +198,8 @@ static int UIWow_LuaFrameGetText(lua_State *L) { int i = UIWow_FrameFromSelf(L);
 static int UIWow_LuaFrameGetName(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushstring(L, i >= 0 && wow_xml.elems[i].texts[ELEM_NAME] ? wow_xml.elems[i].texts[ELEM_NAME] : ""); return 1; }
 static int UIWow_LuaFrameGetParent(lua_State *L) {
     int i = UIWow_FrameFromSelf(L), p = i >= 0 ? wow_xml.elems[i].parent : -1;
-    if (p >= 0) UIWow_XmlPublishFrame(p); else lua_pushnil(L);
-    return p >= 0 ? (lua_getglobal(L, wow_xml.elems[p].texts[ELEM_NAME] ? wow_xml.elems[p].texts[ELEM_NAME] : ""), 1) : 1;
+    if (p >= 0) UIWow_XmlPublishFrame(p);
+    UIWow_PushFrame(L, p); return 1;
 }
 static int UIWow_LuaFrameSetHeight(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
@@ -264,13 +304,69 @@ static int UIWow_LuaFrameGetID(lua_State *L) {
     return 1;
 }
 static int UIWow_LuaFrameNoop(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameGetZero(lua_State *L) { (void)L; lua_pushnumber(L, 0); return 1; }
-static int UIWow_LuaFrameGetMinMax(lua_State *L) { (void)L; lua_pushnumber(L, 0); lua_pushnumber(L, 0); return 2; }
+static void UIWow_XMLSetValue(int i, float value) {
+    uiWowXmlElem_t *e;
+    if (i < 0 || i >= wow_xml.count) return;
+    e = &wow_xml.elems[i];
+    if (e->type != WOW_XML_SLIDER && e->type != WOW_XML_STATUSBAR) return;
+    value = MIN(e->max_value, MAX(e->min_value, value));
+    if (e->type == WOW_XML_SLIDER && e->value_step > 0.0f)
+        value = MIN(e->max_value, e->min_value + floorf((value - e->min_value) / e->value_step + 0.5f) * e->value_step);
+    if (e->value == value) return;
+    e->value = value;
+    if (wow_ui.lua && UIWow_ElemStr(e, ELEM_ON_VALUE_CHANGED)) {
+        lua_getglobal(wow_ui.lua, "arg1");
+        lua_pushnumber(wow_ui.lua, value); lua_setglobal(wow_ui.lua, "arg1");
+        UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_VALUE_CHANGED], "OnValueChanged");
+        lua_setglobal(wow_ui.lua, "arg1");
+    }
+}
+static int UIWow_LuaFrameSetValue(lua_State *L) { UIWow_XMLSetValue(UIWow_FrameFromSelf(L), (float)luaL_checknumber(L, 2)); return 0; }
+static int UIWow_LuaFrameGetValue(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushnumber(L, i >= 0 ? wow_xml.elems[i].value : 0); return 1; }
+static int UIWow_LuaFrameSetMinMax(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L); float lo = (float)luaL_checknumber(L, 2), hi = (float)luaL_checknumber(L, 3);
+    if (i >= 0 && (wow_xml.elems[i].type == WOW_XML_SLIDER || wow_xml.elems[i].type == WOW_XML_STATUSBAR)) {
+        wow_xml.elems[i].min_value = lo; wow_xml.elems[i].max_value = MAX(lo, hi); UIWow_XMLSetValue(i, wow_xml.elems[i].value);
+    }
+    return 0;
+}
+static int UIWow_LuaFrameGetMinMax(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushnumber(L, i >= 0 ? wow_xml.elems[i].min_value : 0); lua_pushnumber(L, i >= 0 ? wow_xml.elems[i].max_value : 0); return 2; }
+static int UIWow_LuaFrameSetValueStep(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].value_step = MAX(0.0f, (float)luaL_checknumber(L, 2)); return 0; }
+static int UIWow_LuaFrameGetValueStep(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushnumber(L, i >= 0 ? wow_xml.elems[i].value_step : 0); return 1; }
+
 static int UIWow_LuaFrameGetButtonState(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     lua_pushstring(L, (i >= 0 && wow_xml.pressed_button == i) ? "PUSHED" : "NORMAL");
     return 1;
 }
+static int UIWow_LuaFrameSetScrollChild(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L), child = -1;
+    if (i < 0 || !(wow_xml.elems[i].flags & EF_IS_SCROLLFRAME)) return 0;
+    if (!lua_isnoneornil(L, 2)) {
+        child = UIWow_FrameFromArg(L, 2);
+        if (child < 0 || child >= wow_xml.count) return 0;
+        for (int p = i; p >= 0; p = wow_xml.elems[p].parent) if (p == child) return 0;
+    }
+    for (int n = 0; n < wow_xml.count; n++) if (wow_xml.elems[n].parent == i && (wow_xml.elems[n].flags & EF_SCROLL_CONTENT)) {
+        wow_xml.elems[n].flags &= ~EF_SCROLL_CONTENT; wow_xml.elems[n].parent = -1;
+    }
+    if (child >= 0) { wow_xml.elems[child].parent = i; wow_xml.elems[child].flags = (wow_xml.elems[child].flags | EF_SCROLL_CONTENT) & ~EF_SCROLLBAR_PART; }
+    UIWow_XMLUpdateScrollRange(i); return 0;
+}
+static int UIWow_LuaFrameGetScrollChild(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    for (int n = 0; i >= 0 && n < wow_xml.count; n++) if (wow_xml.elems[n].parent == i && (wow_xml.elems[n].flags & EF_SCROLL_CONTENT)) {
+        UIWow_PushFrame(L, n); return 1;
+    }
+    lua_pushnil(L); return 1;
+}
+static int UIWow_LuaFrameSetHorizontalScroll(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0 && (wow_xml.elems[i].flags & EF_IS_SCROLLFRAME)) { UIWow_XMLUpdateScrollRange(i); wow_xml.scroll[i].scroll_x = MAX(0.0f, MIN(UIWow_XmlX((float)luaL_checknumber(L, 2)), wow_xml.scroll[i].scroll_range_x)); }
+    return 0;
+}
+static int UIWow_LuaFrameGetHorizontalScroll(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) UIWow_XMLUpdateScrollRange(i); lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_x * 1024.0f : 0); return 1; }
+static int UIWow_LuaFrameGetHorizontalScrollRange(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) UIWow_XMLUpdateScrollRange(i); lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_range_x * 1024.0f : 0); return 1; }
 static int UIWow_LuaFrameSetVerticalScroll(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0 && (wow_xml.elems[i].flags & EF_IS_SCROLLFRAME)) {
@@ -409,7 +505,24 @@ static int UIWow_LuaFrameHighlightText(lua_State *L) {
     }
     return 0;
 }
-static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
+static int UIWow_XMLEventSlot(int i, cstring_t event) {
+    if (i < 0 || i >= wow_xml.count || !event || !*event) return -1;
+    for (int n = 0; n < 16; n++) if (!strcmp(wow_xml.elems[i].events[n], event)) return n;
+    return -1;
+}
+static int UIWow_LuaFrameRegisterEvent(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L); cstring_t event = luaL_checkstring(L, 2);
+    if (i < 0 || !*event || strlen(event) >= sizeof(wow_xml.elems[i].events[0]) || UIWow_XMLEventSlot(i, event) >= 0) return 0;
+    for (int n = 0; n < 16; n++) if (!wow_xml.elems[i].events[n][0]) { snprintf(wow_xml.elems[i].events[n], sizeof(wow_xml.elems[i].events[n]), "%s", event); return 0; }
+    UIWow_Printf("UIWow: event registration limit reached\n"); return 0;
+}
+static int UIWow_LuaFrameUnregisterEvent(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L), n = UIWow_XMLEventSlot(i, luaL_checkstring(L, 2));
+    if (n >= 0) wow_xml.elems[i].events[n][0] = 0;
+    return 0;
+}
+static int UIWow_LuaFrameUnregisterAllEvents(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) memset(wow_xml.elems[i].events, 0, sizeof(wow_xml.elems[i].events)); return 0; }
+static int UIWow_LuaFrameIsEventRegistered(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, UIWow_XMLEventSlot(i, luaL_checkstring(L, 2)) >= 0); return 1; }
 static int UIWow_LuaFrameSetSequence(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     uint32_t now = wow_ui.time;
@@ -507,8 +620,10 @@ static int UIWow_LuaGetGlobalCompat(lua_State *L) {
 
 static int UIWow_LuaFrameClick(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    if (i >= 0 && UIWow_ElemStr(&wow_xml.elems[i], ELEM_ON_CLICK))
-        UIWow_XMLRunFrameScript(i, wow_xml.elems[i].texts[ELEM_ON_CLICK], "OnClick");
+    if (i >= 0 && wow_xml.elems[i].type == WOW_XML_BUTTON && (wow_xml.elems[i].flags & EF_ENABLED)) {
+        if (wow_xml.elems[i].flags & EF_CHECKBUTTON) wow_xml.elems[i].flags ^= EF_CHECKED;
+        if (UIWow_ElemStr(&wow_xml.elems[i], ELEM_ON_CLICK)) UIWow_XMLRunFrameScript(i, wow_xml.elems[i].texts[ELEM_ON_CLICK], "OnClick");
+    }
     return 0;
 }
 
@@ -550,6 +665,58 @@ static void UIWow_XMLInstallScreenShim(void) {
     lua_setglobal(wow_ui.lua, "SetGlueScreen");
 }
 
+static int UIWow_LuaFrameSetTexture(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L); if (i >= 0 && wow_xml.elems[i].type == WOW_XML_TEXTURE) UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_FILE, luaL_optstring(L, 2, "")); return 0;
+}
+static int UIWow_LuaCreateWidget(lua_State *L, uiWowXmlType_t type, uint32_t flags, int parent, cstring_t name, cstring_t inherits, int layer) {
+    int i;
+    if (name && *name) {
+        lua_getglobal(L, name); bool exists = !lua_isnil(L, -1); lua_pop(L, 1);
+        if (exists || UIWow_XmlFindByName(name) >= 0) return luaL_error(L, "frame name already exists: %s", name);
+    }
+    if (parent >= wow_xml.count) return luaL_error(L, "invalid parent");
+    i = UIWow_XmlPushElem(type, name, parent, layer);
+    if (i < 0) return luaL_error(L, "frame limit exceeded");
+    wow_xml.elems[i].flags |= flags;
+    UIWow_XmlInheritElem(&wow_xml.elems[i], inherits);
+    if (name && *name) UIWow_XmlCloneTemplateChildren(inherits, i, name);
+    else { char prefix[64]; snprintf(prefix, sizeof(prefix), "__UIWowAnonymous%u", wow_xml.elems[i].serial); UIWow_XmlCloneTemplateChildren(inherits, i, prefix); }
+    if (name && *name) { UIWow_XmlPublishFrame(i); lua_getglobal(L, name); }
+    else {
+        lua_newtable(L); lua_pushinteger(L, i); lua_setfield(L, -2, "__ow3_index");
+        lua_pushinteger(L, wow_xml.elems[i].serial); lua_setfield(L, -2, "__ow3_serial");
+        luaL_getmetatable(L, "UIWow.Frame"); lua_setmetatable(L, -2);
+        lua_pushvalue(L, -1); wow_xml.elems[i].lua_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    }
+    if (UIWow_ElemStr(&wow_xml.elems[i], ELEM_ON_LOAD)) UIWow_XMLRunFrameScript(i, wow_xml.elems[i].texts[ELEM_ON_LOAD], "OnLoad");
+    return 1;
+}
+static int UIWow_LuaCreateFrame(lua_State *L) {
+    cstring_t kind = luaL_checkstring(L, 1), name = luaL_optstring(L, 2, NULL), inherits = luaL_optstring(L, 4, NULL);
+    int parent = -1; uiWowXmlType_t type = WOW_XML_FRAME; uint32_t flags = 0;
+    if (!lua_isnoneornil(L, 3)) {
+        if (lua_isstring(L, 3)) parent = UIWow_XmlFindByName(lua_tostring(L, 3));
+        else parent = UIWow_FrameFromArg(L, 3);
+        if (parent < 0 || parent >= wow_xml.count) return luaL_error(L, "invalid frame parent");
+    }
+    if (!strcasecmp(kind, "Button")) type = WOW_XML_BUTTON;
+    else if (!strcasecmp(kind, "CheckButton")) { type = WOW_XML_BUTTON; flags = EF_CHECKBUTTON; }
+    else if (!strcasecmp(kind, "ScrollFrame")) flags = EF_IS_SCROLLFRAME;
+    else if (!strcasecmp(kind, "Slider")) type = WOW_XML_SLIDER;
+    else if (!strcasecmp(kind, "StatusBar")) type = WOW_XML_STATUSBAR;
+    else if (!strcasecmp(kind, "EditBox")) { type = WOW_XML_EDITBOX; flags = EF_FOCUSABLE; }
+    else if (!strcasecmp(kind, "Model")) type = WOW_XML_MODEL;
+    else if (strcasecmp(kind, "Frame")) return luaL_error(L, "unsupported frame type: %s", kind);
+    return UIWow_LuaCreateWidget(L, type, flags, parent, name, inherits, WOW_XML_LAYER_ARTWORK);
+}
+static int UIWow_LuaCreateRegion(lua_State *L, uiWowXmlType_t type) {
+    int parent = UIWow_FrameFromSelf(L); cstring_t name = luaL_optstring(L, 2, NULL), layer = luaL_optstring(L, 3, "ARTWORK"), inherits = luaL_optstring(L, 4, NULL);
+    if (parent < 0) return luaL_error(L, "invalid region parent");
+    return UIWow_LuaCreateWidget(L, type, 0, parent, name, inherits, UIWow_XmlLayer(layer));
+}
+static int UIWow_LuaCreateTexture(lua_State *L) { return UIWow_LuaCreateRegion(L, WOW_XML_TEXTURE); }
+static int UIWow_LuaCreateFontString(lua_State *L) { return UIWow_LuaCreateRegion(L, WOW_XML_FONTSTRING); }
+
 static void UIWow_XMLInstallLuaCompat(void) {
     static luaL_Reg const methods[] = {
         { "Show", UIWow_LuaFrameShow }, { "Hide", UIWow_LuaFrameHide }, { "IsVisible", UIWow_LuaFrameIsVisible }, { "SetAlpha", UIWow_LuaFrameSetAlpha },
@@ -568,15 +735,16 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "SetPoint", UIWow_LuaFrameSetPoint }, { "ClearAllPoints", UIWow_LuaFrameClearAllPoints },
         { "SetAllPoints", UIWow_LuaFrameSetAllPoints },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
-        { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameGetZero },
-        { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
-        { "SetScrollChild", UIWow_LuaFrameNoop }, { "UpdateScrollChildRect", UIWow_LuaFrameUpdateScrollChildRect },
+        { "SetValue", UIWow_LuaFrameSetValue }, { "GetValue", UIWow_LuaFrameGetValue },
+        { "SetValueStep", UIWow_LuaFrameSetValueStep }, { "GetValueStep", UIWow_LuaFrameGetValueStep },
+        { "SetMinMaxValues", UIWow_LuaFrameSetMinMax }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
+        { "SetScrollChild", UIWow_LuaFrameSetScrollChild }, { "GetScrollChild", UIWow_LuaFrameGetScrollChild }, { "SetHorizontalScroll", UIWow_LuaFrameSetHorizontalScroll }, { "GetHorizontalScroll", UIWow_LuaFrameGetHorizontalScroll }, { "GetHorizontalScrollRange", UIWow_LuaFrameGetHorizontalScrollRange }, { "UpdateScrollChildRect", UIWow_LuaFrameUpdateScrollChildRect },
         { "GetVerticalScrollRange", UIWow_LuaFrameGetVerticalScrollRange },
         { "SetVerticalScroll", UIWow_LuaFrameSetVerticalScroll }, { "GetVerticalScroll", UIWow_LuaFrameGetVerticalScroll },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
         { "GetStringWidth", UIWow_LuaFrameGetWidth }, { "GetStringHeight", UIWow_LuaFrameGetHeight },
-        { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
-        { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "ClearFocus", UIWow_LuaFrameClearFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
+        { "SetTexCoord", UIWow_LuaFrameSetTexCoord }, { "SetTexture", UIWow_LuaFrameSetTexture }, { "CreateTexture", UIWow_LuaCreateTexture }, { "CreateFontString", UIWow_LuaCreateFontString },
+        { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "ClearFocus", UIWow_LuaFrameClearFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "UnregisterEvent", UIWow_LuaFrameUnregisterEvent }, { "UnregisterAllEvents", UIWow_LuaFrameUnregisterAllEvents }, { "IsEventRegistered", UIWow_LuaFrameIsEventRegistered }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
         { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
         { "ClearFog", UIWow_LuaFrameClearFog }, { NULL, NULL }
@@ -584,6 +752,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
     if (!wow_ui.lua) return;
     if (luaL_newmetatable(wow_ui.lua, "UIWow.Frame")) { lua_pushvalue(wow_ui.lua, -1); lua_setfield(wow_ui.lua, -2, "__index"); luaL_setfuncs(wow_ui.lua, methods, 0); }
     lua_pop(wow_ui.lua, 1); lua_pushcfunction(wow_ui.lua, UIWow_LuaGetGlobalCompat); lua_setglobal(wow_ui.lua, "getglobal");
+    lua_pushcfunction(wow_ui.lua, UIWow_LuaCreateFrame); lua_setglobal(wow_ui.lua, "CreateFrame");
     wow_xml.lua_ready = true;
 }
 
@@ -596,6 +765,7 @@ static void UIWow_XmlPublishFrame(int idx) {
     lua_pop(wow_ui.lua, 1);
     lua_newtable(wow_ui.lua);
     lua_pushinteger(wow_ui.lua, idx); lua_setfield(wow_ui.lua, -2, "__ow3_index");
+    lua_pushinteger(wow_ui.lua, e->serial); lua_setfield(wow_ui.lua, -2, "__ow3_serial");
     lua_pushstring(wow_ui.lua, name); lua_setfield(wow_ui.lua, -2, "name");
     lua_pushboolean(wow_ui.lua, !(e->flags & EF_HIDDEN)); lua_setfield(wow_ui.lua, -2, "shown");
     lua_pushinteger(wow_ui.lua, e->id); lua_setfield(wow_ui.lua, -2, "id");
@@ -727,7 +897,7 @@ void UIWow_XMLInvalidateCharCustomizeModel(void) {
 
 void UIWow_XMLInitRuntime(void) {
     memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.hovered_button = -1;
-    wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1;
+    wow_xml.drag.scrollbar_idx = -1; wow_xml.slider_drag = -1; wow_ui.char_customize_frame_idx = -1;
     wow_ui.char_select_frame_idx = -1; wow_ui.selected_char_idx = -1;
     UIWow_XMLInstallLuaCompat();
 }
@@ -736,7 +906,7 @@ void UIWow_XMLShutdownRuntime(void) {
     UIWow_XMLReleaseCharCustomizeModel();
     UIWow_XMLFreeElems();
     memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
-    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1; wow_xml.slider_drag = -1;
 }
 
 bool UIWow_XMLLoadGlueFromToc(cstring_t toc_path) {
@@ -745,7 +915,7 @@ bool UIWow_XMLLoadGlueFromToc(cstring_t toc_path) {
     UIWow_XMLFreeElems();
     UIWow_XMLReleaseCharCustomizeModel();
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1;
-    wow_xml.pressed_button = -1; wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    wow_xml.pressed_button = -1; wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1; wow_xml.slider_drag = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
     FOR_LOOP(i, wow_xml.count) {
@@ -789,7 +959,7 @@ static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_n
     src_file = wow_xml.elems[idx].texts[ELEM_SOURCE_FILE];
     lua_getglobal(wow_ui.lua, "this");
     lua_getglobal(wow_ui.lua, "event");
-    lua_getglobal(wow_ui.lua, name ? name : ""); lua_setglobal(wow_ui.lua, "this");
+    UIWow_PushFrame(wow_ui.lua, idx); lua_setglobal(wow_ui.lua, "this");
     lua_pushstring(wow_ui.lua, event_name ? event_name : ""); lua_setglobal(wow_ui.lua, "event");
     if (src_file)
         snprintf(chunk, sizeof(chunk), "=%s:%s (%s)", name && name[0] ? name : "<anon>", event_name ? event_name : "Script", src_file);
@@ -847,14 +1017,16 @@ static rect_t s_scroll_clip;
 /* Compute scroll range for all ScrollFrames: the vertical extent of their
    children minus the viewport height. Called once per frame. */
 /* Recursively expand content bounds for element idx and all descendants. */
-static void UIWow_XMLExpandContentBounds(int idx, float *min_y, float *max_y) {
+static void UIWow_XMLExpandContentBounds(int idx, float *min_x, float *max_x, float *min_y, float *max_y) {
     rect_t cr = UIWow_XmlComputeRect(idx);
+    if (cr.x < *min_x) *min_x = cr.x;
+    if (cr.x + cr.w > *max_x) *max_x = cr.x + cr.w;
     if (cr.y < *min_y) *min_y = cr.y;
     if (cr.y + cr.h > *max_y) *max_y = cr.y + cr.h;
     FOR_LOOP(j, wow_xml.count) {
         uiWowXmlElem_t const *c = &wow_xml.elems[j];
         if (!(c->flags & EF_USED) || c->parent != idx) continue;
-        UIWow_XMLExpandContentBounds(j, min_y, max_y);
+        UIWow_XMLExpandContentBounds(j, min_x, max_x, min_y, max_y);
     }
 }
 
@@ -863,6 +1035,7 @@ static void UIWow_XMLUpdateScrollRange(int idx) {
     if (!(e->flags & EF_IS_SCROLLFRAME)) return;
 
     rect_t viewport = UIWow_XmlComputeRect(idx);
+    float min_x = viewport.x, max_x = viewport.x + viewport.w;
     float min_y = viewport.y;
     float max_y = viewport.y + viewport.h;
     FOR_LOOP(j, wow_xml.count) {
@@ -870,9 +1043,11 @@ static void UIWow_XMLUpdateScrollRange(int idx) {
         if (!(child->flags & EF_USED) || child->parent != idx ||
             (child->flags & EF_SCROLLBAR_PART))
             continue;
-        UIWow_XMLExpandContentBounds(j, &min_y, &max_y);
+        UIWow_XMLExpandContentBounds(j, &min_x, &max_x, &min_y, &max_y);
     }
     float range = MAX(0.0f, max_y - min_y - viewport.h);
+    wow_xml.scroll[idx].scroll_range_x = MAX(0.0f, max_x - min_x - viewport.w);
+    wow_xml.scroll[idx].scroll_x = MIN(wow_xml.scroll[idx].scroll_x, wow_xml.scroll[idx].scroll_range_x);
     wow_xml.scroll[idx].scroll_range = range;
     wow_xml.scroll[idx].scroll_y = MIN(wow_xml.scroll[idx].scroll_y, range);
 }
@@ -986,6 +1161,27 @@ static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, rect_t const *r) {
     e->flags |= EF_LOGGED_GEOMETRY;
 }
 
+static void UIWow_XMLApplyScroll(int i, rect_t *r, bool *has_clip, rect_t *clip) {
+    {
+            int child = i, p = wow_xml.elems[i].parent;
+            while (p >= 0 && p < wow_xml.count) {
+                if ((wow_xml.elems[p].flags & EF_IS_SCROLLFRAME) && !(wow_xml.elems[child].flags & EF_SCROLLBAR_PART)) {
+                    rect_t viewport = UIWow_XmlComputeRect(p);
+                    float dx = wow_xml.scroll[p].scroll_x, dy = wow_xml.scroll[p].scroll_y;
+                    r->x -= dx; r->y -= dy;
+                    if (*has_clip) {
+                        float right, bottom; clip->x -= dx; clip->y -= dy;
+                        right = MIN(clip->x + clip->w, viewport.x + viewport.w);
+                        bottom = MIN(clip->y + clip->h, viewport.y + viewport.h);
+                        clip->x = MAX(clip->x, viewport.x); clip->y = MAX(clip->y, viewport.y);
+                        clip->w = MAX(0.0f, right - clip->x); clip->h = MAX(0.0f, bottom - clip->y);
+                    } else { *clip = viewport; *has_clip = true; }
+                }
+                child = p; p = wow_xml.elems[p].parent;
+            }
+        }
+ }
+
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
 static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; rect_t r; rect_t uv = MAKE(rect_t, 0, 0, 1, 1); char text[512];
@@ -995,7 +1191,6 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
         cstring_t file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         cstring_t highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], checked_file = e->texts[ELEM_CHECKED_FILE], elem_text = e->texts[ELEM_TEXT];
-        float scroll_off_y = 0.0f;
         rect_t clip_rect = {0};
         bool has_clip = false;
         if (!(e->flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
@@ -1008,35 +1203,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         if (draw_layer != layer) return;
         r = UIWow_XmlComputeRect(i);
         if (e->type != WOW_XML_FONTSTRING) UIWow_XMLWarnGeometry(e, &r);
-        /* Compute scroll offset for descendants of ScrollFrames. Skip the
-           ScrollFrame itself (it is the viewport) and its direct ScrollBar
-           child (Slider) which must remain fixed. */
-        /* Walk parent chain for scroll offset and clip. */
-        {
-            int anc = -1;
-            float total_off = 0.0f;
-            int p = e->parent;
-            while (p >= 0 && p < wow_xml.count) {
-                if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME) {
-                    total_off += wow_xml.scroll[p].scroll_y;
-                    if (anc < 0) anc = p;
-                }
-                p = wow_xml.elems[p].parent;
-            }
-            /* Don't scroll the ScrollFrame itself, its direct Slider child, or the Slider's children
-               (ThumbTexture, UpButton, DownButton). They must remain fixed. */
-            bool is_scrollbar_part = (e->flags & EF_SCROLLBAR_PART) != 0;
-            if ((e->flags & EF_IS_SCROLLFRAME) || is_scrollbar_part) {
-                scroll_off_y = 0.0f;
-            } else {
-                scroll_off_y = total_off;
-            }
-            if (anc >= 0 && !is_scrollbar_part) {
-                clip_rect = UIWow_XmlComputeRect(anc);
-                has_clip = true;
-            }
-        }
-        r.y -= scroll_off_y;
+        UIWow_XMLApplyScroll(i, &r, &has_clip, &clip_rect);
         s_has_scroll_clip = has_clip;
         s_scroll_clip = clip_rect;
         if (e->type == WOW_XML_BUTTON) {
@@ -1093,20 +1260,31 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                          ((e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file);
             texture_t *t = UIWow_LoadTexture(src);
             if (e->flags & EF_HAS_TEXCOORD) uv = e->texcoord;
+            if (e->type == WOW_XML_TEXTURE && e->parent >= 0 && e->parent < wow_xml.count) {
+                uiWowXmlElem_t *par = &wow_xml.elems[e->parent];
+                float frac = par->max_value > par->min_value ? (par->value - par->min_value) / (par->max_value - par->min_value) : 0.0f;
+                if (par->type == WOW_XML_SLIDER && (e->flags & EF_SLIDER_THUMB) && !(e->flags & EF_SCROLLBAR_PART)) {
+                    rect_t pr = UIWow_XmlComputeRect(e->parent);
+                    if (par->vertical) r.y = pr.y + (1.0f - frac) * (pr.h - r.h);
+                    else r.x = pr.x + frac * (pr.w - r.w);
+                } else if (par->type == WOW_XML_STATUSBAR && (e->flags & EF_STATUSBAR_TEXTURE)) {
+                    rect_t pr = UIWow_XmlComputeRect(e->parent); r = pr;
+                    if (par->vertical) { r.y += r.h * (1.0f - frac); r.h *= frac; uv.y += uv.h * (1.0f - frac); uv.h *= frac; }
+                    else { r.w *= frac; uv.w *= frac; }
+                }
+            }
             /* Scrollbar thumb: reposition ThumbTexture based on scroll_y / scroll_range. */
             if (e->type == WOW_XML_TEXTURE && e->parent >= 0 && e->parent < wow_xml.count) {
                 uiWowXmlElem_t *par = &wow_xml.elems[e->parent];
                 if (par->parent >= 0 && par->parent < wow_xml.count && (wow_xml.elems[par->parent].flags & EF_IS_SCROLLFRAME)) {
                     int sf = par->parent;
-                    float range = wow_xml.scroll[sf].scroll_range;
+                    bool horizontal = par->type == WOW_XML_SLIDER && !par->vertical;
+                    float range = horizontal ? wow_xml.scroll[sf].scroll_range_x : wow_xml.scroll[sf].scroll_range;
                     if (range > 0.0f) {
                         rect_t pr = UIWow_XmlComputeRect(e->parent);
-                        float track_h = pr.h;
-                        float thumb_h = r.h;
-                        if (track_h > thumb_h) {
-                            float frac = wow_xml.scroll[sf].scroll_y / range;
-                            r.y = pr.y + frac * (track_h - thumb_h);
-                        }
+                        float frac = (horizontal ? wow_xml.scroll[sf].scroll_x : wow_xml.scroll[sf].scroll_y) / range;
+                        if (horizontal && pr.w > r.w) r.x = pr.x + frac * (pr.w - r.w);
+                        else if (!horizontal && pr.h > r.h) r.y = pr.y + frac * (pr.h - r.h);
                     }
                 }
             }
@@ -1136,8 +1314,9 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 vec2_t sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
                 if (e->size.w == 0) e->measured.w = sz.x;
                 if (e->size.h == 0) e->measured.h = sz.y;
-                r = UIWow_XmlComputeRect(i);
-                r.y -= scroll_off_y;
+                rect_t old = UIWow_XmlComputeRect(i);
+                float dx = r.x - old.x, dy = r.y - old.y;
+                r = UIWow_XmlComputeRect(i); r.x += dx; r.y += dy;
             }
             UIWow_XMLWarnGeometry(e, &r);
             rect_t tr = MAKE(rect_t, r.x + e->text_inset.w + e->text_off.x, r.y + e->text_off.y, r.w - e->text_inset.w, r.h - e->text_inset.h);
@@ -1203,7 +1382,19 @@ static int UIWow_XMLHitScrollFrame(float x, float y) {
         if (!(e->flags & EF_USED) || !(e->flags & EF_IS_SCROLLFRAME)) continue;
         if (!UIWow_XMLIsVisible(i)) continue;
         r = UIWow_XmlComputeRect(i);
-        if (UIWow_XMLPointInRect(x, y, &r)) return i;
+        rect_t clip = {0}; bool has_clip = false; UIWow_XMLApplyScroll(i, &r, &has_clip, &clip);
+        if ((!has_clip || UIWow_XMLPointInRect(x, y, &clip)) && UIWow_XMLPointInRect(x, y, &r)) return i;
+    }
+    return -1;
+}
+
+static int UIWow_XMLHitInput(float x, float y) {
+    for (int i = wow_xml.count - 1; i >= 0; i--) {
+        uiWowXmlElem_t *e = &wow_xml.elems[i]; rect_t r, clip = {0}; bool has_clip = false;
+        if (!UIWow_XMLIsVisible(i) || (e->type != WOW_XML_BUTTON && e->type != WOW_XML_EDITBOX && e->type != WOW_XML_SLIDER)) continue;
+        if (e->type == WOW_XML_SLIDER && (e->flags & EF_SCROLLBAR_PART)) continue;
+        r = UIWow_XmlComputeRect(i); UIWow_XMLApplyScroll(i, &r, &has_clip, &clip);
+        if ((!has_clip || UIWow_XMLPointInRect(x, y, &clip)) && UIWow_XMLPointInRect(x, y, &r)) return i;
     }
     return -1;
 }
@@ -1234,6 +1425,13 @@ static int UIWow_XMLScrollBarParent(int idx) {
 }
 
 
+static void UIWow_XMLSliderMouse(int i, float x, float y) {
+    uiWowXmlElem_t *e = &wow_xml.elems[i]; rect_t r = UIWow_XmlComputeRect(i), clip = {0}; bool has_clip = false;
+    UIWow_XMLApplyScroll(i, &r, &has_clip, &clip);
+    float frac = e->vertical ? (r.h > 0 ? 1.0f - (y - r.y) / r.h : 0) : (r.w > 0 ? (x - r.x) / r.w : 0);
+    UIWow_XMLSetValue(i, e->min_value + frac * (e->max_value - e->min_value));
+}
+
 bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     vec2_t mouse = UIWow_MouseFdf(x, y);
     float fdf_x = mouse.x, fdf_y = mouse.y;
@@ -1241,7 +1439,7 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     int hit;
 
     wow_xml.hovered_button = -1;
-    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
+    hit = UIWow_XMLHitInput(fdf_x, fdf_y);
     if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) {
         wow_xml.hovered_button = hit;
     }
@@ -1266,14 +1464,15 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
      * Must not fall through to the mouse-up block — that clears pressed_button,
      * which would drop a button press if a motion event arrives between DOWN and UP. */
     if (event == MENU_MOUSE_MOVE) {
+        if (wow_xml.slider_drag >= 0) { UIWow_XMLSliderMouse(wow_xml.slider_drag, fdf_x, fdf_y); return true; }
         if (wow_xml.drag.scrollbar_idx >= 0) {
             int sf = wow_xml.drag.scrollbar_idx;
-            rect_t vr = UIWow_XmlComputeRect(sf);
-            float mouse_delta = fdf_y - wow_xml.drag.start_mouse_y;
-            float scroll_range = wow_xml.scroll[sf].scroll_range;
-            if (vr.h > 0.0f && scroll_range > 0.0f) {
-                float scroll_delta = (mouse_delta / vr.h) * scroll_range;
-                wow_xml.scroll[sf].scroll_y = MIN(scroll_range, MAX(0.0f, wow_xml.drag.start_value + scroll_delta));
+            bool horizontal = wow_xml.drag.horizontal;
+            float mouse_delta = (horizontal ? fdf_x : fdf_y) - wow_xml.drag.start_mouse_y;
+            float scroll_range = horizontal ? wow_xml.scroll[sf].scroll_range_x : wow_xml.scroll[sf].scroll_range;
+            if (wow_xml.drag.track_size > 0.0f && scroll_range > 0.0f) {
+                float value = MIN(scroll_range, MAX(0.0f, wow_xml.drag.start_value + mouse_delta / wow_xml.drag.track_size * scroll_range));
+                if (horizontal) wow_xml.scroll[sf].scroll_x = value; else wow_xml.scroll[sf].scroll_y = value;
             }
             return true;
         }
@@ -1289,6 +1488,18 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
                 int part = UIWow_XMLScrollBarPart(e);
                 if (part) {
                     rect_t r = UIWow_XmlComputeRect(i);
+                    if (part == 3 && e->parent >= 0) {
+                        int sf = UIWow_XMLScrollBarParent(i), track = e->parent;
+                        if (sf >= 0) {
+                            rect_t tr = UIWow_XmlComputeRect(track);
+                            bool horizontal = wow_xml.elems[track].type == WOW_XML_SLIDER && !wow_xml.elems[track].vertical;
+                            float range = horizontal ? wow_xml.scroll[sf].scroll_range_x : wow_xml.scroll[sf].scroll_range;
+                            float value = horizontal ? wow_xml.scroll[sf].scroll_x : wow_xml.scroll[sf].scroll_y;
+                            float frac = range > 0 ? value / range : 0;
+                            if (horizontal) r.x = tr.x + frac * MAX(0.0f, tr.w - r.w);
+                            else r.y = tr.y + frac * MAX(0.0f, tr.h - r.h);
+                        }
+                    }
                     if (UIWow_XMLPointInRect(fdf_x, fdf_y, &r)) { hit = i; break; }
                 }
             }
@@ -1296,6 +1507,7 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     }
 
     if (event == MENU_MOUSE_UP) {
+        if (wow_xml.slider_drag >= 0) { wow_xml.slider_drag = -1; return true; }
         int pressed = wow_xml.pressed_button;
         wow_xml.pressed_button = -1;
         /* End scrollbar drag. */
@@ -1304,12 +1516,11 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             return true;
         }
         if (param == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
-            (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
-            UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
+            (wow_xml.elems[pressed].flags & EF_ENABLED)) {
             UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n", pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?", !!(wow_xml.elems[pressed].flags & EF_CHECKBUTTON), !!(wow_xml.elems[pressed].flags & EF_CHECKED));
             if (wow_xml.elems[pressed].flags & EF_CHECKBUTTON)
                 wow_xml.elems[pressed].flags ^= EF_CHECKED;
-            UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
+            if (wow_ui.lua && UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
             return true;
         }
         if (param == 1 && pressed >= 0 && hit == pressed) {
@@ -1338,9 +1549,13 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             if (sf >= 0) {
                 if (part == 3) {
                     /* Thumb: start drag. */
-                    wow_xml.drag.scrollbar_idx = sf;
-                    wow_xml.drag.start_mouse_y = fdf_y;
-                    wow_xml.drag.start_value = wow_xml.scroll[sf].scroll_y;
+                    int track = wow_xml.elems[hit].parent;
+                    rect_t tr = UIWow_XmlComputeRect(track), thumb = UIWow_XmlComputeRect(hit);
+                    bool horizontal = track >= 0 && wow_xml.elems[track].type == WOW_XML_SLIDER && !wow_xml.elems[track].vertical;
+                    wow_xml.drag.scrollbar_idx = sf; wow_xml.drag.horizontal = horizontal;
+                    wow_xml.drag.track_size = horizontal ? tr.w - thumb.w : tr.h - thumb.h;
+                    wow_xml.drag.start_mouse_y = horizontal ? fdf_x : fdf_y;
+                    wow_xml.drag.start_value = horizontal ? wow_xml.scroll[sf].scroll_x : wow_xml.scroll[sf].scroll_y;
                     return true;
                 }
                 if (part == 1 || part == 2) {
@@ -1356,6 +1571,9 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         }
     }
 
+    if (wow_xml.elems[hit].type == WOW_XML_SLIDER && (wow_xml.elems[hit].flags & EF_ENABLED) && param == 1) {
+        wow_xml.slider_drag = hit; UIWow_XMLSliderMouse(hit, fdf_x, fdf_y); return true;
+    }
     if (wow_xml.elems[hit].type == WOW_XML_EDITBOX) {
         UIWow_XMLEditFocus(hit);
         wow_xml.pressed_button = -1;

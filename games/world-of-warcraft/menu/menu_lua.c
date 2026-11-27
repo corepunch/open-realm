@@ -361,6 +361,7 @@ void UIWow_ReportLuaError(lua_State *L) {
 }
 
 static int UIWow_LuaGetCharacterListUpdate(lua_State *L) {
+    UIWow_XMLDispatchEvent("CHARACTER_LIST_UPDATE", 0);
     /* No server — call UpdateCharacterList directly so the UI reflects local state. */
     lua_getglobal(L, "UpdateCharacterList");
     if (!lua_isfunction(L, -1)) { lua_pop(L, 1); return 0; }

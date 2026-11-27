@@ -53,11 +53,14 @@ The quest log is part of `playerState_s` — generic, game-agnostic per-player s
 
 | Command | Effect |
 |---------|--------|
-| `quest [id]` | Opens quest dialog. Without ID, uses selected NPC's quest_id. |
-| `quest_accept <id>` | Adds quest to log (checks prerequisites, max 16 slots). Closes dialog. |
-| `quest_complete <id>` | Awards XP and copper once when all tracked objectives are complete. Closes dialog. |
+| `quest [id]` | Opens a nearby selected quest giver’s dialog. Without ID, chooses the giver’s current quest. |
+| `quest_inspect <id>` | Opens journal details for a quest in the active log, without opening a giver dialog. |
+| `quest_back` | Returns from journal details to the journal. |
+| `quest_accept <id>` | Adds a quest when its matching dialog and a nearby selected giver are valid (also checks prerequisites and capacity). |
+| `quest_complete <id>` | Awards XP and copper once when objectives are complete and the matching nearby giver dialog is valid. |
 | `quest_abandon <id>` | Removes an active or completed quest from the log and clears its objective progress. |
 | `quest_close` | Hides dialog and quest log. |
+| `quest_track <id>` | Toggles tracking for an active or completed quest. |
 | `questlog` | Toggles quest log panel. |
 | `questlog_page next/prev` | Pages through active quests in the journal. |
 
@@ -381,3 +384,9 @@ layout pixel positions and asset paths.
 - Progress text in dialog textarea
 - `quest_givers_receive_creature_frame_for_idle_animation` — Deputy Willem (display 2072) spawns with `overhead_sprite != 0` and `Stand` animation
 - `quest_marker_is_hidden_after_quest_acceptance` — `Wow_CustomizeEntity` shows "!" for a fresh player on quest 783, hides it after `quest_accept 783`
+
+## Objective tracker
+
+Newly accepted quests are tracked automatically. The journal offers Track/Untrack and Abandon on each row, including completed quests. Tracking follows the quest when earlier log entries are removed. The HUD displays the first five tracked quests in journal order, with kill counts and completion status; untrack earlier entries to show later ones. Kill credit refreshes the server-authored HUD. Abandoning clears that quest’s progress and allows it to be accepted again.
+
+The world map shows objective anchors for tracked active quests and giver locations for tracked completed quests. Pins come only from instantiated entities on the loaded map, are clipped to the selected map area, and do not expose untracked quests. The current quest data associates the same giver group with acceptance and turn-in; separate quest enders are not yet represented.

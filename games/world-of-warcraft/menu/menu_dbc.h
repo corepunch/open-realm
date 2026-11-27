@@ -36,3 +36,4 @@ int UIWow_LuaGetCharacterInfo(lua_State *L);
 void UIWow_GetCharacterSelectModelPath(string_t out, size_t out_size);
 uint32_t UIWow_GetCharacterSelectAppearance(void);
 void UIWow_SetSelectedCharCvars(void);
+void UIWow_ResetCharacterList(void);

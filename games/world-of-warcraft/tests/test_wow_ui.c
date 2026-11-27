@@ -10,6 +10,8 @@
 #include "common/mpq.h"
 #include "common/wow_ui_shared.h"
 #include "menu/menu_local.h"
+#include "menu/menu_dbc.h"
+#include "common/wow_config.h"
 
 #ifndef TEST_WOW_MPQ
 #define TEST_WOW_MPQ "build/tests/test-wow.mpq"
@@ -51,6 +53,9 @@ static uint32_t last_panel_height;
 static uint32_t last_inventory_width;
 static uint32_t last_inventory_height;
 static char test_show_tips[8];
+static char test_roster_home[512];
+static char test_playerinfo[512];
+static bool test_fake_legacy_roster;
 
 static bool test_path_is_wow_default(cstring_t name) {
     return name &&
@@ -72,6 +77,20 @@ static int test_fs_read_file(cstring_t fileName, void **buf) {
         return -1;
     }
     *buf = NULL;
+    if (test_roster_home[0] && strstr(fileName, "characters.xml")) {
+        if (test_fake_legacy_roster) {
+            char const *xml = "<Characters><Character name=\"Legacy\" race=\"1\" sex=\"1\" class=\"1\"/></Characters>";
+            *buf = strdup(xml);
+            return (int)strlen(xml);
+        }
+        FILE *f = fopen(fileName, "rb");
+        if (!f) return -1;
+        fseek(f, 0, SEEK_END); long n = ftell(f); rewind(f);
+        /* Deliberately omit a terminator: FS_ReadFile returns a byte count. */
+        *buf = malloc((size_t)n);
+        if (!*buf || fread(*buf, 1, (size_t)n, f) != (size_t)n) { fclose(f); free(*buf); *buf = NULL; return -1; }
+        fclose(f); return (int)n;
+    }
     if (!test_archive || !SFileOpenFileEx(test_archive, fileName, SFILE_OPEN_FROM_MPQ, &file)) {
         return -1;
     }
@@ -249,11 +268,13 @@ static void test_cmd_execute_text(cstring_t text) {
 
 static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) return test_show_tips;
+    if (!strcmp(name, "fs_homepath") && test_roster_home[0]) return test_roster_home;
     return fallback;
 }
 
 static void test_cvar_set(cstring_t name, cstring_t value) {
     if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) snprintf(test_show_tips, sizeof(test_show_tips), "%s", value);
+    if (!strcmp(name, WOW_CVAR_PLAYERINFO)) snprintf(test_playerinfo, sizeof(test_playerinfo), "%s", value);
 }
 
 static void reset_test_state(void) {
@@ -301,10 +322,12 @@ static void reset_test_state(void) {
     test_ps.stats[WOW_STAT_SELECTED_ACTION] = 255;
 }
 
+static void test_roster_save_path(cstring_t rel, string_t out, uint32_t size) { snprintf(out, size, "%s", Test_TempPath(rel)); }
+
 static menuExport_t init_ui(void) {
     menuExport_t menu;
 
-    menu = M_GetAPI((menuImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetRenderer = test_get_renderer, .Printf = test_printf, });
+    menu = M_GetAPI((menuImport_t) { .SavePath = test_roster_save_path, .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetRenderer = test_get_renderer, .Printf = test_printf, });
 
     T_NOT_NULL(menu.Init);
     T_NOT_NULL(menu.Refresh);
@@ -383,4 +406,35 @@ TEST(wow_ui, script_errors_dispatch_once_and_recover_from_handler_failure) {
     menu.Shutdown();
     SFileCloseArchive(test_archive);
     test_archive = NULL;
+}
+
+TEST(wow_ui, roster_migrates_duplicate_names_and_preserves_ids) {
+    snprintf(test_roster_home, sizeof(test_roster_home), "%s", Test_TempPath(""));
+    char path[600]; snprintf(path, sizeof(path), "%s/characters.xml", test_roster_home);
+    FILE *f = fopen(path, "wb"); T_ASSERT(f);
+    fputs("<Characters><Character name=\"Same &amp; name\" race=\"1\" sex=\"1\" class=\"1\"/><Character name=\"Same &amp; name\" race=\"1\" sex=\"1\" class=\"1\"/></Characters>", f); fclose(f);
+    reset_test_state();
+    menuExport_t menu = init_ui();
+    wow_ui.selected_char_idx = 0; UIWow_SetSelectedCharCvars();
+    char first[512]; snprintf(first, sizeof(first), "%s", test_playerinfo);
+    T_ASSERT(strstr(first, "charid") != NULL);
+    wow_ui.selected_char_idx = 1; UIWow_SetSelectedCharCvars();
+    T_ASSERT(strcmp(first, test_playerinfo));
+    menu.Shutdown();
+    menu = init_ui();
+    wow_ui.selected_char_idx = 0; UIWow_SetSelectedCharCvars();
+    T_STREQ(first, test_playerinfo);
+    menu.Shutdown(); remove(path); test_roster_home[0] = 0;
+}
+
+TEST(wow_ui, failed_roster_migration_does_not_publish_id) {
+    snprintf(test_roster_home, sizeof(test_roster_home), "%s", Test_TempPath("missing-roster-directory"));
+    test_fake_legacy_roster = true;
+    reset_test_state();
+    menuExport_t menu = init_ui();
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "old");
+    wow_ui.selected_char_idx = 0; UIWow_SetSelectedCharCvars();
+    T_EQ(test_playerinfo[0], 0);
+    menu.Shutdown();
+    test_fake_legacy_roster = false; test_roster_home[0] = 0;
 }

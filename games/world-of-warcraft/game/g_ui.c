@@ -8,6 +8,8 @@
  */
 
 #include "g_wow_local.h"
+#include "g_crafting.h"
+#include "g_landmarks.h"
 #include "common/wow_character_utils.h"
 #include <ctype.h>
 #include <math.h>
@@ -98,7 +100,7 @@ static void UI_SetFrameRect(uiFrame_t *frame, float x, float y, float w, float h
 }
 
 static void UI_WriteProxyFrame(uiFrame_t *frame, handle_t data, uint32_t data_size) {
-    if (ui_layout_layer == 0xFF) {
+    if (ui_layout_layer == 0xFF && !ui_window_writing) {
         fprintf(stderr, "WoW UI: FT_%d frame written outside a svc_layout layer (missing UI_WriteStart); skipped\n",
                 (int)frame->flags.type);
         return;
@@ -356,13 +358,13 @@ static void UI_WriteQuestDialog(edict_t *ent) {
 
         if (detail) {
             int off = 0;
-            UI_FormatQuestText(&(wowQuestText_t){ ent, is_complete ? detail->reward_text : detail->description, desc, sizeof(desc) });
+            UI_FormatQuestText(&(wowQuestText_t){ ent, is_complete && !wc->quest_journal_detail ? detail->reward_text : detail->description, desc, sizeof(desc) });
             UI_FormatQuestText(&(wowQuestText_t){ ent, detail->objectives_text, obj, sizeof(obj) });
-            if (is_complete)
+            if (is_complete && !wc->quest_journal_detail)
                 off = snprintf(text, sizeof(text), "%s\n\nRewards:\n%d XP  |  %u copper", desc, (int)detail->reward_xp, (unsigned)detail->reward_gold);
             else {
                 off = snprintf(text, sizeof(text), "%s%s%s", desc, obj[0] ? "\n\n" : "", obj);
-                if (is_accepted && detail->kill_objective_count) {
+                if (state && detail->kill_objective_count) {
                     off += snprintf(text + off, sizeof(text) - off, "\n\nProgress:");
                     FOR_LOOP(j, detail->kill_objective_count) {
                         cstring_t name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
@@ -376,7 +378,10 @@ static void UI_WriteQuestDialog(edict_t *ent) {
         UI_WriteTextArea(x + PW(28), y + PH(116), PW(270), PH(286), text, MAKE(color32_t, 0, 0, 0, 255));
         UI_WriteQuestScrollBar(x, y);
 
-        if (is_complete) {
+        if (wc->quest_journal_detail && state) {
+            snprintf(command, sizeof(command), "quest_abandon %u", (unsigned)wc->quest_id);
+            UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(90), PH(22), "Abandon", command);
+        } else if (is_complete) {
             snprintf(command, sizeof(command), "quest_complete %u", (unsigned)wc->quest_id);
             UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(120), PH(22), "Complete Quest", command);
         } else if (!is_accepted) {
@@ -386,7 +391,7 @@ static void UI_WriteQuestDialog(edict_t *ent) {
             snprintf(command, sizeof(command), "quest_abandon %u", (unsigned)wc->quest_id);
             UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(90), PH(22), "Abandon", command);
         }
-        UI_WriteSimpleButton(x + PW(267), y + PH(418), PW(78), PH(22), "Decline", "quest_close");
+        UI_WriteSimpleButton(x + PW(267), y + PH(418), PW(78), PH(22), wc->quest_journal_detail ? "Back" : "Decline", wc->quest_journal_detail ? "quest_back" : "quest_close");
     } else if (wc->questlog_open) {
         float x = PX(24), y = PY(68);
         float line_y = y + PH(48);
@@ -412,8 +417,12 @@ static void UI_WriteQuestDialog(edict_t *ent) {
             cstring_t status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
 
             snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
-            snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
-            UI_WriteSimpleButton(x + PW(28), line_y, PW(308), PH(22), buf, cmd);
+            snprintf(cmd, sizeof(cmd), "quest_inspect %u", (unsigned)qs->quest_id);
+            UI_WriteSimpleButton(x + PW(28), line_y, PW(178), PH(22), buf, cmd);
+            snprintf(cmd, sizeof(cmd), "quest_track %u", (unsigned)qs->quest_id);
+            UI_WriteSimpleButton(x + PW(210), line_y, PW(60), PH(22), wc->quest_tracked[i] ? "Untrack" : "Track", cmd);
+            snprintf(cmd, sizeof(cmd), "quest_abandon %u", (unsigned)qs->quest_id);
+            UI_WriteSimpleButton(x + PW(274), line_y, PW(62), PH(22), "Abandon", cmd);
             line_y += PH(28);
             line_count++;
         }
@@ -783,6 +792,81 @@ static void UI_WriteLootWindow(edict_t *ent) {
  * Backpack window — 4×4 grid showing all WOW_UI_INVENTORY_SLOTS item slots.
  * Positioned in the upper-right, above the bag slot row.
  * -------------------------------------------------------------------------*/
+static void UI_WriteMerchantWindow(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    float x = PX(300), y = PY(160);
+    char text[128], command[48];
+    uint32_t row = 0;
+    if (!wc->merchant_target) return;
+    if (!Wow_MerchantValid(ent)) { wc->merchant_target = wc->merchant_entry = 0; return; }
+    UI_WriteColorRect(x, y, PW(400), PH(420), MAKE(color32_t, 20, 16, 10, 240));
+    UI_WriteTextFrame(x + PW(8), y + PH(6), PW(180), PH(16), "Merchant", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + PW(210), y + PH(3), PW(76), PH(18), "Quest", "merchant_quest");
+    UI_WriteSimpleButton(x + PW(330), y + PH(3), PW(56), PH(18), "Close", "merchant_close");
+    UI_WriteSimpleButton(x + PW(290), y + PH(3), PW(36), PH(18), wc->merchant_buyback_view ? "Sell" : "Back", "merchant_view");
+    if (!wc->merchant_buyback_view) {
+    UI_WriteTextFrame(x + PW(8), y + PH(30), PW(380), PH(16), "Buy (copper)", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    for (uint32_t i = 0; i < Wow_MerchantItemCount(); i++) {
+        wowMerchantItem_t const *item = Wow_MerchantItem(i);
+        snprintf(text, sizeof(text), "%s - %u copper", item->item.name, (unsigned)item->buy_price);
+        snprintf(command, sizeof(command), "merchant_buy %u %u", (unsigned)i, (unsigned)wc->merchant_revision);
+        UI_WriteSimpleButton(x + PW(8), y + PH(50 + row++ * 22), PW(380), PH(20), text, command);
+    }
+    UI_WriteTextFrame(x + PW(8), y + PH(106), PW(380), PH(16), "Sell stack (eligible items)", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    row = 0;
+    for (uint32_t i = 0; i < WOW_UI_INVENTORY_SLOTS; i++) {
+        wowHudIcon_t const *v = &wc->inventory[i];
+        if (!v->icon[0] || !v->count) continue;
+        for (uint32_t j = 0; j < Wow_MerchantItemCount(); j++) {
+            wowMerchantItem_t const *item = Wow_MerchantItem(j);
+            if (v->item_id != item->item.item_id) continue;
+            snprintf(text, sizeof(text), "%s x%u - %llu copper", v->name, (unsigned)v->count, (unsigned long long)item->sell_price * v->count);
+            snprintf(command, sizeof(command), "merchant_sell %u %u %u %u", (unsigned)i, (unsigned)wc->merchant_revision, (unsigned)v->item_id, (unsigned)v->count);
+            UI_WriteSimpleButton(x + PW(8), y + PH(126 + row++ * 17), PW(380), PH(16), text, command);
+            break;
+        }
+    }
+    } else {
+    UI_WriteTextFrame(x + PW(8), y + PH(30), PW(380), PH(16), "Buy back", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    for (uint32_t i = 0; i < 12; i++) {
+        wowHudIcon_t const *v = &wc->merchant_buyback[i];
+        if (!v->count) continue;
+        snprintf(text, sizeof(text), "%s x%u - %u copper", v->name, (unsigned)v->count, (unsigned)wc->merchant_buyback_price[i]);
+        snprintf(command, sizeof(command), "merchant_buyback %u %u", (unsigned)i, (unsigned)wc->merchant_revision);
+        UI_WriteSimpleButton(x + PW(8), y + PH(50 + i * 24), PW(380), PH(18), text, command);
+    }
+    }
+}
+
+/* Bank transfers are stamped with a UI revision and source snapshot. */
+static void UI_WriteBankWindow(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    if (!wc->bank_target) return;
+    if (!Wow_BankValid(ent)) { wc->bank_target = wc->bank_entry = 0; return; }
+    if (!++wc->bank_revision) ++wc->bank_revision;
+    float x = PX(170), y = PY(165);
+    UI_WriteColorRect(x, y, PW(610), PH(370), MAKE(color32_t, 20, 16, 10, 240));
+    UI_WriteTextFrame(x + PW(8), y + PH(5), PW(250), PH(18), "Backpack: deposit", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    UI_WriteTextFrame(x + PW(310), y + PH(5), PW(200), PH(18), "Bank: withdraw", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + PW(548), y + PH(3), PW(56), PH(18), "Close", "bank_close");
+    for (uint32_t column = 0; column < 2; column++) {
+        wowHudIcon_t const *slots = column ? wc->bank : wc->inventory;
+        for (uint32_t i = 0; i < 16; i++) {
+            wowHudIcon_t const *item = &slots[i];
+            if (!item->icon[0] || !item->count) continue;
+            float sx = x + PW(8 + column * 302), sy = y + PH(28 + i * 21);
+            char label[96], command[96];
+            snprintf(label, sizeof(label), "%.48s x%u", item->name[0] ? item->name : "Unknown item", (unsigned)item->count);
+            snprintf(command, sizeof(command), "bank_%s %u %u %u %u 0", column ? "withdraw" : "deposit", (unsigned)i, (unsigned)wc->bank_revision, (unsigned)item->item_id, (unsigned)item->count);
+            UI_WriteSimpleButton(sx, sy, PW(235), PH(19), label, command);
+            if (item->count > 1) {
+                snprintf(command, sizeof(command), "bank_%s %u %u %u %u 1", column ? "withdraw" : "deposit", (unsigned)i, (unsigned)wc->bank_revision, (unsigned)item->item_id, (unsigned)item->count);
+                UI_WriteSimpleButton(sx + PW(238), sy, PW(50), PH(19), "Half", command);
+            }
+        }
+    }
+}
+
 static void UI_WriteBackpackWindow(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     float x, y, w, h;
@@ -790,7 +874,7 @@ static void UI_WriteBackpackWindow(edict_t *ent) {
     if (!wc->backpack_open) return;
 
     x = PX(818.0f); y = PY(478.0f);
-    w = PW(190.0f); h = PH(230.0f);
+    w = PW(190.0f); h = PH(258.0f);
 
     /* Background + border */
     UI_WriteColorRect(x, y, w, h, MAKE(color32_t, 20, 16, 10, 230));
@@ -811,6 +895,90 @@ static void UI_WriteBackpackWindow(edict_t *ent) {
         float sy = y + PH(26.0f + (float)(i / 4) * 44.0f);
         uint32_t img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
         UI_WriteActionButtonSlot(sx, sy, img, wc->inventory[i].count);
+        char command[32];
+        snprintf(command, sizeof(command), "bag_select %u", (unsigned)i);
+        UI_WriteClickRegion(sx, sy, PW(40), PH(40), command);
+        if (wc->backpack_selected == i + 1)
+            UI_WriteColorRect(sx, sy, PW(40), PH(2), MAKE(color32_t, 255, 215, 100, 255));
+    }
+    if (wc->backpack_selected) {
+        char command[32];
+        snprintf(command, sizeof(command), "bag_use %u", (unsigned)(wc->backpack_selected - 1));
+        UI_WriteSimpleButton(x + PW(8), y + PH(207), PW(60), PH(20), "Use", command);
+        UI_WriteSimpleButton(x + PW(72), y + PH(207), PW(60), PH(20), "Split", "bag_split_select");
+        UI_WriteTextFrame(x + PW(8), y + PH(232), PW(174), PH(16),
+                          wc->backpack_splitting ? "Choose empty slot" : wc->inventory[wc->backpack_selected - 1].name, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    }
+}
+
+static void UI_WriteCrafting(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    float x = PX(210), y = PY(140);
+    uint32_t linen = 0;
+    char text[128], command[32];
+    if (!wc->crafting_open) return;
+    for (uint32_t i = 0; i < WOW_UI_INVENTORY_SLOTS; ++i)
+        if (wc->inventory[i].item_id == 2589) linen += wc->inventory[i].count;
+    UI_WriteColorRect(x, y, PW(500), PH(190), MAKE(color32_t, 20, 16, 10, 245));
+    UI_WriteTextFrame(x + PW(12), y + PH(8), PW(300), PH(20), "First Aid", MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + PW(430), y + PH(5), PW(60), PH(22), "Close", "crafting");
+    snprintf(text, sizeof(text), "Linen Cloth: %u  (loot from kobolds)", (unsigned)linen);
+    UI_WriteTextFrame(x + PW(12), y + PH(37), PW(400), PH(20), text, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    for (uint32_t i = 0; i < Wow_RecipeCount(); ++i) {
+        wowRecipe_t const *recipe = Wow_Recipe(i);
+        snprintf(text, sizeof(text), "%s - %u Linen Cloth", recipe->name, (unsigned)recipe->reagent_count);
+        UI_WriteTextFrame(x + PW(12), y + PH(68 + i * 42), PW(350), PH(20), text, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+        snprintf(command, sizeof(command), "craft %u", (unsigned)recipe->spell);
+        UI_WriteSimpleButton(x + PW(400), y + PH(65 + i * 42), PW(80), PH(24), "Create", command);
+    }
+}
+
+static void UI_WriteSpellbook(edict_t *ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    float x = PX(200), y = PY(100);
+    uint32_t selected = wc->spellbook_selected;
+    char text[160], command[64];
+    unsigned row = 0;
+    if (!wc->spellbook_open) return;
+    if (!Wow_PlayerKnowsSpell(ent, selected)) selected = WOW_SPELL_ATTACK;
+    UI_WriteColorRect(x, y, PW(620), PH(480), MAKE(color32_t, 20, 16, 10, 240));
+    UI_WriteTextFrame(x + PW(12), y + PH(10), PW(300), PH(20), "Spellbook", MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + PW(550), y + PH(6), PW(60), PH(22), "Close", "spellbook");
+    for (uint32_t i = 0; i < wow_spell_count; ++i) {
+        if (!Wow_PlayerKnowsSpell(ent, i)) continue;
+        snprintf(command, sizeof(command), "spellbook_select %u", (unsigned)i);
+        UI_WriteSimpleButton(x + PW(12), y + PH(42 + row * 30), PW(175), PH(24), wow_spells[i].name, command);
+        ++row;
+    }
+    UI_WriteTextFrame(x + PW(200), y + PH(42), PW(390), PH(20), wow_spells[selected].name, MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    snprintf(text, sizeof(text), "Mana: %u   Cast: %.1f s   Range: %.0f   Cooldown: %.1f s", (unsigned)wow_spells[selected].mana_cost, wow_spells[selected].cast_time / 1000.0f, wow_spells[selected].range, wow_spells[selected].cooldown_ms / 1000.0f);
+    UI_WriteTextFrame(x + PW(200), y + PH(70), PW(405), PH(20), text, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    {
+        static cstring_t const descriptions[WOW_SPELL_COUNT] = {
+            "Attack the selected enemy with your weapon.",
+            "Launch a fire projectile at an enemy for 2 damage.",
+            "Launch a frost projectile for 3 damage and slow the enemy for 2 seconds.",
+            "Restore 2 health to yourself.",
+            "Blast an enemy instantly for 24 to 32 damage.",
+            "Launch a fire projectile for 31 to 45 damage."
+        };
+        UI_WriteTextFrame(x + PW(200), y + PH(135), PW(400), PH(38), descriptions[selected], COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    }
+
+    snprintf(command, sizeof(command), "spellbook_cast %u", (unsigned)selected);
+    UI_WriteSimpleButton(x + PW(200), y + PH(100), PW(80), PH(24), "Cast", command);
+    if (Wow_GetPlayerClass() == WOW_CLASS_MAGE && !wc->fireball_rank2_learned) {
+        UI_WriteTextFrame(x + PW(200), y + PH(180), PW(340), PH(20), "Rank 2 training: 400 earned XP (prototype)", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+        UI_WriteSimpleButton(x + PW(530), y + PH(178), PW(75), PH(22), "Learn", "spellbook_train_fireball");
+    }
+    UI_WriteTextFrame(x + PW(12), y + PH(225), PW(500), PH(20), "Assign selected spell to an action slot:", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    for (uint32_t i = 0; i < WOW_UI_ACTION_SLOTS; ++i) {
+        float sx = x + PW(12 + (i % 6) * 98), sy = y + PH(252 + (i / 6) * 72);
+        snprintf(text, sizeof(text), "%u: %.12s", (unsigned)i + 1, wc->action_spells[i] < wow_spell_count ? wow_spells[wc->action_spells[i]].name : "Empty");
+        snprintf(command, sizeof(command), "spellbook_bind %u %u", (unsigned)i, (unsigned)selected);
+        UI_WriteSimpleButton(sx, sy, PW(94), PH(24), text, command);
+        snprintf(command, sizeof(command), "spellbook_bind %u clear", (unsigned)i);
+        UI_WriteSimpleButton(sx, sy + PH(26), PW(94), PH(22), "Clear", command);
     }
 }
 
@@ -867,6 +1035,7 @@ bool UI_ResolveWorldMap(edict_t *ent) {
     uint32_t selected_area = 0;
 
     wc->worldmap_area[0] = '\0';
+    wc->worldmap_area_record_id = 0;
     wc->worldmap_has_continent = false;
     if (!Stb_DbcValid(data, size, &header) || header.fields < 8 || header.record_size < 32) {
         wc->worldmap_title_area_id = 0;
@@ -901,6 +1070,7 @@ bool UI_ResolveWorldMap(edict_t *ent) {
         smallest_area = width * height;
         showing_continent = continent;
         selected_area = Stb_DbcField(&header, record, 2);
+        wc->worldmap_area_record_id = Stb_DbcField(&header, record, 0);
     }
     gi.MemFree(data);
     if (wc->worldmap_title_area_id == selected_area) return wc->worldmap_area[0] != '\0';
@@ -974,6 +1144,69 @@ static void UI_WriteWorldMapZones(wowClient_t *wc) {
     gi.MemFree(data);
 }
 
+/* AreaPOI rows use world X/Y; show only entries on the current physical map
+ * and inside the displayed area. Row IDs are validated again on selection. */
+static void UI_WriteLandmarks(wowClient_t *wc, float x, float y, float width, float height) {
+    uint32_t size = 0, count = 0;
+    uint8_t *data = gi.ReadFile("DBFilesClient\\AreaPOI.dbc", &size);
+    uint32_t rows = Wow_LandmarkRows(data, size);
+    for (uint32_t row = 0; row < rows; ++row) {
+        wowLandmark_t landmark;
+        if (!Wow_LandmarkRead(data, size, row, CM_WowGetMapId(), wc->worldmap_left,
+                              wc->worldmap_right, wc->worldmap_top, wc->worldmap_bottom, &landmark)) continue;
+        if (wc->worldmap_landmarks_list) {
+            uint32_t n = count++;
+            if (n / 20 != wc->worldmap_landmarks_page) continue;
+            char command[64];
+            snprintf(command, sizeof(command), "worldmap landmark %u", row + 1);
+            UI_WriteSimpleButton(PX(150 + (n % 20 / 10) * 360), PY(135 + (n % 10) * 36),
+                                 PW(340), PH(30), landmark.name, command);
+        } else if (wc->worldmap_landmarks_visible) {
+            float px = x + width * landmark.u, py = y + height * landmark.v;
+            /* Center remains within the map even for rows on an edge. */
+            px = MAX(x + PW(4), MIN(x + width - PW(4), px));
+            py = MAX(y + PH(4), MIN(y + height - PH(4), py));
+            bool selected = wc->worldmap_landmarks_selected == row + 1;
+            UI_WriteColorRect(px - PW(4), py - PH(4), PW(8), PH(8),
+                              selected ? MAKE(color32_t, 255, 255, 255, 255) : MAKE(color32_t, 80, 210, 255, 255));
+            if (selected) UI_WriteTextFrame(MIN(px + PW(5), x + width - PW(180)), MAX(y, py - PH(18)), PW(180), PH(18), landmark.name,
+                                             COLOR32_WHITE, FONT_JUSTIFYLEFT);
+        }
+    }
+    if (wc->worldmap_landmarks_list) {
+        wc->worldmap_landmarks_next = (wc->worldmap_landmarks_page + 1) * 20 < count;
+        if (!count) UI_WriteTextFrame(PX(150), PY(145), PW(300), PH(20), "No landmarks in this area.", COLOR32_WHITE, FONT_JUSTIFYLEFT);
+        if (wc->worldmap_landmarks_page) UI_WriteSimpleButton(PX(150), PY(520), PW(100), PH(24), "Previous", "worldmap landmark_prev");
+        if (wc->worldmap_landmarks_next) UI_WriteSimpleButton(PX(720), PY(520), PW(100), PH(24), "Next", "worldmap landmark_next");
+    }
+    SAFE_DELETE(data, gi.MemFree);
+}
+
+/* Map area record IDs select the art set. The terrain's AreaTable ID decides
+ * which overlays the character has explored inside that set. */
+static void UI_WriteExploredTerrain(wowClient_t const *client, float x, float y, float width, float height) {
+    uint32_t count;
+    wowMapOverlay_t *overlays = Wow_GetMapOverlays(&count);
+    for (uint32_t i = 0; i < count; i++) {
+        wowMapOverlay_t *overlay = &overlays[i];
+        if (overlay->map_area != client->worldmap_area_record_id ||
+            !Wow_MapOverlayDiscovered(&client->exploration, overlay)) continue;
+        int columns = (overlay->width + 255) / 256;
+        int rows = (overlay->height + 255) / 256;
+        for (int part = 0; part < columns * rows; part++) {
+            wowMapPiece_t piece;
+            char path[MAX_PATHLEN];
+            snprintf(path, sizeof(path), "Interface\\WorldMap\\%s\\%s%d.blp",
+                     client->worldmap_area, overlay->texture, part + 1);
+            if (!Wow_ReadOverlayTileSize(overlay, part, path) ||
+                !Wow_MapOverlayPiece(overlay, part, &piece)) continue;
+            UI_WriteImageUV(path, x + width * (piece.x / 1002.0f), y + height * (piece.y / 668.0f),
+                            width * (piece.width / 1002.0f), height * (piece.height / 668.0f),
+                            piece.u0, piece.u1, piece.v0, piece.v1, COLOR32_WHITE);
+        }
+    }
+}
+
 void UI_WriteWorldMap(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     UI_WriteStart(LAYER_GAME_0);
@@ -984,7 +1217,7 @@ void UI_WriteWorldMap(edict_t *ent) {
     }
 
     float x = PX(128), y = PY(95), width = PW(768), height = PH(512);
-    UI_WriteColorRect(x - PW(8), y - PH(35), width + PW(16), height + PH(43),
+    UI_WriteColorRect(x - PW(8), y - PH(35), width + PW(16), height + PH(70),
                       MAKE(color32_t, 18, 15, 12, 250));
     UI_WriteTextFrame(x + PW(8), y - PH(27), PW(465), PH(20),
                       wc->worldmap_title[0] ? wc->worldmap_title :
@@ -999,6 +1232,16 @@ void UI_WriteWorldMap(edict_t *ent) {
 
     UI_WriteSimpleButton(x + width - PW(280), y - PH(30), PW(100), PH(22),
                          wc->worldmap_choosing ? "Back" : "Zones", "worldmap zones");
+    UI_WriteSimpleButton(x + PW(8), y + height + PH(6), PW(100), PH(22),
+                         wc->worldmap_landmarks_list ? "Back to map" : "Landmarks", "worldmap places");
+    UI_WriteSimpleButton(x + PW(112), y + height + PH(6), PW(115), PH(22),
+                         wc->worldmap_landmarks_visible ? "Hide landmarks" : "Show landmarks", "worldmap landmarks");
+    if (wc->worldmap_landmarks_list) {
+        UI_WriteLandmarks(wc, x, y, width, height);
+        UI_WriteEnd();
+        gi.unicast(ent);
+        return;
+    }
     if (wc->worldmap_choosing) {
         UI_WriteWorldMapZones(wc);
         UI_WriteEnd();
@@ -1022,6 +1265,41 @@ void UI_WriteWorldMap(edict_t *ent) {
                             y + height * (256.0f * row / 668.0f),
                             width * (tile_w / 1002.0f), height * (tile_h / 668.0f),
                             0.0f, tile_w / 256.0f, 0.0f, tile_h / 256.0f, COLOR32_WHITE);
+        }
+    }
+    UI_WriteExploredTerrain(wc, x, y, width, height);
+    UI_WriteLandmarks(wc, x, y, width, height);
+    UI_WriteSimpleButton(x + PW(8), y + height + PH(6), PW(100), PH(22), "Landmarks", "worldmap places");
+    UI_WriteSimpleButton(x + PW(112), y + height + PH(6), PW(115), PH(22),
+                         wc->worldmap_landmarks_visible ? "Hide landmarks" : "Show landmarks", "worldmap landmarks");
+    /* Only instantiated locations on this loaded map can become quest pins. */
+    uint32_t pin_count = 0;
+    for (uint32_t n = 0; n < (uint32_t)globals.num_edicts && pin_count < 64; ++n) {
+        edict_t *location = &wow_edicts[n];
+        if (!location->inuse) continue;
+        wowEntityLocal_t *local = Wow_EntityLocal(location);
+        if (!local) continue;
+        for (uint32_t q = 0; q < wc->quest_count; ++q) {
+            svQuestEntry_t const *state = &wc->quest_log[q];
+            bool match = false;
+            if (!wc->quest_tracked[q]) continue;
+            if (state->status == SV_QUEST_ACTIVE && local->go_type == WOW_QUEST_OBJECTIVE_ANCHOR)
+                match = local->go_entry == state->quest_id;
+            else if (state->status == SV_QUEST_COMPLETE && (location->s.flags & EF_HAS_QUEST)) {
+                uint32_t group = Wow_QuestGiverGroup(local->quest_id, &local->home);
+                if (group == WOW_QUEST_GIVER_GROUP_NONE) match = local->quest_id == state->quest_id;
+                else for (uint32_t k = 0; k < Wow_QuestGiverGroupCount(group); ++k)
+                    if (Wow_QuestGiverInGroup(group, k)->quest_id == state->quest_id) { match = true; break; }
+            }
+            if (!match) continue;
+            float pu = (location->s.origin.y - wc->worldmap_left) / (wc->worldmap_right - wc->worldmap_left);
+            float pv = (location->s.origin.x - wc->worldmap_top) / (wc->worldmap_bottom - wc->worldmap_top);
+            if (pu >= 0 && pu <= 1 && pv >= 0 && pv <= 1) {
+                UI_WriteColorRect(x + width * pu - PW(4), y + height * pv - PH(4), PW(8), PH(8),
+                                  MAKE(color32_t, 255, 215, 40, 255));
+                ++pin_count;
+            }
+            break;
         }
     }
     float u = (ent->s.origin.y - wc->worldmap_left) / (wc->worldmap_right - wc->worldmap_left);
@@ -1071,6 +1349,35 @@ void UI_WriteWowHud(edict_t *ent) {
 
     UI_WriteStart(LAYER_CONSOLE);
 
+    /* The server owns the tracker and sends the same objective counts as the journal. */
+    {
+        float y = PY(287);
+        uint32_t shown = 0;
+        for (uint32_t i = 0; i < wc->quest_count && shown < 5; ++i) {
+            wowQuestDetail_t const *detail;
+            svQuestEntry_t const *state = &wc->quest_log[i];
+            char line[192];
+            if (!wc->quest_tracked[i]) continue;
+            detail = Wow_QuestDetail(state->quest_id);
+            snprintf(line, sizeof(line), "%s%s", detail ? detail->title : "Unknown Quest",
+                     state->status == SV_QUEST_COMPLETE ? " (Complete)" : "");
+            UI_WriteTextFrame(PX(790), y, PW(220), PH(18), line,
+                              MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+            y += PH(18);
+            if (detail && state->status != SV_QUEST_COMPLETE) {
+                for (uint32_t j = 0; j < detail->kill_objective_count; ++j) {
+                    cstring_t name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
+                    snprintf(line, sizeof(line), "%s: %u/%u", name ? name : "Creature",
+                             (unsigned)wc->kill_progress[i][j],
+                             (unsigned)detail->kill_objectives[j].required_count);
+                    UI_WriteTextFrame(PX(800), y, PW(210), PH(18), line, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+                    y += PH(18);
+                }
+            }
+            ++shown;
+        }
+    }
+
     /* Character/targeting frame (portrait area top-left) */
     UI_WriteTargetingFrame(ent);
 
@@ -1110,6 +1417,11 @@ void UI_WriteWowHud(edict_t *ent) {
     UI_WriteClickRegion(PX(834), PY(156), PW(72), PH(44), "quest");
     UI_WriteClickRegion(PX(910), PY(156), PW(78), PH(44), "questlog");
 
+    UI_WriteSimpleButton(PX(840), PY(200), PW(115), PH(24), "Spellbook", "spellbook");
+    UI_WriteSimpleButton(PX(840), PY(228), PW(115), PH(24), "Flight paths (T)", "taxi");
+
+    UI_WriteSimpleButton(PX(840), PY(256), PW(115), PH(24), "First Aid", "crafting");
+
     /* Copper display */
     snprintf(copper_buf, sizeof(copper_buf), "Copper %d", (int)ps->stats[WOW_STAT_COPPER]);
     UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20), copper_buf, MAKE(color32_t, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
@@ -1120,10 +1432,47 @@ void UI_WriteWowHud(edict_t *ent) {
      * bytes the client parses as a new message id and discards. */
     UI_WriteLootWindow(ent);
     UI_WriteBackpackWindow(ent);
+    UI_WriteSpellbook(ent);
+    UI_WriteCrafting(ent);
+    UI_WriteEnd();
+    UI_WriteStart(LAYER_GAME_3);
+    UI_WriteMerchantWindow(ent);
+    UI_WriteBankWindow(ent);
     UI_WriteEnd();
     UI_WriteWowMessageQueue(ent);
     UI_WriteQuestDialog(ent);
     UI_WriteQuestLog(ent);
     gi.unicast(ent);
     UI_WriteWowActionBar(ent);
+}
+
+/* Taxi destinations and commands are authored by the game and revalidated on selection. */
+void UI_WriteTaxi(edict_t *ent) {
+    wowClient_t *c; size_t i; unsigned shown=0, eligible=0; bool has_next=false;
+    if (!ent || !ent->client) return;
+    c=(wowClient_t *)ent->client;
+    UI_WriteStart(LAYER_GAME_2);
+    if (c->taxi_open) {
+        UI_WriteTextFrame(PX(300),PY(100),PW(424),PH(24),"Flight paths",COLOR32_WHITE,FONT_JUSTIFYCENTER);
+        for(i=0;i<wow_taxi_graph.node_count;i++) {
+            wowTaxiNode_t const *node=&wow_taxi_graph.nodes[i]; wowTaxiRoute_t route;
+            char text[192], cmd[48];
+            if(node->id / 8>=sizeof(c->taxi_known) || node->id==c->taxi_source || !(c->taxi_known[node->id / 8] & (1u << (node->id % 8))) ||
+               !WowTaxi_Route(&wow_taxi_graph,c->taxi_source,node->id,c->taxi_known,sizeof(c->taxi_known),&route)) continue;
+            if (eligible++ < c->taxi_page * 12) continue;
+            if (shown == 12) { has_next=true; break; }
+            snprintf(text,sizeof(text),"%s (%llu copper)",node->name,(unsigned long long)route.price);
+            snprintf(cmd,sizeof(cmd),"taxi %u",node->id);
+            UI_WriteSimpleButton(PX(300),PY(132+shown*28),PW(424),PH(24),text,cmd);
+            shown++;
+        }
+        if(!shown) UI_WriteTextFrame(PX(300),PY(140),PW(424),PH(24),
+            c->taxi_source ? "Discover more flight paths to travel." : "Stand near a flight path to discover it.",
+            COLOR32_WHITE,FONT_JUSTIFYCENTER);
+        if (c->taxi_page) UI_WriteSimpleButton(PX(300),PY(485),PW(100),PH(24),"Previous","taxi previous");
+        if (has_next) UI_WriteSimpleButton(PX(624),PY(485),PW(100),PH(24),"Next","taxi next");
+        UI_WriteSimpleButton(PX(450),PY(485),PW(124),PH(24),"Close","taxi close");
+    }
+    UI_WriteEnd();
+    gi.unicast(ent);
 }

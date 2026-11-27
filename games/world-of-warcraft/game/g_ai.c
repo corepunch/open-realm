@@ -95,7 +95,9 @@ void Wow_ApplyDamage(edict_t *target, edict_t *attacker, uint32_t damage) {
     if (!target || damage == 0) return;
     target_local = Wow_EntityLocal(target);
     if (!target_local || target_local->dead || target_local->health == 0 || target_local->godmode) return;
+    if (target->client && ((wowClient_t *)target->client)->taxi_flying) return;
 
+    target_local->bandage_ticks = 0; /* damage interrupts First Aid */
     actual = MIN(damage, target_local->health);
     /* Push damage flash events to player client (entity 0). */
     if (Wow_EntityIndex(target) < MAX_CLIENTS) {
@@ -144,6 +146,10 @@ bool Wow_EntityAffectingCombat(edict_t *ent) {
         return false;
     }
     target_local = Wow_EntityLocal(target);
+    if (target->client && ((wowClient_t *)target->client)->taxi_flying) {
+        local->enemy = NULL;
+        return false;
+    }
     if (local->dead || (local->health == 0) ||
         (target_local && (target_local->dead || target_local->health == 0))) {
         local->enemy = NULL;

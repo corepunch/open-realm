@@ -113,6 +113,7 @@ typedef struct {
 
     /* Full-screen pre-rendered movie playback. Returns false when unsupported or unavailable. */
     bool (*PlayMovie)(cstring_t path);
+    void (*SavePath)(cstring_t rel, string_t out, uint32_t out_size); /* Resolve a game-owned save below the user save directory. */
 } menuImport_t;
 
 /* Function table exported by the menu library to the client. */

@@ -15,6 +15,7 @@ WOW_INSTALL_MPQS     := base.MPQ dbc.MPQ fonts.MPQ interface.MPQ misc.MPQ model.
 WOW_GENERATED_SRCS := \
 	$(WOW_GENERATED_DIR)/g_playercreateinfo.c \
 	$(WOW_GENERATED_DIR)/g_creatures.c \
+	$(WOW_GENERATED_DIR)/g_vendor_spawns.c \
 	$(WOW_GENERATED_DIR)/g_quests.c \
 	$(WOW_GENERATED_DIR)/g_weapons.c \
 	$(WOW_GENERATED_DIR)/g_areatrigger_teleport.c
@@ -105,6 +106,9 @@ $(BIN_DIR)/m2tool$(EXE_EXT): tools/m2tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COM
 
 # Generated serverdata — pattern rule covers all tables; quests gets an extra dep
 $(WOW_GENERATED_DIR)/g_quests.c: $(WOW_DIR)/serverdata/quest_spawns.csv
+$(WOW_GENERATED_DIR)/g_vendor_spawns.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/creature_spawns.csv $(WOW_DIR)/serverdata/creatures.csv
+	@mkdir -p $(@D)
+	@python3 $(WOW_GENERATOR) --only vendor_spawns --output-dir $(WOW_GENERATED_DIR)
 
 $(WOW_GENERATED_DIR)/g_%.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/%.csv
 	@mkdir -p $(@D)
@@ -149,10 +153,13 @@ WOW_WMO_TEST_DATA_DIR := $(TESTS_DIR)/wow-wmo-data
 WOW_WMO_TEST_MPQ    := $(TESTS_DIR)/test-wow-wmo.mpq
 WOW_WMO_TEST_CFLAGS := $(WOW_TEST_CFLAGS) -DTEST_WOW_WMO_MPQ=\"$(WOW_WMO_TEST_MPQ)\"
 
+# Standalone gameplay suites use the same gameplay features as the unity build.
+WOW_FEATURE_SRCS := $(filter-out $(addprefix $(WOW_DIR)/game/,g_model.c g_ui.c),$(wildcard $(WOW_DIR)/game/*.c))
+
 $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_appearance.c $(WOW_DIR)/renderer/m2/r_dbc.c common/msg.c common/net.c $(call CSRC,shared),-lm $(NET_LIBS),))
-$(eval $(call test_schema,test-wow-abilities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-game,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_ui.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-entities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-abilities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_FEATURE_SRCS) $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-game,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_TEST_DIR)/test_wow_taxi.c $(WOW_TEST_DIR)/test_wow_exploration.c $(WOW_FEATURE_SRCS) $(WOW_DIR)/game/g_ui.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-entities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_FEATURE_SRCS) $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-menu,$(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,,test-wow-assets))
 $(eval $(call test_schema,test-wow-wmo,,$(WOW_WMO_TEST_CFLAGS),$(BIN_DIR)/test_wow_wmo$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_wmo.c $(call CSRC,shared),-lm,,test-wow-wmo-assets))
 $(eval $(call test_schema,test-wow-hud-xml,$(LUA_LIB),$(WOW_MENU_TEST_CFLAGS),$(BIN_DIR)/test_wow_hud_xml$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_hud_xml.c $(WOW_DIR)/menu/menu_main.c $(WOW_DIR)/menu/menu_lua.c $(WOW_DIR)/menu/menu_dbc.c $(WOW_DIR)/menu/menu_loading.c $(WOW_DIR)/menu/menu_xml.c common/mpq.c,-lshared -llua -lm -lz,,test-wow-assets))

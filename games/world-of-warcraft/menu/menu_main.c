@@ -1,3 +1,4 @@
+#include "menu_dbc.h"
 /*
  * menu_main.c — WoW UI library entry point and lifecycle management.
  *
@@ -217,6 +218,7 @@ static void UIWow_Init(void) {
 }
 
 static void UIWow_Shutdown(void) {
+    UIWow_ResetCharacterList();
     UIWow_ShutdownLua();
     if (wow_ui.renderer) {
         FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {

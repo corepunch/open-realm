@@ -26,6 +26,7 @@ static int geometry_warnings;
 static drawText_t last_draw_text;
 static char last_draw_text_value[128];
 static char last_draw_image_name[256];
+static drawImage_t last_draw_image;
 static uint32_t draw_text_calls;
 static drawText_t captured_text[32];
 static bool test_missing_font;
@@ -79,6 +80,7 @@ static void     test_release_texture(texture_t *t) { free(t); }
 static size2_t  test_get_texture_size(texture_t const *t) { size2_t s = {0,0}; if(t){s.width=t->width;s.height=t->height;} return s; }
 static void     test_draw_image(texture_t const *t, rect_t const *s, rect_t const *u, color32_t c) { (void)t;(void)s;(void)u;(void)c; }
 static void test_draw_image_ex(drawImage_t const *i) {
+    if (i) last_draw_image = *i;
     snprintf(last_draw_image_name, sizeof(last_draw_image_name), "%s", i && i->texture ? i->texture->name : "");
 }
 static void     test_draw_fill(rect_t const *r, color32_t c) { (void)r;(void)c; }
@@ -697,4 +699,130 @@ TEST(wow_hud_xml, loading_title_draws_from_runtime_without_project_framexml) {
     UIWow_XMLClearFrames();
     SFileCloseArchive(test_archive);
     test_archive = NULL;
+}
+
+TEST(wow_hud_xml, slider_and_statusbar_ranges_and_events) {
+    static const char xml[] =
+        "<Ui><Slider name=\"SliderTemplate\" virtual=\"true\" minValue=\"10\" maxValue=\"30\" defaultValue=\"15\" valueStep=\"5\" orientation=\"VERTICAL\">"
+        "<Scripts><OnValueChanged>changes = changes + 1; lastValue = arg1</OnValueChanged></Scripts></Slider>"
+        "<Slider name=\"Range\" inherits=\"SliderTemplate\"/><StatusBar name=\"Health\" minValue=\"0\" maxValue=\"100\" defaultValue=\"50\"/></Ui>";
+    int idx;
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua);
+    init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "ranges"));
+    idx = UIWow_XmlFindByName("Range"); T_ASSERT(idx >= 0);
+    T_ASSERT(wow_xml.elems[idx].vertical);
+    T_ASSERT(UIWow_RunLuaString("ranges", "changes=0; assert(Range:GetValue()==15); local a,b=Range:GetMinMaxValues(); assert(a==10 and b==30); Range:SetValue(23); assert(Range:GetValue()==25 and changes==1 and lastValue==25); Range:SetValue(24); assert(changes==1); Range:SetMinMaxValues(0,20); assert(Range:GetValue()==20 and changes==2); assert(Health:GetValue()==50); Health:SetValue(120); assert(Health:GetValue()==100)"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, event_registration_dispatch_and_mutation) {
+    static const char xml[] = "<Ui><Frame name=\"First\"><Scripts><OnEvent>assert(this == First and event == 'TEST' and arg1 == 42 and arg2 == nil); calls = calls .. 'A'; Second:UnregisterEvent('TEST'); Third:RegisterEvent('TEST')</OnEvent></Scripts></Frame><Frame name=\"Second\"><Scripts><OnEvent>calls = calls .. 'B'</OnEvent></Scripts></Frame><Frame name=\"Third\"><Scripts><OnEvent>calls = calls .. 'C'</OnEvent></Scripts></Frame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "events"));
+    T_ASSERT(UIWow_RunLuaString("register", "calls=''; arg1='old'; event='old event'; this='old this'; First:RegisterEvent('TEST'); First:RegisterEvent('TEST'); Second:RegisterEvent('TEST'); assert(First:IsEventRegistered('TEST'))"));
+    lua_pushinteger(wow_ui.lua, 42); UIWow_XMLDispatchEvent("TEST", 1); lua_pop(wow_ui.lua, 1);
+    T_ASSERT(UIWow_RunLuaString("first", "assert(calls=='A' and arg1=='old' and event=='old event' and this=='old this' and not Second:IsEventRegistered('TEST'))"));
+    lua_pushinteger(wow_ui.lua, 42); UIWow_XMLDispatchEvent("TEST", 1); lua_pop(wow_ui.lua, 1);
+    T_ASSERT(UIWow_RunLuaString("second", "assert(calls=='AAC'); First:UnregisterAllEvents(); Third:UnregisterAllEvents(); assert(not First:IsEventRegistered('TEST'))"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, slider_input_and_statusbar_draw) {
+    static const char xml[] = "<Ui><Slider name=\"Track\" minValue=\"0\" maxValue=\"100\" valueStep=\"10\"><Size><AbsDimension x=\"512\" y=\"48\"/></Size><ThumbTexture file=\"thumb.blp\"><Size><AbsDimension x=\"32\" y=\"32\"/></Size></ThumbTexture></Slider><StatusBar name=\"Bar\" minValue=\"0\" maxValue=\"100\" defaultValue=\"50\"><Size><AbsDimension x=\"512\" y=\"48\"/></Size><BarTexture file=\"bar.blp\"/></StatusBar></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "draw ranges"));
+    T_ASSERT(UIWow_XMLDrawFrame("Bar")); T_STREQ(last_draw_image_name, "bar.blp");
+    T_FEQ(last_draw_image.screen.w, 0.25f, 0.001f); T_FEQ(last_draw_image.uv.w, 0.5f, 0.001f);
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 256, 24, 1));
+    T_ASSERT(UIWow_RunLuaString("slider", "assert(Track:GetValue()==50)"));
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_MOVE, 512, 24, 0));
+    T_ASSERT(UIWow_RunLuaString("drag", "assert(Track:GetValue()==100)"));
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 512, 24, 1));
+    T_ASSERT(UIWow_XMLDrawFrame("Track")); T_STREQ(last_draw_image_name, "thumb.blp");
+    T_FEQ(last_draw_image.screen.x, 0.46875f, 0.001f);
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, checkbutton_toggles_without_script_and_respects_disable) {
+    static const char xml[] = "<Ui><CheckButton name=\"Check\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size><NormalTexture file=\"off.blp\"/><CheckedTexture file=\"on.blp\"/></CheckButton></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "check"));
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 20, 20, 1)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 20, 20, 1));
+    T_ASSERT(UIWow_RunLuaString("checked", "assert(Check:GetChecked()); Check:Disable(); Check:Click(); assert(Check:GetChecked()); Check:Enable(); Check:Click(); assert(not Check:GetChecked())"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, scroll_child_horizontal_range_and_clipping) {
+    static const char xml[] = "<Ui><ScrollFrame name=\"View\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size></ScrollFrame><Frame name=\"Content\"><Size><AbsDimension x=\"512\" y=\"384\"/></Size><Layers><Layer><Texture name=\"Pic\" file=\"pic.blp\"><Size><AbsDimension x=\"512\" y=\"384\"/></Size></Texture></Layer></Layers></Frame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "scroll"));
+    T_ASSERT(UIWow_RunLuaString("scroll", "View:SetScrollChild(Content); assert(View:GetScrollChild()==Content); assert(View:GetHorizontalScrollRange()==256 and View:GetVerticalScrollRange()==192); View:SetHorizontalScroll(128); View:SetVerticalScroll(96); assert(View:GetHorizontalScroll()==128 and View:GetVerticalScroll()==96)"));
+    T_ASSERT(UIWow_XMLDrawFrame("View")); T_STREQ(last_draw_image_name, "pic.blp");
+    T_FEQ(last_draw_image.screen.x, -0.125f, 0.001f); T_FEQ(last_draw_image.screen.y, -0.125f, 0.001f);
+    T_ASSERT(last_draw_image.flags & DRAW_CLIP); T_FEQ(last_draw_image.clip.w, 0.25f, 0.001f); T_FEQ(last_draw_image.clip.h, 0.25f, 0.001f);
+    T_ASSERT(UIWow_RunLuaString("unassign", "View:SetScrollChild(nil); assert(View:GetScrollChild()==nil and View:GetHorizontalScrollRange()==0 and View:GetHorizontalScroll()==0)"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, create_frames_and_regions_from_lua) {
+    static const char xml[] = "<Ui><Frame name=\"BaseTemplate\" virtual=\"true\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size></Frame><Frame name=\"Root\"/></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "create"));
+    T_ASSERT(UIWow_RunLuaString("create", "local f=CreateFrame('Frame','Created',Root,'BaseTemplate'); assert(f==Created and f:GetParent()==Root and f:GetWidth()==64 and f:IsShown()); local t=f:CreateTexture('CreatedArt','ARTWORK'); t:SetTexture('created.blp'); t:SetAllPoints(); local label=f:CreateFontString('CreatedLabel','OVERLAY'); label:SetText('Hello'); assert(not pcall(CreateFrame,'Frame','Created',Root)); local anon=CreateFrame('Button',nil,Root); assert(anon:IsShown())"));
+    T_ASSERT(UIWow_XMLDrawFrame("Created")); T_STREQ(last_draw_image_name, "created.blp");
+    T_FEQ(last_draw_image.screen.w, 0.0625f, 0.001f);
+    T_ASSERT(UIWow_RunLuaString("hide parent", "Root:Hide()")); T_ASSERT(!UIWow_XMLIsVisible(UIWow_XmlFindByName("CreatedArt")));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, scrolled_child_hit_uses_viewport_clip) {
+    static const char xml[] = "<Ui><ScrollFrame name=\"View\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size><ScrollChild><Frame name=\"Content\"><Size><AbsDimension x=\"512\" y=\"384\"/></Size><Frames><Button name=\"B\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size><Anchors><Anchor point=\"TOPLEFT\"><Offset><AbsDimension x=\"128\" y=\"-96\"/></Offset></Anchor></Anchors><Scripts><OnClick>clicked=(clicked or 0)+1</OnClick></Scripts></Button></Frames></Frame></ScrollChild></ScrollFrame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "hit scroll"));
+    T_ASSERT(UIWow_RunLuaString("offset", "View:SetHorizontalScroll(128); View:SetVerticalScroll(96)"));
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 20, 20, 1)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 20, 20, 1));
+    T_ASSERT(UIWow_RunLuaString("clicked", "assert(clicked==1)"));
+    T_ASSERT(!UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 300, 20, 1));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, horizontal_scrollbar_thumb_drag) {
+    static const char xml[] = "<Ui><ScrollFrame name=\"View\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size><ScrollChild><Frame name=\"Content\"><Size><AbsDimension x=\"512\" y=\"192\"/></Size></Frame></ScrollChild><Frames><Slider name=\"Track\" orientation=\"HORIZONTAL\"><Size><AbsDimension x=\"256\" y=\"24\"/></Size><ThumbTexture name=\"TrackThumbTexture\" file=\"thumb.blp\"><Size><AbsDimension x=\"32\" y=\"24\"/></Size></ThumbTexture></Slider></Frames></ScrollFrame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "drag"));
+    T_ASSERT(UIWow_RunLuaString("range", "assert(View:GetHorizontalScrollRange()==256)"));
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 10, 10, 1)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_MOVE, 234, 10, 0)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 234, 10, 1));
+    T_ASSERT(UIWow_RunLuaString("dragged", "assert(View:GetHorizontalScroll()==256)"));
+    T_ASSERT(UIWow_XMLDrawFrame("View")); T_FEQ(last_draw_image.screen.x, 224.0f/1024.0f, 0.001f);
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 234, 10, 1)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_MOVE, 10, 10, 0)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 10, 10, 1));
+    T_ASSERT(UIWow_RunLuaString("back", "assert(View:GetHorizontalScroll()==0)"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, nested_scroll_clips_draw_and_input) {
+    static const char xml[] = "<Ui><ScrollFrame name=\"Outer\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size><ScrollChild><Frame name=\"OuterContent\"><Size><AbsDimension x=\"512\" y=\"384\"/></Size><Frames><ScrollFrame name=\"Inner\"><Size><AbsDimension x=\"128\" y=\"96\"/></Size><Anchors><Anchor point=\"TOPLEFT\"><Offset><AbsDimension x=\"128\" y=\"-96\"/></Offset></Anchor></Anchors><ScrollChild><Frame name=\"InnerContent\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size><Frames><Button name=\"NestedButton\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size><NormalTexture file=\"nested.blp\"/><Scripts><OnClick>hits=(hits or 0)+1</OnClick></Scripts></Button></Frames></Frame></ScrollChild></ScrollFrame></Frames></Frame></ScrollChild></ScrollFrame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "nested"));
+    T_ASSERT(UIWow_RunLuaString("scroll", "Outer:SetHorizontalScroll(128); Outer:SetVerticalScroll(96)"));
+    T_ASSERT(UIWow_XMLDrawFrame("Outer")); T_STREQ(last_draw_image_name, "nested.blp");
+    T_ASSERT(last_draw_image.flags & DRAW_CLIP); T_FEQ(last_draw_image.clip.x, 0, 0.001f); T_FEQ(last_draw_image.clip.y, 0, 0.001f); T_FEQ(last_draw_image.clip.w, 0.125f, 0.001f);
+    T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 20, 20, 1)); T_ASSERT(UIWow_XMLMouseEvent(MENU_MOUSE_UP, 20, 20, 1)); T_ASSERT(UIWow_RunLuaString("hit", "assert(hits==1)"));
+    T_ASSERT(!UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, 200, 20, 1));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, anonymous_template_callback_children_and_stale_handles) {
+    static const char xml[] = "<Ui><Frame name=\"Tmpl\" virtual=\"true\"><Size><AbsDimension x=\"64\" y=\"48\"/></Size><Scripts><OnLoad>createdThis=this</OnLoad></Scripts><Layers><Layer><Texture name=\"$parentArt\" file=\"inherited.blp\"><Size><AbsDimension x=\"32\" y=\"24\"/></Size></Texture></Layer></Layers></Frame></Ui>";
+    reset_state(); wow_ui.lua = luaL_newstate(); luaL_openlibs(wow_ui.lua); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml)-1, "anonymous"));
+    T_ASSERT(UIWow_RunLuaString("create", "f=CreateFrame('Frame',nil,nil,'Tmpl'); assert(createdThis==f); local r=f:CreateTexture(); assert(r:GetParent()==f); s=CreateFrame('ScrollFrame'); s:SetScrollChild(f); assert(s:GetScrollChild()==f)"));
+    int idx = wow_xml.count - 3; /* anonymous parent precedes its cloned texture, region and scrollframe */
+    T_ASSERT(idx >= 0);
+    bool child_found = false;
+    for (int i = 0; i < wow_xml.count; i++) if (wow_xml.elems[i].parent >= 0 && wow_xml.elems[i].texts[ELEM_FILE] && !strcmp(wow_xml.elems[i].texts[ELEM_FILE], "inherited.blp") && !(wow_xml.elems[i].flags & EF_VIRTUAL)) child_found = true;
+    T_ASSERT(child_found);
+    UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_RunLuaString("stale", "local replacement=CreateFrame('Frame'); assert(not f:IsShown()); assert(not pcall(CreateFrame,'Frame',nil,f)); assert(replacement:IsShown())"));
+    UIWow_XMLClearFrames(); lua_close(wow_ui.lua); wow_ui.lua = NULL;
 }

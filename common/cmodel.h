@@ -143,6 +143,7 @@ box2_t CM_GetWorldBounds(void);
  * CM_LoadMap; null until a WoW map is loaded.  Callers must not free. */
 #ifdef WOW
 uint32_t CM_WowGetMapId(void);
+uint32_t CM_WowAreaAtPoint(float sx, float sy);
 uint32_t CM_WowGetAllSpawnCount(void);
 vec3_t const *CM_WowGetSpawnPos(uint32_t index);
 cstring_t CM_WowGetSpawnName(uint32_t index);

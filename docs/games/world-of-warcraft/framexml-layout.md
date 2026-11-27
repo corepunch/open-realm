@@ -88,3 +88,30 @@ Focused EditBoxes send `OnTextChanged` for edits. The classic `arg1` flag distin
 FontStrings inherit normal or thick outlines from their font objects. The outline follows the text alpha and scroll clipping. Lua can read and set the outline through `GetFont` and `SetFont`.
 
 Scripts can install a reporter with `seterrorhandler` and retrieve it with `geterrorhandler`. Syntax and callback errors reach the reporter. A failure inside the reporter goes directly to the engine console.
+
+Slider and StatusBar nodes retain their authored `minValue`, `maxValue`,
+`defaultValue`, `valueStep`, and `orientation` through template inheritance.
+Their Lua range/value methods clamp values, and slider steps round to the
+nearest step from the minimum. A changed value dispatches `OnValueChanged`
+with the value in `arg1`. Slider tracks accept mouse clicks and dragging;
+ThumbTexture follows the value, while BarTexture is cropped to the filled
+fraction. ScrollFrame scrollbar parts retain their existing scroll handling.
+
+Frames can register up to 16 named events with `RegisterEvent`,
+`UnregisterEvent`, `UnregisterAllEvents`, and `IsEventRegistered`. Dispatch
+snapshots recipients, honors unregistration during a callback, and preserves
+nested `this`, `event`, and `arg1` through `arg9` contexts. Recursion is bounded
+to 16 levels. The local character-list refresh emits `CHARACTER_LIST_UPDATE`;
+additional game events require explicit producers.
+
+ScrollFrame supports assigning and retrieving a scroll child and querying or
+setting horizontal and vertical offsets in UI units. Ranges are recomputed
+from content bounds and clamp offsets when content changes. Drawn descendants
+accumulate offsets and intersect nested viewport clips. Scrollbar thumbs use
+their track orientation for dragging. Input hit testing applies the same nested viewport offsets and clips.
+
+Lua `CreateFrame` creates supported frame types with optional named parent and
+inheritance; frames can create texture and font-string regions. Named objects
+are published as globals, duplicate names and invalid parents are rejected,
+and stale Lua frame handles cannot address newly reused element slots. Runtime
+creation remains subject to the shared FrameXML element limit.

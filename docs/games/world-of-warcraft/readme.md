@@ -1,40 +1,24 @@
 # World of Warcraft
 
-This is an alternate game target built on the same engine/runtime boundary as the Warcraft III path. It is not trying to be a complete MMO. Right now it is a focused proving ground for loading World of Warcraft client data, rendering large outdoor terrain, and exercising the selected-game module split.
+The `openwow` executable loads a WoW-specific game, menu and renderer. It uses the player's installed Classic archives for terrain, models, interface artwork and client databases. The game module owns character progression, NPC interactions and travel.
 
-The code here owns WoW-specific game stubs, M2 model handling, WDT/ADT terrain rendering hooks, and a small loading-screen UI.
+## Playing the current build
 
-## Status
+| Input | Use |
+| --- | --- |
+| **M** | Browse the current zone, explore subzones and locate landmarks or tracked objectives. [World map](world-map.md) |
+| **L** | Inspect, track or abandon a quest. Return to the giver to claim eligible rewards. [Quest journal](quest-ui.md) |
+| **B** | Inspect the backpack, move or split stacks, and use consumables. [Backpack](backpack.md) |
+| **P** | Read spell details, cast a spell and assign it to an action button. [Spellbook](spellbook.md) |
+| **T** | Discover the nearby flight point or buy a route through previously discovered stops. [Flight paths](taxi.md) |
+| **First Aid** | Craft bandages from looted linen and use them from the backpack. [Crafting](crafting.md) |
+| **Interact with an NPC** | Buy or sell provisions, recover recently sold stacks, and deposit or withdraw items at eligible NPCs. [Merchants](merchants.md) · [Bank](bank.md) |
 
-Exploratory renderer and world-loading target.
+Named characters retain progress through the character-selection and game save paths. [Character progress](character-progress.md)
 
-The `openwow` build is useful for testing terrain/model asset loading and renderer architecture. It is not a playable World of Warcraft implementation. Think of it as a technical campsite: enough structure to explore the world data, not a finished town.
+## Engine and data coverage
 
-## Working
-
-- Separate `openwow` executable and game/renderer/UI libraries.
-- WDT map entry path through the selected game module.
-- ADT-oriented terrain renderer code for map tiles, splats, alpha layers, terrain state, and object paths.
-- M2 model loading/rendering path, including fallback handling for missing models.
-- Basic creature/entity scaffolding and model registration paths.
-- Loading-screen UI with WoW textures, fonts, loading title/status text, and progress display.
-- DBC helpers for selected loading-screen and map metadata lookup.
-- Build integration through `make openwow`.
-
-## Partial
-
-- Terrain rendering is the core focus; object placement, animation polish, lighting, and exact client parity are incomplete.
-- Entity simulation exists only as lightweight scaffolding compared with the Warcraft III game target.
-- Loading screens are functional but intentionally narrow.
-- Data compatibility is tied to the locally available WoW client data layout used during development.
-
-## Not There Yet
-
-- MMO gameplay, combat, quests, spells, inventory, persistence, networking, or server world rules.
-- Full DBC/DB2 coverage.
-- Full UI implementation beyond the loading-screen style shell.
-- Complete WMO, doodad, creature, particle, and animation fidelity.
-- Production support for arbitrary WoW client versions.
+The renderer loads WDT and ADT terrain, M2 models and WMO geometry. The menu runs a subset of the installed FrameXML. Gameplay uses the supported Classic DBC layouts and a bounded selection of creature, quest, item and spell data. Imported service-NPC positions currently cover map 0. Cross-map flights and a general profession or trainer system remain open.
 
 ## Build And Run
 
