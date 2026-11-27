@@ -87,6 +87,51 @@ static int UIWow_LuaFrameHide(lua_State *L) {
 static int UIWow_LuaFrameIsVisible(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && !(wow_xml.elems[i].flags & EF_HIDDEN)); return 1; }
 static int UIWow_LuaFrameSetAlpha(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].alpha = (float)luaL_optnumber(L, 2, 1.0); return 0; }
 static int UIWow_LuaFrameSetText(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_TEXT, luaL_optstring(L, 2, "")); return 0; }
+static int UIWow_LuaFrameSetFont(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    cstring_t name = luaL_checkstring(L, 2);
+    float size = (float)luaL_checknumber(L, 3);
+    if (i < 0 || !name[0] || !(size >= 1.0f && size <= 512.0f)) {
+        lua_pushboolean(L, false);
+        return 1;
+    }
+    UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_FONT_FILE, name);
+    wow_xml.elems[i].font_size = size;
+    wow_xml.elems[i].flags |= EF_HAS_FONT_SIZE;
+    wow_xml.elems[i].measured = MAKE(fsize_t, 0, 0);
+    lua_pushboolean(L, true);
+    return 1;
+}
+
+static int UIWow_LuaFrameGetFont(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i < 0) { lua_pushnil(L); return 1; }
+    cstring_t name = UIWow_ElemStr(&wow_xml.elems[i], ELEM_FONT_FILE);
+    lua_pushstring(L, name ? name : "Fonts\\FRIZQT__.TTF");
+    lua_pushnumber(L, wow_xml.elems[i].font_size);
+    lua_pushstring(L, "");
+    return 3;
+}
+
+static int UIWow_LuaFrameSetFontObject(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L), source = -1;
+    if (lua_istable(L, 2)) {
+        lua_getfield(L, 2, "__ow3_index");
+        source = (int)luaL_optinteger(L, -1, -1);
+        lua_pop(L, 1);
+    } else if (lua_isstring(L, 2)) {
+        source = UIWow_XmlFindByName(lua_tostring(L, 2));
+    }
+    if (i >= 0 && source >= 0 && source < wow_xml.count && i != source) {
+        uiWowXmlElem_t *e = &wow_xml.elems[i];
+        uiWowXmlElem_t const *font = &wow_xml.elems[source];
+        UIWow_ElemSetStr(e, ELEM_FONT_FILE, UIWow_ElemStr(font, ELEM_FONT_FILE));
+        e->font_size = font->font_size;
+        e->colors[ELEM_COLOR_TEXT] = font->colors[ELEM_COLOR_TEXT];
+        e->measured = MAKE(fsize_t, 0, 0);
+    }
+    return 0;
+}
 static int UIWow_LuaFrameGetText(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushstring(L, i >= 0 && wow_xml.elems[i].texts[ELEM_TEXT] ? wow_xml.elems[i].texts[ELEM_TEXT] : ""); return 1; }
 static int UIWow_LuaFrameGetName(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushstring(L, i >= 0 && wow_xml.elems[i].texts[ELEM_NAME] ? wow_xml.elems[i].texts[ELEM_NAME] : ""); return 1; }
 static int UIWow_LuaFrameGetParent(lua_State *L) {
@@ -446,6 +491,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
     static luaL_Reg const methods[] = {
         { "Show", UIWow_LuaFrameShow }, { "Hide", UIWow_LuaFrameHide }, { "IsVisible", UIWow_LuaFrameIsVisible }, { "SetAlpha", UIWow_LuaFrameSetAlpha },
         { "SetText", UIWow_LuaFrameSetText }, { "GetText", UIWow_LuaFrameGetText }, { "SetBackdropColor", UIWow_LuaFrameSetBackdropColor }, { "SetBackdropBorderColor", UIWow_LuaFrameSetBackdropBorderColor },
+        { "SetFont", UIWow_LuaFrameSetFont }, { "GetFont", UIWow_LuaFrameGetFont }, { "SetFontObject", UIWow_LuaFrameSetFontObject },
         { "GetName", UIWow_LuaFrameGetName }, { "GetParent", UIWow_LuaFrameGetParent }, { "SetID", UIWow_LuaFrameSetID },
         { "SetHeight", UIWow_LuaFrameSetHeight }, { "SetWidth", UIWow_LuaFrameSetWidth },
         { "GetHeight", UIWow_LuaFrameGetHeight }, { "GetWidth", UIWow_LuaFrameGetWidth },
@@ -590,7 +636,7 @@ bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding) {
     int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const *font; vec2_t sz;
     if (fi < 0 || ti < 0 || wow_xml.elems[ti].type != WOW_XML_FONTSTRING || !wow_ui.renderer || !wow_ui.renderer->GetTextSize)
         return false;
-    r = UIWow_XmlComputeRect(ti); font = UIWow_LoadFont((uint32_t)wow_xml.elems[ti].font_size);
+    r = UIWow_XmlComputeRect(ti); font = UIWow_LoadNamedFont(UIWow_ElemStr(&wow_xml.elems[ti], ELEM_FONT_FILE), (uint32_t)wow_xml.elems[ti].font_size);
     if (!font || r.w <= 0.0f) return false;
     sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = font, .text = UIWow_ElemStr(&wow_xml.elems[ti], ELEM_TEXT),
         .rect = r, .textWidth = r.w, .lineHeight = 1.33f, .flags = DRAW_WORD_WRAP));
@@ -1005,7 +1051,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
         if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
             (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
-            font_t const *f = UIWow_LoadFont((uint32_t)e->font_size);
+            font_t const *f = UIWow_LoadNamedFont(UIWow_ElemStr(e, ELEM_FONT_FILE), (uint32_t)e->font_size);
             /* FrameXML may leave either FontString axis to its renderer-measured natural size. */
             if (f && e->type == WOW_XML_FONTSTRING && (e->size.w == 0 || e->size.h == 0) && wow_ui.renderer->GetTextSize) {
                 cstring_t display = UIWow_XMLDisplayText(e, text, sizeof(text));

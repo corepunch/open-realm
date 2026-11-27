@@ -68,6 +68,7 @@ typedef enum {
     ELEM_PARENT_NAME,
     ELEM_RELATIVE_NAME,
     ELEM_FILE,
+    ELEM_FONT_FILE,
     ELEM_NORMAL_FILE,
     ELEM_PUSHED_FILE,
     ELEM_HIGHLIGHT_FILE,
@@ -135,6 +136,8 @@ typedef enum {
     EF_CHECKBUTTON    = 1 << 21,
     EF_LOGGED_GEOMETRY = 1 << 22,
     EF_SCROLL_CONTENT  = 1 << 23,
+    EF_HAS_FONT_SIZE   = 1 << 24,
+    EF_HAS_TEXT_COLOR  = 1 << 25,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -265,7 +268,7 @@ struct wowXmlRuntime_s wow_xml;
 static char s_current_xml_path[PATH_MAX];
 
 static const uiWowXmlStr_t uiwow_copy_str_fields[] = {
-    ELEM_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE,
+    ELEM_FILE, ELEM_FONT_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE,
     ELEM_TEXT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
     ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME
 };
@@ -371,6 +374,7 @@ static const struct {
     { "Slider",           WOW_XML_FRAME,      0 },
     { "Model",            WOW_XML_MODEL,      0 },
     { "Texture",          WOW_XML_TEXTURE,    0 },
+    { "Font",             WOW_XML_FONTSTRING, EF_VIRTUAL },
     { "FontString",       WOW_XML_FONTSTRING, 0 },
     { "Button",           WOW_XML_BUTTON,     0 },
     { "CheckButton",      WOW_XML_BUTTON,     EF_CHECKBUTTON },
@@ -399,6 +403,7 @@ static const struct {
     uint32_t           field_or_flag;
 } uiwow_shared_attrs[] = {
     { "file",          WOW_ATTR_STR_FIELD,      ELEM_FILE },
+    { "font",          WOW_ATTR_STR_FIELD,      ELEM_FONT_FILE },
     { "text",          WOW_ATTR_STR_FIELD,      ELEM_TEXT },
     { "hidden",        WOW_ATTR_BOOL_FLAG,      EF_HIDDEN },
     { "virtual",       WOW_ATTR_BOOL_FLAG,      EF_VIRTUAL },
@@ -542,11 +547,14 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, cstring_t inherits) {
         if (src->tile.w > 0.0f) e->tile = src->tile;
         if (src->flags & EF_BACKDROP_TILE) e->flags |= EF_BACKDROP_TILE;
         memcpy(e->backdrop_insets, src->backdrop_insets, sizeof(e->backdrop_insets));
-        if (src->font_size > 0.0f) e->font_size = src->font_size;
+        if (src->flags & EF_HAS_FONT_SIZE) { e->font_size = src->font_size; e->flags |= EF_HAS_FONT_SIZE; }
         if (src->text_off.x != 0.0f || src->text_off.y != 0.0f) e->text_off = src->text_off;
         if (src->flags & EF_HAS_HALIGN) { e->halign = src->halign; e->flags |= EF_HAS_HALIGN; }
         if (src->flags & EF_HAS_VALIGN) { e->valign = src->valign; e->flags |= EF_HAS_VALIGN; }
-        e->colors[ELEM_COLOR_TEXT] = src->colors[ELEM_COLOR_TEXT];
+        if (src->flags & EF_HAS_TEXT_COLOR) {
+            e->colors[ELEM_COLOR_TEXT] = src->colors[ELEM_COLOR_TEXT];
+            e->flags |= EF_HAS_TEXT_COLOR;
+        }
         if (src->flags & EF_HAS_BUTTON_TEXT_COLORS) {
             memcpy(e->button_text_colors, src->button_text_colors, sizeof(e->button_text_colors));
             e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
@@ -825,7 +833,12 @@ static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNode *node) {
         if (!xmlStrcasecmp(c->name, BAD_CAST "FontHeight")) {
             for (xmlNode *v = c->children; v; v = v->next) {
                 if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
-                xmlChar *val = xmlGetProp(v, BAD_CAST "val"); e->font_size = UIWow_XmlFloat(val, e->font_size); SAFE_DELETE(val, xmlFree);
+                xmlChar *val = xmlGetProp(v, BAD_CAST "val");
+                if (val && UIWow_XmlFloat(val, 0.0f) > 0.0f && UIWow_XmlFloat(val, 0.0f) <= 512.0f) {
+                    e->font_size = UIWow_XmlFloat(val, e->font_size);
+                    e->flags |= EF_HAS_FONT_SIZE;
+                }
+                SAFE_DELETE(val, xmlFree);
             }
         } else if (!xmlStrcasecmp(c->name, BAD_CAST "Color")) {
             xmlChar *r = xmlGetProp(c, BAD_CAST "r"), *g = xmlGetProp(c, BAD_CAST "g"),
@@ -833,6 +846,7 @@ static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNode *node) {
             e->colors[ELEM_COLOR_TEXT] = MAKE(color32_t,
                 (uint8_t)(UIWow_XmlFloat(r,1.f)*255.f), (uint8_t)(UIWow_XmlFloat(g,1.f)*255.f),
                 (uint8_t)(UIWow_XmlFloat(b,1.f)*255.f), (uint8_t)(UIWow_XmlFloat(a,1.f)*255.f));
+            e->flags |= EF_HAS_TEXT_COLOR;
             SAFE_DELETE(r,xmlFree); SAFE_DELETE(g,xmlFree); SAFE_DELETE(b,xmlFree); SAFE_DELETE(a,xmlFree);
         }
     }

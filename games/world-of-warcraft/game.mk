@@ -127,6 +127,7 @@ WOW_TEST_BINARY   := $(BIN_DIR)/openwow-tests$(EXE_EXT)
 # Camera and placement adapters are shared inline code; rebuild both sides when their contract changes.
 $(WOW_BINARY) $(WOW_TEST_BINARY) $(GAME_WOW_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(MENU_WOW_LIB): $(WOW_COMMON_HEADERS)
 $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),test_wow_appearance test_wow_game test_wow_abilities test_wow_entities)): $(WOW_COMMON_HEADERS)
+$(RENDERER_WOW_LIB) $(BIN_DIR)/test_wow_appearance$(EXE_EXT): $(WOW_DIR)/renderer/m2/r_m2_portrait.h
 
 $(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game) $(RENDERER_WOW_LIB),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c $(SERVER_GAME_SRCS),-lshared -lrenderer-wow $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(MENU_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WOW_TEST_DIR)/test_coordinates.c,openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lmenu-wow $(LIBS) -lz,$(WOW_TEST_DIR)/test_coordinates.c))

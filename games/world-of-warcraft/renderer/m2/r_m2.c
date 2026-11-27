@@ -2301,6 +2301,11 @@ float M2_HeadHeight(m2Model_t const *model) {
 /* Positive geometry minima are model-authored clearance below the first visible vertex. */
 float M2_VisibleBottom(m2Model_t const *model) { return model ? model->geometry_bounds.min.z : 0.0f; }
 
+/* The vertex bounds omit the animation padding used for world culling. */
+box3_t const *M2_GeometryBounds(m2Model_t const *model) {
+    return model ? &model->geometry_bounds : NULL;
+}
+
 bool M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
 
 void M2_Release(m2Model_t *model) {

@@ -9,6 +9,7 @@
 #include "client/tr_public.h"
 #include "renderer/m2/r_dbc.h"
 #include "renderer/m2/r_m2_utils.h"
+#include "renderer/m2/r_m2_portrait.h"
 #include "common/ui_constants.h"
 #include "common/wow_view.h"
 #include "common/wow_coords.h"
@@ -498,4 +499,40 @@ TEST(wow_renderer, source_coordinate_adapters) {
     T_FEQ(offset.x, -2, 0.0001f); T_FEQ(offset.y, -3, 0.0001f); T_FEQ(offset.z, 4, 0.0001f);
     T_FEQ(normal.x, -0.3f, 0.0001f); T_FEQ(normal.y, -0.2f, 0.0001f); T_FEQ(normal.z, 0.4f, 0.0001f);
     T_EQ(Wow_TileIndex(0), 32); T_EQ(Wow_TileIndex(0.5f), 31); T_EQ(Wow_TileIndex(-0.5f), 32);
+}
+
+TEST(wow_m2, fallback_portrait_uses_model_scale_aspect_and_head_height) {
+    box3_t bounds = { .min = {-0.5f, -0.3f, 0.0f}, .max = {0.5f, 0.3f, 2.0f} };
+    vec3_t eye, target, narrow_eye, head = {0.0f, 0.0f, 1.8f};
+    float near_clip, far_clip;
+
+    M2_FallbackPortraitCamera(&bounds, true, &head, 1.0f, 35.0f,
+                              &eye, &target, &near_clip, &far_clip);
+    T_FEQ(target.z, 1.68f, 0.001f);
+    T_ASSERT(eye.y < -0.5f && eye.y > -10.0f);
+    T_ASSERT(near_clip > 0.0f && far_clip > -eye.y);
+    M2_FallbackPortraitCamera(&bounds, true, &head, 0.5f, 35.0f,
+                              &narrow_eye, &target, &near_clip, &far_clip);
+    T_ASSERT(narrow_eye.y < eye.y);
+    M2_FallbackPortraitCamera(&bounds, true, NULL, 1.0f, 35.0f,
+                              &eye, &target, &near_clip, &far_clip);
+    T_FEQ(target.z, 1.6f, 0.001f);
+    head.z = 20.0f;
+    M2_FallbackPortraitCamera(&bounds, true, &head, 1.0f, 35.0f,
+                              &eye, &target, &near_clip, &far_clip);
+    T_FEQ(target.z, 1.6f, 0.001f);
+    M2_FallbackPortraitCamera(&bounds, false, NULL, 1.0f, 35.0f,
+                              &eye, &target, &near_clip, &far_clip);
+    T_FEQ(target.z, 1.0f, 0.001f);
+    T_ASSERT(eye.y < -3.0f);
+}
+
+TEST(wow_m2, fallback_portrait_handles_degenerate_geometry) {
+    box3_t bounds = {0};
+    vec3_t eye, target;
+    float near_clip, far_clip;
+    M2_FallbackPortraitCamera(&bounds, false, NULL, 1.0f, 35.0f,
+                              &eye, &target, &near_clip, &far_clip);
+    T_FEQ(target.z, 0.0f, 0.001f);
+    T_ASSERT(eye.y < 0.0f && near_clip > 0.0f && far_clip > near_clip);
 }

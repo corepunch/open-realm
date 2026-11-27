@@ -5,6 +5,7 @@
 #include "common/wow_view.h"
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
+#include "m2/r_m2_portrait.h"
 
 void Wow_RegisterMap(cstring_t mapFileName);
 void Wow_DrawWorld(void);
@@ -29,6 +30,7 @@ bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, 
 float M2_GroundOffset(m2Model_t const *model);
 float M2_HeadHeight(m2Model_t const *model);
 float M2_VisibleBottom(m2Model_t const *model);
+box3_t const *M2_GeometryBounds(m2Model_t const *model);
 bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vec3_t *eye, vec3_t *target, float *fov_degrees, float *znear, float *zfar);
 bool M2_IsCharacterModel(m2Model_t const *model);
 bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity);
@@ -501,7 +503,6 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     box3_t const *bounds;
     mat4_t transform;
-    vec3_t center;
     vec3_t eye;
     vec3_t target;
     vec3_t dir;
@@ -509,7 +510,6 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     vec3_t model_origin;
     vec3_t model_z;
     float radius;
-    float distance;
     float fov = 35.0f;
     float znear = 1.0f;
     float zfar = 4000.0f;
@@ -519,34 +519,27 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     }
 
     m2Model_t const *m2 = entity->model->m2;
-    bounds = &m2->bounds;
+    bounds = M2_GeometryBounds(m2);
+    if (!bounds) return false;
     R_GetEntityMatrix(entity, &transform);
 
-    center = (vec3_t){
-        (bounds->max.x + bounds->min.x) * 0.5f,
-        (bounds->max.y + bounds->min.y) * 0.5f,
-        (bounds->max.z + bounds->min.z) * 0.5f
-    };
     radius = Vector3_len(&(vec3_t){
         bounds->max.x - bounds->min.x,
         bounds->max.y - bounds->min.y,
         bounds->max.z - bounds->min.z
     }) * 0.5f;
-    if (radius < 1.0f) {
-        radius = 32.0f;
-    }
+    if (!isfinite(radius) || radius < 0.001f) radius = 1.0f;
 
-    if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
-        distance = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
-        if (M2_IsCharacterModel(m2)) {
-            target = (vec3_t){ center.x, center.y, center.z + radius * 0.28f };
-            eye = (vec3_t){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
-            znear = MAX(0.1f, distance * 0.02f);
-        } else {
-            eye = (vec3_t){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
-            target = center;
-        }
-        zfar = MAX(zfar, distance + radius * 4.0f);
+    if (!M2_CameraView(m2, entity->camera_index, &eye, &target, &fov, &znear, &zfar)) {
+        bool character = M2_IsCharacterModel(m2);
+        mat4_t identity;
+        vec3_t head;
+        vec3_t const *head_position = NULL;
+        Matrix4_identity(&identity);
+        if (character && M2_EntityAttachmentPosition(m2, entity, M2_ATTACH_HELM, &identity, &head))
+            head_position = &head;
+        M2_FallbackPortraitCamera(bounds, character, head_position, aspect, fov,
+                                  &eye, &target, &znear, &zfar);
     }
     eye = Matrix4_multiply_vector3(&transform, &eye);
     target = Matrix4_multiply_vector3(&transform, &target);

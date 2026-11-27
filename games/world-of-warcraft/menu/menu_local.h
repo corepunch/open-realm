@@ -51,6 +51,7 @@ typedef struct {
 
 typedef struct {
     uint32_t size;
+    char name[256];
     font_t const *font;
 } uiWowFont_t;
 
@@ -135,6 +136,7 @@ void UIWow_WarnOnce(uint32_t flag, cstring_t fmt, ...);
 vec2_t UIWow_MouseFdf(int x, int y);
 texture_t *UIWow_LoadTexture(cstring_t name);
 font_t const *UIWow_LoadFont(uint32_t size);
+font_t const *UIWow_LoadNamedFont(cstring_t name, uint32_t size);
 
 /* XML runtime input hooks. */
 bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
