@@ -609,6 +609,37 @@ static void UI_WriteActionButtonSlot(float x, float y, uint32_t image_index, uin
     }
 }
 
+void UI_WriteWowActionBar(edict_t *ent) {
+    wowClient_t const *client = (wowClient_t *)ent->client;
+    wowEntityLocal_t const *local = Wow_EntityLocal(ent);
+    uiCommandButton_t timer = {0};
+    if (local->gcd_time && gi.GetTime) {
+        timer.radialEndTime = gi.GetTime() + local->gcd_time;
+        timer.radialStartTime = timer.radialEndTime - WOW_GCD_MS;
+    }
+
+    UI_WriteStart(LAYER_COMMANDBAR);
+    FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
+        float x = PX(8.0f + (float)i * 42.0f);
+        float y = PY(728);
+        UI_WriteActionButtonSlot(x, y, 0, 0);
+        if (client->action_spells[i] == SPELL_NONE || !client->actions[i].icon[0]) continue;
+
+        char command[32];
+        snprintf(command, sizeof(command), "wow_action %u", (unsigned)i);
+        uiFrame_t button = {0};
+        button.flags.type = FT_COMMANDBUTTON;
+        button.stat = UINT8_MAX;
+        button.tex.index = gi.ImageIndex(client->actions[i].icon);
+        button.onclick = command;
+        if (timer.radialEndTime != timer.radialStartTime) button.flagsvalue |= UIFLAG_RADIAL_SHADE;
+        UI_SetFrameRect(&button, x, y, PW(36), PH(36));
+        UI_WriteProxyFrame(&button, &timer, sizeof(timer));
+    }
+    UI_WriteEnd();
+    gi.unicast(ent);
+}
+
 /* Targeting frame: the WoW character frame backdrop + health/mana bars + name/level text */
 static void UI_WriteTargetingFrame(edict_t *ent) {
     player_t *ps = &ent->client->ps;
@@ -806,8 +837,10 @@ bool UI_ResolveWorldMap(edict_t *ent) {
     uint8_t *data = gi.ReadFile("DBFilesClient\\WorldMapArea.dbc", &size);
     stbDbc_t header;
     float smallest_area = INFINITY;
+    bool showing_continent = false;
 
     wc->worldmap_area[0] = '\0';
+    wc->worldmap_has_continent = false;
     if (!Stb_DbcValid(data, size, &header) || header.fields < 8 || header.record_size < 32) {
         SAFE_DELETE(data, gi.MemFree);
         return false;
@@ -823,8 +856,7 @@ bool UI_ResolveWorldMap(edict_t *ent) {
         float x = ent->s.origin.x, y = ent->s.origin.y;
         if (!isfinite(width) || !isfinite(height) || width < 1.0f || height < 1.0f ||
             y < MIN(left, right) || y > MAX(left, right) ||
-            x < MIN(top, bottom) || x > MAX(top, bottom) ||
-            width * height >= smallest_area)
+            x < MIN(top, bottom) || x > MAX(top, bottom))
             continue;
         uint32_t offset = Stb_DbcField(&header, record, 3);
         cstring_t name = Stb_DbcString(strings, header.string_size, offset);
@@ -835,12 +867,18 @@ bool UI_ResolveWorldMap(edict_t *ent) {
             if (!isalnum((unsigned char)*p) && *p != '_') { safe = false; break; }
         }
         if (!safe || !*name) continue;
+        bool continent = Stb_DbcField(&header, record, 2) == 0;
+        wc->worldmap_has_continent |= continent;
+        if (wc->worldmap_continent && showing_continent && !continent) continue;
+        if ((!wc->worldmap_continent || showing_continent == continent) &&
+            width * height >= smallest_area) continue;
         snprintf(wc->worldmap_area, sizeof(wc->worldmap_area), "%s", name);
         wc->worldmap_left = left;
         wc->worldmap_right = right;
         wc->worldmap_top = top;
         wc->worldmap_bottom = bottom;
         smallest_area = width * height;
+        showing_continent = continent;
     }
     gi.MemFree(data);
     return wc->worldmap_area[0] != '\0';
@@ -862,6 +900,11 @@ void UI_WriteWorldMap(edict_t *ent) {
                       wc->worldmap_area[0] ? wc->worldmap_area : "Map unavailable",
                       MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
     UI_WriteSimpleButton(x + width - PW(65), y - PH(30), PW(62), PH(22), "Close", "worldmap");
+    if (wc->worldmap_has_continent) {
+        UI_WriteSimpleButton(x + width - PW(175), y - PH(30), PW(104), PH(22),
+                             wc->worldmap_continent ? "Current zone" : "Continent",
+                             wc->worldmap_continent ? "worldmap current" : "worldmap continent");
+    }
 
     if (!wc->worldmap_area[0]) {
         UI_WriteEnd();
@@ -896,9 +939,7 @@ void UI_WriteWowCombatFeedback(edict_t *ent, bool force) {
     wowEntityLocal_t const *local = Wow_EntityLocal(ent);
     wowClient_t *client = (wowClient_t *)ent->client;
     bool casting = local->cast_spell < wow_spell_count && local->cast_duration > 0;
-    bool cooling = local->gcd_time > 0;
-    bool visible = casting || cooling;
-    if (!force && !visible && !client->combat_feedback_visible) return;
+    if (!force && !casting && !client->combat_feedback_visible) return;
 
     UI_WriteStart(LAYER_INFOPANEL);
     if (casting) {
@@ -912,15 +953,9 @@ void UI_WriteWowCombatFeedback(edict_t *ent, bool force) {
         UI_WriteTextFrame(PX(338), PY(676), PW(348), PH(20), text, COLOR32_WHITE,
                           FONT_JUSTIFYCENTER);
     }
-    if (cooling) {
-        float const x = PX(8), y = PY(764), width = PW(248);
-        float remaining = MIN(1.0f, (float)local->gcd_time / WOW_GCD_MS);
-        UI_WriteColorRect(x, y, width, PH(4), MAKE(color32_t, 0, 0, 0, 192));
-        UI_WriteColorRect(x, y, width * remaining, PH(4), MAKE(color32_t, 190, 145, 85, 255));
-    }
     UI_WriteEnd();
     gi.unicast(ent);
-    client->combat_feedback_visible = visible;
+    client->combat_feedback_visible = casting;
 }
 
 /* Build and unicast the retained WoW HUD layers for a player. */
@@ -956,18 +991,6 @@ void UI_WriteWowHud(edict_t *ent) {
     /* Main action bar + end-caps */
     UI_WriteActionBar();
 
-    /* 12 action buttons, left row */
-    FOR_LOOP(i, 12) {
-        uint32_t img = wc->actions[i].icon[0] ? gi.ImageIndex(wc->actions[i].icon) : 0;
-        float x = PX(8.0f + (float)i * 42.0f);
-        UI_WriteActionButtonSlot(x, PY(728), img, wc->actions[i].count);
-        if (wc->action_spells[i] != SPELL_NONE && wc->actions[i].icon[0]) {
-            char command[32];
-            snprintf(command, sizeof(command), "wow_action %u", (unsigned)i);
-            UI_WriteClickRegion(x, PY(728), PW(36), PH(36), command);
-        }
-    }
-
     /* First 6 inventory slots shown in the quick-access bar; all 16 visible in backpack window. */
     FOR_LOOP(i, 6) {
         uint32_t img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
@@ -1002,4 +1025,5 @@ void UI_WriteWowHud(edict_t *ent) {
     UI_WriteQuestDialog(ent);
     UI_WriteQuestLog(ent);
     gi.unicast(ent);
+    UI_WriteWowActionBar(ent);
 }

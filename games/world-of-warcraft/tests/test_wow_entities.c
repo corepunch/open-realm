@@ -190,6 +190,7 @@ static void test_error(cstring_t fmt, ...) {
     va_end(args);
 }
 void UI_WriteWowHud(edict_t *ent) { (void)ent; }
+void UI_WriteWowActionBar(edict_t *ent) { (void)ent; }
 void UI_WriteWowCombatFeedback(edict_t *ent, bool force) { (void)ent; (void)force; }
 bool UI_ResolveWorldMap(edict_t *ent) { (void)ent; return false; }
 void UI_WriteWorldMap(edict_t *ent) { (void)ent; }

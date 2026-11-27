@@ -374,6 +374,8 @@ typedef struct {
     uint32_t outgoing_dmg_timer;   /* ms remaining to display */
     bool combat_feedback_visible;
     bool worldmap_open;
+    bool worldmap_continent;
+    bool worldmap_has_continent;
     uint32_t worldmap_refresh;
     char worldmap_area[96];
     float worldmap_left, worldmap_right, worldmap_top, worldmap_bottom;
@@ -458,6 +460,7 @@ uint32_t Wow_CachedCreatureType(uint32_t display_id);
 uint32_t Wow_CachedCreatureFamily(uint32_t display_id);
 uint32_t Wow_CachedCreatureRank(uint32_t display_id);
 void UI_WriteWowHud(edict_t *ent);
+void UI_WriteWowActionBar(edict_t *ent);
 void UI_WriteWowCombatFeedback(edict_t *ent, bool force);
 void UI_WriteWowHover(edict_t *ent);
 void UI_WriteWelcomeWindow(edict_t *ent);

@@ -237,9 +237,10 @@ spend, launch, and a 1.5 second GCD. Each class's visible action icon and spell 
 and hotkeys. Empty slots cannot cast. The prototype cancels a cast when its target dies, disappears, becomes invalid, or
 moves beyond spell range. An explicitly selected invalid target does not redirect a spell to another creature.
 Healing Touch uses eight mana and leaves the caster's facing unchanged.
-The server refreshes a compact HUD layer during a cast or global cooldown. It shows the spell name, remaining cast time, and
-a draining cooldown indicator below the action bar. The layer clears once both timers are idle.
-DBC-driven definitions, cast pushback, school lockouts, hand-glow visuals, and per-action cooldowns remain incomplete.
+The server refreshes the compact cast layer while a spell is preparing. It shows the spell name and remaining time and clears
+when the cast completes or is interrupted. Bound action buttons receive the current global-cooldown interval and the client draws
+a radial sweep from its synchronized clock. The sweep expires locally without requiring a new action layout each tick.
+DBC-driven definitions, cast pushback, school lockouts, hand-glow visuals, and spell-specific cooldown timers remain incomplete.
 
 ### Remaining Components
 

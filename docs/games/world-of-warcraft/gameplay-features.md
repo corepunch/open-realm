@@ -25,10 +25,10 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 | **Loot system** | `g_ai.c`, `g_wow.c`, `g_ui.c` | Rolled on death, copper auto-taken; item click-to-take |
 | **Damage flash overlay** | `g_ai.c`, `g_ui.c` | Yellow outgoing / red incoming; 1.5 s fade |
 | HUD: health/mana bars, player frame | `g_ui.c` | `PlayerFrame.xml` geometry; 119px textured bars at x=87, values, portrait/name/level; transient rest icon awaits server state |
-| HUD: cast bar and global cooldown | `g_ui.c` | Live cast name, countdown and cooldown indicator |
+| HUD: cast bar and global cooldown | `g_ui.c` | Live cast countdown and radial sweep on bound action icons |
 | HUD: copper display | `g_ui.c` | Persisted on `wowEntityLocal_t.copper` |
 | Minimap | `g_ui.c` | FT_MINIMAP viewport |
-| [Current-area world map](world-map.md) | `g_wow.c`, `g_ui.c` | Toggle with M and follow the player across supported areas |
+| [Current-area world map](world-map.md) | `g_wow.c`, `g_ui.c` | Toggle with M, switch to the continent view, and recenter on the current zone |
 | Player portrait (2D per-race/sex) | `g_ui.c` | TemporaryPortrait-{sex}-{race}.blp |
 | Character creation / selection | `games/world-of-warcraft/menu/` | Race, sex, class, appearance |
 | First-login cinematics | `g_wow.c`, WoW UI XML | M2 camera playback via DBC chain |

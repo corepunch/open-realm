@@ -100,6 +100,7 @@ Player movement applies two additional constraints before accepting that floor:
 
 - Outdoor terrain may change height only within a 50-degree walkable slope. This prevents the old XY-first movement from climbing or descending mountain faces into the terrain beneath city WMOs.
 - `CM_WowMoveBlocked` sweeps the player center and both cylinder edges at shin and chest height through nearby authored WMO BSP triangles. World-normal `abs(z) < 0.65` classifies walls; floor-like triangles remain owned by `CM_WowFloorHeight`. A WMO without BSP uses the same 32x32 collision grid instead of silently losing wall collision.
+- Manual travel and melee auto-approach use the same floor, wall, and terrain slope query. A blocked pursuit step leaves the actor in place. On a clear path the actor faces the target as it closes into melee range.
 
 The current sweep blocks the complete move rather than projecting the remainder along the hit plane. Add Quake-style slide movement if diagonal movement against walls needs to retain its tangential component; do not weaken or bypass the authored wall query.
 
