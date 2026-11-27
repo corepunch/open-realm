@@ -36,6 +36,9 @@
 static void UIWow_XmlPublishFrame(int idx);
 static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_name);
 static void UIWow_XMLUpdateScrollRange(int idx);
+static bool UIWow_XMLEditFocus(int idx);
+static void UIWow_XMLEditClearFocus(void);
+static void UIWow_XMLEditTextChanged(int idx, bool user_input);
 
 /* Host services for stb_wowxml.h — only compiled in the unity production build
  * where -DSTB_WOW_XML_IMPLEMENTATION is set globally. */
@@ -86,7 +89,21 @@ static int UIWow_LuaFrameHide(lua_State *L) {
 }
 static int UIWow_LuaFrameIsVisible(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && !(wow_xml.elems[i].flags & EF_HIDDEN)); return 1; }
 static int UIWow_LuaFrameSetAlpha(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].alpha = (float)luaL_optnumber(L, 2, 1.0); return 0; }
-static int UIWow_LuaFrameSetText(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_TEXT, luaL_optstring(L, 2, "")); return 0; }
+static int UIWow_LuaFrameSetText(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        cstring_t value = luaL_optstring(L, 2, "");
+        cstring_t old = wow_xml.elems[i].texts[ELEM_TEXT];
+        bool changed = strcmp(old ? old : "", value) != 0;
+        if (!changed) return 0;
+        UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_TEXT, value);
+        if (wow_xml.focus == i && wow_xml.elems[i].type == WOW_XML_EDITBOX)
+            UIWow_XMLEditFocus(i);
+        if (changed && wow_xml.elems[i].type == WOW_XML_EDITBOX)
+            UIWow_XMLEditTextChanged(i, false);
+    }
+    return 0;
+}
 static int UIWow_LuaFrameSetFont(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     cstring_t name = luaL_checkstring(L, 2);
@@ -97,6 +114,9 @@ static int UIWow_LuaFrameSetFont(lua_State *L) {
     }
     UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_FONT_FILE, name);
     wow_xml.elems[i].font_size = size;
+    cstring_t flags = luaL_optstring(L, 4, "");
+    wow_xml.elems[i].font_outline = strstr(flags, "THICKOUTLINE") ? 2 : strstr(flags, "OUTLINE") ? 1 : 0;
+    wow_xml.elems[i].flags |= EF_HAS_FONT_OUTLINE;
     wow_xml.elems[i].flags |= EF_HAS_FONT_SIZE;
     wow_xml.elems[i].measured = MAKE(fsize_t, 0, 0);
     lua_pushboolean(L, true);
@@ -109,7 +129,7 @@ static int UIWow_LuaFrameGetFont(lua_State *L) {
     cstring_t name = UIWow_ElemStr(&wow_xml.elems[i], ELEM_FONT_FILE);
     lua_pushstring(L, name ? name : "Fonts\\FRIZQT__.TTF");
     lua_pushnumber(L, wow_xml.elems[i].font_size);
-    lua_pushstring(L, "");
+    lua_pushstring(L, wow_xml.elems[i].font_outline == 2 ? "THICKOUTLINE" : wow_xml.elems[i].font_outline == 1 ? "OUTLINE" : "");
     return 3;
 }
 
@@ -127,6 +147,8 @@ static int UIWow_LuaFrameSetFontObject(lua_State *L) {
         uiWowXmlElem_t const *font = &wow_xml.elems[source];
         UIWow_ElemSetStr(e, ELEM_FONT_FILE, UIWow_ElemStr(font, ELEM_FONT_FILE));
         e->font_size = font->font_size;
+        e->font_outline = font->font_outline;
+        e->flags |= EF_HAS_FONT_OUTLINE;
         e->colors[ELEM_COLOR_TEXT] = font->colors[ELEM_COLOR_TEXT];
         e->measured = MAKE(fsize_t, 0, 0);
     }
@@ -328,24 +350,65 @@ static int UIWow_LuaFrameSetBackdropBorderColor(lua_State *L) {
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(color32_t, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
     return 0;
 }
+static bool UIWow_XMLEditFocus(int i) {
+    uiWowXmlElem_t *e = &wow_xml.elems[i];
+    bool newly_focused = wow_xml.focus != i;
+    if (newly_focused && wow_xml.focus >= 0) {
+        UIWow_XMLEditClearFocus();
+        /* A focus-lost handler may have explicitly selected another field. */
+        if (wow_xml.focus >= 0) return wow_xml.focus == i;
+    }
+    size_t len = e->texts[ELEM_TEXT] ? strlen(e->texts[ELEM_TEXT]) : 0;
+    size_t size = MAX(len + 1, 256);
+    bool had_text = e->texts[ELEM_TEXT] != NULL;
+    char *buf = realloc(e->texts[ELEM_TEXT], size);
+    if (!buf) {
+        memset(&wow_xml.text_input, 0, sizeof(wow_xml.text_input));
+        return false;
+    }
+    if (!had_text) buf[0] = '\0';
+    e->texts[ELEM_TEXT] = buf;
+    wow_xml.focus = i;
+    wow_xml.text_input.text = buf;
+    wow_xml.text_input.size = (uint32_t)size;
+    wow_xml.text_input.max_chars = 255;
+    wow_xml.text_input.cursor = wow_xml.text_input.anchor = (uint32_t)len;
+    if (newly_focused && UIWow_ElemStr(e, ELEM_ON_EDIT_FOCUS_GAINED))
+        UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_EDIT_FOCUS_GAINED], "OnEditFocusGained");
+    return true;
+}
+static void UIWow_XMLEditClearFocus(void) {
+    int old = wow_xml.focus;
+    if (old < 0 || old >= wow_xml.count) return;
+    wow_xml.focus = -1;
+    memset(&wow_xml.text_input, 0, sizeof(wow_xml.text_input));
+    if (wow_xml.elems[old].type == WOW_XML_EDITBOX && UIWow_ElemStr(&wow_xml.elems[old], ELEM_ON_EDIT_FOCUS_LOST))
+        UIWow_XMLRunFrameScript(old, wow_xml.elems[old].texts[ELEM_ON_EDIT_FOCUS_LOST], "OnEditFocusLost");
+}
 static int UIWow_LuaFrameSetFocus(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    if (i < 0 || i >= wow_xml.count) return 0;
-    wow_xml.focus = i;
-    if (wow_xml.elems[i].type == WOW_XML_EDITBOX) {
-        cstring_t t = wow_xml.elems[i].texts[ELEM_TEXT];
-        if (!t) {
-            wow_xml.elems[i].texts[ELEM_TEXT] = calloc(1, 256);
-            t = wow_xml.elems[i].texts[ELEM_TEXT];
-        }
-        wow_xml.text_input.text = (char *)t;
-        wow_xml.text_input.size = 256;
-        wow_xml.text_input.max_chars = 255;
-        wow_xml.text_input.cursor = (uint32_t)strlen(t ? t : "");
+    if (i >= 0 && wow_xml.elems[i].type == WOW_XML_EDITBOX)
+        UIWow_XMLEditFocus(i);
+    return 0;
+}
+static int UIWow_LuaFrameClearFocus(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0 && wow_xml.focus == i) UIWow_XMLEditClearFocus();
+    return 0;
+}
+static int UIWow_LuaFrameHighlightText(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i == wow_xml.focus && i >= 0 && wow_xml.elems[i].type == WOW_XML_EDITBOX && wow_xml.text_input.text) {
+        size_t len = strlen(wow_xml.text_input.text);
+        lua_Integer start = luaL_optinteger(L, 2, 0);
+        lua_Integer end = luaL_optinteger(L, 3, -1);
+        if (start < 0) start = 0;
+        if (end < 0) end = (lua_Integer)len;
+        wow_xml.text_input.anchor = (uint32_t)MIN((size_t)start, len);
+        wow_xml.text_input.cursor = (uint32_t)MIN((size_t)end, len);
     }
     return 0;
 }
-static int UIWow_LuaFrameHighlightText(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetSequence(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
@@ -513,7 +576,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
         { "GetStringWidth", UIWow_LuaFrameGetWidth }, { "GetStringHeight", UIWow_LuaFrameGetHeight },
         { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
-        { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
+        { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "ClearFocus", UIWow_LuaFrameClearFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
         { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
         { "ClearFog", UIWow_LuaFrameClearFog }, { NULL, NULL }
@@ -724,6 +787,8 @@ static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_n
     UIWow_XmlPublishFrame(idx);
     name     = wow_xml.elems[idx].texts[ELEM_NAME];
     src_file = wow_xml.elems[idx].texts[ELEM_SOURCE_FILE];
+    lua_getglobal(wow_ui.lua, "this");
+    lua_getglobal(wow_ui.lua, "event");
     lua_getglobal(wow_ui.lua, name ? name : ""); lua_setglobal(wow_ui.lua, "this");
     lua_pushstring(wow_ui.lua, event_name ? event_name : ""); lua_setglobal(wow_ui.lua, "event");
     if (src_file)
@@ -731,11 +796,21 @@ static void UIWow_XMLRunFrameScript(int idx, cstring_t script, cstring_t event_n
     else
         snprintf(chunk, sizeof(chunk), "=%s:%s", name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
     if (luaL_loadbuffer(wow_ui.lua, script, strlen(script), chunk) != LUA_OK) {
-        UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1)); lua_pop(wow_ui.lua, 1);
+        UIWow_ReportLuaError(wow_ui.lua);
     } else {
         UIWow_LuaPCall(0);
     }
-    lua_pushnil(wow_ui.lua); lua_setglobal(wow_ui.lua, "this");
+    lua_setglobal(wow_ui.lua, "event");
+    lua_setglobal(wow_ui.lua, "this");
+}
+
+static void UIWow_XMLEditTextChanged(int idx, bool user_input) {
+    cstring_t script = UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_TEXT_CHANGED);
+    if (!wow_ui.lua || !script) return;
+    lua_getglobal(wow_ui.lua, "arg1");
+    lua_pushboolean(wow_ui.lua, user_input); lua_setglobal(wow_ui.lua, "arg1");
+    UIWow_XMLRunFrameScript(idx, script, "OnTextChanged");
+    lua_setglobal(wow_ui.lua, "arg1");
 }
 
 /* Compute cumulative vertical scroll offset for element idx by walking up the
@@ -1069,6 +1144,16 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             cstring_t display = UIWow_XMLDisplayText(e, text, sizeof(text));
             if (f) {
                 drawText_t dt = MAKE(drawText_t, .font = f, .text = display, .rect = tr, .color = MAKE(color32_t, text_color.r, text_color.g, text_color.b, (uint8_t)(text_color.a * e->alpha)), .textWidth = tr.w, .lineHeight = 1.33f, .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0) | (has_clip ? DRAW_CLIP : 0), .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign, .valign = e->valign, .clip = clip_rect);
+                if (e->font_outline) {
+                    drawText_t border = dt;
+                    border.color = MAKE(color32_t, 0, 0, 0, dt.color.a);
+                    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+                        if (!x && !y) continue;
+                        border.rect.x = dt.rect.x + UIWow_XmlX((float)(x * e->font_outline));
+                        border.rect.y = dt.rect.y + UIWow_XmlY((float)(y * e->font_outline));
+                        wow_ui.renderer->DrawText(&border);
+                    }
+                }
                 wow_ui.renderer->DrawText(&dt);
                 if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)
                     M_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.text_input.cursor, text_color);
@@ -1235,6 +1320,10 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     if (event != MENU_MOUSE_DOWN) {
         return hit >= 0;
     }
+    if (wow_xml.focus >= 0 && hit != wow_xml.focus) {
+        UIWow_XMLEditClearFocus();
+        if (wow_xml.focus >= 0) return true;
+    }
     if (hit < 0) {
         wow_xml.pressed_button = -1;
         wow_xml.drag.scrollbar_idx = -1;
@@ -1268,17 +1357,7 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     }
 
     if (wow_xml.elems[hit].type == WOW_XML_EDITBOX) {
-        cstring_t t = wow_xml.elems[hit].texts[ELEM_TEXT];
-        wow_xml.focus = hit;
-        /* Ensure element has a buffer for text editing. */
-        if (!t) {
-            wow_xml.elems[hit].texts[ELEM_TEXT] = calloc(1, 256);
-            t = wow_xml.elems[hit].texts[ELEM_TEXT];
-        }
-        wow_xml.text_input.text = (char *)t;
-        wow_xml.text_input.size = 256;
-        wow_xml.text_input.max_chars = 255;
-        wow_xml.text_input.cursor = (uint32_t)strlen(t ? t : "");
+        UIWow_XMLEditFocus(hit);
         wow_xml.pressed_button = -1;
         return true;
     }
@@ -1290,26 +1369,30 @@ bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     return false;
 }
 
-static void UIWow_XMLEditInsert(uiWowXmlElem_t *e, cstring_t text) {
+static bool UIWow_XMLEditInsert(uiWowXmlElem_t *e, cstring_t text) {
     cstring_t old = e->texts[ELEM_TEXT] ? e->texts[ELEM_TEXT] : "";
     size_t len = strlen(old), add = text ? strlen(text) : 0;
-    if (!add) return;
+    if (!add) return false;
     /* Grow buffer if needed. */
     if (len + add + 1 > wow_xml.text_input.size) {
         uint32_t new_size = (uint32_t)(len + add + 256);
         char *buf = realloc(e->texts[ELEM_TEXT], new_size);
-        if (!buf) return;
+        if (!buf) return false;
         e->texts[ELEM_TEXT] = buf;
         wow_xml.text_input.text = buf;
         wow_xml.text_input.size = new_size;
     }
-    M_TextInput_Insert(&wow_xml.text_input, text);
+    if (!M_TextInput_Insert(&wow_xml.text_input, text)) return false;
     e->measured = MAKE(fsize_t, 0, 0);
+    return true;
 }
 
-static void UIWow_XMLEditBackspace(uiWowXmlElem_t *e) {
-    if (M_TextInput_Backspace(&wow_xml.text_input))
+static bool UIWow_XMLEditBackspace(uiWowXmlElem_t *e) {
+    if (M_TextInput_Backspace(&wow_xml.text_input)) {
         e->measured = MAKE(fsize_t, 0, 0);
+        return true;
+    }
+    return false;
 }
 
 static void UIWow_XMLEditDelete(uiWowXmlElem_t *e) {
@@ -1323,7 +1406,8 @@ bool UIWow_XMLTextInput(cstring_t text) {
     e = &wow_xml.elems[wow_xml.focus];
     if (e->type != WOW_XML_EDITBOX) return false;
     if (!strcmp(text, "\b")) {
-        UIWow_XMLEditBackspace(e);
+        if (UIWow_XMLEditBackspace(e))
+            UIWow_XMLEditTextChanged(wow_xml.focus, true);
         return true;
     }
     if (!strcmp(text, "\r") || !strcmp(text, "\n")) {
@@ -1331,21 +1415,36 @@ bool UIWow_XMLTextInput(cstring_t text) {
             UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ENTER_PRESSED], "OnEnterPressed");
         return true;
     }
-    UIWow_XMLEditInsert(e, text);
+    if (e->flags & EF_NUMERIC) {
+        size_t len = strlen(text), n = 0;
+        char *digits = malloc(len + 1);
+        if (!digits) return true;
+        for (size_t j = 0; j < len; j++)
+            if (text[j] >= '0' && text[j] <= '9') digits[n++] = text[j];
+        digits[n] = '\0';
+        if (UIWow_XMLEditInsert(e, digits)) UIWow_XMLEditTextChanged(wow_xml.focus, true);
+        free(digits);
+    } else if (UIWow_XMLEditInsert(e, text)) {
+        UIWow_XMLEditTextChanged(wow_xml.focus, true);
+    }
     return true;
 }
 
 bool UIWow_XMLKeyEvent(int key, bool down, uint32_t time) {
     uiWowXmlElem_t *e;
     int result;
+    size_t before;
     (void)time;
     if (!down || wow_xml.focus < 0 || wow_xml.focus >= wow_xml.count) return false;
     e = &wow_xml.elems[wow_xml.focus];
     if (e->type != WOW_XML_EDITBOX) return false;
+    before = strlen(e->texts[ELEM_TEXT] ? e->texts[ELEM_TEXT] : "");
     result = M_TextInput_Key(&wow_xml.text_input, key);
     switch (result) {
         case MENU_TEXTINPUT_CONSUMED:
             e->measured = MAKE(fsize_t, 0, 0);
+            if (strlen(e->texts[ELEM_TEXT] ? e->texts[ELEM_TEXT] : "") != before)
+                UIWow_XMLEditTextChanged(wow_xml.focus, true);
             return true;
         case MENU_TEXTINPUT_ENTER:
             if (UIWow_ElemStr(e, ELEM_ON_ENTER_PRESSED))

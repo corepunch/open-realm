@@ -237,6 +237,7 @@ typedef struct wowSpellDef_s {
     cstring_t cast_anim;    /* animation during cast channel */
     cstring_t ready_anim;   /* animation while waiting for cast */
     uint32_t spell_dbc_id;  /* Spell.dbc ID for DBC-driven visual resolution */
+    uint32_t cooldown_ms;   /* spell-specific cooldown after successful cast */
 } wowSpellDef_t;
 
 extern wowSpellDef_t const wow_spells[];
@@ -246,6 +247,8 @@ extern uint32_t const wow_spell_count;
 #define WOW_SPELL_FIREBOLT      1
 #define WOW_SPELL_FROSTBOLT     2
 #define WOW_SPELL_HEALING_TOUCH 3
+#define WOW_SPELL_FIRE_BLAST    4
+#define WOW_SPELL_COUNT         5
 #define WOW_GCD_MS 1500
 
 #define SPELL_NONE ((uint32_t)-1)  /* sentinel: no spell is casting */
@@ -301,6 +304,7 @@ typedef struct {
     vec2_t cast_origin;     /* XY position when cast began (movement cancels) */
     uint32_t cast_release_time; /* ms remaining in the post-launch release animation */
     uint32_t gcd_time;          /* ms remaining on global cooldown */
+    uint32_t spell_cooldown[WOW_SPELL_COUNT]; /* ms remaining, indexed by spell */
     uint32_t selected_action_slot;  /* highlighted action bar slot (0-11, 255=none) */
     /* Projectile fields (valid when think == Wow_RunProjectile) */
     uint32_t projectile_target;
@@ -377,7 +381,13 @@ typedef struct {
     bool worldmap_continent;
     bool worldmap_has_continent;
     uint32_t worldmap_refresh;
+    uint32_t worldmap_selection; /* DBC row index + 1; zero follows player */
+    uint32_t worldmap_page;
+    bool worldmap_choosing;
+    bool worldmap_has_next_page;
     char worldmap_area[96];
+    uint32_t worldmap_title_area_id;
+    char worldmap_title[128];
     float worldmap_left, worldmap_right, worldmap_top, worldmap_bottom;
 } wowClient_t;
 

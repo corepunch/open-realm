@@ -80,3 +80,11 @@ The native Lua source can be inspected alongside the XML:
 ```sh
 build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ cat 'Interface/FrameXML/TutorialFrame.lua'
 ```
+
+## Glue scripts and text
+
+Focused EditBoxes send `OnTextChanged` for edits. The classic `arg1` flag distinguishes keyboard input from a script calling `SetText`. Frame callbacks restore the enclosing `this` and `event` when they return.
+
+FontStrings inherit normal or thick outlines from their font objects. The outline follows the text alpha and scroll clipping. Lua can read and set the outline through `GetFont` and `SetFont`.
+
+Scripts can install a reporter with `seterrorhandler` and retrieve it with `geterrorhandler`. Syntax and callback errors reach the reporter. A failure inside the reporter goes directly to the engine console.

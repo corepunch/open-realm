@@ -96,6 +96,7 @@ static wowActionDef_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
     [3] = { { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 }, WOW_SPELL_HEALING_TOUCH },
     [4] = { { "Interface\\Icons\\Spell_Fire_FireBolt02.blp", "Fireball", 1 }, WOW_SPELL_FIREBOLT },
     [5] = { { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp", "Frostbolt", 1 }, WOW_SPELL_FROSTBOLT },
+    [6] = { { "Interface\\Icons\\Spell_Fire_Fireball.blp", "Fire Blast", 1 }, WOW_SPELL_FIRE_BLAST },
 };
 
 /* -------------------------------------------------------------------------
@@ -730,13 +731,21 @@ static void Wow_SpellAttack(edict_t *caster, edict_t *target) {
 }
 static void Wow_SpellFireball(edict_t *caster, edict_t *target) { Wow_FireFirebolt(caster, target); }
 static void Wow_SpellFrostbolt(edict_t *caster, edict_t *target) { Wow_FireFrostbolt(caster, target); }
+static void Wow_SpellFireBlast(edict_t *caster, edict_t *target) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(caster);
+    if (!cl || !target) return;
+    cl->mana -= wow_spells[WOW_SPELL_FIRE_BLAST].mana_cost;
+    /* Spell.dbc rank 1: base points 23 plus a 1–9 roll. */
+    Wow_ApplyDamage(target, caster, 24 + (uint32_t)(rand() % 9));
+}
 static void Wow_SpellHealingTouch(edict_t *caster, edict_t *target) { (void)target; Wow_HealingTouch(caster); }
 
-wowSpellDef_t const wow_spells[] = {
-    [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL,               0   },
-    [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected", 133 },
-    [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected", 116 },
-    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,    WOW_HEALING_TOUCH_MANA_COST,  0.0f, NULL, NULL, 0 },
+wowSpellDef_t const wow_spells[WOW_SPELL_COUNT] = {
+    [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL,               0, 0 },
+    [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected", 133, 0 },
+    [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected", 116, 0 },
+    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,    WOW_HEALING_TOUCH_MANA_COST,  0.0f, NULL, NULL, 0, 0 },
+    [WOW_SPELL_FIRE_BLAST]    = { "Fire Blast", Wow_SpellFireBlast, 0, 40, 20.0f, NULL, NULL, 2136, 8000 },
 };
 uint32_t const wow_spell_count = sizeof(wow_spells) / sizeof(wow_spells[0]);
 
@@ -913,6 +922,7 @@ static void Wow_CompleteSpellCast(edict_t *caster) {
     /* Mana consumed on completion; no cost if interrupted or cancelled */
     if (spell < wow_spell_count) {
         wowSpellDef_t const *def = &wow_spells[spell];
+        cl->spell_cooldown[spell] = def->cooldown_ms;
         if (def->mana_cost)
             cl->mana = cl->mana >= def->mana_cost ? cl->mana - def->mana_cost : 0;
         if (def->cast && target && target->inuse)
@@ -921,6 +931,9 @@ static void Wow_CompleteSpellCast(edict_t *caster) {
             def->cast(caster, NULL);  /* self-targeted or instant */
     }
     cl->cast_target = 0;
+    if (spell < wow_spell_count && wow_spells[spell].cooldown_ms && caster->client &&
+        caster->client->ps.client_ui_state == CLIENT_UI_GAME)
+        UI_WriteWowActionBar(caster);
 }
 
 /* Per-frame cast progress. Returns true while entity is casting (locked). */
@@ -1818,8 +1831,12 @@ static void Wow_RunFrame(void) {
      * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */
     {
         wowEntityLocal_t *cl = Wow_EntityLocal(ent);
-        if (cl && cl->gcd_time > 0)
-            cl->gcd_time -= cl->gcd_time > FRAMETIME ? FRAMETIME : cl->gcd_time;
+        if (cl) {
+            if (cl->gcd_time > 0)
+                cl->gcd_time -= cl->gcd_time > FRAMETIME ? FRAMETIME : cl->gcd_time;
+            FOR_LOOP(i, WOW_SPELL_COUNT)
+                cl->spell_cooldown[i] -= cl->spell_cooldown[i] > FRAMETIME ? FRAMETIME : cl->spell_cooldown[i];
+        }
     }
     bool casting = Wow_RunSpellCast(ent);
     if (casting) {
@@ -1896,7 +1913,7 @@ static void Wow_RunFrame(void) {
 process_entities:
     {
         wowClient_t *wc = (wowClient_t *)ent->client;
-        if (wc->worldmap_open) {
+        if (wc->worldmap_open && !wc->worldmap_choosing) {
             wc->worldmap_refresh += FRAMETIME;
             if (wc->worldmap_refresh >= 1000) {
                 wc->worldmap_refresh = 0;
@@ -2331,12 +2348,39 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         if (argc == 1) {
             client->worldmap_open = !client->worldmap_open;
             client->worldmap_continent = false;
+            client->worldmap_selection = 0;
+            client->worldmap_choosing = false;
+            client->worldmap_page = 0;
         } else if (!client->worldmap_open) {
             return;
         } else if (!strcasecmp(argv[1], "continent")) {
             client->worldmap_continent = true;
+            client->worldmap_selection = 0;
+            client->worldmap_choosing = false;
         } else if (!strcasecmp(argv[1], "current")) {
             client->worldmap_continent = false;
+            client->worldmap_selection = 0;
+            client->worldmap_choosing = false;
+        } else if (!strcasecmp(argv[1], "zones")) {
+            client->worldmap_choosing = !client->worldmap_choosing;
+            client->worldmap_page = 0;
+        } else if (!strcasecmp(argv[1], "previous") && client->worldmap_choosing && client->worldmap_page) {
+            client->worldmap_page--;
+        } else if (!strcasecmp(argv[1], "next") && client->worldmap_choosing && client->worldmap_has_next_page) {
+            client->worldmap_page++;
+        } else if (!strcasecmp(argv[1], "zone") && argc == 3 && client->worldmap_choosing) {
+            char *end;
+            unsigned long row = strtoul(argv[2], &end, 10);
+            if (!*argv[2] || *end || row == 0 || row > UINT32_MAX) return;
+            uint32_t old = client->worldmap_selection;
+            client->worldmap_selection = (uint32_t)row;
+            if (!UI_ResolveWorldMap(ent)) {
+                client->worldmap_selection = old;
+                UI_ResolveWorldMap(ent);
+                return;
+            }
+            client->worldmap_continent = false;
+            client->worldmap_choosing = false;
         } else {
             return;
         }
@@ -2474,7 +2518,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         wowSpellDef_t const *def = &wow_spells[spell];
         wowEntityLocal_t *cl = Wow_EntityLocal(ent);
 
-        if (!cl || cl->dead || !cl->health || (cl->cast_spell != SPELL_NONE) || cl->cast_release_time || cl->gcd_time > 0) return;
+        if (!cl || cl->dead || !cl->health || (cl->cast_spell != SPELL_NONE) || cl->cast_release_time || cl->gcd_time > 0 || cl->spell_cooldown[spell] > 0) return;
 
         if (def->cast_time > 0 && Wow_PlayerIsMoving()) {
             fprintf(stderr, "WoW: %s — cannot cast while moving\n", def->name);
@@ -2489,7 +2533,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         edict_t *target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
         /* For instant melee spells, accept the selected target even when out of
          * range — the auto-chase in Wow_RunFrame closes the gap automatically. */
-        if (!def->cast_time && !target && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
+        if (spell == WOW_SPELL_ATTACK && !target && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
             edict_t *t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
             if (Wow_IsAttackTarget(ent, t))
                 target = t;
@@ -2504,6 +2548,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             Wow_BeginSpellCast(ent, spell, target ? target->s.number : 0);
         } else {
             cl->gcd_time = WOW_GCD_MS;
+            cl->spell_cooldown[spell] = def->cooldown_ms;
             if (def->cast) def->cast(ent, target);
         }
         if (ent->client->ps.client_ui_state == CLIENT_UI_GAME)

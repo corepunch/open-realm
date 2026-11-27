@@ -238,9 +238,10 @@ and hotkeys. Empty slots cannot cast. The prototype cancels a cast when its targ
 moves beyond spell range. An explicitly selected invalid target does not redirect a spell to another creature.
 Healing Touch uses eight mana and leaves the caster's facing unchanged.
 The server refreshes the compact cast layer while a spell is preparing. It shows the spell name and remaining time and clears
-when the cast completes or is interrupted. Bound action buttons receive the current global-cooldown interval and the client draws
-a radial sweep from its synchronized clock. The sweep expires locally without requiring a new action layout each tick.
-DBC-driven definitions, cast pushback, school lockouts, hand-glow visuals, and spell-specific cooldown timers remain incomplete.
+when the cast completes or is interrupted. The mage's seventh action button casts rank-one Fire Blast instantly at a hostile target within 20 yards. It spends 40 mana,
+deals 24–32 damage and starts an eight-second cooldown. The shared 1.5-second cooldown still applies to the other spells.
+Each icon receives the interval that ends later and draws its sweep using the synchronized client clock.
+DBC-driven definitions, cast pushback, school lockouts and hand-glow visuals remain incomplete.
 
 ### Remaining Components
 
@@ -265,11 +266,7 @@ right-hand attachment 1 on the release frame and home toward a target impact tag
 
 #### 5. Cooldowns
 
-- GCD displayed as a swipe animation on the action bar icon (client-side, cosmetic for v1)
-- Spell-specific cooldowns tracked server-side:
-  - Fireball: no cooldown (spammable via cast time)
-  - Fire Blast: 8s cooldown, instant cast
-  - Frost Nova: 25s cooldown, instant cast
+Fireball and Frostbolt are gated by cast time and the global cooldown. Fire Blast also has an individual cooldown. Frost Nova remains a planned ability.
 
 #### 6. Spell Particles (Future)
 

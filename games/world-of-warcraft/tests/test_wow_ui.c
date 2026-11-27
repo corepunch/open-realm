@@ -362,3 +362,25 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
     SFileCloseArchive(test_archive);
     test_archive = NULL;
 }
+
+TEST(wow_ui, script_errors_dispatch_once_and_recover_from_handler_failure) {
+    reset_test_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    menuExport_t menu = init_ui();
+    T_ASSERT(UIWow_RunLuaString("install_handler",
+        "original = geterrorhandler(); reports = 0; "
+        "function UpdateCharacterList() error('nested failure') end; "
+        "function reporter(msg) reports = reports + 1; last = msg; "
+        "GetCharacterListUpdate(); error({}) end; "
+        "seterrorhandler(reporter); assert(geterrorhandler() == reporter)"));
+    T_ASSERT(!UIWow_RunLuaString("bad_callback", "error('original failure')"));
+    T_ASSERT(UIWow_RunLuaString("count_reports",
+        "assert(reports == 1 and string.find(last, 'original failure')); "
+        "seterrorhandler(function(msg) reports = reports + 1; last = msg end)"));
+    T_ASSERT(!UIWow_RunLuaString("bad_syntax", "local ="));
+    T_ASSERT(UIWow_RunLuaString("restore_handler",
+        "assert(reports == 2 and string.find(last, 'bad_syntax')); seterrorhandler(original)"));
+    menu.Shutdown();
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
+}
