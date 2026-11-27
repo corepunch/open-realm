@@ -100,6 +100,7 @@ struct client_state {
     player_t playerstate;
     struct {
         bool active;
+        bool scrolling; /* held keyboard/edge scroll keeps local focus prediction alive */
         vec2_t origin;
         bool view;
         vec3_t angles;

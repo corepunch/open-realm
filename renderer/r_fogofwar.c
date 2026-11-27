@@ -241,7 +241,7 @@ static void R_BlitTexture(GLuint texid, float alpha) {
     tr.shader_ui.state.model = model_matrix;
     tr.shader_ui.state.viewProjection = proj_matrix;
 
-    R_Call(glBindTexture, GL_TEXTURE_2D, texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texid);
     {
         uint32_t count = R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha);
         R_StatsDraw(GL_TRIANGLES, count, 1);
@@ -306,8 +306,8 @@ void R_RenderFogOfWar(void) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
-    R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, fow_resources.sight->texid);
 
     FOR_LOOP(p, num_revealers) {
         renderEntity_t const *ent = revealers[p];
@@ -319,7 +319,7 @@ void R_RenderFogOfWar(void) {
         // Draw smooth circle into dst alpha
         R_MakeSightMatrix(ent, &model_matrix);
         R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-        R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
+        R_BindGLTexture(GL_TEXTURE_2D, fow_resources.sight->texid);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
         R_ApplyShader(&tr.shader_ui);
@@ -341,7 +341,7 @@ void R_RenderFogOfWar(void) {
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
         R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+        R_BindGLTexture(GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
         R_ApplyShader(&tr.shader_ui);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
@@ -470,7 +470,7 @@ void R_UpdateFogOfWarData(void) {
         fow_resources.network = R_AllocateTexture(width, height);
     }
 
-    R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.network->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, fow_resources.network->texid);
     R_Call(glPixelStorei, GL_UNPACK_ALIGNMENT, 1);
     /* Existing storage must be updated, not redefined as the old per-FOW-chunk path did. */
     if (allocate) {

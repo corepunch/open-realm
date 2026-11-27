@@ -1188,6 +1188,18 @@ bool FS_ResolveLoosePath(cstring_t fileName, string_t out, uint32_t out_size) {
         snprintf(out, out_size, "%s", path);
         return true;
     }
+    /* ISO 9660 discs commonly store media basenames in uppercase. */
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+        if (!gameDirs[i][0]) continue;
+        FS_MakeDiskPath(gameDirs[i], fileName, path, sizeof(path));
+        char *base = strrchr(path, '/');
+        if (!base) continue;
+        for (char *p = base + 1; *p; ++p) *p = (char)toupper((unsigned char)*p);
+        if (!FS_FileOnDiskExists(path)) continue;
+        snprintf(out, out_size, "%s", path);
+        return true;
+    }
     return false;
 }
 
@@ -1780,6 +1792,7 @@ void MemFree(handle_t mem) {
 }
 
 void Com_Quit(void) {
+    Com_ServerWorkerShutdown();
     if (!Cvar_Integer("dedicated", 0)) {
         /* Frame-limited runs are diagnostics; writing them would persist command-line cvars into the user config. */
         if (Cvar_Integer("com_frame_limit", 0) <= 0)

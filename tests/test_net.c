@@ -4967,10 +4967,11 @@ TEST(net, typed_controller_input_roundtrip_and_validation) {
         { .action = BZ_INPUT_FOCUS, .focus = {12.5f, -34.25f} },
         { .action = BZ_INPUT_VIEW, .view = {{18, 0, -90}, 8.5f} },
         { .action = BZ_INPUT_MOVE, .move = {BZ_MOVE_FORWARD | BZ_MOVE_LEFT, 16} },
+        { .action = BZ_INPUT_CAMERA_PREFERENCE, .camera_preference = {2100.0f, 3000.0f} },
     };
     SZ_Init(&msg, data, sizeof(data));
-    FOR_LOOP(i, 3) MSG_WriteInput(&msg, &cmds[i]);
-    T_EQ(msg.cursize, 30);
+    FOR_LOOP(i, 4) MSG_WriteInput(&msg, &cmds[i]);
+    T_EQ(msg.cursize, 39);
     T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_FOCUS);
     T_FEQ(out.focus.x, 12.5f, 0.001f); T_FEQ(out.focus.y, -34.25f, 0.001f);
     T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_VIEW);
@@ -4978,8 +4979,11 @@ TEST(net, typed_controller_input_roundtrip_and_validation) {
     T_FEQ(out.view.distance, 8.5f, 0.001f);
     T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_MOVE);
     T_EQ(out.move.buttons, BZ_MOVE_FORWARD | BZ_MOVE_LEFT); T_EQ(out.move.msec, 16);
+    T_ASSERT(MSG_ReadInput(&msg, &out)); T_EQ(out.action, BZ_INPUT_CAMERA_PREFERENCE);
+    T_FEQ(out.camera_preference.default_distance, 2100.0f, 0.001f);
+    T_FEQ(out.camera_preference.maximum_distance, 3000.0f, 0.001f);
     T_EQ(msg.readcount, msg.cursize); T_ASSERT(!MSG_ReadInput(&msg, &out));
-    FOR_LOOP(i, 3) {
+    FOR_LOOP(i, 4) {
         SZ_Clear(&msg); msg.readcount = 0; MSG_WriteInput(&msg, &cmds[i]);
         uint32_t size = msg.cursize;
         FOR_LOOP(n, size) {
@@ -4990,13 +4994,17 @@ TEST(net, typed_controller_input_roundtrip_and_validation) {
     cmds[0].focus.x = NAN;
     cmds[1].view.distance = -1;
     cmds[2].move.buttons = 128;
-    FOR_LOOP(i, 3) {
+    cmds[3].camera_preference.default_distance = NAN;
+    FOR_LOOP(i, 4) {
         SZ_Clear(&msg); msg.readcount = 0; MSG_WriteInput(&msg, &cmds[i]);
         T_ASSERT(!MSG_ReadInput(&msg, &out));
     }
     SZ_Clear(&msg); msg.readcount = 0; MSG_WriteByte(&msg, 255); T_ASSERT(!MSG_ReadInput(&msg, &out));
     SZ_Clear(&msg); msg.readcount = 0; cmds[2].move.buttons = 0; cmds[2].move.msec = BZ_INPUT_MAX_MSEC + 1;
     MSG_WriteInput(&msg, &cmds[2]); T_ASSERT(!MSG_ReadInput(&msg, &out));
+    SZ_Clear(&msg); msg.readcount = 0; cmds[3].camera_preference.default_distance = 1800;
+    cmds[3].camera_preference.maximum_distance = -1; MSG_WriteInput(&msg, &cmds[3]);
+    T_ASSERT(!MSG_ReadInput(&msg, &out));
 }
 
 /* Predict presentation while preserving the delta baseline, then yield to rejected input and cinematics. */

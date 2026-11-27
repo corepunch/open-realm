@@ -88,7 +88,9 @@ bool G_LimitMatches(uint32_t op, float value, float limit) {
 }
 
 void G_JassVariableChanged(cstring_t name, float before, float after) {
-    FOR_EACH_EVENT(evt) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *evt = &level.events.handlers[event_index];
+        if (!evt->inuse) continue;
         if (evt->type == EVENT_GAME_VARIABLE_LIMIT && evt->variable && !strcmp(evt->variable, name) &&
             !G_LimitMatches(evt->limitop, before, evt->limitval) && G_LimitMatches(evt->limitop, after, evt->limitval))
             G_PublishEventResponse(NULL, EVENT_GAME_VARIABLE_LIMIT, evt);
@@ -199,7 +201,9 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
             subject ? (unsigned)subject->s.player : 0u);
     }
 
-    FOR_EACH_EVENT(e) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *e = &level.events.handlers[event_index];
+        if (!e->inuse) continue;
         if (!G_EventSubjectIsCurrent(e)) continue;
         switch (e->type) {
             case EVENT_DIALOG_CLICK:
@@ -356,7 +360,16 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
 }
 
 static void G_TouchTriggers(edict_t *ent) {
-    FOR_EACH_EVENT(evt) {
+    uint32_t const registry_high_water = G_EventRegistryHighWater();
+    for (uint32_t word = 0; word < (registry_high_water + 63) / 64; ++word) {
+      uint64_t touch_events = level.events.touch_trigger_mask[word];
+      while (touch_events) {
+        uint32_t const event_index = word * 64 + (uint32_t)__builtin_ctzll(touch_events);
+        event_t *evt = &level.events.handlers[event_index];
+        touch_events &= touch_events - 1;
+        /* A prior region filter may have retired this registration after the
+         * word was copied. Never dispatch an event from a stale mask bit. */
+        if (!evt->inuse) continue;
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle, region_handle;
@@ -392,36 +405,46 @@ static void G_TouchTriggers(edict_t *ent) {
             }
             case EVENT_UNIT_IN_RANGE:
                 if (!G_EventSubjectIsCurrent(evt)) break;
+                if (evt->range < 0.0f) break;
                 if (ent == evt->subject) {
-                    edict_t *target;
+                    float const range_sq = evt->range * evt->range;
 
                     /* A unit-in-range event is symmetric for movement: the
                      * registered subject may approach a target.  The
                      * subject-side pass owns pairs where both units moved,
                      * preventing duplicate publications. */
                     FOR_LOOP(i, globals.num_edicts) {
-                        target = globals.edicts + i;
+                        edict_t *target = globals.edicts + i;
                         if (!target->inuse || target == ent)
                             continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) <= evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) > evt->range)
-                            continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
+                        float const old_dx = ent->old_origin.x - target->old_origin.x;
+                        float const old_dy = ent->old_origin.y - target->old_origin.y;
+                        float const new_dx = ent->s.origin2.x - target->s.origin2.x;
+                        float const new_dy = ent->s.origin2.y - target->s.origin2.y;
+                        float const old_distance_sq = old_dx * old_dx + old_dy * old_dy;
+                        float const new_distance_sq = new_dx * new_dx + new_dy * new_dy;
+                        if (old_distance_sq > range_sq && new_distance_sq <= range_sq) {
                             G_PublishEventResponse(target, evt->type, evt);
                         }
                     }
-                } else if (evt->subject &&
-                           memcmp(&((edict_t *)evt->subject)->old_origin,
-                                  &((edict_t *)evt->subject)->s.origin2, sizeof(vec2_t)) == 0 &&
-                           Vector2_distance(&((edict_t *)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
-                           Vector2_distance(&((edict_t *)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
-                    G_PublishEventResponse(ent, evt->type, evt);
+                } else if (evt->subject) {
+                    edict_t const *subject = evt->subject;
+                    float const dx_before = subject->old_origin.x - ent->old_origin.x;
+                    float const dy_before = subject->old_origin.y - ent->old_origin.y;
+                    float const dx_after = subject->s.origin2.x - ent->s.origin2.x;
+                    float const dy_after = subject->s.origin2.y - ent->s.origin2.y;
+                    float const range_sq = evt->range * evt->range;
+                    float const before_sq = dx_before * dx_before + dy_before * dy_before;
+                    float const after_sq = dx_after * dx_after + dy_after * dy_after;
+                    if (memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0 &&
+                        before_sq > range_sq && after_sq <= range_sq)
+                        G_PublishEventResponse(ent, evt->type, evt);
                 }
                 break;
             default:
                 break;
         }
+      }
     }
 }
 
@@ -535,7 +558,9 @@ void G_RunEvents(void) {
  * lethal hit. Only a handler bound to this very unit needs that order; everything else stays queued. */
 void G_RunDamagedHandlersNow(edict_t *target) {
     bool direct = false;
-    FOR_EACH_EVENT(evt) {
+    for (uint32_t event_index = 0; event_index < G_EventRegistryHighWater(); ++event_index) {
+        event_t *evt = &level.events.handlers[event_index];
+        if (!evt->inuse) continue;
         if (evt->type == EVENT_UNIT_DAMAGED && evt->subject == target) { direct = true; break; }
     }
     if (direct) G_RunEvents();

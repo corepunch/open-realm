@@ -10,6 +10,30 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+/* The WC3 minimap batching tests compile r_game.c in a separate headless
+ * renderer translation unit. Capture the production submission geometry. */
+uint32_t test_marker_batch_calls;
+bool test_marker_batch_capture;
+uint32_t test_marker_batch_counts[3];
+uint32_t test_marker_batch_texture_ids[3];
+vertex_t test_marker_batch_vertices[3][12];
+void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shader, BLEND_MODE blend,
+                      float glow, float radial, bool has_clip, rect_t const *clip,
+                      vertex_t const *vertices, uint32_t count, bool repeat) {
+    if (!test_marker_batch_capture) return;
+    T_EQ(shader, SHADER_UI);
+    T_EQ(blend, BLEND_MODE_NONE);
+    T_FEQ(glow, 0.0f, 0.001f);
+    T_FEQ(radial, 0.0f, 0.001f);
+    T_ASSERT(!has_clip && !clip && !repeat);
+    T_ASSERT(texture && vertices && count && !(count % 6u));
+    uint32_t slot = test_marker_batch_calls++;
+    if (slot >= 3) return;
+    test_marker_batch_counts[slot] = count;
+    test_marker_batch_texture_ids[slot] = texture->texid;
+    memcpy(test_marker_batch_vertices[slot], vertices, MIN(count, 12u) * sizeof(*vertices));
+}
+
 static cparticle_t emitted[16];
 static uint32_t emit_count;
 cparticle_t *R_SpawnParticle(void) {
@@ -48,6 +72,10 @@ uint32_t MDLX_TestKeyframeBracketHits(void);
 uint32_t MDLX_TestKeyframeBracketAdvances(void);
 void MDLX_TestResetPoseTrackSamples(void);
 uint32_t MDLX_TestPoseTrackSamples(void);
+void MDLX_TestSetLocalPoseCache(bool enabled);
+void MDLX_TestClearLocalPoseCacheOverride(void);
+void MDLX_TestResetLocalPoseCacheHits(void);
+uint32_t MDLX_TestLocalPoseCacheHits(void);
 
 /* The pre-optimisation eight-corner implementation is intentionally kept
  * independent of the production support-point test. */
@@ -429,18 +457,26 @@ static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w,
     if (data) upload_pixel = *(color32_t const *)data;
 }
 static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
-static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
+static uint32_t texture_bind_calls, texture_active_calls;
+static GLenum texture_last_unit, texture_last_target;
+static GLuint texture_last_id;
+static void test_activetex(GLenum texture) { texture_active_calls++; texture_last_unit = texture; }
+static void test_bindtex(GLenum target, GLuint id) {
+    texture_bind_calls++; texture_last_target = target; texture_last_id = id;
+}
 static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
 static uint32_t texture_delete_count;
 static void test_deletetex(GLsizei n, GLuint const *ids) { (void)ids; texture_delete_count += n; }
 #undef glTexImage2D
 #undef glGenTextures
 #undef glBindTexture
+#undef glActiveTexture
 #undef glTexParameteri
 #undef glDeleteTextures
 #define glTexImage2D test_teximage
 #define glGenTextures test_gentex
 #define glBindTexture test_bindtex
+#define glActiveTexture test_activetex
 #define glTexParameteri test_texparam
 #define glDeleteTextures test_deletetex
 #undef glGetString
@@ -451,6 +487,46 @@ static void test_deletetex(GLsizei n, GLuint const *ids) { (void)ids; texture_de
 #include "renderer/r_blp2.c"
 #include "renderer/r_pcx.c"
 #include "renderer/r_dds.c"
+#undef glActiveTexture
+
+TEST(renderer_texture, binding_cache_keeps_units_separate_and_invalidates_deleted_ids) {
+    uint32_t requests, skipped, binds, units;
+    GLuint id = 12;
+    R_SetTextureBindingCacheEnabled(true);
+    R_InvalidateTextureBindingCache();
+    R_GetTextureBindingCacheStats(NULL, NULL, NULL, NULL);
+    texture_bind_calls = texture_active_calls = 0;
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_ActiveTexture(GL_TEXTURE1);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_last_unit, GL_TEXTURE0);
+    T_EQ(texture_last_target, GL_TEXTURE_2D);
+    T_EQ(texture_last_id, id);
+    T_EQ(texture_bind_calls, 2u);
+
+    R_DeleteGLTextures(1, &id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 3u);
+    R_SetTextureBindingCacheEnabled(false);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 5u);
+    R_SetTextureBindingCacheEnabled(true);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 5u);
+    R_InvalidateTextureBindingCache();
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, id);
+    T_EQ(texture_bind_calls, 6u);
+    R_GetTextureBindingCacheStats(&requests, &skipped, &binds, &units);
+    T_EQ(requests, 9u); T_EQ(skipped, 3u); T_EQ(binds, 6u);
+    T_EQ(units, 4u); T_EQ(texture_active_calls, 4u);
+    R_InvalidateTextureBindingCache();
+}
 
 static struct { uint32_t calls, first, count, instances, stats_count, stats_instances; } draw_test;
 void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {
@@ -472,6 +548,7 @@ static void test_drawarrays(GLenum mode, GLint first, GLsizei count) {
 static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsizei instances) {
     (void)mode; draw_test.calls++; draw_test.first = first; draw_test.count = count; draw_test.instances = instances;
 }
+static struct { uint32_t calls, full_count, range_count, range_first[128], range_vertices[128]; } ground_draw_test;
 /* The production MDX loader uploads and frees geometry; intercept only GL
  * calls so these headless tests also run on macOS without a current context. */
 static void test_bufdata(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
@@ -910,6 +987,59 @@ TEST(renderer_model, mdx_view_key_span_reuses_sequence_bounds_and_nearby_bracket
         MDLX_ViewPoseEnd();
     }
     tr.viewDef.lerpfrac = saved_lerp;
+}
+
+TEST(renderer_model, mdx_local_pose_cache_reuses_only_identical_instance_samples) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(vec3_t))] = {0};
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxKeyFrame_t *key0 = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *key1 = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(vec3_t));
+    mdxSequence_t sequence = {.interval = {0, 100}};
+    mdxNode_t node = {.node_id = 0, .parent_id = UINT32_MAX, .translation = track};
+    mdxModel_t model = {.sequences = &sequence, .num_sequences = 1, .num_nodes = 1};
+    renderEntity_t first = {.number = 501, .generation = 1};
+    renderEntity_t second = {.number = 502, .generation = 1};
+    mdxAnimationTimeScope_t scope;
+    mat4_t identity;
+    viewDef_t const old_view = tr.viewDef;
+
+    track->keyframeCount = 2; track->datatype = TDATA_FLOAT3;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = UINT32_MAX;
+    key0->time = 0; key1->time = 100;
+    vec3_t const value0 = {0, 0, 0}, value1 = {10, 4, 2};
+    memcpy(key0->data, &value0, sizeof(value0));
+    memcpy(key1->data, &value1, sizeof(value1));
+    model.nodes[0] = model.node_list[0] = &node;
+    Matrix4_identity(&identity);
+    tr.viewDef.time = 77;
+    tr.viewDef.lerpfrac = 0.5f;
+
+    MDLX_TestSetLocalPoseCache(true);
+    MDLX_ViewPoseBegin();
+    MDLX_TestResetLocalPoseCacheHits();
+    MDLX_PushEntityAnimationTime(&first, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 75, 25);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(node_matrices[0].v[12], 5.0f, .0001f);
+    T_FEQ(node_matrices[0].v[13], 2.0f, .0001f);
+    T_FEQ(node_matrices[0].v[14], 1.0f, .0001f);
+
+    MDLX_PushEntityAnimationTime(&second, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 75, 25);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_EQ(MDLX_TestLocalPoseCacheHits(), 1u);
+    T_FEQ(node_matrices[0].v[12], 5.0f, .0001f);
+    T_FEQ(node_matrices[0].v[13], 2.0f, .0001f);
+    T_FEQ(node_matrices[0].v[14], 1.0f, .0001f);
+
+    MDLX_PushEntityAnimationTime(&second, &scope);
+    MDLX_BindBoneMatrices(&model, &identity, 90, 90);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_EQ(MDLX_TestLocalPoseCacheHits(), 1u);
+    T_FEQ(node_matrices[0].v[12], 9.0f, .0001f);
+    MDLX_ViewPoseEnd();
+    MDLX_TestClearLocalPoseCacheOverride();
+    tr.viewDef = old_view;
 }
 
 TEST(renderer_model, mdx_view_key_span_preserves_global_clock_wrap_and_duplicate_keys) {
@@ -1784,6 +1914,9 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
 enum {
     TEST_MDX_ID_MDLX = MAKEFOURCC('M','D','L','X'),
     TEST_MDX_ID_VERS = MAKEFOURCC('V','E','R','S'),
+    TEST_MDX_ID_GEOS = MAKEFOURCC('G','E','O','S'),
+    TEST_MDX_ID_MTLS = MAKEFOURCC('M','T','L','S'),
+    TEST_MDX_ID_MATS = MAKEFOURCC('M','A','T','S'),
     TEST_MDX_ID_SEQS = MAKEFOURCC('S','E','Q','S'),
     TEST_MDX_ID_PIVT = MAKEFOURCC('P','I','V','T'),
     TEST_MDX_ID_RIBB = MAKEFOURCC('R','I','B','B'),
@@ -1794,6 +1927,43 @@ enum {
 static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_fourcc(uint8_t **p, uint32_t tag) { mdx_put_u32(p, tag); }
+
+TEST(renderer_model, mdx_loader_resolves_geoset_material_after_all_chunks) {
+    uint8_t blob[256] = {0};
+    uint8_t *p = blob, *block_size;
+    mdxModel_t *model;
+
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    /* Put GEOS before MTLS to ensure material resolution happens after parsing. */
+    mdx_put_fourcc(&p, TEST_MDX_ID_GEOS); block_size = p; mdx_put_u32(&p, 0);
+    mdx_put_u32(&p, 48); /* one geoset record */
+    mdx_put_fourcc(&p, TEST_MDX_ID_MATS);
+    mdx_put_u32(&p, 0); /* matrix count */
+    mdx_put_u32(&p, 1); /* material index */
+    mdx_put_u32(&p, 0); /* matrix group */
+    mdx_put_u32(&p, 1); /* selectable */
+    FOR_LOOP(i, 7) mdx_put_f32(&p, 0.0f); /* default bounds */
+    mdx_put_u32(&p, 0); /* per-sequence bounds count */
+    { uint32_t size = (uint32_t)(p - block_size - sizeof(uint32_t)); memcpy(block_size, &size, sizeof(size)); }
+
+    mdx_put_fourcc(&p, TEST_MDX_ID_MTLS); block_size = p; mdx_put_u32(&p, 0);
+    FOR_LOOP(i, 2) {
+        mdx_put_u32(&p, 8); /* material record size */
+        mdx_put_u32(&p, i); /* priority */
+        mdx_put_u32(&p, 0); /* flags */
+    }
+    { uint32_t size = (uint32_t)(p - block_size - sizeof(uint32_t)); memcpy(block_size, &size, sizeof(size)); }
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
+    model = R_LoadModelMDLX(blob, (uint32_t)(p - blob));
+    T_NOT_NULL(model);
+    T_NOT_NULL(model->materials);
+    T_NOT_NULL(model->materials->next);
+    T_EQ(model->geosets->materialID, 1);
+    T_EQ(model->geosets->material, model->materials->next);
+    MDLX_Release(model);
+}
 
 /* NewRoughCliffDoodadCave2 uses UV0 for replacement slot 11 and UV1 for its alpha-key cave overlay. */
 TEST(renderer_model, mdx_cave_uv_channels_do_not_overwrite_the_cliff_coordinates) {
@@ -3596,7 +3766,19 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
-void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {}
+void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {
+    (void)buffer;
+    ground_draw_test.calls++;
+    ground_draw_test.full_count += count;
+}
+static void test_ground_draw_range(buffer_t const *buffer, drawRange_t const *draw) {
+    (void)buffer;
+    T_ASSERT(ground_draw_test.range_count < 128);
+    ground_draw_test.calls++;
+    ground_draw_test.range_first[ground_draw_test.range_count] = draw->first;
+    ground_draw_test.range_vertices[ground_draw_test.range_count] = draw->count;
+    ground_draw_test.range_count++;
+}
 line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
 texture_t const *R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(uint32_t id) { (void)id; return NULL; }
@@ -3680,6 +3862,10 @@ static void test_splat_draw_arrays(GLenum mode, GLint first, GLsizei count) {
 #define R_ApplyShader test_splat_apply_shader
 void R_TestProductionRenderRectSplatUV(rectSplatParams_t const *params);
 static struct { uint32_t calls, first, count; float z; } ground_update;
+static buffer_t *test_ground_buffer(vertex_t const *vertices, uint32_t count) {
+    (void)vertices; (void)count;
+    return test_alloc(sizeof(buffer_t));
+}
 static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t const *vertices, uint32_t count) {
     (void)buffer;
     ground_update.calls++; ground_update.first = first; ground_update.count = count;
@@ -3689,12 +3875,17 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #define R_RenderFlatRectSplat R_TestProductionRenderFlatRectSplat
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
+#define R_MakeVertexArrayObject test_ground_buffer
+#include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 #define WC3_TERRAIN_NORMAL_TESTS
 #define WC3_SPLAT_GEOMETRY_CACHE_TESTS
+#define R_DrawBufferRange test_ground_draw_range
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
 #undef WC3_SPLAT_GEOMETRY_CACHE_TESTS
 #undef WC3_TERRAIN_NORMAL_TESTS
 #undef R_UpdateVertexArrayObject
+#undef R_MakeVertexArrayObject
+#undef R_DrawBufferRange
 #undef glEnable
 #undef glDisable
 #undef glPolygonOffset
@@ -3804,7 +3995,8 @@ TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
 
 /* The ground stays one whole-map buffer per layer; a changed segment overwrites exactly its own slice. */
 TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
-    enum { W = 2 * SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1, SLICE = SEGMENT_SIZE * SEGMENT_SIZE * 6 };
+    enum { W = GROUND_SEGMENT_SIZE + 1, H = GROUND_SEGMENT_SIZE + 1,
+           SLICE = GROUND_SEGMENT_SIZE * GROUND_SEGMENT_SIZE * 6 };
     static war3mapVertex_t verts[W * H];
     war3map_t map = { .width = W, .height = H, .vertices = verts };
     texture_t texture = { .width = 256, .height = 256 };
@@ -3817,21 +4009,20 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     g_groundTextures[0] = &texture;
     layer = R_BuildGroundLayerGlobal(&map, 0);
     T_NOT_NULL(layer);
-    T_EQ(layer->num_vertices, 2 * SLICE);
+    T_EQ(layer->num_vertices, SLICE);
     T_EQ(g_groundBatches[0].first[0], 0);
     T_EQ(g_groundBatches[0].first[1], SLICE);
-    T_EQ(g_groundBatches[0].first[2], 2 * SLICE);
 
     memset(&ground_update, 0, sizeof(ground_update));
-    R_UpdateGroundSegment(&map, 1, 0);
+    R_UpdateGroundSegment(&map, 0, 0);
     flat_z = ground_update.z;
     T_EQ(ground_update.calls, 1);
-    T_EQ(ground_update.first, SLICE);
+    T_EQ(ground_update.first, 0u);
     T_EQ(ground_update.count, SLICE);
 
     /* Moving a corner height (what a deformation does) changes the baked height but not the slice size. */
-    verts[SEGMENT_SIZE].accurate_height += 2000;
-    R_UpdateGroundSegment(&map, 1, 0);
+    verts[0].accurate_height += 2000;
+    R_UpdateGroundSegment(&map, 0, 0);
     T_EQ(ground_update.calls, 2);
     T_EQ(ground_update.count, SLICE);
     T_ASSERT(ground_update.z > flat_z + 1.0f);
@@ -3839,6 +4030,98 @@ TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
     test_free(layer);
     R_ResetGroundTextures();
+}
+
+TEST(renderer_terrain, ground_visibility_culling_preserves_partial_edge_chunks) {
+    enum { W = GROUND_SEGMENT_SIZE + 5, H = GROUND_SEGMENT_SIZE + 3 };
+    static war3mapVertex_t verts[W * H];
+    uint32_t grounds[] = {0};
+    war3map_t map = { .width = W, .height = H, .center = { -10.0f * TILE_SIZE, -8.0f * TILE_SIZE },
+                      .grounds = grounds, .num_grounds = 1, .vertices = verts };
+    texture_t texture = { .width = 256, .height = 256 };
+    viewDef_t saved_view = tr.viewDef;
+    maplayer_t *layer;
+    mat4_t clip;
+    uint32_t total_vertices;
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    FOR_LOOP(i, W * H) verts[i].accurate_height = 8192;
+    R_ResetGroundTextures();
+    g_groundTextures[0] = &texture;
+    layer = R_BuildGroundLayerGlobal(&map, 0);
+    T_NOT_NULL(layer);
+    T_EQ(g_groundBatches[0].columns, 2u);
+    T_EQ(g_groundBatches[0].rows, 2u);
+    /* Full 8x8 chunk, 4x8 right edge, 8x2 bottom edge, and 4x2 corner. */
+    T_EQ(layer->num_vertices, (8u * 8u + 4u * 8u + 8u * 2u + 4u * 2u) * 6u);
+    total_vertices = layer->num_vertices;
+
+    /* Retain each partial edge chunk in turn while rejecting its full-sized
+     * neighbor on the same row/column. */
+    box3_t const right_bounds = g_groundSegmentBounds[1];
+    box3_t const bottom_bounds = g_groundSegmentBounds[2];
+    float const right_mid_x = (right_bounds.min.x + right_bounds.max.x) * 0.5f;
+    float const all_mid_y = (g_groundSegmentBounds[0].min.y + g_groundSegmentBounds[2].max.y) * 0.5f;
+    float const bottom_mid_y = (bottom_bounds.min.y + bottom_bounds.max.y) * 0.5f;
+    float const all_mid_x = (g_groundSegmentBounds[0].min.x + g_groundSegmentBounds[1].max.x) * 0.5f;
+    Matrix4_identity(&clip);
+    clip.v[0] = 2.0f / ((right_bounds.max.x - right_bounds.min.x) * 0.9f);
+    clip.v[5] = 2.0f / ((g_groundSegmentBounds[2].max.y - g_groundSegmentBounds[0].min.y) * 1.2f);
+    clip.v[12] = -clip.v[0] * right_mid_x;
+    clip.v[13] = -clip.v[5] * all_mid_y;
+    clip.v[14] = 256.0f;
+    Frustum_Calculate(&clip, &tr.viewDef.frustum);
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(true);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 2u);
+    T_EQ(ground_draw_test.range_first[0], g_groundBatches[0].first[1]);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[2] - g_groundBatches[0].first[1]);
+    T_EQ(ground_draw_test.range_first[1], g_groundBatches[0].first[3]);
+    T_EQ(ground_draw_test.range_vertices[1], g_groundBatches[0].first[4] - g_groundBatches[0].first[3]);
+
+    Matrix4_identity(&clip);
+    clip.v[0] = 2.0f / ((g_groundSegmentBounds[1].max.x - g_groundSegmentBounds[0].min.x) * 1.2f);
+    clip.v[5] = 2.0f / ((bottom_bounds.max.y - bottom_bounds.min.y) * 0.9f);
+    clip.v[12] = -clip.v[0] * all_mid_x;
+    clip.v[13] = -clip.v[5] * bottom_mid_y;
+    clip.v[14] = 256.0f;
+    Frustum_Calculate(&clip, &tr.viewDef.frustum);
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(true);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 1u);
+    T_EQ(ground_draw_test.range_first[0], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[4] - g_groundBatches[0].first[2]);
+
+    /* Disable culling: every baked range, including both partial edges, is drawn. */
+    memset(&ground_draw_test, 0, sizeof(ground_draw_test));
+    R_PrepareGroundVisibility(false);
+    R_DrawGroundLayer(layer);
+    T_EQ(ground_draw_test.full_count, 0u);
+    T_EQ(ground_draw_test.range_count, 2u); /* One contiguous run per row. */
+    T_EQ(ground_draw_test.range_first[0], 0u);
+    T_EQ(ground_draw_test.range_vertices[0], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_first[1], g_groundBatches[0].first[2]);
+    T_EQ(ground_draw_test.range_vertices[1], total_vertices - g_groundBatches[0].first[2]);
+
+    /* A failed optional culling allocation must still update every terrain row. */
+    SAFE_DELETE(g_groundSegmentBounds, ri.MemFree);
+    SAFE_DELETE(g_groundSegmentVisible, ri.MemFree);
+    g_groundSegmentColumns = g_groundSegmentRows = 0;
+    memset(&ground_update, 0, sizeof(ground_update));
+    R_UpdateGroundSegment(&map, 0, 0);
+    T_EQ(ground_update.calls, 4);
+    T_EQ(ground_update.first, g_groundBatches[0].first[3]);
+    T_EQ(ground_update.count, (4u * 2u) * 6u);
+
+    R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+    test_free(layer);
+    R_ResetGroundTextures();
+    tr.viewDef = saved_view;
 }
 
 TEST(renderer_terrain, terrain_normal_cache_hits_and_invalidates_between_bakes) {
@@ -4758,8 +5041,6 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
         if (rows[i].id == id) return &rows[i];
     T_ASSERT(false); return NULL;
 }
-#include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
-
 static wc3WaterStyle_t test_shore_style;
 static model_t test_shore_model;
 static uint32_t test_shore_loads, test_shore_draws, test_shore_last_frame;

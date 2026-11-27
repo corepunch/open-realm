@@ -19,6 +19,8 @@ static const mat4_t r_cliff_axes = { .v = {0,-1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1} 
 
 maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer);
 void R_UpdateGroundSegment(war3map_t const *map, uint32_t sx, uint32_t sy);
+void R_PrepareGroundVisibility(bool cull);
+void R_DrawGroundLayer(maplayer_t const *layer);
 maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff);
 void R_BakeMapSegmentCliffsForWeld(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff);
 maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t sy);

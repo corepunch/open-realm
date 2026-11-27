@@ -965,6 +965,9 @@ void _W3M_DrawWorld(void) {
                                  ? &lighting : NULL);
     }
 
+    bool const cull_ground_segments = R_CvarEnabled("r_ground_cull", "1");
+    R_PrepareGroundVisibility(cull_ground_segments &&
+                              !(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL));
     FOR_EACH_LIST(maplayer_t, layer, g_groundLayers) {
         if (layer == g_groundLayers) {
             R_Call(glDisable, GL_BLEND);
@@ -974,7 +977,10 @@ void _W3M_DrawWorld(void) {
         }
         R_BindTexture(layer->texture, 0);
         R_ApplyShader(&tr.shader_default);
-        R_DrawBuffer(layer->buffer, layer->num_vertices);
+        if (cull_ground_segments)
+            R_DrawGroundLayer(layer);
+        else
+            R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 
     R_UpdateBlightLayer();

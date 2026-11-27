@@ -7080,6 +7080,9 @@ TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) 
     T_ASSERT(ReadGame(filename));
     T_EQ(level.events.write, 1);
     T_ASSERT(level.events.queue[0].responseTo == &level.events.handlers[1]);
+    T_EQ(G_EventRegistryHighWater(), 2u);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(0));
+    T_ASSERT(level.events.game_state_event_mask[0] & (UINT64_C(1) << 1));
     level.events = old_events;
     remove(filename);
 }

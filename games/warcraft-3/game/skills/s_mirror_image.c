@@ -23,6 +23,7 @@ static void mirror_image_spawn(edict_t *caster, uint32_t index, uint32_t count, 
     image->unit_state->hero = caster->unit_state->hero;
     image->unit_state->hero.suspend_xp = true;
     memcpy(image->unit_state->ranks, caster->unit_state->ranks, sizeof(image->unit_state->ranks));
+    S_AuraProviderOwnershipChanged(image);
     image->health = caster->health;
     image->mana = caster->mana;
     image->unit_color = caster->unit_color;

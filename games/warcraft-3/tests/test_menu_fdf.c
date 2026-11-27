@@ -5,6 +5,9 @@
 #include <stdarg.h>
 
 #include "test.h"
+
+/* The focused menu harness links common.c without the engine frame loop. */
+void Com_ServerWorkerShutdown(void) {}
 #include "common/ui_canvas.h"
 #include "common/common.h"
 #include "../menu/menu_local.h"

@@ -4,9 +4,10 @@
 FROM ubuntu:22.04 AS builder
 
 ARG TARGETARCH
-# Set to 1 to package the FFmpeg runtime libraries with the PortMaster build.
-# Most supported systems already provide them, so keep this disabled by default.
-ARG BUNDLE_FFMPEG_LIBS=0
+# Set to 0 to omit the FFmpeg runtime libraries from the PortMaster package.
+ARG BUNDLE_FFMPEG_LIBS=1
+ARG FFMPEG_PREFIX=/opt/ffmpeg-classic
+ARG FFMPEG_BUILD_JOBS=2
 ENV DEBIAN_FRONTEND=noninteractive
 
 # This PortMaster package currently targets aarch64 only.
@@ -25,20 +26,64 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgles2-mesa-dev \
     zlib1g-dev \
     libjpeg-dev \
-    libavformat-dev \
-    libavcodec-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libswresample-dev \
+    dpkg-dev \
+    nasm \
+    yasm \
     zip \
     unzip \
- && if [ "${BUNDLE_FFMPEG_LIBS}" = "1" ]; then \
-      apt-get install -y --no-install-recommends patchelf python3; \
-    fi \
  && rm -rf /var/lib/apt/lists/*
 
 # Verify that the container itself is actually ARM64.
 RUN test "$(dpkg --print-architecture)" = "arm64"
+
+# Build Ubuntu's FFmpeg source package with only the software codecs and
+# containers required for classic Warcraft III campaign movies and music.
+# BLZ0/DivX movies decode through FFmpeg's MPEG-4 Part 2 decoder; no Nox VQA3,
+# VAAPI, or other hardware-video support is needed.
+RUN set -eux; \
+    printf '%s\n' \
+      'Types: deb-src' \
+      'URIs: http://ports.ubuntu.com/ubuntu-ports' \
+      'Suites: jammy jammy-updates jammy-security' \
+      'Components: main universe restricted multiverse' \
+      'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' \
+      > /etc/apt/sources.list.d/ubuntu-src.sources; \
+    apt-get update; \
+    mkdir -p /tmp/ffmpeg-source; \
+    cd /tmp/ffmpeg-source; \
+    apt-get source ffmpeg; \
+    FFMPEG_SOURCE="$(find . -mindepth 1 -maxdepth 1 -type d -name 'ffmpeg-*' -print -quit)"; \
+    test -n "${FFMPEG_SOURCE}"; \
+    cd "${FFMPEG_SOURCE}"; \
+    ./configure \
+      --prefix="${FFMPEG_PREFIX}" \
+      --arch=aarch64 \
+      --target-os=linux \
+      --enable-shared \
+      --disable-static \
+      --disable-programs \
+      --disable-doc \
+      --disable-debug \
+      --enable-pic \
+      --disable-autodetect \
+      --disable-everything \
+      --enable-avformat \
+      --enable-avcodec \
+      --enable-avutil \
+      --enable-swscale \
+      --enable-swresample \
+      --enable-demuxer=avi,mp3 \
+      --enable-decoder=mpeg4,mp3,mp3float \
+      --enable-parser=mpeg4video,mpegaudio \
+      --enable-protocol=file; \
+    make -j"${FFMPEG_BUILD_JOBS}"; \
+    make install; \
+    mkdir -p /opt/ffmpeg-classic-licenses; \
+    cp COPYING.LGPLv2.1 /opt/ffmpeg-classic-licenses/; \
+    rm -rf /tmp/ffmpeg-source /var/lib/apt/lists/*
+
+ENV PKG_CONFIG_PATH=${FFMPEG_PREFIX}/lib/pkgconfig
+ENV LD_LIBRARY_PATH=${FFMPEG_PREFIX}/lib
 
 # build.sh supplies the repository root as the Docker build context.
 WORKDIR /src
@@ -88,6 +133,7 @@ RUN set -eux; \
     mkdir -p \
         "${PKG_DIR}" \
         "${PKG_DIR}/libs.aarch64" \
+        "${PKG_DIR}/ffmpeg.aarch64" \
         "${PKG_DIR}/gamefiles/warcraft-3" \
         "${PKG_DIR}/licenses"; \
     \
@@ -96,6 +142,7 @@ RUN set -eux; \
     test -f "${PM_SRC}/openrealm-wc3.gptk2.ini"; \
     test -f "${PM_SRC}/port.json"; \
     test -f "${PM_SRC}/gameinfo.xml"; \
+    test -f "${PM_SRC}/README.md"; \
     \
     # Top-level PortMaster launcher.
     cp "${PM_SRC}/open-realm-wc3.sh" \
@@ -107,6 +154,7 @@ RUN set -eux; \
        "${PKG_DIR}/port.json"; \
     cp "${PM_SRC}/gameinfo.xml" \
        "${PKG_DIR}/gameinfo.xml"; \
+    cp "${PM_SRC}/README.md" "${PKG_DIR}/README.md"; \
     cp "${PM_SRC}/openrealm-wc3.gptk2.ini" \
        "${PKG_DIR}/openrealm-wc3.gptk2.ini"; \
     cp "${PM_SRC}/WC3-ISO-IMPORT.md" "${PKG_DIR}/WC3-ISO-IMPORT.md"; \
@@ -124,10 +172,15 @@ RUN set -eux; \
         cp -a "${lib}" "${PKG_DIR}/libs.aarch64/"; \
     done; \
     \
-    # FFmpeg is usually supplied by the target OS; bundle it only on request.
+    # Keep FFmpeg separate from the engine's own libraries. The launcher adds
+    # ffmpeg.${DEVICE_ARCH} to LD_LIBRARY_PATH for the executable and its
+    # transitive FFmpeg dependencies.
     if [ "${BUNDLE_FFMPEG_LIBS}" = "1" ]; then \
-        python3 /src/dist-scripts/linux/bundle_media.py \
-            /src/build/bin/openwarcraft3 "${PKG_DIR}/libs.aarch64"; \
+        cp -a "${FFMPEG_PREFIX}"/lib/libav*.so* \
+            "${FFMPEG_PREFIX}"/lib/libsw*.so* "${PKG_DIR}/ffmpeg.aarch64/"; \
+        mkdir -p "${PKG_DIR}/licenses/ffmpeg"; \
+        cp /opt/ffmpeg-classic-licenses/COPYING.LGPLv2.1 \
+            "${PKG_DIR}/licenses/ffmpeg/"; \
     fi; \
     \
     # OpenRealm's built-in configuration/resources.

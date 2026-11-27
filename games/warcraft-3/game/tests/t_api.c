@@ -653,6 +653,77 @@ TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
     currentplayer = saved_currentplayer;
 }
 
+/* The indexed touch pass snapshots each 64-bit mask word. A JASS filter can
+ * retire another registration in that same word while the pass is running. */
+TEST(wc3_api, region_filter_retirement_skips_later_snapshot_bit) {
+    player_t *saved_player = currentplayer;
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger laterTrigger = null\n"
+        "  unit mover = null\n"
+        "  integer firstFilters = 0\n"
+        "  integer laterFilters = 0\n"
+        "endglobals\n"
+        "function first_filter takes nothing returns boolean\n"
+        "  set firstFilters = firstFilters + 1\n"
+        "  call DestroyTrigger(laterTrigger)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function later_filter takes nothing returns boolean\n"
+        "  set laterFilters = laterFilters + 1\n"
+        "  return true\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger firstTrigger = CreateTrigger()\n"
+        "  local region watched = CreateRegion()\n"
+        "  set laterTrigger = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RegionAddRect(watched, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(firstTrigger, watched, Condition(function first_filter))\n"
+        "  call TriggerRegisterEnterRegion(laterTrigger, watched, Condition(function later_filter))\n"
+        "endfunction\n"
+        "function move_in takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 40.0, 0.0)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(firstFilters == 1, \"first filter did not execute\")\n"
+        "  call BJassAssert(laterFilters == 0, \"retired filter executed from a stale mask word\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "move_in", false);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!(level.events.touch_trigger_mask[0] & (UINT64_C(1) << 1)));
+    currentplayer = saved_player;
+}
+
+TEST(wc3_api, event_registry_indexes_reuse_slots_and_rebuild_from_live_handlers) {
+    levelEvents_t previous = level.events;
+    event_t *region, *state, *range;
+    memset(&level.events, 0, sizeof(level.events));
+    region = G_MakeEvent(EVENT_GAME_ENTER_REGION);
+    state = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    T_NOT_NULL(region); T_NOT_NULL(state);
+    T_EQ(G_EventRegistryHighWater(), 2u);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    T_EQ(level.events.game_state_event_mask[0], UINT64_C(2));
+    G_RetireEvent(region);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(0));
+    range = G_MakeEvent(EVENT_UNIT_IN_RANGE);
+    T_ASSERT(range == region); /* Reuse the first retired slot without a stale type bit. */
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    level.events.registry_high_water = 0;
+    level.events.touch_trigger_mask[0] = level.events.game_state_event_mask[0] = 0;
+    G_RebuildEventRegistryCache(); /* Same derived-index reconstruction used by ReadGame. */
+    T_EQ(G_EventRegistryHighWater(), 2u);
+    T_EQ(level.events.touch_trigger_mask[0], UINT64_C(1));
+    T_EQ(level.events.game_state_event_mask[0], UINT64_C(2));
+    G_RetireEvent(state); G_RetireEvent(range);
+    T_EQ(G_EventRegistryHighWater(), 0u);
+    level.events = previous;
+}
+
 TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;
@@ -1604,6 +1675,43 @@ TEST(wc3_api, default_camera_authors_lens) {
     T_FEQ(cam.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
     T_FEQ(cam.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
     T_FEQ(cam.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
+}
+
+TEST(wc3_api, reset_to_game_camera_uses_player_default_zoom) {
+    gameClient_t *gc;
+    player_t *saved_currentplayer = currentplayer;
+    mapInfo_t saved_info = world.info;
+    cstring_t script =
+        "function main takes nothing returns nothing\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n";
+
+    setup_test_world();
+    world.info = (mapInfo_t){0};
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    currentplayer = test_player(0);
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f);
+
+    level.camera_preferences[0] = (clientCameraPreference_t){ .valid = true,
+        .default_distance = 2100.0f, .maximum_distance = 3000.0f };
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, 2100.0f, 0.001f);
+
+    world.info.fileFormat = 32;
+    world.info.flags = force_default_camera_zoom;
+    world.info.defaultZoomOverride = 2400;
+    gc->camera.state.target_distance = 900.0f;
+    T_ASSERT(run_test_jass(script));
+    T_FEQ(gc->camera.state.target_distance, 2400.0f, 0.001f);
+
+    world.info = saved_info;
+    currentplayer = saved_currentplayer;
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
 }
 
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
@@ -9452,6 +9560,46 @@ TEST(wc3_api, controller_input_preserves_scripted_ownership) {
     T_FEQ(gc->camera.old_state.target_distance, 1200, 0.001f);
     T_EQ(gc->camera.start_time, gc->camera.end_time);
     gc->no_control = old_ctrl;
+}
+
+TEST(wc3_api, client_begin_applies_local_camera_default_before_map_scripts) {
+    gameClient_t *gc = &game.clients[0];
+    bool scripts_started = level.scriptsStarted;
+    float old_target;
+
+    /* Exercise the real ClientInput -> ClientBegin path used by signon. */
+    setup_test_world();
+    gc = &game.clients[0];
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
+    gc->camera.state.target_distance = 1650.0f;
+    gc->camera.old_state.target_distance = 1650.0f;
+    gc->ps.distance = 1650.0f;
+    level.scriptsStarted = true; /* Keep this regression independent of a JASS VM. */
+
+    inputCmd_t cmd = { .action = BZ_INPUT_CAMERA_PREFERENCE,
+        .camera_preference = { 2050.0f, 3100.0f } };
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_ASSERT(level.camera_preferences[0].valid);
+    T_FEQ(level.camera_preferences[0].default_distance, 2050.0f, 0.001f);
+
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(gc->camera.state.target_distance, 2050.0f, 0.001f);
+    T_FEQ(gc->camera.old_state.target_distance, 2050.0f, 0.001f);
+    T_FEQ(gc->ps.distance, 2050.0f, 0.001f);
+
+    old_target = gc->camera.state.target_distance;
+    world.info.fileFormat = 32;
+    world.info.flags = force_default_camera_zoom;
+    world.info.defaultZoomOverride = 1800;
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(gc->camera.state.target_distance, old_target, 0.001f);
+    level.camera_preferences[0].initialized = false;
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(gc->camera.state.target_distance, 1800.0f, 0.001f);
+    T_ASSERT(gc->camera.state.target_distance != old_target);
+
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
+    level.scriptsStarted = scripts_started;
 }
 
 /* Minimap focus must reach the server camera, clear unit tracking, and respect scripted control. */

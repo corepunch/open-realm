@@ -699,13 +699,19 @@ static void G_PublishTimeOfDayPhase(void) {
 }
 
 static void G_CheckTimeOfDayEvents(float before, float after) {
-    FOR_EACH_EVENT(evt) {
-        if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
-            continue;
-        if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
-            G_LimitMatches(evt->limitop, after, evt->limitval))
-        {
-            G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
+    uint32_t const registry_high_water = G_EventRegistryHighWater();
+    for (uint32_t word = 0; word < (registry_high_water + 63) / 64; ++word) {
+        uint64_t events = level.events.game_state_event_mask[word];
+        while (events) {
+            uint32_t const event_index = word * 64 + (uint32_t)__builtin_ctzll(events);
+            event_t *evt = &level.events.handlers[event_index];
+            events &= events - 1;
+            if (evt->state != WC3_GAME_STATE_TIME_OF_DAY) continue;
+            if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
+                G_LimitMatches(evt->limitop, after, evt->limitval))
+            {
+                G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
+            }
         }
     }
 }
@@ -1382,11 +1388,27 @@ static void G_CameraTraceFrame(void) {
 static void G_CameraTraceFrame(void) { }
 #endif
 
+static clientCameraPreference_t *G_CameraPreference(gameClient_t const *client) {
+    if (!client || client->ps.number >= MAX_PLAYERS) return NULL;
+    return &level.camera_preferences[client->ps.number];
+}
+
 /* The player controller has no model; its focus and orbit still belong to the game. */
 static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
     gameClient_t *client;
-    if (score_transition.terminal || !ent || !ent->client || !cmd) return;
+    if (!ent || !ent->client || !cmd) return;
     client = ent->client;
+    if (cmd->action == BZ_INPUT_CAMERA_PREFERENCE) {
+        if (!isfinite(cmd->camera_preference.default_distance) || cmd->camera_preference.default_distance < 0.0f ||
+            !isfinite(cmd->camera_preference.maximum_distance) || cmd->camera_preference.maximum_distance < 0.0f) return;
+        clientCameraPreference_t *preference = G_CameraPreference(client);
+        if (!preference) return;
+        preference->default_distance = cmd->camera_preference.default_distance;
+        preference->maximum_distance = cmd->camera_preference.maximum_distance;
+        preference->valid = true;
+        return;
+    }
+    if (score_transition.terminal) return;
     if (client->no_control) return;
     if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
     if (cmd->action == BZ_INPUT_VIEW) {
@@ -2162,6 +2184,8 @@ static void G_ClientDisconnect(edict_t *edict) {
      * stops G_RunFrame. Detect the final viewer here, not by polling the
      * simulation tail (which will never run again). */
     bool const was_paused = level.script_paused || level.modal_paused;
+    clientCameraPreference_t *preference = G_CameraPreference(edict ? edict->client : NULL);
+    if (preference) preference->valid = false;
     G_SetClientConnected(edict, false);
     if (score_transition.shown) {
         G_FlushScoreTransition();
@@ -2171,6 +2195,34 @@ static void G_ClientDisconnect(edict_t *edict) {
          * score transition was actually requested before draining anything. */
         G_FlushPausedScoreTransition();
     }
+}
+
+/* Resolve the gameplay/reset distance from this player's preference and the
+ * active map's W3I force-zoom policy. */
+float G_ClientCameraDefaultDistance(gameClient_t const *client) {
+    clientCameraPreference_t const *preference = G_CameraPreference(client);
+    gameCameraZoomPolicy_t policy;
+    float default_distance = preference && preference->valid
+        ? preference->default_distance : WC3_CAMERA_DEFAULT_DISTANCE;
+    float maximum_distance = preference && preference->valid
+        ? preference->maximum_distance : WC3_CAMERA_MAX_DISTANCE;
+    if (!CL_GameCameraZoomPolicy(&policy, default_distance, maximum_distance))
+        return WC3_CAMERA_DEFAULT_DISTANCE;
+    return policy.default_distance;
+}
+
+/* Apply only the player's interactive default before map scripts run. Scripted
+ * camera fields remain free to author their own initial or cinematic state. */
+static void G_ApplyClientCameraPreference(gameClient_t *client) {
+    clientCameraPreference_t *preference = G_CameraPreference(client);
+    if (!preference || preference->initialized) return;
+    preference->initialized = true;
+    if (!preference->valid) return;
+    float const default_distance = G_ClientCameraDefaultDistance(client);
+    client->camera.state.target_distance = default_distance;
+    client->camera.old_state.target_distance = default_distance;
+    client->ps.distance = default_distance;
+    client->camera.start_time = client->camera.end_time = G_Time();
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
@@ -2189,6 +2241,7 @@ static void G_ClientBegin(edict_t *edict) {
     if (!client->mapplayer) {
         client->ps.vieworigin = (vec3_t){ 0, 0, 0 };
     }
+    G_ApplyClientCameraPreference(client);
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
             (unsigned)(edict - globals.edicts),

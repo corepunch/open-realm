@@ -82,8 +82,8 @@ def iso_record(extent, size, name, is_dir=False):
     return rec
 
 
-def iso_with_nested_setup(payload):
-    sectors = [bytearray(2048) for _ in range(20 + (len(payload) + 2047) // 2048)]
+def iso_with_nested_setup(payload, movie=None):
+    sectors = [bytearray(2048) for _ in range(24 + (len(payload) + 2047) // 2048)]
     pvd = sectors[16]
     pvd[0] = 1
     pvd[1:6] = b'CD001'
@@ -95,13 +95,29 @@ def iso_with_nested_setup(payload):
     root = (iso_record(18, 2048, b'\x00', True)
             + iso_record(18, 2048, b'\x01', True)
             + iso_record(19, 2048, b'DATA', True))
+    setup_extent = 20
+    if movie:
+        root += iso_record(20, 2048, b'MOVIES', True)
+        setup_extent = 21
+        movie_extent = setup_extent + (len(payload) + 2047) // 2048
+        sectors.extend(bytearray(2048) for _ in range((len(movie[1]) + 2047) // 2048))
     sectors[18][:len(root)] = root
     directory = (iso_record(19, 2048, b'\x00', True)
                  + iso_record(18, 2048, b'\x01', True)
-                 + iso_record(20, len(payload), b'SETUP.MPQ;1'))
+                 + iso_record(setup_extent, len(payload), b'SETUP.MPQ;1'))
     sectors[19][:len(directory)] = directory
-    image = b''.join(sectors)
-    return image[:20 * 2048] + payload + image[20 * 2048 + len(payload):]
+    if movie:
+        movies = (iso_record(20, 2048, b'\x00', True)
+                  + iso_record(18, 2048, b'\x01', True)
+                  + iso_record(movie_extent, len(movie[1]), movie[0].upper().encode('ascii') + b';1'))
+        sectors[20][:len(movies)] = movies
+    image = bytearray(b''.join(sectors))
+    setup_start = setup_extent * 2048
+    image[setup_start:setup_start + len(payload)] = payload
+    if movie:
+        movie_start = movie_extent * 2048
+        image[movie_start:movie_start + len(movie[1])] = movie[1]
+    return bytes(image)
 
 
 class TestImporter(unittest.TestCase):
@@ -137,6 +153,42 @@ class TestImporter(unittest.TestCase):
         self.assertEqual(output.read_bytes(), data)
         proc = self.invoke(self.iso_tool, 'extract-file', image, 'War3x.mpq', output)
         self.assertEqual(proc.returncode, 2, proc.stderr)
+
+    def test_iso_extracts_movies_directory_without_copying_other_disc_files(self):
+        setup = mpq([('SetupDat\\maps.lst', b'dummy')])
+        movie_bytes = b'RIFF classic movie payload'
+        image = self.root / 'roc.iso'
+        image.write_bytes(iso_with_nested_setup(setup, ('HumanEd.mpq', movie_bytes)))
+        output = self.root / 'gamefiles' / 'Movies'
+        proc = self.invoke(self.iso_tool, 'extract-dir', image, 'Movies', output)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual((output / 'HUMANED.MPQ').read_bytes(), movie_bytes)
+        self.assertFalse((output / 'War3.mpq').exists())
+
+        proc = self.invoke(self.iso_tool, 'extract-dir', image, 'Trailers', self.root / 'trailers')
+        self.assertEqual(proc.returncode, 2, proc.stderr)
+
+    def test_portmaster_reimport_restores_movies_with_existing_archives(self):
+        data = self.root / 'gamefiles' / 'warcraft-3'
+        data.mkdir(parents=True)
+        installed = mpq([('installed.txt', b'preserve this archive')])
+        (data / 'War3.mpq').write_bytes(installed)
+        (data / 'War3x.mpq').write_bytes(installed)
+        (data / '.portmaster-iso-import-v1').touch()
+        setup = mpq([('War3x.mpq', self.expansion())])
+        movie = b'RIFF classic movie payload'
+        iso = data.parent / 'expansion.iso'
+        iso.write_bytes(iso_with_nested_setup(setup, ('IntroX.mpq', movie)))
+        (self.root / 'isoextract.test').symlink_to(self.iso_tool)
+        (self.root / 'wc3setup.test').symlink_to(self.setup_tool)
+        launcher_path = pathlib.Path(__file__).resolve().parents[1] / 'dist-scripts/portmaster/open-realm-wc3.sh'
+        installer = launcher_path.read_text().split('\ninstall() {', 1)[1].split('\nif ! install;', 1)[0]
+        script = 'GAMEDIR=$1\nDEVICE_ARCH=test\npm_message() { echo "$*"; }\n'
+        proc = self.invoke('bash', '-c', script + 'install() {' + installer + '\ninstall', 'install-test', self.root)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual((data / 'Movies' / 'INTROX.MPQ').read_bytes(), movie)
+        self.assertEqual((data / 'War3x.mpq').read_bytes(), installed)
+        self.assertFalse(iso.exists())
 
     def test_iso_cyclic_directory_tree_is_bounded(self):
         image_data = bytearray(iso_with_nested_setup(b'payload'))

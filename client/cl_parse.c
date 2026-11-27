@@ -564,9 +564,13 @@ void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     cl.viewDef.camerastate[0].zfar = cl.playerstate.zfar;
 
     /* Prediction expires if a game rejects/clamps input, and yields immediately to scripted UI ownership. */
-    if (cl.playerstate.client_ui_state != CLIENT_UI_GAME)
+    if (cl.playerstate.client_ui_state != CLIENT_UI_GAME) {
         cl.camera_prediction.active = cl.camera_prediction.view = false;
-    if (cl.time - cl.camera_prediction.focus_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.active = false;
+        cl.camera_prediction.scrolling = false;
+    }
+    if (!cl.camera_prediction.scrolling &&
+        cl.time - cl.camera_prediction.focus_ms > BZ_INPUT_MAX_MSEC)
+        cl.camera_prediction.active = false;
     if (cl.time - cl.camera_prediction.view_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.view = false;
     if (cl.camera_prediction.view) {
         if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(vec3_t)) &&

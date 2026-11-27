@@ -559,6 +559,8 @@ void Cvar_Init(void) {
     Cvar_GetD("sv_rate",          "0",                 0,            "UDP client link in bytes/second; snapshots due while it drains are skipped; 0=unlimited");
     Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
     Cvar_GetD("com_frame_limit",  "0",                 0,            "exit after N main-loop iterations; 0=disabled");
+    Cvar_GetD("com_profile",      "0",                 0,            "log one-second client/server stage timings and gameplay FPS samples");
+    Cvar_GetD("com_server_worker","0",                 0,            "allow local server/render overlap in experimental builds");
 #ifdef WC3
     Cvar_GetD("com_maxfps",       "64",                CVAR_ARCHIVE, "maximum client frame rate; 0=unlimited");
 #else
@@ -575,6 +577,7 @@ void Cvar_Init(void) {
     Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");
     Cvar_GetD("r_texture_quality","2",                 CVAR_ARCHIVE, "texture mip level: 0=low, 1=medium, 2=full");
     Cvar_GetD("r_particles",      "2",                 CVAR_ARCHIVE, "particle effect density: 0=off, 1=reduced, 2=full");
+    Cvar_GetD("r_ground_cull",    "1",                 CVAR_ARCHIVE, "skip off-screen Warcraft III ground segments");
     Cvar_GetD("r_lights",         "2",                 CVAR_ARCHIVE, "dynamic light count: 0=off, 1=minimal, 2=max");
     Cvar_GetD("r_unit_shadows",   "1",                 CVAR_ARCHIVE, "render blob shadows under units");
     Cvar_GetD("r_occlusion",      "1",                 CVAR_ARCHIVE, "frustum-cull off-screen entities");
@@ -583,9 +586,11 @@ void Cvar_Init(void) {
     Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
     Cvar_GetD("r_profile",        "0",                 0,            "frame timings: 0=off, 1=CPU/particles, 2=CPU and async GPU queries");
     Cvar_GetD("r_program_cache",  "1",                 0,            "skip unchanged GL program bindings; 0 enables uncached profiling");
+    Cvar_GetD("r_mdx_local_pose_cache", "1",            0,            "reuse exact MDX local poses between instances within a render view");
     Cvar_GetD("r_norefresh",      "0",                 0,            "skip all screen rendering while client/server processing continues");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
     Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");
+    Cvar_GetD("r_render_scale",   "100",               CVAR_ARCHIVE, "3D render scale percentage; UI remains at native resolution");
 #ifdef WOW
     /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
     Cvar_GetD("r_fog",            "1",                 CVAR_ARCHIVE, "render world distance fog");

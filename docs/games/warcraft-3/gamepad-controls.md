@@ -37,7 +37,10 @@ Defaults: `JOYA` `+select` (same command as `MOUSE1`), `JOYX` `+smart` (as
 `MOUSE2`), `JOYB` `+cancel`, `JOYY` `+radial`, `JOYLB` `+statuspanel`, `JOYRB`
 `+selectvisible`, `JOYLT` `+selectremove`, `JOYRT` `+selectadd`, `JOYSTART`
 `+system`, `JOYBACK` `+escape`, `JOYRSTICK` `zoomdefault`, D-pad
-`+dpadup/right/down/left`. Bound to a controller key, `+select` and `+smart`
+`+dpadup/right/down/left`. A standalone Start tap opens the game menu when
+Start is released. Holding Start with another button uses the configured
+modifier action instead; for example, Start+RB opens the menu. Bound to a
+controller key, `+select` and `+smart`
 use the controller route (virtual cursor, paint ring); rebind any button to any
 command (`bind JOYY "cmd quickcamera"`). Bindings are saved with the config.
 

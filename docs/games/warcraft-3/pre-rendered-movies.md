@@ -32,6 +32,12 @@ libswscale
 libswresample
 ```
 
+The PortMaster ARM64 image builds the FFmpeg source package from Ubuntu 22.04 with automatic and optional features
+disabled. It enables only AVI and MP3 demuxing, MPEG-4 Part 2 and MP3 decoding, the parsers those codecs need,
+software pixel conversion, and audio resampling. This covers classic DivX/BLZ0 campaign movies and their MP3 audio;
+Nox VQA3 and hardware video acceleration are outside this build. The generated libraries are bundled with the port and
+their runtime closure is checked during packaging.
+
 `client/cl_movie.c` owns demux/decode, A/V scheduling, Escape-to-skip, archive extraction, and full-screen presentation.
 The renderer exposes a Quake-II-style `DrawCinematicFrame` operation. The client supplies decoded RGBA pixels and the destination rectangle; the renderer owns the persistent upload texture and draws it. Passing `NULL` releases that renderer-owned texture. The sound mixer exposes a generic 44.1-kHz stereo S16 stream slot, following the same ownership split as Quake-style cinematic audio. Movie and music streams are independent; see [music.md](music.md).
 

@@ -20,6 +20,10 @@ struct server_static svs;
 static PATHSTR sv_external_map;
 static bool sv_external_map_pending;
 static bool sv_external_quit_pending;
+static _Thread_local bool sv_frame_worker;
+static bool sv_deferred_pause_cvar;
+static bool sv_deferred_pause_value;
+static bool SV_ProcessExternalMap(void);
 
 #define BZ_KEEPALIVE_MSEC 1000 // milliseconds; Quake 2's interval; keeps clients alive while waiting to spawn
 
@@ -35,6 +39,19 @@ bool SV_NeedsFrame(void) {
     return SV_IsActive() || SV_HasExternalControl();
 }
 
+/* A fresh map can replace the server session while the local client still
+ * holds an active snapshot from the previous world. Wait for the new session
+ * to accept that client's begin handshake before enabling worker ticks. */
+bool SV_LocalClientReadyForWorker(void) {
+    if (sv.state != ss_game) return false;
+    FOR_LOOP(i, svs.num_clients) {
+        client_t const *client = &svs.clients[i];
+        if (client->state == cs_spawned && client->netchan.remote_address.type == NA_LOOPBACK)
+            return true;
+    }
+    return false;
+}
+
 bool SV_RequestMap(cstring_t map) {
     PATHSTR resolved;
 
@@ -47,6 +64,20 @@ bool SV_RequestMap(cstring_t map) {
 
 void SV_RequestQuit(void) {
     sv_external_quit_pending = true;
+}
+
+bool SV_ProcessPendingRequests(void) {
+    if (SV_ProcessExternalMap()) return true;
+    if (!sv_external_quit_pending) return false;
+    sv_external_quit_pending = false;
+    Com_Quit();
+    return true;
+}
+
+void SV_ApplyDeferredPauseCvar(void) {
+    if (!sv_deferred_pause_cvar) return;
+    Cvar_Set("paused", sv_deferred_pause_value ? "1" : "0");
+    sv_deferred_pause_cvar = false;
 }
 
 static bool SV_ProcessExternalMap(void) {
@@ -326,7 +357,12 @@ void SV_RunGameFrame(void) {
  * need traffic so their normal connection timeout does not fire. */
 void SV_SetPaused(bool paused) {
     paused = !!paused;
-    Cvar_Set("paused", paused ? "1" : "0");
+    if (sv_frame_worker) {
+        sv_deferred_pause_cvar = true;
+        sv_deferred_pause_value = paused;
+    } else {
+        Cvar_Set("paused", paused ? "1" : "0");
+    }
     if (sv.paused == paused) {
         return;
     }
@@ -344,7 +380,7 @@ void SV_SetPaused(bool paused) {
 /* Main server tick called from the platform event loop with the elapsed
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
-void SV_Frame(uint32_t msec) {
+static void SV_FrameInternal(uint32_t msec, bool process_requests) {
     uint32_t external_steps = 0, completed_steps = 0;
     bool external_clock;
     if (Cvar_Integer("online_mode", 0) && SV_IsActive() && !Online_Ready()) {
@@ -373,12 +409,7 @@ void SV_Frame(uint32_t msec) {
      *suppressed. */
     if (ge && ge->ExternalFrame) external_steps = ge->ExternalFrame();
 
-    if (SV_ProcessExternalMap()) return;
-    if (sv_external_quit_pending) {
-        sv_external_quit_pending = false;
-        Com_Quit();
-        return;
-    }
+    if (process_requests && SV_ProcessPendingRequests()) return;
 
     external_clock = ge && ge->ExternalOwnsClock && ge->ExternalOwnsClock();
     if (external_steps) {
@@ -431,4 +462,14 @@ void SV_Frame(uint32_t msec) {
     SV_RunGameFrame();
     sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages();
+}
+
+void SV_Frame(uint32_t msec) {
+    SV_FrameInternal(msec, true);
+}
+
+void SV_FrameWorker(uint32_t msec) {
+    sv_frame_worker = true;
+    SV_FrameInternal(msec, false);
+    sv_frame_worker = false;
 }

@@ -127,10 +127,15 @@ typedef struct mdxGeosetDrawOrder_s {
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
-    mdxMaterial_t *material = model->materials;
-    for (uint32_t materialID = geoset->materialID; materialID > 0; materialID--) {
+    mdxMaterial_t *material;
+    uint32_t id;
+    if (geoset && geoset->material) return geoset->material;
+    /* Manually assembled/test models and legacy callers may not have passed
+     * through R_LoadModelMDLX's post-parse pointer resolution. */
+    material = model ? model->materials : NULL;
+    id = geoset ? (uint32_t)geoset->materialID : 0;
+    for (; material && id > 0; id--)
         material = material->next;
-    }
     return material;
 }
 
@@ -243,7 +248,7 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
 }
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
-    mat4_t matrixPalette[MDX_MATRIX_PALETTE];
+    modelProg_t *shader = mdlx.shader;
     /* Skin indices are geoset-local (0..num_matrixPalette-1), so only the
      * palette entries the geoset actually references need to reach the shader.
      * Uploading the full BZ_BONE_PALETTE_MAX per geoset was wasted uniform
@@ -253,14 +258,13 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
     FOR_LOOP(i, count) {
         int node_id = geoset->matrixPalette[i];
         if (node_id >= 0 && node_id < MDX_MAX_NODES && model->nodes[node_id]) {
-            matrixPalette[i] = node_matrices[node_id];
+            shader->state.bones[i] = node_matrices[node_id];
         } else {
-            Matrix4_identity(&matrixPalette[i]);
+            Matrix4_identity(&shader->state.bones[i]);
         }
     }
 
-    memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(mat4_t));
-    mdlx.shader->state.boneCount = count;
+    shader->state.boneCount = count;
 }
 
 static vec4_t MDLX_EvaluateGeosetColor(mdxModel_t const *model,
@@ -422,6 +426,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, (void *)(uintptr_t)geoset->indexofs);
     }
 
+}
+
+/* Every geoset layer sets its draw state before submitting geometry. Restore
+ * the shared MDX baseline once after the model's opaque and ordered alpha
+ * submissions, instead of repeating five GL state calls after every geoset. */
+static void MDLX_ResetGeosetState(bool forceUnshaded) {
+    modelProg_t *shader = mdlx.shader;
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glEnable, GL_CULL_FACE);
     R_SetAlphaKeyState(false);
@@ -623,6 +634,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
 
     if (layerCount == 0 ||
         !MDLX_RenderPhaseIncludesPass(tr.render_phase, true, translucent_instance)) {
+        MDLX_ResetGeosetState(forceUnshaded);
         return;
     }
 
@@ -638,6 +650,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
                 MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true, -1);
             }
         }
+        MDLX_ResetGeosetState(forceUnshaded);
         return;
     }
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
@@ -671,6 +684,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
     if (drawOrder != stackDrawOrder) {
         ri.MemFree(drawOrder);
     }
+    MDLX_ResetGeosetState(forceUnshaded);
 }
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
@@ -696,13 +710,6 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
 static buffer_t ribbon_buf;
 static bool ribbon_buf_ready;
 static vertex_t ribbon_verts[TRAIL_MAX_EDGES * 6];
-
-mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
-    mdxMaterial_t *material = model->materials;
-    for (; material && id > 0; id--)
-        material = material->next;
-    return material;
-}
 
 static void MDLX_EnsureRibbonBuffer(void) {
     static const struct { GLuint attr; GLint size; GLenum type; GLboolean norm; size_t ofs; } attrs[] = {
@@ -967,9 +974,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_SetModelLighting(shader, &lighting);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
-        R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-        R_Call(glActiveTexture, GL_TEXTURE0);
+        R_ActiveTexture(GL_TEXTURE2);
+        R_BindGLTexture(GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+        R_ActiveTexture(GL_TEXTURE0);
     }
     MDLX_RenderGeosets(entity, model);
 
@@ -982,9 +989,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
     }
 
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
-        R_Call(glActiveTexture, GL_TEXTURE2);
-        R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
-        R_Call(glActiveTexture, GL_TEXTURE0);
+        R_ActiveTexture(GL_TEXTURE2);
+        R_BindGLTexture(GL_TEXTURE_2D, R_GetFogOfWarTexture());
+        R_ActiveTexture(GL_TEXTURE0);
     }
     MDLX_PopEntityAnimationTime(&animation_time_scope);
 }

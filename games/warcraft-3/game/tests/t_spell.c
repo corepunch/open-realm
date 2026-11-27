@@ -17,6 +17,7 @@ bool S_TestAuraDiscoveryMatchesResolver(edict_t *ent);
 void S_TestResetAuraClassificationCache(void);
 uint32_t S_TestAuraClassResolves(void);
 uint32_t S_TestAuraOwnershipChecks(void);
+void S_TestUseAuraOwnershipCache(bool enabled);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
 void S_TestResetMoonWellMissingDataWarningCalls(void);
@@ -2728,6 +2729,72 @@ TEST(wc3_spell, aura_classification_cache_filters_unrelated_ownership_checks) {
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
     source->unit_state->ranks[0].level = 0;
     T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, aura_owned_ability_cache_reuses_and_invalidates_provider_state) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "XUau" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *source;
+    uint32_t resolver_calls;
+
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    G_ResetHeroPassiveCaches();
+    S_TestResetHeroAuraAliasResolves();
+    S_TestResetAuraClassificationCache();
+    S_TestUseAuraOwnershipCache(true);
+
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    resolver_calls = S_TestHeroAuraAliasResolves();
+    T_ASSERT(resolver_calls > 0);
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestHeroAuraAliasResolves(), resolver_calls); /* Hit the per-unit result cache. */
+
+    T_ASSERT(G_ActorRemoveSkill(source, MAKEFOURCC('X','U','a','u')));
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestHeroAuraAliasResolves(), resolver_calls + 1); /* Removal invalidates it. */
+    T_ASSERT(G_ActorAddSkill(source, MAKEFOURCC('X','U','a','u')));
+    T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    T_EQ(S_TestHeroAuraAliasResolves(), resolver_calls + 2); /* Re-add invalidates it. */
+
+    S_TestUseAuraOwnershipCache(false);
+    G_ResetHeroPassiveCaches();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, aura_ownership_cache_tracks_hero_rank_changes) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    uint32_t const aura = MAKEFOURCC('X','U','a','u');
+
+    reset_entities(); setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+    source->data.UnitAbilities = &abilities;
+    G_ResetHeroPassiveCaches();
+    S_TestResetAuraClassificationCache();
+    S_TestUseAuraOwnershipCache(true);
+
+    for (unsigned rank = 1; rank <= 3; ++rank) {
+        unit_learnability(source, aura);
+        T_ASSERT(S_TestAuraDiscoveryMatchesResolver(source));
+    }
+
+    S_TestUseAuraOwnershipCache(false);
+    G_ResetHeroPassiveCaches();
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

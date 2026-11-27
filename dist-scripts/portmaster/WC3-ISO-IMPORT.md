@@ -11,17 +11,20 @@ in one launch. Do not remove or rename an ISO during installation.
 Existing extracted MPQs in `gamefiles/warcraft-3/` continue to work without
 ISOs.
 
-The native importer copies explicitly named MPQs from the disc, then opens
-`Setup.mpq` if present. It recovers named embedded game archives, including
-compressed entries supported by OpenRealm's MPQ reader. For **anonymous**
+The native importer copies the loose `Movies/` directory from the discs (the
+classic movie payloads use `.mpq` filenames but are AVI media, not MPQ archives),
+copies explicitly named game MPQs, then opens `Setup.mpq` if present. It recovers
+named embedded game archives, including compressed entries supported by
+OpenRealm's MPQ reader. For **anonymous**
 embedded archives, it accepts only unencrypted, uncompressed, complete MPQs
 that match multiple known paths inside the archive; it never guesses based on
 file sizes or block order. Other installer contents are not extracted.
 
 When an RoC installer includes `SetupDat/maps.lst` or
 `SetupDat/Scenario.lst`, its `Setup.mpq` is kept for OpenRealm's in-game
-map browser. The TFT `Setup.mpq` remains temporary. The game archives are
-installed in `gamefiles/warcraft-3/`.
+map browser. The TFT `Setup.mpq` remains temporary. The game archives and movies
+are installed in `gamefiles/warcraft-3/`, with movies under `Movies/` so
+campaign playback can resolve them as loose files.
 
 **The ISO files are deleted automatically after successful import.** The
 launcher verifies the installed MPQ structures and checks that each supplied
@@ -33,6 +36,9 @@ place; the game can still launch. The successful-import marker enables a later
 launch to clean up unchanged ISOs that remained after an interrupted cleanup.
 Keep your own backups if you want to retain the original disc images.
 
+If you imported with an older launcher, copy your original ISOs back into
+`gamefiles/` and relaunch to import the campaign movies.
+
 If identification fails, see `open-realm-wc3/log.txt`. An unrecognised retail
 edition may need a newer fingerprint or separately supplied **legally owned**
 installed-game MPQs. Neither the initial importer nor its synthetic tests
@@ -42,7 +48,7 @@ installer is never executed and no CD-key validation or DRM bypass is added.
 Troubleshooting: Check `open-realm-wc3/log.txt` after a failed import.
 The installer never replaces existing game archives. To retry importing a
 previously successful ISO, restore the ISO in `gamefiles/` and remove
-`gamefiles/warcraft-3/.portmaster-iso-import-v1` first.
+`gamefiles/warcraft-3/.portmaster-iso-import-v2` first.
 
 ### Developer checks (run on your machine)
 

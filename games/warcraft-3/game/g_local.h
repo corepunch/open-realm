@@ -2660,6 +2660,9 @@ typedef struct {
     event_t handlers[MAX_EVENTS];
     gameEvent_t queue[MAX_EVENT_QUEUE];
     uint32_t write, read;
+    uint32_t registry_high_water; /* derived: highest occupied handler slot plus one */
+    uint64_t touch_trigger_mask[MAX_EVENTS / 64]; /* derived slots for region and unit-range subscriptions */
+    uint64_t game_state_event_mask[MAX_EVENTS / 64]; /* derived slots for game-state-limit subscriptions */
 } levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -2909,6 +2912,11 @@ typedef struct startLocationPriorities_s {
     startLocationSlot_t slots[MAX_START_PRIO];
 } startLocationPriorities_t;
 
+typedef struct {
+    float default_distance, maximum_distance;
+    bool valid, initialized;
+} clientCameraPreference_t;
+
 struct level_locals {
     jass_t *vm;
     ggroup_t **groups;
@@ -2988,6 +2996,7 @@ struct level_locals {
     bool cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
     bool campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
     int32_t campaign_menu_race; /* legacy SetCampaignMenuRace, 1..4; 0 is campaign selector */
+    clientCameraPreference_t camera_preferences[MAX_PLAYERS]; /* runtime signon state, outside serialized clients */
 };
 
 #define FOR_EACH_EVENT(property) \
@@ -3085,6 +3094,7 @@ bool G_ImageHeaderHasAlpha(uint8_t const *data, uint32_t size);
 vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
 vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
+float G_ClientCameraDefaultDistance(gameClient_t const *client);
 void G_ClearCameraTarget(gameClient_t *client, cstring_t func);
 void G_ClearCameraPan(gameClient_t *client);
 vec2_t G_CameraPanPositionAtTime(gameClient_t *client, uint32_t now, bool *complete);
@@ -3476,6 +3486,7 @@ bool unit_affectingcombat(edict_t *);
 bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint32_t now_ms);
 void unit_updatestatuses(edict_t *);
 void unit_status_invalidate_update_mask(edict_t *);
+uint32_t unit_status_occupied_mask(unitState_t const *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 /* For grouped removal/replacement; caller must reconcile flags once afterward. */
@@ -3614,6 +3625,7 @@ bool SV_CloseEnough(edict_t *, edict_t const *, float);
 void G_RunEntity(edict_t *);
 void G_SetHealth(edict_t *, float);
 void G_AddHealth(edict_t *, float);
+
 void G_ApplyPermanentMaxHealthBonus(edict_t *, float);
 void G_ApplyTemporaryMaxHealthBonus(edict_t *, float);
 void G_ApplyTemporaryMaxManaBonus(edict_t *, float);
@@ -4110,6 +4122,7 @@ float AB_Data(cstring_t, uint32_t, uint32_t);
 uint32_t GetAbilityIndex(abilityProc_t);
 void S_SpellTargetApproachThink(edict_t *);
 void G_ResetHeroPassiveCaches(void);
+void S_AuraProviderOwnershipChanged(edict_t *unit);
 
 // g_combat.c
 int G_AttackDamage(edict_t *, edict_t *, int);
@@ -4127,6 +4140,8 @@ void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 event_t *G_MakeEvent(EVENTTYPE);
 void G_RetireEvent(event_t *);
+uint32_t G_EventRegistryHighWater(void);
+void G_RebuildEventRegistryCache(void);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 void G_UnitEnteredWorld(edict_t *ent);

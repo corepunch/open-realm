@@ -52,6 +52,7 @@ static void usage(void) {
             "Usage:\n"
             "  isoextract ls <image.iso>\n"
             "  isoextract extract <image.iso> <output-dir>\n"
+            "  isoextract extract-dir <image.iso> <directory> <output-dir>\n"
             "  isoextract extract-file <image.iso> <filename> <output-file>\n"
             "  isoextract <image.iso> <output-dir>\n"
             "\n"
@@ -520,6 +521,69 @@ static bool find_file(iso_t *iso, uint32_t extent, uint32_t size, char const *ta
     return true;
 }
 
+static bool find_directory(iso_t *iso, uint32_t extent, uint32_t size, char const *target,
+                           unsigned depth, unsigned *visited_dirs, iso_record_t *found,
+                           unsigned *matches) {
+    unsigned char *data = NULL;
+    size_t off = 0;
+    if (depth > ISO_MAX_DIRECTORY_DEPTH || size > ISO_MAX_DIRECTORY_SIZE ||
+        *visited_dirs >= ISO_MAX_DIRECTORIES ||
+        !read_extent(iso, extent, size, &data)) return false;
+    (*visited_dirs)++;
+    while (off < size) {
+        unsigned len = data[off];
+        iso_record_t rec;
+        if (!len) {
+            off = ((off / ISO_SECTOR_SIZE) + 1) * ISO_SECTOR_SIZE;
+            continue;
+        }
+        if (!parse_record(data + off, (size_t)size - off, iso->joliet, &rec)) {
+            free(data);
+            return false;
+        }
+        off += len;
+        if (rec.special || rec.associated || !rec.is_dir) continue;
+        if (name_equals(rec.name, target)) {
+            ++*matches;
+            *found = rec;
+        }
+        if (!find_directory(iso, rec.extent, rec.size, target, depth + 1,
+                            visited_dirs, found, matches)) {
+            free(data);
+            return false;
+        }
+    }
+    free(data);
+    return true;
+}
+
+/* Exit 2 specifically means this ISO has no directory with the requested name. */
+static int cmd_extract_dir(char const *image, char const *dirname, char const *output) {
+    iso_t iso;
+    iso_record_t found;
+    unsigned matches = 0;
+    unsigned visited_dirs = 0;
+    int rc = 1;
+    if (strchr(dirname, '/') || strchr(dirname, '\\') || !*dirname) return 1;
+    if (!open_iso(image, &iso)) return 1;
+    if (!find_directory(&iso, iso.root_extent, iso.root_size, dirname, 0,
+                        &visited_dirs, &found, &matches)) {
+        fprintf(stderr, "isoextract: invalid directory tree in %s\n", image);
+        goto done;
+    }
+    if (!matches) { rc = 2; goto done; }
+    if (matches != 1) {
+        fprintf(stderr, "isoextract: %s directory occurs %u times in %s\n", dirname, matches, image);
+        goto done;
+    }
+    if (!mkdir_p(output) ||
+        !walk_dir(&iso, found.extent, found.size, output, "", false, 0)) goto done;
+    rc = 0;
+done:
+    fclose(iso.file);
+    return rc;
+}
+
 /* Exit 2 specifically means that this particular ISO lacks the requested file. */
 static int cmd_extract_file(char const *image, char const *filename, char const *output) {
     iso_t iso;
@@ -591,6 +655,9 @@ int main(int argc, char **argv) {
     }
     if (argc == 5 && strcmp(argv[1], "extract-file") == 0) {
         return cmd_extract_file(argv[2], argv[3], argv[4]);
+    }
+    if (argc == 5 && strcmp(argv[1], "extract-dir") == 0) {
+        return cmd_extract_dir(argv[2], argv[3], argv[4]);
     }
     if (argc == 4 && strcmp(argv[1], "extract") == 0) {
         return cmd_extract(argv[2], argv[3]);

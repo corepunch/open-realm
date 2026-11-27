@@ -677,8 +677,8 @@ static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *m
     m3.shader->state.alphaKey = 0;
     m3.shader->state.geosetColor = (vec4_t){ ec.r / 255.0f, ec.g / 255.0f, ec.b / 255.0f, ec.a / 255.0f * alpha };
     m3.shader->state.firstBoneLookupIndex = (float)region->firstBoneLookupIndex;
-    R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, emissive->texture->texid);
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, emissive->texture->texid);
 #ifndef __linux__
     R_StatsDraw(GL_TRIANGLES, region->triangleIndicesCount, 1);
     R_ApplyShader(m3.shader);
@@ -709,8 +709,8 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
         if (alpha_key && !M3_MaterialIsBlended(material)) R_SetAlphaKeyState(true);
     }
     m3.shader->state.firstBoneLookupIndex = (float)region->firstBoneLookupIndex;
-    R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
+    R_ActiveTexture(GL_TEXTURE0);
+    R_BindGLTexture(GL_TEXTURE_2D, diffuse->texid);
     M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
         if (!layer->texture)
             continue;
@@ -918,8 +918,8 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, mat4_t
     
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     /* Terrain owns units 0..4; restore the model's shadow binding and avoid depth-target feedback. */
-    R_Call(glActiveTexture, GL_TEXTURE1);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_ActiveTexture(GL_TEXTURE1);
+    R_BindGLTexture(GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     
     R_Call(glDisable, GL_CULL_FACE);
     
@@ -930,7 +930,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, mat4_t
         M3_DrawDivisions(model, div, true);
     }
     
-    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_ActiveTexture(GL_TEXTURE0);
     R_SetAlphaKeyState(false);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glEnable, GL_BLEND);

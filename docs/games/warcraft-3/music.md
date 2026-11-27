@@ -66,6 +66,11 @@ libswresample
 
 `client/cl_music.c` only requires audio demux/decode/resampling; `libswscale` remains part of the shared Warcraft FFmpeg build because movies need it.
 
+The PortMaster ARM64 package builds the FFmpeg source package from Ubuntu 22.04 with only AVI/MP3 demuxing, MPEG-4
+Part 2/MP3 decoding, software pixel conversion, and audio resampling enabled. This keeps classic campaign movies and
+MP3 music while omitting optional hardware acceleration and codecs unrelated to those assets. See
+[pre-rendered movies](pre-rendered-movies.md) for the movie-side contract.
+
 ## Warcraft Data Lookup
 
 ### `war3skins.txt`

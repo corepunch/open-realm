@@ -55,7 +55,7 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
 
     texture_t *texture = ri.MemAlloc(sizeof(texture_t));
     R_Call(glGenTextures, 1, &texture->texid);
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -71,13 +71,13 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
                 case '5': format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; blockSize = 16; break;
                 default:
                     DDS_UnsupportedOnce();
-                    R_Call(glDeleteTextures, 1, &texture->texid);
+                    R_DeleteGLTextures(1, &texture->texid);
                     ri.MemFree(texture);
                     return NULL;
             }
         } else {
             DDS_UnsupportedOnce();
-            R_Call(glDeleteTextures, 1, &texture->texid);
+            R_DeleteGLTextures(1, &texture->texid);
             ri.MemFree(texture);
             return NULL;
         }
@@ -92,7 +92,7 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
             uint32_t size = ((w + 3) / 4) * ((h + 3) / 4) * blockSize;
             if (pixelOffset>filesize || offset>filesize-pixelOffset || size>filesize-pixelOffset-offset) {
                 fprintf(stderr,"DDS: truncated compressed level %u (%ux%u)\n",i,w,h);
-                R_Call(glDeleteTextures,1,&texture->texid); ri.MemFree(texture); return NULL;
+                R_DeleteGLTextures(1,&texture->texid); ri.MemFree(texture); return NULL;
             }
             R_Call(glCompressedTexImage2D, GL_TEXTURE_2D, i, format, w, h, 0, size, buf + pixelOffset + offset);
             offset += size;
@@ -126,7 +126,7 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
             format = GL_RGB;
         } else {
             DDS_UnsupportedOnce();
-            R_Call(glDeleteTextures, 1, &texture->texid);
+            R_DeleteGLTextures(1, &texture->texid);
             ri.MemFree(texture);
             return NULL;
         }
@@ -159,7 +159,7 @@ texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, levels - 1);
     } else {
         DDS_UnsupportedOnce();
-        R_Call(glDeleteTextures, 1, &texture->texid);
+        R_DeleteGLTextures(1, &texture->texid);
         ri.MemFree(texture);
         return NULL;
     }

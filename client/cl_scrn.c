@@ -66,6 +66,44 @@ static void SCR_DrawFPS(uint32_t msec) {
     SCR_DrawString(10, y, text);
 }
 
+/* Pair with com_profile's stage timings so bounded gameplay runs emit usable
+ * rendered-FPS samples without screen scraping. Keep menu, loading, and
+ * cinematic frames out of the gameplay measurement. */
+static void SCR_ProfileFPS(void) {
+    static bool active;
+    static Uint64 start;
+    static Uint64 drawcalls;
+    static uint32_t frames;
+    if (!Cvar_Integer("com_profile", 0) || cls.state != ca_active ||
+        cl.playerstate.client_ui_state != CLIENT_UI_GAME) {
+        active = false;
+        start = drawcalls = 0;
+        frames = 0;
+        return;
+    }
+
+    Uint64 const now = SDL_GetPerformanceCounter();
+    if (!active) {
+        active = true;
+        start = now;
+        drawcalls = 0;
+        frames = 0;
+    }
+    frames++;
+    drawcalls += re.GetDrawCalls();
+    Uint64 const frequency = SDL_GetPerformanceFrequency();
+    Uint64 const elapsed = now - start;
+    if (frequency && elapsed >= frequency) {
+        double const elapsed_ms = 1000.0 * (double)elapsed / (double)frequency;
+        fprintf(stderr, "[SCR_FPS] frames=%u elapsed_ms=%.3f fps=%.2f avg_drawcalls=%.1f\n",
+                (unsigned)frames, elapsed_ms, (double)frames * 1000.0 / elapsed_ms,
+                frames ? (double)drawcalls / frames : 0.0);
+        start = now;
+        drawcalls = 0;
+        frames = 0;
+    }
+}
+
 /*
  * Preserve the SDL cursor selected by the input module while the game renderer
  * temporarily replaces it with authored cursor content.
@@ -228,6 +266,7 @@ void SCR_DrawScreenField(uint32_t msec) {
     }
 
     CON_DrawConsole();
+    SCR_ProfileFPS();
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }

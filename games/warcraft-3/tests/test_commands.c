@@ -15,6 +15,9 @@
 #include "test.h"
 #include "common/video_modes.h"
 
+/* The focused command harness does not link common/main.c's optional worker. */
+void Com_ServerWorkerShutdown(void) {}
+
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
 static PATHSTR last_load_name;
@@ -208,14 +211,16 @@ TEST(commands, media_paths_preserve_utf8_and_spaces) {
     snprintf(root, sizeof(root), "%s", Test_TempPath("Téléchargements/Games WIP/ROC"));
     snprintf(old_home, sizeof(old_home), "%s", FS_HomePath());
     FS_SetHomeDirectory(root);
-    FS_UserPath("audio-path-test.wav", path, sizeof(path));
+    FS_UserPath("AUDIO-PATH-TEST.WAV", path, sizeof(path));
     FILE *file = fopen(path, "wb");
     T_NOT_NULL(file);
     if (file) { T_EQ(fwrite("test", 1, 4, file), 4); fclose(file); }
     T_ASSERT(FS_AddDataDirectory(root));
-    T_ASSERT(FS_ResolveLoosePath("audio-path-test.wav", resolved, sizeof(resolved)));
+    T_ASSERT(FS_ResolveLoosePath("AUDIO-PATH-TEST.WAV", resolved, sizeof(resolved)));
     T_STREQ(resolved, path);
-    char *data = FS_ReadFile("audio-path-test.wav", &size);
+    T_ASSERT(FS_ResolveLoosePath("Audio-Path-Test.wav", resolved, sizeof(resolved)));
+    T_ASSERT(!strcasecmp(resolved, path));
+    char *data = FS_ReadFile("AUDIO-PATH-TEST.WAV", &size);
     T_NOT_NULL(data);
     T_EQ(size, 4);
     if (data) T_ASSERT(!memcmp(data, "test", 4));
@@ -794,6 +799,7 @@ TEST(video_modes, wc3_defaults_to_native_fullscreen_with_vid_mode_fallback) {
     T_STREQ(Cvar_String("vid_fullscreen", NULL), "1");
     T_STREQ(Cvar_String("vid_mode", NULL), "4");
     T_STREQ(Cvar_String("cl_gamepad_start_dpad_up_action", NULL), "cmd menu_save_quick");
+    T_STREQ(Cvar_String("cl_gamepad_start_tap_action", NULL), "cmd menu");
 }
 
 TEST(video_modes, wow_defaults_allow_explicit_override) {

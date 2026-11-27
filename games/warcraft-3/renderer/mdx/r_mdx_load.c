@@ -805,6 +805,16 @@ static void MDLX_AddNode(mdxModel_t *model, mdxNode_t *node) {
     }
 }
 
+/* Material indices are used by both the loader and renderer. Keep this lookup
+ * beside model loading so headless loader tests do not depend on geoset draw
+ * code just to resolve a model-owned material pointer. */
+mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
+    mdxMaterial_t *material = model ? model->materials : NULL;
+    for (; material && id > 0; id--)
+        material = material->next;
+    return material;
+}
+
 mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
     static bool warned_prem_runtime;
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
@@ -853,6 +863,10 @@ mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
             geoset->geosetAnim = geosetAnim;
         }
     }
+    /* Rendering visits each geoset in multiple passes; keep its material
+     * pointer after parsing instead of walking the MTLS linked list per draw. */
+    FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets)
+        geoset->material = MDLX_MaterialAt(model, (uint32_t)geoset->materialID);
     MDX_BuildBuffers(model);
     model->bounds = MDX_CalculateBounds(model);
     return model;

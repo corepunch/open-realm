@@ -5,11 +5,15 @@
 
 void SV_Init(void);
 void SV_Frame(uint32_t msec);
+void SV_FrameWorker(uint32_t msec);
+bool SV_ProcessPendingRequests(void);
+void SV_ApplyDeferredPauseCvar(void);
 void SV_InitGameProgs(void);
 void SV_Map(cstring_t mapFilename);
 bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
 bool SV_IsActive(void);
 bool SV_NeedsFrame(void);
+bool SV_LocalClientReadyForWorker(void); /* Current world has a spawned loopback client. */
 bool SV_HasExternalControl(void);
 void SV_SetPaused(bool paused);
 

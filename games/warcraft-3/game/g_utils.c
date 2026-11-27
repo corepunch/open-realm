@@ -172,7 +172,13 @@ event_t *G_MakeEvent(EVENTTYPE type) {
         event_t *evt = &level.events.handlers[i];
         uintptr_t generation = evt->handle_generation;
         memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
-        evt->inuse = true; evt->type = type; return evt;
+        evt->inuse = true; evt->type = type;
+        if (i >= level.events.registry_high_water) level.events.registry_high_water = i + 1;
+        if (type == EVENT_GAME_ENTER_REGION || type == EVENT_GAME_LEAVE_REGION || type == EVENT_UNIT_IN_RANGE)
+            level.events.touch_trigger_mask[i / 64] |= UINT64_C(1) << (i % 64);
+        if (type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[i / 64] |= UINT64_C(1) << (i % 64);
+        return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
     return NULL;
@@ -192,6 +198,43 @@ void G_RetireEvent(event_t *event) {
     event->inuse = false;
     if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
     else event->handle_generation++;
+    uintptr_t const event_address = (uintptr_t)event;
+    uintptr_t const first_event_address = (uintptr_t)&level.events.handlers[0];
+    uintptr_t const handlers_end_address = (uintptr_t)&level.events.handlers[MAX_EVENTS];
+    if (event_address >= first_event_address && event_address < handlers_end_address &&
+        (event_address - first_event_address) % sizeof(level.events.handlers[0]) == 0) {
+        uint32_t const slot = (uint32_t)((event_address - first_event_address) / sizeof(level.events.handlers[0]));
+        if (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION ||
+            event->type == EVENT_UNIT_IN_RANGE)
+            level.events.touch_trigger_mask[slot / 64] &= ~(UINT64_C(1) << (slot % 64));
+        if (event->type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[slot / 64] &= ~(UINT64_C(1) << (slot % 64));
+        if (slot + 1 == level.events.registry_high_water) {
+            while (level.events.registry_high_water &&
+                   !level.events.handlers[level.events.registry_high_water - 1].inuse)
+                level.events.registry_high_water--;
+        }
+    }
+}
+
+uint32_t G_EventRegistryHighWater(void) {
+    return level.events.registry_high_water;
+}
+
+void G_RebuildEventRegistryCache(void) {
+    uint32_t high_water = MAX_EVENTS;
+    memset(level.events.touch_trigger_mask, 0, sizeof(level.events.touch_trigger_mask));
+    memset(level.events.game_state_event_mask, 0, sizeof(level.events.game_state_event_mask));
+    while (high_water && !level.events.handlers[high_water - 1].inuse) high_water--;
+    level.events.registry_high_water = high_water;
+    FOR_LOOP(i, high_water) {
+        event_t const *event = &level.events.handlers[i];
+        if (event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION ||
+                             event->type == EVENT_UNIT_IN_RANGE))
+            level.events.touch_trigger_mask[i / 64] |= UINT64_C(1) << (i % 64);
+        if (event->inuse && event->type == EVENT_GAME_STATE_LIMIT)
+            level.events.game_state_event_mask[i / 64] |= UINT64_C(1) << (i % 64);
+    }
 }
 
 void G_SetEventSubject(event_t *evt, edict_t *subject) {

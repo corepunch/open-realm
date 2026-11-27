@@ -1181,6 +1181,37 @@ static texture_t const *R_MinimapOrdinaryContactTexture(renderEntity_t const *en
     return tr.texture[TEX_WHITE];
 }
 
+/* Minimap contacts are painter-ordered by the snapshot. Accumulate only
+ * adjacent markers with the same texture so the original overlap order is
+ * preserved while avoiding one GL upload/draw for every marker. */
+#define R_MINIMAP_MARKER_BATCH_SIZE 256u
+static texture_t const *minimap_marker_batch_texture;
+static vertex_t minimap_marker_batch_vertices[R_MINIMAP_MARKER_BATCH_SIZE * 6u];
+static uint32_t minimap_marker_batch_count;
+
+static void R_FlushMinimapMarkerBatch(void) {
+    if (minimap_marker_batch_texture && minimap_marker_batch_count) {
+        R_DrawImageBatch(minimap_marker_batch_texture, SHADER_UI, BLEND_MODE_NONE,
+                         0.0f, 0.0f, false, NULL, minimap_marker_batch_vertices,
+                         minimap_marker_batch_count, false);
+    }
+    minimap_marker_batch_texture = NULL;
+    minimap_marker_batch_count = 0;
+}
+
+static void R_QueueMinimapMarker(texture_t const *texture, rect_t const *screen, color32_t color) {
+    if (!texture || !screen) return;
+    if (minimap_marker_batch_texture != texture ||
+        minimap_marker_batch_count + 6u >
+            sizeof(minimap_marker_batch_vertices) / sizeof(*minimap_marker_batch_vertices)) {
+        R_FlushMinimapMarkerBatch();
+        minimap_marker_batch_texture = texture;
+    }
+    R_AddQuad(minimap_marker_batch_vertices + minimap_marker_batch_count, screen,
+              &(rect_t){0, 0, 1, 1}, color, 0.0f);
+    minimap_marker_batch_count += 6u;
+}
+
 /* Draw one automatic WC3 contact from recipient-authored snapshot metadata.
  * Shared/client code carries the game variant opaquely; only this WC3 renderer
  * assigns minimap semantics to it. */
@@ -1218,13 +1249,17 @@ static void R_DrawMinimapEntityMarker(renderEntity_t const *entity) {
 
     if (!texture || size.x <= 0.0f || size.y <= 0.0f) return;
     marker = wc3_minimap_marker_rect(&point, contact);
-    R_DrawImage(texture, &marker, &MAKE(rect_t, 0, 0, 1, 1), color);
+    R_QueueMinimapMarker(texture, &marker, color);
 }
 
 static void R_DrawMinimapEntityMarkers(void) {
-    if (!tr.viewDef.entities) return;
-    FOR_LOOP(i, tr.viewDef.num_entities)
-        R_DrawMinimapEntityMarker(&tr.viewDef.entities[i]);
+    minimap_marker_batch_texture = NULL;
+    minimap_marker_batch_count = 0;
+    if (tr.viewDef.entities) {
+        FOR_LOOP(i, tr.viewDef.num_entities)
+            R_DrawMinimapEntityMarker(&tr.viewDef.entities[i]);
+    }
+    R_FlushMinimapMarkerBatch();
 }
 
 void R_DrawMinimap(rect_t const *screen, cstring_t map) {

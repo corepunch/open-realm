@@ -215,6 +215,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 main-menu transparent layers, MenuZFog, #620/#621 regression history and visual checks | [docs/games/warcraft-3/main-menu-rendering.md](docs/games/warcraft-3/main-menu-rendering.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |
+| ARM render-culling worker experiment and threading boundaries | [docs/games/warcraft-3/parallel-work-investigation.md](docs/games/warcraft-3/parallel-work-investigation.md) |
 | WC3 RAM profiling: MDX buffer overhead, FDF pools, texture residency, loopback budgets | [docs/games/warcraft-3/memory.md](docs/games/warcraft-3/memory.md) |
 | SC2 dropped-unit selection/control, shared WC3 routing, M3 picking and selection rings | [docs/games/starcraft-2/selection-and-control.md](docs/games/starcraft-2/selection-and-control.md) |
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |

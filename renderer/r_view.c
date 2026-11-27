@@ -159,9 +159,9 @@ static void R_RenderFrameNative(viewDef_t const *viewDef) {
 
     R_ProfileStage(RP_FOG);
     R_RenderFogOfWar();
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
-    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_ActiveTexture(GL_TEXTURE2);
+    R_BindGLTexture(GL_TEXTURE_2D, R_GetFogOfWarTexture());
+    R_ActiveTexture(GL_TEXTURE0);
 #ifdef USE_SHADOWMAPS
     /* Layout-provided model cameras have no world shadow pass either. */
     if (!(tr.viewDef.rdflags & (RDF_USE_ENTITY_CAMERA | RDF_NOWORLDMODEL))) {

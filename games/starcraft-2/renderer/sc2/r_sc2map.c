@@ -1653,8 +1653,8 @@ static void r_sc2_begin_terrain_shader(mat4_t const *model_matrix) {
     r_sc2_set_fog_state(&sc2_terrain_shader.state.fogColor, &sc2_terrain_shader.state.fogParams);
     r_sc2_set_light_state(&sc2_terrain_shader.state.lightAmbient, sc2_terrain_shader.state.lightDir, sc2_terrain_shader.state.lightColor);
     /* Depth pass samples a white texture; receivers sample the light-space depth map. */
-    R_Call(glActiveTexture, GL_TEXTURE0 + sc2_terrain_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_ActiveTexture(GL_TEXTURE0 + sc2_terrain_shader.state.shadowmap);
+    R_BindGLTexture(GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
 }
 
 static void r_sc2_begin_terrain_pass(uint32_t group) {
@@ -1783,8 +1783,8 @@ static void r_sc2_draw_cliff_layer(mapsegment_t const *segment) {
     sc2_cliff_shader.state.model = model_matrix;
     r_sc2_set_fog_state(&sc2_cliff_shader.state.fogColor, &sc2_cliff_shader.state.fogParams);
     r_sc2_set_light_state(&sc2_cliff_shader.state.lightAmbient, sc2_cliff_shader.state.lightDir, sc2_cliff_shader.state.lightColor);
-    R_Call(glActiveTexture, GL_TEXTURE0 + sc2_cliff_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_ActiveTexture(GL_TEXTURE0 + sc2_cliff_shader.state.shadowmap);
+    R_BindGLTexture(GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     for (layer = segment->layers; layer; layer = layer->next) {

@@ -47,6 +47,7 @@ export XDG_DATA_HOME="$CONFDIR"
 
 # Port specific additional libraries should be included within the port's directory in a separate subfolder named libs.aarch64, libs.armhf or libs.x64
 export LD_LIBRARY_PATH="$GAMEDIR/libs.${DEVICE_ARCH}:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$GAMEDIR/ffmpeg.${DEVICE_ARCH}:$LD_LIBRARY_PATH"
 
 # Provide appropriate controller configuration if it recognizes SDL controller input
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
@@ -66,8 +67,8 @@ install() {
     local isoextract="$GAMEDIR/isoextract.${DEVICE_ARCH}"
     local setupreader="$GAMEDIR/wc3setup.${DEVICE_ARCH}"
     local staging="$GAMEDIR/gamefiles/.wc3import-staging"
-    local marker="$data/.portmaster-iso-import-v1"
-    local disc source name candidate rc index=0 keep_roc=0
+    local marker="$data/.portmaster-iso-import-v2"
+    local disc source name candidate movie_name rc index=0 keep_roc=0
     local disc_recognized signature old_count marker_matches=1
     local -a images=() signatures=() missing_before_setup=()
     local -a archives=(War3.mpq War3Local.mpq War3x.mpq War3xLocal.mpq War3Patch.mpq)
@@ -133,7 +134,7 @@ install() {
     # No source ISO is removed until ALL discs are processed and installed data
     # is verified. A failed import leaves the source ISOs untouched for retry.
     rm -rf -- "$staging"
-    mkdir -p "$staging/archives" || return 1
+    mkdir -p "$staging/archives" "$staging/movies" || return 1
     pm_message "Importing Warcraft III game data from ISO..."
     for disc in "${images[@]}"; do
         index=$((index + 1))
@@ -141,6 +142,24 @@ install() {
         mkdir -p "$source" || return 1
         disc_recognized=0
         echo "WC3 ISO: $disc"
+        # Classic campaign movies are loose AVI payloads under Movies/, despite
+        # their historical .mpq extension. Keep them separate from MPQ archives.
+        rc=0
+        "$isoextract" extract-dir "$disc" Movies "$source/movies" || rc=$?
+        if [ "$rc" -eq 0 ]; then
+            for candidate in "$source"/movies/*; do
+                [ -f "$candidate" ] || continue
+                movie_name=${candidate##*/}
+                case "$movie_name" in *.[mM][pP][qQ]) ;; *) continue ;; esac
+                if [ ! -e "$staging/movies/$movie_name" ]; then
+                    mv -- "$candidate" "$staging/movies/$movie_name" || return 1
+                fi
+            done
+        elif [ "$rc" -ne 2 ]; then
+            pm_message "Failed reading Movies directory from ISO"
+            rm -rf -- "$staging"
+            return 1
+        fi
         for name in "${archives[@]}"; do
             # Never replace an archive already installed or recovered.
             if [ -s "$data/$name" ] || [ -s "$staging/archives/$name" ]; then
@@ -167,11 +186,11 @@ install() {
                     keep_roc=1
                 fi
             fi
-            # Record which game archives were missing before parsing Setup.mpq;
-            # a supported, newly recovered nested archive identifies the disc.
+            # A newly recovered nested archive identifies the disc even when
+            # its installed copy is already present during a movie reimport.
             missing_before_setup=()
             for name in "${archives[@]}"; do
-                if [ ! -s "$staging/archives/$name" ] && [ ! -s "$data/$name" ]; then
+                if [ ! -s "$staging/archives/$name" ]; then
                     missing_before_setup+=("$name")
                 fi
             done
@@ -242,6 +261,22 @@ install() {
         fi
     done
 
+    # Install loose movie payloads after the game archives have validated.
+    # Never overwrite movies already supplied by the user.
+    if [ -d "$staging/movies" ]; then
+        mkdir -p "$data/Movies" || return 1
+        for candidate in "$staging"/movies/*; do
+            [ -f "$candidate" ] || continue
+            movie_name=${candidate##*/}
+            if [ ! -e "$data/Movies/$movie_name" ] &&
+               ! mv -- "$candidate" "$data/Movies/$movie_name"; then
+                pm_message "Cannot install movie ${movie_name}"
+                rm -rf -- "$staging"
+                return 1
+            fi
+        done
+    fi
+
     # Verify the final files, including pre-existing MPQs. Do not delete disc
     # images if a destination archive is absent, truncated or unreadable.
     if [ ! -s "$data/War3.mpq" ] || ! "$setupreader" verify "$data/War3.mpq"; then
@@ -309,7 +344,7 @@ pm_platform_helper "$GAMEDIR/openwarcraft3.${DEVICE_ARCH}"
 
 #./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3"  +menu_single_player_campaign +vid_mode 0
 #/opt/muos/bin/strace
-./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +r_cursor 1  +r_stats 1
+./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +set r_vsync 0 +set r_render_scale 100 +set r_unit_shadows 0 +set cl_gamepad_nintendo 1 +set wc3_camera_default_distance 1250 +r_cursor 1
 # +set sv_debug_layout 1 +set wc3_harvest_path_debug 2  +set wc3_hero_skill_debug 3
 
 #  +r_entities 1 \
@@ -323,13 +358,6 @@ pm_platform_helper "$GAMEDIR/openwarcraft3.${DEVICE_ARCH}"
 # +set r_cursor 2 \
 #  +set g_debug_destructables 1 \
 #  +set r_debug_destructables 1 \
-
-
-#/opt/muos/bin/strace
-#./openwow.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/world-of-warcraft" +vid_mode 0 +set r_profile 0 +set r_cursor 1  \
-#   +map 1
-
-
 
 # Cleanup any running gptokeyb instances, and any platform specific stuff.
 pm_finish

@@ -3,6 +3,11 @@
 #include "renderer/r_game.h"
 #include "renderer/r_render_scale.h"
 
+/* This focused view harness replaces GL setup; the production texture cache
+ * lives in another target and is intentionally not linked here. */
+void R_ActiveTexture(GLenum texture) { (void)texture; }
+void R_BindGLTexture(GLenum target, GLuint texture) { (void)target; (void)texture; }
+
 TEST(renderer_view, render_scale_preserves_aspect_and_bounds) {
     size2_t size = R_RenderScaleSize((size2_t){1920, 1200}, 75);
     T_EQ(size.width, 1440); T_EQ(size.height, 900);

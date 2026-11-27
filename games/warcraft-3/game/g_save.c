@@ -2826,6 +2826,7 @@ bool ReadGame(cstring_t filename) {
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    G_RebuildEventRegistryCache();
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
         fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
         fclose(f); return false;
@@ -2944,6 +2945,9 @@ bool ReadGame(cstring_t filename) {
         level.leaderboard_dirty_clients |= 1u << i;
     }
     G_DisableStartingResourceCheatForLoadedGame();
+    /* A post-load signon can refresh client preferences for future resets,
+     * but must keep the actual camera and any interpolation restored above. */
+    FOR_LOOP(i, MAX_PLAYERS) level.camera_preferences[i].initialized = true;
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
 failed_entities:
@@ -2955,6 +2959,33 @@ failed_entities:
 
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+TEST(wc3_save, post_load_signon_preserves_saved_camera) {
+    cstring_t const filename = Test_TempPath("wc3-camera-roundtrip.bin");
+    reset_entities();
+    setup_test_world();
+    gameClient_t *client = &game.clients[0];
+    bool const scripts_started = level.scriptsStarted;
+    client->ps.number = 0;
+    client->ps.distance = 1150.0f;
+    client->camera.old_state.target_distance = 1000.0f;
+    client->camera.state.target_distance = 1250.0f;
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+
+    inputCmd_t const cmd = { .action = BZ_INPUT_CAMERA_PREFERENCE,
+        .camera_preference = { 2050.0f, 3100.0f } };
+    level.scriptsStarted = true;
+    globals.ClientInput(&g_edicts[0], &cmd);
+    globals.ClientBegin(&g_edicts[0]);
+    T_FEQ(client->ps.distance, 1150.0f, 0.001f);
+    T_FEQ(client->camera.old_state.target_distance, 1000.0f, 0.001f);
+    T_FEQ(client->camera.state.target_distance, 1250.0f, 0.001f);
+    T_FEQ(level.camera_preferences[0].default_distance, 2050.0f, 0.001f);
+    level.camera_preferences[0] = (clientCameraPreference_t){0};
+    level.scriptsStarted = scripts_started;
+}
 
 /* Exercise both relocation domains through the full save/load path. In the
  * browser the identity hashes follow the 32-bit raw edict on disk. */

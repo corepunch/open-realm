@@ -22,6 +22,84 @@ int R_ReadTextureFile(cstring_t name, string_t path, void **buffer) {
 #define R_TEXTURE_ID_BUCKETS 2048u
 static texture_t *g_textures[R_TEXTURE_ID_BUCKETS];
 
+/* Texture bindings are stable across most adjacent draw submissions. Keep a
+   small context-local cache so redundant GLES driver calls can be skipped. */
+#define R_TEXTURE_UNITS 8u
+#define R_TEXTURE_TARGETS 4u
+static GLenum r_active_texture = 0;
+static GLuint r_bound_textures[R_TEXTURE_UNITS][R_TEXTURE_TARGETS];
+static bool r_binding_known[R_TEXTURE_UNITS][R_TEXTURE_TARGETS];
+static bool r_binding_cache_enabled = true;
+static uint32_t r_binding_requests, r_binding_skipped, r_binding_calls, r_active_calls;
+
+static int R_TextureTargetIndex(GLenum target) {
+    switch (target) {
+    case GL_TEXTURE_2D: return 0;
+#ifdef GL_TEXTURE_CUBE_MAP
+    case GL_TEXTURE_CUBE_MAP: return 1;
+#endif
+#ifdef GL_TEXTURE_3D
+    case GL_TEXTURE_3D: return 2;
+#endif
+#ifdef GL_TEXTURE_2D_ARRAY
+    case GL_TEXTURE_2D_ARRAY: return 3;
+#endif
+    default: return -1;
+    }
+}
+
+void R_InvalidateTextureBindingCache(void) {
+    r_active_texture = 0;
+    memset(r_binding_known, 0, sizeof(r_binding_known));
+}
+
+void R_SetTextureBindingCacheEnabled(bool enabled) {
+    r_binding_cache_enabled = enabled;
+}
+
+void R_GetTextureBindingCacheStats(uint32_t *requests, uint32_t *skipped, uint32_t *bind_calls, uint32_t *unit_calls) {
+    if (requests) *requests = r_binding_requests;
+    if (skipped) *skipped = r_binding_skipped;
+    if (bind_calls) *bind_calls = r_binding_calls;
+    if (unit_calls) *unit_calls = r_active_calls;
+    r_binding_requests = r_binding_skipped = r_binding_calls = r_active_calls = 0;
+}
+
+void R_ActiveTexture(GLenum texture) {
+    if (r_binding_cache_enabled && r_active_texture == texture) return;
+    R_Call(glActiveTexture, texture);
+    r_active_calls++;
+    r_active_texture = texture;
+}
+
+void R_BindGLTexture(GLenum target, GLuint texture) {
+    int target_index = R_TextureTargetIndex(target);
+    unsigned unit = r_active_texture >= GL_TEXTURE0 ? r_active_texture - GL_TEXTURE0 : R_TEXTURE_UNITS;
+    r_binding_requests++;
+    if (r_binding_cache_enabled && target_index >= 0 && unit < R_TEXTURE_UNITS && r_binding_known[unit][target_index] &&
+        r_bound_textures[unit][target_index] == texture)
+    {
+        r_binding_skipped++;
+        return;
+    }
+    R_Call(glBindTexture, target, texture);
+    r_binding_calls++;
+    if (target_index >= 0 && unit < R_TEXTURE_UNITS) {
+        r_binding_known[unit][target_index] = true;
+        r_bound_textures[unit][target_index] = texture;
+    }
+}
+
+void R_DeleteGLTextures(GLsizei count, GLuint const *textures) {
+    R_Call(glDeleteTextures, count, textures);
+    for (unsigned unit = 0; unit < R_TEXTURE_UNITS; ++unit)
+        for (unsigned target = 0; target < R_TEXTURE_TARGETS; ++target)
+            if (r_binding_known[unit][target])
+                for (GLsizei i = 0; i < count; ++i)
+                    if (r_bound_textures[unit][target] == textures[i])
+                        r_binding_known[unit][target] = false;
+}
+
 static uint32_t R_TextureIdBucket(uint32_t textureID) {
     /* Multiplicative integer hashing; bucket count is a power of two. */
     return (textureID * 2654435761u) & (R_TEXTURE_ID_BUCKETS - 1u);
@@ -133,7 +211,7 @@ void R_ShutdownTextureCache(void) {
     while ((entry = r_image_cache) != NULL) {
         r_image_cache = entry->next;
         if (entry->owns_texture) {
-            R_Call(glDeleteTextures, 1, &entry->texture->texid);
+            R_DeleteGLTextures(1, &entry->texture->texid);
             ri.MemFree(entry->texture);
         }
         ri.MemFree(entry->name);
@@ -205,7 +283,7 @@ void R_ReclaimStreamedTextures(uint32_t keep_recent) {
                 if ((*alias)->texture == texture) R_FreeCacheEntry(alias);
                 else alias = &(*alias)->next;
             R_UnlinkTextureFromIndex(texture);
-            R_Call(glDeleteTextures, 1, &texture->texid);
+            R_DeleteGLTextures(1, &texture->texid);
             ri.MemFree(texture);
             freed++;
             pp = &r_image_cache;
@@ -240,15 +318,15 @@ struct texture const* R_FindTextureByID(uint32_t textureID) {
 }
 
 void R_BindTexture(texture_t const *texture, uint32_t unit) {
-    R_Call(glActiveTexture, GL_TEXTURE0 + unit);
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
+    R_ActiveTexture(GL_TEXTURE0 + unit);
+    R_BindGLTexture(GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
 }
 
 void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT) {
     if (!texture) {
         return;
     }
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS ? GL_REPEAT : GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 }
@@ -257,7 +335,7 @@ texture_t *R_AllocateTexture(uint32_t width, uint32_t height) {
     texture_t *texture = ri.MemAlloc(sizeof(texture_t));
     texture->has_first_pixel = false;
     R_Call(glGenTextures, 1, &texture->texid);
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
     texture->width = width;
     texture->height = height;
     return texture;
@@ -279,7 +357,7 @@ void R_ReleaseTexture(texture_t *texture) {
     }
     /* A non-cached texture may still have been registered by GL ID. */
     R_UnlinkTextureFromIndex(texture);
-    R_Call(glDeleteTextures, 1, &texture->texid);
+    R_DeleteGLTextures(1, &texture->texid);
     texture->texid = 0;
     ri.MemFree(texture);
 }
@@ -309,7 +387,7 @@ void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip) {
             R_SwapRedBlue(rgba, mip->width * mip->height, sizeof(color32_t));
         }
     }
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, mip->level, internal, mip->width, mip->height, 0, format, GL_UNSIGNED_BYTE, rgba ? rgba : mip->pixels);
     if (rgba) ri.MemFree(rgba);
     if (mip->level > 0) {

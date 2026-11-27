@@ -952,6 +952,17 @@ static uint32_t map_doodad_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static uint32_t map_ability_override_count;
 static uint32_t ability_data_generation;
+/* G_AbilityData is called from hot simulation and rendering paths. Most calls
+ * repeat a small set of rawcodes; retain their resolved SLK rows without
+ * changing the authoritative map-override lookup. Generation tags make stale
+ * pointers unreachable after AbilityData reloads or map changes. */
+#define ABILITY_DATA_CACHE_SIZE 256u
+typedef struct {
+    uint32_t id;
+    uint32_t generation;
+    AbilityData_t *row;
+} abilityDataCacheEntry_t;
+static abilityDataCacheEntry_t ability_data_cache[ABILITY_DATA_CACHE_SIZE];
 
 typedef struct {
     cstring_t name, path;
@@ -2174,9 +2185,17 @@ UnitAbilities_t const *G_UnitAbil(uint32_t id) {
 AbilityData_t const *G_AbilityData(uint32_t id) {
     static AbilityData_t zero;
     mapAbilityOverride_t const *override = FindMapAbilityOverride(id);
+    uint32_t const generation = ability_data_generation;
+    abilityDataCacheEntry_t *cache;
     AbilityData_t *row;
     if (override) return &override->row;
+    cache = ability_data_cache + (id * UINT32_C(2654435761) >> 24);
+    if (cache->id == id && cache->generation == generation)
+        return cache->row ? cache->row : &zero;
     row = FS_SLKLookup(&ability_idx, id);
+    cache->id = id;
+    cache->generation = generation;
+    cache->row = row;
     return row ? row : &zero;
 }
 AbilityData_t const *G_AbilityDataName(cstring_t name) { return G_AbilityData(FS_SLKKey(name)); }

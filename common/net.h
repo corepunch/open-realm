@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 24 // v24 HUD entity vitals; reject peers that cannot decode svc_ui_entity_stats
+#define BZ_PROTOCOL_VERSION 25 // v25 typed camera preference during signon; reject peers with the old input contract
 
 
 typedef struct entityState_s entityState_t;

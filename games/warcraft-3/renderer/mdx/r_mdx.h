@@ -424,6 +424,7 @@ typedef struct mdxGeoset_s {
     short *triangles;
     char *vertexGroups;
     int *matrixGroupSizes;
+    mdxMaterial_t *material; /* resolved once after MTLS/GEOS parsing */
     int materialID;
     int group;
     int selectable;// (0:none;4:Unselectable)

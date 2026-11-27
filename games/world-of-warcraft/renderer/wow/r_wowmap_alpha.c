@@ -11,7 +11,7 @@ texture_t *Wow_CreateAlphaTexture(uint8_t const alpha[4][WOW_ALPHA_TEXELS]) {
         pixels[i * 4 + 3] = alpha[3][i];
     }
 
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, texture->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -28,7 +28,7 @@ void Wow_EnsureAlphaAtlasTexture(void) {
     }
 
     wow_world.alpha_atlas_texture = R_AllocateTexture(WOW_ALPHA_ATLAS_SIZE, WOW_ALPHA_ATLAS_SIZE);
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, WOW_ALPHA_ATLAS_SIZE, WOW_ALPHA_ATLAS_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -53,7 +53,7 @@ void Wow_UploadAlphaAtlasChunk(uint32_t index_x, uint32_t index_y, uint8_t const
         pixels[i * 4 + 3] = alpha[3][i];
     }
 
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
     R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, index_x * WOW_ALPHA_CHUNK_SIZE, index_y * WOW_ALPHA_CHUNK_SIZE, WOW_ALPHA_CHUNK_SIZE, WOW_ALPHA_CHUNK_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
@@ -232,7 +232,7 @@ void Wow_EnsureHeightAtlas(void) {
     if (!clear) return;
     memset(clear, 0, sizeof(*clear) * WOW_HEIGHT_ATLAS_W * WOW_HEIGHT_ATLAS_H);
     wow_world.height_atlas = R_AllocateTexture(WOW_HEIGHT_ATLAS_W, WOW_HEIGHT_ATLAS_H);
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.height_atlas->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.height_atlas->texid);
     /* GL_R32F: exact float precision, no filtering bias near cell centers */
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_R32F, WOW_HEIGHT_ATLAS_W, WOW_HEIGHT_ATLAS_H,
            0, GL_RED, GL_FLOAT, clear);
@@ -264,7 +264,7 @@ void Wow_UploadHeightAtlasChunk(uint32_t ix, uint32_t iy, float base_z, float co
     for (c = 9; c < WOW_HEIGHT_ATLAS_TILE_W; c++) tile[8][c] = base_z;
 
     Wow_EnsureHeightAtlas();
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.height_atlas->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.height_atlas->texid);
     R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0,
            (GLint)(ix * WOW_HEIGHT_ATLAS_TILE_W), (GLint)(iy * WOW_HEIGHT_ATLAS_TILE_H),
            WOW_HEIGHT_ATLAS_TILE_W, WOW_HEIGHT_ATLAS_TILE_H,
@@ -280,7 +280,7 @@ void Wow_EnsureGrassCtrlTexture(void) {
     memset(clear, 0, WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE * 4);
     for (uint32_t i = 0; i < WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE; i++) clear[i * 4] = 255;
     wow_world.grass_ctrl = R_AllocateTexture(WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE);
-    R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
+    R_BindGLTexture(GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE,
            0, GL_RGBA, GL_UNSIGNED_BYTE, clear);
     ri.MemFree(clear);
