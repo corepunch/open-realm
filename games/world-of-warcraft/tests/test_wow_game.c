@@ -38,6 +38,7 @@ static uint32_t test_selection_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 static bool test_worldmap_fixture;
+static uint32_t test_game_time;
 
 typedef struct {
     uint8_t layer;
@@ -56,6 +57,8 @@ typedef struct {
     uint32_t payload_size;
     uint32_t message_id;
     uint8_t message_flags;
+    uiCommandButton_t command_button;
+    uint32_t flagsvalue;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
@@ -273,6 +276,7 @@ static handle_t test_read_file(cstring_t filename, uint32_t *size) {
         putfield_float(records, 4, 1000); putfield_float(records, 5, -1000);
         putfield_float(records, 6, 1000); putfield_float(records, 7, -1000);
         putfield(records + 32, 1, 1); putfield(records + 32, 3, zone);
+        putfield(records + 32, 2, 14);
         putfield_float(records + 32, 4, 200); putfield_float(records + 32, 5, -200);
         putfield_float(records + 32, 6, 100); putfield_float(records + 32, 7, -100);
         return data;
@@ -355,6 +359,10 @@ static void test_error(cstring_t fmt, ...) {
     va_end(args);
 }
 
+static uint32_t test_get_time(void) {
+    return test_game_time;
+}
+
 static void test_write_data(void const *data, uint32_t size) {
     if (!data || test_multicast_size + size > sizeof(test_multicast_buf)) {
         return;
@@ -408,6 +416,11 @@ static void test_write(pfWriteType_t type, void const *value) {
             capture->layer = test_layout_layer;
             capture->type = frame->flags.type;
             capture->stat = frame->stat;
+            capture->flagsvalue = frame->flagsvalue;
+            capture->command_button = (uiCommandButton_t){0};
+            if (frame->flags.type == FT_COMMANDBUTTON &&
+                frame->buffer.size == sizeof(capture->command_button))
+                memcpy(&capture->command_button, frame->buffer.data, sizeof(capture->command_button));
             snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
             snprintf(capture->onclick, sizeof(capture->onclick), "%s", frame->onclick ? frame->onclick : "");
             capture->image_index = frame->tex.index;
@@ -469,6 +482,7 @@ static struct game_import test_import(void) {
     import.ImageIndex = test_image_index;
     import.FontIndex = test_font_index;
     import.ReadFile = test_read_file;
+    import.GetTime = test_get_time;
     import.ClearWorld = test_clear_world;
     import.LoadingFrame = test_loading_frame;
     import.ApplyLobbySettings = test_apply_lobby_settings;
@@ -527,6 +541,7 @@ void PF_TextRemoveComments(string_t buffer) {
 
 static void reset_test_state(void) {
     test_worldmap_fixture = false;
+    test_game_time = 0;
     memset(test_models, 0, sizeof(test_models));
     memset(test_images, 0, sizeof(test_images));
     test_num_models = 0;
@@ -559,9 +574,10 @@ static void assert_player_ui_payload(void) {
     T_ASSERT(test_layout_seen[LAYER_CONSOLE]);
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
-        if (frame->layer != LAYER_CONSOLE || frame->type != FT_TEXTURE) continue;
-        action |= frame->image_index == attack;
-        inventory |= frame->image_index == bag;
+        if (frame->layer == LAYER_COMMANDBAR && frame->type == FT_COMMANDBUTTON)
+            action |= frame->image_index == attack;
+        if (frame->layer == LAYER_CONSOLE && frame->type == FT_TEXTURE)
+            inventory |= frame->image_index == bag;
     }
     T_ASSERT(action); T_ASSERT(inventory);
 }
@@ -1340,6 +1356,34 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     if (game->Shutdown) {
         game->Shutdown();
     }
+}
+
+TEST(wow_game, melee_approach_obeys_the_same_terrain_step_limit_as_manual_input) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    vec3_t const *ledge = CM_WowGetSpawnPos(1);
+    edict_t *target = first_creature();
+    T_NOT_NULL(ledge);
+    T_NOT_NULL(target);
+    if (!ledge || !target) { game->Shutdown(); return; }
+    float step = WOW_WALK_SPEED * FRAMETIME / 1000.0f;
+    float start_x = ledge->x - step;
+    player->s.origin = (vec3_t){ start_x, ledge->y, Wow_TerrainHeight(start_x, ledge->y) };
+    T_ASSERT(fabsf(player->s.origin.z - ledge->z) > step);
+    target->s.origin = (vec3_t){ ledge->x + 8.0f, ledge->y, ledge->z };
+    Wow_EntityLocal(target)->think = NULL;
+    char number[16];
+    snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
+    game->ClientCommand(player, 2, (cstring_t[]){ "attack", number });
+    game->RunFrame();
+    T_FEQ(player->s.origin.x, start_x, 0.001f);
+
+    target->s.origin.x = start_x - 8.0f;
+    game->RunFrame();
+    T_FEQ(player->s.origin.x, start_x - step, 0.001f);
+    T_FEQ(fabsf(player->s.angle), (float)M_PI, 0.001f);
+    game->Shutdown();
 }
 
 /* Target selection is state-only; combat begins only from an explicit attack or action-bar command. */
@@ -2167,24 +2211,19 @@ TEST(wow_game, cast_progress_stat_shows_countdown) {
     game->ClientBegin(player);
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
-    /* A real server tick publishes the opening cast and cooldown feedback. */
+    /* A real server tick updates the cast countdown without re-sending the action bar. */
     game->RunFrame();
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_PROGRESS], 1400);
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 1500);
     T_ASSERT(test_layout_seen[LAYER_INFOPANEL]);
     bool found_countdown = false;
-    bool found_cooldown = false;
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
         if (frame->layer != LAYER_INFOPANEL) continue;
         if (!strcmp(frame->text, "Fireball  1.4 s")) found_countdown = true;
-        if (frame->color.r == 190 && frame->color.g == 145 && frame->h > 0) {
-            T_FEQ(frame->w, (248.0f / 1024.0f) * (1400.0f / 1500.0f), 0.0001f);
-            found_cooldown = true;
-        }
     }
     T_ASSERT(found_countdown);
-    T_ASSERT(found_cooldown);
+    T_ASSERT(!test_layout_seen[LAYER_COMMANDBAR]);
 
     FOR_LOOP(i, 13) game->RunFrame();
     test_ui_frame_count = 0;
@@ -2215,6 +2254,34 @@ TEST(wow_game, action_buttons_use_the_same_class_bindings_as_commands) {
     T_ASSERT(heal_click);
     T_ASSERT(!empty_click);
     T_EQ(((wowClient_t *)player->client)->action_spells[4], SPELL_NONE);
+    game->Shutdown();
+}
+
+TEST(wow_game, action_icons_receive_one_clock_based_cooldown_payload) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    Wow_EntityLocal(player)->health = 50;
+    test_game_time = 4000;
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
+    uint32_t shaded = 0;
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (!(frame->flagsvalue & UIFLAG_RADIAL_SHADE)) continue;
+        T_EQ(frame->type, FT_COMMANDBUTTON);
+        T_EQ(frame->layer, LAYER_COMMANDBAR);
+        T_EQ(frame->command_button.radialStartTime, 4000);
+        T_EQ(frame->command_button.radialEndTime, 5500);
+        shaded++;
+    }
+    T_EQ(shaded, 2);
+
+    test_game_time += FRAMETIME;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->RunFrame();
+    T_ASSERT(!test_layout_seen[LAYER_COMMANDBAR]);
     game->Shutdown();
 }
 
@@ -2652,5 +2719,28 @@ TEST(wow_game, open_world_map_refreshes_position_and_area_from_scheduler) {
     before = test_unicast_calls;
     FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
     T_EQ(test_unicast_calls, before);
+    game->Shutdown();
+}
+
+TEST(wow_game, continent_view_stays_selected_until_recentered) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    test_worldmap_fixture = true;
+    player->s.origin = (vec3_t){0, 0, 0};
+    game->ClientCommand(player, 2, (cstring_t[]){ "worldmap", "continent" });
+    wowClient_t *client = (wowClient_t *)player->client;
+    T_ASSERT(!client->worldmap_open);
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    T_STREQ(client->worldmap_area, "TestZone");
+    game->ClientCommand(player, 2, (cstring_t[]){ "worldmap", "continent" });
+    T_STREQ(client->worldmap_area, "Continent");
+    player->s.origin.x = 50;
+    FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
+    T_STREQ(client->worldmap_area, "Continent");
+    game->ClientCommand(player, 2, (cstring_t[]){ "worldmap", "current" });
+    T_STREQ(client->worldmap_area, "TestZone");
+    game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
+    T_ASSERT(!client->worldmap_open);
     game->Shutdown();
 }

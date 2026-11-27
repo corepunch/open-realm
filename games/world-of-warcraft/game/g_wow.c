@@ -1761,6 +1761,19 @@ static bool Wow_SpawnEntities(void) {
     return true;
 }
 
+static bool Wow_TryPlayerStep(edict_t *ent, float dx, float dy) {
+    vec3_t const from = ent->s.origin;
+    vec3_t to = { from.x + dx, from.y + dy, from.z };
+    /* WMO floors can sit above the outdoor ground inside buildings. */
+    to.z = Wow_FloorHeight(to.x, to.y, from.z);
+    if ((dx != 0.0f || dy != 0.0f) &&
+        (CM_WowMoveBlocked(&from, &to) ||
+         !Wow_TerrainMoveWalkable(&from, &to, Wow_TerrainHeight(to.x, to.y))))
+        return false;
+    ent->s.origin = to;
+    return true;
+}
+
 static void Wow_RunFrame(void) {
     edict_t *ent = &wow_edicts[0];
     vec2_t forward;
@@ -1769,7 +1782,6 @@ static void Wow_RunFrame(void) {
     float len;
     bool moving;
     bool locked;
-    vec3_t move_old, move_new;
 
     wow_spawns_this_frame = 0;
 
@@ -1798,19 +1810,9 @@ static void Wow_RunFrame(void) {
 
     len = sqrtf(dir.x * dir.x + dir.y * dir.y);
     moving = len > 0.001f;
-    move_old = ent->s.origin;
-    ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
-    move_new = ent->s.origin;
-    if (moving) {
-        float step = WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f) / len;
-        move_new.x += dir.x * step;
-        move_new.y += dir.y * step;
-    }
-    /* WMO floors, unlike ADT terrain, can sit above the outdoor ground inside buildings. */
-    move_new.z = Wow_FloorHeight(move_new.x, move_new.y, move_old.z);
-    /* The old XY-only move crossed steep terrain and WMO walls, exposing the ground below city shells. */
-    if (!moving || (!CM_WowMoveBlocked(&move_old, &move_new) &&
-        Wow_TerrainMoveWalkable(&move_old, &move_new, Wow_TerrainHeight(move_new.x, move_new.y)))) ent->s.origin = move_new;
+    float step = WOW_WALK_SPEED * FRAMETIME / 1000.0f;
+    float input_step = moving ? step / len : 0.0f;
+    Wow_TryPlayerStep(ent, dir.x * input_step, dir.y * input_step);
     Wow_CheckAreaTriggers(ent); /* check dungeon/zone portals after position is settled */
     /* Run spell cast state machine before entity lock check.
      * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */
@@ -1832,18 +1834,18 @@ static void Wow_RunFrame(void) {
      * not locked in an animation (attack/cast/pain).  This comes after
      * Wow_AIAdvanceLockedFrame so a spell-cast timer prevents chase from
      * overriding the cast animation. */
+    bool pursuing = false;
     if (!locked && !moving && Wow_EntityAffectingCombat(ent)) {
-        wowEntityLocal_t *local = Wow_EntityLocal(ent);
-        edict_t *enemy = local->enemy;
-        if (enemy) {
-            vec2_t delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
-            float dist = Vector2_len(&delta);
-            if (dist > WOW_MELEE_RANGE) {
-                float step = MIN(WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f), dist - WOW_MELEE_RANGE);
-                ent->s.origin.x += delta.x * step / dist;
-                ent->s.origin.y += delta.y * step / dist;
-                ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
+        edict_t *enemy = Wow_EntityLocal(ent)->enemy;
+        vec2_t delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
+        float dist = Vector2_len(&delta);
+        if (dist > WOW_MELEE_RANGE) {
+            float approach = MIN(step, dist - WOW_MELEE_RANGE) / dist;
+            pursuing = Wow_TryPlayerStep(ent, delta.x * approach, delta.y * approach);
+            if (pursuing) {
                 moving = true;
+                dir = delta;
+                Wow_CheckAreaTriggers(ent);
             }
         }
     }
@@ -1857,13 +1859,9 @@ static void Wow_RunFrame(void) {
                 locked = true;
         }
     }
-    /* Face the direction of travel so strafing turns the model, not just slides it.
-     * Previously the model was pinned to the camera yaw (DEG2RAD(wow_move.yaw)), so A/D
-     * strafed sideways while the body kept facing forward. Backpedal still keeps eyes
-     * forward (matching Wow_SetDirectionalMove's backpedal rule); auto-chase leaves `len`
-     * at 0 so facing stays on the camera. */
+    /* Match accepted pursuit movement while manual backpedal keeps facing forward. */
     float facing = (float)DEG2RAD(wow_move.yaw);
-    if (len > 0.001f && !((wow_move.flags & WOW_MOVE_BACK) && !(wow_move.flags & WOW_MOVE_FORWARD)))
+    if (pursuing || (len > 0.001f && !((wow_move.flags & WOW_MOVE_BACK) && !(wow_move.flags & WOW_MOVE_FORWARD))))
         facing = atan2f(dir.y, dir.x);
     if (locked) {
         Wow_UpdateCamera(ent);
@@ -2330,7 +2328,18 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "worldmap")) {
         wowClient_t *client = (wowClient_t *)ent->client;
-        client->worldmap_open = !client->worldmap_open;
+        if (argc == 1) {
+            client->worldmap_open = !client->worldmap_open;
+            client->worldmap_continent = false;
+        } else if (!client->worldmap_open) {
+            return;
+        } else if (!strcasecmp(argv[1], "continent")) {
+            client->worldmap_continent = true;
+        } else if (!strcasecmp(argv[1], "current")) {
+            client->worldmap_continent = false;
+        } else {
+            return;
+        }
         client->worldmap_refresh = 0;
         if (client->worldmap_open) UI_ResolveWorldMap(ent);
         UI_WriteWorldMap(ent);
@@ -2497,6 +2506,8 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             cl->gcd_time = WOW_GCD_MS;
             if (def->cast) def->cast(ent, target);
         }
+        if (ent->client->ps.client_ui_state == CLIENT_UI_GAME)
+            UI_WriteWowActionBar(ent);
 
     }
 }
