@@ -210,6 +210,7 @@ typedef struct {
     uint32_t clientnum;
     uint32_t playernum;
     uint32_t lobby_slot;
+    uint32_t connect_attempt;
     char userinfo[256];
     UINAME name;
 } savedLobbyClient_t;
@@ -233,6 +234,7 @@ static uint32_t SV_SaveLobbyClients(savedLobbyClient_t *saved, uint32_t max_save
         saved[count].clientnum = i;
         saved[count].playernum = cl->playernum;
         saved[count].lobby_slot = cl->lobby_slot;
+        saved[count].connect_attempt = cl->connect_attempt;
         snprintf(saved[count].userinfo, sizeof(saved[count].userinfo), "%s", cl->userinfo);
         snprintf(saved[count].name, sizeof(saved[count].name), "%s", cl->name);
         count++;
@@ -258,6 +260,7 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, uint32_t cou
         cl->netchan.remote_address = saved[i].addr;
         cl->playernum = saved[i].playernum;
         cl->lobby_slot = saved[i].lobby_slot;
+        cl->connect_attempt = saved[i].connect_attempt;
         snprintf(cl->userinfo, sizeof(cl->userinfo), "%s", saved[i].userinfo);
         snprintf(cl->name, sizeof(cl->name), "%s", saved[i].name);
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
@@ -317,8 +320,16 @@ client_t *SV_FindClientByAddr(netadr_t const *from) {
     return NULL;
 }
 
+static void SV_ReplyConnect(client_t const *cl) {
+    if (cl->connect_attempt)
+        Netchan_OutOfBandPrint(NS_SERVER, cl->netchan.remote_address, "client_connect %d %u",
+                              BZ_PROTOCOL_VERSION, cl->connect_attempt);
+    else
+        Netchan_OutOfBandPrint(NS_SERVER, cl->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+}
+
 /* Register a new remote client that sent the first connection packet. */
-void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
+void SV_DirectConnect(netadr_t const *from, cstring_t userinfo, uint32_t attempt) {
     client_t *existing;
     client_t *cl;
     uint32_t clientnum;
@@ -330,11 +341,19 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
      * the client cannot remain on the loading plaque waiting for `new`. */
     if ((existing = SV_FindClientByAddr(from))) {
         if (existing->state == cs_zombie) return;
+        /* A retry belongs to the same session, even if it arrives after
+         * signon or the lobby-to-game transition. */
+        if (attempt && existing->connect_attempt == attempt) {
+            if (!existing->netchan.incoming_sequence) SV_ReplyConnect(existing);
+            return;
+        }
         /* client_connect starts a new session on both ends: the client restarts its netchan when it reads the reply,
          * so the slot's must restart too, or each side drops the other's packets as stale. */
         Netchan_Reset(&existing->netchan);
         SV_ResetDeltaBase(existing);
-        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+        existing->lastmessage = svs.realtime;
+        existing->connect_attempt = attempt;
+        SV_ReplyConnect(existing);
         return;
     }
     if ((Cvar_Integer("online_mode", 0) && from->type != NA_EOS && from->type != NA_LOOPBACK) ||
@@ -350,6 +369,8 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
     cl->lastframe = (uint32_t)-1;
+    cl->lastmessage = svs.realtime;
+    cl->connect_attempt = attempt;
     SV_LobbyClientInit(cl, userinfo);
     SV_InitMulticast();
     cl->netchan.remote_address = *from;
@@ -360,7 +381,7 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
         SV_TrimClientSlots();
         return;
     }
-    Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect %d", BZ_PROTOCOL_VERSION);
+    SV_ReplyConnect(cl);
     SV_LobbyBroadcastSetup();
 }
 

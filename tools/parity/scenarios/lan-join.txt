@@ -1,5 +1,6 @@
 # LAN pair on one machine: the scenario starts a host, the host creates a game, a second instance ("guest") finds it
-# and joins, and the host's lobby reports that guest by name. Frame names and engine log lines only (locale independent).
+# and joins, and the host's lobby reports that guest by name. The guest then cancels, the host frees the slot, and the
+# guest joins the same host a second time. Frame names and engine log lines only (locale independent).
 # Both instances use their own UDP game_port, so only this host answers the guest's LAN query and other LAN games on
 # the network are not listed. The guest uses the same WC3DATA; its state is "$WC3_DRIVE_STATE-guest". If a step fails,
 # `run` stops both instances and keeps their logs.
@@ -26,5 +27,16 @@ as guest uiwait ChatEditBox 15
 waitlog 15 ^ +client lobby slot [0-9]+: occupied=1 .* type=human .*name="wc3drive-guest"$
 shot lan-join-host
 as guest shot lan-join-guest
+# Guest leaves: back to the game list, and the host opens its slot again.
+mark
+as guest uiclick CancelButton
+as guest uiwait JoinButton 15
+waitlog 15 ^ +client lobby slot 1: occupied=0 .* type=open
+# Guest joins the same host again and takes the slot back.
+mark
+as guest uiclick JoinButton
+as guest uiwait ChatEditBox 15
+waitlog 15 ^ +client lobby slot [0-9]+: occupied=1 .* type=human .*name="wc3drive-guest"$
+shot lan-rejoin-host
 as guest stop
 stop

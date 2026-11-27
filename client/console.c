@@ -167,6 +167,14 @@ void CON_ToggleConsole(void) {
     CON_ClearInput();
 }
 
+/* While the console is open, a change of input owner (a disconnect run from the console) changes where the console
+ * returns to instead of closing it under the user. Returns false when the console is closed. */
+bool CON_SetReturnKeyDest(keydest_t dest) {
+    if (cls.key_dest != key_console) return false;
+    con_prev_key_dest = dest;
+    return true;
+}
+
 static void CON_ToggleConsole_f(void) {
     CON_ToggleConsole();
 }

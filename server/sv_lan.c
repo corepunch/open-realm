@@ -78,6 +78,7 @@ void SV_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     char *status;
     uint32_t length;
     int protocol = 0;
+    unsigned attempt = 0;
 
     if (!msg || msg->cursize <= 4) {
         return;
@@ -94,7 +95,7 @@ void SV_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     if (status) {
         *status++ = '\0';
     }
-    sscanf(payload, "%31s %d", command, &protocol);
+    sscanf(payload, "%31s %d %u", command, &protocol, &attempt);
     if (!strcmp(command, "connect")) {
         if (protocol != BZ_PROTOCOL_VERSION) {
             fprintf(stderr, "SV_ConnectionlessPacket: client protocol %d does not match %d\n", protocol, BZ_PROTOCOL_VERSION);
@@ -103,7 +104,7 @@ void SV_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
         fprintf(stderr,
                 "SV_ConnectionlessPacket: connect from %s\n",
                 from ? NET_AdrToString(from) : "unknown");
-        SV_DirectConnect(from, status);
+        SV_DirectConnect(from, status, from && from->type == NA_IP ? attempt : 0);
     } else if (!strcmp(command, "info")) {
         SV_LanInfo(from);
     }

@@ -179,7 +179,7 @@ and screenshots. `wc3_drive.sh --help` lists every verb.
 |----------|------------|--------|
 | `menu-custom-game.txt` | `start -roc` or `-tft` | main menu, Single Player, custom game, map list, back |
 | `options-round-trip.txt` | `start -roc` or `-tft` | Video, Sound and Gameplay panels lay out their controls; Cancel returns |
-| `lan-join.txt` | nothing (it starts host and guest) | host creates a LAN game on a private `game_port`, a second instance joins, the host lobby reports that guest by name |
+| `lan-join.txt` | nothing (it starts host and guest) | host creates a LAN game on a private `game_port`, a second instance joins, the host lobby reports that guest by name; the guest cancels, the slot opens, and it joins again |
 | `map-start.txt` | nothing (it starts the game) | `+map` start reaches `G_ClientBegin`, screenshot of the opening view |
 
 All scenarios use frame names and English engine log lines only, so they do not depend on the data's language or

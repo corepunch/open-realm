@@ -47,6 +47,7 @@ static clMenuLife_t cl_menu_life;
 static uint32_t cl_last_packet_time = 0;
 static uint32_t cl_realtime = 0;
 static uint32_t cl_connect_started, cl_connect_retry;
+static uint32_t cl_connect_attempt;
 
 uint32_t CL_RealTime(void) { return cl_realtime; }
 
@@ -205,13 +206,19 @@ static void CL_MenuCommand(cstring_t command) {
 }
 
 /* Q2 CL_Disconnect: always tell the server, even a local one about to shut down; the server
- * discards a dead session's loopback datagrams when it next initializes. */
+ * discards a dead session's loopback datagrams when it next initializes. Over UDP it goes out three times, as in Q2:
+ * a single lost datagram left the slot taken until the host's lobby timeout. The server ignores the copies that reach
+ * the slot after the first one has freed it. */
+#define CL_UDP_DISCONNECT_COPIES 3
 static void CL_SendDisconnect(void) {
     if (cls.state < ca_connected) return;
-    SZ_Clear(&cls.netchan.message);
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    MSG_WriteString(&cls.netchan.message, "disconnect");
-    Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    uint32_t const copies = Netchan_IsSequenced(&cls.netchan) ? CL_UDP_DISCONNECT_COPIES : 1;
+    FOR_LOOP(i, copies) {
+        SZ_Clear(&cls.netchan.message);
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        MSG_WriteString(&cls.netchan.message, "disconnect");
+        Netchan_Transmit(NS_CLIENT, &cls.netchan);
+    }
 }
 
 static void CL_CancelCinematicSession(void);
@@ -688,6 +695,22 @@ static void CL_Quit_f(void) {
     Com_Quit();
 }
 
+/* "disconnect": leave the current server and tell it so. A LAN guest leaving a lobby used to only switch screens and
+ * stayed connected, so the host kept its slot. From the menu the menu picks the next screen; from a world it returns
+ * to the main menu like any other disconnect. A host leaving its own local server ends it, as in Quake 2, and returns
+ * to the main menu (from a world through the game's own deferred exit); otherwise the server kept running for the
+ * guests with nobody hosting. */
+static void CL_Disconnect_f(void) {
+    bool const host = cls.netchan.remote_address.type == NA_LOOPBACK && SV_IsActive();
+
+    if (host && !CL_MenuActive()) {
+        MenuAction("menu", "menu_main");
+        return;
+    }
+    CL_DisconnectInternal("Disconnected.", false, host || !CL_MenuActive());
+    if (host) SV_Shutdown();
+}
+
 /* Game modules request session-boundary actions through gi.MenuAction while
  * their simulation/JASS call stack may still be active.  Never tear down or
  * replace the current world inline from that callback.  Copy the request and
@@ -1035,8 +1058,189 @@ TEST(client_session, disconnect_always_tells_the_local_server_it_left) {
     T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
     T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
     T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0); /* loopback does not lose packets: one copy */
 
     cls = old_cls;
+}
+
+static uint32_t cl_test_udp_disconnects, cl_test_udp_packets;
+
+static void CL_TestCaptureUdpDisconnect(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
+    uint8_t copy[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = copy, .maxsize = sizeof(copy) };
+    cl_test_udp_packets++;
+    if (netsrc != NS_CLIENT || to.type != NA_IP || length <= 8 || length > (int)sizeof(copy)) return;
+    memcpy(copy, data, (size_t)length);
+    msg.cursize = (uint32_t)length;
+    msg.readcount = 8; /* sequence and acknowledge */
+    if (MSG_ReadByte(&msg) == clc_stringcmd && !strcmp(MSG_ReadString2(&msg), "disconnect")) cl_test_udp_disconnects++;
+}
+
+/* A LAN guest's leave crosses a real network: one lost datagram used to leave its slot taken until the host's lobby
+ * timeout, so it goes out three times, each in its own sequenced packet the host accepts. */
+TEST(client_session, udp_disconnect_is_sent_three_times) {
+    struct client_static old_cls = cls;
+
+    memset(&cls, 0, sizeof(cls));
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_IP;
+    cls.state = ca_connected;
+    cl_test_udp_disconnects = cl_test_udp_packets = 0;
+    NET_SetPacketHook(CL_TestCaptureUdpDisconnect);
+
+    CL_SendDisconnect();
+    NET_SetPacketHook(NULL);
+    T_EQ(cl_test_udp_disconnects, 3);
+    T_EQ(cl_test_udp_packets, 3);
+    T_EQ(cls.netchan.outgoing_sequence, 3); /* distinct sequence numbers: none is dropped as a duplicate */
+
+    cls = old_cls;
+}
+
+/* A LAN guest that quits (closes the window, Alt+F4, "quit") from the host's lobby tells the host, so its slot frees
+ * at once instead of at the host's lobby timeout. CL_Shutdown releases client subsystems for good, so the test runs in
+ * its own process (`make test-wc3-map-launch`). */
+static void CL_TestNoShutdown(void) {}
+
+TEST(process_client_session, quit_tells_the_server_it_left) {
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    menuExport_t old_menu = menu;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    memset(&cl, 0, sizeof(cl)); /* no models or images to release */
+    re.Shutdown = CL_TestNoShutdown; /* the headless test binary has no renderer */
+    menu.Shutdown = CL_TestNoShutdown;
+
+    CL_Shutdown();
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(cls.state, ca_disconnected);
+    CL_Shutdown(); /* "quit" runs CL_Shutdown and then Com_Quit runs it again: nothing more is sent */
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0);
+
+    menu = old_menu; re = old_re; cls = old_cls;
+}
+
+/* A LAN guest leaving its lobby from the menu runs "disconnect": the host hears it, the session ends, and the menu,
+ * not the disconnect, chooses the next screen (the main-menu reset in CL_DisconnectInternal does not run). */
+static void CL_TestNoRegisterMap(cstring_t map) { (void)map; }
+
+TEST(client_session, disconnect_command_from_menu_tells_server_and_keeps_screen) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap; /* the headless test binary has no renderer */
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+    T_ASSERT(CL_MenuActive());
+
+    CL_Disconnect_f();
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+    T_EQ(cls.state, ca_disconnected);
+    T_STREQ(Cvar_String("map", ""), "Maps\\Lobby.w3m"); /* the menu-reset branch was not taken */
+    CL_Disconnect_f(); /* already disconnected: nothing is sent */
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0);
+
+    Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
+/* "disconnect" typed into the console (or a menu click run from it) leaves the console open; closing it then lands
+ * on the menu, not on the gameplay input the console was opened from. It used to close the console under the user. */
+TEST(client_session, disconnect_from_open_console_keeps_it_open_and_returns_to_menu) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap;
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+    cls.key_dest = key_game;
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+    CON_ToggleConsole();
+    T_EQ(cls.key_dest, key_console);
+
+    CL_Disconnect_f();
+    T_EQ(cls.state, ca_disconnected);
+    T_EQ(cls.key_dest, key_console);
+    CON_ToggleConsole();
+    T_EQ(cls.key_dest, key_menu);
+
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
+/* A host that runs "disconnect" ends its own local server instead of leaving it to the guests with nobody hosting:
+ * from a world through the deferred exit to the menu, from the lobby at once. It starts a real server, so it runs in
+ * its own process (process_ prefix, `make test-wc3-map-launch`). */
+TEST(process_client_session, host_disconnect_command_ends_its_local_server) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap;
+    memset(&cls, 0, sizeof(cls));
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    Cmd_ExecuteString("lobby_start_local Maps/Transport.w3m"); /* the single-player lobby: no UDP port */
+    T_ASSERT(SV_IsActive());
+
+    cls.state = ca_active; /* in a world: the exit is deferred to the next client frame */
+    T_ASSERT(!CL_MenuActive());
+    CL_Disconnect_f();
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_MENU);
+    T_STREQ(cl_pending_menu_action.arg, "menu_main");
+    T_EQ(cls.state, ca_active);
+    T_ASSERT(SV_IsActive());
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    cls.state = ca_connected; /* in the lobby: the server ends now and the client leaves */
+    Cvar_Set("map", "Maps\\Transport.w3m");
+    CL_Disconnect_f();
+    T_EQ(cls.state, ca_disconnected);
+    T_ASSERT(!SV_IsActive());
+    T_STREQ(Cvar_String("map", "x"), ""); /* back to the main menu */
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_NONE);
+
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    while (NET_GetLoopPacket(NS_CLIENT, &from, &packet)) {}
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }
 
 static uint32_t cl_test_menu_shutdown_count;
@@ -1220,6 +1424,7 @@ void CL_Init(void) {
     CL_ClearState();
 
     Cmd_AddCommand("quit", CL_Quit_f);
+    Cmd_AddCommand("disconnect", CL_Disconnect_f);
     Cmd_AddCommand("screenshot", CL_Screenshot_f);
     Cmd_AddCommand("menu_restart", CL_MenuRestart_f);
 
@@ -1239,6 +1444,7 @@ void CL_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     char *info;
     uint32_t length;
     int protocol = 0;
+    unsigned attempt = 0;
 
     if (msg->cursize <= 4) {
         return;
@@ -1248,7 +1454,7 @@ void CL_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
         length = sizeof(payload) - 1;
     }
     memcpy(payload, msg->data + 4, length);
-    sscanf(payload, "%255s %d", command, &protocol);
+    sscanf(payload, "%255s %d %u", command, &protocol, &attempt);
     if (!strcmp(command, "info")) {
         info = strchr(payload, '\n');
         if (from->type == NA_IP) CL_AddLANServer(from, info ? info + 1 : "");
@@ -1261,6 +1467,8 @@ void CL_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
         fprintf(stderr, "CL_ConnectionlessPacket: server protocol %d does not match %d\n", protocol, BZ_PROTOCOL_VERSION);
         return;
     }
+    if (attempt && (cls.state != ca_connecting || attempt != cl_connect_attempt ||
+                    !NET_CompareAdr(from, &cls.netchan.remote_address))) return;
 
     /* Q2 resets the client at the new connection boundary. The server sends
      * the complete configstring/baseline stream again, so old media indices
@@ -1314,6 +1522,7 @@ TEST(client_session, connection_reply_restarts_sequenced_netchan) {
     netadr_t const host = { .type = NA_IP, .ip = { 127, 0, 0, 1 }, .port = 0x1234 };
     uint8_t bytes[128];
     sizeBuf_t oob = { .data = bytes, .maxsize = sizeof(bytes) }, msg = { .data = packet, .maxsize = sizeof(packet) };
+    uint32_t const old_attempt = cl_connect_attempt;
     memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
     re.RegisterMap = CL_TestRegisterMap;
     cls.netchan.remote_address = host;
@@ -1331,7 +1540,14 @@ TEST(client_session, connection_reply_restarts_sequenced_netchan) {
         msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
         T_ASSERT(Netchan_Process(&server, &msg));
     }
-    Netchan_Reset(&server); /* SV_Map / SV_DirectConnect rebuild the slot */
+    /* A delayed reply to the current connection attempt must not reset either sequence. */
+    cl_connect_attempt = 42;
+    MSG_WriteLong(&oob, -1); MSG_WriteString(&oob, "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION) " 42");
+    CL_ConnectionlessPacket(&host, &oob);
+    T_EQ(cls.netchan.incoming_sequence, 4);
+    T_EQ(cls.netchan.outgoing_sequence, 4);
+    SZ_Clear(&oob);
+    Netchan_Reset(&server); /* SV_Map announces the new world without an attempt ID. */
     MSG_WriteLong(&oob, -1); MSG_WriteString(&oob, "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION));
     CL_ConnectionlessPacket(&host, &oob);
     msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
@@ -1341,6 +1557,7 @@ TEST(client_session, connection_reply_restarts_sequenced_netchan) {
     MSG_WriteByte(&server.message, svc_nop);
     msg.cursize = Netchan_BuildPacket(&server, packet, sizeof(packet));
     T_ASSERT(Netchan_Process(&cls.netchan, &msg));
+    cl_connect_attempt = old_attempt;
     re.RegisterMap = old_register_map;
     memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }
@@ -1480,7 +1697,24 @@ static void CL_SanitizeUserinfoValue(cstring_t in, string_t out, uint32_t out_si
 static void CL_SendConnectRequest(netadr_t address) {
     UINAME name;
     CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
-    Netchan_OutOfBandPrint(NS_CLIENT, address, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
+    if (address.type == NA_IP)
+        Netchan_OutOfBandPrint(NS_CLIENT, address, "connect %d %u\n\\name\\%s", BZ_PROTOCOL_VERSION,
+                              cl_connect_attempt, name[0] ? name : "Player");
+    else
+        Netchan_OutOfBandPrint(NS_CLIENT, address, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
+}
+
+/* A connect request is one datagram. Over UDP and EOS it is sent again every second until the host answers: a lost
+ * request used to leave a LAN guest connecting for good, and a host ignores a request from an address it dropped less
+ * than BZ_CLIENT_ZOMBIE_MSEC ago (a guest rejoining right after leaving). Loopback cannot lose it. */
+static void CL_ResendConnect(void) {
+    if (cls.state != ca_connecting || cls.netchan.remote_address.type == NA_LOOPBACK) return;
+    if (cl_realtime - cl_connect_started > CL_TIMEOUT_MSEC) {
+        CL_Disconnect(cls.netchan.remote_address.type == NA_EOS ? "Internet host connection timed out." : "Connection to host timed out.", true);
+    } else if (cl_realtime - cl_connect_retry >= 1000) {
+        cl_connect_retry = cl_realtime;
+        CL_SendConnectRequest(cls.netchan.remote_address);
+    }
 }
 
 void CL_Connect(cstring_t host, unsigned short port) {
@@ -1512,6 +1746,8 @@ void CL_Connect(cstring_t host, unsigned short port) {
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
     cl_connect_started = cl_connect_retry = cl_realtime;
+    uint32_t const attempt = (uint32_t)SDL_GetPerformanceCounter();
+    cl_connect_attempt = attempt ? attempt : 1;
     CL_SendConnectRequest(adr);
     if (adr.type == NA_LOOPBACK)
         fprintf(stderr, "CL_Connect: connecting to local server via loopback\n");
@@ -1519,7 +1755,80 @@ void CL_Connect(cstring_t host, unsigned short port) {
         fprintf(stderr, "CL_Connect: connecting to %s\n", NET_AdrToString(&adr));
 }
 
+#ifdef BZ_TESTS
+/* Wait briefly for one datagram on the test host socket; returns its length or 0. */
+static int CL_TestHostReceive(sizeBuf_t *packet, netadr_t *from) {
+    FOR_LOOP(i, 200) {
+        int r = NET_GetPacket(NS_SERVER, from, packet);
+        if (r) return r;
+        SDL_Delay(1);
+    }
+    return 0;
+}
+
+static bool CL_TestHostConnectRequest(sizeBuf_t *packet, netadr_t *from) {
+    packet->cursize = packet->readcount = 0;
+    if (CL_TestHostReceive(packet, from) <= 4 || MSG_ReadLong(packet) != -1) return false;
+    return !strncmp(MSG_ReadString2(packet), "connect ", 8);
+}
+
+/* A LAN guest that rejoins right after leaving reaches a host that still ignores its address, and a request can be
+ * lost: the connect request goes out again every second, and the guest gives up after CL_TIMEOUT_MSEC. */
+TEST(client_session, udp_connect_request_is_resent_until_answered) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    uint32_t const old_realtime = cl_realtime;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+    char port_text[16];
+    unsigned short port = 0;
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestNoRegisterMap; /* the headless test binary has no renderer */
+    memset(&cls, 0, sizeof(cls));
+    NET_Config(false);
+    for (unsigned short p = 28190; p < 28210 && !port; p++) { /* classic and TFT shards run side by side */
+        snprintf(port_text, sizeof(port_text), "%u", (unsigned)p);
+        Cvar_Set("game_port", port_text);
+        NET_ConfigSource(NS_SERVER, true);
+        if (NET_IsConfigured(NS_SERVER)) port = p;
+    }
+    T_ASSERT(port);
+    Cvar_Set("map", "Maps\\Lobby.w3m");
+
+    CL_Connect("127.0.0.1", port);
+    T_EQ(cls.state, ca_connecting);
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from));
+    cl_realtime += 999; CL_ResendConnect();
+    T_EQ(CL_TestHostReceive(&packet, &from), 0); /* not before a second has passed */
+    cl_realtime += 1; CL_ResendConnect();
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from));
+    cl_realtime += 1000; CL_ResendConnect();
+    T_ASSERT(CL_TestHostConnectRequest(&packet, &from)); /* every second */
+
+    cls.state = ca_connected; /* the host answered */
+    cl_realtime += 1000; CL_ResendConnect();
+    T_EQ(CL_TestHostReceive(&packet, &from), 0);
+
+    cls.state = ca_connecting; /* never answered: give up */
+    cl_realtime += CL_TIMEOUT_MSEC; CL_ResendConnect();
+    T_EQ(cls.state, ca_disconnected);
+
+    NET_Config(false);
+    Cvar_Set("game_port", ""); Cvar_Set("map", "");
+    re.RegisterMap = old_register_map;
+    cl_realtime = old_realtime;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+#endif
+
+/* Quitting (the window closed, Alt+F4, "quit") tells the server too, as Q2's CL_Quit_f does: a LAN guest that quit
+ * from the host's lobby used to keep its slot until the host's lobby timeout. */
 void CL_Shutdown(void) {
+    CL_SendDisconnect();
+    cls.state = ca_disconnected;
     Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     CL_SuspendMenu();
@@ -1576,14 +1885,7 @@ void CL_Frame(uint32_t msec) {
     CL_CanvasFrame(cl_realtime);
     CL_MovieUpdate();
     CL_ReadPackets();
-    if (cls.state == ca_connecting && cls.netchan.remote_address.type == NA_EOS) {
-        if (cl_realtime - cl_connect_started > CL_TIMEOUT_MSEC) {
-            CL_Disconnect("Internet host connection timed out.", true);
-        } else if (cl_realtime - cl_connect_retry >= 1000) {
-            cl_connect_retry = cl_realtime;
-            CL_SendConnectRequest(cls.netchan.remote_address);
-        }
-    }
+    CL_ResendConnect();
     CL_MusicUpdate();
     S_SetUserVolume(Cvar_Integer("s_sound", 1)
         ? Cvar_Value("s_volume", 1.0f) : 0.0f);
