@@ -128,6 +128,7 @@
 #define UI_FixCopiedFrameMenuItems BZ_WEB_FDF_NAME(UI_FixCopiedFrameMenuItems)
 #define UI_FixCopiedFrameTextPointer BZ_WEB_FDF_NAME(UI_FixCopiedFrameTextPointer)
 #define UI_FrameNameEquals BZ_WEB_FDF_NAME(UI_FrameNameEquals)
+#define UI_FrameSourceFile BZ_WEB_FDF_NAME(UI_FrameSourceFile)
 #define UI_FrameTypesCompatible BZ_WEB_FDF_NAME(UI_FrameTypesCompatible)
 #define UI_FreeFrameDynamicText BZ_WEB_FDF_NAME(UI_FreeFrameDynamicText)
 #define UI_FreeFrameMenuItems BZ_WEB_FDF_NAME(UI_FreeFrameMenuItems)
