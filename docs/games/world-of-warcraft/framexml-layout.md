@@ -19,13 +19,16 @@ and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMEN
 ## Geometry contract
 
 - `<Size><AbsDimension .../></Size>` supplies explicit axes after conversion from the native 1024x768 grid.
-- Two authored anchors can derive width and/or height from their pinned edges.
-- `setAllPoints` inherits the complete parent rectangle.
+- Two authored anchors can derive width and height independently. Anchor order does not affect a stretched axis. An anchor with an omitted target or an exact `$parent` target uses the structural parent, even when that parent has no name.
+- XML `setAllPoints` fills the parent rectangle. Lua `SetAllPoints` can also fill another frame. `ClearAllPoints` clears both anchors and the fill constraint. A top-level `UIParent` with no authored size or anchors fills the full interface canvas.
+- A self-anchor falls back to the parent in XML, and a cyclic relative layout falls back to canvas bounds at the recursive edge. Cyclic structural parents are rejected.
 - An unconstrained FontString axis uses the renderer's natural text measurement. Text changes invalidate that measurement.
 - Any other unresolved axis remains zero. Never invent a default rectangle: it hides missing inheritance, relative-frame, or anchor
   support and makes invalid XML appear usable.
 - Drawing logs `UIWow: unresolved FrameXML geometry` once per affected element with its frame and source-file names. The zero extent
   also prevents an unresolved Button/EditBox from receiving a fabricated hit target.
+
+Lua scroll offsets and ranges use the same vertical UI units as frame sizes. The range reflects the content bounds at query time and can be zero. Children declared inside `ScrollChild` contribute regardless of their name. Shrinking content clamps the current offset to the new range.
 
 Focused verification:
 

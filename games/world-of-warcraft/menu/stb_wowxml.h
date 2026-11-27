@@ -134,6 +134,7 @@ typedef enum {
     EF_SCROLLBAR_PART = 1 << 20,
     EF_CHECKBUTTON    = 1 << 21,
     EF_LOGGED_GEOMETRY = 1 << 22,
+    EF_SCROLL_CONTENT  = 1 << 23,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -500,7 +501,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, cstring_t name, int parent, in
     e = &wow_xml.elems[wow_xml.count];
     memset(e, 0, sizeof(*e));
     e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP;
-    e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
+    e->type = type; e->parent = parent; e->relative_to = -1; e->relative_to2 = -1; e->draw_layer = draw_layer;
     e->alpha = 1.0f; e->font_size = 14.0f;
     e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE;
     e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
@@ -534,7 +535,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, cstring_t inherits) {
             if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f))
                 UIWow_ElemSetStr(e, f, src->texts[f]);
         }
-        if (src->flags & EF_HIDDEN) e->flags |= EF_HIDDEN;
+        e->flags |= src->flags & (EF_HIDDEN | EF_SET_ALL_PTS);
         if (src->flags & EF_HAS_TEXCOORD) { e->texcoord = src->texcoord; e->flags |= EF_HAS_TEXCOORD; }
         if (src->flags & EF_HAS_HIGHLIGHT_TEXCOORD) { e->highlight_texcoord = src->highlight_texcoord; e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD; }
         if (src->edge.w > 0.0f) e->edge = src->edge;
@@ -577,35 +578,71 @@ static void UIWow_XmlRectPoint(rect_t const *r, cstring_t point, float *x, float
     *y = r->y + r->h * fy;
 }
 
-rect_t UIWow_XmlComputeRect(int idx) {
+typedef struct {
+    rect_t rects[WOW_XML_MAX_ELEMS];
+    uint8_t state[WOW_XML_MAX_ELEMS];
+} wowXmlLayout_t;
+
+static int UIWow_XmlAnchorTarget(int target, cstring_t name, int parent) {
+    if (target < 0 && name && *name) target = UIWow_XmlFindByName(name);
+    return target >= 0 ? target : parent;
+}
+
+static void UIWow_XmlSolveAxis(float first, float first_factor, float second,
+                               float second_factor, float *origin, float *extent) {
+    if (first_factor == second_factor) return;
+    float span = (second - first) / (second_factor - first_factor);
+    float start = first - span * first_factor;
+    *origin = MIN(start, start + span);
+    *extent = fabsf(span);
+}
+
+static rect_t UIWow_XmlLayoutRect(wowXmlLayout_t *layout, int idx) {
+    rect_t screen = MAKE(rect_t, 0, 0, 1, 1);
+    if (idx < 0 || idx >= wow_xml.count || layout->state[idx] == 1) return screen;
+    if (layout->state[idx] == 2) return layout->rects[idx];
+
     uiWowXmlElem_t const *e = &wow_xml.elems[idx];
-    rect_t parent = MAKE(rect_t, 0, 0, 1, 1);
-    cstring_t point = e->texts[ELEM_POINT], rel_point = e->texts[ELEM_RELATIVE_POINT];
-    float w = e->size.w > 0 ? e->size.w : (e->type == WOW_XML_FONTSTRING ? e->measured.w : 0.0f);
-    float h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING ? e->measured.h : 0.0f);
-    rect_t out = MAKE(rect_t, 0, 0, w, h);
-    float ax, ay, fx, fy;
-    if (e->parent >= 0 && e->parent < wow_xml.count) parent = UIWow_XmlComputeRect(e->parent);
-    if (e->flags & EF_SET_ALL_PTS) return parent;
-    if (!(e->flags & EF_HAS_ANCHOR)) { out.x = parent.x; out.y = parent.y; return out; }
-    if (e->relative_to >= 0 && e->relative_to < wow_xml.count) parent = UIWow_XmlComputeRect(e->relative_to);
-    UIWow_XmlRectPoint(&parent, (rel_point && rel_point[0]) ? rel_point : (point ? point : "CENTER"), &ax, &ay);
-    ax += e->offset.x; ay += e->offset.y;
-    UIWow_XmlPointFactors(point, &fx, &fy);
-    out.x = ax - out.w * fx;
-    out.y = ay - out.h * fy;
-    if ((e->flags & EF_HAS_ANCHOR2) && e->point2 && e->relative_point2) {
-        rect_t ref2 = (e->relative_to2 >= 0 && e->relative_to2 < wow_xml.count)
-                    ? UIWow_XmlComputeRect(e->relative_to2) : parent;
-        float bx, by; cstring_t p2 = e->point2;
-        UIWow_XmlRectPoint(&ref2, e->relative_point2, &bx, &by);
-        bx += e->offset2.x; by += e->offset2.y;
-        if      (strcasestr(p2, "RIGHT"))  { out.w = bx - out.x; if (out.w < 0) { out.x += out.w; out.w = -out.w; } }
-        else if (strcasestr(p2, "LEFT"))   { float r = out.x + out.w; out.x = bx; out.w = r - bx; if (out.w < 0) out.w = 0; }
-        if      (strcasestr(p2, "BOTTOM")) { out.h = by - out.y; if (out.h < 0) { out.y += out.h; out.h = -out.h; } }
-        else if (!strcasecmp(p2, "TOP"))   { float b = out.y + out.h; out.y = by; out.h = b - by; if (out.h < 0) out.h = 0; }
+    layout->state[idx] = 1;
+    int target = UIWow_XmlAnchorTarget(e->relative_to, e->texts[ELEM_RELATIVE_NAME], e->parent);
+    if (target == idx) target = e->parent;
+    if (!(e->flags & (EF_HAS_ANCHOR | EF_SET_ALL_PTS))) target = e->parent;
+    rect_t ref = UIWow_XmlLayoutRect(layout, target);
+    rect_t out = ref;
+    if (!(e->flags & EF_SET_ALL_PTS)) {
+        out.w = e->size.w > 0 ? e->size.w : (e->type == WOW_XML_FONTSTRING ? e->measured.w : 0.0f);
+        out.h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING ? e->measured.h : 0.0f);
+        if (e->flags & EF_HAS_ANCHOR) {
+            cstring_t point = e->texts[ELEM_POINT];
+            cstring_t relative_point = e->texts[ELEM_RELATIVE_POINT];
+            float ax, ay, fx, fy;
+            UIWow_XmlRectPoint(&ref, relative_point ? relative_point : point, &ax, &ay);
+            UIWow_XmlPointFactors(point, &fx, &fy);
+            ax += e->offset.x;
+            ay += e->offset.y;
+            out.x = ax - out.w * fx;
+            out.y = ay - out.h * fy;
+            if (e->flags & EF_HAS_ANCHOR2) {
+                int second = UIWow_XmlAnchorTarget(e->relative_to2, e->relative_name2, e->parent);
+                if (second == idx) second = e->parent;
+                rect_t ref2 = UIWow_XmlLayoutRect(layout, second);
+                float bx, by, fx2, fy2;
+                UIWow_XmlRectPoint(&ref2, e->relative_point2, &bx, &by);
+                UIWow_XmlPointFactors(e->point2, &fx2, &fy2);
+                UIWow_XmlSolveAxis(ax, fx, bx + e->offset2.x, fx2, &out.x, &out.w);
+                UIWow_XmlSolveAxis(ay, fy, by + e->offset2.y, fy2, &out.y, &out.h);
+            }
+        }
     }
+    layout->rects[idx] = out;
+    layout->state[idx] = 2;
     return out;
+}
+
+rect_t UIWow_XmlComputeRect(int idx) {
+    wowXmlLayout_t layout;
+    memset(layout.state, 0, sizeof(layout.state));
+    return UIWow_XmlLayoutRect(&layout, idx);
 }
 
 bool UIWow_XMLIsVisible(int idx) {
@@ -661,6 +698,7 @@ static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNode *node) {
 static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, cstring_t raw, cstring_t parent_name) {
     char resolved[256];
     cstring_t dollar = raw ? strstr(raw, "$parent") : NULL;
+    if (raw && !strcmp(raw, "$parent")) return;
     if (dollar && parent_name && *parent_name) {
         snprintf(resolved, sizeof(resolved), "%.*s%s%s", (int)(dollar - raw), raw, parent_name, dollar + 7);
         UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, resolved);
@@ -701,10 +739,10 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNode *node) {
                 UIWow_XmlResolveRelativeTo(e, relative_to ? (char const *)relative_to : NULL, parent_name);
                 e->offset = off; e->flags |= EF_HAS_ANCHOR;
             } else if (anchor_index == 1) {
-                free(e->point2); e->point2 = (point && *point) ? strdup((char const *)point) : NULL;
+                free(e->point2); e->point2 = strdup(point && *point ? (char const *)point : "CENTER");
                 free(e->relative_point2); e->relative_point2 = (relative && *relative) ? strdup((char const *)relative) : (e->point2 ? strdup(e->point2) : NULL);
                 e->offset2 = off; e->flags |= EF_HAS_ANCHOR2;
-                if (relative_to && *relative_to) {
+                if (relative_to && *relative_to && strcmp((char const *)relative_to, "$parent")) {
                     char resolved2[256];
                     cstring_t d2 = strstr((char const *)relative_to, "$parent");
                     if (d2 && parent_name && *parent_name)
@@ -713,8 +751,6 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNode *node) {
                         snprintf(resolved2, sizeof(resolved2), "%s", (char const *)relative_to);
                     free(e->relative_name2); e->relative_name2 = strdup(resolved2);
                     e->relative_to2 = UIWow_XmlFindByName(resolved2);
-                } else {
-                    e->relative_to2 = e->relative_to;
                 }
             }
             SAFE_DELETE(point, xmlFree); SAFE_DELETE(relative, xmlFree); SAFE_DELETE(relative_to, xmlFree);
@@ -954,8 +990,15 @@ static void UIWow_XmlParseChildren(xmlNode *node, int parent) {
                     UIWow_XmlParseLayer(l, parent);
             continue;
         }
-        if (!xmlStrcasecmp(c->name, BAD_CAST "Frames") || !xmlStrcasecmp(c->name, BAD_CAST "ScrollChild")) {
+        bool scroll_child = !xmlStrcasecmp(c->name, BAD_CAST "ScrollChild");
+        if (scroll_child || !xmlStrcasecmp(c->name, BAD_CAST "Frames")) {
+            int first = wow_xml.count;
             for (xmlNode *f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
+            if (scroll_child) {
+                for (int i = first; i < wow_xml.count; i++) {
+                    if (wow_xml.elems[i].parent == parent) wow_xml.elems[i].flags |= EF_SCROLL_CONTENT;
+                }
+            }
             continue;
         }
         if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture")) {
@@ -1031,6 +1074,16 @@ static void UIWow_XmlCloneTemplateChildren(cstring_t inherits, int dst, cstring_
     }
 }
 
+static void UIWow_XmlSetParent(int idx, int parent) {
+    for (int ancestor = parent; ancestor >= 0; ancestor = wow_xml.elems[ancestor].parent) {
+        if (ancestor == idx) {
+            UI_XmlPrintf("UIWow: cyclic FrameXML parent for %s\n", wow_xml.elems[idx].texts[ELEM_NAME]);
+            return;
+        }
+    }
+    wow_xml.elems[idx].parent = parent;
+}
+
 static void UIWow_XmlParseNode(xmlNode *node, int parent, int draw_layer) {
     uiWowXmlType_t type = WOW_XML_FRAME;
     uint32_t node_flags = 0;
@@ -1077,11 +1130,14 @@ static void UIWow_XmlParseNode(xmlNode *node, int parent, int draw_layer) {
         uiWowXmlElem_t *e = &wow_xml.elems[idx];
         UIWow_ElemSetStr(e, ELEM_PARENT_NAME, (char const *)parent_attr);
         int np = UIWow_XmlFindByName(e->texts[ELEM_PARENT_NAME]);
-        if (np >= 0) e->parent = np;
+        if (np >= 0) UIWow_XmlSetParent(idx, np);
     }
     SAFE_DELETE(parent_attr, xmlFree);
     if (s_current_xml_path[0]) UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_SOURCE_FILE, s_current_xml_path);
     UIWow_XmlReadShared(&wow_xml.elems[idx], node);
+    if (wow_xml.elems[idx].parent < 0 && !strcmp(resolved_name, "UIParent") &&
+        !(wow_xml.elems[idx].flags & (EF_HAS_SIZE | EF_HAS_ANCHOR)))
+        wow_xml.elems[idx].flags |= EF_SET_ALL_PTS;
     UI_XmlOnFramePublish(idx);
     UIWow_XmlParseChildren(node, idx);
     if (wow_xml.elems[idx].flags & EF_IS_SCROLLFRAME) {
@@ -1090,7 +1146,7 @@ static void UIWow_XmlParseNode(xmlNode *node, int parent, int draw_layer) {
             cstring_t cn;
             if (!(c->flags & EF_USED) || c->parent != idx) continue;
             cn = c->texts[ELEM_NAME];
-            if (cn && strstr(cn, "ScrollChild")) continue;
+            if ((c->flags & EF_SCROLL_CONTENT) || (cn && strstr(cn, "ScrollChild"))) continue;
             c->flags |= EF_SCROLLBAR_PART;
             FOR_LOOP(k, wow_xml.count) {
                 int pp = k;
