@@ -87,6 +87,8 @@ extern uiWowState_t wow_ui;
 /* menu_lua.c */
 void UIWow_InitLua(void);
 void UIWow_ShutdownLua(void);
+void UIWow_ReportLuaError(lua_State *L);
+bool UIWow_LuaProtectedCall(lua_State *L, int nargs);
 bool UIWow_LuaPCall(int nargs);
 void UIWow_CallLuaDraw(void);
 void UIWow_CallLuaUpdate(uint32_t msec);

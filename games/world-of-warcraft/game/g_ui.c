@@ -612,11 +612,6 @@ static void UI_WriteActionButtonSlot(float x, float y, uint32_t image_index, uin
 void UI_WriteWowActionBar(edict_t *ent) {
     wowClient_t const *client = (wowClient_t *)ent->client;
     wowEntityLocal_t const *local = Wow_EntityLocal(ent);
-    uiCommandButton_t timer = {0};
-    if (local->gcd_time && gi.GetTime) {
-        timer.radialEndTime = gi.GetTime() + local->gcd_time;
-        timer.radialStartTime = timer.radialEndTime - WOW_GCD_MS;
-    }
 
     UI_WriteStart(LAYER_COMMANDBAR);
     FOR_LOOP(i, WOW_UI_ACTION_SLOTS) {
@@ -625,6 +620,17 @@ void UI_WriteWowActionBar(edict_t *ent) {
         UI_WriteActionButtonSlot(x, y, 0, 0);
         if (client->action_spells[i] == SPELL_NONE || !client->actions[i].icon[0]) continue;
 
+        uiCommandButton_t timer = {0};
+        uint32_t spell = client->action_spells[i];
+        uint32_t remaining = local->gcd_time, duration = WOW_GCD_MS;
+        if (spell < wow_spell_count && local->spell_cooldown[spell] > remaining) {
+            remaining = local->spell_cooldown[spell];
+            duration = wow_spells[spell].cooldown_ms;
+        }
+        if (remaining && gi.GetTime) {
+            timer.radialEndTime = gi.GetTime() + remaining;
+            timer.radialStartTime = timer.radialEndTime - duration;
+        }
         char command[32];
         snprintf(command, sizeof(command), "wow_action %u", (unsigned)i);
         uiFrame_t button = {0};
@@ -827,6 +833,26 @@ void UI_WriteWelcomeWindow(edict_t *ent) {
     UI_WriteWindowEnd(ent);
 }
 
+static cstring_t UI_WorldMapAreaTitle(uint8_t const *data, uint32_t size, uint32_t area_id);
+
+/* Shared validation keeps chooser entries and accepted row commands aligned. */
+static cstring_t UI_WorldMapRowName(stbDbc_t const *header, uint8_t const *record,
+                                   uint8_t const *strings) {
+    if (Stb_DbcField(header, record, 1) != CM_WowGetMapId()) return NULL;
+    float left = Stb_DbcReadFloat(record + 16), right = Stb_DbcReadFloat(record + 20);
+    float top = Stb_DbcReadFloat(record + 24), bottom = Stb_DbcReadFloat(record + 28);
+    if (!isfinite(left) || !isfinite(right) || !isfinite(top) || !isfinite(bottom) ||
+        !isfinite(right - left) || !isfinite(bottom - top) ||
+        fabsf(right - left) < 1.0f || fabsf(bottom - top) < 1.0f) return NULL;
+    uint32_t offset = Stb_DbcField(header, record, 3);
+    cstring_t name = Stb_DbcString(strings, header->string_size, offset);
+    if (!name || !memchr(name, '\0', header->string_size - offset) ||
+        !*name || strlen(name) >= sizeof(((wowClient_t *)0)->worldmap_area)) return NULL;
+    for (cstring_t p = name; *p; p++)
+        if (!isalnum((unsigned char)*p) && *p != '_') return NULL;
+    return name;
+}
+
 /* Resolve the smallest map area containing the player's world coordinates.
  * Classic map rows store the horizontal (world Y) bounds before vertical X.
  * A continent-sized row provides a fallback when no smaller area contains the
@@ -838,10 +864,13 @@ bool UI_ResolveWorldMap(edict_t *ent) {
     stbDbc_t header;
     float smallest_area = INFINITY;
     bool showing_continent = false;
+    uint32_t selected_area = 0;
 
     wc->worldmap_area[0] = '\0';
     wc->worldmap_has_continent = false;
     if (!Stb_DbcValid(data, size, &header) || header.fields < 8 || header.record_size < 32) {
+        wc->worldmap_title_area_id = 0;
+        wc->worldmap_title[0] = '\0';
         SAFE_DELETE(data, gi.MemFree);
         return false;
     }
@@ -849,24 +878,16 @@ bool UI_ResolveWorldMap(edict_t *ent) {
     uint8_t const *strings = Stb_DbcStrings(data, &header);
     FOR_LOOP(i, header.records) {
         uint8_t const *record = Stb_DbcRecordAt(records, i, header.record_size);
-        if (Stb_DbcField(&header, record, 1) != CM_WowGetMapId()) continue;
+        cstring_t name = UI_WorldMapRowName(&header, record, strings);
+        if (!name || (wc->worldmap_selection &&
+            (wc->worldmap_selection != i + 1 || Stb_DbcField(&header, record, 2) == 0))) continue;
         float left = Stb_DbcReadFloat(record + 16), right = Stb_DbcReadFloat(record + 20);
         float top = Stb_DbcReadFloat(record + 24), bottom = Stb_DbcReadFloat(record + 28);
         float width = fabsf(right - left), height = fabsf(bottom - top);
         float x = ent->s.origin.x, y = ent->s.origin.y;
-        if (!isfinite(width) || !isfinite(height) || width < 1.0f || height < 1.0f ||
-            y < MIN(left, right) || y > MAX(left, right) ||
-            x < MIN(top, bottom) || x > MAX(top, bottom))
+        if (!wc->worldmap_selection && (y < MIN(left, right) || y > MAX(left, right) ||
+            x < MIN(top, bottom) || x > MAX(top, bottom)))
             continue;
-        uint32_t offset = Stb_DbcField(&header, record, 3);
-        cstring_t name = Stb_DbcString(strings, header.string_size, offset);
-        if (!name || !memchr(name, '\0', header.string_size - offset) || strlen(name) >= sizeof(wc->worldmap_area))
-            continue;
-        bool safe = true;
-        for (cstring_t p = name; *p; p++) {
-            if (!isalnum((unsigned char)*p) && *p != '_') { safe = false; break; }
-        }
-        if (!safe || !*name) continue;
         bool continent = Stb_DbcField(&header, record, 2) == 0;
         wc->worldmap_has_continent |= continent;
         if (wc->worldmap_continent && showing_continent && !continent) continue;
@@ -879,9 +900,78 @@ bool UI_ResolveWorldMap(edict_t *ent) {
         wc->worldmap_bottom = bottom;
         smallest_area = width * height;
         showing_continent = continent;
+        selected_area = Stb_DbcField(&header, record, 2);
     }
     gi.MemFree(data);
+    if (wc->worldmap_title_area_id == selected_area) return wc->worldmap_area[0] != '\0';
+    wc->worldmap_title_area_id = selected_area;
+    wc->worldmap_title[0] = '\0';
+    if (selected_area) {
+        uint32_t area_size = 0;
+        uint8_t *areas = gi.ReadFile("DBFilesClient\\AreaTable.dbc", &area_size);
+        cstring_t title = UI_WorldMapAreaTitle(areas, area_size, selected_area);
+        if (title) snprintf(wc->worldmap_title, sizeof(wc->worldmap_title), "%s", title);
+        SAFE_DELETE(areas, gi.MemFree);
+    }
     return wc->worldmap_area[0] != '\0';
+}
+
+/* AreaTable names are localized in fields 11 through 18 in classic DBCs.
+ * Prefer the first nonempty archive locale; the archive determines which
+ * localized strings are available. */
+static cstring_t UI_WorldMapAreaTitle(uint8_t const *data, uint32_t size, uint32_t area_id) {
+    stbDbc_t header;
+    if (!Stb_DbcValid(data, size, &header) || header.fields < 12 || header.record_size < 48)
+        return NULL;
+    uint8_t const *records = Stb_DbcRecords(data);
+    uint8_t const *strings = Stb_DbcStrings(data, &header);
+    FOR_LOOP(i, header.records) {
+        uint8_t const *record = Stb_DbcRecordAt(records, i, header.record_size);
+        if (Stb_DbcField(&header, record, 0) != area_id) continue;
+        for (uint32_t field = 11; field < MIN(header.fields, 19); field++) {
+            uint32_t offset = Stb_DbcField(&header, record, field);
+            cstring_t title = Stb_DbcString(strings, header.string_size, offset);
+            if (title && *title && memchr(title, '\0', header.string_size - offset)) return title;
+        }
+        break;
+    }
+    return NULL;
+}
+
+/* Zone chooser uses DBC row indices only as ephemeral commands; every selection
+ * is validated again by UI_ResolveWorldMap against the current map. */
+static void UI_WriteWorldMapZones(wowClient_t *wc) {
+    uint32_t size = 0, area_size = 0, count = 0;
+    uint8_t *data = gi.ReadFile("DBFilesClient\\WorldMapArea.dbc", &size);
+    uint8_t *areas = gi.ReadFile("DBFilesClient\\AreaTable.dbc", &area_size);
+    wc->worldmap_has_next_page = false;
+    stbDbc_t header;
+    if (!Stb_DbcValid(data, size, &header) || header.fields < 8 || header.record_size < 32) {
+        SAFE_DELETE(data, gi.MemFree);
+        SAFE_DELETE(areas, gi.MemFree);
+        return;
+    }
+    uint8_t const *records = Stb_DbcRecords(data);
+    uint8_t const *strings = Stb_DbcStrings(data, &header);
+    FOR_LOOP(i, header.records) {
+        uint8_t const *record = Stb_DbcRecordAt(records, i, header.record_size);
+        cstring_t name = UI_WorldMapRowName(&header, record, strings);
+        if (!name || Stb_DbcField(&header, record, 2) == 0) continue;
+        uint32_t n = count++;
+        if (n / 20 != wc->worldmap_page) continue;
+        char command[48];
+        snprintf(command, sizeof(command), "worldmap zone %u", (unsigned)(i + 1));
+        cstring_t title = UI_WorldMapAreaTitle(areas, area_size, Stb_DbcField(&header, record, 2));
+        UI_WriteSimpleButton(PX(150 + (n % 20 / 10) * 360), PY(135 + (n % 10) * 36),
+                             PW(340), PH(30), title ? title : name, command);
+    }
+    if (wc->worldmap_page > 0)
+        UI_WriteSimpleButton(PX(150), PY(520), PW(100), PH(24), "Previous", "worldmap previous");
+    wc->worldmap_has_next_page = (wc->worldmap_page + 1) * 20 < count;
+    if (wc->worldmap_has_next_page)
+        UI_WriteSimpleButton(PX(720), PY(520), PW(100), PH(24), "Next", "worldmap next");
+    SAFE_DELETE(areas, gi.MemFree);
+    gi.MemFree(data);
 }
 
 void UI_WriteWorldMap(edict_t *ent) {
@@ -896,14 +986,24 @@ void UI_WriteWorldMap(edict_t *ent) {
     float x = PX(128), y = PY(95), width = PW(768), height = PH(512);
     UI_WriteColorRect(x - PW(8), y - PH(35), width + PW(16), height + PH(43),
                       MAKE(color32_t, 18, 15, 12, 250));
-    UI_WriteTextFrame(x + PW(8), y - PH(27), PW(600), PH(20),
-                      wc->worldmap_area[0] ? wc->worldmap_area : "Map unavailable",
+    UI_WriteTextFrame(x + PW(8), y - PH(27), PW(465), PH(20),
+                      wc->worldmap_title[0] ? wc->worldmap_title :
+                      (wc->worldmap_area[0] ? wc->worldmap_area : "Map unavailable"),
                       MAKE(color32_t, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
     UI_WriteSimpleButton(x + width - PW(65), y - PH(30), PW(62), PH(22), "Close", "worldmap");
-    if (wc->worldmap_has_continent) {
+    if (wc->worldmap_has_continent || wc->worldmap_selection) {
         UI_WriteSimpleButton(x + width - PW(175), y - PH(30), PW(104), PH(22),
-                             wc->worldmap_continent ? "Current zone" : "Continent",
-                             wc->worldmap_continent ? "worldmap current" : "worldmap continent");
+                             (wc->worldmap_continent || wc->worldmap_selection) ? "Current zone" : "Continent",
+                             (wc->worldmap_continent || wc->worldmap_selection) ? "worldmap current" : "worldmap continent");
+    }
+
+    UI_WriteSimpleButton(x + width - PW(280), y - PH(30), PW(100), PH(22),
+                         wc->worldmap_choosing ? "Back" : "Zones", "worldmap zones");
+    if (wc->worldmap_choosing) {
+        UI_WriteWorldMapZones(wc);
+        UI_WriteEnd();
+        gi.unicast(ent);
+        return;
     }
 
     if (!wc->worldmap_area[0]) {

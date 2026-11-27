@@ -292,13 +292,12 @@ static int UIWow_LuaLoadMap(lua_State *L) {
 }
 
 static int UIWow_LuaDefaultServerLogin(lua_State *L) {
-    (void)L;
-    lua_getglobal(wow_ui.lua, "SetGlueScreen");
-    if (lua_isfunction(wow_ui.lua, -1)) {
-        lua_pushstring(wow_ui.lua, "charselect");
-        UIWow_LuaPCall(1);
+    lua_getglobal(L, "SetGlueScreen");
+    if (lua_isfunction(L, -1)) {
+        lua_pushstring(L, "charselect");
+        UIWow_LuaProtectedCall(L, 1);
     } else {
-        lua_pop(wow_ui.lua, 1);
+        lua_pop(L, 1);
         if (mi.Cmd_ExecuteText) mi.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
@@ -317,14 +316,55 @@ static int UIWow_LuaPlaySound(lua_State *L) {
 
 #include "menu_dbc.h"
 
+static char uiwow_error_handler_key;
+static bool uiwow_reporting_error;
+
+static int UIWow_LuaDefaultErrorHandler(lua_State *L) {
+    cstring_t message = lua_tostring(L, 1);
+    UIWow_Printf("UIWow Lua: %s\n", message ? message : "Lua error");
+    return 0;
+}
+
+static int UIWow_LuaGetErrorHandler(lua_State *L) {
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &uiwow_error_handler_key);
+    if (lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        lua_pushcfunction(L, UIWow_LuaDefaultErrorHandler);
+    }
+    return 1;
+}
+
+static int UIWow_LuaSetErrorHandler(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TFUNCTION);
+    lua_pushvalue(L, 1);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &uiwow_error_handler_key);
+    return 0;
+}
+
+/* Consume one error message. A handler may run another failing frame script. */
+void UIWow_ReportLuaError(lua_State *L) {
+    if (uiwow_reporting_error) {
+        UIWow_Printf("UIWow Lua while handling an error: %s\n", luaL_optstring(L, -1, "Lua error"));
+    } else {
+        uiwow_reporting_error = true;
+        UIWow_LuaGetErrorHandler(L);
+        lua_pushvalue(L, -2);
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+            cstring_t failure = lua_tostring(L, -1);
+            UIWow_Printf("UIWow Lua: %s\nError handler failed: %s\n",
+                         lua_tostring(L, -2), failure ? failure : "Lua error");
+            lua_pop(L, 1);
+        }
+        uiwow_reporting_error = false;
+    }
+    lua_pop(L, 1);
+}
+
 static int UIWow_LuaGetCharacterListUpdate(lua_State *L) {
     /* No server — call UpdateCharacterList directly so the UI reflects local state. */
     lua_getglobal(L, "UpdateCharacterList");
     if (!lua_isfunction(L, -1)) { lua_pop(L, 1); return 0; }
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-        fprintf(stderr, "UIWow GetCharacterListUpdate: %s\n", lua_tostring(L, -1));
-        lua_pop(L, 1);
-    }
+    UIWow_LuaProtectedCall(L, 0);
     return 0;
 }
 static int UIWow_LuaTrue(lua_State *L) { lua_pushboolean(L, 1); return 1; }
@@ -455,6 +495,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "DefaultServerLogin", UIWow_LuaDefaultServerLogin },
     { "TEXT",              UIWow_LuaTextCompat },
     { "GetBuildInfo",      UIWow_LuaGetBuildInfo },
+    { "geterrorhandler",   UIWow_LuaGetErrorHandler },
+    { "seterrorhandler",   UIWow_LuaSetErrorHandler },
     { "GetTime",           UIWow_LuaGetTime },
     { "TOSAccepted",       UIWow_LuaTrue },
     { "ShowTOSNotice",     UIWow_LuaFalse },
@@ -584,22 +626,18 @@ static int UIWow_LuaTraceback(lua_State *L) {
     return 1;
 }
 
-bool UIWow_LuaPCall(int nargs) {
-    int traceback = lua_gettop(wow_ui.lua) - nargs;
-    int status;
+bool UIWow_LuaProtectedCall(lua_State *L, int nargs) {
+    int traceback = lua_gettop(L) - nargs;
+    lua_pushcfunction(L, UIWow_LuaTraceback);
+    lua_insert(L, traceback);
+    int status = lua_pcall(L, nargs, 0, traceback);
+    lua_remove(L, traceback);
+    if (status != LUA_OK) UIWow_ReportLuaError(L);
+    return status == LUA_OK;
+}
 
-    lua_pushcfunction(wow_ui.lua, UIWow_LuaTraceback);
-    lua_insert(wow_ui.lua, traceback);
-    status = lua_pcall(wow_ui.lua, nargs, 0, traceback);
-    lua_remove(wow_ui.lua, traceback);
-    if (status != LUA_OK) {
-        cstring_t msg = lua_tostring(wow_ui.lua, -1);
-        UIWow_Printf("UIWow Lua: %s\n", msg);
-        fprintf(stderr, "UIWow Lua: %s\n", msg ? msg : "(null)");
-        lua_pop(wow_ui.lua, 1);
-        return false;
-    }
-    return true;
+bool UIWow_LuaPCall(int nargs) {
+    return UIWow_LuaProtectedCall(wow_ui.lua, nargs);
 }
 
 static bool UIWow_RunLuaBuffer(cstring_t name, cstring_t script, size_t len) {
@@ -607,8 +645,7 @@ static bool UIWow_RunLuaBuffer(cstring_t name, cstring_t script, size_t len) {
         return false;
     }
     if (luaL_loadbuffer(wow_ui.lua, script, len, name) != LUA_OK) {
-        UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1));
-        lua_pop(wow_ui.lua, 1);
+        UIWow_ReportLuaError(wow_ui.lua);
         return false;
     }
     return UIWow_LuaPCall(0);

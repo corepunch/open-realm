@@ -27,6 +27,7 @@ static drawText_t last_draw_text;
 static char last_draw_text_value[128];
 static char last_draw_image_name[256];
 static uint32_t draw_text_calls;
+static drawText_t captured_text[32];
 static bool test_missing_font;
 static uint32_t test_missing_font_loads;
 
@@ -84,6 +85,7 @@ static void     test_draw_fill(rect_t const *r, color32_t c) { (void)r;(void)c; 
 static void     test_draw_minimap(rect_t const *r, cstring_t map) { (void)r; (void)map; }
 static vec2_t  test_get_text_size(drawText_t const *dt) { return MAKE(vec2_t, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
 static void test_draw_text(drawText_t const *dt) {
+    if (dt && draw_text_calls < 32) captured_text[draw_text_calls] = *dt;
     draw_text_calls++;
     if (!dt) return;
     last_draw_text = *dt;
@@ -203,6 +205,71 @@ TEST(wow_hud_xml, font_inheritance_draws_authored_typeface_and_height) {
     UIWow_XMLClearFrames();
 }
 
+TEST(wow_hud_xml, font_outline_inheritance_and_override) {
+    static const char xml[] =
+        "<Ui><Font name=\"Outlined\" outline=\"NORMAL\" virtual=\"true\"/>"
+        "<Font name=\"Child\" inherits=\"Outlined\" virtual=\"true\"/>"
+        "<FontString name=\"Normal\" inherits=\"Child\" text=\"Text\"/>"
+        "<FontString name=\"Thick\" inherits=\"Child\" outline=\"THICK\" text=\"Text\"/>"
+        "<FontString name=\"Plain\" inherits=\"Child\" outline=\"NONE\" text=\"Text\"/></Ui>";
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "outlines"));
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Normal"));
+    T_EQ(draw_text_calls, 9);
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Thick"));
+    T_EQ(draw_text_calls, 9);
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Plain"));
+    T_EQ(draw_text_calls, 1);
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, font_outline_draw_passes_and_button_font) {
+    static const char xml[] =
+        "<Ui><ScrollFrame name=\"Viewport\"><Size><AbsDimension x=\"256\" y=\"192\"/></Size>"
+        "<ScrollChild><Frame name=\"Content\"><Frames>"
+        "<FontString name=\"Label\" text=\"Text\" outline=\"NORMAL\"><Color r=\"1\" g=\"0.5\" b=\"0.25\" a=\"0.5\"/></FontString>"
+        "</Frames></Frame></ScrollChild></ScrollFrame>"
+        "<Font name=\"Heavy\" outline=\"THICK\" virtual=\"true\"/>"
+        "<Button name=\"Button\" text=\"Button\"><NormalText inherits=\"Heavy\" outline=\"NORMAL\"/></Button>"
+        "<FontString name=\"ThickLabel\" inherits=\"Heavy\" text=\"Thick\"/>"
+        "<FontString name=\"Default\" text=\"Plain\"/></Ui>";
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "outline passes"));
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Viewport"));
+    T_EQ(draw_text_calls, 9);
+    drawText_t main = captured_text[8];
+    T_ASSERT(main.flags & DRAW_CLIP);
+    T_EQ(main.color.a, 127);
+    for (int n = 0; n < 8; n++) {
+        drawText_t border = captured_text[n];
+        T_EQ(border.color.r, 0); T_EQ(border.color.g, 0); T_EQ(border.color.b, 0);
+        T_EQ(border.color.a, main.color.a);
+        T_ASSERT(border.flags & DRAW_CLIP);
+        T_FEQ(border.clip.x, main.clip.x, 0.000001f);
+        T_FEQ(border.clip.y, main.clip.y, 0.000001f);
+        T_FEQ(border.clip.w, main.clip.w, 0.000001f);
+        T_FEQ(border.clip.h, main.clip.h, 0.000001f);
+    }
+    T_FEQ(captured_text[0].rect.x, main.rect.x - 1.0f / 1024.0f, 0.000001f);
+    T_FEQ(captured_text[0].rect.y, main.rect.y - 1.0f / 768.0f, 0.000001f);
+    T_FEQ(captured_text[7].rect.x, main.rect.x + 1.0f / 1024.0f, 0.000001f);
+    T_FEQ(captured_text[7].rect.y, main.rect.y + 1.0f / 768.0f, 0.000001f);
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Button")); T_EQ(draw_text_calls, 9);
+    T_FEQ(captured_text[0].rect.x, captured_text[8].rect.x - 1.0f / 1024.0f, 0.000001f);
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("ThickLabel")); T_EQ(draw_text_calls, 9);
+    T_FEQ(captured_text[0].rect.x, captured_text[8].rect.x - 2.0f / 1024.0f, 0.000001f);
+    T_FEQ(captured_text[0].rect.y, captured_text[8].rect.y - 2.0f / 768.0f, 0.000001f);
+    draw_text_calls = 0;
+    T_ASSERT(UIWow_XMLDrawFrame("Default")); T_EQ(draw_text_calls, 1);
+    UIWow_XMLClearFrames();
+}
+
 TEST(wow_hud_xml, font_lua_methods_and_missing_font_fallback) {
     static const char xml[] =
         "<Ui><Font name=\"BaseFont\" font=\"Fonts\\Base.ttf\">"
@@ -226,6 +293,77 @@ TEST(wow_hud_xml, font_lua_methods_and_missing_font_fallback) {
     T_EQ(test_missing_font_loads, 1);
     T_ASSERT(UIWow_XMLDrawFrame("Message"));
     T_EQ(test_missing_font_loads, 1);
+    UIWow_XMLClearFrames();
+    lua_close(wow_ui.lua);
+    wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, editbox_focus_and_settext_keep_input_buffer_valid) {
+    static const char xml[] =
+        "<Ui><EditBox name=\"First\" text=\"abc\"/>"
+        "<EditBox name=\"Second\" text=\"xyz\"/></Ui>";
+    reset_state();
+    wow_ui.lua = luaL_newstate();
+    luaL_openlibs(wow_ui.lua);
+    init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "editbox"));
+    T_ASSERT(UIWow_RunLuaString("editbox focus", "First:SetFocus()"));
+    T_ASSERT(UIWow_XMLTextInput("d"));
+    T_ASSERT(UIWow_RunLuaString("editbox replace",
+        "assert(First:GetText() == 'abcd'); First:SetText('new')"));
+    T_ASSERT(UIWow_XMLTextInput("!"));
+    T_ASSERT(UIWow_RunLuaString("editbox switch",
+        "assert(First:GetText() == 'new!'); Second:SetFocus()"));
+    T_ASSERT(UIWow_XMLTextInput("!"));
+    T_ASSERT(UIWow_RunLuaString("editbox result",
+        "assert(Second:GetText() == 'xyz!'); assert(First:GetText() == 'new!')"));
+    UIWow_XMLClearFrames();
+    lua_close(wow_ui.lua);
+    wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, editbox_text_changed_reports_user_and_script_changes) {
+    static const char xml[] =
+        "<Ui><EditBox name=\"Input\"><Scripts>"
+        "<OnTextChanged>changes = changes + 1; lastUser = arg1; lastText = this:GetText()</OnTextChanged>"
+        "</Scripts></EditBox></Ui>";
+    reset_state();
+    wow_ui.lua = luaL_newstate();
+    luaL_openlibs(wow_ui.lua);
+    init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "editbox callbacks"));
+    T_ASSERT(UIWow_RunLuaString("setup", "changes = 0; Input:SetFocus(); Input:SetText('hi'); assert(changes == 1 and lastUser == false and lastText == 'hi')"));
+    T_ASSERT(UIWow_XMLTextInput("!"));
+    T_ASSERT(UIWow_RunLuaString("typed", "assert(changes == 2 and lastUser == true and lastText == 'hi!')"));
+    T_ASSERT(UIWow_XMLTextInput("\b"));
+    T_ASSERT(UIWow_RunLuaString("deleted", "assert(changes == 3 and lastUser == true and lastText == 'hi'); Input:SetText('hi'); assert(changes == 3)"));
+    T_ASSERT(UIWow_RunLuaString("select", "Input:HighlightText(); Input:SetText('hi')"));
+    T_ASSERT(UIWow_XMLTextInput("ok"));
+    T_ASSERT(UIWow_RunLuaString("replacement", "assert(changes == 4 and lastUser == true and lastText == 'ok')"));
+    UIWow_XMLClearFrames();
+    lua_close(wow_ui.lua);
+    wow_ui.lua = NULL;
+}
+
+TEST(wow_hud_xml, editbox_focus_callbacks_and_numeric_input) {
+    static const char xml[] =
+        "<Ui><EditBox name=\"Number\" numeric=\"true\"><Scripts>"
+        "<OnEditFocusGained>gained = gained + 1</OnEditFocusGained>"
+        "<OnEditFocusLost>lost = lost + 1; if redirect then Other:SetFocus() end</OnEditFocusLost>"
+        "</Scripts></EditBox><EditBox name=\"Other\"/></Ui>";
+    reset_state();
+    wow_ui.lua = luaL_newstate();
+    luaL_openlibs(wow_ui.lua);
+    init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, sizeof(xml) - 1, "editbox focus"));
+    T_ASSERT(UIWow_RunLuaString("focus", "gained=0; lost=0; Number:SetFocus(); assert(gained == 1)"));
+    T_ASSERT(UIWow_XMLTextInput("a12b3"));
+    T_ASSERT(UIWow_RunLuaString("numeric", "assert(Number:GetText() == '123')"));
+    UIWow_XMLMouseEvent(MENU_MOUSE_DOWN, -1000, -1000, 1);
+    T_ASSERT(!UIWow_XMLTextInput("4"));
+    T_ASSERT(UIWow_RunLuaString("blur", "assert(lost == 1); Number:SetFocus(); redirect=true; Number:ClearFocus(); assert(lost == 2)"));
+    T_ASSERT(UIWow_XMLTextInput("z"));
+    T_ASSERT(UIWow_RunLuaString("redirect", "assert(Other:GetText() == 'z' and gained == 2)"));
     UIWow_XMLClearFrames();
     lua_close(wow_ui.lua);
     wow_ui.lua = NULL;

@@ -38,6 +38,7 @@ static uint32_t test_selection_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 static bool test_worldmap_fixture;
+static bool test_worldmap_many_zones;
 static uint32_t test_game_time;
 
 typedef struct {
@@ -265,10 +266,20 @@ static bool path_eq(cstring_t a, cstring_t b) {
 }
 
 static handle_t test_read_file(cstring_t filename, uint32_t *size) {
-    if (test_worldmap_fixture && path_eq(filename, "DBFilesClient\\WorldMapArea.dbc")) {
-        uint8_t *data = alloc_dbc(2, 8, 32, size);
+    if (test_worldmap_fixture && path_eq(filename, "DBFilesClient\\AreaTable.dbc")) {
+        uint8_t *data = alloc_dbc(1, 21, 32, size);
         uint8_t *records = data + 20;
-        uint8_t *strings = records + 2 * 32;
+        uint8_t *strings = records + 84;
+        uint32_t cursor = 1;
+        putfield(records, 0, 14);
+        putfield(records, 11, add_string(strings, &cursor, "Test Zone"));
+        return data;
+    }
+    if (test_worldmap_fixture && path_eq(filename, "DBFilesClient\\WorldMapArea.dbc")) {
+        uint32_t rows = test_worldmap_many_zones ? 23 : 2;
+        uint8_t *data = alloc_dbc(rows, 8, 32, size);
+        uint8_t *records = data + 20;
+        uint8_t *strings = records + rows * 32;
         uint32_t cursor = 1;
         uint32_t continent = add_string(strings, &cursor, "Continent");
         uint32_t zone = add_string(strings, &cursor, "TestZone");
@@ -279,6 +290,10 @@ static handle_t test_read_file(cstring_t filename, uint32_t *size) {
         putfield(records + 32, 2, 14);
         putfield_float(records + 32, 4, 200); putfield_float(records + 32, 5, -200);
         putfield_float(records + 32, 6, 100); putfield_float(records + 32, 7, -100);
+        for (uint32_t i = 2; i < rows; i++) {
+            memcpy(records + i * 32, records + 32, 32);
+            putfield(records + i * 32, 2, 14 + i);
+        }
         return data;
     }
     if (path_eq(filename, "DBFilesClient\\Map.dbc")) {
@@ -541,6 +556,7 @@ void PF_TextRemoveComments(string_t buffer) {
 
 static void reset_test_state(void) {
     test_worldmap_fixture = false;
+    test_worldmap_many_zones = false;
     test_game_time = 0;
     memset(test_models, 0, sizeof(test_models));
     memset(test_images, 0, sizeof(test_images));
@@ -2285,6 +2301,83 @@ TEST(wow_game, action_icons_receive_one_clock_based_cooldown_payload) {
     game->Shutdown();
 }
 
+TEST(wow_game, fire_blast_cooldown_blocks_only_that_spell_and_updates_icon) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    edict_t *target = first_creature();
+    T_NOT_NULL(target);
+    if (!target) { game->Shutdown(); return; }
+    target->s.origin = (vec3_t){ player->s.origin.x + 5.0f, player->s.origin.y, player->s.origin.z };
+    ((wowClient_t *)player->client)->selected_entity = target->s.number;
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    test_game_time = 10000;
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "6" });
+    T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 8000);
+    T_EQ(local->mana, 60);
+    bool found = false;
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (strcmp(frame->onclick, "wow_action 6")) continue;
+        found = true;
+        T_ASSERT(frame->flagsvalue & UIFLAG_RADIAL_SHADE);
+        T_EQ(frame->command_button.radialStartTime, 10000);
+        T_EQ(frame->command_button.radialEndTime, 18000);
+    }
+    T_ASSERT(found);
+    FOR_LOOP(i, 1500 / FRAMETIME) game->RunFrame();
+    uint32_t mana = local->mana;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "6" });
+    T_EQ(local->mana, mana);
+    T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 6500);
+    local->health = 50;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
+    T_EQ(local->health, 52);
+    FOR_LOOP(i, 6500 / FRAMETIME) game->RunFrame();
+    T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 0);
+    game->Shutdown();
+}
+
+TEST(wow_game, fire_blast_damage_and_rejected_casts) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\8\\appearance\\0");
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    edict_t *target = first_creature();
+    T_NOT_NULL(target);
+    if (!target) { game->Shutdown(); return; }
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    wowEntityLocal_t *victim = Wow_EntityLocal(target);
+    ((wowClient_t *)player->client)->selected_entity = target->s.number;
+    target->s.origin2 = (vec2_t){ player->s.origin2.x + 5.0f, player->s.origin2.y };
+    victim->health = 1000;
+    local->mana = 39;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "6" });
+    T_EQ(local->mana, 39);
+    T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 0);
+    T_EQ(local->gcd_time, 0);
+    local->mana = 100;
+    victim->dead = true;
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "6" });
+    T_EQ(local->mana, 100);
+    T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 0);
+    T_EQ(local->gcd_time, 0);
+    victim->dead = false;
+    FOR_LOOP(i, 32) {
+        local->mana = 100;
+        local->gcd_time = 0;
+        local->spell_cooldown[WOW_SPELL_FIRE_BLAST] = 0;
+        victim->health = 1000;
+        game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "6" });
+        T_ASSERT(victim->health >= 968 && victim->health <= 976);
+        T_EQ(local->spell_cooldown[WOW_SPELL_FIRE_BLAST], 8000);
+    }
+    game->Shutdown();
+}
+
 TEST(wow_game, casts_reject_invalid_targets_and_cancel_when_target_moves_out_of_range) {
     struct game_export *game = init_game();
     edict_t *player = &wow_edicts[0];
@@ -2671,6 +2764,85 @@ TEST(wow_game, world_map_displays_current_zone_and_live_position) {
     T_ASSERT(found_close);
     game->ClientCommand(player, 1, (cstring_t[]){ "worldmap" });
     T_ASSERT(!wc->worldmap_open);
+    game->Shutdown();
+}
+
+TEST(wow_game, world_map_zone_chooser_keeps_selected_zone) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    test_worldmap_fixture = true;
+    player->s.origin = (vec3_t){500, 500, 0};
+    game->ClientCommand(player, 1, (cstring_t[]){"worldmap"});
+    wowClient_t *wc = (wowClient_t *)player->client;
+    T_STREQ(wc->worldmap_area, "Continent");
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "zones"});
+    T_ASSERT(wc->worldmap_choosing);
+    bool found = false;
+    FOR_LOOP(i, test_ui_frame_count)
+        if (!strcmp(test_ui_frames[i].onclick, "worldmap zone 2")) {
+            found = true;
+            T_STREQ(test_ui_frames[i].text, "Test Zone");
+        }
+    T_ASSERT(found);
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "next"});
+    T_EQ(wc->worldmap_page, 0);
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 3, (cstring_t[]){"worldmap", "zone", "2"});
+    T_ASSERT(!wc->worldmap_choosing);
+    T_STREQ(wc->worldmap_area, "TestZone");
+    T_STREQ(wc->worldmap_title, "Test Zone");
+    bool current_button = false;
+    FOR_LOOP(i, test_ui_frame_count)
+        if (!strcmp(test_ui_frames[i].onclick, "worldmap current")) current_button = true;
+    T_ASSERT(current_button);
+    int marker = test_image_index("Interface\\WorldMap\\WorldMapPlayerIcon.blp");
+    FOR_LOOP(i, test_ui_frame_count)
+        T_ASSERT(test_ui_frames[i].image_index != marker);
+    T_ASSERT(UI_ResolveWorldMap(player));
+    T_STREQ(wc->worldmap_area, "TestZone");
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "current"});
+    T_STREQ(wc->worldmap_area, "Continent");
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "zones"});
+    game->ClientCommand(player, 3, (cstring_t[]){"worldmap", "zone", "1"});
+    T_ASSERT(wc->worldmap_choosing);
+    T_EQ(wc->worldmap_selection, 0);
+    game->ClientCommand(player, 3, (cstring_t[]){"worldmap", "zone", "999"});
+    T_ASSERT(wc->worldmap_choosing);
+    T_STREQ(wc->worldmap_area, "Continent");
+    game->Shutdown();
+}
+
+TEST(wow_game, world_map_chooser_paginates_and_stays_static) {
+    struct game_export *game = init_game();
+    edict_t *player = &wow_edicts[0];
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    test_worldmap_fixture = true;
+    test_worldmap_many_zones = true;
+    game->ClientCommand(player, 1, (cstring_t[]){"worldmap"});
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "zones"});
+    wowClient_t *wc = (wowClient_t *)player->client;
+    T_ASSERT(wc->worldmap_has_next_page);
+    uint32_t before = test_unicast_calls;
+    FOR_LOOP(i, 1000 / FRAMETIME) game->RunFrame();
+    T_EQ(test_unicast_calls, before);
+    test_ui_frame_count = 0;
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "next"});
+    T_EQ(wc->worldmap_page, 1);
+    T_ASSERT(!wc->worldmap_has_next_page);
+    bool last_zone = false, previous = false;
+    FOR_LOOP(i, test_ui_frame_count) {
+        if (!strcmp(test_ui_frames[i].onclick, "worldmap zone 23")) last_zone = true;
+        if (!strcmp(test_ui_frames[i].onclick, "worldmap previous")) previous = true;
+    }
+    T_ASSERT(last_zone);
+    T_ASSERT(previous);
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "next"});
+    T_EQ(wc->worldmap_page, 1);
+    game->ClientCommand(player, 2, (cstring_t[]){"worldmap", "previous"});
+    T_EQ(wc->worldmap_page, 0);
+    T_ASSERT(wc->worldmap_has_next_page);
     game->Shutdown();
 }
 

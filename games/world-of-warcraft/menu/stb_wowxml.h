@@ -86,6 +86,9 @@ typedef enum {
     ELEM_ON_ENTER_PRESSED,
     ELEM_ON_ESCAPE_PRESSED,
     ELEM_ON_TAB_PRESSED,
+    ELEM_ON_TEXT_CHANGED,
+    ELEM_ON_EDIT_FOCUS_GAINED,
+    ELEM_ON_EDIT_FOCUS_LOST,
     ELEM_ON_MOUSE_WHEEL,
     ELEM_ON_UPDATE_MODEL,
     ELEM_ON_UPDATE,
@@ -138,6 +141,8 @@ typedef enum {
     EF_SCROLL_CONTENT  = 1 << 23,
     EF_HAS_FONT_SIZE   = 1 << 24,
     EF_HAS_TEXT_COLOR  = 1 << 25,
+    EF_HAS_FONT_OUTLINE = 1 << 26,
+    EF_NUMERIC = 1 << 27,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -150,6 +155,7 @@ typedef struct {
     fsize_t size, edge, tile, text_inset;
     fsize_t measured;
     float alpha, font_size;
+    int font_outline; /* 0: none, 1: normal, 2: thick */
     float backdrop_insets[4];
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
@@ -335,6 +341,9 @@ static const struct {
     { "OnEnterPressed",  ELEM_ON_ENTER_PRESSED },
     { "OnEscapePressed", ELEM_ON_ESCAPE_PRESSED },
     { "OnTabPressed",    ELEM_ON_TAB_PRESSED },
+    { "OnTextChanged",   ELEM_ON_TEXT_CHANGED },
+    { "OnEditFocusGained", ELEM_ON_EDIT_FOCUS_GAINED },
+    { "OnEditFocusLost", ELEM_ON_EDIT_FOCUS_LOST },
     { "OnMouseWheel",    ELEM_ON_MOUSE_WHEEL },
     { "OnUpdateModel",   ELEM_ON_UPDATE_MODEL },
     { "OnUpdate",        ELEM_ON_UPDATE },
@@ -409,6 +418,7 @@ static const struct {
     { "virtual",       WOW_ATTR_BOOL_FLAG,      EF_VIRTUAL },
     { "setAllPoints",  WOW_ATTR_BOOL_FLAG,      EF_SET_ALL_PTS },
     { "password",      WOW_ATTR_PASSWORD_FLAG,  EF_PASSWORD },
+    { "numeric",       WOW_ATTR_BOOL_FLAG,      EF_NUMERIC },
     { "id",            WOW_ATTR_INT_ID,         0 },
     { "wordWrap",      WOW_ATTR_BOOL_FLAG,      EF_WORD_WRAP },
     { "checked",       WOW_ATTR_BOOL_FLAG,      EF_CHECKED },
@@ -548,6 +558,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, cstring_t inherits) {
         if (src->flags & EF_BACKDROP_TILE) e->flags |= EF_BACKDROP_TILE;
         memcpy(e->backdrop_insets, src->backdrop_insets, sizeof(e->backdrop_insets));
         if (src->flags & EF_HAS_FONT_SIZE) { e->font_size = src->font_size; e->flags |= EF_HAS_FONT_SIZE; }
+        if (src->flags & EF_HAS_FONT_OUTLINE) { e->font_outline = src->font_outline; e->flags |= EF_HAS_FONT_OUTLINE; }
         if (src->text_off.x != 0.0f || src->text_off.y != 0.0f) e->text_off = src->text_off;
         if (src->flags & EF_HAS_HALIGN) { e->halign = src->halign; e->flags |= EF_HAS_HALIGN; }
         if (src->flags & EF_HAS_VALIGN) { e->valign = src->valign; e->flags |= EF_HAS_VALIGN; }
@@ -901,6 +912,16 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNode *child) {
     UIWow_ElemFreeStrings(&temp);
 }
 
+static void UIWow_XmlReadOutline(uiWowXmlElem_t *e, xmlNode *node) {
+    xmlChar *outline = xmlGetProp(node, BAD_CAST "outline");
+    if (outline) {
+        e->font_outline = !strcasecmp((char const *)outline, "THICK") || !strcasecmp((char const *)outline, "THICKOUTLINE") ? 2 :
+                          !strcasecmp((char const *)outline, "NORMAL") || !strcasecmp((char const *)outline, "OUTLINE") ? 1 : 0;
+        e->flags |= EF_HAS_FONT_OUTLINE;
+        xmlFree(outline);
+    }
+}
+
 static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNode *node) {
     for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
@@ -921,12 +942,21 @@ static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNode *node) {
                 xmlChar *inherits = xmlGetProp(c, BAD_CAST "inherits"), *text = xmlGetProp(c, BAD_CAST "text");
                 memset(&temp, 0, sizeof(temp)); temp.halign = e->halign; temp.valign = e->valign;
                 UIWow_XmlInheritElem(&temp, (char const *)inherits);
-                UIWow_XmlReadAnchor(&temp, c); UIWow_XmlReadJustify(&temp, c); UIWow_XmlReadFont(&temp, c);
+                UIWow_XmlReadAnchor(&temp, c); UIWow_XmlReadJustify(&temp, c); UIWow_XmlReadFont(&temp, c); UIWow_XmlReadOutline(&temp, c);
+                int saved_outline = e->font_outline;
+                uint32_t saved_outline_flag = e->flags & EF_HAS_FONT_OUTLINE;
                 UIWow_XmlInheritElem(e, (char const *)inherits);
+                if (ts != WOW_XML_BUTTON_TEXT_NORMAL) {
+                    e->font_outline = saved_outline;
+                    e->flags = (e->flags & ~EF_HAS_FONT_OUTLINE) | saved_outline_flag;
+                }
                 if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
                 e->button_text_colors[ts] = temp.colors[ELEM_COLOR_TEXT];
                 e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
-                if (ts == WOW_XML_BUTTON_TEXT_NORMAL) e->colors[ELEM_COLOR_TEXT] = temp.colors[ELEM_COLOR_TEXT];
+                if (ts == WOW_XML_BUTTON_TEXT_NORMAL) {
+                    e->colors[ELEM_COLOR_TEXT] = temp.colors[ELEM_COLOR_TEXT];
+                    if (temp.flags & EF_HAS_FONT_OUTLINE) { e->font_outline = temp.font_outline; e->flags |= EF_HAS_FONT_OUTLINE; }
+                }
                 if (temp.flags & EF_HAS_ANCHOR) e->text_off = temp.offset;
                 if (temp.flags & EF_HAS_HALIGN) { e->halign = temp.halign; e->flags |= EF_HAS_HALIGN; }
                 if (temp.flags & EF_HAS_VALIGN) { e->valign = temp.valign; e->flags |= EF_HAS_VALIGN; }
@@ -958,6 +988,7 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNode *node) {
 }
 
 static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNode *node) {
+    UIWow_XmlReadOutline(e, node);
     for (int i = 0; uiwow_shared_attrs[i].name; i++) {
         xmlChar *val = xmlGetProp(node, BAD_CAST uiwow_shared_attrs[i].name);
         if (!val) continue;
