@@ -146,6 +146,7 @@ The iPad must be unlocked for the launch step. `make ipad-run` does the same in 
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md) — module boundaries and API contracts
+- [Warcraft III progress report](docs/games/warcraft-3/progress-report.md) — campaign playability, gameplay coverage, and differences from retail
 - [Runtime configuration](docs/architecture/runtime.md) — paths, cvars, and startup order
 - [Rendering scene workflow](docs/rendering-scene-workflow.md) — launching maps and model scenes
 - [UI authoring](docs/ui-authoring.md) — FDF, bindings, and UI tests
