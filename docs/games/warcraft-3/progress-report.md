@@ -2,6 +2,8 @@
 
 OpenRealm is a playable reimplementation of Warcraft III built from the game data and campaign scripts. It supports both **Reign of Chaos** and **The Frozen Throne** campaign content.
 
+The browser version is not tested as extensively as the native builds, runs slowly, and does not currently support network play. You can [try it in your web browser](https://corepunch.github.io/open-realm/play/).
+
 It has been tested with the original Reign of Chaos and The Frozen Throne CDs, and with the legacy version 1.29 available through the Reforged download. The Reforged version itself is not supported yet.
 
 OpenRealm is still a work in progress, so changes may occasionally introduce regressions.
@@ -15,6 +17,7 @@ The frame rate is limited to 60 FPS by default. On very low-end hardware, such a
 - All Reign of Chaos and The Frozen Throne campaign levels are playable.
 - Core base-building mechanics work for all four races: Human, Orc, Undead, and Night Elf.
 - Warcraft III abilities and items are implemented and work in gameplay.
+- Network play works, but has not been tested as extensively as single-player.
 
 ## Differences from retail
 
